@@ -10,7 +10,7 @@ length: four pages of memo; the derivation appendix is the footnote the no-typed
 
 # Owner Decision Memo
 
-**This does not recount the programme.** Thirty-seven documents did that. Every number is derived by
+**This does not recount the programme.** The other gate deliverables did that — see `MASTER_CHECKLIST.md`, which is the index. ⚰️ *This sentence read "Thirty-seven documents did that": the one number in this memo with no entry in its own appendix, and it silently counted a deliverable that did not yet exist.* Every number is derived by
 the command in the appendix, never typed beside the claim it describes.
 
 ---
