@@ -82,3 +82,21 @@ chart bars; web and bars-api do. Both changed branches are weekly-only:
 
 On flow-worker the old code is therefore behaviourally identical. Web, worker and bars-api
 redeploy on `api/**` and pick the fix up.
+
+## 4. Found while verifying: a render right after a deploy lost its header
+
+AMD's weekly render was the first `/chart` after the `414f713dc` web deploy, with the pod 32 s up.
+Its header read just "AMD W": no company, price or change, and no company name in the
+watermark. A minute later the same render was complete.
+
+The header is DOM text from its own `/api/ticker-meta` and `/api/bars` lookups, and neither
+readiness flag waited for it. `eea9818e4` adds `window.__chartHeaderReady`, which is true once
+those lookups settle, whether they succeed or fail. The renderer waits for it.
+
+**After the deploy, on a pod 47 s up:**
+
+- MSFT weekly: "Microsoft Corporation W $516.17 +4.53%", strip "Wk +4.5%", H 519.40.
+- TSLA weekly: "Tesla, Inc. W $372.11 +2.15%", strip "Wk +2.2%".
+
+**First request after `414f713dc`:** the weekly bars of AMD, MSFT, TSLA, AAPL and NVDA all equal
+their own dailies, both close and week high.

@@ -512,11 +512,23 @@ export default function ChartRender() {
   // 717.95 / 717.71 / 719.06). D/W share the historical daily bar count either
   // way; only W/60 actually changed behavior.
   const [meta, setMeta] = useState({ company: '', price: null, chg: null })
+  // ⭐ `window.__chartHeaderReady` — has the HEADER's lookup SETTLED? The header (company name,
+  // price, change) is DOM text filled from two fetches below, and neither readiness flag waited
+  // for it: `__chartBarsReady` is StockChart's bars and `__chartReady` hashes CANVAS pixels only.
+  // ⚰️ 2026-09-25, the first /chart after a web deploy: AMD's weekly render went out reading just
+  // "AMD W" (no company, no price, no change) because those endpoints were slow on the cold pod
+  // and the screenshot fired first; the same render a minute later carried the full header.
+  // SETTLED, not succeeded: a lookup that fails still flips it, so a broken endpoint costs a
+  // header, never a render. The house renderer waits on `!== false`, so a page predating the
+  // flag (undefined) is not held.
   useEffect(() => {
     if (!sym) return undefined
     let alive = true
+    window.__chartHeaderReady = false
     const want = { company: company || '', price: price > 0 ? price : null, chg: Number.isFinite(chg) ? chg : null }
-    if (want.company && want.price != null && want.chg != null) { setMeta(want); return undefined }
+    if (want.company && want.price != null && want.chg != null) {
+      setMeta(want); window.__chartHeaderReady = true; return undefined
+    }
     // Fixed-bars mode reads the header straight off the fixture. Two runs of the
     // same case therefore print the same price and the same change, which a live
     // /api/bars lookup would not.
@@ -531,6 +543,7 @@ export default function ChartRender() {
         chg: want.chg != null ? want.chg
           : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
       })
+      window.__chartHeaderReady = true
       return undefined
     }
     Promise.allSettled([
@@ -551,6 +564,7 @@ export default function ChartRender() {
         chg: want.chg != null ? want.chg
           : (Number.isFinite(c) && Number.isFinite(pc) && pc ? ((c - pc) / pc) * 100 : null),
       })
+      window.__chartHeaderReady = true
     })
     return () => { alive = false }
   }, [sym, tf, company, price, chg, fixedBars, fixtureSettled, fixtureBars])
