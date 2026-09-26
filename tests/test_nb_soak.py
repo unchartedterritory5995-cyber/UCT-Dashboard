@@ -279,6 +279,25 @@ def test_an_unattributed_fork_blocks_PASS_and_pages_until_ruled():
     assert soak.verdict(facts(samples_text=s, ruled_text=ruled))[0] == "PASS"
 
 
+def test_one_fork_is_ONE_fork_though_it_writes_a_copy_AND_an_event():
+    """Found by the sandbox browser check (run 2, `docs/notebook/evidence/wave9-9c-90e6a35d3/
+    run2/`): the dashboard read "2 fork(s)" off one conflict event and one conflicted copy. A
+    fork writes BOTH, and the event can land in the read AFTER the one that saw the copy — so
+    the count is the larger of the two per ET DAY, never their sum."""
+    t1 = START + dt.timedelta(days=6, hours=4)
+    t2 = t1 + TWO_H
+    day = (t1 - dt.timedelta(seconds=1)).astimezone(soak.ET).date().isoformat()
+    assert day == (t2 - dt.timedelta(seconds=1)).astimezone(soak.ET).date().isoformat()
+    s = _samples(extra_at={t1: {("conflicted_copies", "offline_layer", "organic"): 1},
+                           t2: {("events", "conflict_forked", "organic", "events"): 1}})
+    f = facts(samples_text=s)
+    assert f["signals"]["fork_days"] == {day: 1}
+    # and two real forks on one day still read as two
+    s2 = _samples(extra_at={t1: {("conflicted_copies", "offline_layer", "organic"): 2},
+                            t2: {("events", "conflict_forked", "organic", "events"): 1}})
+    assert facts(samples_text=s2)["signals"]["fork_days"] == {day: 2}
+
+
 def test_a_rise_in_the_rigs_sync_conflict_count_is_a_fork_too():
     t = START + dt.timedelta(days=8)
     f = facts(q1_text=_q1(conflicts={t: 4}))

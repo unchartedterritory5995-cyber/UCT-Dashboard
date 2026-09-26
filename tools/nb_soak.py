@@ -382,6 +382,8 @@ def signals(start, now, end, samples, rows, canary, rulings) -> dict:
     errors = {p: 0 for p in pops}
     anonymous = 0
     fork_days: dict = {}
+    day_events: dict = {}
+    day_copies: dict = {}
     for s in samples:
         if not s["_ok"] or s["_until"] <= start or s["_since"] >= upto:
             continue
@@ -400,10 +402,18 @@ def signals(start, now, end, samples, rows, canary, rulings) -> dict:
             copies_conn[p] += int((cc.get("connector") or {}).get(p) or 0)
             errors[p] += int((((f.get("client_errors") or {}).get("by_population") or {}).get(p) or {}).get("errors") or 0)
         anonymous += int((f.get("client_errors") or {}).get("anonymous_errors") or 0)
-        n_fork = (int(((ev.get("conflict_forked") or {}).get("organic") or {}).get("events") or 0)
-                  + int(((f.get("conflicted_copies") or {}).get("offline_layer") or {}).get("organic") or 0))
+        day_events[day] = day_events.get(day, 0) + int(
+            ((ev.get("conflict_forked") or {}).get("organic") or {}).get("events") or 0)
+        day_copies[day] = day_copies.get(day, 0) + int(
+            ((f.get("conflicted_copies") or {}).get("offline_layer") or {}).get("organic") or 0)
+    # ⛔ ONE FORK WRITES BOTH a conflicted copy AND a `conflict_forked` event (the browser
+    # check's run 2 read "2 fork(s)" off one of each). Their SUM counts every fork twice; the
+    # larger of the two, per ET day, is the best lower bound — and taken per DAY, not per
+    # interval, because the event can land in the read after the one that saw the copy.
+    for d in sorted(set(day_events) | set(day_copies)):
+        n_fork = max(day_events.get(d, 0), day_copies.get(d, 0))
         if n_fork:
-            fork_days[day] = fork_days.get(day, 0) + n_fork
+            fork_days[d] = n_fork
     # trigger 2's own reading: the rig account's sync-conflict count ROSE
     peak = PRESERVED_CONFLICTS
     for r in rows:
@@ -677,7 +687,8 @@ def render_dashboard(facts, word, fail, inc, alerts_mode: str) -> str:
     L += ["", f"Anonymous Notebook-page client errors: {sig['anonymous_errors']}. "
           f"Mini-canary runs in the window: {sig['canary_runs']}.", ""]
     if sig["fork_days"]:
-        L += ["Forks by ET day (organic conflict events + offline copies + trigger-2 rises): "
+        L += ["Forks by ET day (the larger of organic conflict events and offline copies — one fork "
+              "writes both — plus trigger-2 rises): "
               + ", ".join(f"{d}: {n}" + (" (attributed)" if d not in sig["unattributed_forks"] else "")
                           for d, n in sig["fork_days"].items()), ""]
     cs = facts.get("config_served")

@@ -81,7 +81,7 @@ INCOMPLETE. `tests/test_nb_observe.py` pins HEADER and `row()` by sha256.
 
 | signal | instrument | file / endpoint | population | paged or reported |
 |---|---|---|---|---|
-| un-attributed fork | `nb_soak.signals` over the sidecar (`events.conflict_forked`, `conflicted_copies.offline_layer`) + the Q1 `sync-conflict notes` column rising (trigger 2) | `NB_SOAK_SAMPLES`, `NB_OBSERVE_LOG` | organic (sidecar); the rig account (trigger 2) | **paged** until a `- FORK <day>: ATTRIBUTED` ruling names the day |
+| un-attributed fork | `nb_soak.signals` over the sidecar (per ET day, the LARGER of `events.conflict_forked` and `conflicted_copies.offline_layer` — one fork writes both) + the Q1 `sync-conflict notes` column rising (trigger 2) | `NB_SOAK_SAMPLES`, `NB_OBSERVE_LOG` | organic (sidecar); the rig account (trigger 2) | **paged** until a `- FORK <day>: ATTRIBUTED` ruling names the day |
 | blocked-baseline events | sidecar `events.notebook_blocked_no_baseline` | `NB_SOAK_SAMPLES` | every population (same bundle) | **paged** |
 | `save_failed` by reason | sidecar `events.save_failed.<pop>.by_reason` | `NB_SOAK_SAMPLES` | all, by population | reported |
 | `conflict_forked` by door | sidecar `events.conflict_forked.<pop>.by_door` | `NB_SOAK_SAMPLES` | all, by population | reported (organic ones feed the fork signal) |
