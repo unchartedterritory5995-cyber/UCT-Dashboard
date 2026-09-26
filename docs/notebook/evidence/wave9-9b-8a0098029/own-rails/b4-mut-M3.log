@@ -1,0 +1,41 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F..........                                                              [100%]
+================================== FAILURES ===================================
+__________ test_the_scorecard_row_set_equals_the_ledgers_both_parsed __________
+
+    def test_the_scorecard_row_set_equals_the_ledgers_both_parsed():
+        ledger_ids = [r.rid for r in _ledger_rows()]
+        card_ids = [c[0] for c in _a_rows()]
+        assert len(ledger_ids) >= 89, 'non-vacuity: the ledger parse found too few rows'
+        assert len(card_ids) == len(set(card_ids)), 'a scorecard row is duplicated'
+>       assert card_ids == ledger_ids, (sorted(set(ledger_ids) - set(card_ids)), sorted(set(card_ids) - set(ledger_ids)))
+E       AssertionError: (['G-050'], [])
+E       assert ['G-001', 'G-... 'G-010', ...] == ['G-001', 'G-... 'G-010', ...]
+E         
+E         At index 35 diff: 'G-051' != 'G-050'
+E         Right contains one more item: 'G-172'
+E         Use -v to get more diff
+
+tests\test_parity_scorecard.py:83: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 539 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 11 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+1 failed, 10 passed, 551 warnings in 0.99s

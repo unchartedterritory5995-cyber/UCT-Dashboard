@@ -1,0 +1,69 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+____________ test_check_goes_red_when_one_status_changes_in_a_copy ____________
+
+    def test_check_goes_red_when_one_status_changes_in_a_copy():
+        text = _ledger_text()
+        ok, _ = gls.check(text)
+        assert ok
+        lines = text.replace('\r\n', '\n').split('\n')
+        i = next(n for n, l in enumerate(lines) if l.startswith('| G-001 '))
+        assert '**DONE**' in lines[i]
+        lines[i] = lines[i].replace('**DONE**', '**OPEN**', 1)
+        ok2, why = gls.check('\n'.join(lines))
+>       assert not ok2 and 'differs' in why
+E       assert (not True)
+
+tests\test_gap_ledger_summary.py:138: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+___________ test_check_goes_red_when_the_unbucketed_line_is_dropped ___________
+
+    def test_check_goes_red_when_the_unbucketed_line_is_dropped():
+        text = _ledger_text().replace('\r\n', '\n')
+        dropped = '\n'.join(l for l in text.split('\n') if not l.startswith('UNBUCKETED ('))
+        assert dropped != text
+        ok, why = gls.check(dropped)
+>       assert not ok and 'differs' in why
+E       assert (not True)
+
+tests\test_gap_ledger_summary.py:146: AssertionError
+___________________ test_self_check_passes_through_the_cli ____________________
+
+    def test_self_check_passes_through_the_cli():
+        r = subprocess.run([sys.executable, TOOL, '--self-check'], capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', cwd=REPO)
+>       assert r.returncode == 0, r.stdout + r.stderr
+E       AssertionError: ok   real ledger passes: the committed block matches the rows
+E         FAIL one STATUS changed fails: the committed block matches the rows
+E         FAIL UNBUCKETED line dropped fails: the committed block matches the rows
+E         ok   both mutations changed the text: status row G-001; block line dropped
+E         SELF-CHECK: FAIL (2)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python314\\python.exe', 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\tools\\gap_ledger...e rows\nok   both mutations changed the text: status row G-001; block line dropped\nSELF-CHECK: FAIL (2)\n', stderr='').returncode
+
+tests\test_gap_ledger_summary.py:90: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 550 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 19 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_gap_ledger_summary.py::test_check_goes_red_when_one_status_changes_in_a_copy
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_gap_ledger_summary.py::test_check_goes_red_when_one_status_changes_in_a_copy
+FAILED tests/test_gap_ledger_summary.py::test_check_goes_red_when_the_unbucketed_line_is_dropped
+FAILED tests/test_gap_ledger_summary.py::test_self_check_passes_through_the_cli
+3 failed, 570 warnings in 0.62s

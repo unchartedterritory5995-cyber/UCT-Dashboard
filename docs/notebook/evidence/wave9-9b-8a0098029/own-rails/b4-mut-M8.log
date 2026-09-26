@@ -1,0 +1,41 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.........F.                                                              [100%]
+================================== FAILURES ===================================
+______ test_the_headline_counts_only_standards_whose_every_clause_is_met ______
+
+    def test_the_headline_counts_only_standards_whose_every_clause_is_met():
+        rows = _card_standards()
+        at_bar = 0
+        for c in rows:
+            k, n = (int(x) for x in c[3].split('/'))
+            assert (c[4] == '10') == (k == n), c
+            at_bar += k == n
+        m = re.search(r'\*\*(\d+) of 16 standards at bar\.\*\*', _text(SCORECARD))
+        assert m, 'no headline'
+>       assert int(m.group(1)) == at_bar
+E       AssertionError: assert 1 == 0
+E        +  where 1 = int('1')
+E        +    where '1' = <built-in method group of re.Match object at 0x000001D52E333E20>(1)
+E        +      where <built-in method group of re.Match object at 0x000001D52E333E20> = <re.Match object; span=(130388, 130417), match='**1 of 16 standards at bar.**'>.group
+
+tests\test_parity_scorecard.py:194: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 539 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 11 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_the_headline_counts_only_standards_whose_every_clause_is_met
+1 failed, 10 passed, 551 warnings in 0.56s
