@@ -10946,6 +10946,42 @@ class _ImmutableStaticFiles(StaticFiles):
         return response
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
+
+# ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
+# A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
+# the SPA catch-all below answers them with index.html like every other page. That
+# response gets two headers, for those paths and no others:
+#   * X-Robots-Tag: noindex, nofollow -- ruling D-B10: wave 8 is ALWAYS noindex, no
+#     toggle. It is set by PATH, so the HTML cannot differ per publication.
+#   * Referrer-Policy: no-referrer -- ruling D-B1: the token is the credential and it
+#     rides the path, so a click out must not hand the URL to another site.
+# ⛔ ONE FACT IN TWO LANGUAGES: these prefixes ARE `SHARED_NOTE_PATH` (lib/noteShareLink.js)
+# and `PUBLISHED_PATH` (lib/notePublishLink.js). tests/test_public_note_headers.py parses
+# both files and fails if this tuple stops equalling them. The match is by path SEGMENT:
+# a bare startswith("/p") would also mark /pricing and /portfolio-heat.
+# ⚠️ robots.txt must NOT disallow these paths: a crawler that may not fetch a page never
+# sees its noindex.
+PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
+PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+
+
+def is_public_note_path(full_path: str) -> bool:
+    """Is this SPA path a public note page (a share link or a published page)?"""
+    path = "/" + (full_path or "").lstrip("/")
+    return any(path == p or path.startswith(p + "/") for p in PUBLIC_NOTE_PATH_PREFIXES)
+
+
+def spa_index_response(full_path: str):
+    """The SPA catch-all's response: index.html, never cached, plus the public-note
+    headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
+    it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
+    (tests/test_public_note_headers.py pins that by AST)."""
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    if is_public_note_path(full_path):
+        headers.update(PUBLIC_NOTE_HEADERS)
+    return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11113,9 +11149,8 @@ if os.path.exists(DIST):
     # check all use, so `authorUrl: https://uctintelligence.com` was reported
     # as "not reachable" while the same URL served 200 to every GET. Starlette
     # runs the same handler for both; h11 drops the body on a HEAD response.
+    # Wave 8 seam S8-4: the response (and the public-note headers) is built by
+    # spa_index_response, above the DIST guard.
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def spa_fallback(full_path: str):
-        return FileResponse(
-            os.path.join(DIST, "index.html"),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-        )
+        return spa_index_response(full_path)
