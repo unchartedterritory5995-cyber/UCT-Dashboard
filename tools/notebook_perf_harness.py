@@ -579,8 +579,11 @@ def dry_run() -> int:
     assert len(bad["breaches"]) == 2, bad
     short = summarize({1000: []}, {1000: [1.0] * 10}, {1000: 60})
     assert len(short["inconclusive"]) == 2 and not short["rows"], short
-    assert refuse_shared_root(r"C:\data") and refuse_shared_root(r"C:\data\sub")
-    assert refuse_shared_root(r"C:\data-w7perf") is None
+    # In THIS platform's spelling: `C:\data` is a relative name on POSIX, which is not the root
+    # this box would write to there (PR #196 CI ran the dry run on ubuntu and it failed here).
+    home = r"C:\data" if os.name == "nt" else "/data"
+    assert refuse_shared_root(home) and refuse_shared_root(os.path.join(home, "sub"))
+    assert refuse_shared_root(home + "-w7perf") is None
     assert (OPEN_BUDGET_MS, OPEN_UP_TO, TYPING_BUDGET_MS, TYPING_UP_TO) == (300.0, 1000, 16.0, 2000), \
         "the editor budget in perf-budgets.json is not the brief's"
     # the integrity reader, against lines written by the launcher's own writer

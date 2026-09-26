@@ -17,6 +17,7 @@ import ast
 import contextlib
 import json
 import os
+import signal
 import socket
 import sys
 import threading
@@ -438,8 +439,17 @@ def test_an_undeliverable_stop_signal_falls_through_to_terminate(tmp_path, monke
     try:
         assert box.wait_healthy(f"http://127.0.0.1:{port}", 60)
 
+        # Only the GRACEFUL signal is undeliverable. On POSIX `terminate()` and `kill()` are
+        # themselves `send_signal(SIGTERM/SIGKILL)`, so refusing every signal also blocked the
+        # fallback under test and the stand-in could not be stopped at all (PR #196 CI, ubuntu);
+        # on Windows they never went through `send_signal`, so this is the same test there.
+        real_send = box.proc.send_signal
+        graceful = signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT
+
         def no_console(sig):
-            raise OSError(6, "The handle is invalid")
+            if sig == graceful:
+                raise OSError(6, "The handle is invalid")
+            return real_send(sig)
 
         monkeypatch.setattr(box.proc, "send_signal", no_console)
         how = box.stop(grace_s=30)
