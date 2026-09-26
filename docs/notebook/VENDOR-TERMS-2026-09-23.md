@@ -8,8 +8,8 @@ require. Written while clearing the owner's to-do list; every row says whether i
 
 | Vendor | What we use (from the code) | Terms question | Status |
 |---|---|---|---|
-| **FMP** (`FMP_API_KEY`) | `/stable/earnings`, earnings calendar and surprises, analyst estimates, income statement, profile, ratios, splits, grades, price targets, stock news, institutional ownership | FMP's terms of service require a **Data Display and Licensing Agreement** to show data to users of a commercial product | **Inquiry drafted** in the owner's Gmail Drafts to `info@financialmodelingprep.com`, 2026-09-23. Not sent. No prior FMP thread exists: a Gmail search turned up only FMP marketing and welcome emails |
-| **Finnhub** (`FINNHUB_API_KEY`) | WebSocket real-time trades (`realtime_stream.py`); `/calendar/earnings`, `/stock/earnings`, `/stock/recommendation`, `/stock/price-target`, `/stock/upgrade-downgrade`, `/stock/metric`, `/stock/profile2`, `/stock/insider-transactions`, `/calendar/ipo`, `/stock/transcripts*` | Finnhub's FAQ says commercial use needs **written approval** | **Inquiry drafted** in the owner's Gmail Drafts to `sales@finnhub.io`, 2026-09-23. Not sent. No prior thread (the one Finnhub email is its registration welcome, 2026-02-17) |
+| **FMP** (`FMP_API_KEY`) | `/stable/earnings`, earnings calendar and surprises, analyst estimates, income statement, profile, ratios, splits, grades, price targets, stock news, institutional ownership | FMP's terms of service require a **Data Display and Licensing Agreement** to show data to users of a commercial product | **APPROVED** -- the owner arranged licensing directly with FMP (confirmed 2026-09-25). ⚰️ This row said "inquiry drafted, not sent": that described the agent's Gmail draft, not the state of the licence, which the owner had already settled; the draft is obsolete |
+| **Finnhub** (`FINNHUB_API_KEY`) | WebSocket real-time trades (`realtime_stream.py`); `/calendar/earnings`, `/stock/earnings`, `/stock/recommendation`, `/stock/price-target`, `/stock/upgrade-downgrade`, `/stock/metric`, `/stock/profile2`, `/stock/insider-transactions`, `/calendar/ipo`, `/stock/transcripts*` | Finnhub's FAQ says commercial use needs **written approval** | **APPROVED** -- the owner arranged licensing directly with Finnhub (confirmed 2026-09-25). The 2026-09-23 draft is obsolete |
 | Massive (Polygon-compatible, `MASSIVE_API_KEY`) | bars, snapshots, OPRA options tape | redistribution / display terms | not checked |
 | AlphaVantage (`ALPHAVANTAGE_API_KEY`) | news sentiment, earnings-call transcripts | commercial use on the key's tier | not checked |
 | logo.dev (`LOGODEV_TOKEN`) | ticker logos | attribution requirement on the plan in use | not checked |
@@ -85,10 +85,10 @@ it changes no flag by itself.
 | Item | What was approved | Consequence |
 |---|---|---|
 | L1 | The Privacy + Terms rewrite in `24db02b9e` (section 3 above) | ships with PR #186 |
-| L2 | Send the two drafted inquiries (FMP, Finnhub) from the owner's Gmail | sent by the owner or the controller; answers decide L3/L5 |
-| L3 | Share links turn on only with market data replaced by a neutral line, until FMP and Massive answer in writing | `J2_SHARE_LINKS_ENABLED` flips after wave 8 ships that reducer |
+| L2 | ⚰️ SUPERSEDED: FMP and Finnhub licensing is APPROVED -- the owner arranged it directly and the drafts are obsolete | no inquiry to send |
+| L3 | Share links: FMP-sourced figures may show; Massive-sourced chart images (bars) are replaced by a neutral line, because Massive was not named in the licensing approval | `J2_SHARE_LINKS_ENABLED` flips after wave 8 ships that reducer |
 | L4 | The "Published notes and folders" Privacy sentence, as sent | lands with wave 8's publish lane; `NOTEBOOK_PUBLISH_ENABLED` flips after |
-| L5 | Analyst-consensus storage (G-062) stays blocked until FMP answers | `rights_class: conditional` unchanged |
+| L5 | Analyst-consensus storage (G-062): UNBLOCKED -- the FMP approval covers it | the conditional fact type is activated in a later lane |
 | L6 | The Cloudflare Privacy line for email-in, WITHOUT the draft's "only to deliver them to UCT" clause (no Cloudflare document found says it) | in `Privacy.jsx` on this branch; email-in may flip once live and the Cloudflare setup is done |
 | L7 | Meaning search stays dark until OpenAI confirms zero retention in writing | decision D7 unchanged |
 | L8 | Writing help and the Compass notes tool may flip after wave 7 is live; "writing help" named in the Anthropic line | in `Privacy.jsx` on this branch |
