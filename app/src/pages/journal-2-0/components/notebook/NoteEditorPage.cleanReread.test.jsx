@@ -50,6 +50,14 @@ const APPENDED = 'Added from my phone: trimmed half of SMCI.'
 const ACCOUNT_DB = dbNameFor('u42')
 let factory
 let server
+// R-1: a one-shot hold on the next GET of the note -- the D-G5 re-read, held on the wire.
+let hold = null
+function armHold() {
+  let release
+  const gate = new Promise((r) => { release = r })
+  hold = { armed: true, called: false, gate, release }
+  return hold
+}
 const sweepSend = vi.fn(async () => { throw new Error('the sweep must never send the note the editor owns') })
 const sweepFork = vi.fn(async () => { throw new Error('the sweep must never fork the note the editor owns') })
 
@@ -81,7 +89,16 @@ beforeEach(() => {
   installLocks()
   vi.useFakeTimers({ shouldAdvanceTime: true })
   server = makeSchemaServer({ body: BODY, updatedAt: R, title: 'Daily note' })
-  global.fetch = vi.fn(async (url, init = {}) => server.fetch(url, init))
+  hold = null
+  global.fetch = vi.fn(async (url, init = {}) => {
+    const method = (init.method || 'GET').toUpperCase()
+    if (hold?.armed && method === 'GET' && String(url) === '/api/j2/notes/n1') {
+      hold.armed = false
+      hold.called = true
+      await hold.gate
+    }
+    return server.fetch(url, init)
+  })
 })
 afterEach(() => {
   cleanup()
@@ -140,6 +157,8 @@ const bodyPuts = () => server.puts.filter((p) => Object.hasOwn(p.patch, 'bodyJso
 const noteGets = () => global.fetch.mock.calls
   .filter(([u, i]) => String(u) === '/api/j2/notes/n1' && !(i?.method && i.method !== 'GET')).length
 const text = (body) => JSON.stringify(body)
+const durableRecord = () => (factory.databases.get(ACCOUNT_DB)?.dump('notes') ?? []).find((r) => r.noteId === 'n1')
+const draft = () => JSON.parse(localStorage.getItem('uct.j2.notedraft.n1') || 'null')
 
 describe('⭐ D-G5 — a CLEAN open editor adopts a server append when the member comes back', () => {
   it('visibilitychange: the append is adopted, the next word lands on it -- no conflicted copy', async () => {
@@ -188,6 +207,37 @@ describe('⛔ D-G5 — an editor holding unsent words keeps fork-never-clobber',
     expect(text(server.note.bodyJson)).not.toContain('my unsent line')
   })
 
+  // ⛔ R-1 (frontend re-review): the re-read is asked AGAIN after the GET comes back. A word typed
+  // while the GET was on the wire makes the editor unclean, and the server copy must not be put over
+  // it. Without the post-read check the adoption replaced the document, the word left the editor,
+  // and the member's next keystroke overwrote the draft and the durable snapshot -- the word was then
+  // in no layer. Probe P1 of the re-review, kept.
+  it('a word typed WHILE the re-read is on the wire stays on screen and in the local layers; nothing is adopted over it', async () => {
+    await openTheNote()
+    await sit(6)
+    appendOnTheServer()
+    const held = armHold()
+    await act(async () => { document.dispatchEvent(new Event('visibilitychange')); await settleIdb(4) })
+    await waitFor(() => expect(held.called, 'the clean editor never started its re-read').toBe(true))
+    await typeInBody(' typedmidread')
+    await act(async () => { held.release(); await settleIdb(8) })
+
+    const onScreen = text((await liveEditor()).getJSON())
+    expect(onScreen, 'the word typed during the read left the editor').toContain('typedmidread')
+    expect(onScreen, 'the server copy was adopted over an unclean editor').not.toContain(APPENDED)
+    // The local layers hold it before any save: the synchronous draft at once, the durable copy after
+    // its ~200 ms coalescing window -- well inside the 800 ms autosave, which would fork and settle.
+    expect(String(text(draft()?.bodyJson)), 'the word is not in the synchronous draft').toContain('typedmidread')
+    await act(async () => { vi.advanceTimersByTime(250); await settleIdb(6) })
+    expect(String(text(durableRecord()?.bodyJson)), 'the word is not in the durable copy').toContain('typedmidread')
+
+    await sit(10)
+    const kept = text(server.note.bodyJson).includes('typedmidread')
+      || server.forks.some((f) => text(f.bodyJson).includes('typedmidread'))
+    expect(kept, 'the word reached neither the note nor a copy').toBe(true)
+    expect(text(server.note.bodyJson), 'the append was clobbered').toContain(APPENDED)
+  })
+
   it('an entry still QUEUED for the note in the offline layer: the editor does not adopt', async () => {
     await openTheNote()
     await sit(6)
@@ -201,5 +251,20 @@ describe('⛔ D-G5 — an editor holding unsent words keeps fork-never-clobber',
     appendOnTheServer()
     await comeBack('visibility')
     expect(text((await liveEditor()).getJSON()), 'adopted over queued work').not.toContain(APPENDED)
+  })
+
+  // ⛔ R-3 (frontend re-review): "an unreadable store is not clean". The offline layer's predicate
+  // answers `unreadable` when the store cannot be opened or read, and that is NOT a clean answer:
+  // queued words may be sitting in it. No re-read is spent and nothing is adopted. The queued rail
+  // above cannot tell the two apart (both read "unsent"); this one opens nothing. Probe P2, kept.
+  it('an UNREADABLE unsent-work store is not clean: no extra GET, nothing adopted', async () => {
+    await openTheNote()
+    await sit(6)
+    const getsBefore = noteGets()
+    factory.open = () => { throw new Error('injected: the notebook store cannot be opened') }
+    appendOnTheServer()
+    await comeBack('visibility')
+    expect(noteGets(), 'a re-read was spent past an unreadable store').toBe(getsBefore)
+    expect(text((await liveEditor()).getJSON()), 'adopted past an unreadable store').not.toContain(APPENDED)
   })
 })
