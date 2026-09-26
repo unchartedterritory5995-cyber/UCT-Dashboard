@@ -350,7 +350,12 @@ function rather than carrying a copy.
   breach must REPRODUCE:** the benchmark re-times an op that reads over a budgeted line once,
   same warm-ups and reps (`--remeasure`, which the CI job passes for all three `_ci` budgets),
   and `check_search` breaches only when both readings are over the line; a one-off is printed
-  as a note. No line was raised. The red rate under the new rule is **not yet measured**.
+  as a note. No line was raised. ⚠️ **One re-measure does not make the job quiet:** of the
+  first 7 runs under the rule (2026-09-25 18:47–19:05 CT) one was red — run 36203106608 on
+  `1649bba7b` (a test file and a workflow comment) REPRODUCED `q=common, relevance` at
+  239.1 → 118.5 ms, while in the same run `q=rare (list+count)` read 153.0 → 13.0 ms and was
+  noted, not counted. A burst that outlasts the pass still reads red, and seven runs establish
+  no rate.
   **One op is informational there (review M-8):** `switcher_search (fuzzy, in order)`, whose
   code this lane never touched, already read 90.5 ms p95 at 10k on this box (section 2's
   table), inside a shared runner's noise of the 100 ms line, so enforcing it would flap the job

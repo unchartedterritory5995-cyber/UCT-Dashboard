@@ -34,8 +34,12 @@
 #   benchmark re-times ONCE, with the same warm-ups and reps, every op that reads over a line
 #   of a budget named with --remeasure, and the budget tool breaches an op only when BOTH
 #   readings are over it; one that did not reproduce is printed as a note. No line was raised.
-#   The red rate under this rule is NOT yet measured: count the runs after it lands before
-#   trusting a red here, or a green.
+# ⚠️ AND ONE RE-MEASURE DOES NOT MAKE THE JOB QUIET. The first 7 runs under the rule
+#   (2026-09-25 18:47-19:05 CT) had 1 red: run 36203106608 on 1649bba7b (a test file and a
+#   workflow comment) REPRODUCED `q=common, relevance` at 239.1 -> 118.5 ms, while in the same run
+#   `q=rare (list+count)` read 153.0 -> 13.0 ms and was noted, not counted. A burst that
+#   outlasts the pass still reads red. Seven runs establish no rate: a red here is still a
+#   "look at it", never a verdict.
 #
 # ⛔ AN OP OR TIER THE RUN DID NOT MEASURE IS A BREACH, and a missing manifest or a
 #   renamed route root exits 3 (fails CLOSED). A budget that could not be checked did
