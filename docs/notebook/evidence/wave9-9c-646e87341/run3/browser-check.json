@@ -1,0 +1,310 @@
+{
+ "tip": "646e87341",
+ "base": "http://127.0.0.1:8206",
+ "started": "2026-09-26T04:33:39.575869+00:00",
+ "run_start_utc": "2026-09-26T04:31:39Z",
+ "steps": [
+  {
+   "step": "admin (hubtest@local.dev, the sandbox's ADMIN_EMAILS) signed up or in",
+   "ok": true,
+   "at": "2026-09-26T04:33:41.438231+00:00"
+  },
+  {
+   "step": "P1 provisioned the facilitator guide's way: comp-access + verify-email => paid_equiv",
+   "ok": true,
+   "at": "2026-09-26T04:33:41.938684+00:00",
+   "comp": 200,
+   "verify": 200,
+   "email_domain": "example.com (a made-up address, never @uctintelligence.internal)",
+   "notebook_keys": {
+    "notebook_offline_default_on": true,
+    "notebook_offline_read_on": false,
+    "notebook_conflict_ux_on": false,
+    "notebook_attachments_on": false,
+    "notebook_ask_insert_on": false,
+    "notebook_writing_help_enabled": false,
+    "notebook_door_guard": "full"
+   }
+  },
+  {
+   "step": "pre-flight T8 (kit \u00a75): notebook_offline_default_on is true on /api/auth/me",
+   "ok": true,
+   "at": "2026-09-26T04:33:41.939258+00:00",
+   "value": true
+  },
+  {
+   "step": "pre-flight T1 (kit \u00a75): notebook_onboarding_enabled is ABSENT at this base (PLANNED, wave 8)",
+   "ok": true,
+   "at": "2026-09-26T04:33:41.939877+00:00",
+   "keys": [
+    "notebook_ask_insert_on",
+    "notebook_attachments_on",
+    "notebook_conflict_ux_on",
+    "notebook_door_guard",
+    "notebook_offline_default_on",
+    "notebook_offline_read_on",
+    "notebook_writing_help_enabled"
+   ]
+  },
+  {
+   "step": "T1 core: 'Start a note with your plan for tomorrow's session.' -- on the EMPTY account; check: after a reload the note is there with their words",
+   "ok": true,
+   "at": "2026-09-26T04:33:48.389875+00:00",
+   "door": "Research Home first-run card: 'Start a note'",
+   "notes_before": 0,
+   "note_id": "4213fc0db21243369c4e385ac62ccd24",
+   "saved_on_server": true,
+   "seconds_click_to_saved": 2.0,
+   "bar_under_2_min": true,
+   "title_after_reload": "Plan for tomorrow's session",
+   "screenshots": [
+    "screenshots/T1-0-empty-notebook-first-run-card.jpg",
+    "screenshots/T1-1-note-written.jpg",
+    "screenshots/T1-2-check-after-reload.jpg"
+   ]
+  },
+  {
+   "step": "the study notebook imported with 'Choose a folder' (D-9C8): 12 notes, its folders kept, the T4/T5 titles and the T7 CRWD note present",
+   "ok": true,
+   "at": "2026-09-26T04:33:53.072015+00:00",
+   "notes_after": 13,
+   "summary_line": "12 notes \u00b7 5 folders \u00b7 0 media items found",
+   "folders": [
+    "Imported from Obsidian",
+    "Lessons",
+    "Playbook",
+    "Research",
+    "Setups",
+    "study-notebook"
+   ],
+   "crwd_note": [
+    "CRWD research \u2014 endpoint security"
+   ],
+   "live_chart_offer_shown": true,
+   "tickers_set": [],
+   "screenshots": [
+    "screenshots/import-0-choose-a-folder.jpg",
+    "screenshots/import-1-review-12-notes.jpg",
+    "screenshots/import-2-complete.jpg"
+   ]
+  },
+  {
+   "step": "T2 core: 'Save this paragraph into that note, keeping where it came from.' -- passage + source link in the note; check: CLICKING the link opens the article",
+   "ok": false,
+   "at": "2026-09-26T04:34:09.933729+00:00",
+   "clipboard_had_paragraph": true,
+   "pasted_by": "keyboard Ctrl+V",
+   "on_server": true,
+   "link_href": "https://www.example.com/markets/earnings-season-read-closely",
+   "link_target": "_blank",
+   "link_opened_by": "NOTHING -- neither a click nor Ctrl+click on the link opened a tab",
+   "opened_title": null,
+   "screenshots": [
+    "screenshots/T2-0-article-paragraph-selected.jpg",
+    "screenshots/T2-1-passage-and-source-in-note.jpg"
+   ]
+  },
+  {
+   "step": "T4 core: 'Find the note called Earnings season playbook without scrolling the list.' -- Ctrl+K; check: the open note's title is the target",
+   "ok": true,
+   "at": "2026-09-26T04:34:13.400196+00:00",
+   "url_note": "a60e3418b11b4233ad3a167eaa6176f7",
+   "screenshots": [
+    "screenshots/T4-0-switcher-finds-the-note.jpg",
+    "screenshots/T4-1-check-the-open-note-is-the-target.jpg"
+   ]
+  },
+  {
+   "step": "T6 core: 'Attach this 10-Q and pull the revenue line into your note with its page.' -- excerpt in the note citing p.1; check: clicking the citation opens page 1 carrying the revenue line",
+   "ok": true,
+   "at": "2026-09-26T04:34:19.416376+00:00",
+   "excerpt_on_server": true,
+   "card_text": "\u201cTotal revenue 1,284.6 million\u201d\nfixture-synthetic-10q.pdf \u00b7 p.1",
+   "citation": "fixture-synthetic-10q.pdf \u00b7 p.1",
+   "citation_page": "1",
+   "screenshots": [
+    "screenshots/T6-0-pdf-attached.jpg",
+    "screenshots/T6-1-revenue-line-selected-save-excerpt.jpg",
+    "screenshots/T6-2-excerpt-in-the-note-citing-p1.jpg",
+    "screenshots/T6-3-check-citation-opens-the-cited-page.jpg"
+   ]
+  },
+  {
+   "step": "T8 core: 'Turn off your Wi-Fi, add a sentence, then turn it back on.' -- check: in a SECOND browser, after the reconnect, the sentence is there",
+   "ok": true,
+   "at": "2026-09-26T04:34:25.815504+00:00",
+   "server_had_it_while_offline": false,
+   "reached_server_after_reconnect": true,
+   "second_browser_login": 200,
+   "screenshots": [
+    "screenshots/T8-0-typed-with-the-network-off.jpg",
+    "screenshots/T8-1-back-online.jpg",
+    "screenshots/T8-2-check-second-browser-reads-the-sentence.jpg"
+   ]
+  },
+  {
+   "step": "seeded activity through the product's own doors: telemetry, the client-error beacon, the notes door",
+   "ok": true,
+   "at": "2026-09-26T04:35:28.376866+00:00",
+   "seeded": {
+    "organic P1": [
+     200,
+     200,
+     200,
+     200,
+     200
+    ],
+    "synthetic smoke@": [
+     200,
+     200
+    ],
+    "unknown internal ghost@": [
+     200
+    ],
+    "client error on /journal/notebook": [
+     200,
+     {
+      "ok": true,
+      "enabled": true,
+      "stored": 1,
+      "dropped": 0,
+      "invalid": 0
+     }
+    ],
+    "a sync-conflict note through the notes door": 200
+   }
+  },
+  {
+   "step": "GET /api/admin/notebook-soak as the admin, IN THE BROWSER: every seeded figure lands in its own population, never summed; aggregates only (no email, title or body text in the response)",
+   "ok": true,
+   "at": "2026-09-26T04:35:29.717403+00:00",
+   "status": 200,
+   "split": {
+    "save_failed organic": 1,
+    "save_failed synthetic": 1,
+    "offline opt-in unknown_internal": 1,
+    "offline opt-in organic (P1's own browsing)": 2,
+    "note_open_ms synthetic n": 1,
+    "conflict_forked organic by_door.outbox": 1,
+    "blocked-baseline organic": 1,
+    "client errors organic": 1,
+    "conflicted copies offline_layer organic": 1,
+    "identities editing organic": 1
+   },
+   "leaks": [],
+   "config_served": {
+    "organic": "0/0",
+    "synthetic": "0/0",
+    "rig_owner": "0/0",
+    "unknown_internal": "0/0",
+    "unresolved": "0/0"
+   },
+   "identities_editing": {
+    "organic": 1,
+    "synthetic": 0,
+    "rig_owner": 0,
+    "unknown_internal": 0,
+    "unresolved": 0
+   },
+   "note_open_ms": {
+    "organic": {
+     "n": 7,
+     "p50_ms": 226.0,
+     "p95_ms": 272.5
+    },
+    "synthetic": {
+     "n": 1,
+     "p50_ms": 140.0,
+     "p95_ms": 140.0
+    },
+    "rig_owner": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "unknown_internal": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "unresolved": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    }
+   },
+   "exposure_basis": "j2_notes.updated_at holds only a note's LAST edit: a day's figure is a lower bound, and the 2-hourly sidecar carries the day-by-day series; the window totals are exact when `until` is now",
+   "screenshots": [
+    "screenshots/soak-0-endpoint-as-admin-in-the-browser.jpg"
+   ]
+  },
+  {
+   "step": "the same read as a MEMBER is refused",
+   "ok": true,
+   "at": "2026-09-26T04:35:29.824733+00:00",
+   "status": 403,
+   "body": "{\"detail\":\"Admin access required\"}",
+   "screenshots": [
+    "screenshots/soak-1-same-read-as-a-member-403.jpg"
+   ]
+  },
+  {
+   "step": "a malformed `since` is a 400 with a sentence",
+   "ok": true,
+   "at": "2026-09-26T04:35:29.888688+00:00",
+   "status": 400,
+   "body": "{\"detail\":\"`since` is not an ISO 8601 timestamp (for example 2026-10-01T14:00:00Z).\"}",
+   "screenshots": [
+    "screenshots/soak-2-malformed-since-400.jpg"
+   ]
+  },
+  {
+   "step": "the observer's SOAK_JS read the sandbox through the signed-in page and appended ONE sidecar line with figures + the from-the-start `cumulative`; a read that cannot be taken is `skipped`",
+   "ok": true,
+   "at": "2026-09-26T04:35:31.057686+00:00",
+   "sidecar_lines": 1,
+   "interval": {
+    "since": "2026-09-26T02:35:29Z",
+    "until": "2026-09-26T04:35:29Z"
+   },
+   "cumulative_identities": {
+    "organic": 1,
+    "synthetic": 0,
+    "rig_owner": 0,
+    "unknown_internal": 0,
+    "unresolved": 0
+   },
+   "q1_optin_cell": "2026-09-26 04:35:30 \u00b7 organic 3 \u00b7 synthetic 0 \u00b7 rig/owner 0 \u00b7 \u26d4 UNKNOWN INTERNAL 1",
+   "q1_config_served": "0/0 \u2014 no member reported",
+   "q1_conflicts": 0,
+   "a_blank_page_read_is": "Error: Page.evaluate: TypeError: Failed to execute 'fetch' on 'Window': Failed to parse URL from /api/admin/notebook-soak?since"
+  },
+  {
+   "step": "tools/nb_soak.py rolled the sandbox evidence up; the dashboard renders in the browser",
+   "ok": true,
+   "at": "2026-09-26T04:35:31.502501+00:00",
+   "rc": 0,
+   "verdict": "INCONCLUSIVE",
+   "stdout_line": "2026-09-26 04:35 UTC soak INCONCLUSIVE \u00b7 day 0.0/30 (+0.0 unobserved) \u00b7 organic 1/5 \u00b7 edit-days 8/100 \u00b7 active 1/20 \u00b7 reasons 5 \u00b7 alerts 0 \u00b7 drift 0",
+   "alert_state_written": false,
+   "screenshots": [
+    "screenshots/soak-3-dashboard-rendered.jpg"
+   ]
+  }
+ ],
+ "route_fallbacks": [],
+ "page_errors": [],
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8206 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md (identity 5fdaa78e2010..., data dir C:\\data-9c)",
+  "nonce": "5fdaa78e20108101c1b2ba48491ea7e0"
+ },
+ "chromium": "145.0.7632.6",
+ "finished": "2026-09-26T04:35:31.612194+00:00",
+ "summary": {
+  "pass": 15,
+  "fail": 1,
+  "route_fallbacks": 0,
+  "page_errors": 0
+ }
+}
