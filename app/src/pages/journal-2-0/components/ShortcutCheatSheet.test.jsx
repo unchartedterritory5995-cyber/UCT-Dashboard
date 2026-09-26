@@ -137,3 +137,27 @@ describe('ShortcutCheatSheet — a chord reads as a chord, a sequence as a seque
     expect(keysText('Find and replace in the current note')).toBe('Cmd + Option + F')
   })
 })
+
+// Wave 8 (lane 8A, ruling D-A3): the graph canvas's keys are on the ONE list,
+// in the member's own keyboard's words -- a Mac has no Home or End key.
+describe('ShortcutCheatSheet -- the graph canvas keys', () => {
+  const setPlatform = (value) => Object.defineProperty(navigator, 'platform', { value, configurable: true })
+  afterEach(() => { delete navigator.platform })
+  const keysText = (label) => {
+    const li = screen.getByText(label).closest('li')
+    return li.textContent.slice(label.length)
+  }
+
+  it.each([
+    ['Win32', 'Home', 'End'],
+    ['MacIntel', 'Fn + ←', 'Fn + →'],
+  ])('on %s', (platform, home, end) => {
+    setPlatform(platform)
+    render(<ShortcutCheatSheet open onClose={vi.fn()} />)
+    expect(keysText('Graph view: move to the nearest note in that direction')).toBe('Arrow keys')
+    expect(keysText('Graph view: go to the first note by title')).toBe(home)
+    expect(keysText('Graph view: go to the last note by title')).toBe(end)
+    expect(keysText('Graph view: open the selected note')).toBe('Enter')
+    expect(keysText('Graph view: clear the selected note')).toBe('Esc')
+  })
+})

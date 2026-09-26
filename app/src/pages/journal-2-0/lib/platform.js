@@ -38,6 +38,17 @@ export function replaceChordKeys() {
 
 export const chordText = (keys) => keys.join('+')
 
+/**
+ * Wave 8 (lane 8A): Home and End as a member presses them. A Mac keyboard has
+ * neither key; Fn+Left and Fn+Right send the same `Home` / `End` key events a
+ * browser hands the page, so that is what the shortcut sheet shows there.
+ */
+export function homeEndKeys() {
+  return isMacPlatform()
+    ? { home: ['Fn', '←'], end: ['Fn', '→'] }
+    : { home: ['Home'], end: ['End'] }
+}
+
 /** True for the platform's replace chord on a keydown event. */
 export function isReplaceChord(e) {
   const key = String(e.key || '').toLowerCase()

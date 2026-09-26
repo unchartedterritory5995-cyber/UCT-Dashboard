@@ -19,7 +19,7 @@ export const SURFACES = Object.freeze({
   // ── the tab and the editor ──────────────────────────────────────────────────
   'tabs/NotebookTab.jsx': { recipe: 'tab-list' },
   'components/notebook/NoteEditorPage.jsx': { recipe: 'editor' },
-  'components/notebook/NoteGraphView.jsx': { coveredBy: 'tab-graph' },
+  'components/notebook/NoteGraphView.jsx': { recipe: 'graph-canvas' },
   'components/notebook/FolderSidebar.jsx': { recipe: 'folder-sidebar-edit' },
   'components/notebook/AskPanel.jsx': { recipe: 'ask-panel' },
   'components/notebook/TickerResearchWorkspace.jsx': { recipe: 'ticker-research' },
