@@ -48,14 +48,15 @@ the axe rails and the screen-reader pass judge the words.
 
 ## Known gaps (2026-09-26)
 
-- **Three contrast rulings are open** (`a11y/contrastExpectedFailures.js`, 138 pair-theme
-  rows): **D-A4-1** `--loss` as small text in dark/oled (3.63-4.30:1); **D-A4-2** `--gain`
+- **Three contrast rulings are open** (`a11y/contrastExpectedFailures.js`, 139 pair-theme
+  rows: 43 / 6 / 90): **D-A4-1** `--loss` as small text in dark/oled (3.63-4.30:1); **D-A4-2** `--gain`
   on its tint in light (4.42:1); **D-A4-3** input edges drawn in `--border` (1.18:1 dark,
   WCAG 1.4.11). Each needs a `tokens.css` decision; no Notebook-CSS token switch fixes
   them in all three themes.
-- **Two focus rings in lane 8C's files** use the translucent `--focus-ring` (1.72:1 on the
-  light theme): `NoteExportControls` `.item:focus-visible` and `ExportDialog`
-  `.option:focus-within`. The fix is `box-shadow: 0 0 0 2px var(--ut-gold)`.
+- **Five focus rings in lane 8C's files** use the translucent `--focus-ring` (1.72:1 on the
+  light theme): `NoteExportControls` `.item:focus-visible`, `ExportDialog`
+  `.option:focus-within`, the Research home sample strip's two buttons, and the tour's
+  title and Skip. The fix is `box-shadow: 0 0 0 2px var(--ut-gold)`.
 - **The graph canvas draws its nodes, edges and hub labels in fixed colours** chosen for a
   dark canvas (`NoteGraphView.jsx` draw()). The selection ring follows the theme and is
   measured; the rest is measured nowhere, and on the light theme the hub labels are
