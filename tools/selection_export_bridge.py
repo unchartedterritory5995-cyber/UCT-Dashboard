@@ -4,7 +4,8 @@ Reads a small library as JSON on stdin --
 
     {"folders": [{"id", "name", "parent"}],
      "notes":   [{"id", "title", "folder", "doc"}],
-     "ids":     ["<note id>", ...]}
+     "ids":     ["<note id>", ...],
+     "fmt":     "md" | "html" | "json"}          (optional; absent is Markdown)
 
 -- builds it in an IN-MEMORY SQLite database with the real schema
 (`journal_two.db.ensure_schema`), runs `notes_export.build_selection_export_to_tempfile`
@@ -13,6 +14,10 @@ JSON line, last, `{"files": {name: text}, "exported": n, "skipped": [...]}`.
 The JS side feeds those files to our own importer (`lib/importer`) and checks
 that a link between two exported notes still resolves: the round trip crosses
 both runtimes, so neither half is a hand-typed stand-in for the other.
+
+Wave 9 lane 9D (D1): `fmt` is handed to the builder's `fmt=` exactly as the route
+hands it, so a JSON SELECTION export can be fed to the uct adapter too. Only the
+text formats: every file is read back as UTF-8 (a Word archive is not text).
 
 ⛔ THE CENSUS, NOT A HAND-PICKED VARIABLE (CLAUDE.md, "`C:\\data` IS REAL ON THIS
 BOX"). Importing the repo-root `conftest` pins every environment variable the
@@ -58,7 +63,8 @@ def main() -> int:
             " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (n["id"], "u1", n.get("folder"), n["title"], json.dumps(n["doc"]), "", "[]", stamp, stamp))
     conn.commit()
-    path, _name, exported, skipped = build_selection_export_to_tempfile("u1", spec.get("ids", []), conn=conn)
+    path, _name, exported, skipped = build_selection_export_to_tempfile(
+        "u1", spec.get("ids", []), conn=conn, fmt=spec.get("fmt", "md"))
     try:
         with zipfile.ZipFile(path) as zf:
             files = {name: zf.read(name).decode("utf-8") for name in zf.namelist()}

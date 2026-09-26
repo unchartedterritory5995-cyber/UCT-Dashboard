@@ -27,6 +27,7 @@ import json
 import os
 import tempfile
 import zipfile
+from datetime import datetime, timezone
 
 import pytest
 from fastapi import FastAPI
@@ -392,13 +393,13 @@ def test_the_route_calls_the_selection_builder_lane_d_shipped_not_the_per_note_m
     real = notes_export.build_selection_export_to_tempfile
     calls = []
 
-    def spy(user_id, note_ids, conn=None):
-        calls.append((user_id, list(note_ids)))
-        return real(user_id, note_ids, conn=conn)
+    def spy(user_id, note_ids, conn=None, *, fmt="md"):
+        calls.append((user_id, list(note_ids), fmt))
+        return real(user_id, note_ids, conn=conn, fmt=fmt)
 
     monkeypatch.setattr(notes_export, "build_selection_export_to_tempfile", spy)
     r = _export(client, [a["id"]])
-    assert calls == [("u1", [a["id"]])]
+    assert calls == [("u1", [a["id"]], "md")]
     zf = zipfile.ZipFile(io.BytesIO(r.content))
     assert "Alpha.md" in zf.namelist()
     manifest = json.loads(zf.read("UCT_NOTEBOOK_EXPORT.json"))
@@ -460,7 +461,7 @@ def test_a_failed_build_releases_the_slot_so_the_next_export_still_runs(app, cli
     a = _note(client, "Alpha")
     from api.services.journal_two import notes_export
 
-    def boom(user_id, note_ids, conn=None):
+    def boom(user_id, note_ids, conn=None, *, fmt="md"):
         raise RuntimeError("disk full")
 
     monkeypatch.setattr(notes_export, "build_selection_export_to_tempfile", boom)
@@ -484,6 +485,131 @@ def test_export_releases_its_slot_so_the_next_one_runs(app, client):
     a = _note(client, "A")
     _export(client, [a["id"]])
     _export(client, [a["id"]])  # would be a 429 if the first leaked its slot
+
+
+# ── wave 9 lane 9D (D1): the selection in every format ──────────────────────
+#
+# ⛔ ONE builder, ONE format check, ONE Content-Disposition (ruling D-9D2). The
+# route passes `format` straight to `build_selection_export_to_tempfile(fmt=)`,
+# asks `notebook_export._format_or_422` (never a copy of its sentence), and
+# names the file with `notes_export.content_disposition`.
+
+_FORMAT_FILE = {"md": ".md", "html": ".html", "json": ".json", "docx": ".docx"}
+
+
+def _export_as(client, ids, fmt, expect=200):
+    r = client.post(f"/api/j2/notes/batch/export?format={fmt}", json={"ids": ids})
+    assert r.status_code == expect, r.text
+    return r
+
+
+@pytest.mark.parametrize("fmt", ["md", "html", "json", "docx"])
+def test_each_format_is_the_selection_in_that_format_and_trashed_or_foreign_notes_are_skipped_as_today(app, client, fmt):
+    _login_as(app, "other")
+    theirs = _note(client, "Theirs")
+    _login_as(app, "u1")
+    a = _note(client, "Alpha plan")
+    _note(client, "Not selected")
+    gone = _note(client, "Gone")
+    assert client.delete(f"/api/j2/notes/{gone['id']}").status_code == 200
+    r = _export_as(client, [a["id"], gone["id"], theirs["id"]], fmt)
+    assert r.headers["content-type"] == "application/zip"
+    assert r.headers["x-export-count"] == "1"
+    assert r.headers["x-export-skipped"] == "2"
+    zf = zipfile.ZipFile(io.BytesIO(r.content))
+    names = set(zf.namelist())
+    assert f"Alpha plan{_FORMAT_FILE[fmt]}" in names
+    assert all("Not selected" not in n and "Theirs" not in n for n in names)
+    manifest = json.loads(zf.read("UCT_NOTEBOOK_EXPORT.json"))
+    assert manifest["selection"] is True and manifest["note_count"] == 1
+    assert manifest.get("format") == (None if fmt == "md" else fmt)   # Markdown's manifest is unchanged
+    issues = zf.read("EXPORT_ISSUES.txt").decode()
+    assert gone["id"] in issues and theirs["id"] in issues
+
+
+@pytest.mark.parametrize("fmt", ["md", "html", "json", "docx"])
+def test_the_route_hands_the_format_to_the_ONE_selection_builder(app, client, monkeypatch, fmt):
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    from api.services.journal_two import notes_export
+    real = notes_export.build_selection_export_to_tempfile
+    calls = []
+
+    def spy(user_id, note_ids, conn=None, *, fmt="md"):
+        calls.append(fmt)
+        return real(user_id, note_ids, conn=conn, fmt=fmt)
+
+    monkeypatch.setattr(notes_export, "build_selection_export_to_tempfile", spy)
+    _export_as(client, [a["id"]], fmt)
+    assert calls == [fmt]
+
+
+def test_no_format_is_Markdown_exactly_as_before(app, client):
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    r = _export(client, [a["id"]])                     # the pre-wave-9 request, byte for byte
+    names = zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+    assert "Alpha.md" in names
+    assert "format" not in json.loads(zipfile.ZipFile(io.BytesIO(r.content)).read("UCT_NOTEBOOK_EXPORT.json"))
+
+
+@pytest.mark.parametrize("fmt", ["md", "html", "json", "docx"])
+def test_the_file_name_comes_from_the_ONE_content_disposition_builder(app, client, fmt):
+    """The same header the format routes send: an ASCII name AND the RFC 5987 `filename*`
+    the client reads first. The hand-built `filename="…"` this route used to send had no
+    `filename*` at all."""
+    from api.services.journal_two.notes_export import content_disposition
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    r = _export_as(client, [a["id"]], fmt)
+    cd = r.headers["content-disposition"]
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    name = f"uct-notebook-selection-{stamp}.zip" if fmt == "md" else f"uct-notebook-selection-{stamp}-{fmt}.zip"
+    assert cd == content_disposition(name)
+    assert "filename*=UTF-8''" in cd
+
+
+def test_an_unknown_format_is_the_format_routes_own_422_sentence_decided_before_the_slot(app, client, monkeypatch):
+    from api.services.journal_two import notes_export
+    from api.services.journal_two.notes_export_formats import UNKNOWN_FORMAT_SENTENCE
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    taken = []
+    monkeypatch.setattr(notes_export, "acquire_export_slot", lambda: taken.append(1) or True)
+    r = _export_as(client, [a["id"]], "pdf", expect=422)
+    assert r.json() == {"detail": UNKNOWN_FORMAT_SENTENCE}
+    assert taken == []                                  # a refused request never costs anyone the slot
+
+
+def test_the_format_is_checked_by_notebook_exports_own_function_not_a_copy(app, client, monkeypatch):
+    """⛔ The three-copies lesson (D-9D2): the batch route ASKS `_format_or_422`. A route
+    that restated the check would pass every test above and drift the day the format list
+    moves; patching the one function must reach this route."""
+    from api.routers import notebook_export
+    _login_as(app, "u1")
+    a = _note(client, "Alpha")
+    asked = []
+
+    def fake(raw):
+        asked.append(raw)
+        return "json"
+
+    monkeypatch.setattr(notebook_export, "_format_or_422", fake)
+    r = _export_as(client, [a["id"]], "html")
+    assert asked == ["html"]
+    assert "Alpha.json" in zipfile.ZipFile(io.BytesIO(r.content)).namelist()
+
+
+def test_the_route_restates_neither_the_format_sentence_nor_the_header(app):
+    """Source rail, the other half of the one above: the sentence and the hand-built header
+    are not in journal_two.py at all."""
+    import inspect
+    from api.routers import journal_two
+    from api.services.journal_two.notes_export_formats import UNKNOWN_FORMAT_SENTENCE
+    src = inspect.getsource(journal_two.notes_batch_export_endpoint)
+    assert UNKNOWN_FORMAT_SENTENCE not in inspect.getsource(journal_two)
+    assert "filename=" not in src
+    assert "content_disposition(" in src and "_format_or_422(" in src
 
 
 # ── fix round 1: Undo for move (B1), legacy tags (S2) ───────────────────────

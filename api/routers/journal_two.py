@@ -2332,9 +2332,20 @@ NOTE_BATCH_EXPORT_MAX = 500
 @router.post("/notes/batch/export")
 def notes_batch_export_endpoint(
     payload: dict[str, Any],
+    format: str | None = Query(default=None),  # noqa: A002 -- the public query name
     user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
-    """The SELECTED notes as one Markdown zip — `{ids}`.
+    """The SELECTED notes as one zip — `{ids}`, in `?format=md|html|json|docx`
+    (absent is Markdown, exactly the archive this route has always sent).
+
+    ⛔ Wave 9 lane 9D (D1, ruling D-9D2): the format is the SAME parameter the
+    format routes take, checked by THEIR function (`notebook_export._format_or_422`
+    -- imported, never a copy of its 422 sentence) and decided BEFORE the export
+    slot is taken, so a refused request never costs another member the slot. It
+    goes straight to the one builder's `fmt=`, and the file name goes out through
+    the ONE `notes_export.content_disposition` (the RFC 5987 `filename*` the
+    client reads first). Trashed and foreign notes are skipped, counted and listed
+    in EXPORT_ISSUES.txt in every format, exactly as for Markdown.
 
     ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: this calls
     `notes_export.build_selection_export_to_tempfile` — the SAME archive
@@ -2360,28 +2371,28 @@ def notes_batch_export_endpoint(
     A note that is not the member's, or is in the trash, is not exported
     and is listed in EXPORT_ISSUES.txt — and counted in `X-Export-Skipped`
     so the client can say so without opening the zip."""
-    from api.services.journal_two.notes_export import (
-        acquire_export_slot, build_selection_export_to_tempfile, release_export_slot,
-        stream_export_file,
-    )
+    from api.routers.notebook_export import _format_or_422
+    from api.services.journal_two import notes_export
 
+    fmt = _format_or_422(format)
     ids = _parse_batch_ids((payload or {}).get("ids"), cap=NOTE_BATCH_EXPORT_MAX)
-    if not acquire_export_slot():
+    if not notes_export.acquire_export_slot():
         raise HTTPException(
             status_code=429,
             detail="An export is already running. Please wait a moment and try again.",
         )
     try:
-        tmp_path, filename, exported, skipped = build_selection_export_to_tempfile(user["id"], ids)
+        tmp_path, filename, exported, skipped = notes_export.build_selection_export_to_tempfile(
+            user["id"], ids, fmt=fmt)
     except Exception:
-        release_export_slot()
+        notes_export.release_export_slot()
         raise
 
     return StreamingResponse(
-        stream_export_file(tmp_path),
+        notes_export.stream_export_file(tmp_path),
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": notes_export.content_disposition(filename),
             "X-Export-Count": str(exported),
             "X-Export-Skipped": str(len(skipped)),
             "Access-Control-Expose-Headers": "X-Export-Count, X-Export-Skipped",

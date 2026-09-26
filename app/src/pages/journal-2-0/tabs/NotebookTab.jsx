@@ -1212,7 +1212,10 @@ export default function NotebookTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkBusy, undoNotice])
 
-  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false } = {}) => {
+  // Wave 9 (lane 9D, D1): `format` is the member's choice in the bulk bar's Export
+  // panel (`EXPORT_FORMATS[].id`), carried to the request, to the sentence that names
+  // it, and through a confirmed "Export anyway" (its `args`).
+  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false, format } = {}) => {
     if (!ids.length || !startBulk()) return
     try {
       // ⛔ A note whose words the server does not have yet would export WITHOUT
@@ -1228,9 +1231,9 @@ export default function NotebookTab() {
       const send = rest.filter((id) => !checked.unsent.has(id) && !unchecked.includes(id))
       let count = 0
       let skipped = 0
-      if (send.length) ({ count, skipped } = await exportSelectedNotes(send))
-      const said = describeExport({ count, skipped, blocked, unsent }, { titleOf })
-      const offer = describeUnchecked('export', unchecked, { titleOf })
+      if (send.length) ({ count, skipped } = await exportSelectedNotes(send, format))
+      const said = describeExport({ count, skipped, blocked, unsent, format }, { titleOf })
+      const offer = describeUnchecked('export', unchecked, { titleOf, args: { format } })
       const saidAnything = count || skipped || blocked.length || unsent.length
       setBulkNotice(offer
         ? { ...offer, message: [saidAnything ? said.message : '', offer.message].filter(Boolean).join(' ') }
@@ -1249,7 +1252,7 @@ export default function NotebookTab() {
   const runAnyway = (anyway) => {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
-    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
+    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
     // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
     // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
     // `{from, to}` 400s at the server, and its own success sentence would
@@ -1926,7 +1929,7 @@ export default function NotebookTab() {
             onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
             onFavorite={() => runBulk('favorite')}
             onUnfavorite={() => runBulk('unfavorite')}
-            onExport={() => exportSelection()}
+            onExport={(format) => exportSelection(selection.selectedIds, { format })}
             onTrash={() => runBulk('trash')}
             onRestore={() => runBulk('restore')}
             onArchive={() => runBulk('archive')}
