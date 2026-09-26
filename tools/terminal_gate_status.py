@@ -47,6 +47,58 @@ BUCKETS = (
     ("ACCEPTED", ("ACCEPT",)),
 )
 
+#: A verdict the DOCUMENT states structurally, by putting it at the HEAD of the
+#: status cell. Resolved before any phrase matching, and it is the one thing that
+#: may override multiplicity — see `leading_verdict`.
+LEADING_ONLY_BUCKETS = ("DELIVERED",)
+
+#: ⛔ THE ANCHORING IS DOUBLY REDUNDANT AND THAT WAS MEASURED, NOT ASSUMED. The
+#: `^` here and the `re.match` in `leading_verdict` each pin the match to
+#: position 0 on their own (`^` without MULTILINE matches only there), so
+#: removing EITHER ALONE changes nothing — both single mutations were run on
+#: 2026-09-26 and the self-check passed both times. Case 8 goes red only when
+#: BOTH are defeated (`^` deleted AND `.match` → `.search`), which is what makes
+#: it a real control rather than an inert one: with the anchoring gone, a cell
+#: that merely MENTIONS delivery in its prose ("...once item 9 is DELIVERED...")
+#: is promoted to a verdict. That is the code-not-prose rule applied to a status
+#: cell, and it is the defect class this repo has logged six times.
+#: ⚠️ Two earlier versions of this comment each named one of the two as "the
+#: whole guard". Both were wrong, and a comment naming a mechanism is a claim
+#: about a run — so the run is recorded here instead of the claim.
+_LEADING_VERDICT = re.compile(
+    r"^\s*(?:✅\s*)?\*\*\s*"
+    r"(DELIVERED|CANONICAL PASS DRAFT COMPLETE|DRAFT COMPLETE)\b",
+    re.IGNORECASE,
+)
+
+
+def leading_verdict(status_cell: str) -> str | None:
+    """The bucket a cell states at its HEAD, or None.
+
+    ⭐ WHY THIS IS NOT THE FIRST-MATCH-WINS TRAP `classify` REFUSES. That trap
+    picks whichever status phrase appears earliest ANYWHERE and is therefore
+    decided by `BUCKETS` order — two runs over identical bytes disagreed on rows
+    15, 22 and 24 for exactly that reason. This reads a marker the document
+    PUTS FIRST on purpose: as of 2026-09-26 a delivered row opens with
+    `✅ **DELIVERED — read the verdict later in this cell; the opening clause
+    below is the PRE-DELIVERY status, kept as history.**` and then keeps its old
+    status text deliberately. So the multiplicity in those cells is a documented
+    convention, not an unresolved edit, and honouring it is reading the file
+    rather than guessing at it.
+
+    ⚠️ It resolves ONLY the leading case. A cell with two status phrases and NO
+    leading verdict is still AMBIGUOUS, because that one genuinely does need a
+    human — the refusal is narrowed to where it is warranted, never abolished.
+    Before this existed, 13 of 38 rows came back NEEDS EYES and every reader had
+    to hand-resolve the same thirteen cells, which is the work the tool exists
+    to remove.
+    """
+    m = _LEADING_VERDICT.match(status_cell)
+    if not m:
+        return None
+    word = m.group(1).upper()
+    return "DELIVERED" if word == "DELIVERED" else "DRAFT COMPLETE"
+
 
 def split_cells(line: str) -> list[str]:
     """Markdown row -> its cells, outer pipes stripped."""
@@ -66,7 +118,16 @@ def classify(status_cell: str) -> str:
     So multiplicity is reported, never resolved: an ambiguous cell is a cell a
     human must read, and "I cannot compute this" is a different fact from "it is
     not started". Silently picking one is how a tally becomes confidently wrong.
+
+    ⭐ ONE EXCEPTION, AND IT IS STRUCTURAL RATHER THAN A GUESS: a verdict the
+    document states at the HEAD of the cell wins over whatever history follows
+    it. See `leading_verdict` for why that is not the trap above. Everything
+    else still refuses.
     """
+    lead = leading_verdict(status_cell)
+    if lead is not None:
+        return lead
+
     work = status_cell.upper()
     hits = []
     for name, needles in BUCKETS:
@@ -132,7 +193,7 @@ def report(rows: list[dict], anomalies: list[str]) -> int:
 
     print(f"MASTER_CHECKLIST rows parsed: {len(rows)}")
 
-    known = [b[0] for b in BUCKETS]
+    known = list(LEADING_ONLY_BUCKETS) + [b[0] for b in BUCKETS]
     ambiguous = sorted(k for k in by if k.startswith("AMBIGUOUS"))
     order = known + ambiguous + ["UNCLASSIFIED"]
 
@@ -285,6 +346,42 @@ def self_check() -> int:
     if not got.startswith("AMBIGUOUS"):
         failures.append(f"case 5: a cell with two status words resolved to {got!r} "
                         f"instead of refusing -- ordering now decides the tally")
+
+    # Case 6: the real shape of 10 of the 38 rows. A leading DELIVERED banner
+    # followed by the PRE-DELIVERY status, kept as history on purpose.
+    led = ("| 9 | Item | 4 | `a.md` | F-01 | ✅ **DELIVERED -- read the verdict "
+           "later in this cell; the opening clause below is the PRE-DELIVERY "
+           "status, kept as history.** NOT STARTED as of the sitting; ACCEPTED |")
+    rows, _ = parse(led)
+    got = rows[0]["bucket"] if rows else "no row parsed"
+    if got != "DELIVERED":
+        failures.append(f"case 6: a cell whose HEAD states DELIVERED came back "
+                        f"{got!r} -- the documented convention is not being read")
+
+    # Case 7: rows 16/22/24 lead with a bolded DRAFT COMPLETE and a date.
+    led2 = ("| 16 | Item | 4 | `b.md` | F-02 | **DRAFT COMPLETE 2026-09-26** -- "
+            "1,540 lines; supersedes the earlier PARTIALLY SATISFIED note |")
+    rows, _ = parse(led2)
+    got = rows[0]["bucket"] if rows else "no row parsed"
+    if got != "DRAFT COMPLETE":
+        failures.append(f"case 7: a leading bolded DRAFT COMPLETE came back {got!r}")
+
+    # ⛔ CASE 8 IS THE CONTROL. It fires when the anchoring in `leading_verdict`
+    # is DEFEATED -- measured: `^` deleted alone passes, `.match` -> `.search`
+    # alone passes, BOTH together go red here. The two anchors are redundant, so
+    # no single mutation can defeat them; that is defence in depth, not a gap.
+    # A cell that only MENTIONS delivery in its prose must never be promoted, or
+    # the branch becomes a substring match on the word DELIVERED, which is the
+    # read-the-prose defect this repo has logged six times.
+    prose = ("| 12 | Item | 4 | `c.md` | F-03 | NOT STARTED -- blocked until item 9 "
+             "is **DELIVERED**, at which point this becomes ACCEPTED |")
+    rows, _ = parse(prose)
+    got = rows[0]["bucket"] if rows else "no row parsed"
+    if not got.startswith("AMBIGUOUS"):
+        failures.append(f"case 8: a cell that merely MENTIONS delivery mid-prose "
+                        f"resolved to {got!r} instead of refusing -- leading_verdict "
+                        f"is no longer anchored to position 0 (check BOTH the ^ in "
+                        f"_LEADING_VERDICT and that it is .match, not .search)")
 
     # (No report() assertion on a one-row fixture: it would trip the <20-row
     # non-vacuity guard above, which is correct behaviour, not a failure.)
