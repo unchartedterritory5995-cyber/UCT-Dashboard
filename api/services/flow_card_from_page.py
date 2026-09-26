@@ -325,9 +325,12 @@ BASIS_ROWS = 250_000
 
 
 def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None) -> dict | None:
-    """The page's derivation over the largest recent history under `cap_rows`, or None."""
+    """The page's derivation over the largest recent history under `cap_rows`, or None.
+
+    `get(ticker, params, headers)` replaces the internal HTTP call: the tests' fake, and the parity
+    tool's member session through web. With a `get`, no worker URL is needed."""
     base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
-    if not base:
+    if not base and get is None:
         return None
     params = {"source": "indexes" if source == "etfs" else "stocks", "basis_rows": int(cap_rows)}
     headers = {}
@@ -354,7 +357,8 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
 
 
 def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float = 20.0,
-                         top_n: int = 15, *, get=None, cap_rows: int = BASIS_ROWS) -> dict | None:
+                         top_n: int = 15, *, get=None, cap_rows: int = BASIS_ROWS,
+                         enrich: bool = True) -> dict | None:
     """The page-derived card payload for `/flow ticker days`: ONE derivation (`basis_rows`), then
     the display ladder (days → 5 → 20 → all) climbed over that same product, each rung scoped to
     the MARKET's last N sessions the way the page's `_scopeAllDirectional` scopes "Last N".
@@ -362,7 +366,11 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
     Returns None only when the product could not be derived (the caller then answers with the
     LABELLED rollup). A product that is empty on every rung returns an empty payload carrying
     `widened_checked`, so the reply's "none on record" sentence is spoken on the same evidence
-    the rollup path uses. `timeout_s` bounds the single fetch; nothing here retries."""
+    the rollup path uses. `timeout_s` bounds the single fetch; nothing here retries.
+
+    `window.scope_dates` names the sessions the served rung summed, so an audit can scope the
+    page's own product to exactly those dates. `enrich=False` skips the live OI/mark decoration
+    (it never changes a premium, a side or a count), which the parity tool does off-box."""
     body = fetch_basis_product(ticker, source, cap_rows, timeout_s, get=get)
     if body is None:
         return None
@@ -377,17 +385,21 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
     for rung in rungs:
         if rung == "all":
             label = "all" if complete else str(len(basis))
-            payload = build_payload(product, basis or market, ticker, source, label,
+            scope = basis or market
+            payload = build_payload(product, scope, ticker, source, label,
                                     top_n=top_n, all_history=True)
         else:
             label = str(rung)
-            payload = build_payload(product, market[-int(rung):], ticker, source, label, top_n=top_n)
+            scope = market[-int(rung):]
+            payload = build_payload(product, scope, ticker, source, label, top_n=top_n)
         payload["window"]["basis_sessions"] = len(basis)
         payload["window"]["basis_complete"] = complete
+        payload["window"]["scope_dates"] = list(scope)
+        payload["window"]["scope_all_history"] = rung == "all"
         if payload["contracts"]:
             if label != first_label:
                 payload["window"]["widened_from"] = first_label
-            return enrich_live(payload)
+            return enrich_live(payload) if enrich else payload
     payload["window"]["days_requested"] = first_label
     payload["window"]["widened_checked"] = [str(r) for r in rungs[1:]]
     return payload

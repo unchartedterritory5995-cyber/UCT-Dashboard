@@ -23,9 +23,19 @@ tools/mobile_audit.py already uses; nothing is printed but that account's own re
     python tools/flow_card_parity_audit.py --symbols DELL,BP,ASTS --days 1
     python tools/flow_card_parity_audit.py --symbols DELL --days 5 --json
     python tools/flow_card_parity_audit.py --self-check
+    python tools/flow_card_parity_audit.py --card page --symbols AMD,DELL,META --days 1
 
 --self-check proves the pure comparison fires on an empty card, a flipped direction and an
 alien contract, and stays quiet on agreement, without touching production.
+
+`--card page` (2026-09-25) audits OPTION A, the card members get with
+`DISCORD_FLOW_CARD_PAGE_ENABLED=1`: the Discord job's own `page_derived_payload` (one basis
+fetch, the display ladder), fetched through this member session, against the page's FULL
+product scoped to exactly the sessions the card summed (`window.scope_dates`), both mapped by
+the same `build_payload`. So the only thing compared is the derivation's input. A COMPLETE
+basis must be EXACT (it is the page's own input, byte for byte); an incomplete one (a row cap
+or a cold read, labelled on the card) must agree on direction; a name the page's server cannot
+derive is INCONCLUSIVE. Exit 0 all pass, 1 any DISAGREE, 2 any INCONCLUSIVE.
 
 A head name the server declines ("too big to derive within budget") is reported as
 INCONCLUSIVE on the page side, never as zero: the page itself falls back to deriving the
@@ -203,6 +213,86 @@ def trading_dates_from_page(all_directional: list, days: str, end: dt.date) -> s
     return set(dates[: max(1, int(days))])
 
 
+# ---- option A: the page-derived card (--card page) --------------------------------------
+
+def page_mode_verdict(card: dict, page: dict, complete: bool) -> tuple:
+    """-> (verdict, problems). `card`/`page` are `build_payload(...)["net"]` over the SAME dates.
+    Pure, so --self-check can plant every case."""
+    if (card.get("bull"), card.get("bear")) == (page.get("bull"), page.get("bear")):
+        return "EXACT", []
+    money = "card BULL $%s BEAR $%s vs page BULL $%s BEAR $%s" % (
+        format(card.get("bull") or 0, ","), format(card.get("bear") or 0, ","),
+        format(page.get("bull") or 0, ","), format(page.get("bear") or 0, ","))
+    if complete:
+        return "DISAGREE", ["a COMPLETE basis is the page's own input and must match exactly: " + money]
+    cd, pd = card.get("dir") or "NEUTRAL", page.get("dir") or "NEUTRAL"
+    if cd != pd and "NEUTRAL" not in (cd, pd):
+        return "DISAGREE", ["incomplete basis flipped the direction: " + money]
+    return "AGREE", []
+
+
+def _repo_on_path():
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+
+
+def fetch_page_card(op, sym: str, source: str, days: str):
+    """The card the job builds with the flag ON, through this member session. None = the job
+    would answer with its labelled rollup fallback."""
+    _repo_on_path()
+    from api.services import flow_card_from_page as page
+
+    def get(ticker, params, headers):
+        q = "&".join("%s=%s" % kv for kv in params.items())
+        try:
+            r = op.open("%s/api/flow/ticker-product/%s?%s" % (BASE, ticker, q), timeout=180)
+            return json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            try:
+                return json.loads(e.read().decode())
+            except Exception:  # noqa: BLE001
+                return {"ok": False, "error": "HTTP %s" % e.code}
+    return page.page_derived_payload(sym, days, source, timeout_s=180, get=get, enrich=False)
+
+
+def run_page_mode(symbols: list, days: str, source: str) -> dict:
+    _repo_on_path()
+    from api.services import flow_card_from_page as page
+    op = _opener()
+    if not login(op):
+        return {"ok": False, "error": "login"}
+    out = {"ok": True, "base": BASE, "days": days, "card": "page", "results": []}
+    for sym in symbols:
+        row = {"symbol": sym}
+        try:
+            card = fetch_page_card(op, sym, source, days)
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            card = None
+            row["card_error"] = str(e)[:80]
+        if card is None:
+            row["verdict"] = "INCONCLUSIVE (no page-derived card: the job would answer with the labelled rollup)"
+            out["results"].append(row)
+            continue
+        win = card.get("window") or {}
+        row["card"] = {"net": card.get("net"), "window": win}
+        ad, note = fetch_page_product(op, sym, source)
+        row["page_note"] = note
+        if ad is None:
+            row["verdict"] = "INCONCLUSIVE (the page's server product is not derivable: %s)" % note
+            out["results"].append(row)
+            continue
+        scope = list(win.get("scope_dates") or [])
+        page_pay = page.build_payload({"all_directional": ad}, scope, sym, source,
+                                      str(win.get("days_requested")),
+                                      all_history=bool(win.get("scope_all_history")))
+        row["page"] = {"net": page_pay["net"]}
+        verdict, problems = page_mode_verdict(card["net"], page_pay["net"], bool(win.get("basis_complete")))
+        row["verdict"], row["problems"] = verdict, problems
+        out["results"].append(row)
+    return out
+
+
 def run(symbols: list, days: str, source: str, widen: bool, end: dt.date, page_window: int = 0) -> dict:
     op = _opener()
     if not login(op):
@@ -266,7 +356,15 @@ def self_check() -> int:
     assert compare(page, unsided)["notes"] == [], "an unsided card contract is not even a note"
     assert scope_page_rows([{"Dt": "9/24"}, {"Dt": "9/23"}], {_mdy("9/24")}) == [{"Dt": "9/24"}]
     assert _mdy("10/9/26") == dt.date(2026, 10, 9) and _mdy("10/9/2026") == dt.date(2026, 10, 9)
-    print("self-check OK: fires on empty / flipped, notes a sided-vs-side-less contract, quiet on agreement")
+    same = {"bull": 948_000, "bear": 1_530_486, "dir": "BEAR"}
+    assert page_mode_verdict(dict(same), same, True) == ("EXACT", []), "an equal complete basis is EXACT"
+    off = {"bull": 948_000, "bear": 1_747_710, "dir": "BEAR"}            # AMD 9/25, chronological order
+    assert page_mode_verdict(off, same, True)[0] == "DISAGREE", "a complete basis that is not exact must FIRE"
+    assert page_mode_verdict(off, same, False)[0] == "AGREE", "an incomplete basis may differ in size"
+    flip = {"bull": 9_202_765, "bear": 2_685_598, "dir": "BULL"}         # AMD 9/25, the 150K basis
+    assert page_mode_verdict(flip, same, False)[0] == "DISAGREE", "an incomplete basis may not flip direction"
+    print("self-check OK: fires on empty / flipped, notes a sided-vs-side-less contract, quiet on agreement; "
+          "page mode: EXACT on equal, fires on an inexact complete basis and on a flipped incomplete one")
     return 0
 
 
@@ -281,6 +379,8 @@ def main() -> int:
     ap.add_argument("--page-window", type=int, default=0,
                     help="compare against the page's WINDOWED product (?window_days=N, option A's derivation) "
                          "instead of its full-history one; run once with and once without to measure the residual")
+    ap.add_argument("--card", default="rollup", choices=("rollup", "page"),
+                    help="which card to audit: the members' rollup (default) or option A's page-derived card")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args()
@@ -288,6 +388,31 @@ def main() -> int:
         return self_check()
     end = dt.date.fromisoformat(a.end) if a.end else dt.date.today()
     syms = [s.strip().upper() for s in a.symbols.split(",") if s.strip()]
+    if a.card == "page":
+        res = run_page_mode(syms, a.days, a.source)
+        if not res.get("ok"):
+            print(res)
+            return 2
+        for r in res["results"]:
+            c, p = r.get("card") or {}, r.get("page") or {}
+            w = c.get("window") or {}
+            line = "%-6s %s" % (r["symbol"], r["verdict"])
+            if c:
+                line += "  | card %s $%s/$%s over %s (basis %s sessions, complete=%s)" % (
+                    c["net"]["dir"], format(c["net"]["bull"], ","), format(c["net"]["bear"], ","),
+                    w.get("scope_dates") if len(w.get("scope_dates") or []) <= 5 else "%d sessions" % len(w["scope_dates"]),
+                    w.get("basis_sessions"), w.get("basis_complete"))
+            if p:
+                line += "  | page %s $%s/$%s" % (p["net"]["dir"], format(p["net"]["bull"], ","), format(p["net"]["bear"], ","))
+            print(line)
+            for prob in r.get("problems") or []:
+                print("     - %s" % prob)
+        if a.json:
+            print(json.dumps(res, indent=1, default=str))
+        verdicts = [r["verdict"] for r in res["results"]]
+        if any(v.startswith("DISAGREE") for v in verdicts):
+            return 1
+        return 2 if any(v.startswith("INCONCLUSIVE") for v in verdicts) else 0
     res = run(syms, a.days, a.source, a.widen, end, page_window=a.page_window)
     if not res.get("ok"):
         print(res)

@@ -384,6 +384,32 @@ def test_a_declined_basis_is_none_so_the_labelled_rollup_answers(monkeypatch):
     assert page.page_derived_payload("NVDA", "1", "stocks", get=boom) is None
 
 
+def test_the_payload_names_the_sessions_it_summed_so_an_audit_can_scope_the_page_the_same_way(monkeypatch):
+    """`tools/flow_card_parity_audit.py --card page` scopes the page's FULL product to
+    `window.scope_dates`; if those were not the rung's own dates the audit would compare two
+    different windows and call it parity."""
+    monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
+    body = dict(BASIS_BODY, market_dates=WIN + ["9/25/2026"])
+    p = page.page_derived_payload("DELL", "1", "stocks", get=lambda *a: body)
+    w = p["window"]
+    assert w["days_requested"] == "5" and w["scope_dates"] == (WIN + ["9/25/2026"])[-5:]
+    assert w["scope_all_history"] is False
+    again = page.build_payload(PRODUCT, w["scope_dates"], "DELL", "stocks", "5")
+    assert again["net"] == p["net"], "the named scope must reproduce the card's own sums"
+    allp = page.page_derived_payload("SPY", "1", "etfs",
+                                     get=lambda *a: dict(BASIS_BODY, market_dates=["9/28/2026"]))
+    assert allp["window"]["scope_all_history"] is True
+    assert allp["window"]["scope_dates"] == BASIS_BODY["window_dates"]
+
+
+def test_the_audit_can_fetch_through_a_session_without_the_worker_url_and_skip_decoration(monkeypatch):
+    monkeypatch.delenv("WORKER_INTERNAL_URL", raising=False)
+    assert page.fetch_basis_product("DELL", "stocks", 10, 5.0) is None          # the job: no URL, no call
+    monkeypatch.setattr(page, "enrich_live", lambda p: (_ for _ in ()).throw(AssertionError("decorated")))
+    p = page.page_derived_payload("DELL", "5", "stocks", get=lambda *a: BASIS_BODY, enrich=False)
+    assert p is not None and p["contracts"]
+
+
 def test_the_etf_partition_is_asked_for_with_the_pages_word(monkeypatch):
     monkeypatch.setenv("WORKER_INTERNAL_URL", "http://flow-worker.test")
     seen = {}
