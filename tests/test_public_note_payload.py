@@ -369,6 +369,107 @@ def test_internal_link_marks_lose_the_link_and_keep_the_words():
     assert hrefs == ["https://example.com/ok", "mailto:me@example.com"]
 
 
+# ── M-6: the URL attributes of KEPT nodes (wave-8 final review) ─────────────────────────
+#
+# `link` marks already lost an in-app href; these are the node attributes that carry a URL
+# of their own. A preview card made from a pasted in-app address (`linkPasteOffer.js` does
+# not exclude our host) carried `?note=<id>` onto the public page -- the leak ruling D-B7
+# forbids. Every attribute below is driven with in-app addresses that name OTHER's id.
+
+IN_APP_URLS = (
+    f"https://uctintelligence.com/journal/notebook?note={OTHER}",
+    f"https://www.uctintelligence.com/journal/notebook?note={OTHER}",
+    f"/journal/notebook?note={OTHER}",
+    f"?note={OTHER}",
+    f"//uctintelligence.com/journal/notebook?note={OTHER}",
+    f"https://example.com@uctintelligence.com/journal/notebook?note={OTHER}",   # userinfo trick
+)
+WEB_PAGE = "https://example.com/article"
+WEB_IMAGE = "https://example.com/pic.png"
+
+
+def _preview(url: str = WEB_PAGE, image: str | None = None) -> dict:
+    return doc({"type": "linkPreview", "attrs": {"url": url, "title": "A card", "domain": "example.com",
+                                                 "description": "d", "image": image}})
+
+
+def _fundamentals_widget(fallback_url: str) -> dict:
+    w = _widget("fundamentals")
+    w["attrs"]["fallback"] = {"url": fallback_url, "w": 900, "h": 500}
+    return doc(w)
+
+
+#: attribute -> (a document holding `u` in that attribute, where `u` must NOT survive)
+URL_ATTRS: dict[str, Callable[[str], dict]] = {
+    "linkPreview.url": lambda u: _preview(url=u),
+    "linkPreview.image": lambda u: _preview(image=u),
+    "webEmbed.url": lambda u: doc({"type": "webEmbed", "attrs": {
+        "provider": "youtube", "ref": "dQw4w9WgXcQ", "url": u}}),
+    "image.src": lambda u: doc({"type": "image", "attrs": {"src": u, "alt": "x"}}),
+    "imageFigure.image.src": lambda u: doc({"type": "imageFigure", "content": [
+        {"type": "image", "attrs": {"src": u}}, {"type": "imageCaption", "content": [t("cap")]}]}),
+    "widgetEmbed.fallback.url": _fundamentals_widget,     # FMP: a SHOWN widget keeps its fallback
+}
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+@pytest.mark.parametrize("url", IN_APP_URLS)
+@pytest.mark.parametrize("attr", sorted(URL_ATTRS))
+def test_M6_no_in_app_url_in_a_kept_node_attribute_reaches_a_stranger(attr, url, mode):
+    out = json.dumps(reduce(URL_ATTRS[attr](url), mode))
+    assert OTHER not in out and "note=" not in out, (attr, url, mode, out)
+    assert "uctintelligence.com" not in out, (attr, url, mode, out)
+
+
+def test_M6_the_hero_follows_the_same_rule():
+    for url in IN_APP_URLS:
+        assert pnp.public_hero(url, owner_id=OWNER, note_id=NOTE, attachment_base=BASE) is None, url
+    # CONTROLS: this note's own hero (rewritten to the proxy) and a web image survive.
+    assert pnp.public_hero(f"{OWN_ATT}hero/h.png", owner_id=OWNER, note_id=NOTE,
+                           attachment_base=BASE) == f"{BASE}hero/h.png"
+    assert pnp.public_hero(WEB_IMAGE, owner_id=OWNER, note_id=NOTE, attachment_base=BASE) == WEB_IMAGE
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_M6_CONTROLS_a_web_address_and_this_notes_own_proxy_survive_in_every_attribute(mode):
+    """The rule above removes in-app addresses, not URL attributes: an external web address
+    stays in every one of them, and an image of THIS note stays as its public proxy."""
+    card = find(reduce(_preview(url=WEB_PAGE, image=WEB_IMAGE), mode), "linkPreview")
+    assert card and card[0]["attrs"]["url"] == WEB_PAGE and card[0]["attrs"]["image"] == WEB_IMAGE
+    embed = find(reduce(URL_ATTRS["webEmbed.url"]("https://youtu.be/dQw4w9WgXcQ"), mode), "webEmbed")
+    assert embed and embed[0]["attrs"]["url"] == "https://youtu.be/dQw4w9WgXcQ"
+    for attr in ("image.src", "imageFigure.image.src"):
+        for src, want in ((WEB_IMAGE, WEB_IMAGE), (f"{OWN_ATT}inline/p.png", f"{BASE}inline/p.png")):
+            imgs = find(reduce(URL_ATTRS[attr](src), mode), "image")
+            assert [i["attrs"]["src"] for i in imgs] == [want], (attr, src, mode)
+    widget = find(reduce(_fundamentals_widget(f"{OWN_ATT}inline/w.png"), mode), "widgetEmbed")
+    assert widget and widget[0]["attrs"]["fallback"]["url"] == f"{BASE}inline/w.png"
+
+
+@pytest.mark.parametrize("mode", ["share", "publish"])
+def test_M6_what_each_attribute_becomes(mode):
+    """The chosen reduction per attribute, stated: an in-app card goes whole (its title was
+    fetched FROM the in-app page); a card keeps its external link and loses an in-app image;
+    an embed keeps its player (rebuilt from provider + ref) and loses the in-app address;
+    an in-app image goes, and its figure with it; a shown widget keeps no archived image."""
+    u = IN_APP_URLS[0]
+    assert "linkPreview" not in types_in(reduce(URL_ATTRS["linkPreview.url"](u), mode))
+    card = find(reduce(URL_ATTRS["linkPreview.image"](u), mode), "linkPreview")[0]
+    assert card["attrs"]["url"] == WEB_PAGE and card["attrs"]["image"] is None
+    embed = find(reduce(URL_ATTRS["webEmbed.url"](u), mode), "webEmbed")[0]
+    assert embed["attrs"] == {"provider": "youtube", "ref": "dQw4w9WgXcQ", "url": None}
+    assert "image" not in types_in(reduce(URL_ATTRS["image.src"](u), mode))
+    assert "imageFigure" not in types_in(reduce(URL_ATTRS["imageFigure.image.src"](u), mode))
+    widget = find(reduce(URL_ATTRS["widgetEmbed.fallback.url"](u), mode), "widgetEmbed")[0]
+    assert widget["attrs"]["fallback"] is None
+
+
+def test_M6_no_other_scheme_reaches_an_image_bearing_attribute():
+    for src in ("javascript:alert(1)", "data:image/png;base64,AAAA", "  ", "ftp://example.com/p.png",
+                f"{BASE}../../notes/attachments/{OWNER}/{OTHER}/inline/x.png", None, 7):
+        assert pnp._public_image_src(src, BASE) is None, src
+
+
 def test_an_emptied_container_keeps_a_valid_shape():
     """A column whose only child was an Ask answer (publish) keeps an empty paragraph, so the
     editor still reads the document instead of refusing it."""

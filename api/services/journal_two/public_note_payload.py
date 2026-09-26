@@ -26,7 +26,11 @@ What each mode does (the rows below are the authority; this is the summary):
     is in the same publication, where it becomes a link to that note's public URL; a
     `link` mark that points inside the app (another note, a trade, an API) loses the link
     and keeps its text; an image copied from ANOTHER note (its URL still names the owner's
-    user id and that note's id) is dropped; file attachment chips are dropped.
+    user id and that note's id) is dropped; file attachment chips are dropped; every
+    image-bearing attribute (an image's src, a card's image, a widget's archived image, the
+    hero) must be this note's public proxy or an http(s) address off our own host, a link
+    card whose address is in-app is dropped, and an embed's in-app fallback address is
+    cleared -- no in-app URL, which would carry a note id, reaches a stranger (M-6).
   * publish only -- Ask answers (`askInsert` with no `action`) go, writing-help blocks
     stay with their label (ruling D-B5), and every `askCitation` goes.
 """
@@ -36,6 +40,7 @@ import copy
 import json
 import re
 from typing import Any, Iterable, Mapping
+from urllib.parse import urlsplit
 
 from fastapi import HTTPException
 from fastapi.responses import FileResponse, JSONResponse
@@ -273,22 +278,87 @@ _OWN_HOSTS = ("uctintelligence.com",)
 
 def _internal_href(href: Any) -> bool:
     """A link that points INSIDE the app -- a relative path (another note, a trade, an API)
-    or an absolute URL on our own host. Those lose the link and keep their text."""
+    or an absolute URL on our own host. Those lose the link and keep their text.
+
+    The host is also read the way a browser reads it (wave-8 final review M-6): an address
+    whose userinfo hides our host (`https://example.com@uctintelligence.com/...`) is ours,
+    and one that cannot be parsed, or has no host at all, is not trusted as external."""
     if not isinstance(href, str) or not href.strip():
         return True
     h = href.strip()
     if not _EXTERNAL_HREF.match(h):
         return True
     low = h.lower()
-    return any(f"//{host}" in low or f".{host}" in low for host in _OWN_HOSTS)
+    if any(f"//{host}" in low or f".{host}" in low for host in _OWN_HOSTS):
+        return True
+    if low.startswith("mailto:"):
+        return False
+    try:
+        host = (urlsplit(h).hostname or "").lower().rstrip(".")
+    except ValueError:
+        return True
+    if not host:
+        return True
+    return any(host == own or host.endswith("." + own) for own in _OWN_HOSTS)
+
+
+_WEB_URL = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _public_image_src(src: Any, attachment_base: str) -> str | None:
+    """`src` when a stranger's page may load it, else None (wave-8 final review M-6).
+
+    Two kinds of address qualify, and only two: THIS note's own attachment, already
+    rewritten to the public proxy (it starts with `attachment_base`), or an http(s) address
+    off our own host. Everything else goes -- another note's attachment, a relative in-app
+    path (`/journal/notebook?note=<id>` names a note), our own host, `data:`, `javascript:`,
+    a protocol-relative `//host/...` -- because an image-bearing attribute is a URL the
+    stranger's browser fetches, and an in-app one carries a note or member id with it."""
+    if not isinstance(src, str):
+        return None
+    s = src.strip()
+    if not s or _ATTACHMENT_PREFIX in s:
+        return None
+    if attachment_base and s.startswith(attachment_base):
+        rest = s[len(attachment_base):]
+        return src if ".." not in rest and "\\" not in rest else None
+    if _WEB_URL.match(s) and not _internal_href(s):
+        return src
+    return None
 
 
 class _Ctx:
     def __init__(self, mode: str, facts: Mapping[str, Mapping[str, Any]],
-                 note_links: Mapping[str, tuple[str, str]]):
+                 note_links: Mapping[str, tuple[str, str]], attachment_base: str = ""):
         self.mode = mode
         self.facts = facts
         self.note_links = note_links
+        self.attachment_base = attachment_base
+
+
+def _kept_urls(t: str, node: dict, ctx: _Ctx) -> dict | None:
+    """The URL attributes of a KEPT node, reduced (wave-8 final review M-6). None drops the
+    node. `link` marks already lose an in-app href (`_reduce_marks`); these are the node
+    attributes that carry a URL of their own:
+      * linkPreview.url -- a card whose address is in-app (a note id pasted as a link and
+        turned into a card) is DROPPED: its title and description were fetched from that
+        in-app page, so there is nothing of it a stranger should see;
+      * linkPreview.image -- only a public image source survives (`_public_image_src`);
+      * webEmbed.url -- an in-app fallback address is cleared; the player is rebuilt from
+        `{provider, ref}` on render (webEmbeds.js), never from this string."""
+    attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
+    if t == "linkPreview":
+        if _internal_href(attrs.get("url")):
+            return None
+        if attrs.get("image") is not None and _public_image_src(attrs.get("image"), ctx.attachment_base) is None:
+            node = {**node, "attrs": {**attrs, "image": None}}
+        return node
+    if t == "webEmbed":
+        url = attrs.get("url")
+        if url is not None and _internal_href(url):
+            node = {**node, "attrs": {**attrs, "url": None}}
+        return node
+    return node
 
 
 def _neutral() -> dict:
@@ -370,8 +440,8 @@ def _market_data(node: dict, ctx: _Ctx) -> list:
         fallback = kept.get("fallback")
         if isinstance(fallback, dict):
             url = fallback.get("url")
-            if not isinstance(url, str) or _ATTACHMENT_PREFIX in url:
-                kept["fallback"] = None              # another note's image: no image at all
+            if _public_image_src(url, ctx.attachment_base) is None:
+                kept["fallback"] = None              # another note's image, or an in-app address
             else:
                 kept["fallback"] = {k: fallback[k] for k in ("url", "w", "h") if k in fallback}
         return [{"type": "widgetEmbed", "attrs": kept}]
@@ -426,8 +496,13 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         return []                                    # an Ask answer: publish never carries it
     if action == "image":
         src = (node.get("attrs") or {}).get("src")
-        if isinstance(src, str) and _ATTACHMENT_PREFIX in src:
-            return []                                # another note's image
+        if _public_image_src(src, ctx.attachment_base) is None:
+            return []                                # another note's image, or an in-app address
+    if t in ("linkPreview", "webEmbed"):
+        kept = _kept_urls(t, node, ctx)
+        if kept is None:
+            return []
+        node = kept
     out = {k: v for k, v in node.items() if k not in ("content", "marks")}
     if "marks" in node:
         marks = _reduce_marks(node.get("marks"))
@@ -465,7 +540,7 @@ def reduce(
         raise ValueError(f"unknown public mode {mode!r}")
     doc = body if isinstance(body, dict) and body.get("type") == "doc" else {"type": "doc", "content": []}
     raw = json.dumps(doc).replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
-    ctx = _Ctx(mode, facts or {}, note_links or {})
+    ctx = _Ctx(mode, facts or {}, note_links or {}, attachment_base)
     reduced = _reduce_node(json.loads(raw), ctx)
     if not reduced or reduced[0].get("type") != "doc":
         return {"type": "doc", "content": [{"type": "paragraph"}]}
@@ -476,11 +551,12 @@ def reduce(
 
 
 def public_hero(hero: Any, *, owner_id: str, note_id: str, attachment_base: str) -> str | None:
-    """The hero image, rewritten to the public proxy; another note's image goes."""
+    """The hero image, rewritten to the public proxy; another note's image, and any address
+    that is not this note's proxy or an http(s) address off our own host, goes (M-6)."""
     if not isinstance(hero, str) or not hero:
         return None
     h = hero.replace(f"{_ATTACHMENT_PREFIX}{owner_id}/{note_id}/", attachment_base)
-    return None if _ATTACHMENT_PREFIX in h else h
+    return h if _public_image_src(h, attachment_base) is not None else None
 
 
 def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: str,
