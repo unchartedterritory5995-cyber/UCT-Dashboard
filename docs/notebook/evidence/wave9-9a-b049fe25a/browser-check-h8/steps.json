@@ -1,0 +1,106 @@
+[
+ {
+  "at": "16:32:58",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "16:33:01",
+  "step": "corpus seeded through import/confirm",
+  "ok": true,
+  "notes": 992
+ },
+ {
+  "at": "16:33:02",
+  "step": "All notes open",
+  "ok": true
+ },
+ {
+  "at": "16:33:02",
+  "step": "probe pasted (DevTools paste equivalent)",
+  "ok": true,
+  "version": "uct-bench-probe/1"
+ },
+ {
+  "at": "16:33:02",
+  "step": "await __uctBench.selfTest()",
+  "ok": true,
+  "ms": 211.2,
+  "window": [
+   195,
+   260
+  ]
+ },
+ {
+  "at": "16:33:02",
+  "step": "__uctBench.check('zzqbpasteendcbashq') prints absent",
+  "ok": false,
+  "printed": false
+ },
+ {
+  "at": "16:33:02",
+  "step": "Ctrl+A, Ctrl+C in paste-payload.html; the UCT page reads text/html",
+  "ok": true,
+  "clipboard": [
+   "text/plain:38137",
+   "text/html:147328"
+  ]
+ },
+ {
+  "at": "16:33:02",
+  "step": "console line: __uctBench.arm('paste', {\"endMarker\": \"zzqbpasteendcbashq\", \"reps\": 5, \"timeoutMs\": 15000})",
+  "ok": true,
+  "printed": "[uctBench] armed paste for 5 reps; target absent now"
+ },
+ {
+  "at": "16:33:03",
+  "step": "rep 1: + New note, body, Ctrl+V, landed, All notes",
+  "ok": true,
+  "url": "/journal/notebook?view=all"
+ },
+ {
+  "at": "16:33:03",
+  "step": "rep 2: + New note, body, Ctrl+V, landed, All notes",
+  "ok": true,
+  "url": "/journal/notebook?view=all"
+ },
+ {
+  "at": "16:33:04",
+  "step": "rep 3: + New note, body, Ctrl+V, landed, All notes",
+  "ok": true,
+  "url": "/journal/notebook?view=all"
+ },
+ {
+  "at": "16:33:04",
+  "step": "rep 4: + New note, body, Ctrl+V, landed, All notes",
+  "ok": true,
+  "url": "/journal/notebook?view=all"
+ },
+ {
+  "at": "16:33:04",
+  "step": "rep 5: + New note, body, Ctrl+V, landed, All notes",
+  "ok": true,
+  "url": "/journal/notebook?view=all"
+ },
+ {
+  "at": "16:33:04",
+  "step": "copy(__uctBench.dump('uct', 'H8')) saved",
+  "ok": true,
+  "status": "COMPLETE",
+  "samples": [
+   40.6,
+   22,
+   20.6,
+   20.7,
+   21.5
+  ],
+  "invalid": [],
+  "refused": null
+ },
+ {
+  "at": "16:33:04",
+  "step": "no page errors",
+  "ok": true,
+  "errors": []
+ }
+]
