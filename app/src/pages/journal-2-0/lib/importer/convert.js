@@ -128,7 +128,36 @@ export function mapCheckboxLists(doc) {
     li.setAttribute('data-type', 'taskItem')
     li.setAttribute('data-checked', box?.checked || box?.hasAttribute('checked') ? 'true' : 'false')
     box?.remove()
-    li.closest('ul')?.setAttribute('data-type', 'taskList')
+  })
+  // Wave 10 (lane 10B, found by the R-18 census's Logseq fixture): a list that
+  // MIXES plain bullets and to-dos -- ordinary in Obsidian, Notion, Logseq and
+  // Roam Markdown -- used to have its whole <ul> typed `taskList`. TipTap's
+  // schema allows only taskItems in a taskList, so every plain bullet was
+  // lifted out and an EMPTY unticked to-do was left in its place. The list is
+  // now split into runs in the source's own order -- taskList / bulletList /
+  // taskList -- the rule the server lane already follows
+  // (`__fixtures__/server_convert/02-mixed-task-list.json`, from `mddoc.py`).
+  const isTask = (li) => li.getAttribute('data-type') === 'taskItem'
+  doc.querySelectorAll('ul').forEach((ul) => {
+    const items = [...ul.children].filter((c) => c.tagName === 'LI')
+    if (!items.some(isTask)) return
+    if (items.every(isTask)) {
+      ul.setAttribute('data-type', 'taskList')
+      return
+    }
+    let run = null
+    let runIsTask = null
+    for (const li of items) {
+      const task = isTask(li)
+      if (!run || task !== runIsTask) {
+        run = doc.createElement('ul')
+        if (task) run.setAttribute('data-type', 'taskList')
+        ul.parentNode.insertBefore(run, ul)
+        runIsTask = task
+      }
+      run.appendChild(li)
+    }
+    ul.remove()
   })
 }
 

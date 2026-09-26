@@ -1,0 +1,3 @@
+- Watching [[Breakouts]] into the close
+- {{[[TODO]]}} Trim the laggards
+- {{[[DONE]]}} Log the NVDA trade

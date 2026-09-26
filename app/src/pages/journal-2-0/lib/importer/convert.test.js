@@ -36,6 +36,20 @@ describe('htmlToNote', () => {
     expect(list.content[1].attrs.checked).toBe(false)
   })
 
+  // Wave 10 (10B, found by the R-18 census): a list MIXING plain bullets and
+  // to-dos is split into runs in its own order -- and no empty to-do appears.
+  it('splits a mixed plain / to-do list into runs in source order, with no empty to-do', () => {
+    const { bodyJson, bodyPlain } = htmlToNote(mdToHtml('- plain first\n- [ ] open one\n- [x] done one\n- plain last\n'))
+    const text = (n) => (n.content || []).flatMap((c) => (c.type === 'text' ? [c.text] : [text(c)])).join('')
+    expect(bodyJson.content.map((n) => n.type)).toEqual(['bulletList', 'taskList', 'bulletList'])
+    expect(bodyJson.content[1].content.map((i) => [text(i), i.attrs.checked])).toEqual([
+      ['open one', false],
+      ['done one', true],
+    ])
+    expect(bodyPlain.indexOf('plain first')).toBeLessThan(bodyPlain.indexOf('open one'))
+    expect(bodyPlain.indexOf('done one')).toBeLessThan(bodyPlain.indexOf('plain last'))
+  })
+
   it('keeps tables and produces searchable plain text', () => {
     const { bodyJson, bodyPlain } = htmlToNote(
       '<h1>Title</h1><table><tr><td>alpha</td></tr></table>')
