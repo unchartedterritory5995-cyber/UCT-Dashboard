@@ -922,6 +922,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 type="file"
                 multiple
                 data-testid="import-file-input"
+                // Wave 8 (8A, axe `label`): named like the editor's own hidden
+                // file inputs; the visible door is the "Choose files" button.
+                aria-label="Files to import"
                 className={styles.hiddenInput}
                 onChange={(e) => {
                   // `e.target.files` is a LIVE FileList backed by the input's
@@ -940,6 +943,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 multiple
                 webkitdirectory=""
                 data-testid="import-dir-input"
+                aria-label="Folder to import"
                 className={styles.hiddenInput}
                 onChange={(e) => {
                   // Same live-FileList hazard as import-file-input above.

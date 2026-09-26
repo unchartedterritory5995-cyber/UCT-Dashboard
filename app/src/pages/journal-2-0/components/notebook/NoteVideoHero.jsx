@@ -58,7 +58,8 @@ export default function NoteVideoHero({ youtubeId, watchUrl }) {
   if (!youtubeId) return null
 
   return (
-    <div className={styles.videoHero} ref={wrapRef}>
+    // Wave 8 (8A): the player and its link are one named group.
+    <div className={styles.videoHero} ref={wrapRef} role="group" aria-label="Session video">
       <div className={styles.videoHeroFrame}>
         {ready ? (
           <div ref={mountRef} />

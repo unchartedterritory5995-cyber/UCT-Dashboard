@@ -17,6 +17,9 @@ from api import chart_edge_token
 from api.limiter import limiter
 from api.routers.waitlist import coming_soon_mode
 from api.services import totp_service
+# Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /
+# falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.
+from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -138,6 +141,14 @@ NOTEBOOK_FLAGS = {
     # `notebook_writing_help_enabled` (the one derivation, above); the route
     # reads the same variable per request (journal_two/writing_help.py).
     "NOTEBOOK_WRITING_HELP_ENABLED": False,  # enablement  — unset means OFF
+    # Wave 8 seam S8-1. ⛔ Ruling D-B9: both sharing gates stay OFF until the
+    # owner records legal sign-off in the ledger's `owner_decision` — nothing
+    # here may default either of them on. The payload key of the first is
+    # `j2_share_links_enabled` (the one derivation, above); its route gate is
+    # `note_shares.enabled()`, which reads through the same `flag_on`.
+    "J2_SHARE_LINKS_ENABLED": False,         # enablement  — unset means OFF (share links, lane 8B)
+    "NOTEBOOK_PUBLISH_ENABLED": False,       # enablement  — unset means OFF (publish-to-web, lane 8B)
+    "NOTEBOOK_ONBOARDING_ENABLED": False,    # enablement  — unset means OFF (tour + sample notebook, lane 8C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
@@ -165,10 +176,6 @@ NOTEBOOK_MODE_FLAGS = {
     "NOTEBOOK_DOOR_GUARD": (DOOR_GUARD_FULL, (DOOR_GUARD_FULL, DOOR_GUARD_UNKNOWN_ONLY)),
 }
 
-_TRUTHY = ("1", "true", "yes", "on")
-_FALSY = ("0", "false", "no", "off")
-
-
 def _notebook_flag_key(env_name: str) -> str:
     """The payload key for a Notebook capability's Railway variable.
 
@@ -182,15 +189,12 @@ def _notebook_flags() -> dict:
     """Every Notebook capability flag, read from the environment PER REQUEST."""
     out = {}
     for env_name, default_on in NOTEBOOK_FLAGS.items():
-        raw = os.environ.get(env_name)
-        if raw is None:
-            value = default_on
-        else:
-            v = raw.strip().lower()
-            # ⛔ An unrecognised value takes the DEFAULT, never the opposite of
-            # it. A typo'd "flase" must not kill a shipped wave.
-            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
-        out[_notebook_flag_key(env_name)] = value
+        # ⛔ THE ONE PARSE (wave 8, S8-1). An unrecognised value takes the
+        # DEFAULT, never the opposite of it — a typo'd "flase" must not kill a
+        # shipped wave. The route gates call the same `flag_on`, so the payload
+        # and the route cannot disagree about one variable
+        # (tests/test_notebook_flag_parse.py).
+        out[_notebook_flag_key(env_name)] = flag_on(env_name, default_on)
     # ⛔ THE MODE KEYS RIDE THE SAME PAYLOAD AND THE SAME DERIVATION. A second
     # helper for the second name would be the drift `_notebook_flag_key` exists
     # to prevent; only the PARSE differs, because the value is not a boolean.
@@ -2141,6 +2145,12 @@ _PREFERENCE_KEYS = {
     # master the whole time; the landing ran only the Python rails its own diff
     # touched, and this one reads a JS writer. Run it before any `setPref(` lands.
     "notebook_daily_template": _PREF_OPAQUE,
+    # Wave 8: the sample-notebook strip and the first-run tour each write one
+    # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
+    # the server answered 400 "Unknown preference key" and neither ever
+    # persisted — the tour reopened on every visit.
+    "notebook_sample": _PREF_OPAQUE,
+    "notebook_tour": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

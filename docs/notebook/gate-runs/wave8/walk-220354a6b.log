@@ -1,0 +1,28 @@
+SANDBOX IDENTITY: http://127.0.0.1:8228 proved it is the sandbox that writes C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8walk\tree-220354a6b\docs\plans\joystick\sandbox-runs\2026-09-26T11-49-03.md (identity 21b2c4884b09..., data dir C:\data-w8walk)
+[PASS] W1_onboarding: {"tour_steps_in_source": ["Welcome to your Notebook", "Folders and tags", "Search", "New note", "Views", "Import", "Ask your notebook", "Export"], "sidebar_step_titles": ["Folders and tags", "Search"], "provision_tour_member": {"comp": 200, "verify": 200, "me": 200, "paid_equiv": true, "user_id": "9
+[FAIL] W2_share_links: {"note_id": "5808cbfe5e894684bd193322b1c1ab59", "token": "zMsvYethdE5iSEJgDsdkhNantxaSrvOk", "public": {"url": "/share/n/zMsvYethdE5iSEJgDsdkhNantxaSrvOk", "html_status": 200, "html_headers": {"cache-control": "no-cache, no-store, must-revalidate", "referrer-policy": "no-referrer", "x-robots-tag": "
+[FAIL] W3_publish: {"note_id": "1679274277c645e091ad940fd3f9ff3e", "folder_id": "e2fa4cee36454417b1d7d0513e9759dc", "paste": {"offer_seen": true, "saved_as_link_in_body": true, "node_types_saved": ["doc", "link", "linkPreview", "paragraph", "text"]}, "note_page": {"url": "/p/ec9akYysguNfJyeDLfA9lA", "html_status": 200
+[PASS] W4_export_formats: {"title": "Walk W4 \u2014 export \ud83d\udcc8 r115005", "per_format": {"md": {"status": 200, "bytes": 175, "saved_as": "Walk W4 \u2014 export \ud83d\udcc8 r115005-20260926.md", "disposition_name": "Walk W4 \u2014 export \ud83d\udcc8 r115005-20260926.md", "saved_is_disposition": true, "saved_starts_w
+[PASS] W5_accessibility: {"reason": null, "serious_by_surface": {"note_list": [], "editor": [], "share_sheet": [], "settings_sharing_card": [], "public_page": []}, "scans": {"note_list": {"version": "4.13.0", "theme": "oled", "violations": [], "scoped_elements": 1, "serious": []}, "editor": {"version": "4.13.0", "theme": "o
+[PASS] W6_offline_onboarding: {"tour_chunk": "assets/NotebookTour-DdfaZt6m.js", "member_with_notes": {"tour_chunk_requests": 0, "inside_notebook": {"note_id": "ee3bd3849aa140779891d0b6da097dc7", "note_opened": true, "offline_banner_shown": true, "editor_text": "Accessibility body wrbbfaaf.", "unread_note_says_so_in_the_pane": tr
+[FAIL] W7_lazy_chunk_retry: {"chunk": "assets/NoteTasksView-BrXPNdrU.js", "route_calls": 1, "aborted": 1, "let_through": 0, "chunk_requests_seen": 1, "view_mounted": false, "no_reload": false, "document_loads_after_click": 1, "ms_click_to_reload": 595, "reload_flag_after": null, "url_after": "/journal/notebook?view=all", "cons
+[PASS] W8_notices_and_bulk_trash: {"widths": {"1200": {"stack": true, "notices": ["bulk-notice", "bulk-undo-notice"], "undo": {"inViewport": true, "hitsItself": true, "hitWhat": "BUTTON._bulkNoticeBtn_1q0nu_1007"}, "hubShowing": false, "stackOverlapsHub": null, "stackBox": [451, 664, 749, 776], "w": 1200, "undo_click": "ok", "undo_r
+[PASS] W9_daily_template_pref: {"pref_key": "notebook_daily_template", "template_id": "2aeb082e36b4463fa37da0693f61e708", "template_status": 200, "write_status": 200, "write_body": {"ok": true}, "select_after_reload": "2aeb082e36b4463fa37da0693f61e708", "stored_value": "2aeb082e36b4463fa37da0693f61e708"}
+[PASS] W10_touch_emulation_open: {"label": "EMULATION (Chromium touch emulation) -- NOT a device result; the real Android/iOS check (no soft keyboard on open) stays an owner-device item", "focused": {"tag": "H2", "editable": false, "landmark": true, "noteTitle": false, "text": "Walk W10 note r115005", "label": null, "popup": null, 
+(W11: waiting up to 600 s for the shutdown checkpoint in C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8walk\tree-220354a6b\docs\plans\joystick\sandbox-runs\2026-09-26T11-49-03.md -- stop the sandbox now, gracefully; W11 is INCONCLUSIVE without it)
+[PASS] W11_integrity: {"reason": null, "pageerror_count": 0, "pageerrors": [], "deliberate_window_errors_excluded": 0, "fences": [{"why": "W6: an offline document reload (deliberate)", "errors_from": 0, "beacons_from": 0, "errors_to": 0, "beacons_to": 0}, {"why": "W6: a first-run member's tour chunk refused (deliberate)"
+{
+ "checks": {
+  "W1_onboarding": "PASS",
+  "W2_share_links": "FAIL",
+  "W3_publish": "FAIL",
+  "W4_export_formats": "PASS",
+  "W5_accessibility": "PASS",
+  "W6_offline_onboarding": "PASS",
+  "W7_lazy_chunk_retry": "FAIL",
+  "W8_notices_and_bulk_trash": "PASS",
+  "W9_daily_template_pref": "PASS",
+  "W10_touch_emulation_open": "PASS",
+  "W11_integrity": "PASS"
+ }
+}

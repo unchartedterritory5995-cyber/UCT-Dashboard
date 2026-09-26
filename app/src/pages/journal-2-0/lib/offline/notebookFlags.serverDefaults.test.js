@@ -29,7 +29,10 @@ function serverNotebookFlags(src) {
   const m = src.match(/^NOTEBOOK_FLAGS\s*=\s*\{([\s\S]*?)^\}/m)
   if (!m) throw new Error('NOTEBOOK_FLAGS = { ... } not found in auth.py')
   const out = {}
-  for (const row of m[1].matchAll(/^\s*"(NOTEBOOK_[A-Z0-9_]+)"\s*:\s*(True|False)\s*,/gm)) {
+  // ⛔ EVERY row, whatever its prefix. This read only `NOTEBOOK_*` rows until wave 8's seam
+  // S8-1 put `J2_SHARE_LINKS_ENABLED` on the table: a prefix filter here would have hidden
+  // that row from both checks below while the client fallback sat right beside it.
+  for (const row of m[1].matchAll(/^\s*"([A-Z][A-Z0-9_]*)"\s*:\s*(True|False)\s*,/gm)) {
     out[row[1].toLowerCase()] = row[2] === 'True'
   }
   return out
@@ -42,6 +45,8 @@ describe('the client flag fallbacks agree with the server defaults (M-3)', () =>
   it('NON-VACUITY — the parse read the real table, both polarities, and the writing-help row', () => {
     expect(Object.keys(SERVER).length).toBeGreaterThanOrEqual(6)
     expect(SERVER).toHaveProperty('notebook_writing_help_enabled')
+    // The row with a non-NOTEBOOK_ name (wave 8, S8-1) must be seen, or the widening above is decoration.
+    expect(SERVER).toHaveProperty('j2_share_links_enabled')
     expect(Object.values(SERVER)).toContain(true)   // the kill switch
     expect(Object.values(SERVER)).toContain(false)  // the enablement gates
   })

@@ -77,7 +77,7 @@
   width: 100%;
   padding: 8px 28px 8px 30px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 7px;
   color: var(--text-bright);
   font-size: 13px;
@@ -138,7 +138,7 @@
 }
 .searchFilterField input, .searchFilterField select {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 6px;
   color: var(--text-bright);
   font-size: 12px;
@@ -303,11 +303,16 @@
 .folderItem { display: flex; flex-direction: column; }
 .rowWrap { display: flex; align-items: center; gap: 2px; }
 .rowWrap .row { flex: 1; min-width: 0; }
+/* Wave 8 (8A, browser check): 24px, not 18 -- WCAG 2.2 target size (2.5.8).
+   axe in a real browser measured the 18px chevron with 22px of safe space to
+   its neighbours; jsdom has no boxes and could not. The spacer follows the
+   control so leaf rows stay aligned (see the touch-tier note below), and the
+   indent guide's offset in FolderSidebar.jsx moved by the same 3px. */
 .disclosureBtn,
 .disclosureSpacer {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -329,7 +334,7 @@
 .childrenList::before {
   content: '';
   position: absolute;
-  left: var(--guide-x, 7px);
+  left: var(--guide-x, 10px);
   top: 0;
   bottom: 2px;
   width: 1px;
@@ -385,6 +390,11 @@
    buttons, so a Tab stop is never an invisible control. */
 .viewRow:hover .actions,
 .viewRow:focus-within .actions { opacity: 1; }
+/* Wave 8 (8A, A2): a FOLDER row's Rename / Add subfolder / Delete are real
+   buttons beside the row button now (they were spans nested inside it), so
+   the row wrapper reveals them -- on hover and on keyboard focus. */
+.folderRow:hover .actions,
+.folderRow:focus-within .actions { opacity: 1; }
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -398,7 +408,7 @@
   background: transparent;
   font: inherit;
 }
-.iconBtn:hover { color: var(--loss); }
+.iconBtn:hover { color: var(--danger-ink); }
 .iconBtnAdd:hover { color: var(--accent); }
 .addForm { display: flex; padding: 0 6px; }
 .tagFilterInput {
@@ -406,7 +416,7 @@
   margin: 0 0 4px;
   padding: 6px 10px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 7px;
   color: var(--text-bright);
   font-size: 12px;
@@ -451,7 +461,9 @@
   color: var(--text-bright);
   font-size: 12px;
 }
-.tagRenameInput:focus { outline: none; }
+/* Wave 8 (8A): the field is gold-bordered at rest, so the border cannot
+   also be the focus cue -- a ring outside it is. */
+.tagRenameInput:focus { outline: none; box-shadow: 0 0 0 2px var(--ut-gold); }
 .tagRenameActionBtn {
   align-self: flex-start;
   margin-right: 6px;

@@ -104,7 +104,7 @@
   color: var(--text-bright);
   font-size: 12px;
 }
-.lockBannerError { color: var(--loss); }
+.lockBannerError { color: var(--danger-ink); }
 .lockBannerBtn {
   margin-left: auto;
   background: transparent;
@@ -125,7 +125,7 @@
 }
 .headerSelect, .headerInput {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   color: var(--text-bright);
   border-radius: var(--radius-md);
   padding: 5px 8px;
@@ -134,7 +134,7 @@
 .deleteBtn {
   background: transparent;
   border: 1px solid var(--loss-border);
-  color: var(--loss);
+  color: var(--danger-ink);
   padding: 5px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
@@ -157,10 +157,12 @@
   font-weight: 700;
   color: var(--text-bright);
   padding: 8px 0;
-  outline: none;
   line-height: 1.15;
 }
-/* ⛔ `.titleInput`/`.subtitleInput`/`.proseEditor` all set `outline: none`
+/* ⚰️ Wave 8 (8A): the base rules no longer suppress the outline at all (the
+   focus-suppression rail forbids a suppression with no replacement in the
+   same rule), so this rule and the global one agree. The history:
+   ⛔ `.titleInput`/`.subtitleInput`/`.proseEditor` all set `outline: none`
    unconditionally, at the SAME specificity as the app-wide `:focus-visible`
    rule in tokens.css — component-after-global cascade order means these
    three silently defeat that global rule with no compensating indicator of
@@ -183,12 +185,11 @@
   font-size: 18px;
   color: var(--text-muted);
   padding: 4px 0 20px;
-  outline: none;
   font-style: italic;
 }
 .fontSelect, .fontSizeSelect {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   color: var(--text-bright);
   border-radius: 5px;
   padding: 3px 6px;
@@ -232,7 +233,6 @@
   line-height: 1.7;
   color: var(--text-bright);
   min-height: 400px;
-  outline: none;
 }
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */
@@ -247,9 +247,11 @@
   background: rgba(220, 187, 94, 0.32);
   border-radius: 2px;
 }
+/* Wave 8 (8A, A5): the current match wears the theme's gold with the button ink
+   on it -- a fixed 70% gold under white-on-light text measured 1.6:1. */
 .proseEditor :global(.uct-find-match-active) {
-  background: rgba(220, 187, 94, 0.7);
-  color: #14161b;
+  background: var(--ut-gold);
+  color: var(--bg);
 }
 /* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
    Every rule below targets a BARE ELEMENT, so it reaches by descent into the

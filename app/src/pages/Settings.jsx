@@ -19,6 +19,9 @@ import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCar
 import BrowserCaptureCard from './journal-2-0/components/BrowserCaptureCard'
 import PersonalApiCard from './journal-2-0/components/PersonalApiCard'
 import InboundEmailCard from './journal-2-0/components/InboundEmailCard'
+// Wave 8 seam S8-5: the sharing card (lane 8B builds it) -- renders null while both
+// sharing gates are dark (ruling D-B9). Rail: Settings.sharingCard.test.js.
+import SharingCard from './journal-2-0/components/SharingCard'
 import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import FilingWatchesPanel from '../components/settings/FilingWatchesPanel'
@@ -2397,6 +2400,9 @@ export default function Settings() {
       // Wave 7 lane G -- both render null while their gate is off
       // (NOTEBOOK_PERSONAL_API_ENABLED / NOTEBOOK_INBOUND_EMAIL_ENABLED, dark).
       card('personalApi', <PersonalApiCard />),
+      // Wave 8 seam S8-5 -- renders null unless j2_share_links_enabled or
+      // notebook_publish_enabled is on (both dark, ruling D-B9).
+      card('sharing', <SharingCard />),
       card('inboundEmail', <InboundEmailCard />),
     ],
     legal: [

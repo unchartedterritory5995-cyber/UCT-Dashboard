@@ -1,0 +1,178 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view"
+- button "Calendar view"
+- button "Graph view"
+- button "Timeline view" [pressed]
+- button "Tasks view"
+- button "Save view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- text: Place by
+- combobox "Place by":
+  - option "Last updated" [selected]
+  - option "Created"
+  - option "Review Date"
+- text: Group by
+- combobox "Group by":
+  - option "Folder" [selected]
+  - option "Tag"
+- group "Zoom":
+  - button "Week"
+  - button "Month" [pressed]
+  - button "Quarter"
+- button "Previous month"
+- text: Sep 2026
+- button "Next month"
+- button "Today"
+- table "Notes by folder, Sep 2026":
+  - caption: Notes by folder, Sep 2026
+  - rowgroup:
+    - row "Folder 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30":
+      - columnheader "Folder"
+      - columnheader "1"
+      - columnheader "2"
+      - columnheader "3"
+      - columnheader "4"
+      - columnheader "5"
+      - columnheader "6"
+      - columnheader "7"
+      - columnheader "8"
+      - columnheader "9"
+      - columnheader "10"
+      - columnheader "11"
+      - columnheader "12"
+      - columnheader "13"
+      - columnheader "14"
+      - columnheader "15"
+      - columnheader "16"
+      - columnheader "17"
+      - columnheader "18"
+      - columnheader "19"
+      - columnheader "20"
+      - columnheader "21"
+      - columnheader "22"
+      - columnheader "23"
+      - columnheader "24"
+      - columnheader "25"
+      - columnheader "26"
+      - columnheader "27"
+      - columnheader "28"
+      - columnheader "29"
+      - columnheader "30"
+  - rowgroup:
+    - row "Theses 8A SR pass 8A AMD thesis 8A":
+      - rowheader "Theses 8A"
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell "SR pass 8A AMD thesis 8A":
+        - button "SR pass 8A"
+        - button "AMD thesis 8A"
+      - cell
+      - cell
+      - cell
+      - cell
+    - row "Theses 8A 020910 Delete me too 8A SR pass 8A AMD thesis 8A":
+      - rowheader "Theses 8A 020910"
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell "Delete me too 8A SR pass 8A AMD thesis 8A":
+        - button "Delete me too 8A"
+        - button "SR pass 8A"
+        - button "AMD thesis 8A"
+      - cell
+      - cell
+      - cell
+      - cell
+    - row "Unfiled Delete me 8A Lonely note 8A Weekly plan 8A Lonely note 8A Weekly plan 8A":
+      - rowheader "Unfiled"
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell
+      - cell "Delete me 8A Lonely note 8A Weekly plan 8A Lonely note 8A Weekly plan 8A":
+        - button "Delete me 8A"
+        - button "Lonely note 8A"
+        - button "Weekly plan 8A"
+        - button "Lonely note 8A"
+        - button "Weekly plan 8A"
+      - cell
+      - cell
+      - cell
+      - cell
+- text: Showing 10 of 10 notes

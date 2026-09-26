@@ -14,7 +14,7 @@
   font-size: 13px;
   color: var(--text-bright);
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 7px;
 }
 .list {

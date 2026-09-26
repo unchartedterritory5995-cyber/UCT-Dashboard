@@ -1,0 +1,24 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view"
+- button "Calendar view"
+- button "Graph view"
+- button "Timeline view"
+- button "Tasks view" [pressed]
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- region "Tasks":
+  - heading "Tasks" [level=2]
+  - group "Show tasks":
+    - button "Open" [pressed]
+    - button "Done"
+  - paragraph: To tick a task off, open its note.
+  - status: No open tasks. Add a checklist to any note and its items show up here.

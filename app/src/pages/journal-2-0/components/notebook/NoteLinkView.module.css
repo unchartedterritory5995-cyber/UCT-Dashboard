@@ -33,7 +33,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
-  color: var(--loss);
+  color: var(--danger-ink);
   background: var(--loss-bg);
   border-radius: 3px;
   padding: 1px 4px;

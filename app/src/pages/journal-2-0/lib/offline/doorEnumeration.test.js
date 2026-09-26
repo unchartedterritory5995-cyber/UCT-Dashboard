@@ -348,6 +348,17 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
         'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
         + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
         + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
+      // Wave 8 (8C; controller ruling on the whole-branch pass): the sample notebook reaches the
+      // notes through `import_confirm` and `delete_note`, which the matcher did not name, so the
+      // matcher now names every note writer a module outside journal_two.py can call.
+      'api/services/journal_two/sample_notebook.py':
+        'import_confirm (the file importer\'s own function) seeds NEW notes no tab holds yet, and its second pass '
+        + 'rewrites only those fresh ids inside the same call; delete_note (DELETE /api/j2/onboarding/sample-notebook) '
+        + 'trashes only the recorded sample ids, and a later save to one reads 404 (update_note treats a trashed note as missing); '
+        + 'so its one client door (ResearchHome "Remove it") first runs the bulk trash\'s own pre-check '
+        + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
+        + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
+        + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
     }
     const found = []
     for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {
@@ -355,7 +366,7 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       if (rel(p) === 'api/routers/journal_two.py') continue            // rail ③ reads it
       if (rel(p).includes('note_connectors/engine.py')) continue      // rail ② ledgers it
       const src = readFileSync(p, 'utf8')
-      if (/\b(update_note|create_note)\(/.test(src)) found.push(rel(p))
+      if (/\b(update_note|create_note|import_confirm|delete_note)\(/.test(src)) found.push(rel(p))
     }
     // non-vacuity: the walk must at least see the wave-6 daily-note creator
     expect(found, '⛔ the server-side door walk found nothing — the matcher is broken, not the tree')

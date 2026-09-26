@@ -56,6 +56,123 @@
   /* The element is sized in JS from the measured container; these keep it from
      forcing its parent wider on a narrow screen before the first measure. */
   max-width: 100%;
+  /* The keyboard selection ring's colour. A canvas draws no text of its own, so
+     `color` is free to carry it: NoteGraphView reads it with getComputedStyle,
+     which keeps the ring on the theme and in front of the contrast rail. */
+  color: var(--ut-gold);
+}
+
+/* The wrapper clips (overflow: hidden) and the canvas fills it, so the global
+   :focus-visible outline -- drawn 2px OUTSIDE the element -- would be cut off.
+   Draw it inside instead. */
+.canvas:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -3px;
+}
+
+.viewToggle {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.viewToggle[aria-pressed='true'] {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
+/* ── list mode ─────────────────────────────────────────────────────────── */
+
+.listWrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.table th,
+.table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.noteBtn,
+.linkBtn {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text-bright);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.noteBtn {
+  font-weight: 600;
+}
+
+.linkBtn {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.noteBtn:hover,
+.linkBtn:hover {
+  color: var(--ut-gold);
+}
+
+.linked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.none {
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .viewToggle,
+  .noteBtn,
+  .linkBtn {
+    min-height: var(--tap-min);
+  }
 }
 
 .state {

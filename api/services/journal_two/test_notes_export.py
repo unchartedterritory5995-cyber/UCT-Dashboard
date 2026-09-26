@@ -1707,13 +1707,16 @@ def _dollar_resolver(url):
     return None
 
 
-def test_image_alt_keeps_its_dollars_raw_because_our_importer_drops_an_escape_there():
-    # markdown-it's renderInlineAsText skips escaped characters when it builds
-    # an image's alt, so `\$` would re-import as nothing at all -- the member's
-    # `$` lost in our own round trip (exportRoundtrip.test.js reads it back).
+def test_image_alt_escapes_its_dollars_now_that_our_importer_keeps_an_escape_there():
+    # Wave 8 lane 8C, C5 (supersedes "image alt keeps its dollars raw"). The alt
+    # stayed raw while markdown-it's renderInlineAsText skipped escaped characters
+    # in an alt; the importer's image renderer now keeps them
+    # (lib/importer/markdownExtensions.js), so an alt's `$` is escaped like every
+    # other `$` -- two of them can never pair as math -- and still comes back
+    # (fidelityCarryovers.roundtrip.test.js reads it back). The src stays raw.
     md = tiptap_to_markdown(_doc(
         {"type": "image", "attrs": {"src": "https://x.test/a.png?v=$1", "alt": "NVDA $5 base"}}))
-    assert md == "![NVDA $5 base](https://x.test/a.png?v=$1)"
+    assert md == "![NVDA \\$5 base](https://x.test/a.png?v=$1)"
 
 
 def test_attachment_name_dollars_are_escaped_but_the_href_is_not():

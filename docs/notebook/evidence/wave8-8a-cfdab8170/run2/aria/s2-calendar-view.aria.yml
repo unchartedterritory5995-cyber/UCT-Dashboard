@@ -1,0 +1,87 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view"
+- button "Calendar view" [pressed]
+- button "Graph view"
+- button "Timeline view"
+- button "Tasks view"
+- button "Save view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- button "Previous month"
+- text: September 2026
+- button "Next month"
+- button "Today"
+- text: Date
+- combobox "Date":
+  - option "Review Date" [selected]
+- grid "September 2026":
+  - row "SUN MON TUE WED THU FRI SAT":
+    - columnheader "SUN"
+    - columnheader "MON"
+    - columnheader "TUE"
+    - columnheader "WED"
+    - columnheader "THU"
+    - columnheader "FRI"
+    - columnheader "SAT"
+  - row "2026-09-01 2026-09-02 2026-09-03 2026-09-04 2026-09-05":
+    - gridcell
+    - gridcell
+    - gridcell "2026-09-01": "1"
+    - gridcell "2026-09-02": "2"
+    - gridcell "2026-09-03": "3"
+    - gridcell "2026-09-04": "4"
+    - gridcell "2026-09-05": "5"
+  - row "2026-09-06 2026-09-07 2026-09-08 2026-09-09 2026-09-10 2026-09-11 2026-09-12":
+    - gridcell "2026-09-06": "6"
+    - gridcell "2026-09-07": "7"
+    - gridcell "2026-09-08": "8"
+    - gridcell "2026-09-09": "9"
+    - gridcell "2026-09-10": "10"
+    - gridcell "2026-09-11": "11"
+    - gridcell "2026-09-12": "12"
+  - row "2026-09-13 2026-09-14 2026-09-15 2026-09-16 2026-09-17 2026-09-18 2026-09-19":
+    - gridcell "2026-09-13": "13"
+    - gridcell "2026-09-14": "14"
+    - gridcell "2026-09-15": "15"
+    - gridcell "2026-09-16": "16"
+    - gridcell "2026-09-17": "17"
+    - gridcell "2026-09-18": "18"
+    - gridcell "2026-09-19": "19"
+  - row "2026-09-20 2026-09-21 2026-09-22 2026-09-23 2026-09-24 2026-09-25 2026-09-26":
+    - gridcell "2026-09-20": "20"
+    - gridcell "2026-09-21": "21"
+    - gridcell "2026-09-22": "22"
+    - gridcell "2026-09-23": "23"
+    - gridcell "2026-09-24": "24"
+    - gridcell "2026-09-25": "25"
+    - gridcell "2026-09-26": "26"
+  - row "2026-09-27 2026-09-28 2026-09-29 2026-09-30":
+    - gridcell "2026-09-27": "27"
+    - gridcell "2026-09-28": "28"
+    - gridcell "2026-09-29": "29"
+    - gridcell "2026-09-30": "30"
+    - gridcell
+    - gridcell
+    - gridcell
+- region "Unscheduled":
+  - heading "Unscheduled 10" [level=4]
+  - button "Delete me too 8A"
+  - button "Delete me 8A"
+  - button "Lonely note 8A"
+  - button "SR pass 8A"
+  - button "AMD thesis 8A"
+  - button "Weekly plan 8A"
+  - button "SR pass 8A"
+  - button "Lonely note 8A"
+  - button "AMD thesis 8A"
+  - button "Weekly plan 8A"
+- text: Showing 10 of 10 notes

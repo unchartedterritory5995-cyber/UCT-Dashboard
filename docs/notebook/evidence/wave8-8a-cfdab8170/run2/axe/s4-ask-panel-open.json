@@ -1,0 +1,32 @@
+{
+ "surface": "S4 Ask panel open",
+ "axe": "4.13.0",
+ "gate": [],
+ "contrast": {
+  "dark": [
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "nodes": [
+     {
+      "target": "._danger_1y34p_73 > ._label_1y34p_75",
+      "data": {
+       "fgColor": "#df4646",
+       "bgColor": "#17181b",
+       "contrastRatio": 4.31,
+       "fontSize": "9.0pt (12px)",
+       "fontWeight": "normal",
+       "messageKey": null,
+       "expectedContrastRatio": "4.5:1",
+       "shadowColor": null,
+       "colorParse": null
+      },
+      "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #df4646, background color: #17181b, font size: 9.0pt (12px), font weight: normal). Expected contrast ratio of 4.5:1"
+     }
+    ]
+   }
+  ],
+  "light": []
+ }
+}

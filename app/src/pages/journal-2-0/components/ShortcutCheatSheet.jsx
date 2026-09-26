@@ -1,7 +1,7 @@
 /** Keyboard shortcut cheat sheet. Bound to `?`. */
 
 import { useEffect, useId } from 'react'
-import { altKeyLabel, modKeyLabel, replaceChordKeys } from '../lib/platform'
+import { altKeyLabel, homeEndKeys, modKeyLabel, replaceChordKeys } from '../lib/platform'
 import shellStyles from './ModalShell.module.css'
 import styles from './ShortcutCheatSheet.module.css'
 
@@ -52,6 +52,7 @@ const JOURNAL_SHORTCUTS = [
 function notebookShortcuts() {
   const mod = modKeyLabel()
   const alt = altKeyLabel()
+  const { home, end } = homeEndKeys()
   return [
     { keys: [mod, 'K'], label: 'Open command palette (works from anywhere, incl. Notebook)' },
     // The quick switcher lives in that same palette — no second box, no second
@@ -68,6 +69,19 @@ function notebookShortcuts() {
     // Wave 5 bulk operations (list and table views).
     { keys: ['Shift', 'Click'], label: 'Select every note between the last one checked and this one' },
     { keys: ['Esc'], label: 'Clear the selected notes' },
+    // Wave 8 (lane 8A, ruling D-A3): the graph canvas, once it has focus.
+    // ⛔ ONE key per row: the renderer joins a row's keys with "+", so the four
+    // arrows in one row would read as a four-key chord.
+    { keys: ['Arrow keys'], label: 'Graph view: move to the nearest note in that direction' },
+    { keys: home, label: 'Graph view: go to the first note by title' },
+    { keys: end, label: 'Graph view: go to the last note by title' },
+    { keys: ['Enter'], label: 'Graph view: open the selected note' },
+    { keys: ['Esc'], label: 'Graph view: clear the selected note' },
+    // Wave 8 (lane 8A, browser check): inside a table, Tab moves cell to cell
+    // (and adds a row at the last one), so the way OUT is the table toolbar's
+    // own door (TableToolbar.jsx: Alt+F10 in, Escape back to the cell).
+    { keys: ['Tab'], label: 'In a table: next cell (adds a row at the last cell)' },
+    { keys: [alt, 'F10'], label: 'In a table: move to the table toolbar (Esc returns to the cell)' },
   ]
 }
 

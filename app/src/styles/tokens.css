@@ -59,6 +59,35 @@
   --warn-bg: #dcbb5e15;
   --warn-border: #dcbb5e35;
 
+  /* ── Notebook-only ink/edge tokens (D-A4, wave 8 lane 8A) ─────────────────
+     ADDITIVE, Notebook-scoped fixes for the 139 contrast rows
+     `journal-2-0/a11y/contrastExpectedFailures.js` recorded — controller
+     ruling D-A4 (wave8-rulings.md). `--loss`/`--gain`/`--border` are NOT
+     touched: they colour the whole app. Every ratio below is measured with
+     `app/src/styles/__tests__/contrastMath.js`'s `contrast()` — the same
+     formula `notebookContrast.test.js` imports — against the literal
+     `:root`/`[data-theme]` values in THIS file, worst case across every
+     surface a Notebook row actually sits on (plain `--bg`/`--bg-surface`/
+     `--bg-elevated`, and the `--loss-bg`/`--gain-bg` tint composited over
+     each). Full per-token method: RULINGS D-A4-1/2/3 in
+     contrastExpectedFailures.js.
+
+     --danger-ink (D-A4-1): text only, >= 4.5:1. Hue of --loss (red), lightness
+     lifted. dark and oled both clear >= 4.93:1 (worst: --loss-bg composited
+     over --bg-elevated, and a component's own literal alert tint); the light
+     --loss already reads 5.13:1 there, so it is reused verbatim (D-A4-1
+     allows this).
+     --success-ink (D-A4-2): same method, --gain (green). dark (5.20:1) and
+     oled (6.08:1) already clear 4.5:1 with the plain --gain, so it is reused;
+     light needed one step darker (4.53:1 -> 5.04:1 worst, vs --gain-bg over
+     --bg-surface).
+     --field-edge (D-A4-3): non-text UI, >= 3:1 against every page surface
+     (an input's fill varies by file: --bg / --bg-surface / --bg-elevated).
+     Neutral grey family of --border (same hue/sat, lightness only). */
+  --danger-ink: #e67070; /* dark: 4.93:1 worst (loss-bg over bg-elevated) */
+  --success-ink: var(--gain); /* dark: 5.20:1 worst, already clears 4.5:1 */
+  --field-edge: #6a6f7c; /* dark: 3.28:1 worst vs bg/bg-surface/bg-elevated */
+
   /* ── LEGACY ALIASES ─────────────────────────────────────────────────────
      These nine names are used across ~212 CSS declarations in app/src and were
      NEVER DEFINED anywhere. A `var(--x)` with no fallback and no definition is
@@ -573,6 +602,14 @@
   --border: #1e1e1e;
   --border-accent: #2a2a2a;
 
+  /* D-A4 Notebook ink/edge tokens (see the :root block above for the method).
+     oled: danger-ink 4.97:1 worst (loss-bg over bg-elevated) · success-ink
+     reuses --gain, 6.08:1 worst, already clears 4.5:1 · field-edge 3.29:1
+     worst vs bg/bg-surface/bg-elevated. */
+  --danger-ink: #e35e5e;
+  --success-ink: var(--gain);
+  --field-edge: #666666;
+
   /* Research-kit glass on true black: the olive tint of the dark theme reads
      as a smudge over #000, so the surfaces go neutral and slightly denser. */
   --glass-surface: rgba(17, 17, 17, 0.62);
@@ -658,6 +695,16 @@
   --warn: #7a5c16;
   --warn-bg: #7a5c1614;
   --warn-border: #7a5c1638;
+
+  /* D-A4 Notebook ink/edge tokens (see the :root block above for the method).
+     light: danger-ink reuses --loss verbatim, 5.13:1 worst, already clears
+     4.5:1 · success-ink is --gain darkened one step, 5.04:1 worst (vs
+     gain-bg over bg-surface) · field-edge 3.34:1 worst vs bg/bg-surface/
+     bg-elevated (bg and bg-elevated are both #ffffff in this theme). */
+  --danger-ink: var(--loss);
+  --success-ink: #1a703f;
+  --field-edge: #7e8790;
+
   --info: #1f5d7a;
   --info-bg: #1f5d7a12;
   --info-border: #1f5d7a30;

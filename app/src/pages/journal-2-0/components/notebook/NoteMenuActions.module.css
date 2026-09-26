@@ -39,7 +39,7 @@
 }
 .statusError {
   font-size: 12px;
-  color: var(--color-danger, #e06c6c);
+  color: var(--danger-ink);
 }
 
 @media (max-width: 1024px) {
@@ -61,7 +61,7 @@
   font-size: 12px;
   color: var(--text);
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-sm, 6px);
 }
 @media (max-width: 1024px) {

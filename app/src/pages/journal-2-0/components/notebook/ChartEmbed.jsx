@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
 // speaks. ⛔ Never toISOString(): UTC flips to the next calendar day at
@@ -127,7 +128,10 @@ function ChartEmbed({
     peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair])
 
   return (
-    <div style={{ height: '100%' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption (the same words
+    // its archived image uses for alt), so a screen reader hears what the
+    // chart IS before it meets the chart's own controls.
+    <div style={{ height: '100%' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <ChartPane
         ref={paneRef}
         sym={params.symbol}

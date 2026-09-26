@@ -1,24 +1,26 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useEditor, EditorContent } from '@tiptap/react'
-import { buildExtensions } from './lib/tiptap'
-import { noteContentGuardOptions, useUnreadableNote } from './lib/noteContentGuard'
-import UnreadableNoteNotice from './lib/UnreadableNoteNotice'
 import { SHARED_NOTE_ENDPOINT } from './lib/noteShareLink'
 import { SkeletonLine } from '../../components/Skeleton'
+import ReadOnlyNote from './public/ReadOnlyNote'
+import PublicPageMeta from './public/PublicPageMeta'
 import styles from './SharedNotePage.module.css'
 
 /**
  * 🔴 THE FAR END OF A NOTE SHARE LINK — public, read-only, shell-less.
  *
- * Renders the sanitized payload from `GET /api/j2/shared/{token}` with the
- * REAL notebook extensions in a non-editable editor, so prose, tables and
- * embeds look exactly like the notebook — with one deliberate difference:
- * `shareView` on editor storage makes every widget embed render its ARCHIVED
- * IMAGE (the durable-image substrate doing the job it was built for). A
- * public reader never mounts live components, never polls auth-scoped APIs,
- * never spends quota. Attachment URLs arrive already rewritten to the
- * token-scoped proxy.
+ * Renders the sanitized payload from `GET /api/j2/shared/{token}` through the ONE public
+ * rendering (`public/ReadOnlyNote.jsx`, shared with published pages). What reaches this
+ * page was decided by the server's ONE reducer
+ * (`api/services/journal_two/public_note_payload.py`, share mode): no note ids, no other
+ * notes' titles, no file attachments, and the market-data line where the owner's legal
+ * sign-off says a vendor's content may not be shown. Attachment URLs arrive already
+ * rewritten to the token-scoped proxy.
+ *
+ * ⛔ The page makes NO request but the payload (and the payload's own proxied images).
+ * A `noteLink` arrives as plain text, which is what keeps `NoteLinkView` — and its
+ * `/api/j2/notes/link-targets` read with the VIEWER's cookie — off this page
+ * (rail: SharedNotePage.publicRequests.test.jsx).
  */
 export default function SharedNotePage() {
   const { token } = useParams()
@@ -41,6 +43,7 @@ export default function SharedNotePage() {
     // same note, so it reuses the same idiom rather than a bare word.
     return (
       <div className={styles.page}>
+        <PublicPageMeta />
         <div className={styles.centered} role="status" aria-label="Loading…">
           <SkeletonLine width="55%" height={20} />
           <div style={{ height: 14 }} />
@@ -51,50 +54,28 @@ export default function SharedNotePage() {
     )
   }
   if (state.status !== 'ok' || !state.note) {
+    // One sentence for every dead link: unknown, revoked, expired, trashed, archived and
+    // switched off all answer the same 404 on the server, so the page cannot (and must
+    // not) say which.
     return (
       <div className={styles.page}>
-        <div className={styles.centered} data-testid="shared-note-gone">
-          <div className={styles.goneTitle}>This link is no longer available.</div>
-          <div className={styles.goneWhy}>The note may have been unshared or removed.</div>
-        </div>
+        <PublicPageMeta />
+        <main className={styles.centered} data-testid="shared-note-gone">
+          <h1 className={styles.goneTitle}>This link is no longer available.</h1>
+          <p className={styles.goneWhy}>It may have expired, or the note may have been unshared or removed.</p>
+        </main>
       </div>
     )
   }
   return (
     <div className={styles.page} data-testid="shared-note">
-      <ReadOnlyNote note={state.note} />
-      <div className={styles.brandFoot}>
+      <PublicPageMeta />
+      <main>
+        <ReadOnlyNote note={state.note} />
+      </main>
+      <footer className={styles.brandFoot}>
         Written in <span className={styles.brandName}>UCT Intelligence</span> — Navigate the market, effectively.
-      </div>
-    </div>
-  )
-}
-
-function ReadOnlyNote({ note }) {
-  const editor = useEditor({
-    extensions: buildExtensions(),
-    // S1/H14: a note this bundle cannot read says so, instead of rendering empty.
-    ...noteContentGuardOptions(),
-    content: note.bodyJson || { type: 'doc', content: [] },
-    editable: false,
-    // BEFORE create, not onCreate: node views can mount ahead of onCreate,
-    // and a view that misses the flag would mount a LIVE component on a
-    // public page (the exact class the flag exists to prevent).
-    onBeforeCreate: ({ editor: ed }) => {
-      ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), shareView: true }
-    },
-  }, [note])
-  const unreadable = useUnreadableNote(editor)
-
-  return (
-    <div className={styles.column}>
-      {note.heroImageUrl && !/youtube\.com|youtu\.be/.test(note.heroImageUrl) && (
-        <img className={styles.hero} src={note.heroImageUrl} alt="" />
-      )}
-      <h1 className={styles.title}>{note.title || 'Untitled'}</h1>
-      {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
-      {unreadable && <UnreadableNoteNotice />}
-      <EditorContent editor={editor} />
+      </footer>
     </div>
   )
 }

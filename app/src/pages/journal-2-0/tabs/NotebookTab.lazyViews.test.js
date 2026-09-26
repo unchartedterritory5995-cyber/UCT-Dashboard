@@ -22,6 +22,9 @@ const LAZY = [
   '../components/notebook/NoteTasksView',
   '../components/notebook/import/ImportWizard',
   '../components/notebook/export/ExportDialog',
+  // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare
+  // <Suspense>. Final-review fix I-2 moved it out: NotebookTourGate (imported statically, below)
+  // owns the tour's chunk, through `lazyLeaf` inside its own boundary.
 ]
 
 const ast = JsxParser.parse(fs.readFileSync(FILE, 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
@@ -57,6 +60,13 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
     expect(calls).toContain('useState') // non-vacuity: the walk sees ordinary calls
     expect(calls.filter((c) => c === 'lazy')).toEqual([])
     expect(calls.filter((c) => c === 'lazyChunk')).toHaveLength(2) // lazyView + lazyDialog
+  })
+
+  // Wave 8 final-review fix I-2: the tour is reached through its GATE, never its chunk. The gate
+  // is small and static; the tour itself stays out of this file's import graph altogether.
+  it('the tour is reached only through NotebookTourGate, never imported here', () => {
+    expect(staticImports).toContain('../components/notebook/onboarding/NotebookTourGate')
+    expect([...staticImports, ...dynamicImports].filter((s) => /onboarding\/NotebookTour$/.test(s))).toEqual([])
   })
 
   it('the editor, the first paint, stays static', () => {

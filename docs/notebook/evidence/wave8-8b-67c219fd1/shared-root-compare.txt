@@ -1,0 +1,5 @@
+Independent shared-root check around boot 2 (scratchpad root_snap.py over scripts/data_root_snapshot.snapshot):
+saved before boot 2 at ~23:51: 62 db files
+compared after boot 2 stopped (23:55:14 shutdown): "compared 62 -> 62 db files: CLEAN"
+
+The launcher's own shutdown checkpoint did not run for either boot: after "Application shutdown complete." the process ended on the Ctrl+Break (uvicorn re-raises the captured signal), so the finally block in scripts/hub_sandbox_boot.py was never reached. Boot 1 has pre-boot, +15s and +120s CLEAN in its log and no shutdown line.

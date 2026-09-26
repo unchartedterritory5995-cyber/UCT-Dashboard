@@ -1,4 +1,4 @@
-"""Public share links for notebook notes (post-v1 round 2).
+"""Public share links for notebook notes (post-v1 round 2; hardened by wave 8 lane 8B).
 
 The screener-share idiom, applied to notes: the token IS the credential, the
 public payload is SANITIZED and read-only, and the whole public surface is
@@ -8,93 +8,206 @@ the flag flips, and revoking a link kills it instantly).
 What a shared page serves — and deliberately does NOT:
 - title / subtitle / bodyJson / hero / updatedAt. No user id, no tags, no
   folder, no ticker: the reader gets the DOCUMENT, not the account.
-- Widget embeds render as their ARCHIVED IMAGES on the public page (the
-  durable-image substrate doing exactly the job it was designed for) — a
-  public reader must never mount live components that poll auth-scoped APIs.
+- The body passes through the ONE public reducer (`public_note_payload.reduce`,
+  `mode="share"`) — the same reducer publish-to-web uses. It is the authority on
+  what each node becomes; read its `NODE_POLICY` and vendor table, not a summary here.
 - Attachment URLs inside the body are REWRITTEN to the token-scoped proxy
   (`/api/j2/shared/{token}/att/...`): the real attachment route is owner-only
   and must stay that way. Only image subs (inline/hero) are proxied — 'file'
-  attachments (PDFs, CSVs) stay private in v1; a shared page is a reading
-  surface, not a file drop.
+  attachments (PDFs, CSVs) never leave; a shared page is a reading surface,
+  not a file drop.
+
+Wave 8 (lane 8B) adds, per `docs/notebook/share-links-authorization-proof.md`:
+- an optional EXPIRY per link (never / 7 / 30 / 90 days; ruling D-B2). The
+  `expires_at` column is SELF-ENSURED here (`ensure_share_schema`), never via db.py;
+- an ARCHIVED note stops serving, exactly as a trashed one does (F-ARCHIVED);
+- the image proxy re-checks the note, so a trashed or archived note's images stop too;
+- `list_shares` for Settings → Sharing & publishing.
 """
 
 from __future__ import annotations
 
-import json
-import os
 import secrets
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_service
+from api.services.journal_two import public_note_payload as public
+from api.services.notebook_flags import flag_on
+
+#: The expiry a member may choose (ruling D-B2). `None` = never.
+EXPIRY_CHOICES: tuple[int | None, ...] = (None, 7, 30, 90)
+EXPIRY_SENTENCE = "Choose when the link stops working: never, or after 7, 30 or 90 days."
+
+#: 24 random bytes = 192 bits (the floor is 128; tests/test_share_publish_authorization.py).
+TOKEN_BYTES = 24
+
+SHARED_ATTACHMENT_BASE = "/api/j2/shared/{token}/att/"
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _iso(dt: datetime) -> str:
+    """ONE timestamp shape for every column this module compares as text:
+    microseconds always present, so string order is time order."""
+    return dt.astimezone(timezone.utc).isoformat(timespec="microseconds")
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return _iso(_now())
 
 
 def enabled() -> bool:
-    return os.environ.get("J2_SHARE_LINKS_ENABLED", "0") == "1"
+    """The share gate, read PER CALL through the one Notebook flag parse.
+
+    ⚰️ This was `os.environ.get(...) == "1"` — the ONLY value that meant ON —
+    while the auth payload accepted `1/true/yes/on`. Once the flag rides the
+    payload (wave 8, S8-1) that difference is a Share button whose routes 404.
+    `tests/test_notebook_flag_parse.py` pins the payload and this gate together.
+    ⛔ Ruling D-B9: the default stays OFF until the owner's legal sign-off.
+    """
+    return flag_on("J2_SHARE_LINKS_ENABLED", False)
+
+
+# ── The self-ensured expiry column ──────────────────────────────────────────────
+#
+# ⛔ NEVER db.py. `PRAGMA table_info`, then `ALTER TABLE … ADD COLUMN`, idempotent.
+# Cached per process after the first success, keyed by the DATABASE FILE — a
+# per-process boolean would be wrong the moment one process opens two databases
+# (every test file does), and an in-memory database is never cached at all.
+_SCHEMA_READY: set[str] = set()
+
+
+def _db_key(conn: sqlite3.Connection) -> str:
+    try:
+        for row in conn.execute("PRAGMA database_list").fetchall():
+            if row[1] == "main":
+                return str(row[2] or "")
+    except sqlite3.Error:
+        return ""
+    return ""
+
+
+def ensure_share_schema(conn: sqlite3.Connection) -> None:
+    """Add `expires_at` if it is missing -- WITHOUT ever committing a transaction the
+    caller has open on `conn` (wave-8 final review M-8).
+
+    ⚰️ The ALTER was followed by `conn.commit()`, which commits whatever the caller had in
+    flight on a connection it passed in. Now the column is present -> nothing is altered or
+    committed; the caller has a transaction open -> the ALTER rides it (committed or rolled
+    back WITH the caller's work) and nothing is cached, so a rollback is re-ensured next
+    time; only a connection with no transaction open is committed."""
+    key = _db_key(conn)
+    if key and key in _SCHEMA_READY:
+        return
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_shares)").fetchall()}
+    if not cols:
+        return  # the j2 schema has not run here: nothing to alter (and nothing to read)
+    if "expires_at" not in cols:
+        callers_txn = conn.in_transaction
+        try:
+            conn.execute("ALTER TABLE j2_note_shares ADD COLUMN expires_at TEXT")
+            if not callers_txn:
+                conn.commit()
+        except sqlite3.OperationalError as e:  # a concurrent ensure won the race
+            if "duplicate column" not in str(e).lower():
+                raise
+        if callers_txn:
+            return
+    if key:
+        _SCHEMA_READY.add(key)
+
+
+def _active_sql(alias: str = "") -> str:
+    p = f"{alias}." if alias else ""
+    return f"{p}revoked_at IS NULL AND ({p}expires_at IS NULL OR {p}expires_at > ?)"
+
+
+def validate_expiry(value: Any) -> int | None:
+    """`expiresInDays` as sent -> the days, or ValueError(EXPIRY_SENTENCE).
+    ⛔ Exactly `None`, 7, 30 or 90 — a bool, a float or a string is refused, never coerced."""
+    if value is None:
+        return None
+    if type(value) is int and value in EXPIRY_CHOICES:
+        return value
+    raise ValueError(EXPIRY_SENTENCE)
 
 
 def _owned(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
-    # Wave 0 trash: a soft-deleted note must not be shareable — creating a
-    # new share link for a note already in the trash would be surprising,
-    # and `resolve_share` (below) already stops SERVING an existing share
-    # the moment its note is deleted, via `notes_service.get_note`'s own
-    # default `deleted_at IS NULL` filter — this closes the symmetric gap
-    # on the creation side.
+    """The caller's note, and one a link could SERVE: neither trashed nor archived.
+
+    Wave 0 trash: a soft-deleted note must not be shareable -- `_live_share_row` stops
+    serving a link the moment its note is trashed, and this closes the symmetric gap on the
+    creation side. ⚰️ Wave-8 final review M-3: an ARCHIVED note passed this check (it read
+    only `deleted_at`), so a link could be minted that `_live_share_row` would never serve.
+    Archived now answers exactly like trashed: the one not-found, nothing written."""
     row = conn.execute(
-        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ?"
+        " AND deleted_at IS NULL AND archived_at IS NULL",
         (note_id, user_id),
     ).fetchone()
     return row is not None
 
 
+def _public_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {"token": row["token"], "createdAt": row["created_at"], "expiresAt": row["expires_at"]}
+
+
 def get_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
-    """The note's ACTIVE share token, or None."""
+    """The note's ACTIVE share token (not revoked, not expired), or None."""
     owned = conn is None
     conn = conn or get_connection()
     try:
+        ensure_share_schema(conn)
         row = conn.execute(
-            "SELECT token, created_at FROM j2_note_shares"
-            " WHERE note_id = ? AND user_id = ? AND revoked_at IS NULL",
-            (note_id, user_id),
+            "SELECT token, created_at, expires_at FROM j2_note_shares"
+            f" WHERE note_id = ? AND user_id = ? AND {_active_sql()}",
+            (note_id, user_id, _now_iso()),
         ).fetchone()
-        return {"token": row["token"], "createdAt": row["created_at"]} if row else None
+        return _public_row(row) if row else None
     finally:
         if owned:
             conn.close()
 
 
-def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None) -> dict | None:
+def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
+                 expires_in_days: int | None = None) -> dict | None:
     """Mint (or return the existing active) share token. None = not the
-    caller's note."""
+    caller's note, or one in Trash or archived (M-3). An existing active
+    link keeps its own expiry: to change it,
+    revoke and create again (the old URL must die, not quietly live longer)."""
+    days = validate_expiry(expires_in_days)
     owned = conn is None
     conn = conn or get_connection()
     try:
+        ensure_share_schema(conn)
         if not _owned(conn, user_id, note_id):
             return None
         existing = get_share(user_id, note_id, conn=conn)
         if existing:
             return existing
-        token = secrets.token_urlsafe(24)
-        now = _now_iso()
+        token = secrets.token_urlsafe(TOKEN_BYTES)
+        now = _now()
+        expires = _iso(now + timedelta(days=days)) if days else None
         conn.execute(
-            "INSERT INTO j2_note_shares (token, note_id, user_id, created_at)"
-            " VALUES (?, ?, ?, ?)",
-            (token, note_id, user_id, now),
+            "INSERT INTO j2_note_shares (token, note_id, user_id, created_at, expires_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (token, note_id, user_id, _iso(now), expires),
         )
         conn.commit()
-        return {"token": token, "createdAt": now}
+        return {"token": token, "createdAt": _iso(now), "expiresAt": expires}
     finally:
         if owned:
             conn.close()
 
 
 def revoke_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None) -> bool:
+    """⛔ Scoped by the caller: another member's revoke touches no row (rail:
+    tests/test_share_publish_authorization.py, owner-only)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -110,58 +223,38 @@ def revoke_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = N
             conn.close()
 
 
-def _rewrite_attachment_urls(raw_json: str, user_id: str, note_id: str, token: str) -> str:
-    """Point THIS note's attachment URLs at the token-scoped proxy. URLs for
-    OTHER notes (an embed pasted across notes) are left untouched — they stay
-    owner-only and render as broken images publicly, which is the honest
-    outcome for content the token does not cover."""
-    return raw_json.replace(
-        f"/api/j2/notes/attachments/{user_id}/{note_id}/",
-        f"/api/j2/shared/{token}/att/",
-    )
-
-
-def _reduce_ask_citations(node: Any) -> Any:
-    """G-064 (spec §7.5): a chip's label, link, precision and claim describe notes
-    the member did NOT share. The public copy keeps only the number. Mutates in
-    place and returns the node."""
-    if isinstance(node, dict):
-        if node.get("type") == "askCitation":
-            attrs = node.get("attrs") if isinstance(node.get("attrs"), dict) else {}
-            node["attrs"] = {"n": attrs.get("n")}
-        for child in node.get("content") or []:
-            _reduce_ask_citations(child)
-    return node
+def _live_share_row(conn: sqlite3.Connection, token: str) -> sqlite3.Row | None:
+    """The token's row when it may serve: not revoked, not expired, and its note
+    neither trashed nor archived. One predicate for the page and its images."""
+    ensure_share_schema(conn)
+    row = conn.execute(
+        "SELECT s.note_id, s.user_id FROM j2_note_shares s"
+        " JOIN j2_notes n ON n.id = s.note_id AND n.user_id = s.user_id"
+        f" WHERE s.token = ? AND {_active_sql('s')}"
+        " AND n.deleted_at IS NULL AND n.archived_at IS NULL",
+        (token, _now_iso()),
+    ).fetchone()
+    return row
 
 
 def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[str, Any] | None:
-    """The SANITIZED public payload for an active token, or None."""
+    """The SANITIZED public payload for a live token, or None (every miss alike)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute(
-            "SELECT note_id, user_id FROM j2_note_shares"
-            " WHERE token = ? AND revoked_at IS NULL",
-            (token,),
-        ).fetchone()
+        row = _live_share_row(conn, token)
         if not row:
             return None
-        note = notes_service.get_note(row["user_id"], row["note_id"], conn=conn)
+        # ⛔ Never notes.get_note here: its lazy first_image_url backfill would make a
+        # stranger's GET write the owner's row (F-READ-WRITES).
+        note = public.read_public_note(conn, row["user_id"], row["note_id"])
         if not note:
             return None
-        body_raw = _rewrite_attachment_urls(
-            json.dumps(note.get("bodyJson") or {}), row["user_id"], row["note_id"], token,
+        return public.public_note(
+            note, mode="share", owner_id=row["user_id"], note_id=row["note_id"],
+            attachment_base=SHARED_ATTACHMENT_BASE.format(token=token),
+            facts=public.public_facts(conn, row["user_id"], row["note_id"]),
         )
-        hero = note.get("heroImageUrl")
-        if hero:
-            hero = _rewrite_attachment_urls(hero, row["user_id"], row["note_id"], token)
-        return {
-            "title": note.get("title") or "",
-            "subtitle": note.get("subtitle"),
-            "bodyJson": _reduce_ask_citations(json.loads(body_raw)),
-            "heroImageUrl": hero,
-            "updatedAt": note.get("updatedAt"),
-        }
     finally:
         if owned:
             conn.close()
@@ -182,14 +275,52 @@ def resolve_share_attachment(token: str, sub: str, filename: str,
     owned = conn is None
     conn = conn or get_connection()
     try:
-        row = conn.execute(
-            "SELECT note_id, user_id FROM j2_note_shares"
-            " WHERE token = ? AND revoked_at IS NULL",
-            (token,),
-        ).fetchone()
+        row = _live_share_row(conn, token)
         if not row:
             return None
         return notes_service.serve_note_image_path(row["user_id"], row["note_id"], sub, filename)
     finally:
         if owned:
             conn.close()
+
+
+def list_shares(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
+    """The member's share links that have not been revoked, newest first, with the
+    note's title and the link's state — for Settings → Sharing & publishing.
+    State: `active`, `expired`, `note in trash` or `note archived` (the last three
+    do not serve)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        ensure_share_schema(conn)
+        rows = conn.execute(
+            "SELECT s.token, s.note_id, s.created_at, s.expires_at,"
+            " n.id AS nid, n.title, n.deleted_at, n.archived_at"
+            " FROM j2_note_shares s"
+            " LEFT JOIN j2_notes n ON n.id = s.note_id AND n.user_id = s.user_id"
+            " WHERE s.user_id = ? AND s.revoked_at IS NULL"
+            " ORDER BY s.created_at DESC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        if owned:
+            conn.close()
+    now = _now_iso()
+    out = []
+    for r in rows:
+        if r["nid"] is None:
+            state = "note deleted"
+        elif r["deleted_at"]:
+            state = "note in trash"
+        elif r["archived_at"]:
+            state = "note archived"
+        elif r["expires_at"] and r["expires_at"] <= now:
+            state = "expired"
+        else:
+            state = "active"
+        out.append({
+            "kind": "share", "token": r["token"], "noteId": r["note_id"],
+            "title": r["title"] or "Untitled", "createdAt": r["created_at"],
+            "expiresAt": r["expires_at"], "state": state,
+        })
+    return out

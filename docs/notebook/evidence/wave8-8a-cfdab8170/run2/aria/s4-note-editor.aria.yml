@@ -1,0 +1,128 @@
+- button "Add to Favorites"
+- button "Ask a question about this note": Ask
+- button "Find in note": Find
+- button "Version history": History
+- combobox "Folder":
+  - option "Unfiled"
+  - option "Archive 8A"
+  - option "Archive 8A 020910"
+  - option "Theses 8A"
+  - option "Theses 8A 020910" [selected]
+- textbox "Ticker"
+- group "Tags":
+  - list "This note's tags":
+    - listitem:
+      - text: semis-8a
+      - button "Remove tag semis-8a"
+  - combobox "Add a tag to this note"
+- button "Duplicate note": Duplicate
+- button "Delete"
+- group "Organise this note":
+  - button "Lock"
+  - button "Archive"
+  - button "Save as template"
+  - button "Open a note beside…"
+- toolbar "Editor toolbar":
+  - combobox "Font family":
+    - option "Default" [selected]
+    - option "Sans Serif"
+    - option "Serif"
+    - option "Monospace"
+    - option "Arial"
+    - option "Helvetica"
+    - option "Verdana"
+    - option "Tahoma"
+    - option "Trebuchet MS"
+    - option "Calibri"
+    - option "Century Gothic"
+    - option "Georgia"
+    - option "Times New Roman"
+    - option "Garamond"
+    - option "Palatino"
+    - option "Cambria"
+    - option "Baskerville"
+    - option "Courier New"
+    - option "Consolas"
+    - option "Lucida Sans"
+    - option "Comic Sans MS"
+    - option "Impact"
+    - option "Brush Script MT"
+  - combobox "Text size":
+    - option "Size" [selected]
+    - option "12"
+    - option "13"
+    - option "14"
+    - option "15"
+    - option "16"
+    - option "17"
+    - option "18"
+    - option "20"
+    - option "22"
+    - option "24"
+    - option "28"
+    - option "32"
+    - option "36"
+    - option "40"
+    - option "48"
+    - option "60"
+    - option "72"
+  - button "B"
+  - button "I"
+  - button "Text color and highlight": A
+  - button "H1"
+  - button "H2"
+  - button "• List"
+  - button "1. List"
+  - button "❝"
+  - button "</>"
+  - button "Insert link"
+  - button "Insert image"
+  - button "Attach a file"
+  - status:
+    - strong: "New:"
+    - text: speak instead of type. Tap the mic to dictate, or to talk through it with Compass.
+    - button "Dismiss tip"
+  - button "Start voice input"
+  - button "Horizontal rule": ―
+  - button "Insert widget": ⊞ Insert
+  - button "Outline"
+  - text: 13 words · 1 min read
+  - button "PNG"
+  - button "Print"
+  - button "Export"
+- textbox "Note title":
+  - /placeholder: Title
+  - text: SR pass 8A
+- textbox "Subtitle":
+  - /placeholder: Subtitle (optional)
+- button "Add property"
+- toolbar "Table":
+  - button "Add a row above": Row above
+  - button "Add a row below": Row below
+  - button "Delete this row": Delete row
+  - button "Add a column to the left": Column left
+  - button "Add a column to the right": Column right
+  - button "Delete this column": Delete column
+  - button "Header row" [pressed]
+  - button "Delete table"
+- heading "Setup" [level=2]
+- paragraph: A paragraph that mentions the plan.
+- paragraph:
+  - text: See
+  - button "Weekly plan 8A"
+- paragraph:
+  - text: And
+  - button "AMD thesis 8A"
+- table:
+  - rowgroup:
+    - row "Sym R":
+      - columnheader "Sym":
+        - paragraph: Sym
+      - columnheader "R":
+        - paragraph: R
+    - row "NVDA 2.1":
+      - cell "NVDA":
+        - paragraph: NVDA
+      - cell "2.1":
+        - paragraph: "2.1"
+- paragraph

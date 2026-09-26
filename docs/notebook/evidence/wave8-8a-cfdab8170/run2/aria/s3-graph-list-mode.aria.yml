@@ -1,0 +1,100 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view"
+- button "Calendar view"
+- button "Graph view" [pressed]
+- button "Timeline view"
+- button "Tasks view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- text: 10 notes 4 links 4 unlinked
+- button "Show as list" [pressed]
+- table "Notes in the graph, by title":
+  - caption: Notes in the graph, by title
+  - rowgroup:
+    - row "Note Links Linked notes":
+      - columnheader "Note"
+      - columnheader "Links"
+      - columnheader "Linked notes"
+  - rowgroup:
+    - row "AMD thesis 8A 1 SR pass 8A":
+      - rowheader "AMD thesis 8A":
+        - button "AMD thesis 8A"
+      - cell "1"
+      - cell "SR pass 8A":
+        - list:
+          - listitem:
+            - button "SR pass 8A"
+    - row "AMD thesis 8A 1 SR pass 8A":
+      - rowheader "AMD thesis 8A":
+        - button "AMD thesis 8A"
+      - cell "1"
+      - cell "SR pass 8A":
+        - list:
+          - listitem:
+            - button "SR pass 8A"
+    - row "Delete me 8A 0 None":
+      - rowheader "Delete me 8A":
+        - button "Delete me 8A"
+      - cell "0"
+      - cell "None"
+    - row "Delete me too 8A 0 None":
+      - rowheader "Delete me too 8A":
+        - button "Delete me too 8A"
+      - cell "0"
+      - cell "None"
+    - row "Lonely note 8A 0 None":
+      - rowheader "Lonely note 8A":
+        - button "Lonely note 8A"
+      - cell "0"
+      - cell "None"
+    - row "Lonely note 8A 0 None":
+      - rowheader "Lonely note 8A":
+        - button "Lonely note 8A"
+      - cell "0"
+      - cell "None"
+    - row "SR pass 8A 2 AMD thesis 8A Weekly plan 8A":
+      - rowheader "SR pass 8A":
+        - button "SR pass 8A"
+      - cell "2"
+      - cell "AMD thesis 8A Weekly plan 8A":
+        - list:
+          - listitem:
+            - button "AMD thesis 8A"
+          - listitem:
+            - button "Weekly plan 8A"
+    - row "SR pass 8A 2 AMD thesis 8A Weekly plan 8A":
+      - rowheader "SR pass 8A":
+        - button "SR pass 8A"
+      - cell "2"
+      - cell "AMD thesis 8A Weekly plan 8A":
+        - list:
+          - listitem:
+            - button "AMD thesis 8A"
+          - listitem:
+            - button "Weekly plan 8A"
+    - row "Weekly plan 8A 1 SR pass 8A":
+      - rowheader "Weekly plan 8A":
+        - button "Weekly plan 8A"
+      - cell "1"
+      - cell "SR pass 8A":
+        - list:
+          - listitem:
+            - button "SR pass 8A"
+    - row "Weekly plan 8A 1 SR pass 8A":
+      - rowheader "Weekly plan 8A":
+        - button "Weekly plan 8A"
+      - cell "1"
+      - cell "SR pass 8A":
+        - list:
+          - listitem:
+            - button "SR pass 8A"
+- text: Showing 10 of 10 notes

@@ -203,6 +203,103 @@ def _relative_link(note_folder: str, zip_rel: str) -> str:
     return "/".join(quote(seg, safe="") for seg in rel.split("/"))
 
 
+_CAP_REACHED = "left out: export attachment size cap reached"
+_NOT_EMBEDDABLE = "left out: not an image this document can hold, or too large to convert"
+
+
+def _attachment_ref(url: str | None, user_id: str, note_title: str, state: dict):
+    """`(zip_rel, (user_id, note_id, sub, filename))` for one of OUR attachment addresses
+    that belongs to this member, else None -- a foreign-tenant address is recorded as an
+    issue on the way out. The first half of every attachment read, shared by the archive
+    resolver below and the Word export's image loader (wave 8 lane 8C), so there is ONE
+    tenancy check, not two."""
+    if not url:
+        return None
+    m = _ATTACHMENT_URL_RE.match(url)
+    if not m:
+        return None  # not one of ours -- leave external links untouched
+    url_user_id, note_ref_id, sub, filename = m.groups()
+    if url_user_id != user_id:
+        # A note body is member-authored JSON; a crafted `src` pointing
+        # at another account's attachment path must never be served
+        # through an export, even read-only. Silent skip + a report
+        # entry, same as any other unresolvable reference.
+        state["issues"].setdefault(
+            url, (note_title, "not part of your account"))
+        return None
+    return _zip_rel_for(url_user_id, note_ref_id, sub, filename), (url_user_id, note_ref_id, sub, filename)
+
+
+def _read_attachment_within_cap(url: str, zip_rel: str, parts, note_title: str, state: dict):
+    """`(size, bytes)` of one resolved attachment, within the export's shared byte cap,
+    else None (recorded, and remembered in `state["failed"]`). The second half of every
+    attachment read (see `_attachment_ref`); it does NOT add to `used_bytes` -- the caller
+    does, once the bytes have actually gone into the export."""
+    path = _resolve_attachment_path(*parts)
+    if path is None:
+        state["failed"].add(zip_rel)
+        state["issues"].setdefault(
+            url, (note_title, "file missing on the attachment volume"))
+        return None
+    try:
+        size = path.stat().st_size
+        if state["used_bytes"] + size > state["cap_bytes"]:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(
+                url, (note_title,
+                      _CAP_REACHED))
+            return None
+        data = path.read_bytes()
+    except OSError:
+        state["failed"].add(zip_rel)
+        state["issues"].setdefault(
+            url, (note_title, "file could not be read"))
+        return None
+    return size, data
+
+
+def _make_attachment_bytes_loader(user_id: str, note_title: str, state: dict):
+    """`load(url, prepare) -> prepare(bytes) | None` for the Word export (wave 8 lane 8C): an
+    image is EMBEDDED in the .docx rather than written beside it -- read through the same
+    tenancy check, path containment and byte cap as every other export (`_attachment_ref`,
+    `_read_attachment_within_cap`), then handed to `prepare`
+    (`notes_export_formats._prepare_image`, which returns `(ext, blob, w, h)`).
+
+    ⛔ WHAT IS CHARGED IS WHAT IS EMBEDDED: `len(blob)`, never the stored file's size (wave-8
+    final review I-2). A WebP converts to a PNG that can be many times its stored size, so a
+    note of stored images comfortably under the cap could ask for gigabytes, every converted
+    blob held until the document is zipped. An image whose embedded size would pass the cap
+    is left out and listed with the cap sentence, exactly like an oversized file elsewhere;
+    one `prepare` cannot turn into an image is left out and listed too. Every embed is
+    charged (the document caches a URL it has already embedded)."""
+
+    def load(url: str | None, prepare):
+        ref = _attachment_ref(url, user_id, note_title, state)
+        if ref is None:
+            return None
+        zip_rel, parts = ref
+        if zip_rel in state["failed"]:
+            return None
+        read = _read_attachment_within_cap(url, zip_rel, parts, note_title, state)
+        if read is None:
+            return None
+        _size, data = read
+        prepared = prepare(data)
+        if not prepared:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(url, (note_title, _NOT_EMBEDDABLE))
+            return None
+        embedded = len(prepared[1])
+        if state["used_bytes"] + embedded > state["cap_bytes"]:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(url, (note_title, _CAP_REACHED))
+            return None
+        state["used_bytes"] += embedded
+        return prepared
+
+    return load
+
+
 def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
                                note_title: str, state: dict):
     """Returns a `resolver(url) -> str | None` closure bound to one note
@@ -217,47 +314,19 @@ def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
     recorded, exactly like the per-note markdown-conversion guard above."""
 
     def resolve(url: str | None) -> str | None:
-        if not url:
+        ref = _attachment_ref(url, user_id, note_title, state)
+        if ref is None:
             return None
-        m = _ATTACHMENT_URL_RE.match(url)
-        if not m:
-            return None  # not one of ours -- leave external links untouched
-        url_user_id, note_ref_id, sub, filename = m.groups()
-        if url_user_id != user_id:
-            # A note body is member-authored JSON; a crafted `src` pointing
-            # at another account's attachment path must never be served
-            # through an export, even read-only. Silent skip + a report
-            # entry, same as any other unresolvable reference.
-            state["issues"].setdefault(
-                url, (note_title, "not part of your account"))
-            return None
-
-        zip_rel = _zip_rel_for(url_user_id, note_ref_id, sub, filename)
+        zip_rel, parts = ref
         if zip_rel in state["written"]:
             return _relative_link(note_folder, zip_rel)
         if zip_rel in state["failed"]:
             return None
 
-        path = _resolve_attachment_path(url_user_id, note_ref_id, sub, filename)
-        if path is None:
-            state["failed"].add(zip_rel)
-            state["issues"].setdefault(
-                url, (note_title, "file missing on the attachment volume"))
+        read = _read_attachment_within_cap(url, zip_rel, parts, note_title, state)
+        if read is None:
             return None
-        try:
-            size = path.stat().st_size
-            if state["used_bytes"] + size > state["cap_bytes"]:
-                state["failed"].add(zip_rel)
-                state["issues"].setdefault(
-                    url, (note_title,
-                          "left out: export attachment size cap reached"))
-                return None
-            data = path.read_bytes()
-        except OSError:
-            state["failed"].add(zip_rel)
-            state["issues"].setdefault(
-                url, (note_title, "file could not be read"))
-            return None
+        size, data = read
 
         try:
             # Same OSError shield as the read above -- a write failure (full
@@ -284,7 +353,7 @@ _DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
 
 def _make_note_link_aware_resolver(
     user_id: str, conn: sqlite3.Connection, base_resolver, note_paths: dict[str, str] | None = None,
-    note_folder: str = "",
+    note_folder: str = "", ext: str = ".md",
 ):
     """Wraps `base_resolver` (an attachment resolver) so the SAME resolver
     parameter `_block`'s `noteLink` case calls also answers
@@ -357,9 +426,11 @@ def _make_note_link_aware_resolver(
         if note_id in note_paths:
             # note_paths stores the BARE path (no extension) -- matching
             # what _compute_note_export_paths hands the main loop, which
-            # appends ".md" itself right before zf.writestr(). The actual
-            # file inside the archive is `f"{path}.md"`; the link must match.
-            return title, _relative_link(note_folder, f"{note_paths[note_id]}.md")
+            # appends the format's extension (`ext`: ".md" unless the archive
+            # is another format, wave 8 lane 8C) right before zf.writestr().
+            # The actual file inside the archive is `f"{path}{ext}"`; the link
+            # must match.
+            return title, _relative_link(note_folder, f"{note_paths[note_id]}{ext}")
         # Not bundled in this export -- an honest, clearly-internal
         # reference, never a fabricated local file path.
         return title, f"uct-note:///notebook?note={note_id}"
@@ -383,14 +454,12 @@ def _make_note_link_aware_resolver(
 # excerpt's quote/citation/annotation, a widget's label, an Ask answer's
 # question and source labels. All of it goes through `_prose`, the ONE place
 # this rule lives. URLs (a link's href, an image's src) are not prose and stay
-# raw. ⛔ And so, deliberately, does an image's ALT text: CommonMark flattens an
-# image description to a plain-text `alt`, and our own importer's markdown-it
-# (14.3) builds that string with `renderInlineAsText`, which SKIPS every
-# backslash-escaped character -- `![NVDA \$5](x.png)` re-imports with alt
-# "NVDA 5". Escaping there would lose the member's `$` in the one round trip
-# we own (railed in exportRoundtrip.test.js). A lone `$` cannot form math, and
-# a pair needs a reader that parses math inside an image description -- the
-# smaller risk of the two.
+# raw. An image's ALT text is escaped by its own rule, `_alt` (wave 8, 8C, C5):
+# it used to stay raw because the importer's markdown-it dropped every
+# backslash-escaped character from an alt (`![NVDA \$5](x.png)` came back
+# "NVDA 5"); the importer now keeps them (lib/importer/markdownExtensions.js,
+# and the web page's renderer, notes_export_formats._alt_text), so an alt's
+# `$`, `*`, `_`, `&amp;` and backslashes all travel and come back as typed.
 _ESCAPE_PROSE_DOLLARS = contextvars.ContextVar("notes_export_escape_prose_dollars", default=True)
 
 
@@ -480,8 +549,8 @@ def _toc_markdown(headings: list[tuple[int, str]]) -> str:
     return "\n".join(lines)
 
 
-# A backslash run, and whether a `$` closes it.
-_BACKSLASH_RUN = re.compile(r"(\\+)(\$?)")
+# In `_prose`'s output: an escape pair, a lone backslash, or a bracket.
+_LABEL_TOKEN = re.compile(r"\\[!-/:-@\[-`{-~]|\\|[\[\]]")
 
 
 def _link_label(prose: str) -> str:
@@ -490,46 +559,104 @@ def _link_label(prose: str) -> str:
     ⛔⛔ ONE `$` AUTHORITY, AND THE ORDER IS THE WHOLE TRAP. The TOC used to
     escape `$` itself (a second copy of `_prose`'s rule, which a later fix to
     `_prose` would never have reached -- `lesson_a_guard_repeated_is_a_guard_unproved`).
-    It now takes `_prose`'s output and adds only what LINK text needs: `[` and
-    `]` escaped, and every backslash doubled so none of the member's escapes
-    anything -- EXCEPT a run that ends at a `$`. `_prose` already turned that
-    run into an escaped backslash per member backslash plus an escaped dollar
-    (R2-N4: `cost \\$5` -> `cost \\\\\\$5`); doubling it again would give three
-    literal backslashes and a LIVE `$` a math reader pairs. Railed on exactly
-    that heading, and on every heading reading back as itself through
-    markdown-it-py (tests/test_notes_export_wave6.py)."""
-    doubled = _BACKSLASH_RUN.sub(lambda m: m.group(0) if m.group(2) else m.group(1) * 2, prose)
-    return doubled.replace("[", "\\[").replace("]", "\\]")
+    It takes `_prose`'s output and adds only what LINK text needs: a raw `[` or
+    `]` escaped, and a lone backslash doubled. Every escape PAIR `_prose` wrote
+    (`\\\\`, `\\$`, `\\*`: R2-N4 and wave 8 C5) is kept exactly -- escaping one
+    again would give a literal backslash and a LIVE character after it (a `$` a
+    math reader pairs, a `*` that opens emphasis). Railed on exactly that
+    heading, and on every heading reading back as itself through markdown-it-py
+    (tests/test_notes_export_wave6.py)."""
+    def one(m: re.Match) -> str:
+        tok = m.group(0)
+        if len(tok) == 2:
+            return tok
+        return "\\\\" if tok == "\\" else "\\" + tok
+    return _LABEL_TOKEN.sub(one, prose)
 
 
-# A run of backslashes the member typed right before a `$` (R2-N4).
-_BACKSLASHES_BEFORE_DOLLAR = re.compile(r"(\\+)(?=\$)")
-# A rendered text run that OPENS with an escaped `$` -- our `\$`, perhaps
-# behind the member's own (doubled) backslashes -- and no mark delimiter.
-_OPENS_WITH_ESCAPED_DOLLAR = re.compile(r"\\+\$")
+# A run of backslashes the member typed, and the ONE character after it (none at the end).
+_BACKSLASH_RUN_AND_NEXT = re.compile(r"(\\+)(.?)", re.S)
+# CommonMark's escapable characters: a backslash before any of these escapes it.
+_ASCII_PUNCT = frozenset("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
+
+def _member_backslashes(m: re.Match) -> str:
+    r"""One run of the member's backslashes, written so it reads back as typed (C5).
+
+    A backslash is an ESCAPE to every Markdown reader when ASCII punctuation follows it, so
+    a member's `\*` used to come back as `*`, and `\$` as a live `$` (R2-N4). Each case:
+      - punctuation follows -> the run is doubled (an escaped backslash per backslash) and the
+        punctuation is escaped too, so it stays a literal character (`\*` -> `\\\*`). A `$`
+        is left for the dollar rule, which escapes every `$` in prose;
+      - two or more backslashes, or a line break follows -> doubled: the first of a pair
+        would escape the second, and a backslash before a line break is a hard break;
+      - one backslash before anything else is literal already (`C:\Users` stays readable),
+        and so is one that ENDS the text: a path split over two runs (`C:\` + `Users`) stays
+        as it was. Whoever writes punctuation straight after member text pairs that last
+        backslash first (`_closed`, and `_inline` at every join)."""
+    run, nxt = m.group(1), m.group(2)
+    if nxt and nxt in _ASCII_PUNCT:
+        return run * 2 + (nxt if nxt == "$" else "\\" + nxt)
+    if len(run) > 1 or nxt in ("\n", "\r"):
+        return run * 2 + nxt
+    return run + nxt
+
+
+def _odd_trailing_backslashes(text: str) -> bool:
+    return (len(text) - len(text.rstrip("\\"))) % 2 == 1
+
+
+def _closed(prose: str) -> str:
+    """`_prose` output about to be followed by punctuation of OURS -- a mark's closing `**`,
+    a link's `]`, an italic's `*`: a single backslash the member ended it with is paired,
+    or it would escape that punctuation (wave 8 C5)."""
+    return prose + "\\" if _ESCAPE_PROSE_DOLLARS.get() and _odd_trailing_backslashes(prose) else prose
 
 
 def _prose(text: Any) -> str:
     """Member text written into Markdown PROSE: every `$` becomes `\\$` (N4),
     unless this walk is inside a raw island (`_raw_dollars`).
 
-    ⛔ And a backslash the member typed right before a `$` is doubled first
-    (re-review R2-N4). Our escape puts a `\\` in front of the `$`, which is
-    ASCII punctuation, so CommonMark would read the member's own backslash as
-    ESCAPING ours -- `cost \\$5` exported as `cost \\\\$5` reads as a literal
-    backslash and a LIVE `$`, which a math reader pairs. Doubled, it is
-    `cost \\\\\\$5`: an escaped backslash, then an escaped dollar, and the note
-    re-imports as `cost \\$5`. A backslash before anything else is left as it
-    was (a Windows path, `C:\\Users`, is untouched).
+    ⛔ And every backslash the member typed that a reader would take as an
+    ESCAPE is written so it reads back as typed (`_member_backslashes`: R2-N4
+    for `$`, wave 8 C5 for the rest of ASCII punctuation). `cost \\$5` is
+    `cost \\\\\\$5`: an escaped backslash, then an escaped dollar; `\\*` is
+    `\\\\\\*`. A lone backslash before a letter is left as it was (a Windows
+    path, `C:\\Users`, is untouched).
 
-    This sees ONE string. A backslash ending one text run and a `$` opening
-    the next (a coloured word, then plain text) is handled where the runs are
-    joined, in `_inline` (re-review R34-N2)."""
+    One backslash that ENDS the text is left as it is (see `_member_backslashes`):
+    a caller that writes its own punctuation straight after -- a mark's closing
+    `**`, a link's `]` -- pairs it with `_closed`, and `_inline` pairs it at
+    every join whose next piece opens with punctuation (re-review R34-N2)."""
     text = "" if text is None else str(text)
     if not _ESCAPE_PROSE_DOLLARS.get():
         return text
-    text = _BACKSLASHES_BEFORE_DOLLAR.sub(lambda m: m.group(1) * 2, text)
+    text = _BACKSLASH_RUN_AND_NEXT.sub(_member_backslashes, text)
     return text.replace("$", "\\$")
+
+
+# An image's alt (wave 8, 8C, C5): the characters that mean something inside an image
+# description, escaped so the alt reads back exactly -- backslash, backtick, `*`, `_`, `[`,
+# `]` and `$` always; `==`/`~~` runs (a highlight / a strikethrough); `&` only where it would
+# start an entity (`&amp;`); `<` only where it would open a tag or an autolink. Everything
+# else stays readable.
+_ALT_ALWAYS = re.compile(r"[\\`*_\[\]$]")
+_ALT_RUN = re.compile(r"={2,}|~{2,}")
+_ALT_ENTITY = re.compile(r"&(?=#?[0-9A-Za-z]+;)")
+_ALT_TAG = re.compile(r"<(?=[A-Za-z/!?])")
+
+
+def _alt(text: Any) -> str:
+    """An image's alt text as written into `![alt](src)`, so it re-imports as the member
+    typed it -- and so a `$` in it is escaped like every other `$` (no math reader pairs
+    two of them). Raw inside a raw island, like `_prose`."""
+    text = "" if text is None else str(text)
+    if not _ESCAPE_PROSE_DOLLARS.get():
+        return text
+    text = _ALT_ALWAYS.sub(lambda m: "\\" + m.group(0), text)
+    text = _ALT_RUN.sub(lambda m: "".join("\\" + c for c in m.group(0)), text)
+    text = _ALT_ENTITY.sub(lambda m: "\\&", text)
+    return _ALT_TAG.sub(lambda m: "\\<", text)
 
 
 def _html_island(html: str) -> str:
@@ -562,6 +689,9 @@ def _text_with_marks(node: dict[str, Any], resolver=None) -> str:
     marks = node.get("marks") or []
     if not any(isinstance(m, dict) and m.get("type") == "code" for m in marks):
         text = _prose(text)
+        if any(isinstance(m, dict) and (m.get("type") == "link" or m.get("type") in _INLINE_MARKS)
+               for m in marks):
+            text = _closed(text)
     for mark in marks:
         mtype = mark.get("type")
         if mtype == "link":
@@ -579,23 +709,20 @@ def _inline(nodes: list[dict[str, Any]] | None, resolver=None) -> str:
     for n in nodes or []:
         if n.get("type") == "text":
             piece = _text_with_marks(n, resolver)
-            # R2-N4 across a run boundary (re-review R34-N2). `_prose` doubles
-            # a backslash run only when its `$` is in the SAME text node. A run
-            # ending in `\` (a coloured word exports with no delimiter) and the
-            # next opening with `$` came out `\` + `\$`: an escaped backslash
-            # and a LIVE `$`. When this run opens with our escaped `$`, the
-            # backslashes the output already ends with are the member's own,
-            # undoubled -- a run's output ends in `\` only when its text does
-            # and no mark closed it (an atom ends in `]`, `)`, `*` or `$`) --
-            # so they are doubled here, exactly as `_prose` would have.
-            if _ESCAPE_PROSE_DOLLARS.get() and _OPENS_WITH_ESCAPED_DOLLAR.match(piece):
-                so_far = "".join(out)
-                out.append("\\" * (len(so_far) - len(so_far.rstrip("\\"))))
-            out.append(piece)
         elif n.get("type") == "hardBreak":
-            out.append("\n")
+            piece = "\n"
         else:
-            out.append(_block(n, resolver))
+            piece = _block(n, resolver)
+        # A backslash across a join (re-review R34-N2, generalized in wave 8 C5).
+        # A run whose text ends in ONE backslash is written with it unpaired (a
+        # path split over two runs stays readable). When what is written so far
+        # ends in an UNPAIRED backslash and this piece opens with ASCII
+        # punctuation (our `\$`, a mark's `**`, a link's `[`) or a line break,
+        # that backslash would escape it -- so it is paired here.
+        if _ESCAPE_PROSE_DOLLARS.get() and piece and (piece[0] in _ASCII_PUNCT or piece[0] in "\r\n"):
+            if _odd_trailing_backslashes("".join(out)):
+                out.append("\\")
+        out.append(piece)
     return "".join(out)
 
 
@@ -769,12 +896,13 @@ _WRITING_HELP_ACTION_LABELS = {
 }
 
 
-def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
-    """G-064 (spec §7.4): an inserted Ask Notebook answer exports as a LABELLED
-    quote, so a member's Markdown never loses which passage was AI-assisted, and
-    lists its sources as they stood when it was inserted."""
+def _ask_insert_head_parts(attrs: dict[str, Any]) -> tuple[list[str], str, str, str]:
+    """The provenance label of an inserted answer, as RAW parts: `(label parts, date,
+    question prefix, question)`. ⛔ ONE SOURCE OF THE WORDS (wave 8 lane 8C): the Markdown
+    writer below and the Word writer (`notes_export_formats._Walker.ask_insert`) both say
+    exactly this; Markdown adds its own escaping (`_prose`) and bold, Word its own runs."""
     date = str(attrs.get("insertedAt") or "")[:10]
-    question = _prose(str(attrs.get("question") or "").strip())
+    question = str(attrs.get("question") or "").strip()
     action = _WRITING_HELP_ACTION_LABELS.get(str(attrs.get("action") or ""))
     if action:
         # Wave 7 lane H (H2, ruling D-H1): an accepted WRITING-HELP result is the
@@ -783,19 +911,13 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         # asked. ⛔ The DATE, never the clock time the editor's label shows: the
         # server does not know the member's time zone, and a UTC "14:41" under a
         # label the member read as "09:41" would be a second, wrong record.
-        model = _prose(str(attrs.get("model") or "").strip())
-        head = "**" + " · ".join(p for p in ("Compass", action, model) if p) + "**"
-        if date:
-            head += f" · {date}"
-        if question:
-            head += f" · Asked: {question}"
-    else:
-        head = "**From Ask Notebook**"
-        if date:
-            head += f" · {date}"
-        if question:
-            head += f" · Q: {question}"
+        model = str(attrs.get("model") or "").strip()
+        return [p for p in ("Compass", action, model) if p], date, "Asked: ", question
+    return ["From Ask Notebook"], date, "Q: ", question
 
+
+def _ask_sources(kids) -> dict[Any, str]:
+    """Every cited source of an inserted answer, first mention first: `{n: raw label}`."""
     sources: dict[Any, str] = {}
 
     def collect(n):
@@ -804,12 +926,28 @@ def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
         if n.get("type") == "askCitation":
             num = _ask_citation_n(n.get("attrs"))
             if num is not None and num not in sources:
-                sources[num] = _prose(n["attrs"].get("label") or "source")
+                sources[num] = n["attrs"].get("label") or "source"
         for c in n.get("content") or []:
             collect(c)
 
     for c in kids or []:
         collect(c)
+    return sources
+
+
+def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
+    """G-064 (spec §7.4): an inserted Ask Notebook answer exports as a LABELLED
+    quote, so a member's Markdown never loses which passage was AI-assisted, and
+    lists its sources as they stood when it was inserted."""
+    label_parts, date, q_prefix, question = _ask_insert_head_parts(attrs)
+    question = _prose(question)
+    head = "**" + _closed(" · ".join(p for p in (_prose(x) for x in label_parts) if p)) + "**"
+    if date:
+        head += f" · {date}"
+    if question:
+        head += f" · {q_prefix}{question}"
+
+    sources = {k: _prose(v) for k, v in _ask_sources(kids).items()}
 
     body = "\n\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
     # Every quoted line, a blank one included, is `> ` + text -- the blockquote
@@ -865,8 +1003,8 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype in ("image", "resizableImage"):
         src = attrs.get("src") or ""
         local = resolver(src) if resolver else None
-        # The alt stays raw -- see the N4 note above `_ESCAPE_PROSE_DOLLARS`.
-        return f"![{attrs.get('alt') or ''}]({local or src})"
+        # The alt is escaped by `_alt` -- see the N4 note above `_ESCAPE_PROSE_DOLLARS`.
+        return f"![{_alt(attrs.get('alt') or '')}]({local or src})"
     if ntype == "imageFigure":
         # Wave 6: an image and its caption. The caption is the member's TEXT,
         # so it exports as an italic line straight under the image (no blank
@@ -931,7 +1069,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
-        return f"[{_prose(attrs.get('name') or 'attachment')}]({local or href})"
+        return f"[{_closed(_prose(attrs.get('name') or 'attachment'))}]({local or href})"
     if ntype == "videoTimestamp":
         # Mirrors app/src/components/video/playerUtils.js::fmtTime exactly --
         # the same helper the editor's own node view renders with
@@ -956,7 +1094,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         if resolved is None:
             return "*[linked note]*"
         title, href = resolved
-        return f"[{_prose(title)}]({href})"
+        return f"[{_closed(_prose(title))}]({href})"
     if ntype == "documentExcerpt":
         # Wave J. Resolves via the SAME resolver parameter noteLink uses
         # (document-excerpt://<id> marker, see
@@ -973,7 +1111,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         lines.append(f"> — {_prose(citation)}")
         if annotation:
             lines.append("")
-            lines.append(f"*{_prose(annotation)}*")
+            lines.append(f"*{_closed(_prose(annotation))}*")
         return "\n".join(lines)
     if ntype == "askInsert":
         # null/list/string attrs read as empty, never raise (G-064 close-out).
@@ -986,7 +1124,7 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # the note look like it lost content, so emit the widget's own
         # pre-computed search line -- the same string that feeds body_plain.
         label = attrs.get("searchText") or attrs.get("widgetId") or "widget"
-        return f"> [{_prose(label)}]"
+        return f"> [{_closed(_prose(label))}]"
     if ntype == "table":
         return _table(node, resolver)
     if ntype == "callout":
@@ -1085,16 +1223,23 @@ def _folder_path(folder_id: str | None, folders: dict[str, tuple[str, str]]) -> 
     (see `notes.py::import_confirm`). Cycle-guarded like `_folder_depth` in
     notes.py, in case of a corrupted parent chain.
     """
+    return "/".join(_safe_name(name, "folder") for name in _folder_names(folder_id, folders))
+
+
+def _folder_names(folder_id: str | None, folders: dict[str, tuple[str, str]]) -> list[str]:
+    """The folder chain's REAL names, root first -- the walk `_folder_path` makes safe for
+    a zip path, and what the JSON export records as `folderPath` so a re-import rebuilds
+    the member's own folder names, not their filesystem-safe spellings. Cycle-guarded."""
     parts: list[str] = []
     seen: set[str] = set()
     cur = folder_id or ""
     while cur and cur in folders and cur not in seen:
         seen.add(cur)
         name, parent_id = folders[cur]
-        parts.append(_safe_name(name, "folder"))
+        parts.append(name)
         cur = parent_id or ""
     parts.reverse()
-    return "/".join(parts)
+    return parts
 
 
 # ── YAML front matter escaping ───────────────────────────────────────────────
@@ -1407,7 +1552,9 @@ def _resolve_note_related_data(
                     continue  # a deleted/unknown property's stray value is skipped, never shown as raw id
                 formatted = _format_property_value(prop_def, val)
                 if formatted is not None:
-                    items.append({"name": prop_def["name"], "value": formatted})
+                    # `type` rides along for the JSON export (wave 8 lane 8C, D-C3); the
+                    # front matter reads `name` and `value` only, so Markdown is unchanged.
+                    items.append({"name": prop_def["name"], "type": prop_def["type"], "value": formatted})
             if items:
                 properties_by_note[r["id"]] = items
 
@@ -1668,8 +1815,85 @@ _EXPORT_MANIFEST_NAME = "UCT_NOTEBOOK_EXPORT.json"
 _EXPORT_MANIFEST_VERSION = 1
 
 
+#: Each export format's file extension (wave 8 lane 8C). ⛔ ONE TABLE: the collision set
+#: below, the note-link resolver and the writer all read it, so a note and the link to it
+#: can never disagree about the file's name.
+_FORMAT_EXT = {"md": ".md", "html": ".html", "json": ".json", "docx": ".docx"}
+#: What EXPORT_ISSUES.txt calls each format ("could not be fully converted to ...").
+_FORMAT_NOUN = {"md": "markdown", "html": "a web page", "json": "JSON", "docx": "Word"}
+
+
+def _conversion_marker(exc: BaseException | None = None) -> str:
+    kind = f" ({type(exc).__name__})" if exc is not None else ""
+    return (f"⚠ This note's content could not be converted for export{kind}. The original "
+            "note is unaffected in the app -- contact support if this repeats.")
+
+
+def _write_formatted_note(
+    zf: zipfile.ZipFile, fmt: str, *, row: sqlite3.Row, doc: Any, path: str,
+    folder_names: list[str], attachment_resolver, resolver, load_image,
+    extra: dict[str, Any], failures: list[tuple[str, str]], issues: dict,
+) -> None:
+    """ONE note of an HTML, JSON or Word archive (wave 8 lane 8C, D-C2..D-C4). Every
+    conversion has the same broad per-note shield as the Markdown body walk: one malformed
+    note costs its own body, never the archive."""
+    from api.services.journal_two import notes_export_formats as formats
+
+    note_title = row["title"] or "Untitled"
+    try:
+        tags = json.loads(row["tags"] or "[]")
+    except (ValueError, TypeError):
+        tags = []
+    properties = extra.get("properties") or []
+    hero_url = row["hero_image_url"]
+
+    def bundled(url):
+        # The hero image rides the SAME shield it has in the Markdown archive.
+        if not url:
+            return None
+        try:
+            return attachment_resolver(url)
+        except Exception:  # noqa: BLE001
+            issues.setdefault(url, (note_title, "hero image could not be bundled"))
+            return None
+
+    if fmt == "html":
+        try:
+            body_html = formats.markdown_to_html(tiptap_to_markdown(doc, attachment_resolver=resolver))
+        except Exception as exc:  # noqa: BLE001 -- deliberately broad, as for Markdown.
+            body_html = f"<blockquote><p>{formats.sanitize_html(_conversion_marker(exc))}</p></blockquote>"
+            failures.append((row["id"], note_title))
+        page = formats.html_document(
+            title=note_title, body_html=body_html, subtitle=row["subtitle"], tags=tags,
+            ticker=row["ticker"], properties=properties, hero_src=bundled(hero_url),
+            updated_at=row["updated_at"])
+        zf.writestr(f"{path}.html", page)
+    elif fmt == "json":
+        try:
+            body = formats.rewrite_attachment_urls(doc, attachment_resolver)
+        except Exception:  # noqa: BLE001 -- the stored body, verbatim, is still the truth.
+            body = doc
+            failures.append((row["id"], note_title))
+        hero = (bundled(hero_url) or hero_url) if hero_url else None
+        document = formats.note_json(row, body_json=body, folder_names=folder_names,
+                                     properties=properties, hero=hero, extra=extra)
+        zf.writestr(f"{path}.json", formats.json_text(document))
+    else:  # docx
+        meta = dict(title=note_title, subtitle=row["subtitle"], tags=tags, ticker=row["ticker"],
+                    properties=properties, updated_at=row["updated_at"])
+        try:
+            blob = formats.note_docx(doc, hero_url=hero_url, load_image=load_image,
+                                     resolver=resolver, bundle_file=attachment_resolver, **meta)
+        except Exception as exc:  # noqa: BLE001
+            marker = {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": _conversion_marker(exc)}]}]}
+            blob = formats.note_docx(marker, **meta)
+            failures.append((row["id"], note_title))
+        zf.writestr(f"{path}.docx", blob)
+
+
 def _compute_note_export_paths(
-    rows: list[sqlite3.Row], folders: dict[str, tuple[str, str]],
+    rows: list[sqlite3.Row], folders: dict[str, tuple[str, str]], fmt: str = "md",
 ) -> dict[str, str]:
     """Pre-pass (Wave D): the zip-relative path (no `.md` extension) every
     note in `rows` WILL be written to, computed identically to -- and now
@@ -1679,23 +1903,27 @@ def _compute_note_export_paths(
     A's body, which can come BEFORE B in iteration order; collision
     disambiguation (`used`) is inherently order-dependent, so this pass
     iterates in the SAME order (`rows`' own `updated_at DESC`) the archive
-    is written in, guaranteeing byte-identical results either way."""
+    is written in, guaranteeing byte-identical results either way.
+
+    Wave 8 lane 8C: the collision set holds the paths WITH the format's extension (`fmt`),
+    so a collision is judged on the file that will actually be written."""
+    ext = _FORMAT_EXT[fmt]
     used: set[str] = set()
     paths: dict[str, str] = {}
     for row in rows:
         folder = _folder_path(row["folder_id"], folders)
         base = _safe_name(row["title"], row["id"])
         path = f"{folder}/{base}" if folder else base
-        if f"{path}.md" in used:
+        if f"{path}{ext}" in used:
             path = f"{path}-{row['id'][:8]}"
-        used.add(f"{path}.md")
+        used.add(f"{path}{ext}")
         paths[row["id"]] = path
     return paths
 
 
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
-    note_ids: list[str] | None = None,
+    note_ids: list[str] | None = None, *, fmt: str = "md",
 ) -> dict[str, Any]:
     """Writes every note `user_id` owns -- markdown + front matter + bundled
     attachments -- into an already-open `zf`, plus the unconditional
@@ -1715,7 +1943,16 @@ def _write_notes_archive(
     `.md` path, and a link to a note NOT selected stays the honest not-bundled
     reference. A requested id that is not an active note of this member is
     skipped and listed in EXPORT_ISSUES.txt. Returns
-    `{"exported": n, "skipped": [ids]}`."""
+    `{"exported": n, "skipped": [ids]}`.
+
+    ⭐ Wave 8 lane 8C (ruling D-C4): `fmt` picks each note's serializer -- `md` (this
+    writer, unchanged), `html`, `json` or `docx` (`notes_export_formats.py`). Everything
+    around the note is shared: the same rows, paths, attachment bundling, byte cap and
+    EXPORT_ISSUES.txt. ⛔ A Markdown archive stays BYTE-IDENTICAL: the manifest gains its
+    `"format"` key only when `fmt` is not `md` (`tests/test_notes_export_formats.py` pins the
+    bytes captured before this seam existed)."""
+    if fmt not in _FORMAT_EXT:
+        raise ValueError(f"unknown export format {fmt!r}")
     folders = {
         r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
             "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
@@ -1755,7 +1992,7 @@ def _write_notes_archive(
     facts_by_note = _resolve_facts_by_note(conn, user_id, [r["id"] for r in rows])
     evidence_by_note = _resolve_thesis_evidence_by_note(conn, user_id, [r["id"] for r in rows])
     reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
-    note_paths = _compute_note_export_paths(rows, folders)
+    note_paths = _compute_note_export_paths(rows, folders, fmt)
 
     manifest = {
         "product": "uct-notebook-export",
@@ -1765,6 +2002,11 @@ def _write_notes_archive(
     }
     if note_ids is not None:
         manifest["selection"] = True
+    if fmt != "md":
+        # ⛔ ONLY when not Markdown: every Markdown manifest ever written lacks this key,
+        # and a Markdown export stays byte-identical (the rail named in the docstring).
+        # The importer reads it to tell a JSON archive from a Markdown one.
+        manifest["format"] = fmt
     zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps(manifest))
 
     failures: list[tuple[str, str]] = []
@@ -1776,6 +2018,22 @@ def _write_notes_archive(
         "zf": zf, "written": set(), "failed": set(), "issues": {},
         "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
     }
+
+    def extra_for(row: sqlite3.Row) -> dict[str, Any]:
+        # Everything the front matter carries beyond the note's own columns, resolved once
+        # for the whole export above -- and handed to every format (wave 8 lane 8C).
+        return {
+            "favorite": row["id"] in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(row["id"], []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(row["id"], []),
+            "properties": properties_by_note.get(row["id"], []),
+            "financial_facts": facts_by_note.get(row["id"], []),
+            "thesis_evidence": evidence_by_note.get(row["id"], []),
+            "thesis_reviews": reviews_by_note.get(row["id"], []),
+        }
+
     for row in rows:
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -1792,7 +2050,18 @@ def _write_notes_archive(
             user_id, folder, row["id"], note_title, attach_state,
         )
         resolver = _make_note_link_aware_resolver(
-            user_id, conn, attachment_resolver, note_paths, note_folder=folder)
+            user_id, conn, attachment_resolver, note_paths, note_folder=folder, ext=_FORMAT_EXT[fmt])
+        if fmt != "md":
+            # Wave 8 lane 8C: another format's serializer, BEFORE any Markdown is built
+            # (a Word note embeds its images; building Markdown first would also copy them
+            # into attachments/ and charge the byte cap twice).
+            _write_formatted_note(
+                zf, fmt, row=row, doc=doc, path=note_paths[row["id"]],
+                folder_names=_folder_names(row["folder_id"], folders),
+                attachment_resolver=attachment_resolver, resolver=resolver,
+                load_image=_make_attachment_bytes_loader(user_id, note_title, attach_state),
+                extra=extra_for(row), failures=failures, issues=attach_state["issues"])
+            continue
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception as exc:  # noqa: BLE001 -- deliberately broad.
@@ -1830,17 +2099,7 @@ def _write_notes_archive(
         # every note's path before this loop started, so this loop now just
         # looks its OWN path up rather than recomputing it a second time.
         path = note_paths[row["id"]]
-        extra = {
-            "favorite": row["id"] in favorites,
-            "related_tickers": [
-                t for t in tickers_by_note.get(row["id"], []) if t != row["ticker"]
-            ],
-            "linked_trades": linked_trades_by_note.get(row["id"], []),
-            "properties": properties_by_note.get(row["id"], []),
-            "financial_facts": facts_by_note.get(row["id"], []),
-            "thesis_evidence": evidence_by_note.get(row["id"], []),
-            "thesis_reviews": reviews_by_note.get(row["id"], []),
-        }
+        extra = extra_for(row)
         zf.writestr(
             f"{path}.md",
             f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n",
@@ -1853,7 +2112,7 @@ def _write_notes_archive(
         # never silent even if they never open the affected file.
         issue_lines += [
             "The following notes could not be fully converted to "
-            "markdown during export. Each one still exported with "
+            f"{_FORMAT_NOUN[fmt]} during export. Each one still exported with "
             "its title, tags and other front matter intact -- only "
             "the body content was affected.",
             "",
@@ -1889,8 +2148,14 @@ def _write_notes_archive(
     return {"exported": len(rows), "skipped": skipped}
 
 
+def _archive_name(kind: str, stamp: str, fmt: str) -> str:
+    """`uct-notebook-<kind>-YYYYMMDD.zip` -- exactly as before for Markdown -- and
+    `...-YYYYMMDD-<fmt>.zip` for another format (wave 8 lane 8C)."""
+    return f"uct-notebook-{kind}-{stamp}.zip" if fmt == "md" else f"uct-notebook-{kind}-{stamp}-{fmt}.zip"
+
+
 def build_export_zip(
-    user_id: str, conn: sqlite3.Connection | None = None,
+    user_id: str, conn: sqlite3.Connection | None = None, *, fmt: str = "md",
 ) -> tuple[bytes, str]:
     """Every note this user owns, as markdown in a zip. Returns (bytes, filename).
 
@@ -1908,16 +2173,16 @@ def build_export_zip(
     try:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            _write_notes_archive(zf, user_id, conn)
+            _write_notes_archive(zf, user_id, conn, fmt=fmt)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-        return buf.getvalue(), f"uct-notebook-export-{stamp}.zip"
+        return buf.getvalue(), _archive_name("export", stamp, fmt)
     finally:
         if owned:
             conn.close()
 
 
 def build_export_zip_to_tempfile(
-    user_id: str, conn: sqlite3.Connection | None = None,
+    user_id: str, conn: sqlite3.Connection | None = None, *, fmt: str = "md",
 ) -> tuple[Path, str]:
     """Same archive as `build_export_zip`, built directly to a real file on
     disk instead of an in-memory BytesIO. This is what the export ROUTE uses:
@@ -1944,19 +2209,19 @@ def build_export_zip_to_tempfile(
         tmp_path = Path(tmp_name)
         try:
             with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                _write_notes_archive(zf, user_id, conn)
+                _write_notes_archive(zf, user_id, conn, fmt=fmt)
         except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-        return tmp_path, f"uct-notebook-export-{stamp}.zip"
+        return tmp_path, _archive_name("export", stamp, fmt)
     finally:
         if owned:
             conn.close()
 
 
 def build_selection_export_to_tempfile(
-    user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None,
+    user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None, *, fmt: str = "md",
 ) -> tuple[Path, str, int, list[str]]:
     """The SELECTED notes as one Markdown zip, on disk (wave 6, item 10) -- the
     same archive writer as the whole-notebook export (`_write_notes_archive`,
@@ -2014,15 +2279,99 @@ def build_selection_export_to_tempfile(
         tmp_path = Path(tmp_name)
         try:
             with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
-                result = _write_notes_archive(zf, user_id, conn, note_ids=list(note_ids or []))
+                result = _write_notes_archive(zf, user_id, conn, note_ids=list(note_ids or []), fmt=fmt)
         except Exception:
             tmp_path.unlink(missing_ok=True)
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-        return tmp_path, f"uct-notebook-selection-{stamp}.zip", result["exported"], result["skipped"]
+        return tmp_path, _archive_name("selection", stamp, fmt), result["exported"], result["skipped"]
     finally:
         if owned:
             conn.close()
+
+
+def _single_note_formatted(
+    user_id: str, conn: sqlite3.Connection, row: sqlite3.Row, doc: Any, fmt: str,
+    extra: dict[str, Any], attachment_budget: dict[str, int] | None,
+) -> tuple[bytes, str, str]:
+    """ONE note as HTML, JSON or Word (wave 8 lane 8C) -- `build_single_note_export`'s other
+    formats, on the same per-note data it already resolved and the same byte cap."""
+    from api.services.journal_two import notes_export_formats as formats
+
+    note_title = row["title"] or "Untitled"
+    budget = attachment_budget if attachment_budget is not None else {
+        "used_bytes": 0, "cap_bytes": _attachment_cap_bytes(),
+    }
+    buf = io.BytesIO()
+    zf = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED)
+    attach_state: dict[str, Any] = {
+        "zf": zf, "written": set(), "failed": set(), "issues": {},
+        "used_bytes": budget["used_bytes"], "cap_bytes": budget["cap_bytes"],
+    }
+    attachment_resolver = _make_attachment_resolver(user_id, "", row["id"], note_title, attach_state)
+    # No `note_paths` -- a single note never bundles the notes it links to (directive §56).
+    resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver)
+    base = _safe_name(row["title"], row["id"])
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    ext = _FORMAT_EXT[fmt]
+    media_type = formats.FORMAT_MEDIA_TYPE[fmt]
+
+    if fmt == "docx":
+        # ALWAYS one .docx: nothing is written into `zf` (its images are embedded), and
+        # what could not be included is listed at the end of the document itself.
+        zf.close()
+        load_image = _make_attachment_bytes_loader(user_id, note_title, attach_state)
+        try:
+            tags = json.loads(row["tags"] or "[]")
+        except (ValueError, TypeError):
+            tags = []
+        meta = dict(title=note_title, subtitle=row["subtitle"], tags=tags, ticker=row["ticker"],
+                    properties=extra.get("properties") or [], updated_at=row["updated_at"])
+
+        def missing() -> list[str]:
+            # Read AFTER the walk: a lone .docx has no EXPORT_ISSUES.txt beside it, so what
+            # could not be included is listed inside the document itself.
+            return [f"{url} -- {reason}" for url, (_t, reason) in attach_state["issues"].items()]
+
+        try:
+            blob = formats.note_docx(doc, hero_url=row["hero_image_url"], load_image=load_image,
+                                     resolver=resolver, issues=missing, **meta)
+        except Exception as exc:  # noqa: BLE001 -- same broad shield as the full export.
+            marker = {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": _conversion_marker(exc)}]}]}
+            blob = formats.note_docx(marker, **meta)
+        budget["used_bytes"] = attach_state["used_bytes"]
+        return blob, f"{base}-{stamp}{ext}", media_type
+
+    folder_names: list[str] = []
+    if row["folder_id"]:
+        folders = {
+            r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
+                "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?", (user_id,))
+        }
+        folder_names = _folder_names(row["folder_id"], folders)
+    failures: list[tuple[str, str]] = []
+    _write_formatted_note(
+        zf, fmt, row=row, doc=doc, path=base, folder_names=folder_names,
+        attachment_resolver=attachment_resolver, resolver=resolver, load_image=None,
+        extra=extra, failures=failures, issues=attach_state["issues"])
+    budget["used_bytes"] = attach_state["used_bytes"]
+    if attach_state["issues"]:
+        issue_lines = [
+            "The following attachments could not be bundled into this "
+            "export. The note still refers to them by their original in-app "
+            "address, which stops working once the account is no longer active.",
+            "",
+        ] + [f"- {url} -- {reason}" for url, (_title, reason) in attach_state["issues"].items()]
+        zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
+    # Same rule as Markdown: a bare file when nothing was bundled and nothing is missing,
+    # otherwise the file, its attachments and EXPORT_ISSUES.txt in one zip.
+    zf.close()
+    if attach_state["written"] or attach_state["issues"]:
+        return buf.getvalue(), f"{base}-{stamp}.zip", "application/zip"
+    with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as written:
+        note_bytes = written.read(f"{base}{ext}")
+    return note_bytes, f"{base}-{stamp}{ext}", media_type
 
 
 def content_disposition(filename: str) -> str:
@@ -2033,15 +2382,15 @@ def content_disposition(filename: str) -> str:
     `filename="..."` raw, so a title holding an em dash, a curly quote or an emoji raised
     `UnicodeEncodeError` inside the Response and the member got a 500 instead of their note
     (H14, found by wave 8 lane 8C, live on production 271a078b6). The whole header is ASCII
-    now. The editor reads `filename="..."`, so it saves under the fallback until it learns
-    `filename*`."""
+    now. The editor's download door (`exportFormats.js::filenameFromDisposition`, wave 8) reads
+    `filename*` first, so a title outside Latin-1 saves under its real name."""
     ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
     return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 def build_single_note_export(
     user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
-    attachment_budget: dict[str, int] | None = None,
+    attachment_budget: dict[str, int] | None = None, *, fmt: str = "md",
 ) -> tuple[bytes, str, str] | None:
     """ONE note as portable markdown -- the trust/portability feature for a
     member who wants to leave with a single note, not their whole notebook
@@ -2069,9 +2418,15 @@ def build_single_note_export(
     export's one shared budget (review N7): pass the same dict for every note
     of a batch and the cap bounds the whole archive, as the whole-notebook
     export's does; it is read at the start and written back at the end.
-    Omitted, this note gets the cap to itself (the single-note export)."""
+    Omitted, this note gets the cap to itself (the single-note export).
+
+    ⭐ Wave 8 lane 8C: `fmt` -- `md` (everything above, unchanged), `html`, `json` (a bare
+    file with nothing to bundle, a zip when it has attachments -- the same rule as
+    Markdown) or `docx` (ALWAYS one .docx: its images are embedded)."""
     from api.services.auth_db import get_connection
 
+    if fmt not in _FORMAT_EXT:
+        raise ValueError(f"unknown export format {fmt!r}")
     owned = conn is None
     conn = conn or get_connection()
     try:
@@ -2097,6 +2452,19 @@ def build_single_note_export(
         except (ValueError, TypeError):
             doc = {}
         note_title = row["title"] or "Untitled"
+        extra = {
+            "favorite": note_id in favorites,
+            "related_tickers": [
+                t for t in tickers_by_note.get(note_id, []) if t != row["ticker"]
+            ],
+            "linked_trades": linked_trades_by_note.get(note_id, []),
+            "properties": properties_by_note.get(note_id, []),
+            "financial_facts": facts_by_note.get(note_id, []),
+            "thesis_evidence": evidence_by_note.get(note_id, []),
+            "thesis_reviews": reviews_by_note.get(note_id, []),
+        }
+        if fmt != "md":
+            return _single_note_formatted(user_id, conn, row, doc, fmt, extra, attachment_budget)
 
         buf = io.BytesIO()
         zf = zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED)
@@ -2133,17 +2501,6 @@ def build_single_note_export(
                     row["hero_image_url"], (note_title, "hero image could not be bundled"),
                 )
 
-        extra = {
-            "favorite": note_id in favorites,
-            "related_tickers": [
-                t for t in tickers_by_note.get(note_id, []) if t != row["ticker"]
-            ],
-            "linked_trades": linked_trades_by_note.get(note_id, []),
-            "properties": properties_by_note.get(note_id, []),
-            "financial_facts": facts_by_note.get(note_id, []),
-            "thesis_evidence": evidence_by_note.get(note_id, []),
-            "thesis_reviews": reviews_by_note.get(note_id, []),
-        }
         md_text = f"{_front_matter(row, hero_local, extra=extra)}\n\n{body}\n"
         budget["used_bytes"] = attach_state["used_bytes"]   # N7: the selection's shared budget
 

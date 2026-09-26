@@ -14,7 +14,15 @@
   font-size: 17px;
   line-height: 1.65;
 }
-.column :global(.ProseMirror) { outline: none; }
+/* Wave 8 lane 8B: this line was `outline: none`, which hid the focus ring of a keyboard
+   user on the public page. The read-only document itself is not a focus stop; when it or
+   anything inside it (a link, a toggle) takes KEYBOARD focus, the ring shows. */
+.column :global(.ProseMirror:focus-visible),
+.column :global(.ProseMirror a:focus-visible),
+.column :global(.ProseMirror button:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 .column :global(.ProseMirror h1) { font-size: 30px; margin: 28px 0 14px; line-height: 1.2; }
 .column :global(.ProseMirror h2) { font-size: 24px; margin: 24px 0 12px; line-height: 1.25; }
 .column :global(.ProseMirror h3) { font-size: 20px; margin: 20px 0 10px; }
@@ -53,8 +61,52 @@
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   color: var(--text-dim, #9a9a9a);
 }
-.goneTitle { font-size: 18px; color: var(--text, #cfcfcf); }
-.goneWhy { font-size: 13px; }
+.goneTitle { font-size: 18px; font-weight: 400; margin: 0; color: var(--text, #cfcfcf); }
+.goneWhy { font-size: 13px; margin: 0; }
+
+/* Published pages (PublishedPage.jsx): a folder's index, and the way back to it. */
+.crumbs {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 13px;
+}
+.crumbLink,
+.indexLink {
+  color: var(--accent);
+  text-decoration: none;
+}
+.crumbLink:hover,
+.indexLink:hover { text-decoration: underline; }
+.crumbLink:focus-visible,
+.indexLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.index {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+}
+.indexItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.indexLink { font-size: 17px; }
+.indexDate {
+  font-size: 12px;
+  color: var(--text-dim, #9a9a9a);
+}
+@media (max-width: 1024px) {
+  .indexLink { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+  .crumbLink { min-height: var(--tap-min); display: inline-flex; align-items: center; }
+}
 
 .brandFoot {
   max-width: 760px;

@@ -1,0 +1,658 @@
+[
+ {
+  "role": "button",
+  "name": "?"
+ },
+ {
+  "role": "link",
+  "name": "UCT Intelligence \u2014 go to landing page"
+ },
+ {
+  "role": "button",
+  "name": "Search \u2014 Ctrl+K"
+ },
+ {
+  "role": "link",
+  "name": "UCT Terminal"
+ },
+ {
+  "role": "link",
+  "name": "Charts"
+ },
+ {
+  "role": "link",
+  "name": "Morning Wire"
+ },
+ {
+  "role": "link",
+  "name": "Dashboard"
+ },
+ {
+  "role": "link",
+  "name": "AI Search"
+ },
+ {
+  "role": "link",
+  "name": "UCT 20"
+ },
+ {
+  "role": "link",
+  "name": "Breadth"
+ },
+ {
+  "role": "link",
+  "name": "Screener"
+ },
+ {
+  "role": "link",
+  "name": "Options Flow"
+ },
+ {
+  "role": "link",
+  "name": "Flow Record"
+ },
+ {
+  "role": "link",
+  "name": "Live Flow"
+ },
+ {
+  "role": "link",
+  "name": "Catalysts History"
+ },
+ {
+  "role": "link",
+  "name": "Model Book"
+ },
+ {
+  "role": "link",
+  "name": "Formula Reference"
+ },
+ {
+  "role": "link",
+  "name": "The Desk"
+ },
+ {
+  "role": "link",
+  "name": "Journal"
+ },
+ {
+  "role": "link",
+  "name": "Portfolio Risk"
+ },
+ {
+  "role": "link",
+  "name": "Community"
+ },
+ {
+  "role": "link",
+  "name": "Account: A11y Eighta, Admin"
+ },
+ {
+  "role": "link",
+  "name": "Admin"
+ },
+ {
+  "role": "link",
+  "name": "Settings"
+ },
+ {
+  "role": "link",
+  "name": "Support"
+ },
+ {
+  "role": "link",
+  "name": "UCT Website"
+ },
+ {
+  "role": "button",
+  "name": "Show keyboard shortcuts"
+ },
+ {
+  "role": "button",
+  "name": "Generate report"
+ },
+ {
+  "role": "button",
+  "name": "Open Portfolio Settings"
+ },
+ {
+  "role": "button",
+  "name": "Tap to start a conversation"
+ },
+ {
+  "role": "button",
+  "name": "Train Me \u2014 teach the assistant a preference"
+ },
+ {
+  "role": "link",
+  "name": "Today"
+ },
+ {
+  "role": "link",
+  "name": "Trades"
+ },
+ {
+  "role": "link",
+  "name": "Calendar"
+ },
+ {
+  "role": "link",
+  "name": "Notebook"
+ },
+ {
+  "role": "link",
+  "name": "Insights"
+ },
+ {
+  "role": "link",
+  "name": "Compass"
+ },
+ {
+  "role": "button",
+  "name": "Log Trade"
+ },
+ {
+  "role": "button",
+  "name": "Default $100,000.00"
+ },
+ {
+  "role": "button",
+  "name": "More"
+ },
+ {
+  "role": "link",
+  "name": "Skip to note"
+ },
+ {
+  "role": "button",
+  "name": "Attach a chart screenshot for vision analysis (or paste from clipboard)"
+ },
+ {
+  "role": "button",
+  "name": "Choose a specialist agent"
+ },
+ {
+  "role": "button",
+  "name": "Got it"
+ },
+ {
+  "role": "button",
+  "name": "Hide folders panel"
+ },
+ {
+  "role": "button",
+  "name": "Collapse Recents"
+ },
+ {
+  "role": "button",
+  "name": "SR pass 8A"
+ },
+ {
+  "role": "button",
+  "name": "SR pass 8A"
+ },
+ {
+  "role": "button",
+  "name": "Weekly plan 8A"
+ },
+ {
+  "role": "button",
+  "name": "Add thesis starter views"
+ },
+ {
+  "role": "button",
+  "name": "All notes 10"
+ },
+ {
+  "role": "button",
+  "name": "Unfiled 5"
+ },
+ {
+  "role": "button",
+  "name": "Archived 0"
+ },
+ {
+  "role": "button",
+  "name": "Trash 2"
+ },
+ {
+  "role": "button",
+  "name": "Expand Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Rename Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Add subfolder to Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Delete Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Expand Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Rename Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Add subfolder to Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Delete Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "+ New folder"
+ },
+ {
+  "role": "button",
+  "name": "#semis-8a 4"
+ },
+ {
+  "role": "button",
+  "name": "Rename semis-8a"
+ },
+ {
+  "role": "tab",
+  "name": "Show folders"
+ },
+ {
+  "role": "tab",
+  "name": "Search notes"
+ },
+ {
+  "role": "textbox",
+  "name": "Note title"
+ },
+ {
+  "role": "textbox",
+  "name": "Subtitle"
+ },
+ {
+  "role": "button",
+  "name": "Add property"
+ },
+ {
+  "role": "button",
+  "name": "Add a row above"
+ },
+ {
+  "role": "button",
+  "name": "Add a row below"
+ },
+ {
+  "role": "button",
+  "name": "Delete this row"
+ },
+ {
+  "role": "button",
+  "name": "Add a column to the left"
+ },
+ {
+  "role": "button",
+  "name": "Add a column to the right"
+ },
+ {
+  "role": "button",
+  "name": "Delete this column"
+ },
+ {
+  "role": "button",
+  "name": "Header row"
+ },
+ {
+  "role": "button",
+  "name": "Delete table"
+ },
+ {
+  "role": "button",
+  "name": "Add to Favorites"
+ },
+ {
+  "role": "button",
+  "name": "Find in note"
+ },
+ {
+  "role": "button",
+  "name": "Version history"
+ },
+ {
+  "role": "combobox",
+  "name": "Folder"
+ },
+ {
+  "role": "textbox",
+  "name": "Ticker"
+ },
+ {
+  "role": "button",
+  "name": "Duplicate note"
+ },
+ {
+  "role": "button",
+  "name": "Delete"
+ },
+ {
+  "role": "combobox",
+  "name": "Font family"
+ },
+ {
+  "role": "combobox",
+  "name": "Text size"
+ },
+ {
+  "role": "button",
+  "name": "B"
+ },
+ {
+  "role": "button",
+  "name": "I"
+ },
+ {
+  "role": "button",
+  "name": "Text color and highlight"
+ },
+ {
+  "role": "button",
+  "name": "H1"
+ },
+ {
+  "role": "button",
+  "name": "H2"
+ },
+ {
+  "role": "button",
+  "name": "\u2022 List"
+ },
+ {
+  "role": "button",
+  "name": "1. List"
+ },
+ {
+  "role": "button",
+  "name": "\u275d"
+ },
+ {
+  "role": "button",
+  "name": "</>"
+ },
+ {
+  "role": "button",
+  "name": "Insert link"
+ },
+ {
+  "role": "button",
+  "name": "Insert image"
+ },
+ {
+  "role": "button",
+  "name": "Attach a file"
+ },
+ {
+  "role": "button",
+  "name": "Start voice input"
+ },
+ {
+  "role": "button",
+  "name": "Horizontal rule"
+ },
+ {
+  "role": "button",
+  "name": "Insert widget"
+ },
+ {
+  "role": "button",
+  "name": "Outline"
+ },
+ {
+  "role": "button",
+  "name": "PNG"
+ },
+ {
+  "role": "button",
+  "name": "Print"
+ },
+ {
+  "role": "button",
+  "name": "Export"
+ },
+ {
+  "role": "button",
+  "name": "Ask a question about this note"
+ },
+ {
+  "role": "button",
+  "name": "Lock"
+ },
+ {
+  "role": "button",
+  "name": "Archive"
+ },
+ {
+  "role": "button",
+  "name": "Save as template"
+ },
+ {
+  "role": "button",
+  "name": "Open a note beside\u2026"
+ },
+ {
+  "role": "button",
+  "name": "Dismiss tip"
+ },
+ {
+  "role": "button",
+  "name": "Weekly plan 8A"
+ },
+ {
+  "role": "button",
+  "name": "AMD thesis 8A"
+ },
+ {
+  "role": "option",
+  "name": "Unfiled"
+ },
+ {
+  "role": "option",
+  "name": "Archive 8A"
+ },
+ {
+  "role": "option",
+  "name": "Archive 8A 020910"
+ },
+ {
+  "role": "option",
+  "name": "Theses 8A"
+ },
+ {
+  "role": "option",
+  "name": "Theses 8A 020910"
+ },
+ {
+  "role": "option",
+  "name": "Default"
+ },
+ {
+  "role": "option",
+  "name": "Sans Serif"
+ },
+ {
+  "role": "option",
+  "name": "Serif"
+ },
+ {
+  "role": "option",
+  "name": "Monospace"
+ },
+ {
+  "role": "option",
+  "name": "Arial"
+ },
+ {
+  "role": "option",
+  "name": "Helvetica"
+ },
+ {
+  "role": "option",
+  "name": "Verdana"
+ },
+ {
+  "role": "option",
+  "name": "Tahoma"
+ },
+ {
+  "role": "option",
+  "name": "Trebuchet MS"
+ },
+ {
+  "role": "option",
+  "name": "Calibri"
+ },
+ {
+  "role": "option",
+  "name": "Century Gothic"
+ },
+ {
+  "role": "option",
+  "name": "Georgia"
+ },
+ {
+  "role": "option",
+  "name": "Times New Roman"
+ },
+ {
+  "role": "option",
+  "name": "Garamond"
+ },
+ {
+  "role": "option",
+  "name": "Palatino"
+ },
+ {
+  "role": "option",
+  "name": "Cambria"
+ },
+ {
+  "role": "option",
+  "name": "Baskerville"
+ },
+ {
+  "role": "option",
+  "name": "Courier New"
+ },
+ {
+  "role": "option",
+  "name": "Consolas"
+ },
+ {
+  "role": "option",
+  "name": "Lucida Sans"
+ },
+ {
+  "role": "option",
+  "name": "Comic Sans MS"
+ },
+ {
+  "role": "option",
+  "name": "Impact"
+ },
+ {
+  "role": "option",
+  "name": "Brush Script MT"
+ },
+ {
+  "role": "option",
+  "name": "Size"
+ },
+ {
+  "role": "option",
+  "name": "12"
+ },
+ {
+  "role": "option",
+  "name": "13"
+ },
+ {
+  "role": "option",
+  "name": "14"
+ },
+ {
+  "role": "option",
+  "name": "15"
+ },
+ {
+  "role": "option",
+  "name": "16"
+ },
+ {
+  "role": "option",
+  "name": "17"
+ },
+ {
+  "role": "option",
+  "name": "18"
+ },
+ {
+  "role": "option",
+  "name": "20"
+ },
+ {
+  "role": "option",
+  "name": "22"
+ },
+ {
+  "role": "option",
+  "name": "24"
+ },
+ {
+  "role": "option",
+  "name": "28"
+ },
+ {
+  "role": "option",
+  "name": "32"
+ },
+ {
+  "role": "option",
+  "name": "36"
+ },
+ {
+  "role": "option",
+  "name": "40"
+ },
+ {
+  "role": "option",
+  "name": "48"
+ },
+ {
+  "role": "option",
+  "name": "60"
+ },
+ {
+  "role": "option",
+  "name": "72"
+ },
+ {
+  "role": "button",
+  "name": "Remove tag semis-8a"
+ },
+ {
+  "role": "combobox",
+  "name": "Add a tag to this note"
+ }
+]

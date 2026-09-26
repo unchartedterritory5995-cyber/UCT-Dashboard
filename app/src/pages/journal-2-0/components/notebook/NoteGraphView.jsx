@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { SkeletonBlock } from '../../../../components/Skeleton'
 import styles from './NoteGraphView.module.css'
+import {
+  ARROWS, byTitle, nearestInDirection, readGraphView, titleOf, writeGraphView,
+} from '../../lib/graphNavigation'
 
 /**
  * The note-link graph, drawn.
@@ -34,6 +37,19 @@ import styles from './NoteGraphView.module.css'
  * and this draws them. A member's orphaned notes are the most useful thing a graph
  * view can show them; filtering to "notes with edges" would hide exactly what they
  * came to find.
+ *
+ * ⛔ A PICTURE NOBODY CAN OPERATE IS NOT A VIEW (wave 8, lane 8A, ruling D-A3).
+ * Two doors, and neither replaces the other:
+ *   · "Show as list" — the same notes as a table, sorted by title, every title
+ *     and every linked note a real button. It is the whole graph for anybody
+ *     who cannot see or point at a canvas, and it is remembered per browser.
+ *   · the canvas itself is focusable: arrows walk to the nearest note in that
+ *     direction, Home/End jump by title, Enter opens, Escape clears, and a
+ *     polite live region says where the selection landed.
+ * ⛔ A KEY PRESS IS A HOVER: it writes a ref and asks for ONE redraw of the
+ * settled positions. `selected` is not a layout dependency for exactly the
+ * reason `hover` is not -- a re-run re-seeds the ring, and a member walking
+ * the graph by keyboard would watch it scatter on every press (rule H14).
  */
 
 const fetcher = (url) => fetch(url, { credentials: 'include' })
@@ -86,6 +102,16 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 /** Radius from degree — sqrt so a hub with 40 links is not 10x a node with 4. */
 const radiusFor = (degree) => Math.min(MAX_R, MIN_R + Math.sqrt(degree || 0) * 2.4)
 
+// ── the two accessible doors (wave 8, lane 8A) ─ see lib/graphNavigation.js ──────────
+
+// The selection ring sits OUTSIDE the node (gap), thick enough to read as a
+// ring rather than an outline. Its colour is the canvas element's own CSS
+// `color` (NoteGraphView.module.css `.canvas`), so it follows the theme and the
+// contrast rail measures it where every other colour in the Notebook lives.
+const RING_GAP = 3
+const RING_WIDTH = 2.5
+const RING_FALLBACK = '#dcbb5e' // jsdom and a host with no computed style
+
 export default function NoteGraphView({ onOpenNote }) {
   const { data, isLoading } = useSWR('/api/j2/notes/graph', fetcher, {
     revalidateOnFocus: false,
@@ -97,15 +123,41 @@ export default function NoteGraphView({ onOpenNote }) {
   const simRef = useRef({ nodes: [], edges: [] })
   const drawRef = useRef(null)
   const hoverRef = useRef(null)
+  const selectedRef = useRef(null)
   const rafRef = useRef(0)
   const [hover, setHover] = useState(null)
+  const [selected, setSelected] = useState(null)
+  const [view, setView] = useState(readGraphView)
   const [size, setSize] = useState({ w: 820, h: 560 })
+  const keysId = useId()
 
   const graph = useMemo(() => ({
     nodes: data?.nodes || [],
     edges: data?.edges || [],
     truncated: Boolean(data?.truncated),
   }), [data])
+
+  // Title order, shared by the list's rows and the canvas's Home/End.
+  const sortedNodes = useMemo(() => [...graph.nodes].sort(byTitle), [graph])
+
+  // Who links to whom, both directions, for the list's "linked notes" column.
+  // An edge to a note that is not drawn (truncation) has no row to open.
+  const neighbours = useMemo(() => {
+    const byId = new Map(graph.nodes.map((n) => [n.id, n]))
+    const out = new Map(graph.nodes.map((n) => [n.id, new Map()]))
+    for (const e of graph.edges) {
+      if (e.source === e.target || !byId.has(e.source) || !byId.has(e.target)) continue
+      out.get(e.source).set(e.target, byId.get(e.target))
+      out.get(e.target).set(e.source, byId.get(e.source))
+    }
+    return new Map([...out].map(([id, m]) => [id, [...m.values()].sort(byTitle)]))
+  }, [graph])
+
+  const toggleView = () => {
+    const next = view === 'list' ? 'canvas' : 'list'
+    writeGraphView(next)
+    setView(next)
+  }
 
   // ── size to the container, and re-measure on resize ───────────────────────
   //
@@ -161,10 +213,12 @@ export default function NoteGraphView({ onOpenNote }) {
   }, [])
 
   // ── lay out, draw, stop ───────────────────────────────────────────────────
-  // ⛔ `hover` is NOT a dependency. See the header note.
+  // ⛔ `hover` and `selected` are NOT dependencies. See the header note.
+  // `view` IS: the canvas unmounts in list mode, so coming back to it is a new
+  // element with nothing drawn on it -- one deliberate layout, on a toggle.
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !graph.nodes.length) return undefined
+    if (view !== 'canvas' || !canvas || !graph.nodes.length) return undefined
     const ctx = canvas.getContext('2d')
     if (!ctx) return undefined
 
@@ -281,8 +335,22 @@ export default function NoteGraphView({ onOpenNote }) {
       stepCap = Math.max(stepCap * COOLING, stepCapFloor)
     }
 
+    /** The ring colour, read from the canvas's own CSS `color` -- only when a
+     *  note is selected, so an unselected frame costs no style read. */
+    const ringColor = () => {
+      try {
+        const c = window.getComputedStyle(canvas).color
+        if (c) return c
+      } catch {
+        // fall through
+      }
+      return RING_FALLBACK
+    }
+
     const draw = () => {
       const hovered = hoverRef.current
+      const chosen = selectedRef.current ? byId.get(selectedRef.current) : null
+      const ring = chosen ? ringColor() : null
       ctx.clearRect(0, 0, size.w, size.h)
       ctx.lineWidth = 1
       for (const e of edges) {
@@ -293,8 +361,20 @@ export default function NoteGraphView({ onOpenNote }) {
         ctx.lineTo(e.t.x, e.t.y)
         ctx.stroke()
       }
+      // The keyboard selection: a ring OUTSIDE the node, drawn before the
+      // nodes so a neighbour's fill can never hide the node it rings, and so
+      // the last N arcs of a frame are still exactly the N nodes.
+      if (chosen) {
+        ctx.beginPath()
+        ctx.arc(chosen.x, chosen.y, chosen.r + RING_GAP, 0, Math.PI * 2)
+        ctx.strokeStyle = ring
+        ctx.lineWidth = RING_WIDTH
+        ctx.stroke()
+        ctx.lineWidth = 1
+      }
       for (const n of nodes) {
         const isHover = hovered === n.id
+        const isChosen = chosen === n
         // An ORPHAN is drawn differently on purpose — it is the finding.
         const orphan = !n.degree
         ctx.beginPath()
@@ -307,10 +387,11 @@ export default function NoteGraphView({ onOpenNote }) {
           ctx.stroke()
           ctx.setLineDash([])
         }
-        // The biggest hubs, and whatever is hovered. See LABEL_BUDGET.
-        if (isHover || labelled.has(n.id)) {
-          ctx.fillStyle = isHover ? '#f8fafc' : 'rgba(226,232,240,0.62)'
-          ctx.font = (isHover ? '12px ' : '10px ') + "'Instrument Sans', system-ui, sans-serif"
+        // The biggest hubs, whatever is hovered, and the keyboard selection.
+        // See LABEL_BUDGET.
+        if (isHover || isChosen || labelled.has(n.id)) {
+          ctx.fillStyle = isHover ? '#f8fafc' : isChosen ? ring : 'rgba(226,232,240,0.62)'
+          ctx.font = (isHover || isChosen ? '12px ' : '10px ') + "'Instrument Sans', system-ui, sans-serif"
           ctx.textAlign = 'center'
           const t = n.title.length > 28 ? n.title.slice(0, 27) + '…' : n.title
           ctx.fillText(t, n.x, n.y - n.r - 5)
@@ -338,13 +419,58 @@ export default function NoteGraphView({ onOpenNote }) {
       if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(rafRef.current)
       drawRef.current = null
     }
-  }, [graph, size])
+  }, [graph, size, view])
 
   // Hover repaints the SETTLED positions. One frame, no simulation.
   useEffect(() => {
     hoverRef.current = hover
     if (drawRef.current) drawRef.current()
   }, [hover])
+
+  // ...and so does a key press. ⛔ Same contract, same reason (header note).
+  useEffect(() => {
+    selectedRef.current = selected
+    if (drawRef.current) drawRef.current()
+  }, [selected])
+
+  /**
+   * The canvas's keys. Arrows walk to the nearest note in that direction (the
+   * first press, with nothing selected yet, lands on the first note by title),
+   * Home/End jump by title, Enter opens, Escape clears. A key it does not own
+   * -- or any chord with Ctrl/Alt/Cmd -- passes through untouched.
+   */
+  const onCanvasKeyDown = (ev) => {
+    if (ev.altKey || ev.ctrlKey || ev.metaKey) return
+    const nodes = simRef.current.nodes
+    if (!nodes.length) return
+    const current = selected ? nodes.find((n) => n.id === selected) || null : null
+    const first = () => nodes.find((n) => n.id === sortedNodes[0]?.id) || null
+    let next = null
+    if (ARROWS[ev.key]) {
+      ev.preventDefault() // an arrow on a focused canvas must never scroll the page
+      next = current ? nearestInDirection(nodes, current, ARROWS[ev.key]) : first()
+    } else if (ev.key === 'Home' || ev.key === 'End') {
+      ev.preventDefault()
+      const pick = ev.key === 'Home' ? sortedNodes[0] : sortedNodes[sortedNodes.length - 1]
+      next = pick ? nodes.find((n) => n.id === pick.id) || null : null
+    } else if (ev.key === 'Enter') {
+      if (current && onOpenNote) {
+        ev.preventDefault()
+        onOpenNote(current.id)
+      }
+      return
+    } else if (ev.key === 'Escape') {
+      if (current) {
+        ev.preventDefault()
+        setSelected(null)
+      }
+      return
+    } else {
+      return
+    }
+    // Nothing further that way: the selection stays, and nothing is redrawn.
+    if (next && next.id !== selected) setSelected(next.id)
+  }
 
   /** Nearest node under the pointer, within its own radius plus a little slop. */
   const pick = useCallback((ev) => {
@@ -385,6 +511,11 @@ export default function NoteGraphView({ onOpenNote }) {
   }
 
   const orphans = graph.nodes.filter((n) => !n.degree).length
+  const chosen = selected ? graph.nodes.find((n) => n.id === selected) : null
+  // What the polite live region says. Text, rendered -- so a test can read it
+  // and a screen reader can hear it (CLAUDE.md: feedback is asserted by
+  // rendered text, never by state).
+  const spoken = chosen ? `${titleOf(chosen)}, ${plural(chosen.degree || 0, 'link')}` : ''
 
   return (
     <div className={styles.wrap}>
@@ -397,18 +528,83 @@ export default function NoteGraphView({ onOpenNote }) {
             showing the {graph.nodes.length} most recently edited — older notes are not drawn
           </span>
         ) : null}
+        <button
+          type="button"
+          className={styles.viewToggle}
+          aria-pressed={view === 'list'}
+          onClick={toggleView}
+        >
+          Show as list
+        </button>
       </div>
-      <div className={styles.canvasWrap}>
-        <canvas
-          ref={attachCanvas}
-          className={styles.canvas}
-          style={{ width: size.w, height: size.h }}
-          aria-label={`Note graph: ${plural(graph.nodes.length, 'note')}, ${plural(graph.edges.length, 'link')}`}
-          onMouseMove={(ev) => { const n = pick(ev); setHover(n ? n.id : null) }}
-          onMouseLeave={() => setHover(null)}
-          onClick={(ev) => { const n = pick(ev); if (n && onOpenNote) onOpenNote(n.id) }}
-        />
-      </div>
+      {view === 'list' ? (
+        <div className={styles.listWrap}>
+          <table className={styles.table}>
+            <caption className="sr-only">Notes in the graph, by title</caption>
+            <thead>
+              <tr>
+                <th scope="col">Note</th>
+                <th scope="col" className={styles.num}>Links</th>
+                <th scope="col">Linked notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedNodes.map((n) => {
+                const linked = neighbours.get(n.id) || []
+                return (
+                  <tr key={n.id}>
+                    <th scope="row">
+                      <button type="button" className={styles.noteBtn} onClick={() => onOpenNote?.(n.id)}>
+                        {titleOf(n)}
+                      </button>
+                    </th>
+                    <td className={styles.num}>{n.degree || 0}</td>
+                    <td>
+                      {linked.length ? (
+                        <ul className={styles.linked}>
+                          {linked.map((m) => (
+                            <li key={m.id}>
+                              <button type="button" className={styles.linkBtn} onClick={() => onOpenNote?.(m.id)}>
+                                {titleOf(m)}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className={styles.none}>None</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className={styles.canvasWrap}>
+          <canvas
+            ref={attachCanvas}
+            className={styles.canvas}
+            style={{ width: size.w, height: size.h }}
+            role="application"
+            tabIndex={0}
+            aria-label={`Note graph: ${plural(graph.nodes.length, 'note')}, ${plural(graph.edges.length, 'link')}`}
+            aria-describedby={keysId}
+            onKeyDown={onCanvasKeyDown}
+            onMouseMove={(ev) => { const n = pick(ev); setHover(n ? n.id : null) }}
+            onMouseLeave={() => setHover(null)}
+            onClick={(ev) => { const n = pick(ev); if (n && onOpenNote) onOpenNote(n.id) }}
+          />
+          <p id={keysId} className="sr-only">
+            Arrow keys move to the nearest note in that direction. Home and End go to
+            the first and last note by title. Enter opens the selected note. Escape
+            clears the selection. Show as list gives the same notes as a table.
+          </p>
+          <div className="sr-only" aria-live="polite" aria-atomic="true" data-graph-live="">
+            {spoken}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

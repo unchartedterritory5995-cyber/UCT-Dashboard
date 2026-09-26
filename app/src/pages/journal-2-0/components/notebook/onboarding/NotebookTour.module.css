@@ -1,0 +1,123 @@
+/* The first-run tour (wave 8, lane 8C, C2). A transparent layer holds the page still (the
+   card is a modal dialog), the step's anchor is outlined in place, and the card has a fixed
+   seat: bottom-right on a desktop, the bottom edge on the touch tier. Nothing is measured. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+.card {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 18px 14px;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-modal);
+  color: var(--text-bright);
+}
+.progress {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+/* The heading takes focus on every step so a screen reader reads it; the ring is the
+   solid gold one (the translucent --focus-ring is 1.72:1 on the light theme). */
+.title:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+  border-radius: var(--radius-sm);
+}
+.body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-bright);
+}
+.help {
+  margin: 0;
+  font-size: 13px;
+}
+.help a {
+  color: var(--ut-gold);
+}
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.nav {
+  display: inline-flex;
+  gap: 8px;
+}
+.skip {
+  padding: 6px 4px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.skip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+  border-radius: var(--radius-sm);
+}
+
+/* The step's anchor: outlined where it stands, never moved or measured. */
+:global([data-tour-active='true']) {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card {
+    animation: uctTourIn 160ms ease-out;
+  }
+}
+@keyframes uctTourIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The touch tier: the card sits on the bottom edge, and every control is a finger target. */
+@media (max-width: 1024px) {
+  .card {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+  .skip,
+  .nav :global(.btn) {
+    min-height: var(--tap-min);
+  }
+  .help a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+}

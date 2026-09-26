@@ -99,7 +99,7 @@
 .statusOk {
   background: var(--gain-bg);
   border: 1px solid var(--gain-border);
-  color: var(--gain);
+  color: var(--success-ink);
   padding: 8px 10px;
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -108,7 +108,7 @@
 .statusErr {
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
-  color: var(--loss);
+  color: var(--danger-ink);
   padding: 8px 10px;
   border-radius: var(--radius-md);
   font-size: 13px;
@@ -123,12 +123,12 @@
   color: var(--text);
 }
 .diffRemoved {
-  color: var(--loss);
+  color: var(--danger-ink);
   background: var(--loss-bg);
   text-decoration: line-through;
 }
 .diffAdded {
-  color: var(--gain);
+  color: var(--success-ink);
   background: var(--gain-bg);
   text-decoration: none;
 }

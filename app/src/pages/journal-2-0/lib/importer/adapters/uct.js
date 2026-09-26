@@ -44,12 +44,25 @@
  * would otherwise import `EXPORT_ISSUES.txt` as an ordinary `.txt` note
  * (correct default behavior for someone ELSE'S arbitrary notes.txt, but
  * wrong for a file we know is our own manifest text, not member content).
+ *
+ * ⭐ Wave 8 lane 8C: the manifest now also says WHICH format the archive is (`"format"`,
+ * written only when it is not Markdown — a Markdown export's bytes never moved):
+ *   · `json` — every `.json` note is read as it was stored (`../uctJson.js`): the body
+ *     verbatim, its bundled attachments relinked through the importer's own attachment
+ *     path, a link to another note in the same archive re-pointed at that note's new id.
+ *     This is the lossless round trip (ruling D-C3).
+ *   · `html` — the generic HTML path, minus the page header the exporter puts above the
+ *     body (the title stays the title; the subtitle becomes the subtitle; the header is not
+ *     imported as note content).
+ *   · anything else, or no `format` at all — Markdown, exactly as before.
  */
 
 import { genericAdapter } from './generic'
+import { noteKeyFor, parseUctJsonNote } from '../uctJson'
 
 const MANIFEST_RE = /(^|\/)UCT_NOTEBOOK_EXPORT\.json$/
 const ISSUES_RE = /(^|\/)EXPORT_ISSUES\.txt$/i
+const JSON_NOTE_RE = /\.json$/i
 
 export const uctAdapter = {
   id: 'uct-export',
@@ -62,7 +75,69 @@ function detect(vfiles) {
   return vfiles.some((v) => MANIFEST_RE.test(v.path)) ? 0.97 : 0
 }
 
+async function readText(vfile) {
+  return new TextDecoder('utf-8').decode(await vfile.bytes())
+}
+
+/** The manifest's own JSON, or null (missing or unreadable — then it is Markdown). */
+async function readManifest(vfiles) {
+  const m = vfiles.find((v) => MANIFEST_RE.test(v.path))
+  if (!m) return null
+  try {
+    return JSON.parse(await readText(m))
+  } catch {
+    return null
+  }
+}
+
 async function parse(vfiles, opts = {}) {
+  const manifest = await readManifest(vfiles)
+  const format = typeof manifest?.format === 'string' ? manifest.format : 'md'
   const importable = vfiles.filter((v) => !MANIFEST_RE.test(v.path) && !ISSUES_RE.test(v.path))
-  return genericAdapter.parse(importable, opts)
+  if (format === 'json') return parseJsonArchive(importable, opts)
+  const result = await genericAdapter.parse(importable, opts)
+  if (format === 'html') result.docs.forEach(stripPageHeader)
+  return result
+}
+
+async function parseJsonArchive(vfiles, { onProgress } = {}) {
+  const byPath = new Map(vfiles.map((v) => [v.path, v]))
+  const notes = vfiles.filter((v) => JSON_NOTE_RE.test(v.path))
+  const docs = []
+  const warnings = []
+  let done = 0
+  for (const vfile of notes) {
+    try {
+      docs.push(parseUctJsonNote(await readText(vfile), vfile.path, byPath))
+    } catch (err) {
+      warnings.push(`Could not import "${vfile.path}": ${err?.message || err}`)
+    }
+    done += 1
+    onProgress?.({ phase: 'parsing', done, total: notes.length })
+  }
+  // A link to a note that came in with this same import is re-pointed after the confirm
+  // (`commit.js::rewriteBody`); `links` is what tells the commit a body has one.
+  const arriving = new Set(docs.map((d) => d.importKey))
+  for (const doc of docs) {
+    doc.links = [...new Set(doc.noteLinkIds.map(noteKeyFor).filter((k) => arriving.has(k)))]
+    delete doc.noteLinkIds
+  }
+  return { docs, warnings }
+}
+
+/** An exported web page, minus its page header: the header's title is already the note's
+ *  title (the generic path reads the first heading), its subtitle becomes the subtitle, and
+ *  none of it is imported as body text. A file that is not one of our pages is untouched. */
+function stripPageHeader(doc) {
+  if (typeof doc.html !== 'string' || !doc.html.includes('uct-note-header')) return
+  const dom = new DOMParser().parseFromString(doc.html, 'text/html')
+  const header = dom.querySelector('header.uct-note-header')
+  if (!header) return
+  const subtitle = header.querySelector('.uct-note-subtitle')?.textContent?.trim()
+  if (subtitle && !doc.subtitle) doc.subtitle = subtitle
+  header.remove()
+  const body = dom.querySelector('div.uct-note-body')
+  doc.html = body ? body.innerHTML : dom.body.innerHTML
+  // The hero image lived in the header: a file the body no longer names is not uploaded.
+  doc.media = (doc.media || []).filter((m) => doc.html.includes(`import-ref://${m.ref}`))
 }

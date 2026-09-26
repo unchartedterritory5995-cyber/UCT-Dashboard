@@ -511,7 +511,8 @@ describe('folder delete error surfacing', () => {
                           activeTag={null} onSelectTag={() => {}} />)
 
     const journalButton = screen.getByText('Journal').closest('button')
-    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    // Wave 8 (8A): Delete is a real button BESIDE the row now, named for the folder.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Journal' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
     // The member is told, in an alert REGION (not a native modal).
@@ -535,7 +536,8 @@ describe('folder delete uses ConfirmModal, not native confirm() (Wave B, G-103)'
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     const journalButton = screen.getByText('Journal').closest('button')
-    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    // Wave 8 (8A): Delete is a real button BESIDE the row now, named for the folder.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Journal' }))
 
     expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
     expect(removeMock).not.toHaveBeenCalled()
@@ -550,7 +552,8 @@ describe('folder delete uses ConfirmModal, not native confirm() (Wave B, G-103)'
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     const journalButton = screen.getByText('Journal').closest('button')
-    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    // Wave 8 (8A): Delete is a real button BESIDE the row now, named for the folder.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Journal' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     await waitFor(() => expect(removeMock).toHaveBeenCalledWith('c'))
   })
@@ -559,7 +562,8 @@ describe('folder delete uses ConfirmModal, not native confirm() (Wave B, G-103)'
     render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
                           activeTag={null} onSelectTag={() => {}} />)
     const journalButton = screen.getByText('Journal').closest('button')
-    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+    // Wave 8 (8A): Delete is a real button BESIDE the row now, named for the folder.
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Journal' }))
     expect(screen.getByText('Delete folder "Journal"?')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByText('Delete folder "Journal"?')).not.toBeInTheDocument()
