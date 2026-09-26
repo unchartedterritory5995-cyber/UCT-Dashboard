@@ -1,0 +1,6 @@
+- dialog "Delete this note?":
+  - heading "Delete this note?" [level=2]
+  - button "Close": ×
+  - paragraph: It moves to Trash and can be restored for 30 days before it's permanently removed.
+  - button "Cancel"
+  - button "Delete"
