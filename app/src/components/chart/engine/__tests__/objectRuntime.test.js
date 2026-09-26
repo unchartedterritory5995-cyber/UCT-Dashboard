@@ -234,16 +234,45 @@ describe('C3B — typed collections', () => {
 })
 
 describe('C3B — the resource envelope', () => {
-  it('⛔⛔ over the per-family ceiling REFUSES with a named reason', () => {
+  it('⛔⛔ a PINE DRAWING FAMILY at its ceiling EVICTS THE OLDEST, it does not refuse', () => {
+    // ⚰️ THIS CASE USED TO ASSERT THE DEFECT, and it asserted it precisely: it
+    // required `LIMIT_EXCEEDED` and a "more than 5 live line objects" reason.
+    // That is what this runtime did. It is not what Pine does — Pine's drawing
+    // pools are FIFO, so at the cap the OLDEST object is silently dropped and
+    // the new one is created.
+    //
+    // ⚰️⚰️ WHAT REFUSING COST, MEASURED AGAINST TRADINGVIEW ON 2026-09-23:
+    // `liquidity-pools` hit the cap, stopped creating, and therefore kept its
+    // OLDEST 37 lines — newest 2025-04-09 against a series running to
+    // 2026-09-11, while TradingView held the newest 90. Zero overlap. Every
+    // count looked healthy the whole time, which is why only the vendor's own
+    // numbers could find it.
     const prog = P({
       limits: { line: 5 },
       ops: [{ k: 'create', family: 'line', site: 'a', into: null, when: null, props: {} }],
     })
     const r = evaluateObjects(prog, ctxOf(100))
+    expect(r.status).toBe(OBJECT_STATUS.OK)
+    expect(r.live.length).toBe(5)
+    // ⭐ AND THEY ARE THE LAST FIVE BARS, NOT THE FIRST FIVE — the direction is
+    // the whole defect, and a length check alone cannot see it.
+    expect(r.live.map((o) => o.createdBar)).toEqual([95, 96, 97, 98, 99])
+  })
+
+  it('⛔ a family with NO Pine eviction rule still REFUSES with a named reason', () => {
+    // ⭐ THE ENVELOPE DID NOT GO AWAY — it narrowed to the families Pine does
+    // not pool. Pine has `max_lines_count`, `max_labels_count`,
+    // `max_boxes_count` and `max_polylines_count` and no table equivalent, so
+    // there is no vendor eviction rule for tables to honour and our own ceiling
+    // stays a hard stop. Without this case, replacing the refusal above would
+    // read as "the envelope was deleted".
+    const prog = P({
+      limits: { table: 3 },
+      ops: [{ k: 'create', family: 'table', site: 'a', into: null, when: null, props: {} }],
+    })
+    const r = evaluateObjects(prog, ctxOf(100))
     expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
-    expect(r.reason).toMatch(/more than 5 live line objects/)
-    // ⛔ AND IT STOPPED THERE — it did not keep drawing past its own ceiling.
-    expect(r.live.length).toBeLessThanOrEqual(5)
+    expect(r.reason).toMatch(/more than 3 live table objects/)
   })
 
   it('⛔ a runaway ops-per-bar is bounded too', () => {
@@ -253,6 +282,28 @@ describe('C3B — the resource envelope', () => {
     const r = evaluateObjects(P({ limits: { opsPerBar: 5 }, ops }), ctxOf(3))
     expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
     expect(r.reason).toMatch(/more than 5 object operations/)
+  })
+
+  it('⛔⛔ AND IT STOPS STEPPING — a spent envelope draws no further BARS', () => {
+    // ⚰️ THE STATUS CANNOT TELL A STOPPED RUN FROM ONE THAT KEPT GOING.
+    // `fail()` latches on the first breach, so `status` and `reason` read
+    // identically whether the walk ended there or ran every remaining bar —
+    // which is exactly the hole its sibling in `objectLoop.test.js` found inside
+    // ONE bar. This is the same claim one level up, across bars.
+    //
+    // ⛔ IT IS THE ONLY RAIL ON THE ENVELOPE STOP. That stop used to be the bar
+    // loop's own condition; it now lives inside `beginObjects().step`, because
+    // `runObjectLane` drives the drawing from inside the VM's bar loop and has
+    // no loop condition of its own. Work done is the only thing that separates
+    // reporting a runaway from ending one.
+    const ops = Array.from({ length: 12 }, (_, i) => ({
+      k: 'create', family: 'label', site: `s${i}`, into: null, when: null, props: {},
+    }))
+    const r = evaluateObjects(P({ limits: { opsPerBar: 2 }, ops }), ctxOf(40))
+    expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
+    // Bar 0 runs three ops — the third is the one that breaches — and no bar
+    // after it runs any. Forty bars' worth would be a hundred and twenty.
+    expect(r.stats.opsExecuted).toBe(3)
   })
 
   it('⭐⭐ CREATE→DELETE across thousands of bars stays FLAT — this is the GC proof', () => {

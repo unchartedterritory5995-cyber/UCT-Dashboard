@@ -1,0 +1,143 @@
+//@version=6
+indicator("UCTPROBE_SYMINFO", overlay = false)
+
+// ⭐⭐ THE NINE `syminfo.*` FIELDS THIS ENGINE REFUSES BY NAME, asked of the
+// vendor in one sitting. `symbolScope.json::unserved` is the roster and every
+// entry there carries a REASON — this probe exists because several of those
+// reasons are about OUR side of the wire, and the owner's standing criterion is
+// identity with TradingView. A reason not to GUESS is not a reason not to
+// MEASURE.
+//
+// ⛔⛔ READ THE ROSTER'S REASONS BEFORE READING THE RESULT, because they are not
+// all the same kind of reason and the result does not settle all of them:
+//
+//   basecurrency  "answering it for an equity would mean choosing between
+//                  `USD` and the empty string, and a script that branches on
+//                  that branches on our guess."          ← MEASUREMENT settles it
+//   timezone      "holds no session calendar"            ← MEASUREMENT settles it
+//                                                           IF the answer is a
+//                                                           constant for our
+//                                                           whole universe
+//   type,         "constant across everything this engine holds, so serving it
+//   currency       would let a multi-currency script look like it was working
+//                  while one whole branch was unreachable."
+//                                                        ← a UX objection, NOT a
+//                                                           parity one. Under
+//                                                           identity-with-vendor
+//                                                           a constant that
+//                                                           MATCHES is correct.
+//   mintick,      "differs per symbol and is not something this engine holds"
+//   pointvalue                                           ← settled only if the
+//                                                           witnesses AGREE
+//   root          "a futures concept … equities have no expiry to strip"
+//                                                        ← MEASUREMENT settles it
+//   session       "no session calendar per symbol"       ← same as timezone
+//
+// ⛔ `description` IS DELIBERATELY NOT ASKED. Its refusal is the one reason a
+// vendor reading cannot touch: it is free text *from a data vendor*, it differs
+// between OUR providers for the same symbol, and a script branching on it would
+// branch on which provider answered. TradingView having one answer does not give
+// US one. Asking would produce a number that looks like progress and unblocks
+// nothing (`lesson_an_audit_is_where_to_look_not_what_to_trust`).
+//
+// ⛔ A FAILED STUDY KEEPS A ONE-PLOT STUB with an EMPTY `_data._items`, so a
+// capture that reads the roster without first asserting `isFailed === false`
+// records a study that never evaluated as though it had answered. See
+// `exchange-spelling.pine`, which learned that from a `syminfo.exchange` that
+// does not exist in Pine v6.
+
+// ── STRINGS: equality in the member's own operator ──────────────────────────
+// ⭐ EQUALITY, NOT CONTAINMENT, for the reason `exchange-spelling.pine` gives at
+// length: a member's script writes `syminfo.currency == "USD"`, so the probe has
+// to ask in that operator. Containment answers a weaker question and is exactly
+// how a whitelist "looks correct on this one example".
+
+// S1-S2 — basecurrency. THE TWO CANDIDATES THE ROSTER NAMES, asked directly, so
+// the answer is not inferred from a length that both could share.
+plot(syminfo.basecurrency == "USD" ? 1 : 0, "S1_base_eq_USD")
+plot(syminfo.basecurrency == ""    ? 1 : 0, "S2_base_eq_EMPTY")
+// S3 — and its length, so a THIRD answer nobody predicted arrives as a lead
+// rather than as two zeros. (`exchange-spelling.pine` N10's rule.)
+plot(str.length(syminfo.basecurrency), "S3_len_base")
+
+// S4-S5 — currency. Expected "USD" for every symbol this engine can reach; a
+// disagreement here is more interesting than an agreement.
+plot(syminfo.currency == "USD" ? 1 : 0, "S4_curr_eq_USD")
+plot(str.length(syminfo.currency), "S5_len_curr")
+
+// S6-S8 — type. The roster says it is constant across our universe; that is a
+// claim about US equities, and these three ask whether the vendor agrees on the
+// spelling as well as the constancy.
+plot(syminfo.type == "stock"  ? 1 : 0, "S6_type_eq_stock")
+plot(syminfo.type == "equity" ? 1 : 0, "S7_type_eq_equity")
+plot(str.length(syminfo.type), "S8_len_type")
+
+// S9-S12 — timezone. The three spellings a US-equity chart plausibly returns.
+// ⚠️ "Exchange" is included because Pine accepts it as a TIMEZONE ARGUMENT
+// elsewhere, so it is a real candidate spelling rather than a guess.
+plot(syminfo.timezone == "America/New_York" ? 1 : 0, "S9_tz_eq_NY")
+plot(syminfo.timezone == "Etc/UTC"          ? 1 : 0, "S10_tz_eq_UTC")
+plot(syminfo.timezone == "Exchange"         ? 1 : 0, "S11_tz_eq_Exchange")
+plot(str.length(syminfo.timezone), "S12_len_tz")
+
+// S13-S14 — root. The roster rules it a futures concept; the only question is
+// what an EQUITY returns. ⭐ ASKED AGAINST `syminfo.ticker` RATHER THAN A
+// LITERAL, so one probe answers it for every witness symbol at once.
+plot(syminfo.root == syminfo.ticker ? 1 : 0, "S13_root_eq_ticker")
+plot(str.length(syminfo.root), "S14_len_root")
+
+// S15-S16 — session. If this is one constant string across every witness, the
+// roster's "no session calendar" objection stops being a parity blocker for the
+// universe this engine actually reaches.
+plot(syminfo.session == "regular" ? 1 : 0, "S15_sess_eq_regular")
+plot(str.length(syminfo.session), "S16_len_sess")
+
+// ── NUMBERS: read directly, because they need no candidate set ──────────────
+// ⭐⭐ THESE TWO ARE THE EASY HALF AND THE ROSTER'S REASON FOR THEM IS THE ONE
+// A SINGLE SYMBOL CANNOT SETTLE: "differs per symbol". A number plots itself, so
+// the question is not what ONE symbol says, it is whether the WITNESSES AGREE.
+// ⛔ Do not conclude from one row.
+plot(syminfo.mintick, "S17_mintick")
+plot(syminfo.pointvalue, "S18_pointvalue")
+
+// ⛔ S19 IS THE NON-VACUITY CONTROL AND IT IS NOT OPTIONAL. Every equality above
+// can legitimately read 0 and `str.length` can legitimately read 0 for an empty
+// string — so "this symbol matched nothing" and "the study never evaluated" are
+// otherwise the SAME ROW OF ZEROS, and a capture that cannot tell those apart is
+// not evidence. `syminfo.ticker` is served today and is never empty, so a 0 here
+// means the probe is broken and the whole row must be discarded.
+plot(str.length(syminfo.ticker), "S19_len_ticker_CONTROL")
+
+// ── how to run it ───────────────────────────────────────────────────────────
+// ⛔ FOLLOW `docs/pine/capture-procedure.md` — never add a study while the tab is
+// hidden, and restore symbol, resolution, pane stretch factors and study
+// visibility afterwards. The browser is shared with other sessions.
+//
+// ⭐ THIS IS A VALUE CAPTURE, so it survives a hidden tab once the study is on
+// the chart: read `study._data._items`. ADDING the study still needs a visible tab.
+//
+// WITNESSES — ⛔ MORE THAN ONE, AND THAT IS THE POINT FOR S17/S18. The string
+// fields are expected to be constant across US equities; the numbers are not.
+//
+//     SPY     an ETF on NYSE Arca — the flagship divergence in the sibling probe
+//     AAPL    an ordinary NASDAQ equity
+//     BRK.B   a dual-class share, where the ticker itself carries a dot
+//     F       a sub-$20 name, in case mintick tiers below some price
+//
+// ⭐ AND ONE NON-EQUITY, WHICH IS WHAT MAKES S1/S2 READABLE. `basecurrency` is
+// defined as the left half of a pair, so a symbol that HAS two currencies is the
+// control proving the field is populated at all:
+//
+//     BITSTAMP:BTCUSD    expect basecurrency "BTC", currency "USD"
+//
+// ⛔ WITHOUT THAT ROW, `basecurrency == ""` on an equity is ambiguous between
+// "the vendor returns empty for equities" and "this probe cannot read the field".
+// The crypto row discriminates them, and it is the only row that can.
+//
+// RECORDING — the same four fields every `confirmed` entry needs:
+// `{pine, witness, captured, how}`. An entry without a witness is an assertion
+// wearing a data structure.
+//
+//     "_invocation": "tools/visual_conformance/probes/syminfo-roster.pine pasted
+//                     into the TradingView editor; plot values read from
+//                     study._data._items per docs/pine/capture-procedure.md"

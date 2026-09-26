@@ -355,6 +355,22 @@ GATE_READ_PATHS = (
     # alone would have put it in NAMED_BUT_NOT_READ and kept the hole open.
     # ⭐ The DIRECTORY, so a fixture added later is covered the day it lands.
     "tools/c0_parity_fixtures",
+    # ⛔⛔ THE OOS CORPUS AND THE VENDOR PROBES ARE READ THE SAME WAY, and the
+    # rail below (`test_the_read_set_covers_every_root_relative_path_the_suite_reads`)
+    # had been RED naming exactly these. Its own message states the cost:
+    # "a re-derivation would carry a verdict across a change to them".
+    #
+    # ⚰️ IT WAS RED ON BOTH PARENTS OF THE 2026-09-23 MERGE, so this is not a
+    # regression being papered over — `visual_conformance/probes` already had a
+    # reader on master. What the merge changed is the SIZE of the hole: this
+    # branch brings six readers of the probes and the only reader of
+    # `target-scripts.json`, and its own carry-over decisions leaned on C0,
+    # which is precisely the check this hole weakens.
+    #
+    # ⭐ DIRECTORIES WHERE A SIBLING CAN BE ADDED LATER, files where one cannot —
+    # the same reasoning the parity corpus above is declared under.
+    "tools/visual_conformance/probes",
+    "docs/pine/target-scripts.json",
     "docs/formulas/GRAMMAR.md",
     "docs/plans/joystick/surface-matrix.md",
     "docs/plans/joystick/glass-acceptance-steps.md",

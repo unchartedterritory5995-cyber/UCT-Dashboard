@@ -128,33 +128,56 @@ export const CELL_PROPS = Object.freeze(['text', 'text_color', 'text_size', 'tex
  *  refused structurally rather than noticed at render time. */
 export const REF_PROPS = Object.freeze({ 'linefill.line1': 'line', 'linefill.line2': 'line' })
 
-export const OBJECT_OP_KINDS = Object.freeze([
-  'create', 'update', 'delete', 'cell', 'cellpatch', 'clearcells', 'setreg',
-  'push', 'collset', 'collclear', 'collremove',
+/** ⭐⭐ EVERY FIELD ON AN OP WHOSE VALUE IS A PLAIN VALUE REFERENCE — ONE LIST.
+ *
+ *  ⛔⛔ MASTER'S EXTRACTION, WITH THE BRANCH'S FIELD NAMES FOLDED IN, AND THE
+ *  MERGE IS EXACTLY WHERE THIS COULD HAVE GONE WRONG. Master unified four
+ *  hand-written enumerations into this list because *"add a field, update three
+ *  of the four, and the one you missed leaves `{v:'tree', i}` in a BOUND program:
+ *  the runtime reads `undefined`, `Number(undefined)` is `NaN`, the operation is
+ *  rejected as out of range and does nothing at all."*
+ *
+ *  ⚰️ THE TWO SIDES NAMED THE SAME IDEA DIFFERENTLY. Master's table-clear
+ *  rectangle is `col2`/`row2`; this branch's is `startCol`/`startRow`/`endCol`/
+ *  `endRow`, and the branch also carries `from`/`to` for the `loop` kind.
+ *  **The merged `pine.js` emits BOTH spellings** (measured: `startCol` ×4,
+ *  `col2` ×3), so adopting either list alone would silently unbind the other
+ *  side's ops — the precise failure the list exists to prevent, reintroduced by
+ *  the merge that was meant to preserve both.
+ *
+ *  ⚠️ A field absent from an op is skipped, so a superset costs nothing. */
+export const OP_VALUE_FIELDS = Object.freeze([
+  'when', 'col', 'row', 'index',
+  'col2', 'row2',                              // master's clear rectangle
+  'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
+  'from', 'to',                                // the `loop` bounds
 ])
 
-/**
- * ⭐⭐ EVERY FIELD ON AN OP WHOSE VALUE IS A PLAIN VALUE REFERENCE — ONE LIST,
- * READ BY ALL FOUR WALKERS.
- *
- * ⛔⛔ THIS EXISTS BECAUSE FOUR FUNCTIONS IN THIS FILE USED TO SPELL THE SAME
- * LIST OUT BY HAND. `graphNodesReferenced`, `treeRefsReferenced`,
- * `paramsReferenced` and `bindObjectProgram` each enumerated
- * `when, col, row, index` in their own words — four authorities over one fact,
- * and the failure mode is not a crash. Add a field, update three of the four,
- * and the one you missed leaves `{v:'tree', i}` in a BOUND program: the runtime
- * reads `undefined`, `Number(undefined)` is `NaN`, the operation is rejected as
- * out of range and does nothing at all. Every test that used a literal corner
- * stays green; only a script with a COMPUTED one goes dark, silently, on a
- * member's chart. `table.clear(plTable, 0, 0, cols - 1, rows - 1)` is how
- * `smart-money-volume-activity-algoalpha.pine:244` writes it.
- *
- * ⚠️ REF-valued fields (`target`, `value`, `props`) are NOT here: they are
- * object handles, not values, and the walkers treat them differently on
- * purpose. This list is only the scalar value refs.
- */
-export const OP_VALUE_FIELDS = Object.freeze([
-  'when', 'col', 'row', 'col2', 'row2', 'index',
+export const OBJECT_OP_KINDS = Object.freeze([
+  'create', 'update', 'delete', 'cell', 'clear', 'setreg', 'push', 'collset', 'collclear', 'collremove',
+  // ⭐ MASTER'S TWO, KEPT BY THE MERGE. `cellpatch` is `table.cell_set_*` — the
+  // same `(column, row)` address as `cell` and a DIFFERENT meaning (patch one
+  // property, not replace the cell), which is why it is its own kind rather
+  // than a flag on `cell`. `clearcells` is the range form's validated name.
+  'cellpatch', 'clearcells',
+  // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
+  //
+  // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
+  // its reason is correct as far as it goes: *"RISK-043 stands, the loop is not
+  // executed, and drawing the first iteration would be a lie"*. That is true of
+  // a STATIC tree reader, which is what that pass is — it cannot unroll
+  // `for i = 0 to slots - 1` because `slots` is a runtime value.
+  //
+  // ⭐ BUT THE OBJECT RUNTIME ALREADY RUNS BAR BY BAR. So the loop does not need
+  // unrolling at read time; it needs to BE an operation the runtime executes.
+  // Measured on the acceptance dashboard: 15 ops blocked this way — `array.push`,
+  // `array.set` and `table.cell` — which is the whole difference between a
+  // header cell and a watchlist table.
+  //
+  // ⛔ ITS BODY IS BOUNDED BY THE SAME ENVELOPE AS EVERYTHING ELSE. Each
+  // iteration costs `opsPerBar`, so a runaway is stopped by the thing counting
+  // operations rather than by a second limit nobody could re-derive.
+  'loop',
 ])
 
 /**
@@ -178,6 +201,11 @@ export const DEFAULT_OBJECT_LIMITS = Object.freeze({
 /** A collection's own ceiling. Bounded BY CONSTRUCTION — the wave forbids "a
  *  general arbitrary Pine heap", and an unbounded object array is one. */
 export const MAX_COLLECTION_CAP = 500
+
+/** The operators a value reference may carry. ⛔ DELIBERATELY TINY — see the
+ *  `case 'op'` note in `assertValueRef`. These exist to offset a table address
+ *  from a loop counter (`r + 1`), not to compute anything. */
+export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -220,6 +248,7 @@ export function isNaRef(v) {
  *
  *   textNode = {t:'lit', s}
  *            | {t:'num', tree, fmt?}          str.tostring(x [, "#.##"])
+ *            | {t:'str', tree}                a tree whose VALUE IS TEXT
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
  */
@@ -236,6 +265,18 @@ function assertTextNode(v, where, depth = 0) {
       }
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
+      }
+      return
+    // ⭐⭐ A TREE WHOSE VALUE IS ALREADY TEXT, which `num` cannot express.
+    //
+    // ⛔ IT IS NOT REACHABLE FROM THE V2 GRAPH AND MUST NOT BECOME SO. That
+    // graph is numeric by construction, so the only lane that can answer this
+    // is one with a text channel — the runtime lane. A watchlist ROW is the
+    // case: `array.get(names, i)` is a string, and formatting a number is not
+    // a thing that can be done to it.
+    case 'str':
+      if (!Number.isInteger(v.tree) && !Number.isInteger(v.node)) {
+        throw new Error(`${where}: a text value must reference a tree or a graph node`)
       }
       return
     case 'cat':
@@ -312,11 +353,45 @@ function assertValueRef(v, where) {
         throw new Error(`${where}: a tree reference needs a non-negative integer index, got ${JSON.stringify(v.tree)}`)
       }
       return
+    // ⭐⭐ ARITHMETIC OVER VALUE REFERENCES — added for the LOOP COUNTER, and
+    // narrow on purpose.
+    //
+    // ⛔ WITHOUT IT A COUNTED LOOP CANNOT ADDRESS A TABLE. The corpus idiom is
+    // `table.cell(t, 0, r + 1, …)` — a header row at 0 and the data starting at
+    // 1 — and `r + 1` is not a tree (a tree is a per-BAR value and this depends
+    // on the ITERATION) and not a const. Measured on the acceptance dashboard:
+    // every one of its four data cells is addressed that way.
+    //
+    // ⛔ IT IS NOT A GENERAL EXPRESSION LANGUAGE AND MUST NOT BECOME ONE. The
+    // V2 graph is where arithmetic over SERIES belongs; this exists only so an
+    // ADDRESS can be offset from a counter. Anything richer than the operators
+    // below belongs in a tree, evaluated by whichever lane owns the values.
+    case 'op': {
+      if (!OBJECT_VALUE_OPS.includes(v.op)) {
+        throw new Error(`${where}: unknown value operator ${JSON.stringify(v.op)} `
+          + `— this grammar offsets an address, it is not an expression language`)
+      }
+      if (!Array.isArray(v.args) || v.args.length < 1 || v.args.length > 2) {
+        throw new Error(`${where}: a value operator takes one or two arguments`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`))
+      return
+    }
     case 'param':
       if (typeof v.id !== 'string' || !v.id) throw new Error(`${where}: a param reference needs an id`)
       return
     case 'bar':
     case 'time':
+      return
+    // ⭐⭐ THE LOOP COUNTER, and it sits beside `bar` for a reason: both are
+    // values the RUNTIME supplies rather than the graph. A `for i = 0 to n` body
+    // reads `i` in a cell's row, in `array.get(names, i)`, in a colour test —
+    // and none of those can be a graph node, because `i` does not exist until
+    // the loop runs.
+    case 'loop':
+      if (typeof v.id !== 'string' || !ID_RE.test(v.id)) {
+        throw new Error(`${where}: a loop reference needs an id matching ${ID_RE}`)
+      }
       return
     default:
       throw new Error(`${where}: unknown value reference kind ${JSON.stringify(v.v)}`)
@@ -362,6 +437,25 @@ function assertRefExpr(v, where, regs, colls) {
  *
  * @returns {{sites: string[], regs: string[], colls: string[]}}
  */
+/** Every op, INCLUDING those nested inside a `loop` body, with a readable path.
+ *
+ *  ⛔⛔ THE VALIDATOR MUST DESCEND OR A LOOP BODY IS UNCHECKED. Both passes
+ *  below used `ops.entries()`, which sees a `loop` op and nothing inside it — so
+ *  every malformed op in a body would have reached the runtime unvalidated,
+ *  which is the one thing this function exists to prevent. The path is carried
+ *  rather than an index, so a failure names `objects.ops[2].body[0]` instead of
+ *  a number that does not say which level it counted.
+ */
+function* walkOps(ops, prefix = 'objects.ops') {
+  for (const [i, op] of (Array.isArray(ops) ? ops : []).entries()) {
+    const where = `${prefix}[${i}]`
+    yield [where, op]
+    if (isObj(op) && op.k === 'loop' && Array.isArray(op.body)) {
+      yield* walkOps(op.body, `${where}.body`)
+    }
+  }
+}
+
 export function assertObjectProgram(program) {
   if (!isObj(program)) {
     throw new Error(`objects: expected an object program, got ${program === null ? 'null' : typeof program}`)
@@ -394,97 +488,126 @@ export function assertObjectProgram(program) {
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
   const siteFamily = new Map()
-  for (const [i, op] of ops.entries()) {
-    if (!isObj(op)) throw new Error(`objects.ops[${i}]: expected an operation object`)
+  for (const [where, op] of walkOps(ops)) {
+    if (!isObj(op)) throw new Error(`${where}: expected an operation object`)
     if (!OBJECT_OP_KINDS.includes(op.k)) {
-      throw new Error(`objects.ops[${i}]: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
+      throw new Error(`${where}: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
     }
-    if (op.when !== null && op.when !== undefined) assertValueRef(op.when, `objects.ops[${i}].when`)
+    if (op.when !== null && op.when !== undefined) assertValueRef(op.when, `${where}.when`)
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
-      throw new Error(`objects.ops[${i}]: lastBarOnly is a flag — it is either absent or true`)
+      throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
     if (op.once !== undefined && op.once !== true) {
-      throw new Error(`objects.ops[${i}]: once is a flag — it is either absent or true`)
+      throw new Error(`${where}: once is a flag — it is either absent or true`)
     }
     for (const k of ['requiresLive', 'requiresEmpty']) {
       if (op[k] === undefined) continue
       if (!regs.has(op[k])) {
-        throw new Error(`objects.ops[${i}]: ${k} names undeclared register ${JSON.stringify(op[k])}`)
+        throw new Error(`${where}: ${k} names undeclared register ${JSON.stringify(op[k])}`)
       }
     }
-    if (op.k === 'create') {
-      if (!OBJECT_FAMILIES.includes(op.family)) {
-        throw new Error(`objects.ops[${i}]: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
+    // ⭐⭐ A LOOP DECLARES ITS COUNTER AND ITS BOUNDS, and both bounds are
+    // ordinary value references — so `for i = 0 to array.size(syms) - 1` is a
+    // graph node like any other and needs no new machinery to be read.
+    //
+    // ⛔ THE COUNTER'S ID IS VALIDATED HERE because the body reads it by name.
+    // A body referencing `{v:'loop', id:'j'}` inside a loop declaring `i` is a
+    // program that would evaluate to NaN on every bar and draw nothing, which
+    // reads exactly like an empty watchlist.
+    // ⛔⛔ `loop` IS A BRANCH OF THIS CHAIN, NOT A CHECK BESIDE IT. The chain
+    // ends in an `else` that assumes a COLLECTION op, so a kind validated
+    // separately still falls through to it — and a loop was reported as
+    // *"names undeclared collection undefined"*, a sentence about a feature it
+    // has nothing to do with.
+    if (op.k === 'loop') {
+      if (!ID_RE.test(String(op.id))) {
+        throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
-      if (!ID_RE.test(String(op.site))) throw new Error(`objects.ops[${i}]: create needs a site id matching ${ID_RE}`)
-      if (siteFamily.has(op.site)) throw new Error(`objects.ops[${i}]: site ${op.site} is created twice`)
+      assertValueRef(op.from, `${where}.from`)
+      assertValueRef(op.to, `${where}.to`)
+      if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
+      if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
+    } else if (op.k === 'create') {
+      if (!OBJECT_FAMILIES.includes(op.family)) {
+        throw new Error(`${where}: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
+      }
+      if (!ID_RE.test(String(op.site))) throw new Error(`${where}: create needs a site id matching ${ID_RE}`)
+      if (siteFamily.has(op.site)) throw new Error(`${where}: site ${op.site} is created twice`)
       siteFamily.set(op.site, op.family)
-      assertProps(op, i, op.family, regs, colls, siteFamily)
+      assertProps(op, where, op.family, regs, colls, siteFamily)
       if (op.into !== null && op.into !== undefined) {
         const reg = regs.get(op.into)
-        if (!reg) throw new Error(`objects.ops[${i}]: create stores into undeclared register ${JSON.stringify(op.into)}`)
+        if (!reg) throw new Error(`${where}: create stores into undeclared register ${JSON.stringify(op.into)}`)
         if (reg.family !== op.family) {
-          throw new Error(`objects.ops[${i}]: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
+          throw new Error(`${where}: a ${op.family} cannot be stored in register ${op.into}, which holds ${reg.family}`)
         }
       }
     } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell'
-      || op.k === 'cellpatch' || op.k === 'clearcells') {
-      const fam = resolveTargetFamily(op, i, regs, colls, siteFamily)
+      || op.k === 'cellpatch' || op.k === 'clear' || op.k === 'clearcells') {
+      const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
       // ⭐ `cell` (Pine's PUT) and `cellpatch` (its `cell_set_*` PATCH) are two
-      // operations with one shape, so the door checks them with one rule. What
-      // separates them is not their structure — it is what the runtime does
-      // with an address that already holds something, and a validator cannot
-      // see that. Two near-identical branches here would only be two places to
-      // forget the same check.
+      // operations with ONE SHAPE, so the door checks them with one rule — master's
+      // wording, kept. What separates them is what the RUNTIME does with an address
+      // that already holds something, which a validator cannot see.
       if (op.k === 'cell' || op.k === 'cellpatch') {
-        if (fam !== 'table') throw new Error(`objects.ops[${i}]: ${op.k} targets a ${fam}, but only a table has cells`)
-        assertValueRef(op.col, `objects.ops[${i}].col`)
-        assertValueRef(op.row, `objects.ops[${i}].row`)
-        assertCellProps(op, i)
+        if (fam !== 'table') throw new Error(`${where}: cell targets a ${fam}, but only a table has cells`)
+        assertValueRef(op.col, `${where}.col`)
+        assertValueRef(op.row, `${where}.row`)
+        assertCellProps(op, where)
       }
-      // ⭐ A RECTANGLE NEEDS ALL FOUR CORNERS PRESENT AT THE DOOR. Pine lets the
-      // AUTHOR omit `end_*`, and the translator fills them from `start_*` there
-      // — by the time a program is stored, "the end defaults to the start" has
-      // already been decided once, in one place. A door that also accepted a
-      // missing end would be a second authority over the same default, and the
-      // two would disagree the first time one of them changed.
+      // ⛔ ALL FOUR BOUNDS ARE ASSERTED, including the two Pine lets an author
+      // omit — the converter fills an absent `end_` from its own start, so by
+      // the time an op reaches here a missing one is a CONVERTER defect, and a
+      // rectangle with an unreadable edge would delete an arbitrary block.
+      // ⛔⛔ TWO CLEAR SPELLINGS SURVIVE THE MERGE, AND THAT IS MEASURED, NOT
+      // TOLERATED. Master's converter emits `clearcells` with a `col/row/col2/row2`
+      // rectangle; this branch's emits `clear` with `startCol/startRow/endCol/endRow`.
+      // The merged `pine.js` contains BOTH conversions, so a door that knew only one
+      // would pass the other's ops unchecked — which is worse than either alone.
+      // ⚠️ Collapsing them to one spelling is a FOLLOW-UP with its own evidence,
+      // not a drive-by inside a merge.
       if (op.k === 'clearcells') {
-        if (fam !== 'table') throw new Error(`objects.ops[${i}]: clearcells targets a ${fam}, but only a table has cells`)
-        for (const f of ['col', 'row', 'col2', 'row2']) {
-          assertValueRef(op[f], `objects.ops[${i}].${f}`)
-        }
+        if (fam !== 'table') throw new Error(`${where}: clearcells targets a ${fam}, but only a table has cells`)
+        for (const f of ['col', 'row', 'col2', 'row2']) assertValueRef(op[f], `${where}.${f}`)
       }
-      if (op.k === 'update') assertProps(op, i, fam, regs, colls, siteFamily)
+      if (op.k === 'clear') {
+        if (fam !== 'table') throw new Error(`${where}: clear targets a ${fam}, but only a table has cells`)
+        assertValueRef(op.startCol, `${where}.startCol`)
+        assertValueRef(op.startRow, `${where}.startRow`)
+        assertValueRef(op.endCol, `${where}.endCol`)
+        assertValueRef(op.endRow, `${where}.endRow`)
+      }
+      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily)
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)
-      if (!reg) throw new Error(`objects.ops[${i}]: setreg names undeclared register ${JSON.stringify(op.reg)}`)
+      if (!reg) throw new Error(`${where}: setreg names undeclared register ${JSON.stringify(op.reg)}`)
       if (op.value !== null) {
-        const fam = assertRefExpr(op.value, `objects.ops[${i}].value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== reg.family) {
-          throw new Error(`objects.ops[${i}]: register ${op.reg} holds ${reg.family}, cannot be assigned a ${resolved}`)
+          throw new Error(`${where}: register ${op.reg} holds ${reg.family}, cannot be assigned a ${resolved}`)
         }
       }
     } else {
       const c = colls.get(op.coll)
-      if (!c) throw new Error(`objects.ops[${i}]: ${op.k} names undeclared collection ${JSON.stringify(op.coll)}`)
+      if (!c) throw new Error(`${where}: ${op.k} names undeclared collection ${JSON.stringify(op.coll)}`)
       if (op.k === 'push' || op.k === 'collset') {
-        const fam = assertRefExpr(op.value, `objects.ops[${i}].value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== c.family) {
-          throw new Error(`objects.ops[${i}]: collection ${op.coll} holds ${c.family}, cannot take a ${resolved}`)
+          throw new Error(`${where}: collection ${op.coll} holds ${c.family}, cannot take a ${resolved}`)
         }
-        if (op.k === 'collset') assertValueRef(op.index, `objects.ops[${i}].index`)
+        if (op.k === 'collset') assertValueRef(op.index, `${where}.index`)
       }
-      if (op.k === 'collremove') assertValueRef(op.index, `objects.ops[${i}].index`)
+      if (op.k === 'collremove') assertValueRef(op.index, `${where}.index`)
     }
   }
 
   // ⛔ a site reference that names no create is a null handle waiting to happen
-  for (const [i, op] of ops.entries()) {
+  for (const [where, op] of walkOps(ops)) {
     const t = op.target || (op.k === 'push' || op.k === 'collset' ? op.value : null)
     if (t && t.r === 'site' && !siteFamily.has(t.id)) {
-      throw new Error(`objects.ops[${i}]: site ${JSON.stringify(t.id)} is referenced but never created`)
+      throw new Error(`${where}: site ${JSON.stringify(t.id)} is referenced but never created`)
     }
   }
 
@@ -498,44 +621,44 @@ export function assertObjectProgram(program) {
   return { sites: [...siteFamily.keys()], regs: [...regs.keys()], colls: [...colls.keys()] }
 }
 
-function resolveTargetFamily(op, i, regs, colls, siteFamily) {
-  const fam = assertRefExpr(op.target, `objects.ops[${i}].target`, regs, colls)
+function resolveTargetFamily(op, where, regs, colls, siteFamily) {
+  const fam = assertRefExpr(op.target, `${where}.target`, regs, colls)
   if (fam !== null) return fam
   const f = siteFamily.get(op.target.id)
-  if (!f) throw new Error(`objects.ops[${i}]: site ${JSON.stringify(op.target.id)} is referenced but never created`)
+  if (!f) throw new Error(`${where}: site ${JSON.stringify(op.target.id)} is referenced but never created`)
   return f
 }
 
-function assertProps(op, i, family, regs, colls, siteFamily) {
+function assertProps(op, where, family, regs, colls, siteFamily) {
   const allowed = FAMILY_PROPS[family]
-  if (!allowed) throw new Error(`objects.ops[${i}]: no property vocabulary for family ${JSON.stringify(family)}`)
+  if (!allowed) throw new Error(`${where}: no property vocabulary for family ${JSON.stringify(family)}`)
   const props = op.props
-  if (!isObj(props)) throw new Error(`objects.ops[${i}]: props must be an object`)
+  if (!isObj(props)) throw new Error(`${where}: props must be an object`)
   for (const [k, v] of Object.entries(props)) {
     if (!allowed.includes(k)) {
-      throw new Error(`objects.ops[${i}]: ${family} has no property ${JSON.stringify(k)} — the vocabulary is [${allowed}]`)
+      throw new Error(`${where}: ${family} has no property ${JSON.stringify(k)} — the vocabulary is [${allowed}]`)
     }
     const refFam = REF_PROPS[`${family}.${k}`]
     if (refFam) {
-      const got = assertRefExpr(v, `objects.ops[${i}].props.${k}`, regs, colls)
+      const got = assertRefExpr(v, `${where}.props.${k}`, regs, colls)
       const resolved = got === null ? siteFamily.get(v.id) : got
       if (resolved && resolved !== refFam) {
-        throw new Error(`objects.ops[${i}]: ${family}.${k} must reference a ${refFam}, got a ${resolved}`)
+        throw new Error(`${where}: ${family}.${k} must reference a ${refFam}, got a ${resolved}`)
       }
       continue
     }
-    assertValueRef(v, `objects.ops[${i}].props.${k}`)
+    assertValueRef(v, `${where}.props.${k}`)
   }
 }
 
-function assertCellProps(op, i) {
+function assertCellProps(op, where) {
   const props = op.props
-  if (!isObj(props)) throw new Error(`objects.ops[${i}]: props must be an object`)
+  if (!isObj(props)) throw new Error(`${where}: props must be an object`)
   for (const [k, v] of Object.entries(props)) {
     if (!CELL_PROPS.includes(k)) {
-      throw new Error(`objects.ops[${i}]: a table cell has no property ${JSON.stringify(k)} — the vocabulary is [${CELL_PROPS}]`)
+      throw new Error(`${where}: a table cell has no property ${JSON.stringify(k)} — the vocabulary is [${CELL_PROPS}]`)
     }
-    assertValueRef(v, `objects.ops[${i}].props.${k}`)
+    assertValueRef(v, `${where}.props.${k}`)
   }
 }
 
@@ -546,7 +669,7 @@ export function graphNodesReferenced(program) {
   const seen = new Set()
   const walkText = (t) => {
     if (!isObj(t)) return
-    if (t.t === 'num' && Number.isInteger(t.node)) seen.add(t.node)
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.node)) seen.add(t.node)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -559,9 +682,11 @@ export function graphNodesReferenced(program) {
     if (v.v === 'graph') seen.add(v.node)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
-  for (const op of program.ops || []) {
+  for (const [, op] of walkOps(program.ops || [])) {
+    walkValue(op.when); walkValue(op.from); walkValue(op.to)
     walkRef(op.target); walkRef(op.value)
     for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     for (const v of Object.values(op.props || {})) {
@@ -572,14 +697,27 @@ export function graphNodesReferenced(program) {
   return [...seen].sort((a, b) => a - b)
 }
 
-/** Every UNBOUND tree index the program reads. ⭐ The mirror of
- *  `graphNodesReferenced`, and the two together are what let the document
- *  validator say which FORM a program is in rather than guessing. */
-export function treeRefsReferenced(program) {
+/**
+ * ⭐⭐ THE ONE AUTHORITY ON "WHICH TREES DOES *THIS* OP READ".
+ *
+ * ⛔ IT DOES NOT DESCEND INTO `op.body`. A loop's body is the NEXT level of
+ * ops, and a caller that needs to know WHERE a read happens — which enclosing
+ * loop it sits in, whether that position is reached only on the last bar — must
+ * be able to ask about one op at a time. `treeRefsReferenced` below walks the
+ * whole program and unions these, so the two can never disagree about what
+ * counts as a read (`lesson_a_second_authority_over_one_value`).
+ *
+ * ⚰️ THE ADDRESS FIELDS OF `clear` WERE MISSING and are included here. A tree
+ * referenced only by `table.clear(t, startCol, …)` was invisible to the
+ * document validator, which is the one consumer whose whole job is to say that
+ * every referenced index exists. Finding MORE references is strictly safer
+ * there: a ref it cannot see is a ref it cannot check.
+ */
+export function treeRefsOfOp(op) {
   const seen = new Set()
   const walkText = (t) => {
     if (!isObj(t)) return
-    if (t.t === 'num' && Number.isInteger(t.tree)) seen.add(t.tree)
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) seen.add(t.tree)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -592,15 +730,28 @@ export function treeRefsReferenced(program) {
     if (v.v === 'tree') seen.add(v.tree)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
-  for (const op of program.ops || []) {
-    walkRef(op.target); walkRef(op.value)
-    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
-    for (const v of Object.values(op.props || {})) {
-      if (isObj(v) && v.r) walkRef(v)
-      else walkValue(v)
-    }
+  if (!isObj(op)) return seen
+  walkRef(op.target); walkRef(op.value)
+  for (const f of OP_VALUE_FIELDS) walkValue(op[f])
+  for (const v of Object.values(op.props || {})) {
+    if (isObj(v) && v.r) walkRef(v)
+    else walkValue(v)
+  }
+  return seen
+}
+
+/** Every UNBOUND tree index the program reads. ⭐ The mirror of
+ *  `graphNodesReferenced`, and the two together are what let the document
+ *  validator say which FORM a program is in rather than guessing.
+ *
+ *  ⭐ DERIVED from `treeRefsOfOp`, never a second copy of the walk. */
+export function treeRefsReferenced(program) {
+  const seen = new Set()
+  for (const [, op] of walkOps(program.ops || [])) {
+    for (const i of treeRefsOfOp(op)) seen.add(i)
   }
   return [...seen].sort((a, b) => a - b)
 }
@@ -609,8 +760,12 @@ export function treeRefsReferenced(program) {
  *  can move a line's coordinate without the document being rewritten. */
 export function paramsReferenced(program) {
   const seen = new Set()
-  const walkValue = (v) => { if (isObj(v) && v.v === 'param') seen.add(v.id) }
-  for (const op of program.ops || []) {
+  const walkValue = (v) => {
+    if (!isObj(v)) return
+    if (v.v === 'param') seen.add(v.id)
+    if (v.v === 'op') (v.args || []).forEach(walkValue)
+  }
+  for (const [, op] of walkOps(program.ops || [])) {
     for (const f of OP_VALUE_FIELDS) walkValue(op[f])
     if (isObj(op.target) && op.target.r === 'coll') walkValue(op.target.index)
     for (const v of Object.values(op.props || {})) if (isObj(v) && v.v) walkValue(v)
@@ -637,7 +792,7 @@ export function paramsReferenced(program) {
 export function bindObjectProgram(program, nodeOf) {
   const bindText = (t) => {
     if (!isObj(t)) return t
-    if (t.t === 'num' && Number.isInteger(t.tree)) {
+    if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }
     }
@@ -659,21 +814,46 @@ export function bindObjectProgram(program, nodeOf) {
     if (v.v === 'tree') return { v: 'graph', node: nodeOf(v.tree) }
     if (v.v === 'text') return { v: 'text', node: bindText(v.node) }
     if (v.v === 'color') return { v: 'color', node: bindColor(v.node) }
+    // ⛔ AN OPERATOR'S ARGUMENTS ARE VALUE REFERENCES AND MUST BE BOUND TOO.
+    // `r + 1` carries a const, but `startAt + r` carries a TREE, and leaving it
+    // unbound would store the forbidden `{v:'tree'}` form in a document and make
+    // the runtime answer `undefined` for the address — placing every cell of a
+    // loop at the same spot rather than failing.
+    if (v.v === 'op') return { ...v, args: (v.args || []).map(bindValue) }
     return v
   }
   const bindRef = (r) => (isObj(r) && r.r === 'coll' ? { ...r, index: bindValue(r.index) } : r)
 
-  const ops = (program.ops || []).map((op) => {
+  const bindOps = (list) => (list || []).map((op) => {
     const out = { ...op }
+    // ⛔⛔ A LOOP'S BODY IS BOUND TOO. This mapped `program.ops` flatly, so an
+    // op inside a loop kept its UNBOUND `{v:'tree'}` refs — and a stored
+    // document must never contain the unbound form, because `trees` there would
+    // be copied ASTs and undo the C2C compaction. The runtime would also read
+    // `v: 'tree'` as an unknown kind and answer `undefined` for every cell in
+    // the loop, which draws an empty table rather than failing.
+    if (op.k === 'loop' && Array.isArray(op.body)) {
+      out.from = bindValue(op.from)
+      out.to = bindValue(op.to)
+      out.body = bindOps(op.body)
+    }
     if (op.target) out.target = bindRef(op.target)
     if (op.value && op.value.r) out.value = bindRef(op.value)
+    // ⭐ ONE LIST HERE TOO — a field bound in three walkers and forgotten in the
+    // fourth is the exact defect `OP_VALUE_FIELDS` was extracted to stop.
     for (const f of OP_VALUE_FIELDS) if (op[f] != null) out[f] = bindValue(op[f])
+    // ⛔ THE CLEAR RECTANGLE BINDS TOO, for the reason the loop comment above
+    // gives: an unbound `{v:'tree'}` reaching the runtime reads as an unknown
+    // kind and answers `undefined`, and a bound that is not a number clears
+    // NOTHING — so a forgotten bind here is a `table.clear` that silently
+    // stops working rather than one that fails.
     if (op.props) {
       out.props = Object.fromEntries(Object.entries(op.props)
         .map(([k, v]) => [k, (isObj(v) && v.r) ? bindRef(v) : bindValue(v)]))
     }
     return out
   })
+  const ops = bindOps(program.ops)
   const { trees, ...rest } = program
   return { ...rest, ops }
 }

@@ -91,6 +91,19 @@ const HUB_OWNED_PREFIXES = [
   'scripts/hub',
 ]
 
+/** ⚰️ 2026-09-24: the six-shard gate writes its manifest under `docs/plans/joystick/gate-runs/`
+ *  for EVERY workstream — that directory is where `scripts/gate_shards.py` defaults its output.
+ *  A red sweep that recorded its gate there and fixed two Notebook-side test mocks tripped this
+ *  rail as a "joystick change set": a gate receipt is shared plumbing, not hub work. Owner
+ *  ruling under the red sweep: a path under a SHARED artifact directory identifies nobody.
+ *  ⛔ Deliberately narrow — `docs/plans/joystick/` itself still counts; only the gate receipts
+ *  are carved out, and a case below proves the carve-out cannot swallow the parent. */
+const SHARED_ARTIFACT_PREFIXES = [
+  'docs/plans/joystick/gate-runs/',
+]
+const hubOwned = (f) => HUB_OWNED_PREFIXES.some((p) => f.startsWith(p))
+  && !SHARED_ARTIFACT_PREFIXES.some((p) => f.startsWith(p))
+
 /**
  * ⛔ A PULL-REQUEST CHECKOUT IN CI IS DETACHED. `actions/checkout` on a `pull_request` event
  * checks out `refs/pull/N/merge`, so `rev-parse --abbrev-ref HEAD` answers the literal `HEAD`,
@@ -117,7 +130,7 @@ const currentBranch = () => {
 function rule12Applies({ branch, changed }) {
   if (NOTEBOOK_BRANCH.test(branch)) return false
   if (JOYSTICK_BRANCH.test(branch)) return true
-  return changed.some((f) => HUB_OWNED_PREFIXES.some((p) => f.startsWith(p)))
+  return changed.some(hubOwned)
 }
 
 /** The base this branch is measured against. Tries the refs a checkout might actually have. */
@@ -314,6 +327,18 @@ describe('rule 12 — the rail fires on joystick work and nowhere else (B7)', ()
     { applies: true, branch: 'docs/d46-d48-sha-fix',   changed: ['docs/plans/joystick/deferred.md'] },
     { applies: true, branch: 'launch/closure',         changed: ['docs/plans/joystick/closure.md'] },
     { applies: true, branch: 'fix/d44-step-semantics', changed: ['tools/hub_surface_matrix.mjs'] },
+
+    // ── Shared artifacts are nobody's change set (2026-09-24). A gate receipt under
+    //    docs/plans/joystick/gate-runs/ beside a Notebook-side test fix must NOT read as the hub
+    //    editing Notebook files; the parent directory, and a hub source file, still must.
+    { applies: false, branch: 'fix/master-red-sweep',
+      changed: ['docs/plans/joystick/gate-runs/2026-09-24T18-04-13.json',
+        'docs/plans/joystick/gate-runs/2026-09-24T18-04-13.md',
+        'app/src/pages/journal-2-0/components/trade/TradeDetailPage.test.jsx'] },
+    { applies: true, branch: 'fix/master-red-sweep',
+      changed: ['docs/plans/joystick/gate-runs/2026-09-24T18-04-13.json', 'docs/plans/joystick/closure.md'] },
+    { applies: true, branch: 'fix/master-red-sweep',
+      changed: ['docs/plans/joystick/gate-runs/2026-09-24T18-04-13.json', 'app/src/hub/sections/chartDrawDoor.test.jsx'] },
     { applies: true, branch: 'docs/scope-reconciliation',
       changed: ['docs/plans/joystick/scope-reconciliation.md'] },
     // …and by NAME, for a joystick branch whose first commit has not landed yet.

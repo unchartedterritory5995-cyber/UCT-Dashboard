@@ -22,9 +22,41 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from '../ast/interpret.js'
-import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES } from './program.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
+import { TEXT_FNS } from './text.js'
+import { COLOUR_FNS, colourArgKind } from './colours.js'
+import { ARRAY_FNS, kindOf, argKind } from './collections.js'
+// ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
+// scope in other arms, and a record accessor silently shadowed by one of them
+// would read the wrong thing with nothing red.
+import {
+  udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet,
+} from './records.js'
 import { Budget } from './limits.js'
+import { etClockAt } from '../../indicators.js'
+
+/** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
+ *
+ *  DERIVED FROM `CLOCK_FIELDS` AND VALIDATED AT MODULE LOAD, so a field
+ *  appended to the wire table without a mapping here is a named throw on
+ *  import rather than a `undefined` read that reaches a member as a silent
+ *  `NaN` in one column of a dashboard. Two hand-typed lists in the same order
+ *  is the drift this repo keeps paying for.
+ */
+const CLOCK_PROP = Object.freeze({
+  year: 'y', month: 'm', dayofmonth: 'd', dayofweek: 'dow', hour: 'h', minute: 'min',
+})
+const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
+  const k = CLOCK_PROP[f]
+  if (!k) throw new Error(`vm: no etClockAt property for clock field \`${f}\``)
+  return k
+}))
+// ⭐ THE ITERATION CEILING IS THE OBJECT PROGRAM'S OWN COLLECTION CAP, imported
+// rather than restated. A drawing cannot hold more objects than that, so a
+// buffer sized to anything else would be a second authority on how many rows a
+// table may have (`lesson_a_second_authority_over_one_value`).
+import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
 const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
@@ -72,8 +104,63 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  * Execute `program` over `ctx`, one bar at a time.
  * @returns {{outputs: Float64Array[], budget: Budget}}
  */
-export function execute(program, ctx, limits) {
-  const budget = new Budget(limits)
+/** Run one request's expression over ANOTHER symbol's bars, then line the result
+ *  up with the chart's.
+ *
+ *  ⛔⛔ THE ALIGNMENT IS A MEASURED VENDOR FACT. Taken on a real TradingView
+ *  chart, 2026-09-19 (vendor packet M1): on a HISTORICAL bar a `"D"` request
+ *  returns the PREVIOUS COMPLETED daily bar — a 5-minute bar at 09-18 12:35 ET
+ *  saw 09-17's close, not the forming day's. So a chart bar sees the last
+ *  requested bar that had already CLOSED when it opened, and a requested bar
+ *  stamped at or after the chart bar's time is still forming.
+ *
+ *  ⭐ STRICTLY BEFORE, which is what makes this free of lookahead: no chart bar
+ *  can ever read a value that did not exist while it was open. A `<=` here would
+ *  hand a backtest a number nobody could have traded on — the most
+ *  valuable-looking wrong answer this engine could produce.
+ */
+function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results) {
+  const n = otherBars.length
+  const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
+  const sub = execute(program, {
+    bars: n,
+    series: [pick('o'), pick('h'), pick('l'), pick('c'), pick('v')],
+    columns: ctx.columns,
+    confirmed: true,
+    barTimes: otherBars.map((b) => b.t),
+    requestBars: ctx.requestBars,
+  }, undefined, {
+    entry: site.entry, budget, requested, requestCache,
+  })
+
+  const chartTimes = ctx.barTimes || []
+  const otherTimes = otherBars.map((b) => b.t)
+  const aligned = []
+  for (let k = 0; k < results; k += 1) aligned.push(new Float64Array(ctx.bars).fill(NaN))
+  let j = -1
+  for (let i = 0; i < ctx.bars; i += 1) {
+    const tNow = chartTimes[i]
+    // ⭐ ONE FORWARD WALK, not a search per bar: both series are in time order,
+    // so the pointer only ever moves forward across the whole alignment.
+    while (j + 1 < n && otherTimes[j + 1] < tNow) j += 1
+    if (j >= 0) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
+  }
+  return aligned
+}
+
+export function execute(program, ctx, limits, opts) {
+  const budget = (opts && opts.budget) || new Budget(limits)
+  // ⭐ A REQUEST RUNS THE SAME PROGRAM FROM A DIFFERENT ENTRY, over another
+  // symbol's series. Sharing the BUDGET is deliberate: a script that requests
+  // forty symbols has done forty symbols' worth of work, and a per-run budget
+  // would let it do that forty times over inside one bar's allowance.
+  const entryPc = (opts && Number.isInteger(opts.entry)) ? opts.entry : 0
+  // ⛔ WHAT THE RUN ASKED FOR AND COULD NOT GET. Shared with nested runs, so a
+  // request made inside a request is reported to the same caller.
+  const requested = (opts && opts.requested) || new Set()
+  const requestCache = (opts && opts.requestCache) || new Map()
+  // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
+  const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
 
@@ -82,14 +169,43 @@ export function execute(program, ctx, limits) {
   const nOut = program.outputs.length
   const outputs = []
   for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  // ⭐⭐ PER-ITERATION BUFFERS — INDEXED BY LOOP COUNTER, NOT BY BAR.
+  //
+  // ⛔ SIZED INDEPENDENTLY OF `ctx.bars`, DELIBERATELY. The obvious thing is
+  // to reuse an output's `Float64Array`, and it is wrong in the direction that
+  // hurts: a four-bar unit test would give a forty-row table four slots and
+  // drop thirty-six rows, while passing every large-series test. The cap is the
+  // object program's own collection ceiling, which is TradingView's.
+  //
+  // ⛔ AND IT IS OVERWRITTEN EVERY BAR. Only the bar that wrote it last can be
+  // read back, which is why the lane refuses a drawing that is not last-bar
+  // guarded instead of handing back a stale buffer.
+  const iterSpecs = program.iterOutputs || []
+  const iters = iterSpecs.map((o) => (o.kind === 'text'
+    ? new Array(ITER_SLOTS).fill(undefined)
+    : new Float64Array(ITER_SLOTS).fill(NaN)))
 
   // ⛔ THE STACK IS ALLOCATED ONCE FOR THE WHOLE RUN, not per bar. A per-bar
   // allocation is what made Phase 1's "columnar" shape look 4x slower than it
   // is — allocation dominates dispatch at this granularity, and measuring the
   // allocator instead of the architecture is exactly the error that probe's
   // reused-buffer control exists to prevent.
-  const stack = new Float64Array(256)
+  //
+  // ⭐⭐ AND IT HOLDS VALUES, NOT DOUBLES. A member's own values include
+  // strings, so the stack, the bar frame and the persistent slots are plain
+  // arrays. ⛔ `series`, `columns`, the history ring, the window buffers and the
+  // carried-state store below stay `Float64Array`: they serve numeric builtins
+  // and are numeric BY CONSTRUCTION, so boxing them would cost the numeric path
+  // and buy nothing. The decision, and what it measured, is in
+  // `VALUE_MODEL_DECISION.md`.
+  const stack = new Array(256).fill(NaN)
   const series = ctx.series
+  // ⭐ THE INSTANTS OF THE REGION BEING RUN, which is what makes the ET clock
+  // answer for the right symbol: `runRequest` builds a sub-`execute` whose
+  // `barTimes` are the REQUESTED series'. Defaulting to `[]` rather than to
+  // the chart's is deliberate — a caller that supplied none gets `na` from
+  // every clock read, never another symbol's hour.
+  const clockTimes = ctx.barTimes || []
   const columns = ctx.columns
   const n = program.instructions
 
@@ -106,8 +222,11 @@ export function execute(program, ctx, limits) {
   const maxFrame = program.functions.length
     ? Math.max(...program.functions.map((f) => f.frameSize)) : 0
   const depthLimit = Math.max(1, budget.limits.CALL_DEPTH)
-  const locals = new Float64Array(program.locals + depthLimit * maxFrame).fill(NaN)
-  const persist = new Float64Array(Math.max(program.persists, 1)).fill(NaN)
+  // ⭐ VALUES, for the reason given at the stack above. `NaN` is still how a
+  // number spells `na`, so every existing numeric op is unaffected by the
+  // change of container.
+  const locals = new Array(program.locals + depthLimit * maxFrame).fill(NaN)
+  const persist = new Array(Math.max(program.persists, 1)).fill(NaN)
   // ⛔ INITIALISATION IS TRACKED SEPARATELY FROM VALUE. `na` is a legitimate
   // value for an initialised slot (`var float x = na` is real Pine), so "is it
   // still NaN" cannot answer "has it been initialised" — that conflation would
@@ -202,6 +321,35 @@ export function execute(program, ctx, limits) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
   }
+  // ⭐⭐ THE TWO-INPUT CARRIED STORE — `ta.valuewhen`, and so far only it.
+  //
+  // ⛔ A SEPARATE REGION FROM `carState`, for the reason that region is separate
+  // from 2E's persistent block: different members, different lifetimes, and a
+  // slot-allocation bug in one must not read as a bug in the other.
+  //
+  // ⭐ `cells` IS A FUNCTION OF THE INSTANCE, not a constant. `ta.valuewhen`'s
+  // ring is exactly `occurrence + 1` long, which is what makes its read free —
+  // the slot the cursor is about to overwrite IS the Nth most recent firing.
+  const car2Plan = program.carried2 || []
+  const car2Spec = car2Plan.map((c) => {
+    const spec = CARRIED2[c.fn]
+    if (!spec) throw new VmError(`no two-input carried-state implementation for \`${c.fn}\``)
+    return spec
+  })
+  const car2Offset = new Int32Array(car2Plan.length)
+  let car2Cells = 0
+  for (let i = 0; i < car2Plan.length; i += 1) {
+    car2Offset[i] = car2Cells
+    car2Cells += car2Spec[i].cells(car2Plan[i].n)
+  }
+  const car2State = new Float64Array(car2Cells)
+  for (let i = 0; i < car2Plan.length; i += 1) {
+    car2Spec[i].init(car2State, car2Offset[i], car2Plan[i].n)
+  }
+  if (car2Plan.length) {
+    budget.peak('CARRIED_INSTANCES', carPlan.length + car2Plan.length)
+    budget.peak('CARRIED_CELLS', carCells + car2Cells)
+  }
   // ⭐⭐⭐ THE NA POLICY IS READ FROM `FINITE_WINDOW`, NOT STORED IN THE ARTIFACT.
   // The columnar lane reaches the same field for the same member, so the two
   // cannot disagree about what an `na` means — which is the whole reason the
@@ -256,7 +404,7 @@ export function execute(program, ctx, limits) {
     // call from seeing the previous bar's leftovers.
     locals.fill(NaN, 0, program.locals)
     let sp = 0
-    let pc = 0
+    let pc = entryPc
     let perBar = 0
     let depth = 0
     let localsBase = 0
@@ -279,6 +427,48 @@ export function execute(program, ctx, limits) {
       switch (op) {
         case OP.CONST: stack[sp++] = consts[a]; break
         case OP.READ_SERIES: stack[sp++] = series[a][bar]; break
+        // ⭐ THE ET CLOCK OF THE BAR THIS REGION IS ON. `barTimes` is the
+        // REGION'S own instants — `runRequest` hands the requested symbol's
+        // — so inside a `request.security` this answers for the requested
+        // bar rather than for the chart's, which is the whole reason a
+        // column cannot serve it.
+        //
+        // ⛔ A MISSING OR UNREADABLE INSTANT IS `na`, NEVER A GUESS. An
+        // absent `barTimes` (a caller that never supplied one) and an instant
+        // below the epoch floor both land here, and answering `0` would make
+        // `hour == 9` quietly true on every such bar at midnight ET.
+        case OP.READ_CLOCK: {
+          const p = etClockAt(clockTimes[bar])
+          stack[sp++] = p === null ? NaN : p[CLOCK_GETTER[a]]
+          break
+        }
+        // `time(tf, "0930-1600", tz)` -- the bar's instant when it falls inside
+        // the session, `na` when it does not. A member reaches this through
+        // `not na(...)`, which is how Pine spells "is this a regular-session
+        // bar".
+        //
+        // MILLISECONDS, because that is the unit Pine's `time` carries and this
+        // value IS Pine's `time`. The columnar lane's `time` COLUMN is seconds,
+        // which is why bare `time` stays refused rather than being quietly
+        // served here at a second unit -- a 1000x error that would still look
+        // like a plausible timestamp.
+        //
+        // The END IS EXCLUSIVE: a 16:00 bar is the first one after a
+        // 0930-1600 session, not its last.
+        case OP.SESSION: {
+          const t = clockTimes[bar]
+          const p = etClockAt(t)
+          if (p === null) { stack[sp++] = NaN; break }
+          const mod = p.h * 60 + p.min
+          stack[sp++] = (mod >= a && mod < b) ? t * 1000 : NaN
+          break
+        }
+        case OP.READ_SERIES_HIST:
+          // ⛔ BEFORE THE FIRST BAR IS `na`, never a wrapped index. Reading
+          // `series[bar - b]` with a negative index would answer `undefined`
+          // and poison every later comparison silently.
+          stack[sp++] = bar - b >= 0 ? series[a][bar - b] : NaN
+          break
         case OP.READ_COLUMN: stack[sp++] = columns[a][bar]; break
         case OP.READ_HIST: {
           // ⛔ `bar - b`, AND OUT OF RANGE IS `na` — NEVER a clamp to bar 0.
@@ -289,11 +479,49 @@ export function execute(program, ctx, limits) {
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
+        case OP.READ_HIST_DYN: {
+          // ⛔⛔ EVERY UNANSWERABLE OFFSET IS `na`, AND THERE ARE THREE OF THEM.
+          // A NaN offset (the value was itself `na`), a NEGATIVE one (Pine reads
+          // backwards; forwards is a bar that has not happened), and one that
+          // reaches before bar 0. None may clamp: answering with the earliest
+          // bar is how a warm-up window silently becomes a real number, which is
+          // exactly what `READ_HIST` refuses to do with a constant offset.
+          //
+          // ⚠️ `n | 0` IS NOT USED. It turns 2.7 into 2 and NaN into 0 — the
+          // second of which would read bar 0 and call it an answer.
+          const n = stack[--sp]
+          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
+          break
+        }
+        case OP.READ_SERIES_HIST_DYN: {
+          const n = stack[--sp]
+          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          stack[sp++] = idx >= 0 ? series[a][idx] : NaN
+          break
+        }
         case OP.ADD: { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
         case OP.SUB: { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
         case OP.MUL: { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
         case OP.DIV: { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
         case OP.NEG: stack[sp - 1] = NEG(stack[sp - 1]); break
+        case OP.CONCAT: {
+          const y = stack[--sp]
+          const x = stack[sp - 1]
+          // ⛔ BOTH SIDES MUST ALREADY BE STRINGS. Pine's `+` across a string
+          // and a number is a TYPE ERROR, not an implicit conversion, so
+          // coercing here would accept a script TradingView rejects and then
+          // disagree with it about the result. The front end routes a text `+`
+          // here on a STATIC read of the operands; this is what catches the case
+          // where that read was wrong.
+          if (typeof x !== 'string' || typeof y !== 'string') {
+            throw new VmError(
+              `pc ${pc - 1}: concat needs two strings, got ${typeof x} and ${typeof y} — `
+              + "Pine's `+` across a string and a number is a type error, not a conversion")
+          }
+          stack[sp - 1] = x + y
+          break
+        }
         case OP.LT: { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
         case OP.GT: { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
         case OP.LE: { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }
@@ -399,6 +627,113 @@ export function execute(program, ctx, limits) {
           stack[sp++] = v
           break
         }
+        case OP.COLOUR: {
+          // ⭐ ONE CHECK SITE, FROM THE ENTRY'S OWN DECLARATION — the rule
+          // `OP.TEXT` states below. A colour is a packed integer at run time, so
+          // every operand here is a `number` as far as this VM is concerned;
+          // whether it is a COLOUR is the front end's question.
+          const cname = program.colourOps[a]
+          const cspec = COLOUR_FNS[cname]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const want = colourArgKind(cspec, i)
+            const v = stack[sp + i]
+            if (kindOf(v) !== want) {
+              throw new VmError(
+                `pc ${pc - 1}: \`${cname}\` argument ${i + 1} takes a ${want}, got ${kindOf(v)}`)
+            }
+          }
+          stack[sp] = cspec.fn(Array.prototype.slice.call(stack, sp, sp + b))
+          sp += 1
+          break
+        }
+        case OP.TEXT: {
+          // ⭐⭐ THE KINDS ARE CHECKED FROM THE ENTRY'S OWN DECLARATION, not by
+          // each function. Seven hand-written checks drift; one check site
+          // cannot, and the one that would have drifted is the one nobody reads
+          // again. `text.js` declares `args` per builtin and this reads it.
+          const name = program.textOps[a]
+          const spec = TEXT_FNS[name]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const kind = spec.args[i]
+            const v = stack[sp + i]
+            // ⛔ ONE KIND VOCABULARY ACROSS BOTH TABLES. `typeof []` is
+            // "object", so a member who handed `str.length` the result of
+            // `str.split` was told "got object" — a JavaScript word for a Pine
+            // mistake. `kindOf` says "array", which is the thing they wrote.
+            if (kindOf(v) !== kind) {
+              // ⛔ NAMED TO THE BUILTIN AND THE POSITION. "a string was expected"
+              // sends a member hunting through a whole watchlist parser; naming
+              // `str.replace_all` argument 2 points at the line.
+              throw new VmError(
+                `pc ${pc - 1}: \`${name}\` argument ${i + 1} takes a ${kind}, got ${kindOf(v)}`)
+            }
+          }
+          let v
+          if (b === 1) v = spec.fn(stack[sp])
+          else if (b === 2) v = spec.fn(stack[sp], stack[sp + 1])
+          else v = spec.fn(...Array.prototype.slice.call(stack, sp, sp + b))
+          stack[sp++] = v
+          break
+        }
+        case OP.ARRAY: {
+          const op = program.arrayOps[a]
+          const spec = ARRAY_FNS[op.fn]
+          sp -= b
+          for (let i = 0; i < b; i += 1) {
+            const want = argKind(spec, i)
+            // ⭐ 'any' IS A REAL KIND HERE, not a missing check: `array.push`
+            // takes whatever the array holds, and a typed array's element type
+            // is the FRONT END's to police, not the VM's.
+            if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
+              throw new VmError(
+                `pc ${pc - 1}: \`${op.fn}\` argument ${i + 1} takes ${want === 'array' ? 'an' : 'a'} `
+                + `${want}, got ${kindOf(stack[sp + i])}`)
+            }
+          }
+          const args = Array.prototype.slice.call(stack, sp, sp + b)
+          const out = spec.fn(args, budget, op.typeArg)
+          // ⛔ A VOID CALL PUSHES NOTHING. `array.push` is a statement in Pine;
+          // pushing an `undefined` for it would put a value on the stack that
+          // nothing pops and that no kind check would recognise later.
+          if (spec.returns !== 'void') stack[sp++] = out
+          break
+        }
+        // ⭐⭐ USER-DEFINED TYPES — see `runtime/records.js`. Three opcodes, and
+        // the VM does no type reasoning in any of them: the field NAMES come
+        // from the artifact, the pairing is positional, and every refusal is
+        // `records.js`'s own sentence naming the member's type and field.
+        case OP.RECORD: {
+          const t = program.recordTypes[a]
+          sp -= b
+          // ⛔⛔ THE SLICE IS TAKEN INTO A LOCAL BEFORE THE PUSH, AND THAT IS A
+          // CORRECTNESS REQUIREMENT, NOT A STYLE. Written as the one-liner
+          // `stack[sp++] = udtRecord(…, slice(stack, sp, sp + b))`, JavaScript
+          // evaluates the assignment TARGET first — so `sp` is already
+          // incremented by the time the slice reads it, and every field is
+          // paired with the value one position along. Measured: every field
+          // read came back `na` while the IR, the lowering and the program
+          // validator were all correct.
+          // ⛔ AND IT IS A COPY. `udtRecord` keeps no reference to the array it
+          // is handed, which is what stops a later bar's stack traffic from
+          // being visible through a record that had aliased it.
+          const vals = Array.prototype.slice.call(stack, sp, sp + b)
+          stack[sp] = udtRecord(t.type, t.fields, vals)
+          sp += 1
+          break
+        }
+        case OP.FIELD_GET:
+          stack[sp - 1] = recFieldGet(stack[sp - 1], program.fieldNames[a])
+          break
+        case OP.FIELD_SET:
+          // ⛔ BOTH OPERANDS ARE CONSUMED AND NOTHING IS PUSHED. Pine's field
+          // assignment is a statement; a VM that left the record behind would
+          // grow the stack once per write, and `bigbeluga-smart-money-concepts`
+          // writes 222 fields.
+          sp -= 2
+          recFieldSet(stack[sp], program.fieldNames[a], stack[sp + 1])
+          break
         case OP.WINDOW: {
           // ⭐⭐ FRAME-RELATIVE, like every other per-site store. `windowBase` is
           // what keeps two call sites of one function from sharing an
@@ -470,8 +805,41 @@ export function execute(program, ctx, limits) {
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
           break
         }
+                case OP.CARRIED2: {
+          // ⭐ TWO INPUTS, POPPED IN REVERSE. `lowerIr` walks the condition
+          // first and the source second, so the source is on top.
+          //
+          // ⛔ THE SITE IS GLOBAL, NOT FRAME-RELATIVE, AND THE FRONT END
+          // REFUSES `ta.valuewhen` INSIDE A USER FUNCTION FOR THAT REASON.
+          // `OP.CARRIED` adds `carriedBase` so two invocations of one body keep
+          // two recurrences; there is no `carried2Base` yet, so two invocations
+          // would SHARE one ring and answer a plausible wrong number. A named
+          // refusal is the honest version of that limit.
+          const v2src = stack[--sp]
+          const v2cond = stack[--sp]
+          budget.charge('CARRIED_STEPS', 1)
+          stack[sp++] = car2Spec[a].step(
+            car2State, car2Offset[a], v2cond, v2src, car2Plan[a].n)
+          break
+        }
                 case OP.RET: {
-          const value = stack[--sp]
+          // ⭐⭐ THE RESULT IS ALREADY WHERE THE CALLER WANTS IT, AND THIS CASE
+          // DELIBERATELY DOES NOT TOUCH THE STACK. `sp` is not part of a frame
+          // — CALL consumes the arguments as it binds them, so by the time a
+          // body finishes, the only thing above the caller's own values is what
+          // this invocation produced. One value or five, they are contiguous
+          // and in written order, and moving them would be work that changes
+          // nothing.
+          //
+          // ⚰️ IT DID MOVE THEM, briefly, and a mutation proof showed the move
+          // was decoration: cutting it to a single value left every tuple test
+          // green, because the values never needed relocating. What actually
+          // fixes the ORDER is the pair that does the real work — the tuple
+          // pushes its elements left to right (`lowerIr`'s EXPR.TUPLE) and the
+          // destructuring fills its slots right to left, because a stack pops
+          // in reverse. Both are mutation-proved. A no-op kept here would read
+          // to the next engineer as the mechanism, and they would look for the
+          // bug in the wrong place.
           // ⭐⭐ P7.2 — THE HAND-OFF. The frame is about to disappear, so
           // whatever this invocation produced for its history-bearing locals is
           // stashed in the SITE’s held cells now. The end-of-bar phase commits
@@ -494,7 +862,6 @@ export function execute(program, ctx, limits) {
           historyBase = frHistoryBase[depth]
           carriedBase = frCarriedBase[depth]
           windowBase = frWindowBase[depth]
-          stack[sp++] = value
           break
         }
         case OP.EMIT: {
@@ -513,9 +880,94 @@ export function execute(program, ctx, limits) {
           // An Infinity that reached a screener comparison would win every `<`
           // test in the universe while meaning "we could not compute this".
           const v = stack[--sp]
+          // ⛔⛔ AND SINCE A SLOT CAN NOW HOLD A STRING, THE KIND IS CHECKED
+          // BEFORE THE FINITENESS IS. `Number.isFinite('abc')` is false, so the
+          // laundering line below would have turned a string into `na` — the
+          // exact silent coercion boxing the slots was meant to end, reappearing
+          // one line later. An output series is a `Float64Array` and that is a
+          // contract the chart and the columnar lane both read; a value that
+          // cannot live in one is a translator defect, and it says so.
+          if (typeof v !== 'number') {
+            throw new VmError(
+              `pc ${pc - 1}: output ${a} must carry a number, got ${typeof v} — `
+              + 'a non-numeric value reached a plot')
+          }
           outputs[a][bar] = Number.isFinite(v) ? v : NaN
           break
         }
+        case OP.EMIT_ITER: {
+          const v = stack[--sp]
+          const idx = stack[--sp]
+          // ⛔ AN OUT-OF-RANGE SLOT IS DROPPED, NEVER WRAPPED OR GROWN. A
+          // counter past the ceiling means the drawing asked for more rows
+          // than the object program may hold, and the envelope that already
+          // bounds objects is the one authority on that — silently growing
+          // here would route around it.
+          if (typeof idx !== 'number' || !Number.isInteger(idx)
+              || idx < 0 || idx >= ITER_SLOTS) break
+          const buf = iters[a]
+          // ⛔⛔ A TEXT BUFFER TAKES STRINGS AND A NUMERIC ONE TAKES NUMBERS.
+          // The kind was declared and validated at build; a value of the other
+          // kind arriving here is a translator defect, and it says so rather
+          // than coercing — `String(NaN)` in a dashboard cell reads as data.
+          if (Array.isArray(buf)) {
+            if (typeof v !== 'string') {
+              throw new VmError(`pc ${pc - 1}: iteration buffer ${a} is text and got ${typeof v}`)
+            }
+            buf[idx] = v
+          } else {
+            if (typeof v !== 'number') {
+              throw new VmError(`pc ${pc - 1}: iteration buffer ${a} is numeric and got ${typeof v}`)
+            }
+            buf[idx] = Number.isFinite(v) ? v : NaN
+          }
+          break
+        }
+        case OP.LOOP_TICK:
+          // ⛔ CHARGED PER ITERATION, ACROSS THE WHOLE RUN. A loop whose step
+          // never reaches its bound — `by 0`, or a bound a body keeps moving —
+          // is stopped here, by a limit that names itself, rather than hanging
+          // the browser tab a member is looking at.
+          budget.charge('LOOP_ITERATIONS', 1)
+          budget.peak('LOOP_NESTING', a)
+          break
+        case OP.REQUEST: {
+          const site = program.requests[a]
+          const symbol = stack[--sp]
+          if (typeof symbol !== 'string') {
+            throw new VmError(
+              `pc ${pc - 1}: request.security takes a symbol as text, got ${kindOf(symbol)}`)
+          }
+          const key = `${symbol}|${site.timeframe}`
+          let series2 = requestCache.get(`${a}::${key}`)
+          if (series2 === undefined) {
+            const other = ctx.requestBars && ctx.requestBars[key]
+            if (!other || !other.length) {
+              // ⛔ NOT AN ERROR AND NOT A GUESS — a symbol this run has no bars
+              // for is RECORDED and answers `na`. The script's symbols come out
+              // of a pasted watchlist, so the only way to know what to fetch is
+              // to run it and read back what it asked for.
+              budget.peak('REQUEST_COUNT', requested.size + 1)
+              requested.add(key)
+              series2 = null
+            } else {
+              budget.peak('REQUEST_COUNT', requestCache.size + 1)
+              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b)
+            }
+            requestCache.set(`${a}::${key}`, series2)
+          }
+          if (series2 === null) {
+            for (let k = 0; k < b; k += 1) stack[sp++] = NaN
+          } else {
+            for (let k = 0; k < b; k += 1) stack[sp++] = series2[k][bar]
+          }
+          break
+        }
+        // ⭐⭐ THE RESULT OF A CALL-FOR-EFFECT, THROWN AWAY. `a` values, not
+        // one: a Pine function may hand back a tuple and a statement discards
+        // all of it. Nothing is read, so there is no value to coerce and no NaN
+        // rule to apply — `sp` alone is the state that changes.
+        case OP.DROP: sp -= a; break
         case OP.HALT: break
         default:
           throw new VmError(
@@ -527,6 +979,22 @@ export function execute(program, ctx, limits) {
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
+
+    // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE
+    // for the whole run, so a value pushed and never popped is not a leak that
+    // clears next bar — it accumulates, and the run dies of a full stack
+    // thousands of bars from the instruction that caused it.
+    //
+    // ⚰️ THIS EXISTS BECAUSE A MUTATION PROOF FOUND NOTHING WATCHING. Making a
+    // VOID collection call push its `undefined` anyway left EVERY test green:
+    // four-bar fixtures simply do not run long enough to notice, and the defect
+    // would have surfaced as an unexplained stack overflow on a member's real
+    // chart. It is an invariant, so it is asserted rather than tested around.
+    if (sp !== 0) {
+      throw new VmError(
+        `bar ${bar}: the program left ${sp} value(s) on the stack — every value a `
+        + 'bar pushes must be consumed by the end of it')
+    }
 
     // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────
     //
@@ -566,7 +1034,27 @@ export function execute(program, ctx, limits) {
       }
       committed += 1
     }
+
+    // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
+    //
+    // ⛔⛔ THIS IS WHAT REPLACES A BAR DIMENSION ON `iters`, AND THE NUMBERS ARE
+    // WHY. Giving those buffers a bar dimension costs, for ONE corpus script at
+    // the 5,000 bars a chart asks for, 1,621MB in full form and 801MB counting
+    // only the buffers that need it, against this runtime's own 64MB ceiling
+    // (`iterStorageCost.measure.test.js`). A value does not have to be STORED
+    // per bar if whatever reads it is standing on the bar that produced it.
+    //
+    // ⭐ EVERYTHING THIS BAR PRODUCED IS COMPLETE HERE: every `outputs[*][bar]`
+    // was written by an EMIT during the bar, every iteration buffer by an
+    // EMIT_ITER, and the history commit above has already run — so a reader
+    // called from here sees exactly the bar it was told about and nothing of
+    // the next one.
+    //
+    // ⛔ TOP-LEVEL ONLY. `runRequest` builds its sub-`execute` with its own
+    // opts and passes no hook, so another symbol's bars can never drive a
+    // drawing that belongs to this chart's.
+    if (onBar) onBar(bar, iters, outputs)
   }
 
-  return { outputs, budget }
+  return { outputs, iters, budget, requested: Array.from(requested).sort() }
 }

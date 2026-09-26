@@ -181,19 +181,41 @@ describe('H — a member input drives state', () => {
 
 describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden', () => {
   const CASES = [
-    ['a loop', `${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
+    // ⚰️ WAS A `for`, WHICH NOW LOWERS (runtime/__tests__/loops.test.js).
+    // `while` is the loop this runtime still refuses — its bound is re-read
+    // every pass, which is a different termination argument from the counted
+    // loop's — and it refuses under the SAME guard, so this row, the LINE row
+    // and the NOTHING-IS-DROPPED row below all keep asking exactly what they
+    // asked before.
+    ['a loop', `${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
     // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
     // by the same name, so the guard is still reachable.
     ['a function with a default parameter', `${head}f(x = 3) => x * 2\nplot(f(close))\n`, 'runtime:function'],
-    ['a tuple', `${head}[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n`, 'runtime:tuple'],
+    // ⚰️ WAS `[a, b] = ta.macd(close, 12, 26, 9)`. A UDF tuple and a
+    // destructuring both LOWER now (runtime/__tests__/tuples.test.js), so that
+    // line reaches the columnar lane and refuses `pine:arity` — its own,
+    // accurate name, and no longer this guard's. What still trips the tuple
+    // guard is a destructuring whose right-hand side produces ONE value, which
+    // is the same question: does an unsupported multiple-value form refuse by
+    // name rather than silently taking whatever is on the stack?
+    ['a tuple', `${head}[a, b] = close
+plot(a)
+`, 'runtime:tuple'],
     // ⚰️ `history over a mutable variable → runtime:history-variable` LIVED HERE
     // UNTIL 2F-2, which executes it. The three cases that replace it are the
     // parts of the family that genuinely do not run yet — and they are three
     // different walls, named separately for the same reason 2E split
     // `call-with-state` and 2F-1 split the residue after it.
-    ['history over an EXPRESSION with state', `${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`, 'runtime:history-expression'],
+    // ⚰️ `plot((x + 1)[1])` WAS THIS ROW UNTIL THE ROOT STATEMENT LIST LEARNED
+    // TO HOIST IT (`historyExpression.test.js`) — the third time this table has
+    // had to move a row off a shipped capability, and the reason is the same
+    // each time: a row asserting a wall that is gone points the next reader at
+    // work already done. What replaces it is the part of the family that is
+    // genuinely still a wall — the SAME shape one block down, where hoisting
+    // would move the binding OUT of a branch and change the bars it runs on.
+    ['history over an EXPRESSION inside a BRANCH', `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := (x + 1)[1]\nplot(y)\n`, 'runtime:history-expression'],
     ['a history offset only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`, 'runtime:history-dynamic-offset'],
     // ⚰️ `history over a FUNCTION-LOCAL value → runtime:history-function-local`
     // LIVED HERE UNTIL P7.2, which builds it (per-call-site rings, vendor-pinned
@@ -225,7 +247,20 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // census found the same mistake sitting in the corpus numbers (`str.upper`,
     // `int` and `iff` were all filed as windowed), and the split below is what
     // that correction looks like. These three refusals are three different walls.
-    ['a SCAN-BACKWARDS builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.barssince(x > 100))\n`, 'runtime:call-windowed-state'],
+    // ⚰️⚰️ THE SCAN-BACKWARDS ROW IS GONE, AND THIS TIME THE CATEGORY CLOSED
+    // RATHER THAN THE SPECIMEN MOVING. It read
+    //   ['a SCAN-BACKWARDS builtin fed by state', 'plot(ta.barssince(x > 100))',
+    //    'runtime:call-windowed-state'],
+    // and `ta.barssince` over state now EXECUTES — Pine's unbounded twin is the
+    // `CARRIED` member `barssincePine`, as `ta.valuewhen` became a `CARRIED2`
+    // member a wave earlier. Those two ARE the scan-backwards family, so unlike
+    // the `ta.cum` and `math.max` re-pointings recorded above there is no
+    // replacement specimen to name: the wall this row described no longer exists.
+    // ⛔ Deleting the row rather than parking it on a near-miss is the point the
+    // paragraph above makes — a specimen chosen for what it happened to be that
+    // day, asserted as if it were a claim about the CATEGORY, is how this table
+    // went wrong three times. The live proof that the family executes is
+    // `finiteWindow.test.js` and `barssince.test.js`, not an absence here.
     // ⚰️⚰️ AND THE UNDECLARED ROW HAS NOW MOVED OFF `ta.cum` TOO — the third
     // time this table has had to re-point a row, and the first time in the other
     // direction: `cum` was ADMITTED to the closed table, so "undeclared" became
@@ -246,14 +281,14 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
   }
 
   it('⭐ a refusal carries a source LINE, so a gap is attributable', () => {
-    const r = refusalOf(`${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`)
+    const r = refusalOf(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`)
     expect(r.line).toBeGreaterThan(0)
   })
 
   it('⛔ NOTHING IS SILENTLY DROPPED — an unsupported statement refuses the PROGRAM', () => {
     // A front end that skipped what it could not lower would accept this script
     // and quietly compute a different indicator.
-    const built = buildRuntimeIr(`${head}var s = 0.0\nfor i = 0 to 5\n    s := s + 1\nplot(s)\n`, { bars: BARS })
+    const built = buildRuntimeIr(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.ir).toBeUndefined()
   })

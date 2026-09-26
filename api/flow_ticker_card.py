@@ -88,7 +88,8 @@ def _window_label(w: dict) -> str:
     start, end = w.get("start"), w.get("end")
     active = w.get("active_days")
     span = f"{start} – {end}" if start and end and start != end else (start or end or "")
-    head = "all history" if req == "all" else (f"last {req} trading days" if req else "")
+    # "1" is today's session, never "last 1 trading days" (the reply sentence already said "today").
+    head = "all history" if req == "all" else ("today" if req == "1" else (f"last {req} trading days" if req else ""))
     # A WIDENED window says so on the image itself, not only in the reply text: the card is
     # what gets screenshotted and re-posted, and a 20-day card must never pass for today's.
     frm = str(w.get("widened_from") or "").lower()
@@ -229,6 +230,12 @@ def render_ticker_flow_card(data: dict) -> bytes:
     d.rectangle([s(36), s(H - 40), s(_W - 36), s(H - 40) + 1], fill=_DIV)
     cc = data.get("contract_count")
     foot_l = f"UCT Intelligence · {cc} contracts" if cc else "UCT Intelligence"
+    # Which derivation drew this card. "page-derived" = the Options Flow page's own product
+    # (option A); the rollup says nothing, so today's cards are pixel-identical.
+    if str(data.get("derivation") or "") == "page":
+        _w = data.get("window") or {}
+        foot_l += (" · page-derived" if _w.get("basis_complete", True)
+                   else f" · page-derived, {_w.get('basis_sessions')}-session basis")
     txt(36, H - 32, foot_l, f_foot, _DIM)
     txt(_W - 36, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
 

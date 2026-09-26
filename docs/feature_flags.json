@@ -629,6 +629,12 @@
       "note": "Kill switch for the event-loop stall probe (2.4b P2.9), default ON: unset means the probe runs. It measures the overshoot of its own sleep every 0.5 s on the ONE event loop web has - the loop whose blocking failed Discord's 3 s ack and the renderer's page load together, 37x more often than chance (C-02), and which nothing measured at all until now. Nothing is served from it; it feeds /renderhealth and the `loop_stalled` alert. There is nothing to protect by leaving a measurement off, which is why it is a kill switch and not an enablement gate. Started from the lifespan, and only when DISCORD_RENDER_V2_ENABLED is set - so while V2 is dark this costs nothing and reports `running: false`.",
       "owner": "owner"
     },
+    "DISCORD_FLOW_CARD_PAGE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Option A for the Discord /flow card (2026-09-25): 1 derives the card from the Options Flow page's OWN product (processFlowData via the flow-facts bundle, windowed per request on flow-worker: GET /api/flow/ticker-product/{sym}?window_days=N) so the card reads what a member sees on the page; unset or 0 is the live_massive_router By-Contract rollup members have today. An ENABLEMENT gate: unset means the rollup, never this path. The flip is owner + Ravi, after tools/flow_card_parity_audit.py reads AGREE on a 20-name sweep, because the windowed product is close to but not identical to the page's full-history product (docs/discord-render/FLOW-CARD-SOURCE-DECISION-2026-09-25.md). A page card says page-derived in its footer; a rollup fallback under the flag is labelled derivation=rollup in the payload. Rollback is this variable alone.",
+      "owner": "owner"
+    },
     "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
       "status": "dark",
       "where": [],
@@ -1401,6 +1407,17 @@
       "baked_measured_on": "1c76f9f38",
       "last_changed": "unknown - the CLI exposes no variable history",
       "note": "Options Flow load path: ticker search hits /api/flow/ticker-product instead of scanning the tape. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
+    },
+    "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken — the ARG was missing, so the flag could not be set at all until 2026-09-23",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined — and until 2026-09-23 it could not have been anything else: Dockerfile.web declared no ARG for it, and Railway drops an undeclared build arg in silence. Exactly the trap VITE_PINE_MEMBER_PANE_ENABLED's own note records being closed for that flag in e6ca532c6 and not for this one.",
+      "baked_measured_on": "2026-09-23, from Dockerfile.web's ARG list (the flag appeared 0 times) and tools/vite_flag_index (which could not see the read at all)",
+      "last_changed": "2026-09-23T00:00:00Z",
+      "note": "May a pane draw a script that has OBJECTS and no screenable column — a fib retracement, an ICT killzone, an HTF footprint. Read in ONE place, app/src/components/chart/engine/objectsOnlyPaneGate.js::objectsOnlyPaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. ⛔ IT IS STILL OFF. Declaring the ARG only makes it POSSIBLE to set; turning it on is a Railway variable plus a rebuild (it is a build constant, so it is a DEPLOY, not a variable change) and an owner decision. ⭐ MEASURED COST OF LEAVING IT OFF: at the member door (memberPaneDefinition, the call MemberPane makes) 29 of 266 committed corpus scripts attach with it off and 52 with it on — 23 scripts, all of them drawing-only indicators, +79%. ⚰️ The reason the rail never caught it: objectsOnlyPaneGate.js late-binds its env source for testability, so the literal `import.meta.env.VITE_...` stopped appearing and tools/vite_flag_index's direct pattern went blind. The index now also reads any VITE_* in a file that mentions import.meta.env."
     },
     "VITE_REALTIME_BARS": {
       "status": "dark",

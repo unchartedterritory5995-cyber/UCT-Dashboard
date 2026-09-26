@@ -14,8 +14,9 @@
  * watches only setData is blind to exactly the defect it is meant to catch.
  */
 import React from 'react'
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { render, cleanup, waitFor } from '@testing-library/react'
+import { pinWallClock, wallClockET } from '../testing/pinnedWallClock'
 
 // A render error must surface as a NAMED failure, not as a silent "never painted".
 const caught = { error: null }
@@ -122,13 +123,32 @@ vi.mock('../utils/barsIDB', async (importOriginal) => ({
   idbPut: async () => {},
 }))
 
+// ── Session context — the wall clock is an INPUT, and it is PINNED.
+//
+// ⚰️ This block used to read "every expectation is derived from the PAINT FRONTIER,
+// never from a hard-coded 'today', so the suite is correct in any session window".
+// The first half is true and kept; the conclusion was false. The product's paint
+// authority is window-dependent BY DESIGN: after the bell (weekday 16:00 ET →
+// midnight, same ET day) a today-dated daily cache is DEFERRED to the network's
+// sealed close (`isDailyTodayCloseProvisionalForPaint`, a663b0d67 — the no-flicker
+// fix), so every "cache paints first" expectation below only holds inside RTH. This
+// file was committed at 14:26 ET and green there; from 16:00 ET it was red every day.
+//
+// Measured 2026-09-24 on ONE tree: real clock 18:12 ET → NC-B, NC-C red · clock
+// pinned to 14:26 ET → 18/18 · pinned to 18:12 ET on the author's own day → the
+// same reds. So the window is now STATED — RTH on a plain Tuesday — and the
+// after-bell window is covered by its own case below, with its own expectation.
+// The pin SHIFTS the clock (it keeps advancing), so the polling harness is unchanged.
+const PINNED_RTH_ISO = '2026-09-22T18:26:00Z'          // Tue 14:26 ET — inside RTH
+const PINNED_AFTER_BELL_ISO = '2026-09-22T22:12:00Z'   // Tue 18:12 ET — same day, after the close
+const clock = pinWallClock(PINNED_RTH_ISO)
+
 const Mod = await import('./StockChart')
 const StockChart = Mod.default
 const MS = await import('../utils/marketSession')
 
-// ── Session context. Every expectation is derived from the PAINT FRONTIER, never
-// from a hard-coded "today", so the suite is correct in any session window and says
-// out loud which window it ran in.
+// Every expectation is derived from the PAINT FRONTIER under the pin (2026-09-22),
+// and the context case below says out loud which window the run is in.
 const FRONTIER = MS.expectedDailyTailForPaintET()
 const NOW_ET = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
 const MINS = NOW_ET.getHours() * 60 + NOW_ET.getMinutes()
@@ -253,6 +273,7 @@ beforeEach(() => {
   }))
 })
 afterEach(() => { vi.unstubAllGlobals() })
+afterAll(() => { clock.restore() })
 
 /**
  * Run one symbol switch A -> BBB and score the first visible target frame.
@@ -369,9 +390,12 @@ const RESULTS = []
 const report = (r) => { RESULTS.push(r); return r }
 
 describe('DAILY first-paint acceptance', () => {
-  it('session context is stated, not assumed', () => {
-    console.log(`[ACCEPT-CONTEXT] frontier=${FRONTIER} rth=${IS_RTH} etNow=${NOW_ET.toTimeString().slice(0, 8)}`)
-    expect(typeof FRONTIER).toBe('string')
+  it('session context is stated, not assumed — and the pin is load-bearing', () => {
+    console.log(`[ACCEPT-CONTEXT] frontier=${FRONTIER} rth=${IS_RTH} etNow=${NOW_ET.toTimeString().slice(0, 8)} pinned=${wallClockET()}`)
+    // ⛔ If the pin is ever removed this fails BY NAME here, instead of the matrix
+    // going red only after 16:00 ET and reading as a product regression.
+    expect(FRONTIER).toBe('2026-09-22')
+    expect(IS_RTH).toBe(true)
   })
 
   it('D0 — IDB tail at the frontier, written just now', async () => {
@@ -441,6 +465,27 @@ describe('DAILY first-paint acceptance', () => {
       ext_session: false, observed_at: Math.floor(Date.now() / 1000),
     }
     report(await runCase('LIVE-SEED idb-1', 'cache'))
+  }, 30000)
+
+  it('AFTER THE BELL — a fresh today-dated cache is DEFERRED to the sealed close (by design)', async () => {
+    // ⭐ THE OTHER HALF OF THE WINDOW, as its own input. Same ET day at 18:12 ET: the
+    // frontier is unchanged (today is the latest closed session), the cache is the D0
+    // fixture, and the product must NOT paint it first — the network's sealed close
+    // is the first frame, with no right-edge insertion, no drift and no OHLC
+    // correction afterwards. This is `isDailyTodayCloseProvisionalForPaint` at the
+    // level the member sees it; `marketSession.dailypaint.test.js` pins the predicate.
+    // ⛔ Asserted, not merely reported: the D-rows above are printed only, and this
+    // row is deterministic (a refused cache paints nothing, so the network can never
+    // lose the race here).
+    clock.retarget(PINNED_AFTER_BELL_ISO)
+    try {
+      expect(MS.expectedDailyTailForPaintET()).toBe(FRONTIER)   // same frontier — the fixtures still apply
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
+      const r = report(await runCase('AFTER-BELL idb@today', 'network'))
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
+    } finally {
+      clock.retarget(PINNED_RTH_ISO)
+    }
   }, 30000)
 
   // ── NEGATIVE CONTROLS ──────────────────────────────────────────────────────
@@ -517,6 +562,6 @@ describe('DAILY first-paint acceptance', () => {
           `ops ${r.postOps}`,
         ].join(' | ')
     )).join('\n'))
-    expect(RESULTS.length).toBe(16)
+    expect(RESULTS.length).toBe(17)
   })
 })

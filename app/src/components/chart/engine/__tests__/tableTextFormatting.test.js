@@ -160,19 +160,58 @@ describe('⭐⭐ GAP 1 — a Pine cell written BOLD reaches the member bold', ()
 })
 
 describe('⛔⛔ GAP 1 — what this door CANNOT carry, it NAMES', () => {
-  it('a text_formatting chosen at RUNTIME is a named drop, never a silent one', () => {
-    // ⭐ The reader is deliberately CONSTANT-ONLY: nothing in the reachable
-    // corpus computes a format, and a `{t:'if'}` formatting node would be a
-    // second conditional vocabulary to evaluate per bar for zero measured
-    // demand. So a computed one refuses — and says which line it was on.
-    const { t } = wire(`//@version=6
+  it('⭐⭐ a text_formatting chosen at RUNTIME is CARRIED — and PAINTS both ways', () => {
+    // ⚰️ THIS CASE USED TO ASSERT THE OPPOSITE, and the sentence it rested on was
+    // *"the reader is deliberately CONSTANT-ONLY … a `{t:'if'}` formatting node
+    // would be a second conditional vocabulary to evaluate per bar for zero
+    // measured demand"*. The 2026-09-23 merge made the first half false: the
+    // interception no longer `return null`s on a value it cannot fold, it falls
+    // through to the `ENUM_SLOTS` reader two lines below, which returns exactly a
+    // `{v:'text'}` template — *"what the object runtime already evaluates per
+    // bar"*, in its own words. The second vocabulary was never added; the sibling
+    // slots (`text_halign`, `text_size`, `text_color`) had been paying for it all
+    // along and `text_formatting` alone was not being handed the bill.
+    //
+    // ⛔⛔ AND IT IS ASSERTED AT THE GLASS, IN BOTH DIRECTIONS, because this file's
+    // own header is the reason: *"a unit test on `CELL_PROPS` would have passed
+    // for a build whose `<td>` was still unbolded"*. A carried value that painted
+    // bold unconditionally would satisfy any one-sided check and is a worse table
+    // than one that carries nothing.
+    const { t, root } = wire(`//@version=6
 indicator("fmt2", overlay = true)
+var table t = table.new(position.top_right, 1, 2)
+if barstate.islast
+    table.cell(t, 0, 0, "Yes", text_formatting = close > 0 ? text.format_bold : text.format_none)
+    table.cell(t, 0, 1, "No", text_formatting = close < 0 ? text.format_bold : text.format_none)
+plot(close)
+`)
+    expect(t.objectDiagnostics.droppedPropNames,
+      'a format the reader CAN template is not a drop any more').toBeFalsy()
+    const yes = cellNamed(root, 'Yes')
+    const no = cellNamed(root, 'No')
+    expect(yes, 'the true-branch cell was not drawn at all').toBeTruthy()
+    expect(no, 'the false-branch cell was not drawn at all').toBeTruthy()
+    expect(yes.style.fontWeight).toBe('bold')
+    expect(no.style.fontWeight).toBe('')
+  })
+
+  it('⛔ a text_formatting the reader CANNOT read is still a named drop', () => {
+    // ⭐ THE HALF THAT SURVIVED, AND IT IS KEPT DELIBERATELY. Widening what the
+    // door carries must not quietly retire the machinery that NAMES what it
+    // still cannot — that machinery is gap 1's whole subject. `close` is a
+    // number, not a `text_format`, so there is no template to build and the
+    // reader says so with the line an engineer has to go and look at.
+    const { t } = wire(`//@version=6
+indicator("fmt4", overlay = true)
 var table t = table.new(position.top_right, 1, 1)
 if barstate.islast
-    table.cell(t, 0, 0, "X", text_formatting = close > open ? text.format_bold : text.format_none)
+    table.cell(t, 0, 0, "X", text_formatting = close)
 plot(close)
 `)
     expect(t.objectDiagnostics.droppedPropNames).toContain('cell.text_formatting@5')
+    // ⭐ AND IT IS COUNTED, not merely named — a visible limit, not a missing
+    // feature. (`enumUnreadable` is what the fall-through added beside the name.)
+    expect(t.objectDiagnostics.enumUnreadable).toBeGreaterThan(0)
     // ⛔ THE CELL ITSELF SURVIVES. Formatting is styling, not content — losing
     // the bold must not lose the number, the same rule `REQUIRED`/`CONTENT`
     // already encode for a label's caption.

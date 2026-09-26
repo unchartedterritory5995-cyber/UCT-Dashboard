@@ -202,3 +202,118 @@ def test_the_reply_and_the_card_both_name_a_widened_window():
     assert _flow_window_phrase({"days_requested": "1"}) == "today"
     assert _flow_window_phrase({"days_requested": "all"}) == "all history"
     assert _window_label({"days_requested": "5", "active_days": 2}) == "last 5 trading days  ·  2 active days"
+
+
+# ── the fixed cost of a single-ticker call (measured in the pod 2026-09-25) ────────────────
+
+def test_the_distinct_dates_scan_runs_once_per_ttl_and_is_keyed_by_db_path(tape, tmp_path, monkeypatch):
+    """`SELECT DISTINCT CreatedDate FROM flow` cost 2.0 s of BP's 2.5 s and ran on EVERY
+    single-ticker call — four times for a name widening through the ladder. It is now cached
+    for `_FLOW_DATES_ALL_TTL_S`, keyed by the database file so two files never share an answer."""
+    real_connect = lmr.sqlite3.connect
+    opened = []
+
+    def counting_connect(path, *a, **k):
+        opened.append(str(path))
+        return real_connect(path, *a, **k)
+    monkeypatch.setattr(lmr.sqlite3, "connect", counting_connect)
+    first = lmr._flow_dates_all()
+    second = lmr._flow_dates_all()
+    assert first == second and first, first
+    assert len(opened) == 1, f"the dates scan reopened the database on a warm read: {opened}"
+    # a DIFFERENT database file is a different answer, never the cached one
+    other = tmp_path / "other.db"
+    FlowDB(str(other))
+    monkeypatch.setattr(lmr, "DB_PATH", str(other))
+    assert lmr._flow_dates_all() == [], "a second database served the first one's dates"
+
+
+def test_the_sweep_map_is_right_and_steers_the_planner_off_the_symbol_index(tape, monkeypatch):
+    """Two contracts on the fixture: one sweep-backed, one block-only. The map must say so — and
+    the SQL must carry the `+Symbol` steer: without it SQLite takes the Symbol-led contract index
+    and walks the symbol's whole history (SPY: 4,175 ms vs 163 ms, pod, 2026-09-25)."""
+    today = tape
+    exp = dt.datetime.now(lmr.ET).date() + dt.timedelta(days=30)
+    exp_s = f"{exp.month}/{exp.day}/{exp.year}"
+    conn = sqlite3.connect(lmr.DB_PATH)
+    conn.execute(
+        "INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price, Side, CallPut, "
+        "Strike, Spot, Premium, ExpirationDate, Color, Dte, MktCap, OI, dedup_key) VALUES "
+        "('stocks', ?, '10:05:00', ?, 'BLOCK', '100', '15.0', 'A', 'CALL', '540', '530', '150000', ?, "
+        "'YELLOW', '30', ?, '100', 'blk540')", (today, TICKER, exp_s, str(MEGA_CAP)))
+    conn.commit(); conn.close()
+    seen_sql = []
+    real_connect = lmr.sqlite3.connect
+
+    class _Conn:
+        def __init__(self, c): self._c = c
+        def execute(self, sql, *a):
+            seen_sql.append(sql); return self._c.execute(sql, *a)
+        def close(self): self._c.close()
+    monkeypatch.setattr(lmr.sqlite3, "connect", lambda *a, **k: _Conn(real_connect(*a, **k)))
+    m = lmr._contract_has_sweep_map(TICKER, [today])
+    assert m[("C", 535.0, exp_s)] is True, m       # three SWEEP prints
+    assert m[("C", 540.0, exp_s)] is False, m      # BLOCK only
+    assert any("+Symbol=?" in s for s in seen_sql), "the planner steer is gone; SPY pays 4 s again"
+
+
+# ── the index partition (ETFs) — found by the first ETF parity run, 2026-09-25 ─────────────
+
+@pytest.fixture
+def etf_tape(tape):
+    """An ETF's $450K sweep-backed contract under source='indexes' — the partition every ETF and
+    index print lives in. `_rollup_floor` returns the MEGA floors for that source before it looks
+    at the cap, which is why the 9/24 floor fix never reached /flow IWM."""
+    exp = dt.datetime.now(lmr.ET).date() + dt.timedelta(days=30)
+    exp_s = f"{exp.month}/{exp.day}/{exp.year}"
+    conn = sqlite3.connect(lmr.DB_PATH)
+    for i in range(3):
+        conn.execute(
+            "INSERT INTO flow (source, CreatedDate, CreatedTime, Symbol, Type, Volume, Price, Side, "
+            "CallPut, Strike, Spot, Premium, ExpirationDate, Color, Dte, MktCap, OI, dedup_key) "
+            "VALUES ('indexes', ?, ?, 'IWMX', 'SWEEP', '100', '15.0', 'A', 'PUT', '260', '262', "
+            "'150000', ?, 'YELLOW', '30', '0', '100', ?)",
+            (tape, f"11:0{i}:00", exp_s, f"etf{i}"))
+    conn.commit(); conn.close()
+    lmr._ticker_flow_cache.clear()
+    return exp_s
+
+
+def test_a_single_etf_lookup_uses_the_permissive_floors_too(etf_tape):
+    p = lmr._build_by_contract(lmr._today_mdyyyy(), "etfs", 1, True, 1, only_ticker="IWMX")
+    got = [(c["cp"], c["strike"], c["total_premium"], c["source"]) for c in p["contracts"]]
+    assert got == [("P", 260.0, 450_000, "indexes")], (
+        f"an ETF's $450K contract vanished from its own card (index floors still applied): {got}")
+
+
+def test_the_market_wide_etf_feed_keeps_its_index_floors(etf_tape, monkeypatch):
+    """THE CONTROL: the ETF feed still asks an index contract to total $1M, or SPX 0DTE churn
+    floods it. `etf_enabled` is off by default, so switch it on for the market-wide read."""
+    th = dict(lmr._load_thresholds()); th["etf_enabled"] = True
+    monkeypatch.setattr(lmr, "_thresholds_cache", th)
+    p = lmr._build_by_contract(lmr._today_mdyyyy(), "etfs", 1, True, 1)
+    assert p["contracts"] == [], f"the index floor no longer applies market-wide: {p['contracts']}"
+
+
+def test_the_all_source_calendar_is_a_loose_scan_with_the_same_answer_as_distinct(tape, monkeypatch):
+    """`SELECT DISTINCT CreatedDate FROM flow` was 2.4 s warm and the bulk of an 85 s cold first
+    `/flow` after a flow-worker deploy; the loose index scan is 1.8 ms. Same set of dates, and
+    the rollup never issues the full DISTINCT again."""
+    conn = sqlite3.connect(lmr.DB_PATH)
+    for i, (src, day) in enumerate([("indexes", "9/10/2026"), ("stocks", "12/31/2025"), ("stocks", "1/2/2026")]):
+        conn.execute("INSERT INTO flow (source, CreatedDate, Symbol, Premium, dedup_key) VALUES (?,?, 'ZZZ', '1', ?)",
+                     (src, day, f"cal{i}"))
+    conn.commit()
+    distinct = sorted(r[0] for r in conn.execute("SELECT DISTINCT CreatedDate FROM flow") if r[0])
+    conn.close()
+    real = lmr.sqlite3.connect
+    seen = []
+
+    class _C:
+        def __init__(self, c): self._c = c
+        def execute(self, sql, *a):
+            seen.append(" ".join(str(sql).split())); return self._c.execute(sql, *a)
+        def __getattr__(self, n): return getattr(self._c, n)
+    monkeypatch.setattr(lmr.sqlite3, "connect", lambda *a, **k: _C(real(*a, **k)))
+    assert sorted(lmr._flow_dates_all()) == distinct
+    assert seen and all("DISTINCT" not in q for q in seen) and any("RECURSIVE" in q for q in seen), seen

@@ -138,3 +138,59 @@ def test_the_env_block_is_physically_well_formed():
     assert not block[-1].rstrip().endswith(BS), (
         "the ENV block's LAST line ends with a continuation, so it swallows the "
         "instruction after it: %r" % block[-1])
+
+
+# ─── ⭐⭐ THE INDEX MUST SEE A LATE-BOUND READ ────────────────────────────────
+#
+# ⚰️ MEASURED 2026-09-23, and it had already cost 23 corpus scripts.
+# `objectsOnlyPaneGate.js` resolves its env source inside the function body:
+#
+#     const source = env === undefined ? import.meta.env : env
+#     return source.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED === '1'
+#
+# — written for a GOOD reason (a default argument binds at import, so the
+# fail-closed branch could never be entered by a test). But the literal
+# `import.meta.env.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` stopped appearing, the
+# index went blind, `Dockerfile.web` was never held to an ARG, Railway dropped the
+# undeclared build arg in silence, and the flag shipped permanently undefined.
+#
+# ⛔⛔ AND THE RAIL ABOVE CANNOT CATCH THE REGRESSION ON ITS OWN. A name the index
+# stops seeing simply stops being required — the ARG becomes "spare", and this
+# file's own docstring calls a spare ARG inert. So the blindness is invisible to
+# every existing assertion, which is why the scanner needs a rail of its own.
+def test_the_index_sees_a_LATE_BOUND_read_not_only_a_direct_one(tmp_path):
+    src = tmp_path / "app" / "src"
+    src.mkdir(parents=True)
+    (src / "direct.js").write_text(
+        "export const a = import.meta.env.VITE_DIRECT_ONE === '1'\n", encoding="utf-8")
+    (src / "late.js").write_text(
+        "export function g(env) {\n"
+        "  const source = env === undefined ? import.meta.env : env\n"
+        "  return source.VITE_LATE_ONE === '1'\n"
+        "}\n", encoding="utf-8")
+    # ⛔ THE CONTROL, AND IT IS WHAT KEEPS THE WIDENING HONEST. A file that never
+    # names Vite's env cannot be reading a build flag from it, so its `VITE_*`
+    # tokens must NOT be collected — otherwise "see more" would have been
+    # implemented as "see everything", and the index would demand an ARG for a
+    # string that is only ever a key in someone's fixture.
+    (src / "unrelated.js").write_text(
+        "export const LABEL = 'VITE_NOT_A_FLAG'\n", encoding="utf-8")
+
+    names = vite_flag_index.names_read(str(tmp_path))
+    assert "VITE_DIRECT_ONE" in names, "the direct read regressed"
+    assert "VITE_LATE_ONE" in names, "a late-bound read is invisible to the index"
+    assert "VITE_NOT_A_FLAG" not in names, (
+        "the index collected a VITE_* from a file that never mentions import.meta.env")
+
+
+def test_the_real_objects_only_gate_is_visible_to_the_index():
+    """⭐ THE PRODUCT CLAIM, read off the repo rather than a fixture.
+
+    A synthetic file proves the pattern; this proves the actual gate that was
+    missed is the one the index now reports, and names the file it lives in."""
+    sites = vite_flag_index.read_sites()
+    assert "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED" in sites, (
+        "the flag whose absence cost 23 scripts is still invisible")
+    assert any("objectsOnlyPaneGate" in s
+               for s in sites["VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"]), sites[
+        "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"]

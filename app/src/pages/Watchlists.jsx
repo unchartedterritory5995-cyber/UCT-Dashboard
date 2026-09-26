@@ -104,6 +104,12 @@ import fetcher from '../utils/jsonFetcher'
 const SHIFT_F = chordById('SHIFT_F')
 
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
+// ⭐ A12 CP2 (2026-09-25): the member's chosen performance columns are a per-member
+// SERVER preference, not session state. One key, a JSON array of PERF_COLS keys;
+// hydrated once when prefs load, written on every change, unknown keys dropped on
+// read so a stale blob can never render a column that no longer exists.
+const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'
+const PERF_KEYS = new Set(PERF_COLS.map(([k]) => k))
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -756,7 +762,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const markActiveWidget = () => { if (activeRef && widgetKey) activeRef.current = widgetKey }
 
   // ── Watchlist appearance settings (⚙ panel) ────────────────────────────────
-  const { prefs, setPref } = usePreferences()
+  const { prefs, setPref, loading: prefsLoading } = usePreferences()
   // In the /charts workspace, each watchlist WIDGET owns its own appearance
   // settings (passed as settingsOverride + onSettingsPersist), so changing one
   // widget's canvas/colors never touches another. Absent (the standalone page)
@@ -882,7 +888,34 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [importListId, setImportListId] = useState(null)
   const [importText, setImportText] = useState('')
   const [showPerfCols, setShowPerfCols] = useState(false)
-  const [visiblePerf, setVisiblePerf] = useState(new Set())
+  // ⭐ A12 CP2 (2026-09-25): `visiblePerf` is backed by the WATCHLIST_PERF_COLS_KEY
+  // server preference. ⚰️ It was `useState(new Set())` — plain session state, so every
+  // preset click and every checkbox died with the tab, which A12 CP1's rail pinned as
+  // gap 1 by that exact literal. The popover's open/closed state stays session-local.
+  // Hydration runs ONCE, after prefs load (an empty prefs object before load is not
+  // "no columns chosen"); writes are skipped for ephemeral scan surfaces, which own
+  // no member preference.
+  const [visiblePerf, setVisiblePerfState] = useState(() => new Set())
+  const perfHydratedRef = useRef(false)
+  useEffect(() => {
+    if (perfHydratedRef.current || prefsLoading) return
+    perfHydratedRef.current = true
+    const saved = parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)
+    if (Array.isArray(saved)) setVisiblePerfState(new Set(saved.filter((k) => PERF_KEYS.has(k))))
+  }, [prefsLoading, prefs])
+  const lastWrittenPerfRef = useRef(null)
+  useEffect(() => {
+    if (!perfHydratedRef.current || ephemeralCols) return
+    const serialized = JSON.stringify([...visiblePerf].filter((k) => PERF_KEYS.has(k)))
+    if (serialized === lastWrittenPerfRef.current) return
+    const current = JSON.stringify(parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null) ?? [])
+    lastWrittenPerfRef.current = serialized
+    if (serialized !== current) setPref(WATCHLIST_PERF_COLS_KEY, serialized)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visiblePerf])
+  const setVisiblePerf = useCallback((updater) => {
+    setVisiblePerfState((prev) => (typeof updater === 'function' ? updater(prev) : updater))
+  }, [])
   const [sortBy, setSortBy] = useState(null) // null | 'sym' | 'price' | 'change' | '1d' | '1w' | '1m' | '3m' | 'ytd'
   const [sortDir, setSortDir] = useState('desc')
   const [filterText, setFilterText] = useState('')

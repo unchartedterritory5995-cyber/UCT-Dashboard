@@ -1527,35 +1527,22 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     return cols
   }
 
-  // One-entry memo on the UTC hour, exactly as `computeVWAP` does and EXACT for
-  // the same reason: every `America/New_York` offset is a whole number of hours
-  // and every transition lands on a whole UTC hour, so no ET field down to the
-  // hour can change inside one UTC hour. Bars arrive ascending, so consecutive
-  // bars hit it. ⚠️ THE MINUTE IS NOT IN THE MEMO — it changes inside the hour by
-  // definition — so it is derived from the instant in hand rather than formatted.
-  let memoHour = null
-  let memoParts = null
+  // ⭐ THE FIELDS COME FROM `etClockAt`, WHICH IS ALSO WHAT THE RUNTIME LANE
+  // READS. This loop used to own the memo and the minute rule; both moved so
+  // that `hour(time, "America/New_York")` inside a `request.security` — where no
+  // column can reach — answers off the same authority a column does, rather
+  // than off a second formatter that agrees until one of them is edited.
   let prevDay = -1
   for (let i = 0; i < length; i++) {
     const t = bars[i].t
-    const utcHour = Math.floor(t / 3600)
-    let p
-    if (utcHour === memoHour) {
-      p = memoParts
-    } else {
-      p = etClockParts(t)
-      memoHour = utcHour
-      memoParts = p
-    }
+    const p = etClockAt(t)
     cols.time[i] = t
     cols.year[i] = p.y
     cols.month[i] = p.m
     cols.dayofmonth[i] = p.d
-    cols.dayofweek[i] = p.wd + 1
+    cols.dayofweek[i] = p.dow
     cols.hour[i] = p.h
-    // ET minutes ARE UTC minutes: every ET offset is a whole number of hours.
-    // Derived rather than formatted, which is what keeps the memo above exact.
-    cols.minute[i] = Math.floor((t - utcHour * 3600) / 60)
+    cols.minute[i] = p.min
     // The ET calendar day as ONE number, so the comparison below is numeric and
     // no string key has to be built per bar.
     //
@@ -1587,6 +1574,49 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   cols.lastbarhour.fill(cols.hour[lastI])
   cols.lastbarminute.fill(cols.minute[lastI])
   return cols
+}
+
+/** ⭐⭐ THE ONE ET CLOCK — every `America/New_York` field this engine reports,
+ *  in either lane, comes from here.
+ *
+ *  `computeClock` seeds the columnar lane's eight time columns from it, and the
+ *  runtime VM reads it per bar for `hour(time, tz)` / `minute(time, tz)` inside
+ *  a `request.security`, where the columnar lane is barred because it runs over
+ *  THIS chart's bars. ⛔ A second formatter for the runtime lane was the obvious
+ *  shape and is the one this repo keeps paying for: two authorities over a
+ *  number a member reads off one screen, agreeing until either is edited.
+ *
+ *  ⭐ THE MEMO IS KEYED ON THE UTC HOUR AND IS EXACT FOR THAT REASON: every ET
+ *  offset is a whole number of hours and every transition lands on a whole UTC
+ *  hour, so no ET field down to the hour can change inside one. Bars arrive
+ *  ascending, so consecutive bars hit it.
+ *
+ *  ⚠️ THE MINUTE IS DERIVED, NEVER FORMATTED — it changes inside the hour by
+ *  definition, so formatting it would make the memo wrong rather than merely
+ *  slow. ET minutes ARE UTC minutes, for the same whole-hour-offset reason.
+ *
+ *  @returns {{y,m,d,wd,dow,h,min}|null} `null` for an instant this engine will
+ *    not read as second-resolution unix time — the same gate `computeClock`
+ *    applies before it formats anything, never a guess.
+ *
+ *    ⛔ `wd` is 0=Sun..6=Sat (the RAW index) and `dow` is Pine's 1-based day.
+ *    BOTH are returned, and the `+1` happens HERE, once. It used to live at the
+ *    column; the moment a second lane needed the same day that became two
+ *    places to write one shift, and an off-by-one between them would read as a
+ *    plausible weekday rather than as an error.
+ */
+let etMemoHour = null
+let etMemoParts = null
+export function etClockAt(t) {
+  if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return null
+  const utcHour = Math.floor(t / 3600)
+  if (utcHour !== etMemoHour) {
+    etMemoParts = etClockParts(t)
+    etMemoHour = utcHour
+  }
+  const p = etMemoParts
+  return { y: p.y, m: p.m, d: p.d, wd: p.wd, dow: p.wd + 1, h: p.h,
+    min: Math.floor((t - utcHour * 3600) / 60) }
 }
 
 /** `{y, m, d, wd, h}` in `America/New_York` for a unix-seconds instant, where
