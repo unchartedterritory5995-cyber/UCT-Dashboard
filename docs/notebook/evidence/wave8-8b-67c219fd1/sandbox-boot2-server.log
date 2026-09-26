@@ -1,0 +1,1131 @@
+
+  [pre-boot] shared data root baseline: 62 db files hashed (sha256)
+  [pre-boot] integrity log: C:\Users\Patrick\uct-worktrees\notebook-w8\docs\plans\joystick\sandbox-runs\2026-09-25T23-52-35.md
+  [pre-boot] sandbox identity: 8dd3070901c5fcab44ab4e8f095303a5 (served at /__uct_sandbox_identity)
+
+  --------------------------------------------------------------------
+  HUB SANDBOX
+  --------------------------------------------------------------------
+  Data dir     : C:\data-8b
+  Admin        : share8b@local.dev
+  URL          : http://localhost:8202
+  Path pins    : 86 env vars, DERIVED by AST from api/**
+  Kill-list    : 35 scheduler / outbound flags
+  Guard mode   : enforce
+  Shared roots : c:\data (writes RAISE)
+  --------------------------------------------------------------------
+
+  A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to
+  reach live data and was stopped. Report it; do not ignore it.
+
+2026-09-25 23:52:48,295 INFO api.services.cap_universe: [cap-universe] loaded 3640 symbols
+2026-09-25 23:52:48,295 INFO api.routers.ticker_search: [ticker-search] loaded 3640 tickers from cap_universe
+2026-09-25 23:52:48,355 WARNING api.services.email_service: [email] RESEND_API_KEY not set — emails disabled
+2026-09-25 23:52:49,652 INFO api.liveflow_worker: [liveflow] loaded 0 user-blocked tickers from C:\data-8b\liveflow_user_blocklist.json
+2026-09-25 23:52:49,657 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-09-25 23:52:49,657 INFO api.liveflow_worker: [liveflow] ticker baselines loaded into worker memory (0 tickers)
+INFO:     Started server process [33492]
+INFO:     Waiting for application startup.
+[startup] access-log redaction armed for ['/journal/share']
+[startup] anyio thread limiter set to 64
+2026-09-25 23:52:50,590 INFO api.services.cache_snapshot: [cache-snapshot] restored 893/926 entries (snapshot age 120s)
+[startup] cache snapshot restored: 893/926 entries (age 120s)
+[auth] Database ready at C:\data-8b\auth.db
+[startup] tweets.db initialized
+[startup] desk.db initialized
+[startup] catalysts.db initialized
+[startup] wire_feedback.db initialized
+[startup] modelbook.db initialized
+[startup] news_catalysts.db initialized
+[startup] stock_brief.db initialized
+[startup] charts_layouts.db initialized
+[startup] user_definitions.db initialized
+[startup] education.db initialized
+2026-09-25 23:52:50,657 INFO api.main: community store ready
+2026-09-25 23:52:50,723 INFO api.main: alert_taxonomy: 8 trigger type(s) registered -- catalyst-match, document-arrival, event-proximity, indicator-condition, position-risk, price-level, regime-change, scan-membership-change (all DARK beyond document-arrival). A type appears here when its CP3 is signed, not when its module is written.
+2026-09-25 23:52:50,729 INFO api.main: rollout: cohort 's7-dark' seeded from role 'admin' (1 new tag rows)
+[startup] wisdom.db ready (migrations applied this boot: 0)
+2026-09-25 23:52:50,744 INFO api.main: chat presence broadcaster started
+2026-09-25 23:52:50,749 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+[startup] ticker baselines loaded (0 tickers)
+2026-09-25 23:52:50,759 INFO api.main: [startup] quarantined 0 bars from existing cache
+2026-09-25 23:52:50,771 INFO api.main: [startup] indicator alert evaluator started
+2026-09-25 23:52:50,775 INFO api.main: [startup] awareness regime_snapshots schema ready
+[startup] j2-ocr: flag=0 binary=absent version=none active=False max_concurrency=1
+2026-09-25 23:52:50,790 INFO api.main: [startup] alert_durability schema ready
+2026-09-25 23:52:50,790 INFO api.main: [startup] priority audit scheduled (~30s after boot)
+2026-09-25 23:52:50,790 INFO api.main: [startup] hot tier warm scheduled (~45s after boot)
+2026-09-25 23:52:50,791 INFO api.main: [startup] breadth numeric projection: {'ran': False, 'marker': 'C:\\data-8b\\.breadth_numeric_v1', 'skipped': 'marker present'}
+2026-09-25 23:52:50,792 INFO api.main: [startup] breadth reconstructed side: {'ran': False, 'marker': 'C:\\data-8b\\.breadth_reconstructed_v1', 'skipped': 'marker present'}
+2026-09-25 23:52:50,797 INFO api.main: [cold-start-guard] boot preload started for 394 resource(s) (2 hand-registered + 392 derived from the manifest)
+2026-09-25 23:52:50,798 INFO api.services.cap_universe: [cap-universe-etfs] loaded 100 symbols
+2026-09-25 23:52:50,798 INFO api.main: [startup] dashboard warm scheduled (~20s after boot); calendar-enrichment re-warm every 240s (under the 300s TTL)
+2026-09-25 23:52:50,799 INFO api.main: [startup] rs-rankings warm scheduled (~120s after boot)
+2026-09-25 23:52:50,799 INFO api.main: [startup] industry-map prewarm scheduled (~75s after boot)
+2026-09-25 23:52:50,799 INFO api.main: [startup] darkpool prewarm scheduled (~60s after boot)
+2026-09-25 23:52:50,799 INFO api.main: [startup] scanner-preset warm scheduled (~30s after boot); re-warm every 50s during market hours, 300s off-hours
+2026-09-25 23:52:50,800 INFO api.main: [startup] ticker-meta name-heal scheduled (one-shot)
+2026-09-25 23:52:50,800 INFO api.main: [startup] deploy smoke audit scheduled
+2026-09-25 23:52:50,801 INFO api.main: [startup] bars_continuous_audit started
+2026-09-25 23:52:50,802 INFO api.services.bars_wal_checkpointer: [bars-wal] checkpointer started (interval=20s, truncate_hwm=2000 frames)
+2026-09-25 23:52:50,803 INFO api.services.bars_reconciliation: [reconcile] disabled (RECONCILE_ENABLED=0)
+2026-09-25 23:52:50,803 INFO api.main: [startup] bars_reconciliation started
+2026-09-25 23:52:50,804 INFO api.main: [startup] breadth reconstructed rebuild_stale: {'stale': 0, 'built': 0}
+2026-09-25 23:52:50,807 INFO api.services.fundamentals_monitor: [fund-monitor] disabled (FUNDAMENTALS_MONITOR_ENABLED=0)
+2026-09-25 23:52:50,807 INFO api.main: [startup] fundamentals_monitor started
+2026-09-25 23:52:50,811 INFO api.services.provider_coverage_monitor: [coverage-monitor] disabled (PROVIDER_COVERAGE_MONITOR_ENABLED=0)
+2026-09-25 23:52:50,812 INFO api.main: [startup] provider_coverage_monitor started
+2026-09-25 23:52:50,813 INFO api.main: [startup] disk_watchdog started (warn=75.0% crit=90.0% every 1800s)
+2026-09-25 23:52:50,813 INFO api.main: [startup] realtime_candle reconciliation_worker scheduled
+2026-09-25 23:52:50,813 INFO api.main: [startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; live flow is served by the Massive rail
+[startup] SQLite bar store ready
+[startup] bars.db integrity smoke probe passed (0.01s)
+[startup] weekly_key_purge: scheduled (background)
+[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=7 weekly_dating=friday-close heal_weekly_close=ran-once reconciliation_worker=off
+[startup] bars-push-rail: stream_bars_enabled=off keyed_dispatch=on single_writer_arbitration=on delivering_recency=120s/300s_hysteresis heartbeat=named watchdog_renotify=10s idle_sleep=250ms status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)
+2026-09-25 23:52:50,826 INFO api.auth_surface_check: [startup] auth-surface: service=web mutating_routes=105 ungated=0 delegated=0 middleware_gated=17 OK
+[startup] trade-condition-filter: enabled=off (env TRADE_CONDITION_FILTER_ENABLED) applied_to=massive_push+finnhub authoritative_rules=loading|fallback
+[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull
+[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2
+[startup] Loaded wire_data from volume (date=2026-01-02)
+2026-09-25 23:52:50,828 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] disabled via env
+[startup] ticker-names prewarm scheduled
+[startup] ticker-logos prewarm scheduled
+2026-09-25 23:52:50,830 INFO api.services.bars_continuous_audit: [continuous_audit] universe baseline (info, not alerted): 0/5 long-tail intraday cold (0%)
+2026-09-25 23:52:50,830 INFO api.services.bars_continuous_audit: [continuous_audit] 1hr priority sweep
+2026-09-25 23:52:50,842 INFO api.services.ticker_search_index: [ticker_search_index] loaded 3640 rows from snapshot
+[startup] ticker-search index build scheduled
+[startup] index-bars warm loop scheduled
+[startup] breadth-bars warm loop scheduled
+[startup] logo_hires_v1: upgrade scheduled (~90s after boot)
+[startup] Skipping boot R2 pull -- local SQLite has 1,000 bars already; preserving local writes (set FORCE_BOOT_R2_PULL=1 to override)
+[startup] S3 periodic puller started (20-min cadence; mode=newer-wins-merge)
+[startup] hot-set push loop started (web -> R2, 2-min cadence)
+[startup] breadth self-heal armed (boot pass + watch loop)
+[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).
+2026-09-25 23:52:50,871 INFO api.services.bars_continuous_audit: [continuous_audit] 24hr universe sweep
+[startup] naaim series seed: {'ok': True, 'skipped': True, 'first': '2023-11-29', 'last': '2026-06-17', 'count': 134}
+[startup] breadth-sentiment seed: {'ok': True, 'skipped': True, 'have': 15897, 'csv_rows': 15897}
+2026-09-25 23:52:50,882 INFO api.services.theme_db: [themes] Already seeded v4.22.0 (content match) — skipping
+[startup] Theme performance loaded from disk — 1 themes ready
+2026-09-25 23:52:50,988 WARNING api.services.vendor_socket_guard: [finnhub] REFUSING to open the live finnhub socket: this process is not running on Railway, and the production API key allows roughly ONE connection. A local run steals that slot from production and kicks the live site off its own feed (this happened 2026-08-10 and cost a session of live charts). Set ALLOW_LOCAL_VENDOR_SOCKETS=1 if you really do want this process on the live feed.
+2026-09-25 23:52:50,993 INFO api.daily_tracker: [tracker] No history file found at C:\data-8b\contract_history.json — starting fresh.
+2026-09-25 23:52:50,993 INFO api.daily_tracker: [tracker] Snapshot scheduler task created.
+[startup] Top Flow tracker: 0 active, 0 archived.
+[startup] Watchlist tracker: 0 saved days.
+2026-09-25 23:52:51,002 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=82262919598786: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,003 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=263212063478037: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,003 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=45873918139974: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,004 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=260883058653479: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,005 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=80791767513138: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,005 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193467074160361: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,005 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=267239076625528: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,005 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=259635970298456: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=164919788607070: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=137611096038897: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=70502309616397: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=99335749032422: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=85881977722879: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=131131896967495: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=229078840933249: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193923953788978: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,006 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=144853339379747: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,007 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=35237434383150: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,007 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=123227148862910: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,008 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=159025302660056: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,008 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=606597191911: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=113314011518325: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=110621240287509: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=214960259611021: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=63690873482139: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=54966116250052: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=67127492078784: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=19749962190216: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=93878891872809: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=62668201351833: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=68122778754676: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=27830523386444: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=114071905895624: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=90399119643365: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=217923498866998: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=50767805576432: OPENAI_API_KEY is not set
+2026-09-25 23:52:51,009 INFO api.services.voice_kb_service: [voice_kb] index_corpus: {'indexed': 0, 'skipped': 0, 'errors': 36}
+[startup] Darkpool DB: 5,190 rows, 3 days -- CSV unchanged, skip seed
+[startup] COT database ready (latest: 2026-09-22).
+2026-09-25 23:52:51,039 INFO api.services.scheduler_lock: [scheduler-lock] fcntl unavailable — granting (dev mode)
+2026-09-25 23:52:51,634 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,642 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,651 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,651 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,681 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] indicator alert shadow lane OFF (set ALERT_SHADOW_ENABLED=1 to soak the closed lane)
+2026-09-25 23:52:51,682 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,689 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] alert bars freshness scheduled (every 60s, armed groups only)
+2026-09-25 23:52:51,690 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool Massive ingest scheduled (weekdays 19:20 ET)
+2026-09-25 23:52:51,695 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)
+2026-09-25 23:52:51,707 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,707 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool intraday poller scheduled (weekdays every 3m, 7-16 ET)
+2026-09-25 23:52:51,708 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,709 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool tiered warm(12m) + snapshot fast-lane(5m) scheduled (gated)
+2026-09-25 23:52:51,713 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,713 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1
+[startup] nightly side-heal job skip: No module named 'api.nightly_side_heal'
+2026-09-25 23:52:51,719 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,719 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,719 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,720 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,721 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,721 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,722 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,722 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,722 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,723 INFO api.main: [startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)
+2026-09-25 23:52:51,723 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,723 INFO api.main: [startup] breadth dividend sweep scheduled (daily 4:40 ET)
+2026-09-25 23:52:51,723 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,723 INFO api.main: [startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)
+2026-09-25 23:52:51,725 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,725 INFO api.main: [startup] breadth OHLC intraday aggregation scheduled (weekdays 17:15 ET)
+2026-09-25 23:52:51,726 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,726 INFO api.main: [startup] breadth history backfill tick scheduled (every 12 min, gated on floor marker)
+2026-09-25 23:52:51,726 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,726 INFO api.main: [startup] breadth forward seal scheduled (every 30 min, inert while dark)
+2026-09-25 23:52:51,726 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,727 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,727 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] logo miss-retry scheduled (daily 3:25am ET)
+2026-09-25 23:52:51,765 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,766 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,766 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,766 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,766 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,767 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,768 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,768 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,769 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] wisdom jobs registered: 14 (wisdom_core_catchup, wisdom_core_watchdog, wisdom_capture_detections, wisdom_capture_morning, wisdom_capture_themes, wisdom_capture_tweets, wisdom_capture_eod, wisdom_capture_late, wisdom_sources_discord_listener, wisdom_sources_twitter_listener, wisdom_extract_reap, wisdom_daily_chain, wisdom_weekly_chain, wisdom_monthly_packet)
+2026-09-25 23:52:51,777 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,778 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,778 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,778 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,778 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,779 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,792 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,793 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,810 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] signature sweep scheduled (weekdays 20:05 ET)
+2026-09-25 23:52:51,825 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] bars split-repair sweep scheduled (cron[hour='2', minute='30'] ET, 500 tickers/run)
+2026-09-25 23:52:51,827 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,827 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-index-close: discord_index_close=cron[day_of_week='mon-fri', hour='15', minute='45'] + discord_index_close_retry=cron[day_of_week='mon-fri', hour='15', minute='58'] armed=off webhook=UNSET(posts nothing)
+2026-09-25 23:52:51,828 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-chart hot-warm scheduled (every 60s, 20s cycle budget)
+2026-09-25 23:52:51,829 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz poll scheduled (every 60s)
+2026-09-25 23:52:51,860 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,860 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,861 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,861 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,861 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,862 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,862 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz digest scheduled (mon-fri ET): 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30
+2026-09-25 23:52:51,863 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] theme_index re-warm scheduled (every 15m)
+2026-09-25 23:52:51,906 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] pattern-vision: on model=claude-opus-4-8[code] cost_hard_cap=$10.0[default] max_per_run=150[default] active_set_only=on:4[resolved] skip_if_stable=on[force_default] confirmed_only=on[api_default]
+2026-09-25 23:52:51,978 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:51,978 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] substack poll job registered (hourly + Sunday burst)
+2026-09-25 23:52:51,979 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] desk article audit registered (09:10 ET)
+2026-09-25 23:52:52,010 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,011 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,022 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,022 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,022 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,022 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,023 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[mrr] Snapshot recorded for 2026-09-26: MRR=$0, subs=0
+2026-09-25 23:52:52,033 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,033 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,034 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_premarket' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_after_hours' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'awareness_engine_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] S7 document-arrival alerts PAUSED (set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)
+[startup] S7 price-level DARK comparison OFF (set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)
+[startup] S7 event-proximity DARK comparison OFF (set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)
+[startup] S7 position-risk DARK comparison OFF (set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)
+[startup] S7 scan-membership-change DARK comparison OFF (set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)
+[startup] S7 catalyst-match DARK comparison OFF (set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)
+[startup] S7 regime-change DARK comparison OFF (set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)
+[startup] S7 indicator-condition DARK comparison OFF (set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)
+[startup] D2 dual-compute warm reader OFF (set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)
+[startup] Compass automation PAUSED -- skipping job 'compass_daily_focus' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_nightly_consolidate' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-09-25 23:52:52,039 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,040 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,080 INFO api.oi_snapshots: [oi-snapshot] DB initialized (path=C:\data-8b\oi_snapshots.db)
+2026-09-25 23:52:52,084 INFO api.dealer_positioning: [dealer_positioning] init_db done
+[startup] dealer_positioning table initialized
+[scheduler] OI snapshot cron NOT registered here (MASSIVE_WS_ENABLED!=1 — runs on flow-worker)
+2026-09-25 23:52:52,085 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'compass_eod_recap' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'compass_weekly_email_digest' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-09-25 23:52:52,086 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,086 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,087 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,087 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,087 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,087 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-25 23:52:52,087 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows
+2026-09-25 23:52:52,088 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] cache snapshot scheduled -- every 3 min + on shutdown
+2026-09-25 23:52:52,088 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] malloc_trim scheduled -- every 10 min
+2026-09-25 23:52:52,090 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ocr_requeue_abandoned" to job store "default"
+2026-09-25 23:52:52,090 INFO apscheduler.scheduler: Added job "post_daily_heartbeat" to job store "default"
+2026-09-25 23:52:52,090 INFO apscheduler.scheduler: Added job "run_signal_cycle" to job store "default"
+2026-09-25 23:52:52,090 INFO apscheduler.scheduler: Added job "post_premarket_brief" to job store "default"
+2026-09-25 23:52:52,091 INFO apscheduler.scheduler: Added job "run_scheduled_refresh" to job store "default"
+2026-09-25 23:52:52,091 INFO apscheduler.scheduler: Added job "sweep_silent_alerts" to job store "default"
+2026-09-25 23:52:52,091 INFO apscheduler.scheduler: Added job "run_scheduled_sweep" to job store "default"
+2026-09-25 23:52:52,091 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "roll_session" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "scheduled_warm" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "scheduled_scanner" to job store "default"
+2026-09-25 23:52:52,092 INFO apscheduler.scheduler: Added job "run_eod_summary" to job store "default"
+2026-09-25 23:52:52,093 INFO apscheduler.scheduler: Added job "job" to job store "default"
+2026-09-25 23:52:52,093 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ipo_maintenance_job" to job store "default"
+2026-09-25 23:52:52,093 INFO apscheduler.scheduler: Added job "refresh_from_current" to job store "default"
+2026-09-25 23:52:52,093 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ticker_types_sync" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "lifespan.<locals>._of_etf_reconcile" to job store "default"
+2026-09-25 23:52:52,094 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_daily_warm" to job store "default"
+2026-09-25 23:52:52,095 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_dividends_refresh" to job store "default"
+2026-09-25 23:52:52,095 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_sample" to job store "default"
+2026-09-25 23:52:52,095 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_ohlc_intraday_agg" to job store "default"
+2026-09-25 23:52:52,095 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_history_backfill_tick" to job store "default"
+2026-09-25 23:52:52,096 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_forward_seal_tick" to job store "default"
+2026-09-25 23:52:52,096 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_daily_catchup" to job store "default"
+2026-09-25 23:52:52,096 INFO apscheduler.scheduler: Added job "cleanup_expired_sessions" to job store "default"
+2026-09-25 23:52:52,096 INFO apscheduler.scheduler: Added job "register_logo_miss_retry_job.<locals>._run" to job store "default"
+2026-09-25 23:52:52,096 INFO apscheduler.scheduler: Added job "wisdom_core_catchup" to job store "default"
+2026-09-25 23:52:52,097 INFO apscheduler.scheduler: Added job "wisdom_core_watchdog" to job store "default"
+2026-09-25 23:52:52,097 INFO apscheduler.scheduler: Added job "wisdom_capture_detections" to job store "default"
+2026-09-25 23:52:52,097 INFO apscheduler.scheduler: Added job "wisdom_capture_morning" to job store "default"
+2026-09-25 23:52:52,097 INFO apscheduler.scheduler: Added job "wisdom_capture_themes" to job store "default"
+2026-09-25 23:52:52,097 INFO apscheduler.scheduler: Added job "wisdom_capture_tweets" to job store "default"
+2026-09-25 23:52:52,098 INFO apscheduler.scheduler: Added job "wisdom_capture_eod" to job store "default"
+2026-09-25 23:52:52,098 INFO apscheduler.scheduler: Added job "wisdom_capture_late" to job store "default"
+2026-09-25 23:52:52,098 INFO apscheduler.scheduler: Added job "wisdom_sources_discord_listener" to job store "default"
+2026-09-25 23:52:52,098 INFO apscheduler.scheduler: Added job "wisdom_sources_twitter_listener" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "wisdom_extract_reap" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "wisdom_daily_chain" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "wisdom_weekly_chain" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "wisdom_monthly_packet" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_scan_sweep" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_finviz_universe" to job store "default"
+2026-09-25 23:52:52,099 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_earnings_dates" to job store "default"
+2026-09-25 23:52:52,100 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_opt_flow_pull" to job store "default"
+2026-09-25 23:52:52,100 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_insider_capture" to job store "default"
+2026-09-25 23:52:52,100 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_tier" to job store "default"
+2026-09-25 23:52:52,100 INFO apscheduler.scheduler: Added job "register_wire_watchdog_job.<locals>._check" to job store "default"
+2026-09-25 23:52:52,101 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+2026-09-25 23:52:52,101 INFO apscheduler.scheduler: Added job "_run_bars_split_repair_sweep" to job store "default"
+2026-09-25 23:52:52,101 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-09-25 23:52:52,101 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-09-25 23:52:52,101 INFO apscheduler.scheduler: Added job "_discord_chart_hot_warm" to job store "default"
+2026-09-25 23:52:52,102 INFO apscheduler.scheduler: Added job "_buzz_poll" to job store "default"
+2026-09-25 23:52:52,102 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,102 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,103 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,104 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,104 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,104 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,104 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-25 23:52:52,105 INFO apscheduler.scheduler: Added job "lifespan.<locals>._theme_index_prewarm" to job store "default"
+2026-09-25 23:52:52,105 INFO apscheduler.scheduler: Added job "register_pattern_vision_jobs.<locals>._run" to job store "default"
+2026-09-25 23:52:52,105 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-09-25 23:52:52,106 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-09-25 23:52:52,106 INFO apscheduler.scheduler: Added job "lifespan.<locals>._article_audit" to job store "default"
+2026-09-25 23:52:52,106 INFO apscheduler.scheduler: Added job "warm_week_previews" to job store "default"
+2026-09-25 23:52:52,106 INFO apscheduler.scheduler: Added job "warm_reported_analyses" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "run_weekly_deep" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>._check_churn_risk" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "record_mrr_snapshot" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "run_daily_digests" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "run_weekly_digests" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_bar_refresh" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_flow_prune" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ssetf_nightly" to job store "default"
+2026-09-25 23:52:52,107 INFO apscheduler.scheduler: Added job "purge_expired" to job store "default"
+2026-09-25 23:52:52,108 INFO apscheduler.scheduler: Added job "lifespan.<locals>._compass_health_email_job" to job store "default"
+2026-09-25 23:52:52,108 INFO apscheduler.scheduler: Added job "_run_patterns_track_outcomes" to job store "default"
+2026-09-25 23:52:52,108 INFO apscheduler.scheduler: Added job "_run_patterns_recompute_stats" to job store "default"
+2026-09-25 23:52:52,108 INFO apscheduler.scheduler: Added job "_run_patterns_leaders_scan" to job store "default"
+2026-09-25 23:52:52,108 INFO apscheduler.scheduler: Added job "_run_patterns_universe_scan" to job store "default"
+2026-09-25 23:52:52,109 INFO apscheduler.scheduler: Added job "_run_patterns_prune" to job store "default"
+2026-09-25 23:52:52,110 INFO apscheduler.scheduler: Added job "lifespan.<locals>._fundamentals_reporters_warm_job" to job store "default"
+2026-09-25 23:52:52,110 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cache_snapshot_job" to job store "default"
+2026-09-25 23:52:52,110 INFO apscheduler.scheduler: Added job "lifespan.<locals>._malloc_trim_job" to job store "default"
+2026-09-25 23:52:52,110 INFO apscheduler.scheduler: Scheduler started
+[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET
+[startup] Session cleanup scheduled -- daily at 3:00 AM ET
+[startup] Churn risk check scheduled -- daily at 9:00 AM ET
+[startup] MRR snapshot scheduled -- daily at 11:59 PM ET
+[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)
+2026-09-25 23:52:52,123 INFO api.massive_ws_worker: [massive-ws] disabled via MASSIVE_WS_ENABLED=0
+[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)
+2026-09-25 23:52:52,143 WARNING api.massive_flatfiles_worker: [massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set -- not registering scheduler jobs
+[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)
+[startup] Flow DB stocks: 21,589 rows, 1 days -- up to date
+2026-09-25 23:52:53,640 INFO api.flow_gap_autofill: [gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)
+2026-09-25 23:52:53,641 INFO api.flow_backup: [flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)
+2026-09-25 23:52:53,642 INFO api.j2_attachments_backup: [j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)
+2026-09-25 23:52:53,648 INFO api.services.journal_two.excursion_jobs: [j2-excursion] disabled (EXCURSION_ENGINE_ENABLED != 1)
+2026-09-25 23:52:53,650 INFO apscheduler.scheduler: Added job "run_weekly_sweep" to job store "default"
+[startup] j2 books audit registered (Sun 09:30 ET)
+2026-09-25 23:52:53,651 INFO apscheduler.scheduler: Added job "register_trash_purge_job.<locals>._job" to job store "default"
+[startup] j2 trash purge registered (03:20 ET daily)
+2026-09-25 23:52:53,652 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-09-25 23:52:53,653 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-09-25 23:52:53,653 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)
+2026-09-25 23:52:53,655 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)
+[watchdog] dark — WATCHDOG_ENABLED and WATCHDOG_OBSERVE both off; not starting (set WATCHDOG_OBSERVE=1 to gather a lag baseline).
+2026-09-25 23:52:53,664 INFO api.daily_tracker: [tracker] Snapshot scheduler started.
+2026-09-25 23:52:53,664 INFO api.daily_tracker: [tracker] Next snapshot at 2026-09-28 16:30 ET (229026 seconds from now).
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8202 (Press CTRL+C to quit)
+2026-09-25 23:52:53,833 INFO api.flow_backup: [flow-backup] flow.db integrity OK (ok)
+[startup] Flow DB indexes: 16,203 rows, 1 days -- up to date
+[startup] cboe refresh: ingested={'VIX9D': 3955, 'VIX3M': 4281, 'VIX6M': 4712, 'VVIX': 5112, 'VXN': 4287, 'RVX': 4278, 'SKEW': 9235} errors={}
+INFO:     127.0.0.1:61461 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61462 - "GET /api/health HTTP/1.1" 200 OK
+2026-09-25 23:52:55,798 INFO api.main: [breadth-series-warm] {'ok': False, 'reason': 'flag off'}
+INFO:     127.0.0.1:61464 - "GET /api/health HTTP/1.1" 200 OK
+[warm] dashboard cache warmed: snapshot
+[warm] dashboard cache warmed: movers
+[warm] dashboard cache warmed: news
+[warm] dashboard cache warmed: theme-performance
+[warm] dashboard cache warmed: leadership
+[warm] dashboard cache warmed: breadth
+2026-09-25 23:53:02,568 INFO api.services.engine: prewarm: disabled via EARNINGS_PREWARM_ENABLED=0 (no tokens spent)
+[warm] dashboard cache warmed: earnings
+[substack] article bodies: fetched=8 reconverted=0 deferred=60 refused=0
+2026-09-25 23:53:10,801 INFO api.main: [dashboard-warm] flow-tape ok
+2026-09-25 23:53:10,801 INFO api.main: [dashboard-warm] movers ok
+2026-09-25 23:53:10,801 INFO api.main: [dashboard-warm] themes ok
+2026-09-25 23:53:10,801 INFO api.main: [dashboard-warm] news ok
+2026-09-25 23:53:10,814 INFO api.main: [dashboard-warm] breadth ok
+2026-09-25 23:53:10,814 INFO api.main: [dashboard-warm] breadth-live {'ok': False, 'reason': 'reference levels unavailable'}
+2026-09-25 23:53:10,814 INFO api.main: [dashboard-warm] breadth-live ok
+2026-09-25 23:53:10,814 INFO api.main: [dashboard-warm] calendar ok
+2026-09-25 23:53:10,822 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-25 23:53:10,834 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-25 23:53:11,326 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:53:12,101 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:53:12,811 WARNING api.services.earnings_preview_warm: [earn-warm:preview] COVERAGE 41/407 (10%) is below the 80% floor — names a reader can see are opening cold. Check the artifacts (/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), not this pass's submitted count.
+2026-09-25 23:53:12,811 INFO api.services.earnings_preview_warm: [earn-warm:preview] candidates=183 tracked=38 submitted=141 recent=42 board=407 covered=41 companions=366 dropped_by_topn=0
+2026-09-25 23:53:12,817 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-25 23:53:12,823 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-25 23:53:14,393 WARNING api.services.earnings_preview_warm: [earn-warm:analysis] COVERAGE 41/407 (10%) is below the 80% floor — names a reader can see are opening cold. Check the artifacts (/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), not this pass's submitted count.
+2026-09-25 23:53:14,393 INFO api.services.earnings_preview_warm: [earn-warm:analysis] candidates=0 tracked=0 submitted=0 recent=0 board=407 covered=41 companions=366 dropped_by_topn=0
+2026-09-25 23:53:14,393 INFO api.main: [dashboard-warm] earnings-previews ok
+  [post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-25 23:53:17,106 INFO api.services.stock_brief.service: stock_brief profile generated for CCL
+2026-09-25 23:53:20,641 INFO index_bars: [index_bars] warm pass done: {'fetched': 28, 'fresh': 21, 'failed': 0}
+2026-09-25 23:53:20,867 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3640 universe, 2504 to warm, 1136 already cached
+2026-09-25 23:53:21,037 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 250/2504 warmed=0 failed=250
+2026-09-25 23:53:21,232 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:53:22,959 WARNING api.services.engine: FMP quarterly history failed for REEEF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:22,970 WARNING api.services.engine: FMP quarterly history failed for TGMGF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,016 WARNING api.services.engine: FMP quarterly history failed for THCBF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,025 WARNING api.services.engine: FMP quarterly history failed for WESMF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,060 WARNING api.services.engine: FMP quarterly history failed for WHGPF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,183 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 500/2504 warmed=7 failed=493
+2026-09-25 23:53:23,768 WARNING api.services.engine: FMP quarterly history failed for AYI: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,781 WARNING api.services.engine: FMP quarterly history failed for ACN: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,825 WARNING api.services.engine: FMP quarterly history failed for HDGHF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,838 WARNING api.services.engine: FMP quarterly history failed for PBK: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,894 WARNING api.services.engine: FMP quarterly history failed for ANGO: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,895 WARNING api.services.engine: FMP quarterly history failed for PDLMF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,985 WARNING api.services.engine: FMP quarterly history failed for HUBG: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,986 WARNING api.services.engine: FMP quarterly history failed for SOIEF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:23,997 WARNING api.services.engine: FMP quarterly history failed for VLUTF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,017 WARNING api.services.engine: FMP quarterly history failed for PKE: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,042 WARNING api.services.engine: FMP quarterly history failed for CMCXF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,048 WARNING api.services.engine: FMP quarterly history failed for FOBIF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,071 WARNING api.services.engine: FMP quarterly history failed for USSHF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,117 WARNING api.services.engine: FMP quarterly history failed for TORO: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,177 WARNING api.services.engine: FMP quarterly history failed for KARNF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,178 WARNING api.services.engine: FMP quarterly history failed for OGGFF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,179 WARNING api.services.engine: FMP quarterly history failed for JDWPY: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,228 WARNING api.services.engine: FMP quarterly history failed for VIVXF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,234 WARNING api.services.engine: FMP quarterly history failed for TOBAF: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,234 WARNING api.services.engine: FMP quarterly history failed for WALD: local FMP budget exhausted for /stable/earnings
+2026-09-25 23:53:24,347 INFO api.main: [dashboard-warm] enrichment ok
+2026-09-25 23:53:24,349 INFO api.main: [dashboard-warm] flow-curated ok
+INFO:     127.0.0.1:61868 - "GET /__uct_sandbox_identity HTTP/1.1" 200 OK
+2026-09-25 23:53:25,810 INFO api.main: [scanner-warm] presets warm (0 still building)
+2026-09-25 23:53:25,811 INFO api.main: [startup] theme_index prewarm: 0 themes warmed
+2026-09-25 23:53:26,399 INFO api.services.stock_brief.service: stock_brief profile generated for KMX
+INFO:     127.0.0.1:61885 - "POST /api/auth/signup HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:61885 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61885 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61885 - "POST /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61885 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61885 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61885 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /journal/notebook?note=9fa9ba43efac433b8a57067fd94f5c50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/index-Drt3vYs6.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/index-DBwEYz5p.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/GlobalAddPositionProvider-ID9NSAll.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/ModalShell-Do0Wngk4.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/useJ2Settings-tgzXu9cn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/useJ2SelectedAccount-BtkWE2Hs.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/useJ2Accounts-BxShlcH_.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/AddPositionModal-h9JkFc50.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/ModalShell.module-BkSdYkRp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/InterventionBanner-BmgV3VOO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/VoiceInputButton-DjhsQ5G2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/Toast-e3JbvaKt.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/index-CbAUDb-B.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/JournalLayout-DQtDP9u1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ContextPopover-CCmZUJdU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/ContextPopover-CkuV6rDQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/ShortcutCheatSheet-CP7TU-85.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/useLongPress-7REY2IAY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/NewAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/ShortcutCheatSheet-DeF6BbX-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/GlobalVoiceLayer-f1ZIoQev.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/JournalLayout-Crk83zWG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/CompassOrb-l0p4ziJs.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/JournalLayout-BIPdeI3K.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/useJ2AccountComparison-kgkIumhF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/NewAccountModal-DGyjA5jU.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/platform-Cyzo2q3A.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /fonts/instrument-sans-v4-latin-italic.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/useJ2Positions-BmL6relf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/format-D4AQN_X2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/AddTradeModal-CAZmRhbv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/calculations-D1FU6tq6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/TagChipPicker-BwClOrIQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/GlobalVoiceLayer-NNLaVzj5.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/JournalLayout.module-Dw2Sf9Kx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/indicatorRegistry-D9eKraAE.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/readAloudProgress-DWtCuYlC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/CompassOrb-HXeM3mg8.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/auth/avatar/ddc6ee5e-6f42-42dc-8588-657895062c10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/askInsert-D_dqrOJ0.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/tiptap-5jnUAAC9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/FolderSidebar-CpX24yJE.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/NotebookTab-DIQgDkAQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/parchment-mark-C-pRUvxP.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/NotebookSurface-DL570bWr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/NotebookTab-MpvTLY6H.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/FolderSidebar-BSJ4cA0R.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/ConfirmModal-CgU8QsGD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/tiptap-X_bGiKKC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/askInsert-Cco6t9Fw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/lazyChunk-CGG_dRXA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/RsBadge-5RsW1mZf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/CapturedSourceSheet-CMc8LrC7.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/TranscriptPanel-_qEEgi91.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/useDurableNote-BsgsAAs6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/CollapsibleSection-D0t6JBEx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/fontFamilies-BFcQTEuQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/useNoteConnectors-CHyblMf3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/UnreadableNoteNotice-CpHILGym.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/community/unread HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:64418 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/accounts/b838cebd-78e8-4547-b336-ce60d944be00/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/positions?account_id=b838cebd-78e8-4547-b336-ce60d944be00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ColorPanel-Z9MSti7L.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/ScreenshotPopover-BpSX9W0P.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/alertState-DG3kBjOo.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ChartThemesModal-DY4AVpwY.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/StockChart-B_dRD2xf.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/ChartPane-DBC20TXI.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/ChartEmbed-Dms06RdX.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/ChartPane-Rrts9GIj.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/StockChart-tPorv7rP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/vendor-charts-DHOb9Clg.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/darkPoolCluster-atDS86Ke.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "POST /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ColorPanel-BZABMGdi.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/alertState-D5ki3WgG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/chartReadoutStore-DkdQ-tTe.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/useUserDefinitions-B4g6sI0_.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/drawingLabels-CKWz4-KP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/barTime-C-_jFuuD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/presentationPrimitives-DnhepxHa.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/useJ2Trades-B8EGYQt4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/chartScreenshot-B3oYEVhf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/ScreenshotPopover-BN9fBZHr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/useThemeIndexBars-DSnqKzW2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/WorkspaceContext-DcbH5BN3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/sessionModel-BlaDi3n6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ChartThemesModal-dHqC2sDL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/useFundamentalSnapshot-D4JtI8nu.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/useWatchlistThemes-BmhfJ82v.js HTTP/1.1" 200 OK
+2026-09-25 23:53:28,846 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 44, 'fresh': 0}
+2026-09-25 23:53:28,868 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ZZ8B"}}}
+INFO:     127.0.0.1:61525 - "POST /api/bars/warm HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/notes/link-targets?ids=79a45be674654bd58cdd155e728a6ffc HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/ticker-ipo/AMD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/ticker-meta/AMD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/delisted/AMD HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/trades?account_id=b838cebd-78e8-4547-b336-ce60d944be00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/user-definitions?graph=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/market-indicators HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/bars-today-pack HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/breadth-symbols HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/bars/AMD?tf=D&bars=600 HTTP/1.1" 200 OK
+2026-09-25 23:53:29,052 WARNING api.services.ticker_meta: FMP profile failed for ZZ8B: FMP /stable/profile: no data for this request
+2026-09-25 23:53:29,053 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+INFO:     127.0.0.1:64418 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/bars-history/AMD?tf=D&bars=12500&d=2026-09-25 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/share HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/publish?note_id=9fa9ba43efac433b8a57067fd94f5c50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "POST /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/share HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/etf/symbols HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "POST /api/j2/publish/notes/9fa9ba43efac433b8a57067fd94f5c50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=5&bars=1152&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=60&bars=1138&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "POST /api/j2/publish/folders/84353c34f4a049278abb5d79fef71073 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=30&bars=1120&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=15&bars=1152&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=W&bars=600&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=M&bars=600&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/bars/AMD?tf=1&bars=960&warm=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /settings?section=connections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/auth/avatar/ddc6ee5e-6f42-42dc-8588-657895062c10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/TileCard-CAZd_Sd3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /assets/Settings-BroqjDCH.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/BrokerConnectionsCard-Bp2afcK7.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/TileCard-Buo-rEAC.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /assets/useBrokerWarming-Dwl5LkUN.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/useBrokerWarming-CZwMIW6i.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /assets/BrokerConnectionsCard-BfZvQ2QG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /assets/ObsidianConnectModal-vcGg7R0B.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /assets/Settings-D3OWMBgt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /assets/ObsidianConnectModal-C_6t1wCN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/community/unread HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/j2/broker/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/accounts/b838cebd-78e8-4547-b336-ce60d944be00/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/j2/personal/tokens HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:64418 - "GET /api/j2/inbound-email/address HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49232 - "GET /api/j2/capture/connections HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62155 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61525 - "GET /api/j2/notes/connectors/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58409 - "GET /api/j2/publish HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49232 - "GET /api/j2/broker/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63105 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64418 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /share/n/oVtYsgPYB1j3h06ZOOHCbQ0oAR0wQ6bT HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/index-Drt3vYs6.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/index-DBwEYz5p.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/GlobalAddPositionProvider-ID9NSAll.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/ModalShell-Do0Wngk4.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/askInsert-D_dqrOJ0.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/tiptap-5jnUAAC9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/PublicPageMeta--s9ozCPE.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/useJ2Settings-tgzXu9cn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/useJ2SelectedAccount-BtkWE2Hs.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/useJ2Accounts-BxShlcH_.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/AddPositionModal-h9JkFc50.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/ModalShell.module-BkSdYkRp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/InterventionBanner-BmgV3VOO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/VoiceInputButton-DjhsQ5G2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/Toast-e3JbvaKt.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/SharedNotePage-DeWjWvFO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/PublicPageMeta-szo1fLmm.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/askInsert-Cco6t9Fw.js HTTP/1.1" 200 OK
+2026-09-25 23:53:32,858 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+INFO:     127.0.0.1:57733 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/tiptap-X_bGiKKC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /assets/platform-Cyzo2q3A.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/lazyChunk-CGG_dRXA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /assets/UnreadableNoteNotice-CpHILGym.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /assets/parchment-mark-C-pRUvxP.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /fonts/instrument-sans-v4-latin-italic.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/shared/oVtYsgPYB1j3h06ZOOHCbQ0oAR0wQ6bT HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59227 - "GET /p/z9u581-r3o4Dr5mLbxCa8w HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /assets/PublishedPage-f6T6pMOn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/published/z9u581-r3o4Dr5mLbxCa8w HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /p/kKmWzlqNOHrzNEIctEMlDw HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+2026-09-25 23:53:35,796 INFO api.main: [startup] hot tier warmed: 0 entries
+[breadth-heal] boot pass: 0 healed of last 10
+INFO:     127.0.0.1:64649 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/published/kKmWzlqNOHrzNEIctEMlDw HTTP/1.1" 200 OK
+2026-09-25 23:53:37,006 INFO api.services.stock_brief.service: stock_brief profile generated for UEC
+INFO:     127.0.0.1:59227 - "GET /api/j2/published/kKmWzlqNOHrzNEIctEMlDw/n/D7DfyFQ--rIqCuFxm8671N HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/oVtYsgPYB1j3h06ZOOHCbQ0oAR0wQ6bT HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59413 - "DELETE /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/share HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59227 - "GET /share/n/oVtYsgPYB1j3h06ZOOHCbQ0oAR0wQ6bT HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59227 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/j2/shared/oVtYsgPYB1j3h06ZOOHCbQ0oAR0wQ6bT HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:60493 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59413 - "POST /api/j2/notes/9fa9ba43efac433b8a57067fd94f5c50/share HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/IK4VPN0APWkkksxvLAiXD6F8SDvxVkEK HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64649 - "GET /share/n/IK4VPN0APWkkksxvLAiXD6F8SDvxVkEK HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59227 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/shared/IK4VPN0APWkkksxvLAiXD6F8SDvxVkEK HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "DELETE /api/j2/publish/z9u581-r3o4Dr5mLbxCa8w HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /p/z9u581-r3o4Dr5mLbxCa8w HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57733 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/auth/preferences HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/auth/me HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:64649 - "GET /api/j2/accounts HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:57733 - "GET /api/j2/settings HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:59227 - "GET /api/j2/published/z9u581-r3o4Dr5mLbxCa8w HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-000 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-001 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-002 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-003 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-004 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-005 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-006 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-007 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-008 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-009 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-010 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-011 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-012 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-013 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-014 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-015 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-016 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-017 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-018 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-019 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-020 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-021 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-022 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-023 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-024 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-025 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-026 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-027 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-028 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-029 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-030 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-031 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-032 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-033 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-034 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-035 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-036 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-037 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-038 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-039 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-040 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-041 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-042 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-043 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-044 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-045 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-046 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-047 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-048 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-049 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-050 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-051 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-052 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-053 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-054 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-055 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-056 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-057 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-058 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-059 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-060 HTTP/1.1" 429 Too Many Requests
+INFO:     127.0.0.1:59413 - "GET /api/j2/shared/burst-token-x HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59413 - "POST /api/auth/login HTTP/1.1" 200 OK
+2026-09-25 23:53:44,162 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+INFO:     127.0.0.1:53469 - "GET /journal/notebook?note=7ec05e80e148429797422520e10ebeb2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/index-Drt3vYs6.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/index-DBwEYz5p.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/GlobalAddPositionProvider-ID9NSAll.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/ModalShell-Do0Wngk4.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/useJ2Settings-tgzXu9cn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/useJ2SelectedAccount-BtkWE2Hs.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/useJ2Accounts-BxShlcH_.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/AddPositionModal-h9JkFc50.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/ModalShell.module-BkSdYkRp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/InterventionBanner-BmgV3VOO.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/VoiceInputButton-DjhsQ5G2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/Toast-e3JbvaKt.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/index-CbAUDb-B.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/JournalLayout-DQtDP9u1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/ContextPopover-CCmZUJdU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/NewAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/ShortcutCheatSheet-DeF6BbX-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/JournalLayout-Crk83zWG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/JournalLayout-BIPdeI3K.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/ShortcutCheatSheet-CP7TU-85.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/ContextPopover-CkuV6rDQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/useLongPress-7REY2IAY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/useJ2AccountComparison-kgkIumhF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/NewAccountModal-DGyjA5jU.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/format-D4AQN_X2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/platform-Cyzo2q3A.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/useJ2Positions-BmL6relf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/AddTradeModal-CAZmRhbv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /assets/calculations-D1FU6tq6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/TagChipPicker-BwClOrIQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /fonts/instrument-sans-v4-latin-italic.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/JournalLayout.module-Dw2Sf9Kx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/askInsert-D_dqrOJ0.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/tiptap-5jnUAAC9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/FolderSidebar-CpX24yJE.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/NotebookTab-DIQgDkAQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/parchment-mark-C-pRUvxP.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/NotebookSurface-DL570bWr.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/NotebookTab-MpvTLY6H.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/FolderSidebar-BSJ4cA0R.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/tiptap-X_bGiKKC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/ConfirmModal-CgU8QsGD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /assets/askInsert-Cco6t9Fw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/RsBadge-5RsW1mZf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/CapturedSourceSheet-CMc8LrC7.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /assets/useDurableNote-BsgsAAs6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /assets/lazyChunk-CGG_dRXA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/TranscriptPanel-_qEEgi91.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /assets/CollapsibleSection-D0t6JBEx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /assets/fontFamilies-BFcQTEuQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/auth/avatar/ddc6ee5e-6f42-42dc-8588-657895062c10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /assets/UnreadableNoteNotice-CpHILGym.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /assets/useNoteConnectors-CHyblMf3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/community/unread HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:63487 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/positions?account_id=b838cebd-78e8-4547-b336-ce60d944be00 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/j2/accounts/b838cebd-78e8-4547-b336-ce60d944be00/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60480 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63487 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59328 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50975 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60360 - "GET /api/j2/notes/link-targets?ids=9fa9ba43efac433b8a57067fd94f5c50 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "POST /api/j2/notes/7ec05e80e148429797422520e10ebeb2/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-09-25 23:53:46,161 INFO api.services.stock_brief.service: stock_brief profile generated for CNXC
+INFO:     127.0.0.1:60360 - "GET /api/j2/publish?note_id=7ec05e80e148429797422520e10ebeb2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53469 - "GET /api/j2/notes/7ec05e80e148429797422520e10ebeb2/share HTTP/1.1" 200 OK
+[darkpool_agg] prewarm: cache already warm — skip
+2026-09-25 23:53:51,692 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-25 23:53:51 CDT)" (scheduled at 2026-09-25 23:53:51.689704-05:00)
+2026-09-25 23:53:51,698 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-25 23:54:51 CDT)" executed successfully
+2026-09-25 23:53:51,793 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-25 23:54:51 CDT)" (scheduled at 2026-09-25 23:53:51.792729-05:00)
+2026-09-25 23:53:51,794 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-25 23:53:51,795 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-25 23:54:51 CDT)" executed successfully
+2026-09-25 23:53:51,831 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 00:54:51 EDT)" (scheduled at 2026-09-26 00:53:51.828217-04:00)
+2026-09-25 23:53:51,831 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-25 23:53:51 CDT)" (scheduled at 2026-09-25 23:53:51.829127-05:00)
+2026-09-25 23:53:51,833 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 00:54:51 EDT)" executed successfully
+2026-09-25 23:53:51,834 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set — cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-25 23:53:51,834 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-25 23:54:51 CDT)" executed successfully
+2026-09-25 23:53:52,260 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:53:53,172 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/transcripts/list)
+2026-09-25 23:53:55,036 INFO api.services.stock_brief.service: stock_brief profile generated for AIR
+2026-09-25 23:53:56,399 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 750/2504 warmed=182 failed=568
+2026-09-25 23:53:58,801 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:00,006 INFO apscheduler.executors.default: Running job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-26 00:04:00 CDT)" (scheduled at 2026-09-25 23:54:00-05:00)
+2026-09-25 23:54:00,007 INFO apscheduler.executors.default: Job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-26 00:04:00 CDT)" executed successfully
+2026-09-25 23:54:00,240 INFO api.services.stock_brief.service: stock_brief profile generated for ZENA
+2026-09-25 23:54:04,782 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:05,808 INFO api.services.industry_map: [industry_map] prewarm bulk skipped — fresh (402 rows)
+2026-09-25 23:54:07,186 INFO api.services.stock_brief.service: stock_brief profile generated for CAG
+2026-09-25 23:54:11,820 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:13,917 INFO api.services.stock_brief.service: stock_brief profile generated for JBL
+2026-09-25 23:54:20,636 INFO api.services.stock_brief.service: stock_brief profile generated for FDS
+2026-09-25 23:54:20,800 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-09-25 23:54:20,852 INFO api.services.ticker_logos: [logo-hires] starting: 1447 cached logos to upgrade
+2026-09-25 23:54:20,983 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 24 across 5 uncovered days
+2026-09-25 23:54:20,984 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-09-25 23:54:22,877 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:23,657 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-25 23:54:23,657 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-26 04:54:23 UTC], next run at: 2026-09-26 04:54:23 UTC)" (scheduled at 2026-09-26 04:54:23.653209+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': False, 'reason': 'before-seven', 'day': '2026-09-26'}
+2026-09-25 23:54:23,658 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-26 04:54:23 UTC], next run at: 2026-09-26 04:54:23 UTC)" executed successfully
+2026-09-25 23:54:23,875 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:23,968 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:23,971 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:23,974 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-25 23:54:23,974 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:24,016 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:24,019 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:25,975 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-25 23:54:25,975 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:26,809 INFO api.services.news_catalysts.service: news_catalysts JBL stored from FALLBACK (web PERPLEXITY_API_KEY not set)
+2026-09-25 23:54:28,283 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:28,293 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:28,296 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:30,718 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:31,038 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:31,911 INFO api.services.stock_brief.service: stock_brief profile generated for CALM
+2026-09-25 23:54:32,156 INFO api.services.news_catalysts.service: news_catalysts FDS stored from FALLBACK (web PERPLEXITY_API_KEY not set)
+2026-09-25 23:54:32,201 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:32,550 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1000/2504 warmed=362 failed=638
+2026-09-25 23:54:33,563 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:33,587 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-25 23:54:33,742 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/162 syms; week-2 5 day(s)/14 syms
+2026-09-25 23:54:39,676 INFO api.services.stock_brief.service: stock_brief profile generated for MU
+2026-09-25 23:54:43,446 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:50,801 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-25 23:54:50,801 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-25 23:54:51,690 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" (scheduled at 2026-09-25 23:54:51.689704-05:00)
+2026-09-25 23:54:51,694 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" executed successfully
+2026-09-25 23:54:51,807 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" (scheduled at 2026-09-25 23:54:51.792729-05:00)
+2026-09-25 23:54:51,808 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-25 23:54:51,809 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" executed successfully
+2026-09-25 23:54:51,840 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 00:55:51 EDT)" (scheduled at 2026-09-26 00:54:51.828217-04:00)
+2026-09-25 23:54:51,840 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" (scheduled at 2026-09-25 23:54:51.829127-05:00)
+2026-09-25 23:54:51,842 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set — cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-25 23:54:51,843 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 00:55:51 EDT)" executed successfully
+2026-09-25 23:54:51,843 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-25 23:55:51 CDT)" executed successfully
+2026-09-25 23:54:52,819 INFO api.services.stock_brief.service: stock_brief profile generated for PRGS
+2026-09-25 23:54:54,865 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:54:58,847 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-25 23:55:00,463 INFO api.services.stock_brief.service: stock_brief profile generated for ACN
+2026-09-25 23:55:05,420 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-25 23:55:06,815 INFO api.services.news_catalysts.service: news_catalysts PRGS stored from FALLBACK (web PERPLEXITY_API_KEY not set)
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-25 23:55:09,497 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-25 23:55:09,770 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1250/2504 warmed=544 failed=706
+2026-09-25 23:55:11,503 INFO api.services.stock_brief.service: stock_brief profile generated for AYI
+2026-09-25 23:55:13,918 INFO api.services.rs_ranking: [rs_ranking] Cached 3620 RS rankings
+2026-09-25 23:55:13,921 INFO api.main: [rs-rankings] warmed: 3620 entries
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-25 23:55:14,075 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-09-25 23:55:14,076 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running — nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-09-25 23:55:14,077 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-09-25 23:55:14,430 INFO api.services.cache_snapshot: [cache-snapshot] saved 935/958 entries (3780.2 KB)
+[shutdown] cache snapshot saved: 935 entries, 3780 KB
+2026-09-25 23:55:14,435 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-09-25 23:55:14,435 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [33492]
