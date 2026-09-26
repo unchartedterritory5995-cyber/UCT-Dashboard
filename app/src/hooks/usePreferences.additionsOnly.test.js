@@ -158,6 +158,13 @@ const BASELINE_OPAQUE = {
   'pages/charts/widgets/AiSearchWidget.jsx': 2,
   'pages/charts/widgets/BreadthWidget.jsx': 2,
   'pages/charts/widgets/FundamentalsWidget.jsx': 2,
+  // ⚰️ 2026-09-25, wave 6: MemberTemplates writes the daily-note template preference
+  // through the constant DAILY_TEMPLATE_PREF (lib/dailyNote.js) -- the same identifier
+  // its reader imports, so the key has ONE spelling. The rail cannot read an
+  // identifier, so the site is baselined the way master baselined its own two
+  // (f6b1e3d72, mirrored verbatim above and below so the merge sees one text).
+  // The key behind it is `notebook_daily_template`.
+  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 1,
   // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). The screener redesign
   // (a7176a764, PR #157, 2026-09-20) added column presets written through the
   // exported constant `PRESETS_KEY = 'screener_column_presets'` — a NEW key, one

@@ -404,6 +404,12 @@ GATE_READ_PATHS = (
     "api/services/journal_two/notes.py",
     "tests/fixtures_plain_text.json",
     "tests/fixtures_tag_keys.json",
+    # wave 6 added three more readers of the same shape (PR #193's CI run, 2026-09-25):
+    # the export bridges import `notes_export.py`, the error beacon reads the ticker
+    # universe, and the tasks rails read their JSON corpus.
+    "api/data/cap_universe.json",
+    "api/services/journal_two/notes_export.py",
+    "tests/fixtures_note_tasks.json",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named

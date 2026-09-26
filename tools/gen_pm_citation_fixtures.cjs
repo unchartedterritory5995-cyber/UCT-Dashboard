@@ -51,6 +51,24 @@ const schema = new Schema({
     // Wave 5 (mathNodes.js): formulas are leaves holding their LaTeX in `latex`.
     inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
     blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
+    // Wave 6 (imageFigureNode.js): an image is a block leaf that reads as
+    // nothing; its CAPTION is a textblock inside the figure container.
+    image: { group: 'block', atom: true, attrs: { src: { default: null }, alt: { default: null }, align: { default: null } }, toDOM: () => ['img'] },
+    imageFigure: { group: 'block', content: 'image imageCaption', toDOM: () => ['figure', 0] },
+    imageCaption: { content: 'inline*', toDOM: () => ['figcaption', 0] },
+    // Wave 6 (columnsNode.js): containers with no text of their own.
+    columns: { group: 'block', content: 'column{2,3}', toDOM: () => ['div', 0] },
+    column: { content: 'block+', toDOM: () => ['div', 0] },
+    // Wave 6 (webLinkNodes.js): block leaves that read as nothing.
+    linkPreview: { group: 'block', atom: true, attrs: { url: { default: null }, title: { default: null }, description: { default: null }, domain: { default: null }, image: { default: null } }, toDOM: () => ['div'] },
+    webEmbed: { group: 'block', atom: true, attrs: { provider: { default: null }, ref: { default: null }, url: { default: null } }, toDOM: () => ['div'] },
+    // Wave 6 (dateMentionNode.js): an inline leaf that reads as its ISO date.
+    dateMention: { group: 'inline', inline: true, atom: true, attrs: { date: { default: null } }, toDOM: () => ['span'] },
+    // Wave 6 (tableOfContentsNode.js): a block leaf with no text of its own.
+    tableOfContents: { group: 'block', atom: true, toDOM: () => ['div'] },
+    // Task lists, where a date mention is a task's due date (lane F's contract).
+    taskList: { group: 'block', content: 'taskItem+', toDOM: () => ['ul', 0] },
+    taskItem: { content: 'paragraph block*', attrs: { checked: { default: false } }, toDOM: () => ['li', 0] },
   },
   marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
     // Wave 5 (textColor.js): a palette NAME, never a colour value.
@@ -73,6 +91,7 @@ const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } 
 const BR = { type: 'hardBreak' }
 const MATH = (latex) => ({ type: 'inlineMath', attrs: { latex } })
 const BMATH = (latex) => ({ type: 'blockMath', attrs: { latex } })
+const IMG = (alt, align) => ({ type: 'image', attrs: { src: '/api/j2/notes/n1/images/a.png', alt, ...(align ? { align } : {}) } })
 
 const CASES = {
   // ── text, marks, blocks, lists, quotes, ask inserts ──
@@ -237,6 +256,49 @@ const CASES = {
     ' and ',
     { type: 'text', text: 'margins', marks: [{ type: 'textColor', attrs: { color: 'red' } }, { type: 'bold' }] },
     ' widened', { type: 'text', text: ' sharply', marks: [{ type: 'highlight', attrs: { color: null } }] }, '.')),
+  // ── an image's caption is TEXT (wave 6): its own textblock inside the figure
+  //    -- one separator before it like any textblock -- while the image beside
+  //    it reads as nothing and takes one position. An EMPTY caption still emits
+  //    its separator (it is a textblock). ──
+  imageFigure: doc(p('Before.'),
+    { type: 'imageFigure', content: [IMG('NVDA daily', 'center'),
+      { type: 'imageCaption', content: [t('NVDA breakout, '), t('day 3', ['bold'])] }] },
+    p('After.')),
+  imageFigureEmptyCaption: doc(p('A.'),
+    { type: 'imageFigure', content: [IMG('chart'), { type: 'imageCaption' }] }, p('B.')),
+  // ── columns (wave 6) read in COLUMN ORDER, each block on its own line; the
+  //    containers add nothing of their own. An empty paragraph in a column
+  //    still emits its separator. ──
+  columns: doc(p('Intro.'),
+    { type: 'columns', content: [
+      { type: 'column', content: [p('Bull case.'), p('Margins widen.')] },
+      { type: 'column', content: [p('Bear case.'), p()] },
+      { type: 'column', content: [p('Plan.')] }] },
+    p('After.')),
+  // ── a preview card and an embed (wave 6) are block leaves that read as
+  //    NOTHING: one position each and no separator of their own, however much
+  //    title and description the card carries in its attrs. ──
+  linkCardAndEmbed: doc(p('Read this.'),
+    { type: 'linkPreview', attrs: { url: 'https://news.example.com/a', title: 'NVDA prints a record quarter',
+      description: 'Data-centre revenue beat.', domain: 'news.example.com', image: null } },
+    p('And watch:'),
+    { type: 'webEmbed', attrs: { provider: 'youtube', ref: 'dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ' } },
+    p('After.')),
+  // ── a date mention (wave 6) is an INLINE leaf that reads as its ISO date --
+  //    one position, no separator -- inside a task, as lane F's tasks service
+  //    reads it; one with no date reads as nothing. ──
+  dateMention: doc(
+    { type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false }, content: [
+      p('Earnings prep ', { type: 'dateMention', attrs: { date: '2026-09-25' } }, ' before the call')] }] },
+    p('Undated ', { type: 'dateMention', attrs: { date: null } }, '.'),
+    p('After.')),
+  // ── a table of contents (wave 6) is a block leaf that reads as NOTHING,
+  //    however many headings it lists: one position, no separator. ──
+  tableOfContents: doc(
+    { type: 'tableOfContents' },
+    { type: 'heading', attrs: { level: 2 }, content: [t('Plan')] },
+    p('Buy the break.'),
+    { type: 'tableOfContents' }),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -258,6 +320,12 @@ const PASSAGES = {
   // it -- never half its LaTeX.
   mathAstral: ['Set \u{1D538} \\subset \\mathbb{R} holds.', 'holds.', '\\sum_{i=1}^{n} x_i'],
   colouredMarks: ['raised and margins widened sharply', 'margins'],
+  imageFigure: ['NVDA breakout, day 3', 'day 3', 'After.'],
+  columns: ['Margins widen.', 'Bear case.', 'Plan.', 'After.'],
+  linkCardAndEmbed: ['Read this.', 'And watch:', 'After.'],
+  // A date is ONE position: a passage holds the whole ISO date or none of it.
+  dateMention: ['Earnings prep 2026-09-25 before', 'before the call', 'After.'],
+  tableOfContents: ['Plan', 'Buy the break.'],
 }
 
 function passageRange(d, passage, leafText) {

@@ -1,0 +1,50 @@
+/* Wave 6 — the pasted-link menu (LinkPasteMenu.jsx): Link · Preview card ·
+   Embed, floated at the end of the pasted link by the component. */
+.bar {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--bg-hover); }
+.btn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.status {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.status:empty { display: none; }
+
+/* Touch tier: every control is a finger target (phone AND tablet). */
+@media (max-width: 1024px) {
+  .btn {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+    justify-content: center;
+    font-size: 14px;
+  }
+}

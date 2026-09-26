@@ -90,6 +90,32 @@
   border-color: var(--ut-gold);
   color: var(--ut-gold);
 }
+/* Wave 6 item 8: a locked note says so, once, with the way out beside it. */
+.lockBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  font-size: 12px;
+}
+.lockBannerError { color: var(--loss); }
+.lockBannerBtn {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--ut-gold);
+  color: var(--ut-gold);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  font-size: 12px;
+}
+.lockBannerBtn:disabled { opacity: 0.5; cursor: default; }
 .headerControls {
   margin-left: auto;
   display: flex;
@@ -695,6 +721,10 @@
      note already render here too, un-sized for touch before this pass --
      fixed for all three since they share one class, not just the new one). */
   .chromeBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+  .lockBannerBtn {
     min-height: var(--tap-min, 44px);
     min-width: var(--tap-min, 44px);
   }

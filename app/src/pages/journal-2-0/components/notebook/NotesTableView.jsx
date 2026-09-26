@@ -1,6 +1,7 @@
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
+import LockedGlyph from './LockedGlyph'
 import styles from './NotesTableView.module.css'
 
 function formatCellValue(def, value) {
@@ -15,6 +16,11 @@ function formatCellValue(def, value) {
       .map((id) => (def.options || []).find((o) => o.id === id)?.label)
       .filter(Boolean)
     return labels.length ? labels.join(', ') : null
+  }
+  if (def.type === 'relation') {
+    // Wave 6: a list of note ids — said as a count, never printed as raw ids.
+    const n = Array.isArray(value) ? value.length : 0
+    return n ? `${n} linked note${n === 1 ? '' : 's'}` : null
   }
   return String(value)
 }
@@ -132,6 +138,7 @@ export default function NotesTableView({
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
+          <LockedGlyph note={n} />
           {isBlocked(n.id) && <BlockedBadge className={styles.unsynced} />}
         </span>
       ),
@@ -152,7 +159,9 @@ export default function NotesTableView({
     { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
     ...usedDefs.map((def) => ({
       key: def.id,
-      header: (
+      // Wave 6: a relation has no order a member means (the server refuses to
+      // sort by one), so its header is a label, never a sort button that 400s.
+      header: def.type === 'relation' ? def.name : (
         <button
           type="button"
           className={styles.sortBtn}
@@ -204,8 +213,8 @@ export default function NotesTableView({
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => (selection ? (
-        <span className={styles.cardTitleRow}>{rowCheckbox(n)}<span>{n.title || 'Untitled'}</span></span>
-      ) : (n.title || 'Untitled'))}
+        <span className={styles.cardTitleRow}>{rowCheckbox(n)}<span>{n.title || 'Untitled'}<LockedGlyph note={n} /></span></span>
+      ) : (<>{n.title || 'Untitled'}<LockedGlyph note={n} /></>))}
       // D-40, 2026-09-22: the joystick hub's cursor (notebookSection.js)
       // queries `[data-note-card-id]` against the WHOLE document -- a
       // global selector, not scoped to the List/NoteCard grid. On a touch

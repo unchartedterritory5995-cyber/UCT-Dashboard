@@ -58,11 +58,25 @@ import { noteHasUnsentWork } from './offline/noteHasUnsentWork'
 import { openNotebookDb } from './offline/notebookDb'
 
 /** Ops that write the note row — refused for a blocked note. Favourites live
- *  in their own table and never touch the note, so they are allowed. */
-export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'trash', 'restore'])
+ *  in their own table and never touch the note, so they are allowed. So are
+ *  `archive` / `unarchive` (wave 6): a visibility flag that moves no revision,
+ *  so a queued offline edit still lands on the archived note, unconflicted.
+ *  `renameTag` (wave 6 fix round 1, I4) rewrites the tag list exactly like
+ *  `addTag`/`removeTag` — same table, same column. */
+export const NOTE_WRITING_OPS = new Set(['move', 'addTag', 'removeTag', 'renameTag', 'trash', 'restore'])
 
-/** Ops that also refuse a note whose words are still being sent (see above). */
-export const UNSENT_REFUSED_OPS = new Set(['trash'])
+/** Ops that also refuse a note whose words are still being sent (see above).
+ *  `renameTag` (wave 6 fix round 1, I4) joins `trash` here. ⛔ Wave 6 fix
+ *  round 2, M8: this used to justify the entry with a MERGE-vs-REBUILD
+ *  mechanism distinction ("addTag/removeTag merge one tag; a rename rebuilds
+ *  the whole list") that the server does not actually make — `_new_tags_for`
+ *  (I7's fold) runs addTag, removeTag AND renameTag through the SAME
+ *  compare-and-set loop, each computing its own whole new tag list from the
+ *  head read at request time. The real reason is item 8's own requirement:
+ *  a note with unsent work is refused and NAMED for a rename exactly as it is
+ *  for a trash, so a member is never told a tag changed on a note whose
+ *  words the server does not have yet. */
+export const UNSENT_REFUSED_OPS = new Set(['trash', 'renameTag'])
 
 /** How long asking the device may take before its notes count as UNCHECKED.
  *  `openNotebookDb` never settles while a version upgrade is blocked by
@@ -212,13 +226,24 @@ function failureWords(r, { backToOrigin = false } = {}) {
  * did not and why. Never just a count — "3 failed" tells nobody what to do.
  *
  * @param outcome  runNoteBatch's return value
- * @param ctx      { folderName, tag, backToOrigin, earlier, titleOf(id) } —
+ * @param ctx      { folderName, tag, renameTo, backToOrigin, earlier, titleOf(id) } —
  *                 `backToOrigin` marks a move that put notes back where they
  *                 were (Undo); `earlier` counts notes an EARLIER batch of the
  *                 same member action already changed (R23-N5: a "Trash anyway"
- *                 finishing a partial trash reads as the whole trash).
+ *                 finishing a partial trash reads as the whole trash);
+ *                 `renameTo` is `renameTag`'s new spelling (`tag` carries the
+ *                 old one, the same slot addTag/removeTag already use);
+ *                 `stoppedLeft` (wave 6 fix round 4, R4-3) counts notes a
+ *                 CHUNKED rename never sent because a later chunk's request
+ *                 failed — when some were renamed first, the lead becomes the
+ *                 one true sentence "Renamed N notes; the rest could not be
+ *                 renamed (M notes left unrenamed)." rather than the plain
+ *                 "Renamed N notes …" followed by a failure sentence written
+ *                 for a single batch ("…Nothing was changed.").
  */
-export function describeBatch(outcome, { folderName, tag, backToOrigin = false, earlier = 0, titleOf = () => null } = {}) {
+export function describeBatch(outcome, {
+  folderName, tag, renameTo, backToOrigin = false, earlier = 0, stoppedLeft = 0, titleOf = () => null,
+} = {}) {
   const { op, changed, unchanged } = outcome
   const n = plural(changed + earlier, 'note')
   const done = {
@@ -227,10 +252,17 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
       : `Moved ${n} to ${folderName || 'Unfiled'}.`,
     addTag: `Tagged ${n} #${tag}.`,
     removeTag: `Removed #${tag} from ${n}.`,
+    renameTag: stoppedLeft
+      ? `Renamed ${n}; the rest could not be renamed (${plural(stoppedLeft, 'note')} left unrenamed).`
+      : `Renamed ${n} from #${tag} to #${renameTo}.`,
     favorite: `Added ${n} to Favorites.`,
     unfavorite: `Removed ${n} from Favorites.`,
     trash: `Moved ${n} to the Trash.`,
     restore: `Restored ${n}.`,
+    archive: `Archived ${n}. ${changed + earlier === 1 ? 'It is' : 'They are'} under Archived, in the sidebar.`,
+    unarchive: changed + earlier === 1
+      ? `Brought ${n} back to its folder.`
+      : `Brought ${n} back, each to its own folder.`,
   }[op] || `Updated ${n}.`
   // An UNCHECKED note is not a failure of this batch: it has its own sentence
   // and its own "anyway" (describeUnchecked), so it is left out of this one.
@@ -252,35 +284,100 @@ export function describeBatch(outcome, { folderName, tag, backToOrigin = false, 
 }
 
 /**
- * The sentence and the offer for notes the device could not be ASKED about
- * (review R1-S1) — or null when there are none. The offer is two-step: the
- * member presses `label`, reads `confirm`, and only `confirmLabel` proceeds.
+ * Wave 6 fix round 2, N1 — the per-op copy/args table `describeUnchecked` and
+ * `runAnyway` both consult, so a new op's "could not check this device"
+ * prompt is never one `if` away from silently falling into another op's
+ * shape.
  *
- * @param op   'trash' | 'export'
- * @param ids  the unchecked note ids
+ * ⛔⛔ Controller correction, wave 6 fix round 3: round 2's `renameTag` row
+ * offered a waiver ("Rename the others") that resent the UNCHECKED ids with
+ * the device check bypassed — the reverse of what a waiver should ever do,
+ * and incoherent besides (the checked notes had already gone out in the
+ * FIRST batch, so "rename the checked ids only" re-sends nothing). The
+ * ruling: for `renameTag` there is **no waiver of any kind**. A device
+ * holding an unsent change to a note would put the OLD tag back the moment
+ * that queued write lands, so offering to rename it now would promise
+ * something the next sync undoes. `retry: null` is what makes that
+ * structural rather than a convention: `describeUnchecked` cannot build an
+ * `anyway` object for a row that carries it, so there is nothing for
+ * `runAnyway` to reach.
+ *
+ * N-c (wave 6 fix round 3): an op added to `UNSENT_REFUSED_OPS` without its
+ * own row here no longer silently inherits `trash`'s copy (round 2's own
+ * "loudly enough for a rail to catch it" reasoning had no rail, and it named
+ * "Trash anyway" for an op that may not be one) — `describeUnchecked` falls
+ * back to a NEUTRAL sentence, below, that offers nothing.
  */
-export function describeUnchecked(op, ids, { titleOf = () => null } = {}) {
+const UNCHECKED_OP_COPY = {
+  export: {
+    what: 'included',
+    retry: 'confirm',
+    label: 'Export anyway',
+    confirmLabel: 'Yes, export anyway',
+    confirm: (n) => `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
+  },
+  renameTag: {
+    retry: null,
+    message: (n, named, more) => {
+      const one = n === 1
+      return `${plural(n, 'note')} ${one ? 'has' : 'have'} changes this device could not check: `
+        + `${named.join('; ')}${more}. ${one ? 'It keeps' : 'They keep'} the old tag until `
+        + `${one ? 'it syncs' : 'they sync'} — rename ${one ? 'it' : 'them'} again then.`
+    },
+  },
+  trash: {
+    what: 'moved to the Trash',
+    retry: 'confirm',
+    label: 'Trash anyway',
+    confirmLabel: 'Yes, trash anyway',
+    confirm: (n) => `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
+  },
+}
+
+/**
+ * The sentence — and, for ops whose row allows one, the offer — for notes the
+ * device could not be ASKED about (review R1-S1). Null when there are none.
+ * An offer is two-step: the member presses `label`, reads `confirm`, and
+ * only `confirmLabel` proceeds. A row with `retry: null` (wave 6 fix round
+ * 3: `renameTag`) never produces an `anyway` at all — there is nothing to
+ * press but the notice's own Close.
+ *
+ * @param op    the batch op ('trash' | 'export' | 'renameTag' | …)
+ * @param ids   the unchecked note ids
+ * @param args  N1: the op's OWN batch args (e.g. `{from, to}` for
+ *              `renameTag`) — carried into `anyway.args` so confirming the
+ *              offer (`runAnyway`) resends a request the server accepts,
+ *              instead of the `{}` that produced N1's 400. (Only reaches an
+ *              op whose row still offers a retry.)
+ * @param ctx   N1: the op's own `describeBatch` context (e.g.
+ *              `{tag, renameTo}`) — carried into `anyway.ctx` so a retried
+ *              batch's own success sentence names the same tag, rather than
+ *              "#undefined".
+ */
+export function describeUnchecked(op, ids, { titleOf = () => null, args = {}, ctx = {} } = {}) {
   const list = [...(ids || [])]
   if (!list.length) return null
-  const what = { trash: 'moved to the Trash', export: 'included' }[op] || 'changed'
+  const copy = UNCHECKED_OP_COPY[op]
   const named = list.slice(0, 3).map((id) => {
     const t = titleOf(id)
     return t ? `"${t}"` : 'a note'
   })
   const more = list.length > 3 ? ` and ${list.length - 3} more` : ''
+  if (!copy) {
+    // N-c: neutral and offers nothing — never a stand-in for a destructive
+    // action this op may not even perform.
+    return { message: `${plural(list.length, 'note')} could not be checked on this device.`, tone: 'error' }
+  }
+  if (copy.retry === null) {
+    return { message: copy.message(list.length, named, more), tone: 'error' }
+  }
   const n = plural(list.length, 'note')
   return {
-    message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${what}: ${named.join('; ')}${more}.`,
+    message: `${UNCHECKED_SENTENCE} ${plural(list.length, 'note was', 'notes were')} not ${copy.what}: ${named.join('; ')}${more}.`,
     tone: 'error',
-    anyway: op === 'export'
-      ? {
-        op, ids: list, label: 'Export anyway', confirmLabel: 'Yes, export anyway',
-        confirm: `Export ${n} without checking this device? Words typed here that have not reached the server would be missing from the file.`,
-      }
-      : {
-        op, ids: list, label: 'Trash anyway', confirmLabel: 'Yes, trash anyway',
-        confirm: `Move ${n} to the Trash without checking this device? Words typed here that have not reached the server may not be kept.`,
-      },
+    anyway: {
+      op, ids: list, args, ctx, label: copy.label, confirmLabel: copy.confirmLabel, confirm: copy.confirm(n),
+    },
   }
 }
 
@@ -294,6 +391,10 @@ export function undoFor(op, outcome, args = {}) {
   const changed = (outcome?.results || []).filter((r) => r.status === 'changed')
   if (!changed.length) return null
   if (op === 'trash') return { op: 'restore', ids: changed.map((r) => r.id), args: {} }
+  // Wave 6: archiving moves nothing, so taking it back is the inverse flag on
+  // exactly the notes that changed — each is still in its own folder.
+  if (op === 'archive') return { op: 'unarchive', ids: changed.map((r) => r.id), args: {} }
+  if (op === 'unarchive') return { op: 'archive', ids: changed.map((r) => r.id), args: {} }
   if (op === 'move' && !args.folders) {
     const back = changed.filter((r) => 'fromFolderId' in r)
     if (!back.length) return null

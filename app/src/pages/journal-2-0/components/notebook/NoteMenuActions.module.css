@@ -1,0 +1,71 @@
+/* Wave 6 (lane E) — the note menu's organisation actions. Sized like the
+   editor header's own chrome buttons, which it sits beside. */
+.group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--ut-gold);
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.btnOn {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
+
+.status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.statusError {
+  font-size: 12px;
+  color: var(--color-danger, #e06c6c);
+}
+
+@media (max-width: 1024px) {
+  .btn {
+    min-height: var(--tap-min);
+  }
+}
+
+/* Wave 6 item 3 — naming a template inline, in the menu row. */
+.templateForm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.templateInput {
+  min-width: 160px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+@media (max-width: 1024px) {
+  .templateInput {
+    min-height: var(--tap-min);
+  }
+}

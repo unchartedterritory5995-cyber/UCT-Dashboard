@@ -404,9 +404,11 @@ def _plan(sql):
 def test_the_keystroke_scan_is_served_by_the_covering_index(app, client):
     # N1: at 50k notes the same read off the table cost ~150 ms, off this index ~30 ms.
     from api.services.journal_two import notes as notes_service
+    # Wave 6: the scan also skips archived notes, so the covering index is the
+    # one that carries archived_at -- still covering, still no table read.
     plan = _plan(notes_service._SWITCHER_SCAN_SQL)
-    assert plan == ["SEARCH j2_notes USING COVERING INDEX idx_j2_notes_switcher"
-                    " (user_id=? AND deleted_at=?)"], plan
+    assert plan == ["SEARCH j2_notes USING COVERING INDEX idx_j2_notes_switcher_live"
+                    " (user_id=? AND deleted_at=? AND archived_at=?)"], plan
 
 
 def test_recents_and_favourites_reads_start_from_the_members_own_lists(app, client):

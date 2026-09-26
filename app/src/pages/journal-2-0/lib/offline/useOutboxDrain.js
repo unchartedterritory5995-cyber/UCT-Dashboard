@@ -17,8 +17,9 @@ import { createNoteViaApi } from '../noteCreation'
 import { notebookSchemaHeaders } from '../notebookSchema'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
+import { FORKED, NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
 import { postBlockedBaseline } from './blockedBaselineEvent'
+import { trackNotebookEvent } from '../notebookTelemetry'
 import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
 } from './outboxLeader'
@@ -26,6 +27,7 @@ import { connectNotebookDb } from './useDurableNote'
 import { usableBaseline, isUsableBaseline } from './baseline'
 import { sameAuthoredContent } from './recoverLocalState'
 import { liveSessionIds } from './inFlight'
+import { isNoteOwned } from './noteOwnerLock'
 
 /** How often a leader re-tries what is still queued. ⛔ The `online` event only
  *  fires on a NETWORK transition — a server that came back up produces no event
@@ -267,6 +269,10 @@ export function useOutboxDrain({
         // WRITER's level (`sendNoteUpdate`); pinned by writtenSchemaDrain.test.js.
         holders: await liveSessionIds(),
         serverCopyIsOurs: serverCopyIsOursRef.current,
+        // ⭐ D3b — a note open in an editor in ANY tab is that editor's to send.
+        // Asked per entry, fresh (a note can open mid-drain). `null` where Web
+        // Locks cannot answer, and then `excludeNoteId` alone decides, as before.
+        noteIsOwned: (noteId) => isNoteOwned(accountId, noteId),
       })
       // ⭐ One event per refusal, and only for the refusal nobody can explain.
       // The drain decides; this only carries. ⛔ Awaited-but-swallowed: a
@@ -278,6 +284,15 @@ export function useOutboxDrain({
           // eslint-disable-next-line no-await-in-loop
           await reportRef.current(r.report)
         } catch { /* an instrument is not a guard */ }
+      }
+      // N-7b (wave 6 lane F review): the sweep is a silent door — a member
+      // sees no dialog, no drawer, nothing. This is the only way anyone,
+      // including us, ever learns a fork happened here rather than in the
+      // editor. One event per forked entry; a telemetry POST never changes
+      // the drain's own outcome (trackNotebookEvent swallows its own errors).
+      for (const r of results) {
+        if (r?.outcome !== FORKED) continue
+        trackNotebookEvent('conflict_forked', { door: 'outbox', queued: true })
       }
       const s = summarize(results)
       setLastSummary(s)

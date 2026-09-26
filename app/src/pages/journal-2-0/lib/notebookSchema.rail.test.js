@@ -327,7 +327,11 @@ describe('deriveDeclaredSchema', () => {
   const top = Math.max(...Object.values(NOTEBOOK_TYPE_SCHEMA))
 
   it('declares the newest level when every type is registered', () => {
-    expect(top).toBe(1)
+    // A deliberate pin: bumping this literal is the conscious act that a new
+    // schema level costs. 1 = wave 5 (math, colour, highlight); 2 = wave 6
+    // (columns, dateMention, imageFigure/imageCaption, tableOfContents,
+    // linkPreview, webEmbed), registered 2026-09-24 when wave 5 merged into 6.
+    expect(top).toBe(2)
     expect(deriveDeclaredSchema(fake())).toBe(top)
   })
   it('drops below a level one of whose types is missing — the rollback case', () => {

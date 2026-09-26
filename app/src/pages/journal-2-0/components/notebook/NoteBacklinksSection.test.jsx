@@ -8,6 +8,7 @@ let hookResult
 vi.mock('../../hooks/useNoteBacklinksList', () => ({ default: () => hookResult }))
 
 import NoteBacklinksSection from './NoteBacklinksSection'
+import { SplitViewContext } from '../../lib/splitView'
 
 beforeEach(() => {
   navSpy.mockClear()
@@ -91,5 +92,25 @@ describe('NoteBacklinksSection', () => {
     fireEvent.click(screen.getByText('Linked from (1)'))
     expect(screen.getByText('Source A')).toBeTruthy()
     expect(container.querySelector('[class*="rowContext"]')).toBeNull()
+  })
+})
+
+// Wave 6 (lane E, item 7): Ctrl/Cmd+click a "Linked from" row opens the source
+// note beside the one being read (desktop split view).
+describe('NoteBacklinksSection — split view', () => {
+  it('Ctrl+click opens the source note beside; a plain click still navigates', () => {
+    hookResult = { count: 1, isLoading: false, error: null, notes: [{ id: 'a', title: 'Source A', refs: 1 }] }
+    const openToSide = vi.fn()
+    render(
+      <SplitViewContext.Provider value={{ canSplit: true, openToSide }}>
+        <NoteBacklinksSection noteId="n1" />
+      </SplitViewContext.Provider>,
+    )
+    fireEvent.click(screen.getByText('Linked from (1)'))
+    fireEvent.click(screen.getByText('Source A'), { ctrlKey: true })
+    expect(openToSide).toHaveBeenCalledWith('a')
+    expect(navSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('Source A'))
+    expect(navSpy).toHaveBeenCalledWith('/journal/notebook?note=a')
   })
 })

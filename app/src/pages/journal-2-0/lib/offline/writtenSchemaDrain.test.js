@@ -83,10 +83,18 @@ const drain = (extra = {}) => drainOutbox(db, {
 })
 
 describe('precondition — the fixture is the scenario', () => {
-  it('the server note is level 1 and this bundle reads level 1', () => {
+  // ⭐ AT LEAST level 1, not exactly 1 — the treatment fc143ac37 gave
+  // NoteEditorPage.writtenSchema.test.jsx's B1 precondition: wave 6 registered
+  // its node types at level 2, so this bundle now reads 2, and the hole — an
+  // UNSTAMPED (level-0) body drained over a level-1 note — is still reachable
+  // from any level ≥ 1. The fixture bodies stay at level 1 and 0, so the
+  // scenario is unchanged. ⚰️ It read `toBe(1)` and went red the moment wave 6
+  // raised the level, on a change that did not touch the hole at all.
+  it('the server note is level 1 and this bundle reads level 1 or newer', () => {
     expect(requiredLevel(LEVEL1_BODY)).toBe(1)
     expect(requiredLevel(LEVEL0_BODY)).toBe(0)
-    expect(CURRENT, 'the bundle under test must read wave-5 types, or the rail tests nothing').toBe(1)
+    expect(CURRENT, 'the bundle under test must read wave-5 types (level 1) or newer, or the rail tests nothing')
+      .toBeGreaterThanOrEqual(1)
   })
 })
 

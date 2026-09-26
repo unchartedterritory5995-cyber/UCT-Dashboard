@@ -33,10 +33,13 @@ import { render, screen, act, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createFakeIndexedDbFactory, settleIdb } from './__fixtures__/fakeIndexedDb'
+import { createLockManager } from './__fixtures__/fakeWebLocks'
 import { __resetNotebookConnections } from './useDurableNote'
 import { useOutboxDrain } from './useOutboxDrain'
 import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
+import { drainOutbox, SKIPPED } from './outboxDrain'
+import { isNoteOwned, noteOwnerLockName } from './noteOwnerLock'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -57,8 +60,11 @@ function makeServer({ body, updatedAt }) {
   let rev = 0
   const s = {
     title: 'Thesis', subtitle: '', body, updatedAt, puts: [], forks: [],
+    // ⭐ D3b fix round 2 (NN-2): the metadata a door can move, so a rail can say
+    // whether the editor left it alone.
+    folderId: null, tags: [],
     note: () => ({
-      id: 'n1', title: s.title, subtitle: s.subtitle, folderId: null, ticker: null, tags: [],
+      id: 'n1', title: s.title, subtitle: s.subtitle, folderId: s.folderId, ticker: null, tags: s.tags,
       heroImageUrl: null, isFavorite: false, bodyJson: s.body, updatedAt: s.updatedAt,
     }),
     stamp: () => { rev += 1; s.updatedAt = `2026-09-23T09:10:${String(10 + rev).padStart(2, '0')}.000000+00:00` },
@@ -78,6 +84,13 @@ const update = vi.fn(async (patch) => {
   }
   if (patch.bodyJson) server.body = patch.bodyJson
   if ('title' in patch) server.title = patch.title
+  // ⭐ D3b fix round 1 (b): the real `update_note` writes the subtitle it is sent,
+  // so a fake that ignored it could not tell a cleared subtitle from a dropped one.
+  if ('subtitle' in patch) server.subtitle = patch.subtitle ?? ''
+  // ⭐ D3b fix round 2 (NN-2): metadata is applied if a send ever carries it, so
+  // an editor that sent folder or tags would visibly move them.
+  if ('folderId' in patch) server.folderId = patch.folderId
+  if ('tags' in patch) server.tags = patch.tags
   server.stamp()
   return server.note()
 })
@@ -166,18 +179,25 @@ afterEach(() => {
 })
 
 /** The member typed offline on the note, left it, and the queue holds their words. */
-async function queuedWhileAway({ permanent = false, serverBase = null, baseUpdatedAt = T0 } = {}) {
+async function queuedWhileAway({
+  permanent = false, serverBase = null, baseUpdatedAt = T0,
+  // ⭐ D3b fix round 1 (b): the words' own title/subtitle, and a record with NO
+  // last-known server copy (the shape whose Restore base is revision-only).
+  title = 'Thesis', subtitle = '', withServerBase = true,
+} = {}) {
   factory.open(ACCOUNT_DB)
   await act(async () => { await settleIdb(2) })
   const store = factory.databases.get(ACCOUNT_DB)
   store.seed('notes', {
-    noteId: 'n1', title: 'Thesis', subtitle: '', bodyJson: MINE, dirty: 1, generation: 5,
+    noteId: 'n1', title, subtitle, bodyJson: MINE, dirty: 1, generation: 5,
     sessionId: 's-away', localSavedAt: 1000, baseUpdatedAt,
-    serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 },
+    ...(withServerBase
+      ? { serverBase: serverBase || { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T0 } }
+      : {}),
   })
   store.seed('outbox', {
     mutationId: 'note:n1', noteId: 'n1', kind: 'note-update',
-    patch: { title: 'Thesis', subtitle: '', bodyJson: MINE },
+    patch: { title, subtitle, bodyJson: MINE },
     baseUpdatedAt, generation: 5, sessionId: 's-away', queuedAt: 1000,
     ...(permanent ? { permanent: true, lastError: 'gone', lastStatus: 404 } : {}),
   })
@@ -565,11 +585,11 @@ describe('fix round 2 — the editor’s own S1 gate, and a base the queued entr
   it('⛔⛔ N4: Restore of a poisoned record never adopts on its base — the Restore itself does not drop the widget', async () => {
     // Blocked, so the banner appears whatever `adopt` says, and only Restore's
     // own use of the base is under test.
-    // ⚠️ What this does NOT pin: Restore then takes its path for a copy with no
-    // known base (a direct PUT on the words' own revision, which 409s here), and
-    // a keystroke after that can still overwrite — the crash-draft class the
-    // N5 ruling leaves open (f5-fixes §C.5). This cell pins only that Restore
-    // never sends the words on a base the entry disagrees with.
+    // ⚰️ This said Restore then took a direct PUT that a later keystroke could
+    // turn into an overwrite — true until D3b (wave 6): Restore now sends on the
+    // ENTRY's revision with an unknown body and forks (f5-fixes §F.2; the
+    // keystroke cells are in the D3b block below). This cell still pins only
+    // that Restore never sends the words on a base the entry disagrees with.
     server = makeServer({ body: doc(ONLINE, WIDGET), updatedAt: T1 })
     await queuedWhileAway({ permanent: true, serverBase: POISONED_BASE })
     await returnToTheNoteAndSit()
@@ -603,6 +623,315 @@ describe('fix round 3 — a base OLDER than the entry is used, as at fe4e278bc; 
     await restoreThenType()
     expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
     expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
+  })
+})
+
+/**
+ * ⭐⭐ D3b (wave 6) — the lane's items end to end on the real editor.
+ * `docs/notebook/f5-fixes-2026-09-23.md` §F.
+ */
+describe('D3b — Restore never clobbers; the owner lock; a flush behind an in-flight write', () => {
+  const DRAFT_KEY = 'uct.j2.notedraft.n1'
+
+  it('⭐ the draft the editor writes RECORDS the revision its words were typed on (the editor half)', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await returnToTheNote()
+    const releasePuts = holdPuts()                          // nothing lands, so the draft is not cleared
+    await typeInBody(' K-in-the-draft')
+    const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null')
+    expect(JSON.stringify(draft?.bodyJson ?? null)).toContain('K-in-the-draft')
+    expect(draft?.baseUpdatedAt, 'the crash draft carries no base, so Restore cannot know what it was typed on').toBe(T0)
+    releasePuts()
+    await sit(2)
+  })
+
+  it('⛔⛔ a CRASH DRAFT that won, another device saved since, Restore then a keystroke: ONE fork, the other device’s words kept', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE, para(SENTENCE), para('typed just before the tab crashed - K-crash')),
+      savedAt: Date.now() - 60000, sessionId: 's-crashed', baseUpdatedAt: T0,
+    }))
+    await returnToTheNoteAndSit()
+    await restoreThenType()
+    expect(serverText(), 'Restore of the crash draft overwrote the other device’s words').toContain('rewritten on another device')
+    expect(server.forks, 'the draft’s words must be preserved in exactly one sibling').toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain('K-crash')
+    expect(outbox(), 'the owner’s fork settled the queue').toHaveLength(0)
+  })
+
+  it('⛔⛔ a record whose base is NEWER than its entry (the legitimate drain-rebase shape), a second writer, Restore then a keystroke: ONE fork, kept', async () => {
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T2 })
+    await queuedWhileAway({
+      baseUpdatedAt: T0,
+      serverBase: { title: 'Thesis', subtitle: '', bodyJson: doc(ONLINE), updatedAt: T1 },
+    })
+    await returnToTheNoteAndSit()
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'a refused base must be offered, not adopted').toBeTruthy()
+    await restoreThenType()
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
+  })
+
+  it('⭐⭐ the open editor HOLDS its note’s owner lock, and another tab’s leading sweep leaves the note to it', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const mgr = createLockManager()
+    Object.defineProperty(globalThis.navigator, 'locks', { configurable: true, value: mgr.client('tab-A') })
+    const releasePuts = holdPuts()                          // the owner's own send is on the wire
+    await returnToTheNote()
+    await sit(2)
+    expect(mgr.heldNames(), 'the editor does not claim its note').toContain(noteOwnerLockName('u42', 'n1'))
+    // Tab B leads and sweeps: it has nothing open, so no `excludeNoteId`.
+    const tabBSend = vi.fn(async () => { throw new Error('tab B sent the note tab A is editing') })
+    const db = factory.databases.get(ACCOUNT_DB)
+    const results = await drainOutbox(db, {
+      send: tabBSend, fork: sweepFork, noteIsOwned: (id) => isNoteOwned('u42', id, { locks: mgr.client('tab-B') }),
+    })
+    expect(tabBSend).not.toHaveBeenCalled()
+    expect(results.find((r) => r.noteId === 'n1')?.outcome).toBe(SKIPPED)
+    releasePuts()
+    await sit(12)
+    expect(serverText(), 'the owner sent its own queued words').toContain(SENTENCE)
+    expect(server.forks, 'two writers on one note forked it').toHaveLength(0)
+  })
+
+  it('⛔⛔ a keystroke queued behind an IN-FLIGHT durable write survives the fork fallback’s flush and the view swap', async () => {
+    // The member types K1 during the fork's create request and its durable write
+    // STARTS (held mid-flight), types K2 (queued behind it), the create returns —
+    // the editor refuses the settle and flushes K2 — the view swaps to the server
+    // copy, and K3 is typed there. Before D3b the flush waited behind K1's write
+    // and K3's snapshot replaced K2's before it was ever written.
+    server = makeServer({ body: doc(para('rewritten on another device')), updatedAt: T1 })
+    await queuedWhileAway()
+    const releaseCreates = holdCreates()
+    await returnToTheNote()
+    await sit(4)                                            // adopt → 409 → reconcile → create (held)
+    expect(createsStarted, 'precondition: the sibling is being created').toBe(1)
+    await typeInBody(' K1-starts-a-durable-write')
+    const releaseNoteReads = holdNoteReads()                // the durable write about to start is held mid-flight
+    await act(async () => { vi.advanceTimersByTime(250); await settleIdb(4) })
+    expect(noteReadsHeld(), 'precondition: K1’s durable write is in flight').toBeGreaterThan(0)
+    await typeInBody(' K2-queued-behind-it')
+    await act(async () => { releaseCreates(); await settleIdb(6) })   // the fork resolves: flush, then swap
+    const releasePuts = holdPuts()
+    await typeInBody(' K3-on-the-new-view')
+    releaseNoteReads()
+    await sit(12)
+    expect(survives('K2-queued-behind-it'), 'the keystroke queued behind the in-flight write was superseded').toBe(true)
+    expect(serverText(), 'the other device’s words were overwritten').toContain('rewritten on another device')
+    releasePuts()
+    await sit(1)
+  })
+})
+
+/** Hold every `get` on the notes store — the read a durable write starts with —
+ *  until released, so that write is IN FLIGHT. Returns the release. */
+let heldNoteReads = 0
+const noteReadsHeld = () => heldNoteReads
+function holdNoteReads() {
+  heldNoteReads = 0
+  const store = factory.databases.get(ACCOUNT_DB)
+  let release
+  const gate = new Promise((r) => { release = r })
+  const orig = store.transaction.bind(store)
+  store.transaction = (names, mode = 'readonly') => {
+    const tx = orig(names, mode)
+    if (names !== 'notes' || mode !== 'readonly') return tx
+    const inner = tx.objectStore
+    tx.objectStore = (n) => {
+      const s = inner(n)
+      return {
+        ...s,
+        get: (key) => {
+          heldNoteReads += 1
+          const req = { result: undefined }
+          const read = s.get(key)
+          read.onsuccess = () => { gate.then(() => { req.result = read.result; req.onsuccess?.() }) }
+          return req
+        },
+      }
+    }
+    return tx
+  }
+  return () => { store.transaction = orig; release() }
+}
+
+/**
+ * ⭐⭐ D3b FIX ROUND 1 (review `wave6-D3b-review.md`: residuals a and b), on the
+ * REAL editor. `docs/notebook/f5-fixes-2026-09-23.md` §G.
+ */
+describe('D3b fix round 1 — a sweep PUT in flight as the note opens (a); a cleared title on a revision-only Restore (b)', () => {
+  it('⛔⛔ (a) another tab’s sweep lands the SAME queued words while this editor opens: its own send 409s — no fork, the queue settles', async () => {
+    // The sweep passed its last owner check before this editor existed, so the
+    // lock could not stop it. Its PUT lands the words; the editor, which adopted
+    // those same words on the revision they were written on, then sends them too.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    // …the other tab's PUT lands exactly what is queued, one revision on.
+    server.body = outbox()[0].patch.bodyJson
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks, 'the member’s note was forked with nobody else writing').toHaveLength(0)
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.puts[0]?.baseUpdatedAt, 'precondition: the owner’s own send went out on the words’ base and 409’d').toBe(T0)
+    expect(outbox(), 'a landing leaves nothing queued').toHaveLength(0)
+    expect(record()?.dirty).toBe(0)
+    expect(screen.queryByText(/Unsaved changes from a previous session/i)).toBeNull()
+    expect(sweepSend).not.toHaveBeenCalled()
+  })
+
+  it('⭐ (a) and a keystroke typed after the landing still goes out, on the server’s revision — nothing is swallowed by “caught up”', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks).toHaveLength(0)
+    await typeInBody(' K-after-the-landing')
+    await sit(6)
+    expect(serverText(), 'the keystroke after a landed 409 never left').toContain('K-after-the-landing')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⛔ (a) CONTROL — a server that holds DIFFERENT words still forks: “landed” is byte-identical content, nothing looser', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = doc(ONLINE, para(SENTENCE), para('and one more sentence from another device'))
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.forks, 'a genuine second writer must still earn a fork').toHaveLength(1)
+    expect(serverText()).toContain('another device')
+  })
+
+  it('⛔⛔ (b) the title CLEARED offline, the tab crashed, Restore with the server unmoved: the cleared title and subtitle LAND', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.subtitle = 'the old subtitle'
+    // No last-known server copy, so the Restore base is revision-only.
+    await queuedWhileAway({ title: '', subtitle: '', withServerBase: false })
+    await returnToTheNoteAndSit()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.title, 'the member’s cleared title was silently dropped — the old one would come back on the next load').toBe('')
+    expect(server.subtitle, 'the cleared subtitle was silently dropped').toBe('')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⛔⛔ (b) the NEXT session: a durable copy whose base has no body (as an offline Restore leaves it) is OFFERED, and its Restore still sends the cleared title', async () => {
+    // `snapshotOfServerCopy` (frozen) keeps no `bodyUnknown`, so the base the
+    // store carries into the next session is a plain copy with a null body.
+    // Keyed on a flag, the fix would miss this.
+    // ⚖️ D3b fix round 2 (review NN-1): this cell sat on the ADOPTION of that base
+    // — `queuedWorkToAdopt` adopted it and sent the words by itself. Adoption now
+    // refuses a base with no body (the same key as (b)), so the words are OFFERED;
+    // the member's Restore sends them, and the clear must still land.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway({
+      title: '', subtitle: '',
+      serverBase: { title: '', subtitle: '', bodyJson: null, updatedAt: T0 },
+    })
+    await returnToTheNoteAndSit()
+    expect(server.puts, 'the words were sent by ourselves on a base with no body').toHaveLength(0)
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.title, 'the cleared title was dropped by the next session’s Restore').toBe('')
+    expect(server.forks).toHaveLength(0)
+  })
+
+  it('⭐ (b) CONTROL — against a KNOWN base an unchanged title is still not re-sent', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    await returnToTheNoteAndSit()
+    expect(serverText()).toContain(SENTENCE)
+    expect(server.puts.every((p) => !('title' in p)), 'a known base now re-sends the title on every save').toBe(true)
+  })
+})
+
+/**
+ * ⭐⭐ D3b FIX ROUND 2 (re-review of `d908de394`, notes NN-1 and NN-2), on the REAL
+ * editor. `docs/notebook/f5-fixes-2026-09-23.md` §H.
+ */
+describe('D3b fix round 2 — a base with no body is offered, never sent by ourselves (NN-1); what LANDED covers (NN-2)', () => {
+  const NO_BODY = { title: '', subtitle: '', bodyJson: null, updatedAt: T0 }
+
+  it('⛔⛔ NN-1: the NEXT session, a base with no body, a door moved the note while away — nothing sent by ourselves, nothing forked; the words are OFFERED', async () => {
+    // A Restore on a revision-only base left the store holding the frozen
+    // snapshot: a null body and no flag. Adopted, the send 409'd against a base
+    // with no body, the reconcile read BODY_REWRITE, and the note forked with
+    // nobody asking.
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.stamp()                                          // a metadata door moved it while away
+    await queuedWhileAway({ serverBase: NO_BODY })
+    await returnToTheNoteAndSit()
+    expect(server.forks, 'a note nobody asked to fork was forked').toHaveLength(0)
+    expect(server.puts, 'queued words on a base with no body were sent by ourselves').toHaveLength(0)
+    expect(await screen.findByRole('button', { name: 'Restore' }), 'the words were not offered').toBeTruthy()
+    expect(survives(SENTENCE)).toBe(true)
+    expect(outbox(), 'the queued entry waits for the member').toHaveLength(1)
+  })
+
+  it('⭐ NN-1: …and a Restore is the member’s choice — it sends on the words’ own revision and a moved server forks: ONE sibling, both copies kept', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    server.stamp()
+    await queuedWhileAway({ serverBase: NO_BODY })
+    await returnToTheNoteAndSit()
+    const restore = await screen.findByRole('button', { name: 'Restore' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(6) })
+    await sit(8)
+    expect(server.puts[0]?.baseUpdatedAt, 'Restore did not send on the revision the words were written on').toBe(T0)
+    expect(serverText(), 'the server’s copy was overwritten').toBe(JSON.stringify(doc(ONLINE)))
+    expect(server.forks).toHaveLength(1)
+    expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
+    expect(outbox(), 'the owner’s fork settled the queue').toHaveLength(0)
+  })
+
+  it('⭐⭐ NN-2: a METADATA-only difference is LANDED — the sweep landed the same words and a door moved folder and tags: no fork, nothing re-sent, the server’s folder and tags left alone', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson                // the other tab's PUT lands the queued words…
+    server.folderId = 'folder-moved-by-a-door'              // …and a door moves the note
+    server.tags = ['moved-by-a-door']
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.puts[0]?.baseUpdatedAt, 'precondition: the owner’s own send went out on the words’ base and 409’d').toBe(T0)
+    expect(server.forks, 'metadata the editor never sends turned a landing into a fork').toHaveLength(0)
+    expect(server.puts, 'a LANDED 409 sent the words again').toHaveLength(1)
+    expect(server.puts.every((p) => !('folderId' in p) && !('tags' in p)), 'the editor sent metadata').toBe(true)
+    expect(server.folderId).toBe('folder-moved-by-a-door')
+    expect(server.tags).toEqual(['moved-by-a-door'])
+    expect(outbox(), 'a landing leaves nothing queued').toHaveLength(0)
+    expect(record()?.dirty).toBe(0)
+  })
+
+  it('⛔⛔ NN-2: a TITLE-only difference is NOT landed — the same body landed but another device renamed the note: ONE fork, the rename kept', async () => {
+    server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
+    await queuedWhileAway()
+    const release = holdRecovery()
+    await returnToTheNote()
+    server.body = outbox()[0].patch.bodyJson                // the body is exactly what is queued…
+    server.title = 'Renamed on another device'             // …the title is someone else's words
+    server.stamp()
+    release()
+    await sit(12)
+    expect(server.title, 'the other device’s title was overwritten').toBe('Renamed on another device')
+    expect(server.forks, 'a title the member never wrote was taken for their landing').toHaveLength(1)
     expect(JSON.stringify(server.forks[0].bodyJson)).toContain(SENTENCE)
   })
 })

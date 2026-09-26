@@ -1,0 +1,40 @@
+[PASS] W1_lock_unlock: {"note_id": "9dce0088c81c4f748470aa8c9a2b71a3", "lock_patch_status": 200, "lock_patch_answer_is_note": true, "lock_wire_body": {"locked": false}, "editable_while_locked": "false", "lock_latency_ms_after_patch": 179, "unlock_patch_status": 200, "editable_after_unlock": "true", "unlock_latency_ms_afte
+[PASS] W2_archive: {"note_id": "f962bbebc575434d8d3ea79095f983cb", "folder_id": "f49ee769fdcb4cc5aeea955d15f97976", "archive_patch_status": 200, "gone_from_default": true, "not_in_trash": true, "in_archived": true, "folder_index_before_archive": 0, "not_in_folder_while_archived": true, "unarchive_status": 200, "back_i
+[PASS] W2b_bulk_archive_undo: {"batch_op": "archive", "undo_op": "unarchive", "titles": ["Walk W2b bulk 0 r002251", "Walk W2b bulk 1 r002251"]}
+[PASS] W3_templates: {"template_id": "af2147ba878c479993ad389bbce22821", "new_note_id": "6d148da857d048ebae0b1eefc1f37b47", "body_matches": true, "second_member_sees_it": false}
+[PASS] W4_daily_note: {"first_note_id": "1712dbc92d9b4b0e903b3a7f737115d0", "second_note_id": "1712dbc92d9b4b0e903b3a7f737115d0", "same_note_both_times": true, "today_title": "2026-09-26 \u00b7 Saturday", "exactly_one_in_api": true}
+[PASS] W5_relation: {"relation_created_via_ui": true, "relation_prop_values": [], "related_from_present": true, "related_from_names_a": true}
+[INCONCLUSIVE] W6_timeline: {"reason": "exception: Timeout 30000ms exceeded while waiting for event \"response\"", "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-193-gate\\tools\\notebook_wave6_walk.py\", line 127, in inner\n    fn(*a, **kw)\n    ~~^^^^^^^^^^\n  File \"C:
+[PASS] W7_split_view: {"two_editors_mounted": true, "same_note_beside_itself_refused": true, "image_picker_openers": 1}
+[PASS] W8_tag_rename_flat_and_nested: {"flat": {"rename_affordance_present": true, "preview_total": 2, "batch_request_count": 1, "notice_text": "Renamed 2 notes from #walkflatr002251 to #walkflatr002251-renamed.", "plain_success_notice": true, "names_this_device_could_not_check": false, "mentions_keep_old_tag": false, "mentions_rename_a
+[PASS] W8b_tag_rename_unsent_work: {"rename_fired": true, "notice_text": "Renamed 1 note from #walkracer002251 to #walkracer002251-renamed. 1 note was not changed: \"Walk W8b dirty r002251\" is still syncing \u2014 try again in a moment.", "names_the_unsent_note": true, "names_this_device_could_not_check": false, "notes_still_syncing
+[PASS] W9_editor_nodes_reload: {"note_id": "1c1feb7697ae49ebbad7e5479ee4f2f4", "before_counts": {"doc": 1, "columns": 1, "column": 2, "paragraph": 4, "text": 5, "dateMention": 1, "tableOfContents": 1, "heading": 1, "imageFigure": 1, "image": 1, "imageCaption": 1}, "after_counts": {"doc": 1, "columns": 1, "column": 2, "paragraph":
+[PASS] W10_link_paste: {"offer_appeared": true, "preview_offered": true, "preview_card_appeared": true, "plain_text_url_no_card": null, "lookalike_host_check": "INCONCLUSIVE", "lookalike_reason": "the server only computes/shows a domain AFTER a successful HTTPS fetch of real HTML (api/routers/notebook_link_preview.py:206-
+[PASS] W11_unlinked_mentions: {"server_count": 0, "section_present": true, "open_only": true, "link_it_affordance_present": false, "note_on_brief_mismatch": "The brief expects a 'link this' affordance; the shipped UnlinkedMentions component deliberately offers Open ONLY (see UnlinkedMentions.test.jsx: 'offers Open ONLY -- no Lin
+[PASS] W11_tasks_across_notes: {"note_id": "c414e21be7294985aaf3eed5dc6db57f", "found_via_api": true, "due_matches": true, "ui_reachable": true, "ui_checkbox_found": false, "ui_check_reflected_in_api": null, "ui_error": null, "ui_reachability": "NoteTasksView.jsx was mounted in 44aba6944 and is reachable at ?view=tasks -- this ru
+[INCONCLUSIVE] W11_reminders: {"reason": "the daily reminder is a scheduled server-side pass (api/services/journal_two/note_tasks.py: run_task_reminders at 07:00 and 09:00 ET, plus a boot catch-up gated on the wall-clock ET hour) with no admin/manual HTTP trigger reachable from a live walk (grep-confirmed: run_task_reminders / c
+[PASS] W11_telemetry_and_error_beacon: {"note_open_telemetry": {"event": "note_open_ms", "props": {"ms": 193}}, "error_beacon_body_present": true}
+[PASS] W12_two_tabs_one_note: {"puts_while_both_open": {"tab1": 1, "tab2": 1}, "tab1_sole_writer_while_open": true, "owner_notice_seen_on_tab2": false, "tab2_writes_successfully_after_tab1_closes": true, "stuck_owner_notice_after_bfcache_nav": false, "outbox_drain_sweep_interval_ms": 60000, "notice_design_note": "Exhaustive grep
+[PASS] W13_errors_and_sandbox_integrity: {"pageerror_count": 0, "pageerrors": [], "deliberate_test_errors_excluded": 1, "sandbox_runs_file": "docs\\plans\\joystick\\sandbox-runs\\2026-09-26T00-17-24.md", "sandbox_integrity_tail": "# Sandbox run \u2014 shared-data-root integrity log\n\nEvery checkpoint below hashes the main `.db` files unde
+{
+ "checks": {
+  "W1_lock_unlock": "PASS",
+  "W2_archive": "PASS",
+  "W2b_bulk_archive_undo": "PASS",
+  "W3_templates": "PASS",
+  "W4_daily_note": "PASS",
+  "W5_relation": "PASS",
+  "W6_timeline": "INCONCLUSIVE",
+  "W7_split_view": "PASS",
+  "W8_tag_rename_flat_and_nested": "PASS",
+  "W8b_tag_rename_unsent_work": "PASS",
+  "W9_editor_nodes_reload": "PASS",
+  "W10_link_paste": "PASS",
+  "W11_unlinked_mentions": "PASS",
+  "W11_tasks_across_notes": "PASS",
+  "W11_reminders": "INCONCLUSIVE",
+  "W11_telemetry_and_error_beacon": "PASS",
+  "W12_two_tabs_one_note": "PASS",
+  "W13_errors_and_sandbox_integrity": "PASS"
+ }
+}

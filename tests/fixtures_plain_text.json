@@ -684,6 +684,35 @@
         ]
       },
       "expected": "a b c"
+    },
+    {
+      "name": "a dateMention reads as its absolute ISO date, inline, joined with nothing (wave 6, item 7)",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Due "
+              },
+              {
+                "type": "dateMention",
+                "attrs": {
+                  "date": "2026-10-02"
+                }
+              },
+              {
+                "type": "text",
+                "text": " review"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Due 2026-10-02 review"
     }
   ]
 }

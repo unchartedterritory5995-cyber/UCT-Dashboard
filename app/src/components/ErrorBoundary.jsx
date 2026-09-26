@@ -1,5 +1,6 @@
 // app/src/components/ErrorBoundary.jsx
 import { Component, cloneElement, isValidElement } from 'react'
+import { reportError } from '../lib/errorBeacon'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -12,7 +13,11 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('[ErrorBoundary]', error, info.componentStack)
+    console.error('[ErrorBoundary]', error, info?.componentStack)
+    // D14: every boundary reports what it caught to our own beacon. The beacon
+    // scrubs (message skeleton, frames only, no query or fragment) and never
+    // throws, so a boundary cannot be broken by its own reporting.
+    reportError(error, { kind: 'boundary', componentStack: info?.componentStack })
     // Optional hook so a caller can act on the error (e.g. recover from a
     // stale chunk by reloading) without every boundary knowing how.
     try {

@@ -16,6 +16,8 @@ import {
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
+import { inColumn, insertColumns } from '../../lib/columnsNode'
+import { insertTableOfContents } from '../../lib/tableOfContentsNode'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -82,16 +84,39 @@ export const ITEMS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
   },
   {
+    // Wave 6: side-by-side columns (columnsNode.js). ⛔ Never offered inside a
+    // column — columns do not nest — which `available` answers per session.
+    title: '2 columns',
+    description: 'Two side-by-side columns — they stack on a phone',
+    available: ({ editor }) => !inColumn(editor?.state?.selection?.$from),
+    command: ({ editor, range }) => insertColumns(editor, 2, range),
+  },
+  {
+    title: '3 columns',
+    description: 'Three side-by-side columns — they stack on a phone',
+    available: ({ editor }) => !inColumn(editor?.state?.selection?.$from),
+    command: ({ editor, range }) => insertColumns(editor, 3, range),
+  },
+  {
+    // Wave 6: the note's headings, live -- each one a jump (tableOfContentsNode.js).
+    title: 'Table of contents',
+    description: 'Every heading in this note — choose one to jump to it',
+    keywords: ['toc', 'contents', 'outline'],
+    command: ({ editor, range }) => insertTableOfContents(editor, range),
+  },
+  {
     title: 'Checklist',
     description: 'Task list with checkboxes',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
     title: 'Callout',
-    description: 'Highlighted box with an icon',
+    description: 'Highlighted box — note, info, success, warning or danger',
+    // Wave 6: a new callout is STYLED (its icon is the style control, a UIcon);
+    // only an imported or older callout shows an emoji.
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent({
       type: 'callout',
-      attrs: { emoji: '💡' },
+      attrs: { variant: 'note' },
       content: [{ type: 'paragraph' }],
     }).run(),
   },
@@ -140,10 +165,31 @@ export const ITEMS = [
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run()
       // Trigger the editor's external file picker via a custom event.
-      window.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker'))
+      // ⛔ Wave 6 fix round 1, I5 — dispatched on THIS editor's own DOM root,
+      // never `window`: with two panes open (split view) every mounted
+      // editor shared one listener on `window`, so an image picked from the
+      // side pane's Image item landed in the MAIN note. NoteEditorPage's
+      // listener is bound to the same node (`editor.view.dom`), so only the
+      // editor this command actually ran against ever answers.
+      editor.view.dom.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker', { bubbles: true }))
     },
   },
 ]
+
+/** Does a block item answer the typed query (its title, or one of its keywords)? */
+export function blockItemMatches(item, q) {
+  if (!q) return true
+  return item.title.toLowerCase().includes(q)
+    || (Array.isArray(item.keywords) && item.keywords.some((k) => k.includes(q)))
+}
+
+/** The block items offered where the caret is now (an item's `available`). */
+export function blockItemsAvailable(editor) {
+  return ITEMS.filter((it) => {
+    if (typeof it.available !== 'function') return true
+    try { return Boolean(it.available({ editor })) } catch { return false }
+  })
+}
 
 // 'YYYY-MM-DD' → 'Mar 13, 2026' for menu previews (UTC parts — no TZ drift).
 function fmtDayTitle(iso) {
@@ -400,14 +446,18 @@ export const SlashMenuExtension = Extension.create({
         command: ({ editor, range, props }) => {
           props.command({ editor, range })
         },
-        items: ({ query }) => {
+        items: ({ query, editor }) => {
           const q = (query || '').toLowerCase()
           const widgets = widgetItems(query)
           const factCaptures = factItems(query)
-          if (!q) return [...ITEMS, ...widgets, ...factCaptures]
+          // Wave 6: an item may say where it is NOT offered (`available`) —
+          // today only columns, never inside a column (they do not nest). A
+          // table of contents is an ordinary block and is offered anywhere.
+          const here = blockItemsAvailable(editor)
+          if (!q) return [...here, ...widgets, ...factCaptures]
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets, ...factCaptures]
+          return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

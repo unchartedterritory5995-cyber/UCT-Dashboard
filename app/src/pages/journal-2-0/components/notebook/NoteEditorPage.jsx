@@ -39,10 +39,11 @@ import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
 import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
-import { sameAuthoredContent } from '../../lib/offline/recoverLocalState'
+import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
-  BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange, missingServerNodes, nodeKeyOf,
+  appendedServerNodes, missingServerNodes, nodeKeyOf, classifyServerChange, METADATA_ONLY,
 } from '../../lib/offline/serverChange'
+import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
@@ -55,6 +56,21 @@ import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
+import TableToolbar from './TableToolbar'
+import LinkPasteMenu from './LinkPasteMenu'
+import UnlinkedMentions from './UnlinkedMentions'
+import { TextSelection } from '@tiptap/pm/state'
+import { taskIndexFromParams, findTaskItemPos } from '../../lib/noteTasks'
+import { NOTEBOOK_EVENTS, startNoteOpenTimer, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
+import NoteTagsField from './NoteTagsField'
+import useJ2NoteTags from '../../hooks/useJ2NoteTags'
+import { fallbackNodes } from '../../lib/tagTree'
+import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
+import UnsentTrashDialog from './UnsentTrashDialog'
+import { noteHasUnsentWork } from '../../lib/offline/noteHasUnsentWork'
+import { openNotebookDb } from '../../lib/offline/notebookDb'
+import { holdsUnsentWork } from '../../lib/noteBatch'
 import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
@@ -364,7 +380,7 @@ export function NoteLinkedTradeChips({ noteId }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
+export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
   const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
@@ -375,6 +391,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+  // Wave 6 item 8 — a LOCKED note (lane E's `locked` field; lib/lockedNote.js).
+  // `unlockedHere` covers the moment between Unlock landing and the refreshed
+  // note saying so; once the server copy reads unlocked it is cleared, so a
+  // later lock (another tab, the note menu) applies again.
+  const [unlockedHere, setUnlockedHere] = useState(false)
+  const [unlockState, setUnlockState] = useState(null) // null | 'busy' | 'failed'
+  const locked = noteIsLocked(note) && !unlockedHere
+  // Read by TipTap's `onUpdate`, which is frozen at editor creation (M6).
+  const lockedRef = useRef(locked)
+  lockedRef.current = locked
+  // The member's own tags, for the tag field's suggestions (hierarchy first).
+  const { tagTree, tagCounts, refresh: refreshTagNodes } = useJ2NoteTags()
+  const tagNodes = useMemo(() => tagTree || fallbackNodes(tagCounts), [tagTree, tagCounts])
+  useEffect(() => { setUnlockedHere(false); setUnlockState(null) }, [noteId])
+  useEffect(() => { if (note && !noteIsLocked(note)) setUnlockedHere(false) }, [note])
   // Wave Q1: the durable local working copy. ⛔ The account is part of the
   // DATABASE NAME, not a predicate — a wrong name yields no data, a forgotten
   // filter yields another member's research. It degrades to `supported: false`
@@ -896,6 +927,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         // BEFORE this synchronous line — reversing the one ordering that owns
         // the crash window.
         sessionId: SESSION_ID,
+        // ⭐⭐ D3b (wave 6): THE REVISION THESE WORDS WERE TYPED ON. Without it a
+        // crash draft that won recovery had no base, `chooseLocalRecovery` gave it
+        // the server's CURRENT revision, and Restore PUT it over another device's
+        // words. With it, Restore sends on this revision (`baseOfRecovered`), a
+        // server that moved 409s, and the reconcile forks — never a clobber. A
+        // draft written before this line has none, and keeps its old path.
+        baseUpdatedAt: usableBaseline(snap.baseUpdatedAt),
         // B1: a Restore of this draft on a later load sends it at this level.
         writtenSchema: snap.writtenSchema,
       }))
@@ -1026,6 +1064,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
       setSaveStatus('error')
       setSaveErrorMsg(friendlySaveError(e, e?.status))
+      reportSaveFailed(e, false)
     } finally {
       restoringDraftRef.current = false
       saveSettled()
@@ -1058,7 +1097,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const keepRefusedWords = async (carriedAtSend) => {
     if (refusalForkRef.current) await refusalForkRef.current.catch(() => {})
     if (carriedAtSend !== OWN_READ && preservedRef.current.has(carriedAtSend)) return true
-    const fork = reconcileConflict({ refused: true })
+    // `sent` is null on purpose: a refusal short-circuits to FORK before the
+    // plan ever reads it (a refused write is one the server does not hold).
+    const fork = reconcileConflict(null, { refused: true })
     refusalForkRef.current = fork
     try {
       await fork
@@ -1247,6 +1288,30 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }, { replace: true })
   }, [navTargetKey, navTarget, noteDocuments, noteExcerpts, setSearchParams, openNoteDocument,
       sayIfNothingOpened])
+
+  // ── Wave 6 (lane F's services, wired in the editor) ─────────────────────────
+  // `?task=<n>` is the Tasks view's "open this note at task n". Read here so the
+  // open timer below can say where the note was opened from.
+  const taskIndex = taskIndexFromParams(searchParams)
+  const taskIndexRef = useRef(taskIndex)
+  taskIndexRef.current = taskIndex
+  // note_open_ms: from the note being asked for to its editor existing WITH the
+  // note in it (stopped in onCreate). One reading per note; the timer is inert
+  // after it has spoken.
+  const openTimerRef = useRef(null)
+  useEffect(() => {
+    openTimerRef.current = startNoteOpenTimer()
+    return () => { openTimerRef.current = null }
+  }, [noteId])
+  // save_failed: once when a save gives up, and once when a retry streak BEGINS
+  // (never per backoff attempt). No text, no ids: a status and a reason word.
+  const reportSaveFailed = (e, retrying) => {
+    const status = Number.isFinite(e?.status) ? e.status : 0
+    const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+    const reason = !status ? (offline ? 'offline' : 'network')
+      : status === 409 ? 'conflict' : status === 413 ? 'too-large' : 'http'
+    trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_FAILED, { status, reason, offline, retrying })
+  }
 
   // ⭐ O6 §4: the same routing contract, one param further. A review is NOT a
   // document, so it deliberately does not go through `targetFromParams` /
@@ -1612,6 +1677,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // (see WidgetEmbedView's self-archive effect).
     onCreate: ({ editor: ed }) => {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), noteId }
+      // One reading per note: the timer's own stop() speaks once.
+      if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
       // (owner decision #9) — opening a note for editing is what makes it the
       // target. Title rides along for the capture toast.
@@ -1660,7 +1727,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         return false
       },
     },
-    onUpdate: () => scheduleAutosaveRef.current(),
+    // ⛔ M6 (wave 6 fix round 1): a LOCKED note's document can still change
+    // without the member editing it — a TOC or Outline jump opens the toggle
+    // around its heading, a toggle's chevron flips `open` — and each of those
+    // used to reach the autosave and write the note the member had locked. So
+    // while locked, the editor's own changes schedule no save. A save already
+    // scheduled (words typed before a lock arrived) still goes out; queued
+    // offline words adopted on open go through `scheduleAutosaveRef` directly
+    // and still send (the server never refuses a body write for a lock).
+    onUpdate: () => { if (!lockedRef.current) scheduleAutosaveRef.current() },
   }, [note?.id])
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
@@ -1677,6 +1752,77 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     editor.on('selectionUpdate', update)
     return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
   }, [editor])
+
+  // The lock IS `editable`: every surface that edits the note asks
+  // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
+  // `false`: turning it on or off is not an edit, so no autosave.
+  // ⛔ Wave 6 whole-branch review I-3: an UNREADABLE note (the schema guard,
+  // lib/noteContentGuard.js) is read-only whatever its lock says, and the guard
+  // owns that. This effect used to hand such a note `setEditable(true)` on
+  // mount and on every unlock, until the guard re-locked it a render later.
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || unreadable || editor.isEditable === !locked) return
+    editor.setEditable(!locked, false)
+    bumpToolbar()
+  }, [editor, locked, unreadable])
+
+  /**
+   * ⛔⛔ UNLOCK IS A WRITE DOOR (wave 6 fix round 1, I1). The PATCH advances the
+   * note's `updatedAt`, and the only reason to press Unlock is to type — so the
+   * very next thing on the wire is this editor's own save.
+   *
+   * ⚰️ It used to record nothing and only `refresh()`, which never moves the save
+   * baseline (the load effect is keyed on the note id): the first autosave went
+   * out on the PRE-unlock revision and 409'd on the member's own write, and once
+   * the note closed a drain asked "is that revision ours?", found it unrecorded,
+   * and forked the note.
+   *
+   * ⭐ THREE STEPS, IN THIS ORDER, before the editor is made editable:
+   *   1. `setNoteLock` lands the revision (`settleNoteWrite`, the one way a
+   *      revision is landed) and returns the server's copy.
+   *   2. When that copy differs from what this editor last knew by metadata
+   *      ONLY (`classifyServerChange` — the reconcile's own authority), the save
+   *      baseline moves onto it, so the first save after Unlock carries the
+   *      post-unlock revision and lands. ⛔ Never otherwise: a copy whose words
+   *      this editor never saw (another device wrote them) is not a base to build
+   *      on — the next save goes out on its own base, 409s, and the reconcile
+   *      merges or forks exactly as it would for any other writer.
+   *   3. `settleMetadataRevision` — the path every metadata door in this file
+   *      takes — records the landing for this account and, under the same
+   *      metadata-only condition, settles the durable copy onto it.
+   * ⛔ A settle that fails never fails the Unlock: the write already happened.
+   *
+   * ⛔⛔ N-a (wave 6 fix round 3, from M2). This used to swallow a failed
+   * `setNoteLock` into `unlockState` alone and return `undefined` either
+   * way — indistinguishable from success to a caller that only checks
+   * whether the promise resolved. `NoteMenuActions.run` is exactly such a
+   * caller: it treats ANY resolved write as success, so a failed menu
+   * Unlock rendered "Unlocked. You can edit this note again." beside the
+   * banner's own "Couldn't unlock. Try again." — two contradictory
+   * sentences, the menu's one false. Returning an outcome (never rejecting:
+   * the inline banner's own `onClick={unlockNote}` has no `.catch`, and an
+   * unhandled rejection there would be a second, worse silent failure) lets
+   * every caller — the banner and the menu alike — tell the two apart.
+   */
+  const unlockNote = async () => {
+    setUnlockState('busy')
+    let saved
+    try {
+      saved = await setNoteLock(noteId, false)
+    } catch (error) {
+      setUnlockState('failed')
+      return { ok: false, error }
+    }
+    const landed = usableBaseline(saved?.updatedAt)
+    if (landed && serverMovedMetadataOnly(saved)) {
+      lastSavedRef.current = { ...lastSavedRef.current, updatedAt: landed }
+    }
+    try { await settleMetadataRevision(saved) } catch { /* the unlock landed; bookkeeping never fails it */ }
+    setUnlockedHere(true)
+    setUnlockState(null)
+    refresh?.()
+    return { ok: true }
+  }
 
   // Push fresh body into editor when note loads (one-shot per note).
   // Depends on `editor` (not just note.id) so it re-runs once the editor
@@ -1721,6 +1867,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor])
+
+  // Wave 6: `?task=<n>` puts the caret in the n-th task (declared AFTER the
+  // fresh-body push above: effects run in order, and that one's setContent
+  // would otherwise put the caret back), counted in the SAME
+  // pre-order the server counted (findTaskItemPos, pinned by
+  // tests/fixtures_note_tasks.json), and scrolls it into view. Once per note and
+  // task; a link naming a task the note no longer has opens the note normally.
+  const openedTaskRef = useRef(null)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || taskIndex == null || !note) return
+    const key = `${noteId}:${taskIndex}`
+    if (openedTaskRef.current === key) return
+    const pos = findTaskItemPos(editor.state.doc, taskIndex)
+    if (pos == null) return
+    openedTaskRef.current = key
+    const at = TextSelection.near(editor.state.doc.resolve(pos + 1)).from
+    editor.chain().focus().setTextSelection(at).scrollIntoView().run()
+  }, [editor, note, noteId, taskIndex])
 
   // ⛔ The arming half of `hydratedRef` — see its declaration for the defect.
   // Declared AFTER `useEditor` on purpose: effects run in the order their hooks
@@ -1875,8 +2039,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   usePendingAskInsert({
     noteId,
     editor,
+    // ⛔ M6: `!locked` — an answer for a locked note WAITS for Unlock, as a
+    // capture does. Taken while locked, it was refused and gone.
     ready: recoveryDecidedFor === noteId && note?.id === noteId
-      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving',
+      && !pendingDraft && hydratedRef.current && saveStatus !== 'saving' && !locked,
     onResult: (ok) => setUploadToast(ok
       ? { message: ASK_INSERT_SUCCESS_MSG, tone: 'success' }
       : { message: "This note can't take changes right now, so the answer wasn't inserted. Ask again to get it back.", tone: 'error' }),
@@ -1907,21 +2073,33 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
    * merge is safe or preserves both versions.
    *
    * Returns true when the caller may retry, false when the conflict has been
-   * resolved by forking (and the retry must NOT happen).
+   * resolved by forking (and the retry must NOT happen), and `{ landed: fresh }`
+   * when there was no conflict to resolve: the server already holds exactly what
+   * the save sent (`sent`), so the caller settles it as the landing it is.
    */
-  const reconcileConflict = async ({ refused = false } = {}) => {
+  const reconcileConflict = async (sent, { refused = false } = {}) => {
     const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
     if (!res.ok) throw new Error(`${res.status}`)
     const fresh = (await res.json())?.note
     if (!fresh) throw new Error('empty note on reconcile')
     const base = lastSavedRef.current
 
-    // ⛔⛔ B1: a SCHEMA refusal is not a conflict the diff can resolve — the
-    // server did not move; the words' writer could not read the note. A merge
+    // ⭐⭐ D3b fix round 1, residual (a) — ONE authority, `ownerReconcilePlan`,
+    // which the property rail's model of this function asks too. ⚰️ A sweep whose
+    // PUT was already in flight when this note opened lands the SAME queued words
+    // this editor adopted; our own send on their base then 409s, and classifying
+    // the server's copy against that base read the member's own words as the
+    // change and forked the note with nobody else writing. When the server holds
+    // exactly what we sent, nothing conflicted: it is settled as a landing.
+    //
+    // ⛔⛔ B1 (wave 5): a SCHEMA refusal is not a conflict the diff can resolve —
+    // the server did not move; the words' writer could not read the note. A merge
     // or rebase would retry the same words into the same refusal, so a refusal
-    // takes the preserve-both branch below, whatever the diff says.
-    const shape = refused ? BODY_REWRITE : classifyServerChange(fresh, base)
-    if (shape !== BODY_REWRITE) {
+    // takes the preserve-both branch below whatever the plan would have said. It
+    // also cannot be LANDED: a refused write is one the server does not hold.
+    const { plan } = refused ? { plan: FORK } : ownerReconcilePlan({ fresh, base, sent })
+    if (plan === LANDED) return { landed: fresh }
+    if (plan !== FORK) {
       // ⛔ METADATA_ONLY appends nothing — the body never moved, so there is
       // nothing to merge and the retry carries the member's words unchanged.
       // The baseline still has to advance, or the retry 409s again for ever.
@@ -1973,6 +2151,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const editorHoldsForked = sameAuthoredContent({
       title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
     }, forked)
+    // The sibling exists: count the fork (the member's words are safe in it).
+    // `queued`: words typed during the create are still in the queue.
+    trackNotebookEvent(NOTEBOOK_EVENTS.CONFLICT_FORKED, { door: 'editor', queued: !editorHoldsForked })
     // ⛔⛔ R1 (fix round 2): when the member typed during the create, those words
     // are in the durable writer's PENDING snapshot, not yet in the store — and
     // the writer keeps only its newest snapshot, so their next keystroke on the
@@ -2042,8 +2223,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const writtenSchema = editorWrittenSchema()
     const carriedAtSend = carriedRef.current
     const last = lastSavedRef.current
-    const titleChanged = title !== last.title
-    const subtitleChanged = (subtitle || '') !== (last.subtitle || '')
+    // ⛔⛔ D3b fix round 1, residual (b) — A BASE WITH NO BODY PROVES NOTHING
+    // ABOUT THE TITLE EITHER, so the title and subtitle are sent as they stand.
+    // ⚰️ A revision-only base (`baseOfRecovered`: the revision the words were
+    // written on, content unknown) reads `''` for both, so a Restore whose copy
+    // CLEARED the title sent no title at all; with the server unmoved the PUT was
+    // a 200 and the old title stayed — the member's clear was silently dropped.
+    // ⭐ Keyed on the missing BODY, not on a flag, because the flag cannot survive
+    // the durable store: `snapshotOfServerCopy` (frozen) keeps no `bodyUnknown`,
+    // so the next session rebuilds the same base without it. And it is harmless
+    // wherever the server's body really is null: under compare-and-set, sending
+    // the fields as they stand writes nothing but what the member holds, on the
+    // revision the base names. The body is always sent against a null one anyway.
+    // ONE authority (lib/offline/recoverLocalState.baseHasNoBody), shared with
+    // `queuedWorkToAdopt`: both decisions key on the same missing body.
+    const baseUnknown = baseHasNoBody(last)
+    const titleChanged = baseUnknown || title !== last.title
+    const subtitleChanged = baseUnknown || (subtitle || '') !== (last.subtitle || '')
     const bodyChanged = JSON.stringify(bodyJson) !== JSON.stringify(last.bodyJson)
     if (!titleChanged && !subtitleChanged && !bodyChanged) {
       setSaveStatus('saved')
@@ -2102,11 +2298,49 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // between the two and leave it up for the rest of the session.
     saveInFlightRef.current = true
     try {
-      const saved = await update(patch, { writtenSchema })
-      // ⛔ B1: LANDED — the server accepted these words at their writer's level,
-      // so they are the server's copy now and the next keystroke is this
-      // editor's own. Only if they are still what is on screen: a view swap or a
-      // new recovery during the PUT is a different body with its own writer.
+      let saved
+      try {
+        // B1: the words go out at their WRITER's level (see `writtenSchema` above).
+        saved = await update(patch, { writtenSchema })
+      } catch (e) {
+        // ⛔⛔ B1: THE SCHEMA REFUSAL IS NOT A CONFLICT. The same words from the same
+        // writer are refused again, so the reconcile-and-retry below would only
+        // walk the member back into "…Reload to edit it." — the sentence that sent
+        // them here. Preserve both instead, whatever the retry budget says; a
+        // failure to do so is rethrown, surfaces as the non-retryable error below,
+        // and the words stay in the durable copy and the queue.
+        if (isSchemaRefusal(e)) {
+          if (await keepRefusedWords(carriedAtSend)) return
+          throw e
+        }
+        if (e?.status !== 409 || conflictRetriedRef.current) throw e
+        conflictRetriedRef.current = true
+        let outcome
+        try {
+          outcome = await reconcileConflict({ title, subtitle, bodyJson })
+        } catch (re) {
+          console.warn('conflict reconcile failed', re)
+          throw e          // surfaces as a non-retryable save error below
+        }
+        // ⭐⭐ D3b fix round 1, residual (a) — THE SERVER ALREADY HOLDS EXACTLY
+        // WHAT THIS PUT CARRIED: it landed, one revision later (another tab's
+        // sweep sent the same queued words). Settled below by the SAME lines as a
+        // 200 — one settle for a landing, never a second copy of it.
+        if (outcome?.landed) {
+          saved = outcome.landed
+        } else {
+          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
+          // after one would push the local document over the server version
+          // the fork exists to protect — the exact overwrite this gate closes.
+          if (outcome) retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          return
+        }
+      }
+      // ⛔ B1: LANDED — the server accepted these words at their writer's level
+      // (or, via `outcome.landed`, already held them), so they are the server's
+      // copy now and the next keystroke is this editor's own. Only if they are
+      // still what is on screen: a view swap or a new recovery during the PUT is
+      // a different body with its own writer.
       // (Read BEFORE `captureLocalState` below, whose stamp this decides.)
       if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
       lastSavedRef.current = {
@@ -2148,27 +2382,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       clearDraftLocally()
     } catch (e) {
       const status = e?.status
-      // ⛔⛔ B1: THE SCHEMA REFUSAL IS NOT A CONFLICT. The same words from the same
-      // writer are refused again, so the reconcile-and-retry below would only
-      // walk the member back into "…Reload to edit it." — the sentence that sent
-      // them here. Preserve both instead; a failure to do so falls through to
-      // the error below and the words stay in the durable copy and the queue.
-      if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
-      if (status === 409 && !conflictRetriedRef.current && !isSchemaRefusal(e)) {
-        conflictRetriedRef.current = true
-        try {
-          const mayRetry = await reconcileConflict()
-          // ⛔ A FORK IS A RESOLUTION, NOT A REASON TO TRY AGAIN. Retrying
-          // after one would push the local document over the server version
-          // the fork exists to protect — the exact overwrite this gate closes.
-          if (!mayRetry) return
-          retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
-          return
-        } catch (re) {
-          console.warn('conflict reconcile failed', re)
-          // fall through: surfaces as a non-retryable save error below
-        }
-      }
+      // A 409 reaches here only when it was not reconciled above: a second one
+      // in this conflict budget, a reconcile that failed, or a B1 schema
+      // refusal whose preserve-both step failed (all handled in the inner catch
+      // around `update`) — every one surfaces as a non-retryable save error below.
       // No status = network/fetch error; 5xx = backend down or restarting.
       // Both are worth retrying. 4xx = real client/validation error — won't
       // get better on retry, so surface immediately.
@@ -2178,9 +2395,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         setSaveStatus('error')
         setSaveErrorMsg(friendlySaveError(e, status))
         retryAttemptsRef.current = 0
+        reportSaveFailed(e, false)
         return
       }
       const attempt = retryAttemptsRef.current
+      if (attempt === 0) reportSaveFailed(e, true)
       const delay = RETRY_BACKOFFS_MS[Math.min(attempt, RETRY_BACKOFFS_MS.length - 1)]
       retryAttemptsRef.current = attempt + 1
       console.warn(`autosave failed (retry ${attempt + 1} in ${delay}ms)`, e)
@@ -2222,11 +2441,54 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   // Slash menu's "Image" option dispatches this event so we can open the
   // native file picker from outside the editor's React tree.
+  // ⛔ Wave 6 fix round 1, I5 — listens on THIS editor's own DOM root
+  // (`editor.view.dom`), never `window`: SlashMenu.jsx now dispatches on the
+  // exact editor instance the command ran against, so with two panes open
+  // only the editor a member actually typed the slash command in ever hears
+  // its own request. A second mounted editor's identical listener on the
+  // SAME shared target (`window`) is exactly how an image picked from the
+  // side pane used to land in the main note.
+  //
+  // ⛔⛔ Wave 6 fix round 5, R5-1 — `editor.view` IS A THROWING GETTER. With no
+  // EditorView (not mounted yet, or unmounted/destroyed) tiptap returns a Proxy
+  // whose `get` trap THROWS "The editor view is not available. Cannot access
+  // view['dom']" — never `undefined` — so `editor?.view?.dom` walked straight
+  // into it (optional chaining guards a null LEFT side only), and the route
+  // ErrorBoundary replaced the whole editor on about half of all note-opens
+  // (live walk on 7006f1504). Same hazard NoteFindBar.jsx:63 already names.
+  // `editor.isDestroyed` is tiptap's own `editorView?.isDestroyed ?? true`, so
+  // it is false EXACTLY when a live view exists: read `.view` only past it.
+  // ⛔ And a guard alone is half a fix: this effect runs once per editor, so an
+  // editor whose view mounts AFTER it would never get the listener and the
+  // Image item would silently do nothing. Attach now if the view exists, and
+  // again on tiptap's own `mount`/`create`; detach on `unmount`.
   useEffect(() => {
+    if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
-    window.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
-    return () => window.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
-  }, [])
+    let dom = null
+    const detach = () => {
+      if (dom) dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      dom = null
+    }
+    const attach = () => {
+      if (editor.isDestroyed) return   // no live view: `editor.view` would throw
+      const next = editor.view.dom
+      if (next === dom) return
+      detach()
+      dom = next
+      dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+    }
+    attach()
+    editor.on('mount', attach)
+    editor.on('create', attach)
+    editor.on('unmount', detach)
+    return () => {
+      editor.off('mount', attach)
+      editor.off('create', attach)
+      editor.off('unmount', detach)
+      detach()
+    }
+  }, [editor])
 
   const onHeroChange = async () => {
     // Hero update already persisted by HeroImagePicker — refresh local copy.
@@ -2305,9 +2567,38 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const onTickerChange = async (ticker) => {
     await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
-  const onTagsChange = async (tagsCsv) => {
-    const tags = tagsCsv.split(',').map((t) => t.trim()).filter(Boolean)
-    await settleMetadataRevision(await update({ tags }))
+  // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
+  // list the SERVER holds right now (read just before the write) -- never a
+  // list this page loaded earlier, which would undo a bulk change made in
+  // another tab. When that read fails nothing is sent: a list that could not
+  // be checked is never written. lib/tagDelta.js has the rule.
+  const [tagsBusy, setTagsBusy] = useState(false)
+  const applyTagDelta = async (delta) => {
+    // (One change at a time: the field is `busy` -- disabled -- until this settles.)
+    setTagsBusy(true)
+    try {
+      let serverTags
+      try {
+        const res = await fetch(`/api/j2/notes/${encodeURIComponent(noteId)}`, { credentials: 'include' })
+        if (!res.ok) throw new Error(String(res.status))
+        const body = await res.json()
+        serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
+      } catch {
+        setChromeMsg("Couldn't update tags — try again")
+        return
+      }
+      const next = mergeTagDelta(serverTags, delta)
+      // ⛔ M14 (wave 6 fix round 1): nothing to send -- but the server's list
+      // differs from the chips on screen (they did not show the tag the member
+      // just added), so re-read the note and let the chips catch up.
+      if (sameTagList(next, serverTags)) { refresh?.(); return }
+      await settleMetadataRevision(await update({ tags: next }))
+      refreshTagNodes()
+    } catch {
+      setChromeMsg("Couldn't update tags — try again")
+    } finally {
+      setTagsBusy(false)
+    }
   }
 
   // ⛔⛔ DUPLICATE — no such action existed anywhere in the product (grepped
@@ -2356,17 +2647,105 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // for 30 days, so the copy stays proportional rather than "permanently".
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const onDeleteRequest = () => setConfirmingDelete(true)
-  const onDeleteConfirm = async () => {
-    const res = await fetch(`/api/j2/notes/${noteId}`, {
-      method: 'DELETE', credentials: 'include',
-    })
-    if (res.ok) {
+  const trashNow = async () => {
+    let res = null
+    try {
+      res = await fetch(`/api/j2/notes/${noteId}`, {
+        method: 'DELETE', credentials: 'include',
+      })
+    } catch { res = null }
+    if (res?.ok) {
       // This note's target status just flipped active -> trashed -- same
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
       onBack()
+      return
     }
+    // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
+    // sentence, never the server's words. It used to do nothing at all, so
+    // "Trash anyway" closed its dialog and the note simply stayed.
+    setChromeMsg('Couldn’t move this note to the Trash — try again.')
+  }
+
+  // ⛔ Wave 6 item 11 — A NOTE STILL HOLDING UNSENT WORDS IS NOT TRASHED UNASKED.
+  // Trashing first sent its queued PUT to a trashed note: a 404, retired as
+  // blocked, on a card that never shows the blocked badge -- words stranded.
+  // The RAW signal decides (holdsUnsentWork: the door-guard mode cannot hide a
+  // dirty or queued note), and UnsentTrashDialog names what is unsent and
+  // offers Send first or Trash anyway.
+  const [unsentTrash, setUnsentTrash] = useState(null) // null | { what, sending, still }
+  // One store connection per question, closed afterwards (noteBatch's rule).
+  const unsentVerdict = async () => {
+    let opened = null
+    const connect = (acct) => { opened = Promise.resolve(openNotebookDb(acct)); return opened }
+    try {
+      return await noteHasUnsentWork(noteId, { accountId: user?.id, connect })
+    } finally {
+      if (opened) opened.then((db) => db?.close?.()).catch(() => {})
+    }
+  }
+  /**
+   * What the EDITOR holds that the server's last copy does not -- the one
+   * answer both the Delete gate and its dialog ask.
+   *
+   * ⛔ M9 (wave 6 fix round 1): the durable store is not the only witness. Its
+   * write is debounced (~200 ms), so a word typed a moment ago is in the editor
+   * and nowhere else; a store that answers "clean" at that instant proves
+   * nothing, the note was trashed, and the unmount autosave then PUT to a
+   * trashed note and got a 404. Unknown (a base with no body) is not "ahead".
+   */
+  const unsentInEditor = () => {
+    const cur = captureLocalState()
+    const last = lastSavedRef.current
+    const parts = []
+    if (cur && !baseHasNoBody(last)) {
+      if ((cur.title || '') !== (last.title || '')) parts.push('the title')
+      if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
+      if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
+    }
+    return parts
+  }
+  const holdsUnsent = (verdict) => holdsUnsentWork(verdict) || unsentInEditor().length > 0
+  const describeUnsent = (verdict) => {
+    const parts = unsentInEditor()
+    if (parts.length) return `Not on the server yet: ${parts.join(', ')}.`
+    if (verdict?.why === 'unreadable') return 'This device could not check whether every edit to this note reached the server.'
+    if (verdict?.why === 'queued') return 'Edits made to this note earlier on this device are still waiting to send.'
+    return 'Edits to this note are still waiting to send.'
+  }
+  const onDeleteConfirm = async () => {
+    // Write what is typed to the durable copy NOW (it no longer waits out the
+    // debounce), so a "Trash anyway" can never outrun it.
+    durableRef.current.flush()
+    const verdict = await unsentVerdict()
+    if (holdsUnsent(verdict)) {
+      setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: false })
+      return
+    }
+    await trashNow()
+  }
+  const sendThenTrash = async () => {
+    setUnsentTrash((u) => (u ? { ...u, sending: true, still: false } : u))
+    try { await commitSaveRef.current() } catch { /* the save reports its own failure */ }
+    // The landed save settles the durable copy without being awaited, so ask
+    // again a few times before saying it is still sending.
+    let verdict = null
+    for (let i = 0; i < 5; i += 1) {
+      verdict = await unsentVerdict()
+      if (!holdsUnsent(verdict)) break
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    if (holdsUnsent(verdict)) {
+      setUnsentTrash({ what: describeUnsent(verdict), sending: false, still: true })
+      return
+    }
+    setUnsentTrash(null)
+    await trashNow()
+  }
+  const trashAnyway = async () => {
+    setUnsentTrash(null)
+    await trashNow()
   }
 
   const ToolButton = ({ active, onClick, label, title }) => (
@@ -2631,12 +3010,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
           />
-          <input
-            className={styles.headerInput}
-            placeholder="Tags (comma sep)"
-            defaultValue={(note.tags || []).join(', ')}
-            onBlur={(e) => onTagsChange(e.target.value)}
-            style={{ width: 200 }}
+          <NoteTagsField
+            tags={note.tags || []}
+            nodes={tagNodes}
+            busy={tagsBusy}
+            onAdd={(tag) => applyTagDelta({ add: [tag] })}
+            onRemove={(tag) => applyTagDelta({ remove: [tag] })}
           />
           <button
             type="button"
@@ -2652,9 +3031,33 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
             Delete
           </button>
+          {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
+              actions (Lock, Archive, Save as template, Open beside). Lane E's
+              own file (NoteMenuActions.jsx) renders itself; this is the one
+              line that reads the render prop NotebookTab has passed since wave
+              6 landed.
+              M2 (wave 6 fix round 2): `unlockNote` is THIS editor's own
+              unlock — the one that lands the revision, moves the save
+              baseline when the server moved by metadata only, and settles
+              the offline queue (`settleMetadataRevision`). The menu's own
+              Unlock button used a second door (`setNoteLock` alone) that did
+              only the first of those three, costing the next save a 409 +
+              re-fetch; passing this through lets the menu route through the
+              SAME settle instead of restating a worse copy of it. */}
+          {noteMenu?.(note, { refresh, unlockNote })}
         </div>
       </header>
 
+      {unsentTrash && (
+        <UnsentTrashDialog
+          what={unsentTrash.what}
+          sending={unsentTrash.sending}
+          still={unsentTrash.still}
+          onSendFirst={sendThenTrash}
+          onTrashAnyway={trashAnyway}
+          onClose={() => setUnsentTrash(null)}
+        />
+      )}
       {confirmingDelete && (
         <ConfirmModal
           title="Delete this note?"
@@ -2700,6 +3103,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           data-export-exclude keeps the row out of the PNG rasterization. */}
       {editor && (
         <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
+          {/* Wave 6: a locked note shows no editing controls at all -- a
+              control that would do nothing is hidden, never silent. */}
+          {!locked && (<>
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}
@@ -2829,6 +3235,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           >
             ⊞ Insert
           </button>
+          </>)}
           {/* Wave 5: the note's outline (every heading, click to jump) -- a
               panel beside the note on desktop, a sheet on touch. It shares
               the palette's corner, so opening one closes the other. */}
@@ -2874,7 +3281,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           so it follows the pinned chrome regardless of how many rows the
           header wraps to (review finding: a fixed viewport offset here
           duplicated the chrome height by hand). */}
-      {paletteOpen && editor && (
+      {paletteOpen && editor && !locked && (
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
       )}
       {outlineOpen && editor && (
@@ -2891,6 +3298,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <div className={styles.railLeft}><NoteRailLeft insights={insights} /></div>
         )}
         <div className={styles.column} ref={columnRef} data-print-root>
+        {locked && (
+          <div className={styles.lockBanner} role="status" data-export-exclude>
+            <UIcon name="lock" size={14} gold={false} style={{ verticalAlign: '-2px' }} />
+            <span>Locked — editing is off</span>
+            {unlockState === 'failed' && (
+              <span className={styles.lockBannerError}>Couldn&apos;t unlock. Try again.</span>
+            )}
+            <button
+              type="button"
+              className={styles.lockBannerBtn}
+              onClick={unlockNote}
+              disabled={unlockState === 'busy'}
+            >
+              {unlockState === 'busy' ? 'Unlocking…' : 'Unlock'}
+            </button>
+          </div>
+        )}
         {ytId ? (
           <>
             <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
@@ -2917,9 +3341,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         ) : null}
 
         {unreadable && <UnreadableNoteNotice />}
+        {/* ⛔ ONE `readOnly`, both reasons (wave 6 whole-branch review I-3). The
+            wave-5 merge left `readOnly={unreadable}` AND `readOnly={locked}` on
+            each input, and the later prop won: an unreadable, unlocked note took
+            typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
+            NoteEditorPage.unreadable.test.jsx. */}
         <input
           className={styles.titleInput}
-          readOnly={unreadable}
+          readOnly={locked || unreadable}
           value={title}
           onChange={(e) => {
             const v = e.target.value
@@ -2932,7 +3361,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         />
         <input
           className={styles.subtitleInput}
-          readOnly={unreadable}
+          readOnly={locked || unreadable}
           value={subtitle}
           onChange={(e) => {
             const v = e.target.value
@@ -2960,7 +3389,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
                        anchorReviewId={reviewAnchor?.reviewId || null}
                        onReviewAnchorConsumed={clearReviewParam} />
 
-        <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
+        {/* A locked note takes no captures: they wait in the inbox until Unlock. */}
+        {!locked && (
+          <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
+        )}
 
         {findOpen && (
           <NoteFindBar
@@ -2970,6 +3402,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           />
         )}
 
+        {/* Wave 6: the table toolbar floats over the table the caret is in,
+            and renders nothing anywhere else (or on a read-only note). */}
+        <TableToolbar editor={editor} />
+        <LinkPasteMenu editor={editor} />
+
         <div onClickCapture={handleEditorClickCapture}>
           <EditorContent editor={editor} />
         </div>
@@ -2977,6 +3414,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         {/* Wave D: "Linked from" backlinks -- renders nothing until this
             note has at least one real backlink (directive §70/§16). */}
         <NoteBacklinksSection noteId={noteId} />
+        <UnlinkedMentions noteId={noteId} />
 
         <input
           ref={fileInputRef}

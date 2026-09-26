@@ -123,12 +123,16 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     against later (the option-strategy id and broker-account id)."""
     from api.services.journal_two import account_purge as ap
     from api.services.journal_two import coach_email_digest as ced
+    from api.services.journal_two import note_tasks as nt
 
     # j2_weekly_email_log is created lazily by its own module, not by
     # journal_two.db.ensure_schema() — force it into existence before the
     # generic filler reaches it (production hits the same lazy-init path the
     # first time a weekly digest actually sends).
     ced._ensure_log_table(conn)
+    # j2_task_reminder_log, likewise: note_tasks.run_task_reminders creates
+    # it on its first pass (wave 6 fix round 4, R4-4).
+    nt.ensure_reminder_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)
@@ -286,6 +290,112 @@ def test_purge_user_data_is_idempotent_on_a_second_call(db_path):
         assert second["ok"] is True
         assert second["total_rows_deleted"] == 0
         assert second["errors"] == []
+    finally:
+        conn.close()
+
+
+def test_j2_note_templates_is_purged_on_account_deletion(db_path):
+    """Wave 6 fix round 1, I3 — a member's own "Save as template" copies
+    (note_templates.py) are user-owned and must leave with the account, like
+    every other j2_* table. Hardcoded to THIS table, independent of
+    `_DIRECT_USER_TABLES`: the generic manifest test above seeds and checks
+    off that same tuple, so a table missing from it is invisible to that
+    test too (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`) —
+    this is the rail that actually catches the omission."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+
+    user_id = f"u_tmpl_{uuid.uuid4().hex[:8]}"
+    conn = get_connection()
+    try:
+        _seed_user(conn, user_id, f"{user_id}@test.uct")
+        conn.commit()
+        conn.execute(
+            "INSERT INTO j2_note_templates "
+            "(id, user_id, name, title, body_json, created_at, updated_at) "
+            "VALUES (?, ?, 'My template', 'My template', '{}', "
+            "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+            (f"tmpl_{user_id}", user_id),
+        )
+        conn.commit()
+        before = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        assert before == 1, "seeding itself is broken"
+
+        result = ap.purge_user_data(user_id, conn)
+        assert result["ok"] is True
+
+        after = conn.execute(
+            "SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ?", (user_id,)
+        ).fetchone()[0]
+        assert after == 0, "j2_note_templates still has the deleted member's template row"
+    finally:
+        conn.close()
+
+
+def test_j2_task_reminder_log_is_purged_on_account_deletion(db_path, monkeypatch):
+    """Wave 6 fix round 4, R4-4 (M-5) — the daily task reminder's claim log
+    (`note_tasks.run_task_reminders`) is keyed by `user_id`: which member was
+    reminded on which ET day, and how many of their tasks were due and
+    overdue. It leaves with the account.
+
+    The rows are written through the REAL reminder pass, never a hand INSERT,
+    so the table this rail purges is the one production writes. Hardcoded to
+    THIS table, independent of `_DIRECT_USER_TABLES`, for the same reason as
+    the templates rail above: the generic manifest test seeds and checks off
+    that tuple, so a table missing from it is invisible there too."""
+    from datetime import datetime
+
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+    from api.services.journal_two import note_tasks as nt
+    from api.services.journal_two import notes as notes_mod
+    from api.services.journal_two.timeutil import ET
+
+    monkeypatch.delenv("NOTEBOOK_TASK_REMINDERS_ENABLED", raising=False)
+    target, control = f"u_rem_{uuid.uuid4().hex[:8]}", f"u_remctl_{uuid.uuid4().hex[:8]}"
+
+    def overdue_task_note(uid: str) -> None:
+        body = {"type": "doc", "content": [{"type": "taskList", "content": [
+            {"type": "taskItem", "attrs": {"checked": False}, "content": [
+                {"type": "paragraph", "content": [
+                    {"type": "text", "text": "Re-read the thesis "},
+                    {"type": "dateMention", "attrs": {"date": "2026-09-01"}},
+                ]},
+            ]},
+        ]}]}
+        notes_mod.create_note(uid, {"title": "Plan", "bodyJson": body}, conn=conn)
+
+    def reminder_rows(uid: str) -> int:
+        return conn.execute(
+            "SELECT COUNT(*) FROM j2_task_reminder_log WHERE user_id = ?", (uid,)
+        ).fetchone()[0]
+
+    conn = get_connection()
+    try:
+        _seed_user(conn, target, f"{target}@test.uct")
+        _seed_user(conn, control, f"{control}@test.uct")
+        conn.commit()
+        overdue_task_note(target)
+        overdue_task_note(control)
+        conn.commit()
+
+        # Two ET days, two passes: one claim row per member per day.
+        for day in (22, 23):
+            out = nt.run_task_reminders(
+                now=datetime(2026, 9, day, 7, 0, tzinfo=ET), conn=conn, deliver=lambda *a: None,
+            )
+            assert out["delivered"] == 2, f"the reminder pass did not reach both members: {out}"
+        assert reminder_rows(target) == 2 and reminder_rows(control) == 2, "seeding itself is broken"
+
+        result = ap.purge_user_data(target, conn)
+        assert result["ok"] is True
+
+        assert reminder_rows(target) == 0, (
+            "j2_task_reminder_log still holds the deleted member's reminder rows")
+        assert reminder_rows(control) == 2, "an unrelated member's reminder rows changed"
+        assert result["rows_deleted"].get("j2_task_reminder_log") == 2
     finally:
         conn.close()
 

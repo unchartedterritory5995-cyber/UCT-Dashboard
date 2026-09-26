@@ -137,6 +137,10 @@ export function citationLeafText(node) {
     case 'inlineMath':
     case 'blockMath':
       return typeof attrs.latex === 'string' ? attrs.latex : ''
+    // Wave 6: a date mention reads as its ISO date (an INLINE leaf, like
+    // inlineMath) -- the absolute day, never the relative word it shows.
+    case 'dateMention':
+      return typeof attrs.date === 'string' ? attrs.date : ''
     default: return ''
   }
 }

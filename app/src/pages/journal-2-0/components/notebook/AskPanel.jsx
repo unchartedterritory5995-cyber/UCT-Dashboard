@@ -13,6 +13,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import { buildAskInsertNode } from '../../lib/askInsert'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { trackNotebookEvent, NOTEBOOK_EVENTS } from '../../lib/notebookTelemetry'
 import AskInsertPicker from './AskInsertPicker'
 import styles from './AskPanel.module.css'
 
@@ -117,6 +118,9 @@ export default function AskPanel({
   const navAbortRef = useRef(null)
   const abortRef = useRef(null)
   const historyRef = useRef([])
+  // ask_used telemetry (lane F): when the latest answer arrived, so an insert
+  // can report the answer-to-insert time.
+  const answeredAtRef = useRef(0)
   const inputRef = useRef(null)
 
   const supersedeNavigation = useCallback(() => {
@@ -160,6 +164,7 @@ export default function AskPanel({
     setInsertedAnswer(null); setPickNode(null)
     supersedeNavigation(); setNavNotice('')
     const controller = new AbortController()
+    const askStartedAt = Date.now()   // ask_used telemetry: latency to the answer
     abortRef.current = controller
     let text = ''
     try {
@@ -214,6 +219,10 @@ export default function AskPanel({
       if (text.trim()) {
         historyRef.current = [...historyRef.current, { q, a: text }]
         setStatus('done')
+        // ask_used (lane F): an answer landed. `ms` is the latency from the
+        // question to this answer; `inserted` flips on the insert below.
+        answeredAtRef.current = Date.now()
+        trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED, { scope, inserted: false, ms: Date.now() - askStartedAt })
       } else {
         setStatus('error'); setErrorMsg('No answer came back.')
       }
@@ -268,6 +277,11 @@ export default function AskPanel({
   const handleInsert = () => {
     const node = buildNode()
     if (!node) return
+    // ask_used (lane F): the answer is being inserted. `ms` is the time from
+    // the answer landing to this insert (0 when no answer time was recorded).
+    trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED, {
+      scope, inserted: true, ms: answeredAtRef.current ? Date.now() - answeredAtRef.current : 0,
+    })
     if (onInsert) {
       if (onInsert(node) === true) setInsertedAnswer(answer)
       return

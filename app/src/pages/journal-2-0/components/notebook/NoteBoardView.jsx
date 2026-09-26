@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
+import LockedGlyph from './LockedGlyph'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
 import styles from './NoteBoardView.module.css'
 
@@ -203,6 +204,7 @@ export default function NoteBoardView({
                       >
                         {n.title || 'Untitled'}
                       </button>
+                      <LockedGlyph note={n} />
                       {n.ticker ? <span className={styles.ticker}>{n.ticker}</span> : null}
                       {isBlocked ? (
                         // UX #15, 2026-09-22: this used to be text-only, the

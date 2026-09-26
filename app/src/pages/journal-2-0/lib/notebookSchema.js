@@ -93,6 +93,15 @@ export const NOTEBOOK_TYPE_SCHEMA = Object.freeze({
   inlineMath: 1,
   highlight: 1,
   textColor: 1,
+  // ── 2: wave 6 (2026-09-24) — editor content 2 ──
+  column: 2,
+  columns: 2,
+  dateMention: 2,
+  imageCaption: 2,
+  imageFigure: 2,
+  linkPreview: 2,
+  tableOfContents: 2,
+  webEmbed: 2,
 })
 
 /**

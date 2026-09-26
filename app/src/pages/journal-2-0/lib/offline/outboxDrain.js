@@ -15,10 +15,12 @@
  * RETRYING, but the entry and its patch stay: unsynced member work outranks a
  * tidy queue.
  */
-import { clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent } from './notebookDb'
+import {
+  clearOutboxEntry, getMeta, getNote, listOutbox, putNoteWithIntent, putNoteWithIntentIf,
+} from './notebookDb'
 import { usableBaseline, isUsableBaseline, landedBaseline, isSupersededBaseline } from './baseline'
 import { isMarkerLive, markerKeyFor, landedKeyFor, IN_FLIGHT_TTL_MS } from './inFlight'
-import { sameAuthoredContent } from './recoverLocalState'
+import { baseMayStandFor, sameAuthoredContent } from './recoverLocalState'
 import {
   APPEND_ONLY, BODY_REWRITE, METADATA_ONLY, appendedServerNodes, classifyServerChange,
   lastKnownServerCopy, missingServerNodes, serverAppendedKeysIn, snapshotOfServerCopy,
@@ -98,7 +100,7 @@ async function settleForked(db, entry, serverNote) {
  * entry the sibling already preserved, and the sweep forked it AGAIN once the
  * note closed — two `(conflicted copy)` notes for one conflict.
  */
-export async function settleForkedNote(db, noteId, serverNote) {
+export async function settleForkedNote(db, noteId, serverNote, { forked } = {}) {
   // ⛔⛔ A FORK MUST NEVER EMPTY THE WORKING COPY.
   //
   // ⚰️ Every field below falls back to `''` or `null`, so a `fork` that
@@ -113,12 +115,20 @@ export async function settleForkedNote(db, noteId, serverNote) {
   // nobody now — but the content stays exactly as it was. An honest stale body
   // beats an empty one; the next open re-reads the server anyway.
   const usable = serverNote && (serverNote.bodyJson != null || serverNote.title != null)
+  if (forked !== undefined) return settleForkedIfUnmoved(db, noteId, serverNote, usable, forked)
   if (!usable) {
     const rec = await getNote(db, noteId)
-    if (rec) await putNoteWithIntent(db, { ...rec, dirty: 0, serverBase: null }, null)
+    if (rec) await putNoteWithIntent(db, forkSettledRecord(noteId, serverNote, usable, rec), null)
     return
   }
-  await putNoteWithIntent(db, {
+  await putNoteWithIntent(db, forkSettledRecord(noteId, serverNote, usable, null), null)
+}
+
+/** What a settled fork leaves in the durable record — ONE composition, used by
+ *  the sweep's settle and the owner's. Null when there is nothing to write. */
+function forkSettledRecord(noteId, serverNote, usable, rec) {
+  if (!usable) return rec ? { ...rec, dirty: 0, serverBase: null } : null
+  return {
     noteId,
     title: serverNote?.title ?? '',
     subtitle: serverNote?.subtitle ?? '',
@@ -131,7 +141,32 @@ export async function settleForkedNote(db, noteId, serverNote) {
     // ⛔ Clean ⇒ the record IS the base. Carrying a stale snapshot past a fork
     // would let the next conflict classify against a document nobody holds.
     serverBase: null,
-  }, null)
+  }
+}
+
+/**
+ * ⭐⭐ D3b (wave 6) — THE OWNER'S FORK SETTLE, CHECKED AND WRITTEN IN ONE
+ * TRANSACTION. Amendment D3b in `f5Freeze.test.js`; `f5-fixes-2026-09-23.md` §F.
+ *
+ * `forked` is exactly what the `(conflicted copy)` sibling holds. The settle is
+ * only safe while the record, and every queued entry for the note, still hold
+ * exactly that — anything else is a word the sibling does not have. Wave 5
+ * checked it in `settleOwnerFork` and then called the settle above: two reads
+ * and a write, three transactions, and a durable write landing after the last
+ * read was overwritten and its entry deleted. `putNoteWithIntentIf` makes the
+ * check and the write one readwrite transaction, so there is no "after the
+ * check" for a write to land in.
+ *
+ * ⛔ The sweep never passes `forked` and keeps the path above, unchanged.
+ * @returns true when settled · false when refused (the store moved on)
+ */
+function settleForkedIfUnmoved(db, noteId, serverNote, usable, forked) {
+  if (!forked) return Promise.resolve(false)
+  return putNoteWithIntentIf(db, noteId, (rec, queued) => {
+    if (rec && !sameAuthoredContent(rec, forked)) return null
+    if (queued.some((e) => !sameAuthoredContent(e?.patch, forked))) return null
+    return { record: forkSettledRecord(noteId, serverNote, usable, rec), intent: null }
+  })
 }
 
 async function settleBlocked(db, entry, error) {
@@ -188,10 +223,19 @@ async function settleBlocked(db, entry, error) {
  *
  * @returns plan 'merge'  - the server's only change was blocks it appended itself
  *               'rebase' - metadata-only, or no evidence to classify with
- *               'fork'   - the body was rewritten and appends cannot be proven
+ *               'fork'   - the body was rewritten and appends cannot be proven,
+ *                          or the only base is NEWER than the entry (D3b, residual c)
  */
-function ringVouchedPlan(mine, noteRec) {
-  const base = lastKnownServerCopy(noteRec)
+function ringVouchedPlan(mine, noteRec, entry) {
+  const { base, poisoned } = classifiableBase(entry, noteRec)
+  // ⛔⛔ D3b fix round 1, residual (c) — A POISONED BASE IS NOT "NO EVIDENCE".
+  // With no base at all the ring's vouch still stands, and the rebase below is
+  // what this code did before the classification was hoisted. A base NEWER than
+  // the entry is different in kind: it is evidence that the record moved past
+  // the revision the words were written on, and diffing against it hides exactly
+  // the change between the two (a door's appended block reads as "no change").
+  // Unknown, so preserve both: FORK.
+  if (poisoned) return { plan: 'fork', base: null, shape: BODY_REWRITE }
   // NO EVIDENCE IS NOT BODY-REWRITE *HERE*. classifyServerChange answers
   // BODY_REWRITE with no base, because for an UNVOUCHED revision "missing
   // evidence is never a licence to merge". But the ring HAS vouched: we made
@@ -203,6 +247,38 @@ function ringVouchedPlan(mine, noteRec) {
   if (shape === APPEND_ONLY) return { plan: 'merge', base, shape }
   if (shape === BODY_REWRITE) return { plan: 'fork', base, shape }
   return { plan: 'rebase', base, shape }
+}
+
+/**
+ * ⭐⭐ D3b fix round 1, residual (c) — THE ONE PLACE THE DRAIN READS THE BASE IT
+ * CLASSIFIES AGAINST (controller ruling: amendment D3b, `f5Freeze.test.js`).
+ *
+ * ⚰️ THE DEFECT, pre-existing and reached by a closed note: a record settled
+ * BEFORE A-1 carries `acked@landed` as its base — a copy that already holds a
+ * door's appended block — while its queued entry still sits on the OLDER revision
+ * the words were written on. The drain classified the server's copy against that
+ * base, read METADATA_ONLY (the block is on both sides), rebased the queued body
+ * onto the server's revision and sent it: a 200, and the block was gone. Recovery
+ * has refused such a base since review N4 (`baseOfRecovered`); the drain had not.
+ *
+ * ⛔ SO A BASE THAT MAY NOT STAND FOR THE ENTRY IS NOT CLASSIFIED AGAINST — it is
+ * UNKNOWN, and both call sites fork: the ring-vouched plan says so (`poisoned`),
+ * and the diff branch classifies against `null`, which the frozen classifier
+ * reads as BODY_REWRITE ("missing evidence is never a licence to merge").
+ * ⭐ `baseMayStandFor` decides, and it is the SAME function `baseOfRecovered`
+ * asks — so recovery and the sweep cannot disagree about which base is poison.
+ * An equal base is the ordinary shape; an OLDER one is legitimate and can only
+ * see MORE change (fix round 3, N4-b); a NEWER one, or one whose revision cannot
+ * be ordered, is refused.
+ * ⚠️ The legitimate drain-rebase shape (§E.1) is newer too and cannot be told
+ * apart by direction, so it now forks where it rebased: a spurious duplicate,
+ * never a loss — the same trade recovery made.
+ */
+function classifiableBase(entry, noteRec) {
+  const base = lastKnownServerCopy(noteRec)
+  if (!base) return { base: null, poisoned: false }
+  if (baseMayStandFor(base.updatedAt, entry?.baseUpdatedAt)) return { base, poisoned: false }
+  return { base: null, poisoned: true }
 }
 
 
@@ -271,6 +347,20 @@ async function mergeAppends(db, entry, appended, baseUpdatedAt, serverBase) {
   return next
 }
 
+/** D3b — the owner-lock answer, where "unknown" is never "owned": no predicate,
+ *  a null, or a throw all leave the decision to `excludeNoteId`, as before. */
+async function ownedByAnEditor(noteIsOwned, noteId) {
+  if (typeof noteIsOwned !== 'function') return false
+  try { return (await noteIsOwned(noteId)) === true } catch { return false }
+}
+
+const ownedSkip = (entry) => ({
+  mutationId: entry.mutationId,
+  noteId: entry.noteId,
+  outcome: SKIPPED,
+  reason: 'the note is open in an editor (its owner lock is held) — the owner sends it',
+})
+
 async function askServerIfOurs(db, entry, serverCopyIsOurs) {
   if (!serverCopyIsOurs) return null
   const landedRevisions = new Set(await getMeta(db, landedKeyFor(entry.noteId)) || [])
@@ -299,6 +389,12 @@ export async function drainOutbox(db, {
   // copy that caused a 409 is this browser's own landed save. Absent ⇒ the
   // check is skipped and a 409 forks, which is the pre-existing behaviour.
   serverCopyIsOurs = null,
+  // ⭐ D3b (wave 6) — async (noteId) => true | false | null: is this note OPEN
+  // IN AN EDITOR in any tab (its per-note owner Web Lock is held)? The owner
+  // sends its own queued work (F5P-1), so a sweep that sent it too would be the
+  // second writer. Absent, or a null / throw ⇒ unknown ⇒ `excludeNoteId` alone
+  // decides, exactly as before. Amendment D3b in `f5Freeze.test.js`.
+  noteIsOwned = null,
 } = {}) {
   const entries = await listOutbox(db)
   const results = []
@@ -310,12 +406,30 @@ export async function drainOutbox(db, {
     // ⭐ Reported, so an operator reading the drain result can tell a plain
     // rebase from a merge that carried the server's appended blocks back.
     let appendMerged = false
+    // ⭐ D3b fix round 1 (review N-5) — A BLOCKED ENTRY REPORTS BLOCKED, WHOEVER
+    // HAS ITS NOTE OPEN. This branch only REPORTS: it sends nothing, asks nothing
+    // and writes nothing, so it is safe ahead of both "the editor owns it" skips.
+    // ⚰️ Behind them, a blocked entry read SKIPPED whenever its note was open —
+    // in this tab (`excludeNoteId`) or, since D3b, in any tab (the owner lock) —
+    // so the same entry's status depended on which tab happened to lead, and
+    // `summarize().blocked` undercounted exactly while the member was looking.
+    if (entry.permanent) {
+      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+      continue
+    }
     if (excludeNoteId && entry.noteId === excludeNoteId) {
       results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: SKIPPED })
       continue
     }
-    if (entry.permanent) {
-      results.push({ mutationId: entry.mutationId, noteId: entry.noteId, outcome: BLOCKED })
+    // ⛔⛔ D3b — `excludeNoteId` IS PER MOUNT, AND THE LEADER MAY BE ANOTHER TAB.
+    // A note open in tab A while tab B leads was sent by B's sweep while A's
+    // editor was still its writer: the owner's own send then 409'd against its
+    // own words and forked the member's note. The owner lock is per NOTE, so
+    // whichever tab leads can see it. SKIPPED, not blocked — nothing is wrong
+    // with the entry; it is the owner's to send, and the sweep's once it closes.
+    // eslint-disable-next-line no-await-in-loop
+    if (await ownedByAnEditor(noteIsOwned, entry.noteId)) {
+      results.push(ownedSkip(entry))
       continue
     }
     // ⛔⛔ A WRITE THAT CANNOT PROVE IT IS NOT CLOBBERING IS NEVER SENT.
@@ -462,7 +576,7 @@ export async function drainOutbox(db, {
           // just captured — and this path never 409s, so nothing downstream
           // could catch it. `ringVouchedPlan` is the one authority; the 409
           // handler below asks it the same question.
-          const ring = ringVouchedPlan(mine, noteRec)
+          const ring = ringVouchedPlan(mine, noteRec, entry)
           if (ring.plan === 'merge') {
             // eslint-disable-next-line no-await-in-loop
             const mergedEntry = await mergeAppends(
@@ -532,6 +646,15 @@ export async function drainOutbox(db, {
       })
       continue
     }
+    // ⛔ D3b — ASKED AGAIN, AT THE LAST MOMENT BEFORE THE SEND. The checks above
+    // can include a network round trip (`askServerIfOurs`), and a note opened
+    // during it is the owner's now. Whatever the pre-send path rebased stays
+    // queued, as a rebased entry, for the owner to adopt.
+    // eslint-disable-next-line no-await-in-loop
+    if (await ownedByAnEditor(noteIsOwned, entry.noteId)) {
+      results.push(ownedSkip(entry))
+      continue
+    }
     try {
       // eslint-disable-next-line no-await-in-loop
       const saved = await send(entry)
@@ -587,7 +710,7 @@ export async function drainOutbox(db, {
           // authority: `ringVouchedPlan`. Two copies of it is how the pre-send
           // path and this one drifted into answering it identically wrong.
           const ring = (mine?.ours && !retriedRebase)
-            ? ringVouchedPlan(mine, noteRec)
+            ? ringVouchedPlan(mine, noteRec, entry)
             : { plan: null, base: null, shape: null }
           if (mine?.serverUpdatedAt && ring.plan === 'merge') {
             // ⭐ The server appended and we still owe it the member's words.
@@ -677,7 +800,9 @@ export async function drainOutbox(db, {
           // and classifying against a stale document is how you merge into a
           // note that has moved again.
           if (!retriedRebase && mine?.serverNote && isUsableBaseline(mine.serverUpdatedAt)) {
-            const base = lastKnownServerCopy(noteRec)
+            // ⛔ D3b fix round 1, residual (c): never a base NEWER than the entry —
+            // `classifiableBase` answers null for one, and null forks.
+            const { base } = classifiableBase(entry, noteRec)
             const shape = classifyServerChange(mine.serverNote, base)
             const snapshot = snapshotOfServerCopy(mine.serverNote, mine.serverUpdatedAt)
             let merged = null

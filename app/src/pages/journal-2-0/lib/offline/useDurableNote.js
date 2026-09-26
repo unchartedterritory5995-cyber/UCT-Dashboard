@@ -42,6 +42,7 @@ import {
 import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
+import { holdNoteOwnerLock } from './noteOwnerLock'
 
 /** No durable store here at all (a private window, an old browser). Reported,
  *  never papered over — the product degrades truthfully. */
@@ -62,6 +63,14 @@ holdSessionLock(SESSION_ID)
  *  pending intent instead of queuing a second one. The outbox holds what we
  *  still owe the server, not a history of what we typed. */
 export const outboxIdFor = (noteId) => `note:${noteId}`
+
+/** A crash draft as a draft written before D3b reads: no recorded base. */
+function withoutRecordedBase(lsDraft) {
+  if (!lsDraft || typeof lsDraft !== 'object') return lsDraft
+  const rest = { ...lsDraft }
+  delete rest.baseUpdatedAt
+  return rest
+}
 
 // ── one connection per account, shared by every editor mount ────────────────
 const _conns = new Map()
@@ -422,20 +431,20 @@ export async function settleLandedSave({
  * own view has moved, FLUSHES that snapshot before it swaps the view to the
  * server copy (re-review R1, fix round 2). Otherwise the next keystroke on the
  * new view supersedes it before it is ever written.
- * ⚠️ Residual, stated: a flush while a durable write is already in flight
- * defers to that write, so a snapshot queued behind it can still be superseded
- * by a later keystroke. The window is the rest of one durable write cycle (a
- * read then a write — `getNote`, then `putNoteWithIntent`, in `persist`).
- * ⚠️ The check and the settle are THREE IndexedDB transactions — `getNote`,
- * `listOutbox`, then the write inside `settleForkedNote` — so the window runs
- * from the first read to that write: milliseconds usually, hundreds on a slow
- * store. What can land in it is a durable write scheduled before the editor's
- * own check (content the sibling holds), or a keystroke's write made AFTER the
- * view swap. The second loses nothing: `persist`'s fix-6 guard keeps the
- * record's words rather than write `fresh+keystroke` over them, and the
- * editor's post-settle RE-READ sees its view moved off the server copy and
- * keeps that keystroke's draft and autosave (rail: `f5p1OwnerSendsQueued`,
- * S1′). The protection is that re-read — not the writer's debounce.
+ * ⭐ D3b (wave 6): a flush while a durable write is already in flight no longer
+ * defers to that write and lets a later keystroke supersede it — the writer
+ * PINS the flushed snapshot and writes it right after the in-flight one, before
+ * anything scheduled later (`durableWriter.js`, `flush`). ⚰️ This said "residual,
+ * stated: … the window is the rest of one durable write cycle" until D3b.
+ * ⭐ D3b (wave 6): the check and the settle are ONE readwrite transaction
+ * (`settleForkedNote(…, { forked })` → `putNoteWithIntentIf`). ⚰️ Until D3b they
+ * were THREE — `getNote`, `listOutbox`, then the write — and a durable write
+ * landing after the last read (a keystroke's snapshot, another tab's writer)
+ * was overwritten and its queued entry deleted. Now IndexedDB orders any other
+ * readwrite transaction on these stores wholly before this one (the check sees
+ * it and refuses) or wholly after (it lands on top of the settled copy).
+ * The editor's post-settle RE-READ still keeps a keystroke made on top of the
+ * server copy (rail: `f5p1OwnerSendsQueued`, S1′).
  *
  * ⛔ Store-direct and mount-independent, like `settleLandedSave`; never throws;
  * and with the wave switched off it writes nothing (§21).
@@ -454,12 +463,7 @@ export async function settleOwnerFork({
   if (!forked) return false
   try {
     const db = await connect(accountId)
-    const rec = await getNote(db, noteId)
-    if (rec && !sameAuthoredContent(rec, forked)) return false
-    const queued = (await listOutbox(db)).filter((e) => e?.noteId === noteId)
-    if (queued.some((e) => !sameAuthoredContent(e.patch, forked))) return false
-    await settleForkedNote(db, noteId, serverNote)
-    return true
+    return (await settleForkedNote(db, noteId, serverNote, { forked })) === true
   } catch { return null }
 }
 
@@ -506,6 +510,20 @@ export function useDurableNote({
       .catch(() => { if (!cancelled) setPersisted(null) })
     return () => { cancelled = true }
   }, [supported])
+
+  // ⭐⭐ D3b (wave 6) — WHILE THIS NOTE IS OPEN HERE, EVERY TAB CAN SEE THAT IT
+  // IS. This hook is mounted by the editor and nothing else, so holding the
+  // note's owner Web Lock for the life of the mount IS "open in an editor". The
+  // leading tab's sweep asks for it (`useOutboxDrain` → `drainOutbox`'s
+  // `noteIsOwned`) and leaves the note to this editor, which sends its queued
+  // words itself (F5P-1). Released on unmount and on `pagehide`; the browser
+  // releases it when the tab dies. With no Web Locks this takes nothing and
+  // throws nothing (see `noteOwnerLock.js`). Gated like everything else here:
+  // with the wave switched off nothing drains, so nothing needs to know.
+  useEffect(() => {
+    if (!supported) return undefined
+    return holdNoteOwnerLock(accountId, noteId)
+  }, [supported, accountId, noteId])
 
   useEffect(() => {
     if (!supported) {
@@ -680,17 +698,27 @@ export function useDurableNote({
         queued = null
       }
     }
-    const decision = chooseLocalRecovery({ server, idbRecord, lsDraft })
+    // ⛔ D3b — WITH THE WAVE SWITCHED OFF, A DRAFT IS READ EXACTLY AS BEFORE D3b.
+    // The editor now records the revision a draft was typed on; off, that is
+    // ignored here (the decision's baseline stays the server's, as it was) and
+    // the draft is not handed to `baseOfRecovered`, so the kill switch rolls the
+    // Restore change back along with everything else.
+    const draft = supported ? lsDraft : withoutRecordedBase(lsDraft)
+    const decision = chooseLocalRecovery({ server, idbRecord, lsDraft: draft })
     // ⭐ `adopt` is non-null ONLY for provably queued work: the owning editor
     // then holds those words and sends them through its own save, on the
     // baseline they were written on. Null keeps the banner exactly as before.
     // ⭐ `base` is what the recovered words were written on, when provable —
     // what Restore must save against so a moved server 409s into the editor's
-    // reconcile instead of being overwritten (see `baseOfRecovered`).
+    // reconcile instead of being overwritten (see `baseOfRecovered`). ⭐ D3b: for
+    // a crash draft that won too, and — when only the REVISION is provable — a
+    // base whose body is unknown, so any move of the server forks.
     return {
       ...decision,
       adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
-      base: baseOfRecovered({ decision, record: idbRecord, entry: queued }),
+      base: baseOfRecovered({
+        decision, record: idbRecord, entry: queued, draft: supported ? lsDraft : null, server,
+      }),
     }
   }, [supported, accountId, noteId, connect])
 

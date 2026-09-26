@@ -118,6 +118,8 @@ _ATOM_TEXT = {
     "hardBreak": lambda a: " ",
     "inlineMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
     "blockMath": lambda a: a.get("latex") if isinstance(a.get("latex"), str) else "",
+    # Wave 6: a date mention reads as its ISO date (inline: no separator).
+    "dateMention": lambda a: a.get("date") if isinstance(a.get("date"), str) else "",
 }
 
 
@@ -173,18 +175,27 @@ _LEAF_TYPES = frozenset({
     "askCitation",
     # Wave 5: formulas (mathNodes.js) -- atoms holding their LaTeX in attrs.
     "inlineMath", "blockMath",
+    # Wave 6: a pasted link's preview card and an allowlisted embedded player
+    # (webLinkNodes.js) -- block atoms that read as nothing (one position).
+    "linkPreview", "webEmbed",
+    # Wave 6: @date mentions (dateMentionNode.js) -- an inline atom.
+    "dateMention",
+    # Wave 6: /toc (tableOfContentsNode.js) -- a block leaf with no text.
+    "tableOfContents",
 })
 
 # Leaves that sit INSIDE a textblock. textBetween only ever emits a separator
 # for a BLOCK leaf, so the walker must know which leaves are inline.
 _INLINE_LEAF_TYPES = frozenset({"hardBreak", "noteLink", "askCitation", "videoTimestamp",
-                                "inlineMath"})
+                                "inlineMath", "dateMention"})
 
 # Textblocks (content is inline). An EMPTY one still emits a separator in
 # textBetween, and an empty one carries no `content` to infer that from -- so
 # the type must be known. Pinned against getSchema(buildExtensions()) by
 # askCitation.schemaParity.test.js, which reads these literals.
-_TEXTBLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock", "toggleSummary"})
+_TEXTBLOCK_TYPES = frozenset({"paragraph", "heading", "codeBlock", "toggleSummary",
+                              # Wave 6: an image's caption is the member's text.
+                              "imageCaption"})
 
 # Every OTHER type with content -- lists, quotes, tables, toggles, callouts,
 # askInsert, the doc itself. `isTextblock` is a TYPE property in ProseMirror,
@@ -197,6 +208,10 @@ _BLOCK_CONTAINER_TYPES = frozenset({
     "doc", "blockquote", "bulletList", "orderedList", "listItem", "taskList",
     "taskItem", "table", "tableRow", "tableHeader", "tableCell", "callout",
     "toggle", "toggleContent", "askInsert",
+    # Wave 6: the figure holding an image and its caption.
+    "imageFigure",
+    # Wave 6: side-by-side columns and each column.
+    "columns", "column",
 })
 
 # G-064 (spec §7.2): a container whose text is an inserted Ask Notebook answer.

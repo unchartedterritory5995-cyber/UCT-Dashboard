@@ -106,11 +106,25 @@ _DIRECT_USER_TABLES = (
     "j2_broker_drift_series",
     "j2_broker_precise_times",
     "j2_broker_live_checks",
+    # Wave 6 (lane E, member templates) — a member's own "Save as template"
+    # copies (note_templates.py); a copy, never a link to the note it was
+    # made from. Wave 6 fix round 1, I3.
+    "j2_note_templates",
+    # Wave 6 (Phase 2, task reminders) — the daily reminder's claim log
+    # (note_tasks.run_task_reminders): which member was reminded on which ET
+    # day, and how many of their tasks were due and overdue. Created lazily
+    # by that pass, so on a pod where it never ran this is a "no such table"
+    # no-op. Wave 6 fix round 4, R4-4.
+    "j2_task_reminder_log",
 )
 
 # j2_broker_digest_dedup is deliberately excluded: it is a single global row
 # (id='fleet_digest') for the OWNER's own fleet-check digest, not per-user
 # member data — nothing to purge per account.
+#
+# j2_task_reminder_runs is deliberately excluded too: one row per ET DAY
+# (day, ran_at, members, delivered) recording that the reminder pass closed
+# that day — counts only, no user_id, nothing that names a member.
 
 
 def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:

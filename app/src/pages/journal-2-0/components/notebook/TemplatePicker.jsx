@@ -5,9 +5,13 @@
 // that artifact — see the templates plan §3).
 import { useNavigate } from 'react-router-dom'
 import { FAMILIES, templatesByFamily } from '../../lib/notebookTemplates'
+import MemberTemplates from './MemberTemplates'
 import styles from './TemplatePicker.module.css'
 
-export default function TemplatePicker({ onPick, busy = false }) {
+// Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
+// their notes) right after Blank — the templates a member made are the ones
+// they reach for first. Absent, the picker is exactly the built-in catalog.
+export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
   const navigate = useNavigate()
   return (
     <div className={styles.wrap}>
@@ -20,6 +24,8 @@ export default function TemplatePicker({ onPick, busy = false }) {
         <span className={styles.cardLabel}>Blank note</span>
         <span className={styles.cardDesc}>An empty page — structure it your way.</span>
       </button>
+
+      {onPickMember && <MemberTemplates onPick={onPickMember} busy={busy} />}
 
       {FAMILIES.map((fam) => (
         <section key={fam.key} className={styles.family}>

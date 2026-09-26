@@ -61,6 +61,7 @@ import contextlib
 import contextvars
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import anyio
 
@@ -186,8 +187,20 @@ def _relative_link(note_folder: str, zip_rel: str) -> str:
     """A markdown link from a .md file living at `note_folder` (folder ONLY,
     no filename -- '' means the archive root) to `zip_rel`, so the exported
     archive is portable on its own (no server, no auth) rather than merely
-    accompanied by orphan binaries."""
-    return posixpath.relpath(zip_rel, note_folder or ".")
+    accompanied by orphan binaries.
+
+    ⛔⛔ PERCENT-ENCODED, ONE SEGMENT AT A TIME (wave 6 fix round 1, I2).
+    ⚰️ It returned the path as-is, and a CommonMark link destination cannot hold
+    a space: `[Cup and handle](../Trading/Setups/Cup and handle.md)` is literal
+    text to GitHub, Obsidian and our own importer's markdown-it alike -- and most
+    note titles have a space. A raw `#` read as a fragment, a `%` as the start of
+    an escape, an unbalanced `(` as the end of the link. Every character outside
+    RFC 3986's unreserved set is encoded (non-ASCII as its UTF-8 bytes); `/`
+    stays the separator and `..` stays `..`. Our importer decodes it back
+    (`lib/importer/adapters/generic.js` resolvePath: decodeURIComponent, then
+    resolve against the linking doc's own directory)."""
+    rel = posixpath.relpath(zip_rel, note_folder or ".")
+    return "/".join(quote(seg, safe="") for seg in rel.split("/"))
 
 
 def _make_attachment_resolver(user_id: str, note_folder: str, note_id: str,
@@ -271,6 +284,7 @@ _DOCUMENT_EXCERPT_MARKER = "document-excerpt://"
 
 def _make_note_link_aware_resolver(
     user_id: str, conn: sqlite3.Connection, base_resolver, note_paths: dict[str, str] | None = None,
+    note_folder: str = "",
 ):
     """Wraps `base_resolver` (an attachment resolver) so the SAME resolver
     parameter `_block`'s `noteLink` case calls also answers
@@ -281,10 +295,16 @@ def _make_note_link_aware_resolver(
     excerpt export is "a major requirement"): rather than a fourth resolver
     parameter, one more marker prefix on the same mechanism.
 
-    `note_paths`, when given, maps note id -> the RELATIVE .md path that
-    note was (or will be) written to IN THIS SAME EXPORT (directive §57:
-    full export resolves a link to another bundled note as a real relative
-    path). Without it (the single-note-export case, directive §56), a
+    `note_paths`, when given, maps note id -> the archive path (no `.md`)
+    that note was (or will be) written to IN THIS SAME EXPORT (directive §57:
+    an export resolves a link to another bundled note as a real relative
+    path). ⭐ Wave 6 (item 10): the link is RELATIVE TO THE LINKING NOTE'S OWN
+    FOLDER (`note_folder`, '' = the archive root), the way every Markdown
+    reader -- and our own importer (generic.js resolves a link against the
+    doc's own directory) -- reads it. ⚰️ It used to be the target's
+    archive-ROOT path, which is right only for a note at the root: from
+    `Trading/Setups/a.md`, a link written `Research/b.md` pointed at
+    `Trading/Setups/Research/b.md`, a file that does not exist. Without it (the single-note-export case, directive §56), a
     resolved target renders as an honest, clearly-internal reference URL
     that does NOT pretend the target file is present in this archive.
 
@@ -339,7 +359,7 @@ def _make_note_link_aware_resolver(
             # what _compute_note_export_paths hands the main loop, which
             # appends ".md" itself right before zf.writestr(). The actual
             # file inside the archive is `f"{path}.md"`; the link must match.
-            return title, f"{note_paths[note_id]}.md"
+            return title, _relative_link(note_folder, f"{note_paths[note_id]}.md")
         # Not bundled in this export -- an honest, clearly-internal
         # reference, never a fabricated local file path.
         return title, f"uct-note:///notebook?note={note_id}"
@@ -381,6 +401,105 @@ def _raw_dollars():
         yield
     finally:
         _ESCAPE_PROSE_DOLLARS.reset(token)
+
+
+# Wave 6: a stored card or embed link is exported only when it is a plain web
+# link (never javascript:, never a relative path smuggled into attrs).
+_WEB_LINK = re.compile(r"^https?://[^\s<>()]+$", re.I)
+_EMBED_LABELS = {"youtube": "YouTube video", "tradingview": "TradingView chart"}
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# Wave 6: a table of contents lists the headings of the WHOLE note, which
+# `_block` (one node at a time) cannot see -- so `tiptap_to_markdown` reads
+# them once per document into this context variable, and the tableOfContents
+# case renders from it. Outside a document walk it is empty.
+_TOC_HEADINGS: contextvars.ContextVar[list | None] = contextvars.ContextVar(
+    "notes_export_toc_headings", default=None)
+_SLUG_DROP = re.compile(r"[^\w\- ]", re.UNICODE)
+
+
+def _heading_text(node: dict[str, Any]) -> str:
+    parts: list[str] = []
+
+    def walk(n: Any) -> None:
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "text" and isinstance(n.get("text"), str):
+            parts.append(n["text"])
+        for c in n.get("content") or []:
+            walk(c)
+
+    walk(node)
+    return " ".join("".join(parts).split())
+
+
+def _toc_headings(doc: Any) -> list[tuple[int, str]]:
+    """Every heading in document order: (level, text) -- the editor's outline."""
+    out: list[tuple[int, str]] = []
+
+    def walk(n: Any) -> None:
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "heading":
+            attrs = n.get("attrs") if isinstance(n.get("attrs"), dict) else {}
+            try:
+                level = int(attrs.get("level") or 1)
+            except (TypeError, ValueError):
+                level = 1
+            out.append((min(max(level, 1), 6), _heading_text(n)))
+            return
+        for c in n.get("content") or []:
+            walk(c)
+
+    walk(doc)
+    return out
+
+
+def _heading_slug(text: str, used: dict[str, int]) -> str:
+    """GitHub-style anchor: lower-case, punctuation dropped, spaces to hyphens,
+    a repeat numbered -1, -2 ... (what GitHub, and most Markdown renderers that
+    anchor headings, generate)."""
+    base = _SLUG_DROP.sub("", text.strip().lower()).replace(" ", "-")
+    n = used.get(base, 0)
+    used[base] = n + 1
+    return base if n == 0 else f"{base}-{n}"
+
+
+def _toc_markdown(headings: list[tuple[int, str]]) -> str:
+    named = [(lvl, txt) for lvl, txt in headings if txt]
+    if not named:
+        return ""
+    base = min(lvl for lvl, _ in named)
+    used: dict[str, int] = {}
+    lines = []
+    for lvl, txt in headings:
+        slug = _heading_slug(txt, used)   # every heading takes its anchor, named or not
+        if not txt:
+            continue
+        lines.append(f"{'  ' * (lvl - base)}- [{_link_label(_prose(txt))}](#{slug})")
+    return "\n".join(lines)
+
+
+# A backslash run, and whether a `$` closes it.
+_BACKSLASH_RUN = re.compile(r"(\\+)(\$?)")
+
+
+def _link_label(prose: str) -> str:
+    """Link TEXT from text `_prose` has ALREADY made safe (wave 6 fix round 1).
+
+    ⛔⛔ ONE `$` AUTHORITY, AND THE ORDER IS THE WHOLE TRAP. The TOC used to
+    escape `$` itself (a second copy of `_prose`'s rule, which a later fix to
+    `_prose` would never have reached -- `lesson_a_guard_repeated_is_a_guard_unproved`).
+    It now takes `_prose`'s output and adds only what LINK text needs: `[` and
+    `]` escaped, and every backslash doubled so none of the member's escapes
+    anything -- EXCEPT a run that ends at a `$`. `_prose` already turned that
+    run into an escaped backslash per member backslash plus an escaped dollar
+    (R2-N4: `cost \\$5` -> `cost \\\\\\$5`); doubling it again would give three
+    literal backslashes and a LIVE `$` a math reader pairs. Railed on exactly
+    that heading, and on every heading reading back as itself through
+    markdown-it-py (tests/test_notes_export_wave6.py)."""
+    doubled = _BACKSLASH_RUN.sub(lambda m: m.group(0) if m.group(2) else m.group(1) * 2, prose)
+    return doubled.replace("[", "\\[").replace("]", "\\]")
 
 
 # A run of backslashes the member typed right before a `$` (R2-N4).
@@ -531,20 +650,98 @@ def _list_items(node: dict[str, Any], bullet, depth: int = 0, resolver=None) -> 
     return "\n".join(lines)
 
 
+_GFM_ALIGN = {"left": ":---", "center": ":---:", "right": "---:"}
+
+# The callout styles calloutNode.js offers (CALLOUT_VARIANTS). ⛔ ONE FACT IN TWO
+# FILES: tests/test_notes_export_wave6.py PARSES the client list and asserts
+# they are equal, so a style added on one side cannot export as an emoji box.
+_CALLOUT_VARIANTS = frozenset({"note", "info", "success", "warning", "danger"})
+
+
+def _gfm_cell(cell: dict[str, Any], resolver=None) -> str:
+    """One table cell as GFM: a cell is ONE line, so its blocks (and any line
+    break inside them) are joined with `<br>` -- the form every GFM renderer
+    shows as a line break inside a cell -- and a literal `|` is escaped, or it
+    would split the cell in two (GFM requires the escape inside a code span
+    too, and removes the backslash when it renders)."""
+    parts = [_block(c, resolver) for c in (cell.get("content") or []) if isinstance(c, dict)]
+    text = "<br>".join(p.strip() for p in parts if p.strip() != "")
+    text = text.replace("\r\n", "\n").replace("\n", "<br>")
+    return text.replace("|", "\\|")
+
+
 def _table(node: dict[str, Any], resolver=None) -> str:
+    """A table as a GFM pipe table (wave 6).
+
+    Fidelity over prettiness (module docstring):
+      - a cell is one line (`_gfm_cell`), never a raw newline that ends the row;
+      - ragged rows are padded so every row has the same number of cells, and a
+        merged cell (`colspan`) keeps its neighbours in their columns;
+      - GFM cannot express a table WITHOUT a header row, so a table whose first
+        row is not header cells gets a BLANK header row instead of silently
+        promoting its first data row to one;
+      - a column's alignment (the cell `align` attr the table extension stores)
+        becomes the delimiter row's `:---` / `:---:` / `---:`.
+    """
     rows: list[list[str]] = []
-    for row in node.get("content") or []:
-        cells = [
-            "\n".join(_block(c, resolver) for c in (cell.get("content") or [])).strip()
-            for cell in (row.get("content") or [])
-        ]
+    aligns: list[str | None] = []
+    header = False
+    # M8 (wave 6 fix round 1): a `rowspan` cell occupies its columns in the rows
+    # BELOW it too. GFM cannot merge vertically, so a covered slot is written
+    # blank -- and the row's own cells stay under their headers. (They used to
+    # shift left into the covered column.) row number -> covered column indexes.
+    covered: dict[int, set[int]] = {}
+
+    def _span(attrs: dict, key: str) -> int:
+        try:
+            return max(1, min(int(attrs.get(key) or 1), 64))
+        except (TypeError, ValueError):
+            return 1
+
+    for r_index, row in enumerate(node.get("content") or []):
+        if not isinstance(row, dict):
+            continue
+        row_no = len(rows)
+        taken = covered.pop(row_no, set())
+        cells: list[str] = []
+        kinds: list[str] = []
+
+        def _skip_covered() -> None:
+            while len(cells) in taken:
+                cells.append("")
+                kinds.append(kinds[-1] if kinds else "")
+
+        for cell in row.get("content") or []:
+            if not isinstance(cell, dict):
+                continue
+            _skip_covered()
+            attrs = cell.get("attrs") if isinstance(cell.get("attrs"), dict) else {}
+            col = len(cells)
+            cells.append(_gfm_cell(cell, resolver))
+            kinds.append(cell.get("type") or "")
+            if r_index == 0:
+                aligns.append(attrs.get("align") if attrs.get("align") in _GFM_ALIGN else None)
+            span = _span(attrs, "colspan")
+            for _ in range(span - 1):
+                cells.append("")
+                kinds.append(kinds[-1])
+                if r_index == 0:
+                    aligns.append(None)
+            for below in range(1, _span(attrs, "rowspan")):
+                covered.setdefault(row_no + below, set()).update(range(col, col + span))
+        _skip_covered()
+        if r_index == 0:
+            header = bool(kinds) and all(k == "tableHeader" for k in kinds)
         rows.append(cells)
     if not rows:
         return ""
-    out = ["| " + " | ".join(rows[0]) + " |",
-           "| " + " | ".join("---" for _ in rows[0]) + " |"]
-    for r in rows[1:]:
-        out.append("| " + " | ".join(r) + " |")
+    width = max(1, max(len(r) for r in rows))
+    rows = [r + [""] * (width - len(r)) for r in rows]
+    aligns = (aligns + [None] * width)[:width]
+    head, body = (rows[0], rows[1:]) if header else ([""] * width, rows)
+    line = lambda cells: "| " + " | ".join(cells) + " |"  # noqa: E731
+    out = [line(head), line([_GFM_ALIGN.get(a or "", "---") for a in aligns])]
+    out += [line(r) for r in body]
     return "\n".join(out)
 
 
@@ -646,6 +843,67 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         local = resolver(src) if resolver else None
         # The alt stays raw -- see the N4 note above `_ESCAPE_PROSE_DOLLARS`.
         return f"![{attrs.get('alt') or ''}]({local or src})"
+    if ntype == "imageFigure":
+        # Wave 6: an image and its caption. The caption is the member's TEXT,
+        # so it exports as an italic line straight under the image (no blank
+        # line between: one paragraph, so every reader keeps them together).
+        # Read by NAME, never by position -- a future/older client's shape
+        # must not raise or drop the image (module docstring).
+        image = next((c for c in (kids or []) if isinstance(c, dict)
+                      and c.get("type") in ("image", "resizableImage")), None)
+        caption = next((c for c in (kids or []) if isinstance(c, dict)
+                        and c.get("type") == "imageCaption"), None)
+        img = _block(image, resolver) if image else ""
+        cap = _inline((caption or {}).get("content"), resolver).replace("\n", " ").strip() if caption else ""
+        if cap:
+            return f"{img}\n*{cap}*" if img else f"*{cap}*"
+        return img
+    if ntype == "imageCaption":
+        return _inline(kids, resolver)
+    if ntype in ("columns", "column"):
+        # Wave 6: Markdown has no columns, so side-by-side columns export as
+        # SEQUENTIAL sections, in column order -- every block kept, each its own
+        # paragraph (blank-line separated, as the top level is). A column that
+        # is not a dict, or holds nothing, contributes nothing and never raises.
+        parts: list[str] = []
+        for child in kids or []:
+            if not isinstance(child, dict):
+                continue
+            text = _block(child, resolver)
+            if text.strip():
+                parts.append(text)
+        return "\n\n".join(parts)
+    if ntype == "linkPreview":
+        # Wave 6: a preview card exports as the link it is (its title as the
+        # text) with its description as a quoted line under it. The card's
+        # fields are the member's stored attrs -- nothing is fetched here.
+        url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
+        label = next((v.strip() for v in (attrs.get("title"), attrs.get("domain"), url)
+                      if isinstance(v, str) and v.strip()), "")
+        if not label:
+            return ""
+        line = (_text_with_marks({"text": label, "marks": [{"type": "link", "attrs": {"href": url}}]}, resolver)
+                if _WEB_LINK.match(url) else _text_with_marks({"text": label}, resolver))
+        desc = attrs.get("description")
+        if isinstance(desc, str) and desc.strip():
+            return f"{line}\n\n> {_text_with_marks({'text': ' '.join(desc.split())}, resolver)}"
+        return line
+    if ntype == "tableOfContents":
+        # Wave 6: the note's headings as a Markdown list of anchor links.
+        return _toc_markdown(_TOC_HEADINGS.get() or [])
+    if ntype == "dateMention":
+        # Wave 6: a date mention exports as its ABSOLUTE date -- the relative
+        # word the editor shows ("Tomorrow") would be wrong the day after.
+        date = attrs.get("date")
+        return date if isinstance(date, str) and _ISO_DATE.match(date) else ""
+    if ntype == "webEmbed":
+        # Wave 6: Markdown has no player, so an embed exports as a link to what
+        # it plays. The iframe address is never exported (only the page link).
+        url = attrs.get("url") if isinstance(attrs.get("url"), str) else ""
+        if not _WEB_LINK.match(url):
+            return ""
+        label = _EMBED_LABELS.get(attrs.get("provider"), "Embedded link")
+        return _text_with_marks({"text": label, "marks": [{"type": "link", "attrs": {"href": url}}]}, resolver)
     if ntype == "attachmentChip":
         href = attrs.get("href") or ""
         local = resolver(href) if resolver else None
@@ -720,6 +978,21 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         emoji = str(attrs.get("emoji") or "\U0001F4A1")
         with _raw_dollars():  # an HTML island (N4 above)
             inner = "\n".join(b for b in (_block(c, resolver) for c in (kids or [])) if b != "")
+        # Wave 6: a STYLED callout (calloutNode.js CALLOUT_VARIANTS) carries its
+        # style as `data-variant` on the `<aside>` -- the attribute the node's
+        # own parseHTML reads back -- and no emoji: its icon is chrome, and a
+        # leading emoji would be re-imported as the member's text. An emoji
+        # callout (every Notion import) exports exactly as before.
+        raw_variant = attrs.get("variant")
+        variant = raw_variant if isinstance(raw_variant, str) and raw_variant in _CALLOUT_VARIANTS else None
+        if variant:
+            # ⛔ THROUGH `_html_island`, like its emoji sibling (wave 6 whole-
+            # branch review I-4). Outside it, a child's own blank line (a code
+            # block with an empty line) ended the HTML block and the rest of the
+            # callout escaped into Markdown -- on the default path, since every
+            # callout wave 6 creates is styled.
+            return _html_island(f'<aside data-variant="{variant}">\n{inner}\n</aside>' if inner else
+                                f'<aside data-variant="{variant}">\n</aside>')
         first_line = f"{emoji} {inner}" if inner else emoji
         return _html_island(f"<aside>\n{first_line}\n</aside>")
     if ntype == "toggle":
@@ -760,7 +1033,11 @@ def tiptap_to_markdown(doc: dict[str, Any] | None, *, attachment_resolver=None) 
     identical output to before attachment bundling existed."""
     if not isinstance(doc, dict):
         return ""
-    blocks = [_block(n, attachment_resolver) for n in (doc.get("content") or [])]
+    token = _TOC_HEADINGS.set(_toc_headings(doc))
+    try:
+        blocks = [_block(n, attachment_resolver) for n in (doc.get("content") or [])]
+    finally:
+        _TOC_HEADINGS.reset(token)
     return "\n\n".join(b for b in blocks if b != "").strip()
 
 
@@ -1394,7 +1671,8 @@ def _compute_note_export_paths(
 
 def _write_notes_archive(
     zf: zipfile.ZipFile, user_id: str, conn: sqlite3.Connection,
-) -> None:
+    note_ids: list[str] | None = None,
+) -> dict[str, Any]:
     """Writes every note `user_id` owns -- markdown + front matter + bundled
     attachments -- into an already-open `zf`, plus the unconditional
     `_EXPORT_MANIFEST_NAME` self-identification marker and EXPORT_ISSUES.txt
@@ -1405,7 +1683,15 @@ def _write_notes_archive(
     identical either way, so it lives here once.
 
     ⛔ Scoped by user_id in SQL, never filtered in Python -- an export is the
-    highest-blast-radius place a tenancy mistake could land."""
+    highest-blast-radius place a tenancy mistake could land.
+
+    ⭐ Wave 6 (item 10): `note_ids` makes it a SELECTION export -- the same
+    writer, restricted (in SQL, still by user_id) to those notes. Each keeps its
+    folder path inside the zip, a link between two selected notes is a relative
+    `.md` path, and a link to a note NOT selected stays the honest not-bundled
+    reference. A requested id that is not an active note of this member is
+    skipped and listed in EXPORT_ISSUES.txt. Returns
+    `{"exported": n, "skipped": [ids]}`."""
     folders = {
         r["id"]: (r["name"], r["parent_id"]) for r in conn.execute(
             "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
@@ -1416,13 +1702,28 @@ def _write_notes_archive(
     # see everywhere else (list, search, tags, backlinks). The 30-day
     # retention window is the safety net for "I want it back", not the
     # export.
-    rows = conn.execute(
+    select = (
         "SELECT id, title, subtitle, body_json, tags, ticker, folder_id,"
         " hero_image_url, created_at, updated_at, import_source, import_key,"
         " imported_at FROM j2_notes"
-        " WHERE user_id = ? AND deleted_at IS NULL ORDER BY updated_at DESC",
-        (user_id,),
-    ).fetchall()
+        " WHERE user_id = ? AND deleted_at IS NULL"
+    )
+    requested: list[str] = []
+    if note_ids is None:
+        rows = conn.execute(f"{select} ORDER BY updated_at DESC", (user_id,)).fetchall()
+    else:
+        seen_ids: set[str] = set()
+        for nid in note_ids:
+            if isinstance(nid, str) and nid and nid not in seen_ids:
+                seen_ids.add(nid)
+                requested.append(nid)
+        # One JSON parameter, never one `?` per id: no variable-count ceiling.
+        rows = conn.execute(
+            f"{select} AND id IN (SELECT value FROM json_each(?)) ORDER BY updated_at DESC",
+            (user_id, json.dumps(requested)),
+        ).fetchall()
+    found_ids = {r["id"] for r in rows}
+    skipped = [nid for nid in requested if nid not in found_ids]
 
     favorites, tickers_by_note, linked_trades_by_note, properties_by_note = _resolve_note_related_data(
         conn, user_id, [r["id"] for r in rows],
@@ -1432,12 +1733,15 @@ def _write_notes_archive(
     reviews_by_note = _resolve_reviews_by_note(conn, user_id, [r["id"] for r in rows])
     note_paths = _compute_note_export_paths(rows, folders)
 
-    zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps({
+    manifest = {
         "product": "uct-notebook-export",
         "manifest_version": _EXPORT_MANIFEST_VERSION,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "note_count": len(rows),
-    }))
+    }
+    if note_ids is not None:
+        manifest["selection"] = True
+    zf.writestr(_EXPORT_MANIFEST_NAME, json.dumps(manifest))
 
     failures: list[tuple[str, str]] = []
     # ONE dict shared across every note: dedup (a file ten notes reference is
@@ -1463,7 +1767,8 @@ def _write_notes_archive(
         attachment_resolver = _make_attachment_resolver(
             user_id, folder, row["id"], note_title, attach_state,
         )
-        resolver = _make_note_link_aware_resolver(user_id, conn, attachment_resolver, note_paths)
+        resolver = _make_note_link_aware_resolver(
+            user_id, conn, attachment_resolver, note_paths, note_folder=folder)
         try:
             body = tiptap_to_markdown(doc, attachment_resolver=resolver)
         except Exception as exc:  # noqa: BLE001 -- deliberately broad.
@@ -1546,8 +1851,18 @@ def _write_notes_archive(
             for url, (title, reason) in attach_state["issues"].items()
         ]
 
+    if skipped:
+        if issue_lines:
+            issue_lines.append("")
+        issue_lines += [
+            "These notes were not exported -- they are in the Trash or no "
+            "longer exist:",
+        ]
+        issue_lines += [f"- {nid}" for nid in skipped]
+
     if issue_lines:
         zf.writestr("EXPORT_ISSUES.txt", "\n".join(issue_lines) + "\n")
+    return {"exported": len(rows), "skipped": skipped}
 
 
 def build_export_zip(
@@ -1611,6 +1926,76 @@ def build_export_zip_to_tempfile(
             raise
         stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
         return tmp_path, f"uct-notebook-export-{stamp}.zip"
+    finally:
+        if owned:
+            conn.close()
+
+
+def build_selection_export_to_tempfile(
+    user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None,
+) -> tuple[Path, str, int, list[str]]:
+    """The SELECTED notes as one Markdown zip, on disk (wave 6, item 10) -- the
+    same archive writer as the whole-notebook export (`_write_notes_archive`,
+    restricted to `note_ids`), so a selection keeps each note's folder path
+    and a link between two selected notes is a relative `.md` path, not the
+    not-bundled reference a stack of single-note exports gave it.
+
+    ⭐ THE CONTRACT A ROUTER CALLS (wave 6 fix round 1 -- `POST
+    /api/j2/notes/batch/export`, lane E's file, is switching to this):
+
+      * `user_id` -- the signed-in member; every note is read with
+        `user_id = ?` in SQL, never filtered in Python.
+      * `note_ids` -- any iterable of ids. Order does not matter (the archive
+        is written newest-first, as the whole-notebook export is); a repeat is
+        written once; a non-string or empty id is ignored. An id that is not an
+        ACTIVE note of this member -- another member's, trashed, unknown -- is
+        not exported, is returned in `skipped_ids` (first-seen order) and is
+        listed in `EXPORT_ISSUES.txt`. The router still validates and caps the
+        request itself (`_parse_batch_ids(..., cap=NOTE_BATCH_EXPORT_MAX)`);
+        this function adds no limit of its own.
+      * `conn` -- optional. `None` opens and closes an `auth_db` connection;
+        a connection passed in is used and NOT closed.
+      * Returns `(path, filename, exported_count, skipped_ids)`: `path` a zip
+        on disk the CALLER owns, `filename` `uct-notebook-selection-YYYYMMDD.zip`
+        (UTC). The route answers `X-Export-Count: exported_count` and
+        `X-Export-Skipped: len(skipped_ids)`, the two headers the client reads.
+      * Blocking disk and SQLite work: call it from a sync `def` route (FastAPI
+        runs those in the threadpool), never straight from an `async def`.
+      * The export slot is the CALLER's, exactly as for the whole-notebook
+        route: `acquire_export_slot()` first (429 when it answers False); if this
+        raises, `release_export_slot()` and re-raise (this function has already
+        deleted its own partial file); on success hand `path` to
+        `stream_export_file(path)`, which deletes it and releases the slot when
+        the stream ends (the lease reclaims an abandoned slot regardless).
+      * What is inside: `UCT_NOTEBOOK_EXPORT.json` with `"selection": true`;
+        each note at `<its folder path>/<title>.md` (the whole-notebook
+        export's paths, collisions told apart by id); a link between two
+        selected notes a RELATIVE, percent-encoded `.md` path from the linking
+        note's folder (I2), a link to a note not selected the honest
+        `uct-note:///notebook?note=<id>` reference; attachments under
+        `attachments/`, one byte cap for the whole selection.
+
+    Railed on the writer itself in `tests/test_notes_export_wave6.py` (a
+    foldered selection whose every cross-link CommonMark parses and resolves)
+    and across runtimes, through our own importer, in
+    `lib/selectionExport.roundtrip.test.js`; the route's rail on the wire is
+    lane E's."""
+    from api.services.auth_db import get_connection
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        fd, tmp_name = tempfile.mkstemp(suffix=".zip", prefix="j2-notes-export-")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zf:
+                result = _write_notes_archive(zf, user_id, conn, note_ids=list(note_ids or []))
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+        return tmp_path, f"uct-notebook-selection-{stamp}.zip", result["exported"], result["skipped"]
     finally:
         if owned:
             conn.close()

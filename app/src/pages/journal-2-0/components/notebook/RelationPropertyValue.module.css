@@ -1,0 +1,89 @@
+/* Wave 6 relation property — chips that open the linked notes, and a picker. */
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+}
+.chipOpen,
+.chipRemove,
+.add,
+.result {
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+.chipOpen:disabled {
+  cursor: default;
+}
+.chipMissing {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.chipRemove {
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+}
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-muted);
+}
+.add:hover,
+.chipOpen:hover:not(:disabled) {
+  color: var(--ut-gold);
+}
+.picker {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.search {
+  min-width: 180px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+.results {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+.result {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+.hint {
+  font-size: 11px;
+  color: var(--color-danger);
+}
+@media (max-width: 1024px) {
+  .chipOpen,
+  .chipRemove,
+  .add,
+  .result,
+  .search {
+    min-height: var(--tap-min);
+  }
+  .chipRemove {
+    min-width: var(--tap-min);
+  }
+}

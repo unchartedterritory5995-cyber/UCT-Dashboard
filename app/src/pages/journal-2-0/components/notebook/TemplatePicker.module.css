@@ -72,3 +72,86 @@
   border-color: rgba(96, 178, 140, 0.8);
   background: rgba(96, 178, 140, 0.14);
 }
+
+/* Wave 6 — "Your templates": each template's Rename/Delete sit BESIDE its
+   card button, never inside it. */
+.memberItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.memberActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.miniBtn {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+.miniBtn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--ut-gold);
+}
+.miniDanger {
+  color: var(--color-danger);
+}
+.renameForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.renameInput {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 8px;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+.memberNote {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.memberError {
+  font-size: 12px;
+  color: var(--color-danger);
+}
+@media (max-width: 1024px) {
+  .miniBtn,
+  .renameInput {
+    min-height: var(--tap-min);
+  }
+}
+.dailyPick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.dailyPick select {
+  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+@media (max-width: 1024px) {
+  .dailyPick select {
+    min-height: var(--tap-min);
+  }
+}

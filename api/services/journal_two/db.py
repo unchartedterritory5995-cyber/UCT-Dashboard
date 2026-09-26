@@ -823,7 +823,7 @@ CREATE TABLE IF NOT EXISTS j2_note_properties (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url
+    type        TEXT NOT NULL,            -- text|number|select|multi_select|date|checkbox|url|relation
     options_json TEXT,                    -- select/multi_select only: [{id,label,color}]
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
@@ -1780,8 +1780,58 @@ _PHASE_2_ALTERS = [
     # and ~30 ms off this index. Only a title change, a trash/restore or an
     # edit (updated_at) moves an entry -- the same churn idx_j2_notes_user_updated
     # already pays. notes.py::switcher_search is its reader.
-    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher"
-    " ON j2_notes(user_id, deleted_at, updated_at DESC, title)",
+    # Wave 6 (lane E, archive): NULL = in the library. Set (ISO time) = archived
+    # -- out of the default list, search, quick switcher, graph, folder/tag
+    # counts, favorites and recents, and listed under the sidebar's Archived
+    # entry (`folder_id=__archived__`). ⛔ ARCHIVE IS NOT TRASH: nothing is ever
+    # deleted by it, the note keeps its folder, and setting or clearing it never
+    # advances `updated_at` (notes.set_note_archived says why).
+    "ALTER TABLE j2_notes ADD COLUMN archived_at TEXT",
+    # Wave 6 (lane E, lock): 1 = the member locked this note against ACCIDENTAL
+    # edits, as Notion's lock does. ⛔⛔ THE SERVER STORES THE FLAG AND DOES NOT
+    # REFUSE BODY WRITES: a queued offline edit must never become a conflict
+    # inside the frozen offline layer. The lock is enforced in the EDITOR
+    # (lib/lockedNote.js: `editable = false`), and nowhere else. Set only by
+    # `PATCH /notes/{id}/lock`, which advances `updated_at` like any metadata
+    # write so another tab's compare-and-set and the outbox see it.
+    "ALTER TABLE j2_notes ADD COLUMN locked INTEGER NOT NULL DEFAULT 0",
+    # Wave 6 (lane E, daily note): the ET date (YYYY-MM-DD) a note is the
+    # member's daily note FOR; NULL for every other note. ⛔⛔ EXACTLY ONE PER
+    # MEMBER PER DAY IS THE INDEX'S JOB, not a check's: two tabs pressing Today
+    # at once can both pass any SELECT, and only this refuses the second
+    # INSERT. Trashed notes stay in it, so creating a new daily note first
+    # releases the day from a trashed holder (notes.release_trashed_daily_date).
+    "ALTER TABLE j2_notes ADD COLUMN daily_date TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_daily"
+    " ON j2_notes(user_id, daily_date) WHERE daily_date IS NOT NULL",
+    # Wave 6 (lane E, member templates): a member's own "Save as template"
+    # copies -- title, body and property values of one of their notes, owned by
+    # them (note_templates.py). A COPY, never a link to the note. ⛔ user-scoped:
+    # account deletion must purge it -- added to
+    # account_purge._DIRECT_USER_TABLES in wave 6 fix round 1 (I3). ⚰️ This
+    # comment used to claim the addition was "requested in wave6-E-report.md";
+    # no such request was ever written there.
+    """CREATE TABLE IF NOT EXISTS j2_note_templates (
+        id              TEXT PRIMARY KEY,
+        user_id         TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        title           TEXT NOT NULL DEFAULT '',
+        body_json       TEXT NOT NULL,
+        properties_json TEXT,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_templates_user"
+    " ON j2_note_templates(user_id, created_at DESC)",
+    # ⛔ The switcher's keystroke scan skips archived notes too, so its covering
+    # index carries `archived_at` -- a predicate on a column the index lacks
+    # would send every keystroke back to the wide rows (the ~150 ms read the
+    # wave-5 index removed). The old index is DROPPED, not kept beside the new
+    # one: two indexes paying one churn for one reader. The column is added on
+    # the line above, so this can never index a column that does not exist.
+    "DROP INDEX IF EXISTS idx_j2_notes_switcher",
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher_live"
+    " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC, title)",
     # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
     # member-typed comment or a trade link — the SAME two fields the "current
     # note"/"new entry" destinations already carry via the full widgetEmbed

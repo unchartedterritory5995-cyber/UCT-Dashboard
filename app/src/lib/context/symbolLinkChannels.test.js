@@ -122,6 +122,12 @@ const HAND_TYPED_BASELINE = [
   // ⛔ THE REAL ONE. Spells the same fact `?ticker=`, where the authority says `sym`.
   // Not fixed by CP2 (docs + rail only, touches no live consumer) — filed instead.
   'pages/journal-2-0/tabs/NotebookTab.jsx',
+  // Notebook wave 6 (embeds): `url.searchParams.get('symbol')` reads a pasted
+  // THIRD-PARTY TradingView link (`tradingview.com/chart/?symbol=NASDAQ:AAPL`) to
+  // build that site's own widget iframe — never our `/charts` deep link, never
+  // this app's location. There is no authority to route it through: it is
+  // TradingView's parameter, parsed off a URL object the member pasted.
+  'pages/journal-2-0/lib/webEmbeds.js',
   // The dev-only atomic-handoff harness (`scan-harness.html`). Its `?tf=&syms=`
   // are HARNESS CONFIGURATION — which fixture list to plant and drive — not a
   // member deep link into a charts surface, so there is no authority to route

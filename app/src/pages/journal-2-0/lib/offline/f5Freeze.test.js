@@ -68,6 +68,51 @@
  * HEAD. F5's table is still not all GREEN-or-NAMED, so `F5_OPEN` stays true: D3
  * lifted the freeze for two changes, it did not close F5.
  *
+ * ⚖️ AMENDED 2026-09-23 (wave 6) — DECISION D3b (the controller's ruling under the
+ * owner's delegation, `.superpowers/sdd/2026-09-23-notebook-10/wave6-D3b-brief.md`):
+ * the freeze is lifted for ONE more change, of D3's class and found by D3's own
+ * work — a note open in an editor in one tab must never be sent by ANOTHER tab's
+ * sweep (`wave5-A-report.md`, concern 2) — together with the residuals the wave-5
+ * review left scheduled for this lane. What moved in `outboxDrain.js`, and nothing
+ * else in it:
+ *   · `drainOutbox` takes `noteIsOwned` and SKIPS a note whose per-note owner Web
+ *     Lock (`uct-note-owner:<account>:<note>`, held by `useDurableNote` while the
+ *     note is open in an editor) is held or queued in any tab — asked at the top
+ *     of the loop and again right before the send. Unknown (no Web Locks, null, a
+ *     throw) ⇒ exactly the old behaviour: `excludeNoteId` alone decides.
+ *   · `settleForkedNote(…, { forked })`: the OWNER's fork settle checks that the
+ *     record and every queued entry still hold exactly what was forked, AND
+ *     writes, in ONE readwrite transaction (`putNoteWithIntentIf`). The sweep
+ *     never passes `forked` and keeps its path; the record both compose is one
+ *     function (`forkSettledRecord`). Pinned by the D3b case below.
+ * Outside the frozen files, same lane: crash drafts record the revision they were
+ * typed on and `baseOfRecovered` answers a REVISION-ONLY base wherever only the
+ * revision is provable, so Restore forks and never clobbers; the durable writer's
+ * `flush` pins the latest snapshot behind an in-flight write. All of it, with the
+ * rails and the mutation proofs: `docs/notebook/f5-fixes-2026-09-23.md` §F.
+ * ⚖️ D3b, FIX ROUND 1 (review `wave6-D3b-review.md`; the controller's RULING on
+ * residual (c) EXTENDS the lift): what moved in `outboxDrain.js`, and nothing else —
+ *   · residual (c): the drain classifies against the record's last-known server
+ *     copy through ONE function, `classifiableBase`, which refuses a copy that
+ *     may not stand for the queued entry — NEWER than its base, or unorderable —
+ *     by asking `baseMayStandFor`, the SAME predicate `baseOfRecovered` asks
+ *     (extracted from it, `recoverLocalState.js`). Refused ⇒ UNKNOWN
+ *     ⇒ FORK: `ringVouchedPlan` answers 'fork' for it (never the no-evidence
+ *     rebase), and the diff branch classifies against `null`, which the frozen
+ *     classifier reads as BODY_REWRITE. ⚰️ A pre-A-1 record's `acked@landed` base
+ *     read a door's appended block as "no change", the queued body was rebased
+ *     over it, and the block was gone. This changes the classification's INPUT;
+ *     `classifyServerChange` itself (`serverChange.js`) is untouched. Pinned by
+ *     the fix-round-1 case below.
+ *   · review N-5: a `permanent` (blocked) entry reports BLOCKED before either
+ *     "the editor owns it" skip — it only reports, so it is safe ahead of both.
+ * ⚖️ D3b, FIX ROUND 2 (re-review of `d908de394`, notes NN-1 to NN-4): no frozen
+ * file touched. `queuedWorkToAdopt` (`recoverLocalState.js`) refuses to adopt a base
+ * with no BODY, the key residual (b) uses, instead of the `bodyUnknown` flag the
+ * durable store drops (`f5-fixes-2026-09-23.md` §H).
+ * ⛔ Still NOT moved by D3b: the append CALL SITES, `serverChange.js`,
+ * `settleNoteWrite.js`, and the classifier. `F5_OPEN` stays true.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
  * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"
@@ -205,6 +250,44 @@ describe('⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are pr
       expect(src, `${family} (${file}) must not settle with local state`)
         .not.toMatch(/settleLandedSave\s*\(/)
     }
+  })
+
+  it('⚖️ D3b — the SWEEP’s fork settle passes no `forked`; the one-transaction check is the OWNER’s alone', () => {
+    // D3b lifted the freeze for the owner's settle, not the sweep's. The sweep
+    // settling with a `forked` check would be a behaviour change the ruling did
+    // not make — so the one call site in the drain is pinned, and so is the
+    // owner's, which must pass exactly what its sibling holds.
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    const calls = (file) => [...strip(read(file)).matchAll(/(?<!function\s)settleForkedNote\(([^)]*)\)/g)]
+      .map((m) => m[1].replace(/\s+/g, ' ').trim())
+    expect(calls('app/src/pages/journal-2-0/lib/offline/outboxDrain.js'))
+      .toEqual(['db, entry.noteId, serverNote'])
+    expect(calls('app/src/pages/journal-2-0/lib/offline/useDurableNote.js'))
+      .toEqual(['db, noteId, serverNote, { forked }'])
+  })
+
+  it('⚖️ D3b fix round 1, residual (c) — the drain reads the base it classifies against in ONE place, and both call sites ask it', () => {
+    // The ruling moved the classification's INPUT and nothing else. A second
+    // `lastKnownServerCopy(` read in the drain would be a second base, one that
+    // could hand a POISONED copy to the classifier again — so the read is pinned
+    // to `classifiableBase`, and both deciders (the ring-vouched plan and the
+    // diff branch) are pinned to asking it.
+    const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+    const drain = strip(read('app/src/pages/journal-2-0/lib/offline/outboxDrain.js').replace(/\r\n/g, '\n'))
+    const reads = [...drain.matchAll(/lastKnownServerCopy\s*\(/g)]
+    expect(reads.length, 'the drain reads the last-known server copy in exactly one place').toBe(1)
+    const at = drain.indexOf('function classifiableBase(')
+    expect(at, 'classifiableBase is defined in the drain').toBeGreaterThan(-1)
+    const body = drain.slice(at, drain.indexOf('\n}\n', at))
+    expect(body, 'and that one read is inside it').toMatch(/lastKnownServerCopy\s*\(/)
+    expect(body, 'which asks recovery’s own authority whether the base may stand').toMatch(/baseMayStandFor\s*\(/)
+    expect([...drain.matchAll(/(?<!function\s)classifiableBase\(entry, noteRec\)/g)].length,
+      'the ring-vouched plan AND the diff branch both ask it').toBe(2)
+    const recover = strip(read('app/src/pages/journal-2-0/lib/offline/recoverLocalState.js').replace(/\r\n/g, '\n'))
+    expect([...recover.matchAll(/export function baseMayStandFor\(/g)].length, 'ONE definition, in recovery').toBe(1)
+    expect(recover, '…which baseOfRecovered asks too').toMatch(/baseMayStandFor\(at, entry\.baseUpdatedAt\)/)
+    // …and the classifier the ruling left alone is still frozen, byte for byte in name.
+    expect(read('app/src/pages/journal-2-0/lib/offline/serverChange.js')).toMatch(/export function classifyServerChange\(fresh, base\)/)
   })
 
   it('⭐ the freeze declares WHEN it lifts, and it has not lifted', () => {

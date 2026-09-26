@@ -3282,5 +3282,571 @@
     "pm_to": 28
    }
   ]
+ },
+ "imageFigure": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Before."
+      }
+     ]
+    },
+    {
+     "type": "imageFigure",
+     "content": [
+      {
+       "type": "image",
+       "attrs": {
+        "src": "/api/j2/notes/n1/images/a.png",
+        "alt": "NVDA daily",
+        "align": "center"
+       }
+      },
+      {
+       "type": "imageCaption",
+       "content": [
+        {
+         "type": "text",
+         "text": "NVDA breakout, "
+        },
+        {
+         "type": "text",
+         "text": "day 3",
+         "marks": [
+          {
+           "type": "bold"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Before.\nNVDA breakout, day 3\nAfter.",
+  "contentSize": 42,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 8,
+    "text": "Before."
+   },
+   {
+    "pm_start": 12,
+    "pm_end": 27,
+    "text": "NVDA breakout, "
+   },
+   {
+    "pm_start": 27,
+    "pm_end": 32,
+    "text": "day 3"
+   },
+   {
+    "pm_start": 35,
+    "pm_end": 41,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "NVDA breakout, day 3",
+    "pm_from": 12,
+    "pm_to": 32
+   },
+   {
+    "text": "day 3",
+    "pm_from": 27,
+    "pm_to": 32
+   },
+   {
+    "text": "After.",
+    "pm_from": 35,
+    "pm_to": 41
+   }
+  ]
+ },
+ "imageFigureEmptyCaption": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "A."
+      }
+     ]
+    },
+    {
+     "type": "imageFigure",
+     "content": [
+      {
+       "type": "image",
+       "attrs": {
+        "src": "/api/j2/notes/n1/images/a.png",
+        "alt": "chart"
+       }
+      },
+      {
+       "type": "imageCaption"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "B."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "A.\n\nB.",
+  "contentSize": 13,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 3,
+    "text": "A."
+   },
+   {
+    "pm_start": 10,
+    "pm_end": 12,
+    "text": "B."
+   }
+  ],
+  "leafSpans": [],
+  "passages": []
+ },
+ "columns": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Intro."
+      }
+     ]
+    },
+    {
+     "type": "columns",
+     "content": [
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Bull case."
+          }
+         ]
+        },
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Margins widen."
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Bear case."
+          }
+         ]
+        },
+        {
+         "type": "paragraph"
+        }
+       ]
+      },
+      {
+       "type": "column",
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Plan."
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Intro.\nBull case.\nMargins widen.\nBear case.\n\nPlan.\nAfter.",
+  "contentSize": 73,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 7,
+    "text": "Intro."
+   },
+   {
+    "pm_start": 11,
+    "pm_end": 21,
+    "text": "Bull case."
+   },
+   {
+    "pm_start": 23,
+    "pm_end": 37,
+    "text": "Margins widen."
+   },
+   {
+    "pm_start": 41,
+    "pm_end": 51,
+    "text": "Bear case."
+   },
+   {
+    "pm_start": 57,
+    "pm_end": 62,
+    "text": "Plan."
+   },
+   {
+    "pm_start": 66,
+    "pm_end": 72,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Margins widen.",
+    "pm_from": 23,
+    "pm_to": 37
+   },
+   {
+    "text": "Bear case.",
+    "pm_from": 41,
+    "pm_to": 51
+   },
+   {
+    "text": "Plan.",
+    "pm_from": 57,
+    "pm_to": 62
+   },
+   {
+    "text": "After.",
+    "pm_from": 66,
+    "pm_to": 72
+   }
+  ]
+ },
+ "linkCardAndEmbed": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Read this."
+      }
+     ]
+    },
+    {
+     "type": "linkPreview",
+     "attrs": {
+      "url": "https://news.example.com/a",
+      "title": "NVDA prints a record quarter",
+      "description": "Data-centre revenue beat.",
+      "domain": "news.example.com",
+      "image": null
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "And watch:"
+      }
+     ]
+    },
+    {
+     "type": "webEmbed",
+     "attrs": {
+      "provider": "youtube",
+      "ref": "dQw4w9WgXcQ",
+      "url": "https://youtu.be/dQw4w9WgXcQ"
+     }
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Read this.\nAnd watch:\nAfter.",
+  "contentSize": 34,
+  "textSpans": [
+   {
+    "pm_start": 1,
+    "pm_end": 11,
+    "text": "Read this."
+   },
+   {
+    "pm_start": 14,
+    "pm_end": 24,
+    "text": "And watch:"
+   },
+   {
+    "pm_start": 27,
+    "pm_end": 33,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Read this.",
+    "pm_from": 1,
+    "pm_to": 11
+   },
+   {
+    "text": "And watch:",
+    "pm_from": 14,
+    "pm_to": 24
+   },
+   {
+    "text": "After.",
+    "pm_from": 27,
+    "pm_to": 33
+   }
+  ]
+ },
+ "dateMention": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "taskList",
+     "content": [
+      {
+       "type": "taskItem",
+       "attrs": {
+        "checked": false
+       },
+       "content": [
+        {
+         "type": "paragraph",
+         "content": [
+          {
+           "type": "text",
+           "text": "Earnings prep "
+          },
+          {
+           "type": "dateMention",
+           "attrs": {
+            "date": "2026-09-25"
+           }
+          },
+          {
+           "type": "text",
+           "text": " before the call"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Undated "
+      },
+      {
+       "type": "dateMention",
+       "attrs": {
+        "date": null
+       }
+      },
+      {
+       "type": "text",
+       "text": "."
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "After."
+      }
+     ]
+    }
+   ]
+  },
+  "text": "Earnings prep 2026-09-25 before the call\nUndated .\nAfter.",
+  "contentSize": 57,
+  "textSpans": [
+   {
+    "pm_start": 3,
+    "pm_end": 17,
+    "text": "Earnings prep "
+   },
+   {
+    "pm_start": 18,
+    "pm_end": 34,
+    "text": " before the call"
+   },
+   {
+    "pm_start": 38,
+    "pm_end": 46,
+    "text": "Undated "
+   },
+   {
+    "pm_start": 47,
+    "pm_end": 48,
+    "text": "."
+   },
+   {
+    "pm_start": 50,
+    "pm_end": 56,
+    "text": "After."
+   }
+  ],
+  "leafSpans": [
+   {
+    "pm_start": 17,
+    "pm_end": 18,
+    "text": "2026-09-25",
+    "atom": null
+   }
+  ],
+  "passages": [
+   {
+    "text": "Earnings prep 2026-09-25 before",
+    "pm_from": 3,
+    "pm_to": 25
+   },
+   {
+    "text": "before the call",
+    "pm_from": 19,
+    "pm_to": 34
+   },
+   {
+    "text": "After.",
+    "pm_from": 50,
+    "pm_to": 56
+   }
+  ]
+ },
+ "tableOfContents": {
+  "json": {
+   "type": "doc",
+   "content": [
+    {
+     "type": "tableOfContents"
+    },
+    {
+     "type": "heading",
+     "attrs": {
+      "level": 2
+     },
+     "content": [
+      {
+       "type": "text",
+       "text": "Plan"
+      }
+     ]
+    },
+    {
+     "type": "paragraph",
+     "content": [
+      {
+       "type": "text",
+       "text": "Buy the break."
+      }
+     ]
+    },
+    {
+     "type": "tableOfContents"
+    }
+   ]
+  },
+  "text": "Plan\nBuy the break.",
+  "contentSize": 24,
+  "textSpans": [
+   {
+    "pm_start": 2,
+    "pm_end": 6,
+    "text": "Plan"
+   },
+   {
+    "pm_start": 8,
+    "pm_end": 22,
+    "text": "Buy the break."
+   }
+  ],
+  "leafSpans": [],
+  "passages": [
+   {
+    "text": "Plan",
+    "pm_from": 2,
+    "pm_to": 6
+   },
+   {
+    "text": "Buy the break.",
+    "pm_from": 8,
+    "pm_to": 22
+   }
+  ]
  }
 }

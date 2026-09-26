@@ -1,5 +1,6 @@
 import { Component, Suspense, lazy } from 'react'
 import { SkeletonBlock } from '../../../../components/Skeleton'
+import { reportError } from '../../../../lib/errorBeacon'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
@@ -45,12 +46,15 @@ class Catch extends Component {
     return { failed: true }
   }
 
-  componentDidCatch(error) {
+  componentDidCatch(error, info) {
     // ⛔ SWALLOWED ON PURPOSE, BUT NEVER SILENTLY. The whole job of this boundary is to stop the
-    // throw propagating to the route; the console line is what keeps it diagnosable, and it is
-    // the only trace a member's device leaves.
+    // throw propagating to the route; the console line is what keeps it diagnosable — and since
+    // wave 6 (lane F's beacon) it is no longer the only trace a member's device leaves: the
+    // scrubbed report reaches /api/client-errors, which is how the next iOS-floor crash gets
+    // found without a hand-driven device.
     // eslint-disable-next-line no-console
     console.error('[PdfViewerBoundary] PDF preview failed to load:', error)
+    reportError(error, { kind: 'boundary', componentStack: info?.componentStack })
   }
 
   render() {

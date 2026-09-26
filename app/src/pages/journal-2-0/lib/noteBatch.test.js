@@ -104,6 +104,19 @@ describe('runNoteBatch — a blocked note is never sent', () => {
     await runNoteBatch({ ids: ['n2'], op: 'favorite', blockedNoteIds: new Set(['n2']) })
     expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n2'])
   })
+
+  // Wave 6 fix round 1, I4 — renameTag writes the note row (its tags) exactly
+  // like addTag/removeTag, so it belongs in NOTE_WRITING_OPS beside them.
+  // Mutation-proved SEPARATELY from the UNSENT_REFUSED_OPS test below: this
+  // one reds on its own if 'renameTag' is dropped from NOTE_WRITING_OPS only.
+  it('renameTag is a note-writing op — refused for a blocked note, like addTag/removeTag', async () => {
+    const fetchFn = answering({})
+    const out = await runNoteBatch({
+      ids: ['n2'], op: 'renameTag', args: { from: 'a', to: 'b' }, blockedNoteIds: new Set(['n2']),
+    })
+    expect(fetchFn).not.toHaveBeenCalled()
+    expect(out.results).toEqual([{ id: 'n2', status: 'blocked', error: BLOCKED_TITLE }])
+  })
 })
 
 describe('describeBatch — the sentence a member reads', () => {
@@ -317,6 +330,36 @@ describe('S1 — trash and export also see words still being SENT, not only reti
     expect(describeUnchecked('export', [], {})).toBeNull()
   })
 
+  it('N1 (final, wave 6 fix round 3): a rename the device cannot check names the notes, says it keeps the old tag, and offers NOTHING', () => {
+    const offer = describeUnchecked('renameTag', ['a'], { titleOf: () => 'First note' })
+    expect(offer.message).toBe(
+      '1 note has changes this device could not check: "First note". '
+      + 'It keeps the old tag until it syncs — rename it again then.')
+    expect(offer.tone).toBe('error')
+    // No waiver of any kind — a rename is never re-sent on the strength of a
+    // confirmation, so there is nothing to build an `anyway` object for.
+    expect(offer.anyway).toBeUndefined()
+  })
+
+  it('N1 (final): the plural form reads correctly for more than one unchecked note', () => {
+    const offer = describeUnchecked('renameTag', ['a', 'b'], { titleOf: (id) => ({ a: 'First note', b: 'Second note' })[id] })
+    expect(offer.message).toBe(
+      '2 notes have changes this device could not check: "First note"; "Second note". '
+      + 'They keep the old tag until they sync — rename them again then.')
+    expect(offer.anyway).toBeUndefined()
+  })
+
+  it('N-c (wave 6 fix round 3): an op with no row of its own gets NEUTRAL copy, never trash\'s "anyway"', () => {
+    // No real op reaches this today (UNSENT_REFUSED_OPS only ever holds
+    // trash and renameTag, and both have rows) — it exists so the NEXT op
+    // added there fails loudly and safely rather than inheriting a
+    // destructive action's copy by accident.
+    const offer = describeUnchecked('someFutureOp', ['a', 'b', 'c'], { titleOf: () => 'A note' })
+    expect(offer.message).toBe('3 notes could not be checked on this device.')
+    expect(offer.tone).toBe('error')
+    expect(offer.anyway).toBeUndefined()
+  })
+
   it('⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive', async () => {
     const connect = vi.fn(async () => storeWith({ queued: ['n2'] }))
     for (const [op, args] of [['move', { folderId: 'f1' }], ['addTag', { tag: 'x' }], ['restore', {}]]) {
@@ -325,6 +368,26 @@ describe('S1 — trash and export also see words still being SENT, not only reti
       expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids, op).toEqual(['n2'])
     }
     expect(connect).not.toHaveBeenCalled()
+  })
+
+  // Wave 6 fix round 1, I4 — a rename REBUILDS the tag list from `head["tags"]`
+  // read at request time (journal_two.py's renamed_tag_list), so a queued PUT
+  // still in flight would be silently overwritten by a rename computed
+  // before it landed -- the same reason TRASH refuses these, not the same
+  // reason move/tag/restore don't. Mutation-proved SEPARATELY from the
+  // NOTE_WRITING_OPS test above: this one reds on its own if 'renameTag' is
+  // dropped from UNSENT_REFUSED_OPS only.
+  it('a queued note the drain has NOT retired is refused for renameTag, named, and the rest is sent', async () => {
+    const fetchFn = answering({ op: 'renameTag', results: [{ id: 'n1', status: 'changed' }] })
+    const store = storeWith({ queued: ['n2'] })
+    const out = await runNoteBatch({
+      ids: ['n1', 'n2'], op: 'renameTag', args: { from: 'a', to: 'b' }, connect: async () => store,
+    })
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body).ids).toEqual(['n1'])
+    expect(out.results).toContainEqual({ id: 'n2', status: 'unsent' })
+    expect(describeBatch(out, { tag: 'a', renameTo: 'b', titleOf: (id) => ({ n2: 'Second note' })[id] }).message).toBe(
+      'Renamed 1 note from #a to #b. 1 note was not changed: "Second note" is still syncing — try again in a moment.',
+    )
   })
 
   it('one store connection for the whole selection, closed afterwards', async () => {

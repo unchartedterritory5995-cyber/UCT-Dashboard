@@ -191,3 +191,111 @@ describe('flush is acceleration, never the durability mechanism (§10)', () => {
     expect(persist).not.toHaveBeenCalled()
   })
 })
+
+/**
+ * ⭐⭐ D3b (wave 6) — A FLUSH PERSISTS THE LATEST SNAPSHOT *AS OF THE FLUSH*, EVEN
+ * BEHIND A WRITE ALREADY IN FLIGHT (wave5-A fix round 2, residual R1).
+ *
+ * The owner's refused-fork fallback flushes the member's words typed during the
+ * fork, then swaps the view to the server copy. With a durable write already in
+ * flight, the flush used to wait behind it and leave the words as `desired` —
+ * and the member's next keystroke on the new view, a `schedule`, REPLACED them
+ * before they were ever written.
+ */
+describe('⭐⭐ D3b — a flush behind an in-flight write is never superseded', () => {
+  const flushed = () => ({ text: 'record + K (typed during the fork)' })
+  const later = () => ({ text: 'server copy + K2 (typed on the new view)' })
+
+  it('⛔⛔ a snapshot flushed during an in-flight write is written after it, BEFORE a later keystroke’s', async () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const w = createDurableWriter({ persist, ...t })
+    w.schedule({ text: 'record' })
+    t.fire()                                     // write 1 in flight
+    w.schedule(flushed())                        // a keystroke queued behind it
+    w.flush()                                    // the fork fallback's flush
+    w.schedule(later())                          // setContent(fresh), then a keystroke
+    calls[0].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(calls[1]?.job.state, 'the flushed snapshot was superseded before it was written').toEqual(flushed())
+    calls[1].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    // …and the newest state still follows it, once, as the coalesced latest.
+    expect(calls[2]?.job.state).toEqual(later())
+    expect(persist).toHaveBeenCalledTimes(3)
+    calls[2].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(w.isDurable()).toBe(true)
+    expect(w.committedGeneration()).toBe(w.latestGeneration())
+  })
+
+  it('⭐ generations stay in order: in-flight < flushed < later', async () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const w = createDurableWriter({ persist, ...t })
+    w.schedule({ text: 'record' }); t.fire()
+    w.schedule(flushed()); w.flush(); w.schedule(later())
+    for (let i = 0; i < 3; i += 1) {
+      calls[i].resolve()
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    }
+    const gens = calls.map((c) => c.job.generation)
+    expect(gens).toEqual([...gens].sort((a, b) => a - b))
+    expect(new Set(gens).size).toBe(3)
+  })
+
+  it('⭐ NOT pinned when nothing is in flight — flush writes at once, exactly as before', () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const w = createDurableWriter({ persist, ...t })
+    w.schedule(flushed())
+    w.flush()
+    expect(persist).toHaveBeenCalledTimes(1)
+    expect(calls[0].job.state).toEqual(flushed())
+  })
+
+  it('⭐ WITHOUT a flush, edits during a write still coalesce to ONE follow-up (unchanged)', async () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const w = createDurableWriter({ persist, ...t })
+    w.schedule({ text: 'record' }); t.fire()
+    w.schedule(flushed())
+    w.schedule(later())
+    calls[0].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(persist).toHaveBeenCalledTimes(2)
+    expect(calls[1].job.state).toEqual(later())
+  })
+
+  it('⛔ a flushed snapshot whose write FAILS is kept and retried first — never dropped for a newer one', async () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const seen = []
+    const w = createDurableWriter({ persist, ...t, onStatus: (s) => seen.push(s) })
+    w.schedule({ text: 'record' }); t.fire()
+    w.schedule(flushed()); w.flush(); w.schedule(later())
+    calls[0].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    calls[1].reject(new Error('QuotaExceededError'))
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(seen).toContain(FAILED)
+    expect(w.isDurable()).toBe(false)
+    w.flush()
+    expect(calls[2].job.state, 'the failed flushed snapshot was not retried first').toEqual(flushed())
+  })
+
+  it('⭐ the unmount flush (flush, then destroy) still writes its snapshot after an in-flight write', async () => {
+    const { persist, calls } = controllablePersist()
+    const t = manualTimers()
+    const w = createDurableWriter({ persist, ...t })
+    w.schedule({ text: 'record' }); t.fire()
+    w.schedule(flushed())
+    w.flush()
+    w.destroy()
+    calls[0].resolve()
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve()
+    expect(calls[1]?.job.state, 'the last keystrokes before navigating away were dropped').toEqual(flushed())
+    expect(w.schedule(later())).toBeNull()       // …and still nothing NEW after destroy
+  })
+})

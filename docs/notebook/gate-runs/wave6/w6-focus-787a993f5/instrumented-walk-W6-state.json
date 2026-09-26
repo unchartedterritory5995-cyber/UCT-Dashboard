@@ -1,0 +1,17 @@
+{
+ "active": {
+  "tag": "DIV",
+  "id": "",
+  "cls": "_panel_futca_33 _panel_modal_futca_53 "
+ },
+ "dialogs": [
+  " | Save view\n\u00d7\nName\nCancel\nSave view"
+ ],
+ "field_form": {
+  "inForm": false,
+  "formHTML": null,
+  "value": "Walk timeline r003235"
+ },
+ "after_reqs": [],
+ "field_visible_after": true
+}

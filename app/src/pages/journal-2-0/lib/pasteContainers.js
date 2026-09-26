@@ -3,11 +3,13 @@ import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@tip
 import { Fragment, Slice } from '@tiptap/pm/model'
 import { dropPoint } from '@tiptap/pm/transform'
 import { newEmbedId } from './widgetEmbedCore'
+import { inColumn } from './columnsNode'
 
 /**
- * Paste/copy normalisation for the Notebook's own three container nodes —
- * askInsert, callout, toggle: the three `defining` CONTAINERS this plugin
- * unwraps. They are not the only `defining` nodes in the roster: blockquote,
+ * Paste/copy normalisation for the Notebook's own container nodes —
+ * askInsert, callout, toggle, and (wave 6) imageFigure, columns and column: the
+ * `defining` CONTAINERS this plugin unwraps (PASTE_CONTAINERS below is the
+ * list). They are not the only `defining` nodes in the roster: blockquote,
  * heading, codeBlock and the list items declare `defining` too (their upstream
  * TipTap extensions), and are deliberately NOT unwrapped -- they keep
  * ProseMirror's own wrap-on-paste behaviour. ONE helper, ONE plugin, both
@@ -50,18 +52,40 @@ import { newEmbedId } from './widgetEmbedCore'
  * older bundle. prosemirror-view applies `transformPasted` to in-editor drags
  * too, and a drag's slice comes from serializeForClipboard, so both apply.
  */
-export const PASTE_CONTAINERS = new Set(['askInsert', 'callout', 'toggle'])
+export const PASTE_CONTAINERS = new Set(['askInsert', 'callout', 'toggle', 'imageFigure',
+  // Wave 6: side-by-side columns (columnsNode.js). A column cannot live outside
+  // its `columns`, so a copy open inside one travels as the blocks it holds.
+  'columns', 'column'])
+
+// ⭐ Wave 6: the one-line TITLES — a textblock that is the only text of a
+// container holding nothing else, and that cannot live outside it: a toggle's
+// summary, and an image's caption (imageFigureNode.js). The same rules serve
+// both — a spilled title becomes an ordinary paragraph, and a paste or drop
+// INTO one is placed by `titlePlan` below — so this is the one list.
+export const TITLE_BLOCKS = new Set(['toggleSummary', 'imageCaption'])
 
 // The blocks a container stands for once its wrapper is gone, with the open
 // depth of the first and last of them. `inner` is the container's content
 // AFTER the recursion (so a container nested inside it is already handled).
 function spill(node, inner) {
-  if (node.type.name !== 'toggle') {
+  if (node.type.name === 'columns') {
+    // The edge columns were spilled by the recursion already (a column is a
+    // container too); a CLOSED column between them is spliced here, one level
+    // down, so no bare column is ever left outside its columns.
+    const nodes = []
+    childrenOf(inner.fragment).forEach((kid) => {
+      if (kid.type.name === 'column') nodes.push(...childrenOf(kid.content))
+      else nodes.push(kid)
+    })
+    return { nodes, head: inner.openStart, tail: inner.openEnd }
+  }
+  if (node.type.name !== 'toggle' && node.type.name !== 'imageFigure') {
     return { nodes: childrenOf(inner.fragment), head: inner.openStart, tail: inner.openEnd }
   }
-  // A toggle's summary is inline content in a node that cannot live outside a
-  // toggle: it becomes an ordinary paragraph AT THE SAME DEPTH. Its body's
-  // blocks are spliced in place of `toggleContent`, which removes one level.
+  // A toggle's summary (an image's caption) is inline content in a node that
+  // cannot live outside its container: it becomes an ordinary paragraph AT THE
+  // SAME DEPTH. A toggle body's blocks are spliced in place of `toggleContent`,
+  // which removes one level. An image is a closed leaf and travels as it is.
   const paragraph = node.type.schema.nodes.paragraph
   const nodes = []
   let head = 0
@@ -70,7 +94,7 @@ function spill(node, inner) {
   kids.forEach((kid, i) => {
     const first = i === 0
     const last = i === kids.length - 1
-    if (kid.type.name === 'toggleSummary') {
+    if (TITLE_BLOCKS.has(kid.type.name)) {
       nodes.push(paragraph.create(null, kid.content))
       if (first) head = inner.openStart
       if (last) tail = inner.openEnd
@@ -84,7 +108,7 @@ function spill(node, inner) {
       // paragraph) was closed at its end, so `tail` stays 0.
       nodes.push(...blocks)
     } else {
-      nodes.push(kid) // not reachable with this schema; kept rather than dropped
+      nodes.push(kid) // an image (a closed leaf); anything else is kept, never dropped
     }
   })
   return { nodes, head, tail }
@@ -229,6 +253,33 @@ export function freshEmbedIds(slice, docOf) {
   return content === slice.content ? slice : new Slice(content, slice.openStart, slice.openEnd)
 }
 
+// ⛔ Wave 6: COLUMNS NEVER NEST (columnsNode.js refuses the transaction). A
+// whole columns block PASTED into a column would therefore be refused and the
+// paste lost, so it arrives as the blocks it holds instead, in column order.
+// Only ever applied to a paste whose target is inside a column; a paste
+// anywhere else keeps its columns. (A DRAG into a column is simply refused:
+// its source stays whole where it was.)
+export function flattenColumnsForColumn(slice) {
+  const walk = (fragment) => {
+    let changed = false
+    const out = []
+    fragment.forEach((node) => {
+      if (node.type.name === 'columns') {
+        changed = true
+        node.forEach((col) => col.forEach((block) => out.push(block)))
+      } else if (node.childCount && !node.isTextblock) {
+        const inner = walk(node.content)
+        if (inner !== node.content) { changed = true; out.push(node.copy(inner)) } else out.push(node)
+      } else {
+        out.push(node)
+      }
+    })
+    return changed ? Fragment.fromArray(out) : fragment
+  }
+  const content = walk(slice.content)
+  return content === slice.content ? slice : new Slice(content, slice.openStart, slice.openEnd)
+}
+
 const pasteMeta = (tr) => tr.scrollIntoView().setMeta('paste', true).setMeta('uiEvent', 'paste')
 
 // The one closed node a slice consists of, or null -- the slice ProseMirror
@@ -270,7 +321,9 @@ const closedSingle = (slice) => (slice.openStart === 0 && slice.openEnd === 0 &&
 // ProseMirror, as before (review M-5, out of scope).
 function titlePlan(schema, slice, $from, $to) {
   if (!slice || !slice.size) return null
-  if ($from.parent.type.name !== 'toggleSummary' || !$from.sameParent($to)) return null
+  // Wave 6: an image's caption is a title too (TITLE_BLOCKS): blocks pasted
+  // into it land after the figure, exactly as after a toggle.
+  if (!TITLE_BLOCKS.has($from.parent.type.name) || !$from.sameParent($to)) return null
   if (mergesInline(slice)) return null // rule 4
   const toggleDepth = $from.depth - 1
   let textOnly = true
@@ -461,7 +514,7 @@ function finishDrop(view, tr, from, to, placed) {
 // onto the rest of it is judged where the drop actually lands.
 export function dropIntoSummary(view, event, slice, moved) {
   const $mouse = dropTarget(view, event)
-  if (!$mouse || $mouse.parent.type.name !== 'toggleSummary') return false
+  if (!$mouse || !TITLE_BLOCKS.has($mouse.parent.type.name)) return false
   const begin = dropBegin(view, moved)
   const start = begin()
   const mapped = start.mapping.mapResult($mouse.pos)
@@ -535,7 +588,8 @@ export const PasteContainers = Extension.create({
         // selected chart counted as gone), never invent one; handleDrop
         // re-judges every drop and catches it.
         transformPasted: (slice, view) => {
-          const out = unwrapOpenContainers(slice)
+          let out = unwrapOpenContainers(slice)
+          if (view && !view.dragging && inColumn(view.state.selection.$from)) out = flattenColumnsForColumn(out)
           return view && !view.dragging ? freshEmbedIds(out, () => view.state.tr.deleteSelection().doc) : out
         },
         // The title first (a paste ProseMirror would complete wrongly -- a

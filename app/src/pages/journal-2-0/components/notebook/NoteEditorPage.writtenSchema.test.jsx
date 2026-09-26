@@ -199,8 +199,13 @@ const draft = () => JSON.parse(localStorage.getItem('uct.j2.notedraft.n1') || 'n
 const hasFormula = (body) => JSON.stringify(body).includes('inlineMath')
 
 describe('precondition', () => {
-  it('this bundle reads level 1, so the hole is reachable here', () => {
-    expect(CURRENT).toBe(1)
+  // ⭐ AT LEAST the formula's level, not exactly 1: wave 6 registered its node
+  // types at level 2, so this bundle now reads 2, and the hole — a level-0
+  // writer's words over a level-1 note — is still reachable from any level ≥ 1.
+  // ⚰️ It read `toBe(1)` and went red the moment wave 6 merged in, on a change
+  // that did not touch the hole at all.
+  it('this bundle reads the formula\'s level (1) or newer, so the hole is reachable here', () => {
+    expect(CURRENT).toBeGreaterThanOrEqual(1)
   })
 })
 

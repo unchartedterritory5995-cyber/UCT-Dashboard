@@ -13,6 +13,48 @@
   border-radius: var(--radius-sm);
 }
 .selected .img { outline: 2px solid #3a4048; }
+
+/* Wave 6: alignment (the image's `align` attr). No align = the default place. */
+.wrap[data-align="left"] { display: block; width: fit-content; margin-right: auto; }
+.wrap[data-align="center"] { display: block; width: fit-content; margin-left: auto; margin-right: auto; }
+.wrap[data-align="right"] { display: block; width: fit-content; margin-left: auto; }
+.wrap[data-align="full"] { display: block; width: 100%; }
+.wrap[data-align="full"] .img { width: 100%; }
+
+/* The image's own bar (alignment + caption), while it is selected. */
+.bar {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  line-height: 1.2;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popover);
+  font-family: var(--font-sans);
+}
+.barBtn {
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.barBtn:hover { background: var(--bg-hover); }
+.barBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
+.barBtn[aria-pressed="true"] { border-color: var(--ut-gold); color: var(--accent); }
+@media (max-width: 1024px) {
+  .barBtn { min-height: var(--tap-min); min-width: var(--tap-min); font-size: 14px; }
+}
 .wrap.resizing { user-select: none; }
 
 /* Bottom-right resize handle — matches the chart embed's "L" corner. */
