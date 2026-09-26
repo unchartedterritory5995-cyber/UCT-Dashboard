@@ -1003,11 +1003,24 @@ Network + Performance recording:
    line, not a target.
 
 ### Protocol D — CDN reality check (three requests total)
+
+⛔⛔ **EXECUTED 2026-09-26 AND WITHDRAWN. DO NOT RUN THIS AS WRITTEN — the protocol as
+specified below cannot settle §3.3, and its first execution produced a confident wrong
+answer that travelled into four artifacts before it was caught.** `/api/flow/data` is gated
+(`Depends(require_flow_user)`), so an unauthenticated request gets **401**, and a 401 carries
+no cache header and reports `cf-cache-status: BYPASS`. The run recorded exactly that and read
+it as a property of the payload. ⭐ **The fix to the protocol: authenticate first, or the
+three requests measure the gate.** Full working, plus the controls that make the replacement
+finding stronger than the original (three unrelated gated routes answer 401 with `DYNAMIC`
+while the flow path alone gives `BYPASS`), and the reason this is a *cache-key* question
+before it is a performance one: `realtime-performance-architecture.md` §1 (gate item 24).
+
 For `/api/flow/data?days=1` and one `/api/bars-history/...?d=<sealed date>` URL, read
 `cf-cache-status` and `age` on two spaced requests. MISS→HIT with a non-null `age` is
 the success signal, and `?days=20` must produce its **own** MISS→HIT pair rather than
-sharing the `days=1` entry. This settles §3.3's open question — whether the documented
-Cloudflare rule was ever applied — and is the cheapest high-value measurement here.
+sharing the `days=1` entry. ⚰️ This claimed to settle §3.3's open question — whether the
+documented Cloudflare rule was ever applied — *"and is the cheapest high-value measurement
+here"*. It is cheap; it was not sufficient.
 
 ### Protocol E — deploy-swap behaviour (observational, zero load)
 With a Terminal-Current session open and a chart streaming, observe a deploy. Record:
