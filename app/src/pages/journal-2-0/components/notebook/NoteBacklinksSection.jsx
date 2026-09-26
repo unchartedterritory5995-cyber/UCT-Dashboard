@@ -40,7 +40,8 @@ export default function NoteBacklinksSection({ noteId }) {
           title={`Related from (${related.count})`}
           defaultOpen={false}
         >
-          <ul className={styles.list}>
+          {/* Wave 8 (8A): each list says what it lists. */}
+          <ul className={styles.list} aria-label="Notes whose relation property holds this one">
             {related.notes.map((n) => (
               <li key={n.id}>
                 <button type="button" className={styles.row} onClick={(e) => go(n.id, e)}>
@@ -62,7 +63,7 @@ export default function NoteBacklinksSection({ noteId }) {
         title={`Linked from (${count})`}
         defaultOpen={false}
       >
-        <ul className={styles.list}>
+        <ul className={styles.list} aria-label="Notes that link to this one">
           {notes.map((n) => (
             <li key={n.id}>
               <button

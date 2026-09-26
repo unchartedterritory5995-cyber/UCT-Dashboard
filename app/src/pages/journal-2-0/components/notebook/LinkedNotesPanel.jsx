@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import styles from './LinkedNotesPanel.module.css'
@@ -11,6 +12,7 @@ const _fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.
 // zero, one, or several linked notes; this never forces a 1:1 relationship.
 export default function LinkedNotesPanel({ tradeRef, tradeRefType }) {
   const navigate = useNavigate()
+  const headingId = useId()
   const key = tradeRef && tradeRefType
     ? `/api/j2/notes/by-trade-ref?tradeRef=${encodeURIComponent(tradeRef)}&tradeRefType=${encodeURIComponent(tradeRefType)}`
     : null
@@ -22,10 +24,11 @@ export default function LinkedNotesPanel({ tradeRef, tradeRefType }) {
 
   return (
     <div className={styles.panel} data-testid="linked-notes-panel">
-      <div className={styles.heading}>
+      {/* Wave 8 (8A): the list is named by its heading. */}
+      <div className={styles.heading} id={headingId}>
         Linked research{notes.length > 1 ? ` (${notes.length})` : ''}
       </div>
-      <ul className={styles.noteList}>
+      <ul className={styles.noteList} aria-labelledby={headingId}>
         {notes.map((n) => (
           <li key={n.id}>
             <button type="button" className={styles.noteRow} onClick={() => openNote(n.id)}>

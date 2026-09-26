@@ -385,6 +385,11 @@
    buttons, so a Tab stop is never an invisible control. */
 .viewRow:hover .actions,
 .viewRow:focus-within .actions { opacity: 1; }
+/* Wave 8 (8A, A2): a FOLDER row's Rename / Add subfolder / Delete are real
+   buttons beside the row button now (they were spans nested inside it), so
+   the row wrapper reveals them -- on hover and on keyboard focus. */
+.folderRow:hover .actions,
+.folderRow:focus-within .actions { opacity: 1; }
 .iconBtn {
   display: inline-flex;
   align-items: center;

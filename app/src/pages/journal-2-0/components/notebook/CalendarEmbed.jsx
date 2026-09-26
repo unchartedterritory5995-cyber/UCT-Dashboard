@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import CalendarWidget from '../../../charts/widgets/CalendarWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The calendar's journal-embed renderer: the REAL CalendarWidget (one
@@ -30,7 +31,9 @@ export default function CalendarEmbed({ attrs, height = 320 }) {
     settings: params.settings || null,
   }), [params.date, params.econStars, params.settings])
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <CalendarWidget color="A" opts={opts} onOptsChange={null} journalDoor={false} />
       </WorkspaceContext.Provider>

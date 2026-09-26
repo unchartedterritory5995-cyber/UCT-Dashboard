@@ -312,6 +312,8 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
               className={styles.editInput}
               autoFocus
               value={editViewName}
+              // Wave 8 (8A, axe `label`): the rename field is named.
+              aria-label={`Rename view ${view.name}`}
               onChange={(e) => setEditViewName(e.target.value)}
               onBlur={() => submitViewRename(view.id)}
               onKeyDown={(e) => {
@@ -599,6 +601,7 @@ function FolderNode({
   expandedFolderNotes,
   onOpenNote,
   activeNoteId,
+  extraFolderActions = [],
 }) {
   const openRow = useOpenFromList(onOpenNote)
   const pageNotes = notesByFolder.get(node.id) || []
@@ -627,7 +630,7 @@ function FolderNode({
 
   return (
     <div className={styles.folderItem}>
-      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }}>
+      <div className={`${styles.rowWrap} ${styles.folderRow}`} style={{ paddingLeft: depth * 14 }}>
         {hasChildren ? (
           <button
             type="button"
@@ -655,7 +658,17 @@ function FolderNode({
               if (e.key === 'Escape') setEditingId(null)
             }}
           />
-        ) : (
+        ) : (<>
+          {/*
+            ⛔ SIBLING BUTTONS, NEVER A BUTTON INSIDE A BUTTON (wave 8, lane 8A, A2).
+            Rename / Add subfolder / Delete used to be clickable <span>s INSIDE
+            this row <button>: invalid HTML, three controls no keyboard could
+            reach (a span is not focusable), and Delete had no name at all. They
+            are real buttons beside the row now, each named for THIS folder
+            ("Delete <folder>"), revealed on hover AND on keyboard focus
+            (`.folderRow:focus-within`) -- the same idiom saved-view rows took
+            in wave 7 (J5). The double-click rename on the row is kept.
+          */}
           <button
             type="button"
             className={`${styles.row} ${activeFolderId === node.id ? styles.rowActive : ''}`}
@@ -663,34 +676,50 @@ function FolderNode({
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
           >
             <span>{node.name}</span>
-            <span className={styles.actions}>
-              {/*
-                ⛔ RENAME HAD ZERO VISUAL AFFORDANCE -- discoverable only by
-                double-clicking, a desktop-file-manager convention this
-                product never taught. Wired to the SAME setEditingId/
-                setEditName path onDoubleClick already uses, just given a
-                visible door. Competitive audit finding UX #10, 2026-09-22.
-              */}
-              <span
-                className={styles.iconBtn}
-                onClick={(e) => { e.stopPropagation(); setEditingId(node.id); setEditName(node.name) }}
-                title="Rename folder"
-                aria-label={`Rename ${node.name}`}
-              ><UIcon name="edit" size={11} gold={false} /></span>
-              <span
-                className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
-                onClick={(e) => { e.stopPropagation(); onStartAddChild(node.id) }}
-                title="Add subfolder"
-                aria-label={`Add subfolder to ${node.name}`}
-              >+</span>
-              <span
-                className={styles.iconBtn}
-                onClick={(e) => { e.stopPropagation(); onDelete(node.id, node.name) }}
-                title="Delete folder"
-              ><UIcon name="x" size={11} gold={false} /></span>
-            </span>
           </button>
-        )}
+          <span className={styles.actions}>
+            {/*
+              ⛔ RENAME HAD ZERO VISUAL AFFORDANCE -- discoverable only by
+              double-clicking, a desktop-file-manager convention this
+              product never taught. Wired to the SAME setEditingId/
+              setEditName path onDoubleClick already uses, just given a
+              visible door. Competitive audit finding UX #10, 2026-09-22.
+            */}
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => { setEditingId(node.id); setEditName(node.name) }}
+              title="Rename folder"
+              aria-label={`Rename ${node.name}`}
+            ><UIcon name="edit" size={11} gold={false} /></button>
+            <button
+              type="button"
+              className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
+              onClick={() => onStartAddChild(node.id)}
+              title="Add subfolder"
+              aria-label={`Add subfolder to ${node.name}`}
+            >+</button>
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => onDelete(node.id, node.name)}
+              title="Delete folder"
+              aria-label={`Delete ${node.name}`}
+            ><UIcon name="x" size={11} gold={false} /></button>
+            {/* The wave-9 door (ruling D-B8: folder publish). Nothing passes an
+                action in wave 8; each one renders with the same idiom. */}
+            {extraFolderActions.map((action) => (
+              <button
+                key={action.id}
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => action.onSelect(node)}
+                title={action.label}
+                aria-label={`${action.label} ${node.name}`}
+              >{action.label}</button>
+            ))}
+          </span>
+        </>)}
       </div>
       {isExpanded && (
         <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 7}px` }}>
@@ -717,6 +746,7 @@ function FolderNode({
               expandedFolderNotes={expandedFolderNotes}
               onOpenNote={onOpenNote}
               activeNoteId={activeNoteId}
+              extraFolderActions={extraFolderActions}
             />
           ))}
           {folderNotes.map((note) => (
@@ -801,6 +831,11 @@ export default function FolderSidebar({
   // which HIDES the Rename affordance entirely, the same rule
   // `NoteMenuActions` already applies to its own optional `onOpenBeside`.
   onRenameTag = null,
+  // Wave 8 (8A, A2): an extension point for a folder row's own actions,
+  // `[{ id, label, onSelect(folder) }]`, rendered beside Rename / Add
+  // subfolder / Delete with the same button idiom. Nothing passes it in wave
+  // 8; it is the wave-9 door for folder publish (ruling D-B8).
+  extraFolderActions = [],
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
@@ -1672,6 +1707,7 @@ export default function FolderSidebar({
                 expandedFolderNotes={expandedFolderNotes}
                 onOpenNote={onOpenNote}
                 activeNoteId={activeNoteId}
+                extraFolderActions={extraFolderActions}
               />
             ))}
             {adding && parentForNew == null ? (
