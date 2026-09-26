@@ -209,6 +209,7 @@ export default function NotebookTab() {
   const extraFolderActions = useMemo(() => (publishOn ? [{
     id: 'publish',
     label: PUBLISH_FOLDER_ACTION,
+    icon: 'globe',
     onSelect: (folder) => setPublishFolder({
       id: folder.id, name: folder.name, opener: folderActionButton(PUBLISH_FOLDER_ACTION, folder), open: true,
     }),

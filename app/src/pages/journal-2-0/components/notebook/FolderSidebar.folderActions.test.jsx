@@ -110,6 +110,19 @@ describe('extraFolderActions — the wave-9 door', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Publish Archive 2025' }))
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'f3' })))
   })
+
+  // ⚰️ Wave 9 lane 9D shipped the LABEL text in the 11px icon slot, which pushed a long folder
+  // name onto two lines. An action with an `icon` renders that glyph; its name stays the label.
+  it('an action with an icon renders the glyph, not the label text, and keeps its accessible name', async () => {
+    const onSelect = vi.fn()
+    renderSidebar({ extraFolderActions: [{ id: 'publish', label: 'Publish', icon: 'globe', onSelect }] })
+    const btn = await screen.findByRole('button', { name: 'Publish Theses' })
+    expect(btn.textContent).toBe('')
+    expect(btn.querySelector('svg')).not.toBeNull()
+    expect(btn).toHaveAttribute('title', 'Publish')
+    fireEvent.click(btn)
+    expect(onSelect).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('the selected row is SAID, not only painted (wave 8, lane 8A)', () => {

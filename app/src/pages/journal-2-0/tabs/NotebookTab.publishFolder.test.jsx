@@ -70,7 +70,11 @@ describe('who sees the door (rendered DOM)', () => {
     const theses = screen.getByRole('button', { name: 'Publish Theses' })
     expect(theses.tagName).toBe('BUTTON')
     expect(theses).toHaveAttribute('type', 'button')
-    expect(theses).toHaveTextContent('Publish')
+    // a globe glyph in the 11px slot (never the label text, which wrapped long folder names);
+    // the label stays the title and the accessible name
+    expect(theses.querySelector('svg')).not.toBeNull()
+    expect(theses).toHaveAttribute('title', 'Publish')
+    expect(theses.textContent).toBe('')
     expect(screen.getByRole('button', { name: 'Publish Plans' })).toBeInTheDocument()
     // non-vacuity: every name is a real fixture folder, and nothing is fetched until it is pressed
     for (const b of publishDoors()) expect(FOLDERS.map((f) => `Publish ${f.name}`)).toContain(b.getAttribute('aria-label'))
