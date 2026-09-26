@@ -66,3 +66,19 @@ lightweight-charts' own label in the right-offset area, and it is the same in th
   - `test_cold_fetch_pool_protection::…WARM…`
   - `test_discord_render_observe::…log_exception`
   - `StockChart.smoke.test.jsx`'s unhandled `LineType` mock error
+
+## Watch-coverage classification (required by `docs/runbooks/deploy-windows.md`)
+
+`tools/flow_worker_watch_coverage.py` is red on `api/services/bars_fetch.py`: flow-worker runs
+the file and will not redeploy for it.
+
+**Classification: INERT STRAND. No flow-worker redeploy.**
+
+flow-worker reaches `bars_fetch` for minute snapshots and the NYSE holiday calendar. It serves no
+chart bars; web and bars-api do. Both changed branches are weekly-only:
+
+- `_needs_fresh(tf="W")`;
+- `_fmt_sqlite_bars` rebuilding a WEEKLY serve that carries a ticker.
+
+On flow-worker the old code is therefore behaviourally identical. Web, worker and bars-api
+redeploy on `api/**` and pick the fix up.
