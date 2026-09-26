@@ -305,3 +305,36 @@ def test_the_version_is_read_from_the_probe_file(tmp_path, monkeypatch):
     _dump(run)                                   # made with the REAL file's version
     out = _report(run, _machine(tmp_path))
     assert "is not bench_probe.js's 'uct-bench-probe/99'" in out
+
+
+# ── the protocol names what the tools use (one authority each) ─────────────────────────────
+
+PROTOCOL = BENCH / "protocol.md"
+
+
+def test_the_protocol_names_the_current_probe_version_and_sha256():
+    import hashlib
+    text = PROTOCOL.read_text(encoding="utf-8")
+    lf = r.PROBE_FILE.read_bytes().replace(b"\r\n", b"\n")
+    assert hashlib.sha256(lf).hexdigest() in text, "protocol.md cites a stale sha256 of bench_probe.js"
+    assert f"`{r.probe_version()}`" in text
+
+
+def test_the_protocols_op_table_is_the_reports_op_list():
+    import re
+    text = PROTOCOL.read_text(encoding="utf-8")
+    rows = re.findall(r"^\| (H\d(?:-full)?) \| (.+?) \| (.+?) \| (\d+) × (\d+)(?: characters)? \|$", text, re.M)
+    got = {row[0]: (row[1], int(row[3]), int(row[4])) for row in rows}
+    want = {o["id"]: (o["what"], o["rounds"], o.get("chars_per_round") or o["reps_per_round"]) for o in r.OPS}
+    assert got == want
+
+
+def test_the_protocols_rotation_rotates_the_hand_apps():
+    import re
+    text = PROTOCOL.read_text(encoding="utf-8")
+    rows = re.findall(r"^\| r(\d) \| ([a-z]+) \| ([a-z]+) \| ([a-z]+) \| ([a-z]+) \|$", text, re.M)
+    assert len(rows) == max(o["rounds"] for o in r.OPS)
+    n = len(r.HAND_APPS)
+    for rnd, *apps in rows:
+        k = (int(rnd) - 1) % n
+        assert tuple(apps) == r.HAND_APPS[k:] + r.HAND_APPS[:k], f"round {rnd}"

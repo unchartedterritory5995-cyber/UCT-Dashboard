@@ -43,10 +43,10 @@ In order, and each step refuses by name:
 ⛔ If the clipboard write fails, H8 is INCONCLUSIVE -- never a synthetic ClipboardEvent.
 
 Selectors, all read in the product at this tree: the note card `[data-note-card-id]`
-(NoteCard.jsx:126), the sidebar Search tab (role tab, name "Search notes", FolderSidebar.jsx:1281-1288),
-its box "Search your notes" (FolderSidebar.jsx:1310; Escape clears it, :1313), the palette's input
+(NoteCard.jsx:126), the sidebar Search tab (role tab, name "Search notes", FolderSidebar.jsx:1282-1287),
+its box "Search your notes" (FolderSidebar.jsx:1310; Escape clears it, :1312), the palette's input
 "Search a security, company, or note" (CommandPalette.jsx:534; Control+K, :150), the "+ New note"
-button `[data-tour="new-note"]` (NotebookTab.jsx:1893), the editor `.ProseMirror`.
+button `[data-tour="new-note"]` (NotebookTab.jsx:1894), the editor `.ProseMirror`.
 
 Exit: 0 every op measured · 2 INCONCLUSIVE (the integrity is not CLEAN, the selfTest failed, or
 an op is INCONCLUSIVE with its sentence) · 3 refused or not run (bad arguments, a shared-root data
