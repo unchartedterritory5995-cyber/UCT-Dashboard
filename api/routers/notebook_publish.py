@@ -21,7 +21,8 @@ tests/test_share_publish_authorization.py:
     legal sign-off).
   * ONE 404 for every public miss and the flag-off path, with the public headers.
   * `Cache-Control: no-store, private`, `X-Robots-Tag: noindex, nofollow` (always -- ruling
-    D-B10) and `Referrer-Policy: no-referrer` on every public response.
+    D-B10), `Referrer-Policy: no-referrer` and `X-Content-Type-Options: nosniff` on every
+    public response; the images add `Content-Security-Policy: default-src 'none'` (M-7).
   * RATE LIMITS (ruling D-B10): 60/min per IP on the public reads, 240/min per IP on images,
     30/hour per member on publish / publish folder / Update. ⚠️ PER-PROCESS STATE (scopes
     `notebook-publish-public`, `notebook-publish-images`, `notebook-publish-mint`).

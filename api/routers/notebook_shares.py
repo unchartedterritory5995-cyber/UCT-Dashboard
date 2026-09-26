@@ -16,8 +16,10 @@ What lane 8B changed, each one a finding of `docs/notebook/share-links-authoriza
   * ONE 404 (F-BODIES): every public miss and the flag-off path answer
     `public_note_payload.not_found()` -- the same status, body and headers.
   * THE PUBLIC HEADERS (F-NO-STORE, F-API-HEADERS): `Cache-Control: no-store, private`,
-    `X-Robots-Tag: noindex, nofollow` and `Referrer-Policy: no-referrer` on the JSON AND
-    the image `FileResponse`.
+    `X-Robots-Tag: noindex, nofollow`, `Referrer-Policy: no-referrer` and (wave-8 final
+    review M-7) `X-Content-Type-Options: nosniff` on the JSON AND the image `FileResponse`;
+    the image adds `Content-Security-Policy: default-src 'none'`
+    (`public_note_payload.PUBLIC_HEADERS` / `PUBLIC_IMAGE_HEADERS`).
   * RATE LIMITS (F-RATE, ruling D-B10): 60/min per IP on the public read, 240/min per IP
     on public images, 30/hour per member on mint. ⚠️ PER-PROCESS STATE (the
     `api/limiter.py` Limiter's in-memory storage; scopes `notebook-share-public`,

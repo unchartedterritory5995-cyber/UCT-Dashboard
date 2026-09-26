@@ -42,18 +42,28 @@ from fastapi.responses import FileResponse, JSONResponse
 
 # ── The public-response contract ─────────────────────────────────────────────────────────
 #
-# ⛔ EVERY public response carries all three, the JSON and the image FileResponse alike, and
-# every public MISS too (so a miss and a hit differ in status and body, never in headers).
+# ⛔ EVERY public response carries all four, the JSON and the image FileResponse alike, and
+# every public MISS too (so a miss and a hit differ in status and body, never in these).
 #   * Cache-Control: no-store, private -- a revoked link must stop at the CDN and in the
 #     browser, not only on the server (dispatch plan R5; the zone's CDN rules are not
 #     verified, which is exactly why the header is set rather than trusted).
 #   * X-Robots-Tag: noindex, nofollow -- always noindex, no toggle (ruling D-B10).
 #   * Referrer-Policy: no-referrer -- the token rides in the path (ruling D-B1).
+#   * X-Content-Type-Options: nosniff -- the image proxy serves strangers bytes whose type
+#     only the uploader DECLARED (the stored extension comes from the declared MIME and the
+#     content is never verified), so a browser must use the type it is told and never guess
+#     one from the bytes (wave-8 final review M-7).
 PUBLIC_HEADERS: dict[str, str] = {
     "Cache-Control": "no-store, private",
     "X-Robots-Tag": "noindex, nofollow",
     "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
 }
+
+#: The image responses add one more (M-7): a proxied file opened on its own, as a document,
+#: may load nothing and run nothing -- whatever its bytes turn out to be.
+IMAGE_CSP = "default-src 'none'"
+PUBLIC_IMAGE_HEADERS: dict[str, str] = {**PUBLIC_HEADERS, "Content-Security-Policy": IMAGE_CSP}
 
 #: The ONE not-found body. Every public miss (unknown, revoked, expired, trashed, archived)
 #: AND the flag-off path answer exactly this, so no answer tells a caller which it was.
@@ -70,7 +80,7 @@ def public_json(content: Any) -> JSONResponse:
 
 
 def public_file(path: Any) -> FileResponse:
-    return FileResponse(str(path), headers=dict(PUBLIC_HEADERS))
+    return FileResponse(str(path), headers=dict(PUBLIC_IMAGE_HEADERS))
 
 
 def enforce_rate(limit: str, scope: str, key: str, sentence: str, *, public: bool) -> None:
@@ -546,7 +556,7 @@ def walk_types(doc: Any) -> Iterable[str]:
 
 
 __all__ = [
-    "PUBLIC_HEADERS", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
+    "PUBLIC_HEADERS", "PUBLIC_IMAGE_HEADERS", "IMAGE_CSP", "NOT_FOUND_DETAIL", "PUBLIC_NOTE_KEYS", "NEUTRAL_LINE", "LINKED_NOTE_TEXT",
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",

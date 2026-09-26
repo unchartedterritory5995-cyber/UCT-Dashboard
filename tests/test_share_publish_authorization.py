@@ -114,7 +114,10 @@ PUBLIC_HEADERS = {
     "cache-control": "no-store, private",
     "x-robots-tag": "noindex, nofollow",
     "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",      # wave-8 final review M-7
 }
+#: M-7: an image the proxy serves, opened as a document, may load and run nothing.
+IMAGE_CSP = "default-src 'none'"
 
 A, B = "user-alpha-7f3", "user-bravo-9c1"
 PAID = {"plan": "pro"}
@@ -756,6 +759,37 @@ def test_4_the_image_file_response_carries_the_public_headers(app, client, world
         assert r.status_code == 200 and r.content.startswith(b"\x89PNG"), url
         for k, v in PUBLIC_HEADERS.items():
             assert r.headers.get(k) == v, (url, k)
+        assert r.headers.get("content-security-policy") == IMAGE_CSP, url
+
+
+IMAGE_ROWS = [r for r in PUBLIC_ROWS if "/att/" in r[1]]
+
+
+@pytest.mark.parametrize("row", PUBLIC_ROWS, ids=_ids)
+@pytest.mark.parametrize("target", ["A", "missing"])
+def test_4_every_public_response_says_nosniff_and_every_served_image_forbids_every_source(
+        row, target, app, client, world):
+    """Wave-8 final review M-7. The proxy hands strangers bytes whose type only the uploader
+    declared, so every public answer -- the JSON, the image, and every miss -- carries
+    `X-Content-Type-Options: nosniff`; a served image also carries
+    `Content-Security-Policy: default-src 'none'`, so the file opened on its own as a
+    document loads nothing and runs nothing, whatever its bytes are."""
+    signed_out(app)
+    method, url = BUILDERS[row](world, target)
+    r = _call(client, method, url)
+    assert r.headers.get("x-content-type-options") == "nosniff", (row, target, r.status_code)
+    if row in IMAGE_ROWS and target == "A":
+        assert r.status_code == 200, (row, r.status_code)
+        assert r.headers.get("content-security-policy") == IMAGE_CSP, (row, dict(r.headers))
+
+
+def test_4_the_image_rows_are_found():
+    """Non-vacuity: the CSP leg above runs over the image doors, not over nothing -- and the
+    path rule agrees with the matrix's own image buckets, so neither selection drifts."""
+    by_bucket = sorted(r for r in PUBLIC_ROWS if str(PROOF_MATRIX[r]["bucket"]).endswith("-images"))
+    assert sorted(IMAGE_ROWS) == by_bucket, (IMAGE_ROWS, by_bucket)
+    assert ("GET", "/api/j2/shared/{token}/att/{sub}/{filename}") in IMAGE_ROWS, IMAGE_ROWS
+    assert len(IMAGE_ROWS) == 3, IMAGE_ROWS   # one share door, two publish doors
 
 
 # ── 5. no data beyond the note ──────────────────────────────────────────────────────────
