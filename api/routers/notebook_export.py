@@ -39,17 +39,6 @@ router = APIRouter(prefix="/api/j2/export", tags=["journal-2-0", "notebook-expor
 BUSY_SENTENCE = "An export is already running. Please wait a moment and try again."
 
 
-def content_disposition(filename: str) -> str:
-    """`attachment` with the filename twice: an ASCII fallback, and the real name as
-    RFC 5987 `filename*` (UTF-8, percent-encoded). ⛔ A header is Latin-1 on the wire, so a
-    title holding an em dash or an emoji written raw raises inside the response and the
-    member gets a 500 instead of their note."""
-    from urllib.parse import quote
-
-    ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
-    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
-
-
 def _format_or_422(raw: Optional[str]) -> str:
     from api.services.journal_two.notes_export_formats import UNKNOWN_FORMAT_SENTENCE, normalize_format
 
@@ -65,8 +54,11 @@ def export_notebook(
     user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
     """Every active note in `format`, as one zip streamed from a temp file."""
+    # `content_disposition` has ONE definition, beside the single-note Markdown route's
+    # builder: this router carried a second copy of it until the wave-8 whole-branch pass.
     from api.services.journal_two.notes_export import (
-        acquire_export_slot, build_export_zip_to_tempfile, release_export_slot, stream_export_file,
+        acquire_export_slot, build_export_zip_to_tempfile, content_disposition,
+        release_export_slot, stream_export_file,
     )
 
     fmt = _format_or_422(format)
@@ -92,7 +84,7 @@ def export_one_note(
 ) -> Response:
     """ONE note in `format`: bounded by one note, so built in memory (no slot, the same as
     the Markdown single-note route)."""
-    from api.services.journal_two.notes_export import build_single_note_export
+    from api.services.journal_two.notes_export import build_single_note_export, content_disposition
 
     fmt = _format_or_422(format)
     built = build_single_note_export(user["id"], note_id, fmt=fmt)

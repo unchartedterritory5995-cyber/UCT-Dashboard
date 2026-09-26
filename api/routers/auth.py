@@ -2137,6 +2137,12 @@ _PREFERENCE_KEYS = {
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
+    # Wave 8: the sample-notebook strip and the first-run tour each write one
+    # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
+    # the server answered 400 "Unknown preference key" and neither ever
+    # persisted — the tour reopened on every visit.
+    "notebook_sample": _PREF_OPAQUE,
+    "notebook_tour": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

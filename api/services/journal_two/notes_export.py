@@ -2360,8 +2360,8 @@ def content_disposition(filename: str) -> str:
     `filename="..."` raw, so a title holding an em dash, a curly quote or an emoji raised
     `UnicodeEncodeError` inside the Response and the member got a 500 instead of their note
     (H14, found by wave 8 lane 8C, live on production 271a078b6). The whole header is ASCII
-    now. The editor reads `filename="..."`, so it saves under the fallback until it learns
-    `filename*`."""
+    now. The editor's download door (`exportFormats.js::filenameFromDisposition`, wave 8) reads
+    `filename*` first, so a title outside Latin-1 saves under its real name."""
     ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
     return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
 

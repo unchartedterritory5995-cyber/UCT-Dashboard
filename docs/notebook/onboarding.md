@@ -53,8 +53,10 @@ while the gate is off — a router-level dependency that reads no credential and
 | `DELETE /sample-notebook` | signed in | `{trashed: [...]}` |
 
 ⚠️ This is a **server-side note door** outside `journal_two.py` (through `import_confirm` and
-`delete_note`). The door ledger's rail ⑤ matches `create_note(`/`update_note(` and does not see
-it; the lane report asks the controller to decide whether ⑤ widens.
+`delete_note`). The door ledger's rail ⑤ (`lib/offline/doorEnumeration.test.js`) used to match
+only `create_note(`/`update_note(` and could not see it. Controller ruling (wave 8 whole-branch
+pass): ⑤ now matches `import_confirm(` and `delete_note(` as well, and `sample_notebook.py` has
+its own ledger row with its settle story.
 
 ## The first-run tour (C2)
 
