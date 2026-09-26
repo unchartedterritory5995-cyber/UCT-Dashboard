@@ -19,7 +19,7 @@ const AUTH = vi.hoisted(() => ({ value: { isPaid: true, user: { id: 'u1', role: 
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => AUTH.value }))
 
 const NOTE = 'n1'
-const S = { share: null, pubs: [], calls: [], shareStatus: 200 }
+const S = { share: null, pubs: [], calls: [], shareStatus: 200, publishable: undefined }
 const json = (status, body) => Promise.resolve({ ok: status < 300, status, json: () => Promise.resolve(body) })
 
 beforeEach(() => {
@@ -28,6 +28,7 @@ beforeEach(() => {
   S.pubs = []
   S.calls = []
   S.shareStatus = 200
+  S.publishable = undefined
   Object.defineProperty(navigator, 'clipboard', {
     value: { writeText: vi.fn(() => Promise.resolve()) }, configurable: true,
   })
@@ -48,7 +49,8 @@ beforeEach(() => {
     }
     if (u === `/api/j2/publish?note_id=${NOTE}`) {
       return json(200, { publications: S.pubs, shares: [],
-        note: { noteId: NOTE, exists: true, folderId: 'f1', folderName: 'Weekly plans' } })
+        note: { noteId: NOTE, exists: true, folderId: 'f1', folderName: 'Weekly plans',
+          ...(S.publishable === undefined ? {} : { publishable: S.publishable }) } })
     }
     if (u === `/api/j2/publish/notes/${NOTE}` && method === 'POST') {
       return json(200, { publication: { slug: 'slugN', kind: 'note', targetId: NOTE, path: '/p/slugN' } })
@@ -213,6 +215,30 @@ describe('publish to the web', () => {
     expect(within(dialog).getByRole('button', { name: 'Copy page link' })).toBeInTheDocument()
     // an EXPIRED folder page is not live: the door offers to publish it again
     expect(within(dialog).getByRole('button', { name: 'Publish folder "Weekly plans"' })).toBeInTheDocument()
+  })
+
+  // Wave-8 backend M-3: the server refuses to publish an archived note and says so in
+  // `publishable`. The door says why instead of offering a button whose only result is an error.
+  it('an archived note says how to publish it instead of offering the button', async () => {
+    S.publishable = false
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    expect(dialog).toHaveTextContent('This note is archived. Unarchive it from the note menu to publish it.')
+    expect(within(dialog).queryByRole('button', { name: 'Publish this note' })).toBeNull()
+  })
+
+  it('a live note (publishable true) and a server that predates the field both keep the button', async () => {
+    S.publishable = true
+    mount({ notebook_publish_enabled: true })
+    let dialog = await openDoor()
+    expect(within(dialog).getByRole('button', { name: 'Publish this note' })).toBeInTheDocument()
+    cleanup()
+    __resetNotebookFlags()
+    S.publishable = undefined
+    mount({ notebook_publish_enabled: true })
+    dialog = await openDoor()
+    expect(within(dialog).getByRole('button', { name: 'Publish this note' })).toBeInTheDocument()
+    expect(dialog).not.toHaveTextContent('This note is archived.')
   })
 })
 

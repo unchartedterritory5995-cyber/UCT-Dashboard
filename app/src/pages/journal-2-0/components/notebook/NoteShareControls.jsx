@@ -313,6 +313,12 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
                 </button>
               </div>
             </>
+          ) : ctx?.publishable === false && ctx?.exists ? (
+            // Wave-8 backend M-3: the server refuses to publish an ARCHIVED note, and says so in
+            // `publishable`. Say why here instead of offering a button whose only result is an
+            // error. `=== false` on purpose: a server that predates the field sends nothing, and
+            // the button stays (its refusal sentence still reaches the member).
+            <p className={styles.caption}>This note is archived. Unarchive it from the note menu to publish it.</p>
           ) : (
             <div className={styles.row}>
               <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
