@@ -127,6 +127,13 @@ export default function Privacy() {
             your account, your other notes, or its file attachments.
           </li>
           <li>
+            <strong>Published notes and folders</strong> — where available, if you publish a
+            note or folder to the web, anyone with its address can read it without signing in
+            until you unpublish it. Published pages ask search engines not to index them, and
+            they do not show your account, your other notes, file attachments, or market data
+            such as charts and financial figures.
+          </li>
+          <li>
             <strong>Alert destinations</strong> — if you send alerts to a service you choose,
             such as a Discord channel, we deliver the alert content there.
           </li>
