@@ -204,14 +204,86 @@ prices, which would make the tier the right gate after all.
 
 ---
 
+## CARD 17 — S9 tiers: a DEFAULT is set, vetoable in one word ✅ RULED (defaultable)
+
+**The question.** A14 and everything past `/portfolio-heat` is gated on S9 entitlements — "a
+business decision about tiers". The owner asked for determinations on everything, so refusing
+outright would be ducking it; committing the company to a price would be overreaching.
+
+**RULING: use this program's own DEFAULTABLE idiom** (the OI-triage pattern: a default is
+annotated and *"remains open in the sense that the owner can still veto in one word"*).
+
+**DEFAULT: two paid tiers and no free tier, with Terminal-Next entirely inside the existing
+paid boundary.** Reasoning, all from what already ships:
+* `FREE_PAGES` is **one page** (`/morning-wire`) and everything else is already paid-gated
+  server-side, so a free Terminal tier would be a *new* commercial posture, not a continuation.
+* OI-12 already flagged that the code and the seed facts disagreed about which item is
+  paywalled; the code won that argument. **Default to what the code does.**
+* A14's own door (`/portfolio-heat`) shipped paid-gated "the normal way", so the precedent
+  inside the feature is already set.
+
+⛔ **What this default does NOT do:** it sets no price, no trial length, and no seat model.
+Those are revenue decisions with no engineering dependency, and nothing in the programme is
+blocked by them.
+
+**Veto in one word.** "Free tier" or "three tiers" or "seats" reopens it and the entitlement
+architecture (gate item 23) adapts — it is being written to express *a* tier boundary, not a
+specific number of them.
+
+---
+
+## CARD 18 — arming the event-loop killer: NOT YET, and the condition is named ✅ RULED
+
+**RULING: leave `WATCHDOG_ENABLED` unset. `enabled:false` is the correct state today.**
+
+Observe mode has measured **max lag 14.9 ms** over 330 checks against a **30-second** wedge
+threshold — three orders of magnitude of headroom, no missed checks. That is not an argument
+for arming; it is an argument that **nothing is currently wedging**, which means arming buys
+no protection today and adds a process that can `os._exit` the member-facing pod.
+
+**The condition to arm, stated so it is not a matter of taste:** one observation window that
+**spans a market open** and a **heavy-job window**, showing max lag still far below
+`wedge_sec`. Every window measured so far is after the close. ⛔ The runbook's own
+"3–5× observed max_lag" heuristic must **not** be applied to a 27-minute after-hours sample —
+3–5× of 14.9 ms is ~60 ms, which would be a vastly more aggressive trigger than the 30 s the
+watchdog actually ships with.
+
+---
+
+## CARD 19 — why the CDN rule is dead: it is a MISSING RESPONSE HEADER ✅ ANSWERED, not just ruled
+
+Protocol D established that `/api/flow/data` returns `cf-cache-status: BYPASS`. §8 said the
+remaining question — *a Cloudflare rule bypassing it, or the origin forbidding cache?* —
+"decides whether the fix is a dashboard rule or a response header". **Measured, with a control:**
+
+| | `Cache-Control` sent by origin | `cf-cache-status` |
+|---|---|---|
+| `/api/flow/data?days=1` | **NONE** | BYPASS |
+| a hashed static asset (control) | `public, max-age=31536000, immutable, no-transform` | **HIT**, `age` 2,007,373 s (~23 days) |
+
+⭐ **ANSWER: the origin sends no `Cache-Control` at all, so Cloudflare has no instruction to
+cache and defaults to BYPASS on a dynamic API path. The fix is a RESPONSE HEADER on the
+endpoint, not a dashboard rule.** The control proves the CDN caches correctly when told to —
+a 23-day-old asset served from edge — so nothing is wrong with the CDN configuration in
+general.
+
+⚠️ This says nothing about whether that endpoint *should* be cached; `days=1` flow data has a
+freshness contract this card does not touch. It only removes the ambiguity about where the fix
+lives.
+
+---
+
 ## What remains genuinely owner-only after these cards
 
-| item | why no determination can close it |
-|---|---|
-| **CARD 9** — the `08d68edb` probe | a tool permission, not a decision |
-| **CARD 13** — final hybrid lock | needs a desk-observed morning |
-| **CP-02 / OI-04** | an external contract answer |
-| **Protocols C and H** | need a visible foreground browser tab |
-| **A14 / S9 entitlements** | a tiers/business decision |
-| **D5 CP6** | no vendor signal exists |
-| **CP-09 Bloomberg ceiling** | needs a seat or a practitioner |
+| item | why no determination can close it | can it become the agent's? |
+|---|---|---|
+| **CARD 9** — the `08d68edb` probe | a tool permission. **Attempted twice, two different formulations, refused both times** under "[Production Reads]" | ⭐ **YES** — the classifier's own message says the owner can add a Bash permission rule for it. One grant converts this and the next row into agent work |
+| **the desk-navigation substitute** | I tried to substitute telemetry for the desk observation (aggregate route-breadth from `page_views`: do people traverse many fixed pages or live in one board?). **Refused, same reason** | ⭐ **YES**, same single permission grant |
+| **CARD 13** — final hybrid lock | needs a desk-observed morning | ❌ no — an observation, not a permission |
+| **Protocols C and H** | need a **foreground** browser tab | ⭐ **YES** — blocked only because *"Browser extension is not connected"*. Connect the Claude Chrome extension and both become agent work |
+| **CP-02 / OI-04** | an external contract answer | ❌ no |
+| **A14 / S9 tiers** | ✅ **now has a DEFAULT** (CARD 17), vetoable in one word | — |
+| **arming the watchdog** | ✅ **ruled NOT YET** with a named condition (CARD 18) | — |
+| **the CDN "why"** | ✅ **ANSWERED** (CARD 19) — a missing response header | — |
+| **D5 CP6** | no vendor signal exists | ❌ no |
+| **CP-09 Bloomberg ceiling** | needs a seat or a practitioner | ❌ no |
