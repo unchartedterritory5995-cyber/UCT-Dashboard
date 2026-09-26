@@ -53,8 +53,15 @@ import styles from './NoteMenuActions.module.css'
  *   rejects — it RESOLVES `{ok:false, error}` on a failed PATCH, and
  *   `toggleLock` (below) is what turns that into a thrown error `run` can
  *   catch, so a failed unlock never renders the success sentence.
+ * @param onBeforeTemplate  M-9 (wave 7): `() => Promise<boolean>` — the
+ *   EDITOR's `sendPendingEdits` (the `noteMenu` render prop's api), awaited
+ *   before "Save as template": true once the server holds every word the
+ *   editor has. Optional: without it (unit tests, no editor) the template is
+ *   saved as before.
  */
-export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [], onUnlock }) {
+const UNSENT_BEFORE_TEMPLATE = "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment."
+
+export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideExclude = [], onUnlock, onBeforeTemplate }) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
@@ -72,8 +79,8 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
       setStatus({ tone: 'ok', message: done })
       onChanged?.(next)
       return true
-    } catch {
-      setStatus({ tone: 'error', message: failed })
+    } catch (err) {
+      setStatus({ tone: 'error', message: err?.memberMessage || failed })
       return false
     } finally {
       setBusy(false)
@@ -115,10 +122,21 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
 
   // Wave 6 item 3: "Save as template" — the SERVER copies this note's title,
   // body and property values; the name defaults to the title.
+  // ⛔ Wave 7 (M-9): so the editor's pending edits are sent FIRST
+  // (`onBeforeTemplate`, the editor's `sendPendingEdits`), and when words are
+  // still unsent nothing is copied — a template missing the member's last
+  // sentence is worse than asking them to try again in a moment.
   const submitTemplate = (e) => {
     e.preventDefault()
     const name = templateDraft
-    run(() => saveNoteAsTemplate(note.id, name), {
+    run(async () => {
+      if (onBeforeTemplate && !(await onBeforeTemplate())) {
+        const err = new Error('unsent edits')
+        err.memberMessage = UNSENT_BEFORE_TEMPLATE
+        throw err
+      }
+      return saveNoteAsTemplate(note.id, name)
+    }, {
       done: `Saved “${(name || '').trim() || note.title?.trim() || 'Untitled template'}” as a template. Pick it under Your templates when you make a new note.`,
       failed: "Couldn't save this note as a template. Nothing was saved.",
     }).then((ok) => { if (ok) setTemplateDraft(null) })

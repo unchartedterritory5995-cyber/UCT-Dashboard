@@ -512,21 +512,53 @@ def _basename(ref: str) -> str:
 # explicit, unlisted scheme (`javascript:`, `vbscript:`, ...) is rejected —
 # the mark is stripped and the text run is kept, mirroring the real editor's
 # parseHTML rule returning `false` for a disallowed `<a href>`.
+# `[^a-z+.-:]` is a RANGE, `.` to `:` -- it excludes `/` and the digits -- in
+# JavaScript AND in Python `re`, and the pattern below is TipTap's text
+# verbatim (a rail in test_note_convert_mddoc.py reads the INSTALLED
+# @tiptap/extension-link and compares). Until wave 7 lane J fix round 1
+# (review M-1) the hyphen was escaped here, which made it three literal
+# characters: `notes/x.md`, `a1/b` and `javascript0:` were stored as links by
+# this converter while the editor's parseHTML refused them -- one file, two
+# answers, and a dead `href=""` wherever the stored mark was rendered.
 _LINK_ALLOWED_PROTOCOLS = (
     "http", "https", "ftp", "ftps", "mailto", "tel", "callto", "sms", "cid", "xmpp",
 )
 _LINK_URI_RE = re.compile(
-    r"^(?:(?:" + "|".join(_LINK_ALLOWED_PROTOCOLS) + r"):|[^a-z]|[a-z0-9+.\-]+(?:[^a-z+.\-:]|$))",
+    r"^(?:(?:" + "|".join(_LINK_ALLOWED_PROTOCOLS) + r"):|[^a-z]|[a-z0-9+.-]+(?:[^a-z+.-:]|$))",
     re.IGNORECASE,
 )
+
+
+# ⛔ What TipTap's `isAllowedUri` strips from the WHOLE uri before the scheme
+# check -- `UNICODE_WHITESPACE_PATTERN` in @tiptap/extension-link 3.23.6
+# (dist/index.js): U+0000-U+0020, U+00A0, U+1680, U+180E, U+2000-U+2029, U+205F,
+# U+3000. A browser ignores them inside a scheme too, so `java<TAB>script:` IS
+# `javascript:`. Checked here on the raw string, `"  javascript:..."`,
+# `"\tjavascript:..."` and `"java\x00script:..."` were refused by the editor
+# and ADMITTED by this converter (wave 7 lane J, J6).
+# ⛔ Written with `\u` escapes, never the characters themselves (wave 7 lane J,
+# fix round 1, review M-2): U+2029 is a paragraph separator, so the raw one this
+# line used to hold made `str.splitlines()` count the file one line longer than
+# `\n` does -- any rail mapping `node.lineno` through `splitlines()` was off by
+# one below it. This is the ONE copy of the class; lane G's personal API asks
+# `link_href_as_read` rather than keeping its own.
+_LINK_URI_INVISIBLE_RE = re.compile(r"[\u0000-\u0020\u00a0\u1680\u180e\u2000-\u2029\u205f\u3000]")
+
+
+def link_href_as_read(href: str) -> str:
+    """`href` as TipTap's `isAllowedUri` -- and a browser -- reads it: every
+    character of `_LINK_URI_INVISIBLE_RE` removed. The one normaliser: the
+    allow-list below and `note_personal_api._link_mark_survives` both ask it."""
+    return _LINK_URI_INVISIBLE_RE.sub("", href)
 
 
 def _is_allowed_link_href(href: str) -> bool:
     if not href:
         return True  # mirrors the JS helper's `!uri` short-circuit
+    # tiptap.js's own override tests these two prefixes on the RAW url, ahead of the default check.
     if href.startswith("/journal") or href.startswith(LINK_PREFIX):
         return True
-    return bool(_LINK_URI_RE.match(href))
+    return bool(_LINK_URI_RE.match(link_href_as_read(href)))
 
 
 def _inline_nodes(

@@ -114,8 +114,40 @@ def test_single_note_export_returns_a_markdown_attachment(route_client):
     assert r.headers["content-type"].startswith("text/markdown")
     cd = r.headers["content-disposition"]
     assert cd.startswith("attachment; filename=")
-    assert cd.endswith('.md"')
+    assert 'filename="Cup and handle-' in cd and cd.count('.md') == 2, cd  # <title>-<date>.md
+    assert "filename*=UTF-8''Cup%20and%20handle-" in cd, cd
     assert b"Cup and handle" in r.content
+
+
+@pytest.mark.parametrize("title", [
+    "Plan — NVDA",            # em dash: outside Latin-1 -- the reported 500
+    "“Quoted” setup",     # curly quotes
+    "Rocket 🚀 breakout",  # an emoji (astral plane)
+    "Café levels",            # inside Latin-1, but not ASCII
+    "Plan - NVDA",                 # control: plain ASCII, unchanged behaviour
+])
+def test_single_note_export_survives_any_title(route_client, title):
+    """H14 (wave 8 lane 8C): the title reached `Content-Disposition` raw, and a header is Latin-1
+    on the wire, so an em dash, a curly quote or an emoji raised inside the Response -- a 500
+    where the member expected their note. The header must be ASCII whatever the title, and its
+    `filename*` must carry the title back exactly."""
+    from urllib.parse import unquote
+    from api.services import auth_db
+
+    conn = sqlite3.connect(auth_db._DB_PATH)
+    _insert_note(conn, "n9", "u1", title)
+    conn.commit()
+    conn.close()
+    r = route_client.get("/api/j2/notes/n9/export")
+    assert r.status_code == 200, r.text
+    cd = r.headers["content-disposition"]
+    assert cd.isascii(), cd
+    fallback = cd.split('filename="', 1)[1].split('"', 1)[0]
+    assert fallback.endswith(".md") and fallback.isascii(), cd
+    # the builder names it <title>-<date>.md; `filename*` must carry the title back exactly
+    real = unquote(cd.split("filename*=UTF-8''", 1)[1])
+    assert real.startswith(title + "-") and real.endswith(".md"), (real, cd)
+    assert title.encode("utf-8") in r.content
 
 
 def test_single_note_export_404s_for_a_nonexistent_note(route_client):

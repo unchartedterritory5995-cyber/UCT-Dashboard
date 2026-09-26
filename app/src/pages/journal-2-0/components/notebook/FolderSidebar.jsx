@@ -92,7 +92,14 @@ export function renderSnippetMarks(snippet) {
 // instead of rendering a blank or misleading body excerpt. Mirrors the
 // same leading-separator strip as the backend's own $NVDA fix so "$NVDA"
 // and "NVDA" explain identically.
+// ⛔ Wave 7 whole-branch fix, ruling D-H8: the armed meaning search APPENDS rows past the
+// lexical list with `matchKind: "meaning"` (note_semantic.append_meaning_hits). Such a row matched
+// no word of the query, so it says why it is there -- never a bare title that reads as a match.
+export const RELATED_BY_MEANING = 'Related by meaning'
+export const isMeaningRow = (note) => note?.matchKind === 'meaning'
+
 export function matchReasonFor(note, query) {
+  if (isMeaningRow(note)) return RELATED_BY_MEANING
   const q = (query || '').trim()
   if (!q) return null
   const exactTicker = q.replace(/^[^\w]+/, '').toUpperCase()
@@ -101,6 +108,22 @@ export function matchReasonFor(note, query) {
   const tagHit = (note.tags || []).find((t) => String(t).toLowerCase() === qLower)
   if (tagHit) return `Matched tag: ${tagHit}`
   return null
+}
+
+/**
+ * The search list's count line. `total` is the LEXICAL count (count_notes); rows the meaning
+ * search appended sit past it, so "Showing 7 of 2 notes" was the naive reading (D-H8). With
+ * related rows present the line says what the list holds: "7 shown: 2 matches, 5 related".
+ */
+export function searchCountText(rows, total) {
+  const shown = rows.length
+  const related = rows.filter(isMeaningRow).length
+  const matches = total ?? (shown - related)
+  if (related) {
+    return `${shown} shown: ${matches} match${matches === 1 ? '' : 'es'}, ${related} related`
+  }
+  const all = total ?? shown
+  return `Showing ${shown} of ${all} note${all === 1 ? '' : 's'}`
 }
 
 function Chevron({ expanded }) {
@@ -271,8 +294,18 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
           Saved Views
         </span>
       </div>
+      {/*
+        ⛔ THREE SIBLING BUTTONS, NEVER A BUTTON INSIDE A BUTTON (wave 7 lane J, J5). The
+        row used to be the select <button> with Rename/Delete nested INSIDE it as spans:
+        invalid HTML, two controls no keyboard could reach, and an accessible name that
+        concatenated all three. `title={view.name}` stays on the select button ALONE --
+        the wave-6 walk locates the row with `get_by_title(view_name)` -- and the two
+        controls keep the literal titles "Rename view"/"Delete view". `.viewRow` reveals
+        them on hover AND on keyboard focus (`:focus-within`), so a Tab stop is never an
+        invisible control. Rail: FolderSidebar.test.jsx, "...three sibling buttons...".
+      */}
       {expanded && views.map((view) => (
-        <div key={view.id} className={styles.rowWrap}>
+        <div key={view.id} className={`${styles.rowWrap} ${styles.viewRow}`}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
           {editingViewId === view.id ? (
             <input
@@ -286,7 +319,7 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
                 if (e.key === 'Escape') setEditingViewId(null)
               }}
             />
-          ) : (
+          ) : (<>
             <button
               type="button"
               className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
@@ -311,22 +344,24 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
                 data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
               />
               <span className={styles.noteTitle}>{view.name}</span>
-              <span className={styles.actions}>
-                <span
-                  className={styles.iconBtn}
-                  onClick={(e) => { e.stopPropagation(); setEditingViewId(view.id); setEditViewName(view.name) }}
-                  title="Rename view"
-                  aria-label={`Rename ${view.name}`}
-                ><UIcon name="edit" size={11} gold={false} /></span>
-                <span
-                  className={styles.iconBtn}
-                  onClick={(e) => { e.stopPropagation(); onDeleteView(view.id, view.name) }}
-                  title="Delete view"
-                  aria-label={`Delete ${view.name}`}
-                ><UIcon name="x" size={11} gold={false} /></span>
-              </span>
             </button>
-          )}
+            <span className={styles.actions}>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
+                title="Rename view"
+                aria-label={`Rename ${view.name}`}
+              ><UIcon name="edit" size={11} gold={false} /></button>
+              <button
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => onDeleteView(view.id, view.name)}
+                title="Delete view"
+                aria-label={`Delete ${view.name}`}
+              ><UIcon name="x" size={11} gold={false} /></button>
+            </span>
+          </>)}
         </div>
       ))}
     </div>
@@ -922,6 +957,9 @@ export default function FolderSidebar({
     sort: 'relevance',
     limit: SEARCH_RESULT_LIMIT,
     enabled: searchEnabled,
+    // D-H9: this list renders "related by meaning" rows with their reason line (D-H8), so it is
+    // the one that asks the server for them (`meaning=1`); no other notes list does.
+    meaning: true,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     sector: sectorFilter || undefined,
@@ -1317,7 +1355,7 @@ export default function FolderSidebar({
                   response that produced it also carried `total`), mirroring
                   NotebookTab's own comment on the identical fallback. */}
               <div className={styles.searchCount}>
-                Showing {serverSearchResults.length} of {searchTotal ?? serverSearchResults.length} note{(searchTotal ?? serverSearchResults.length) === 1 ? '' : 's'}
+                {searchCountText(serverSearchResults, searchTotal)}
               </div>
               {serverSearchResults.map((n) => {
                 const title = n.title?.trim() || 'Untitled'
@@ -1330,7 +1368,9 @@ export default function FolderSidebar({
                 // never explained a match either, so this is strictly more
                 // honest, never less.
                 const hasSnippet = Boolean(n.bodySnippet || n.titleSnippet)
-                const reason = !hasSnippet ? matchReasonFor(n, trimmedQuery) : null
+                // D-H8: a meaning row always shows its reason, snippet or not.
+                const meaningRow = isMeaningRow(n)
+                const reason = (meaningRow || !hasSnippet) ? matchReasonFor(n, trimmedQuery) : null
                 return (
                   <button
                     key={n.id}
@@ -1343,7 +1383,7 @@ export default function FolderSidebar({
                       <span className={styles.searchResultTitle}>
                         {n.titleSnippet ? renderSnippetMarks(n.titleSnippet) : title}
                       </span>
-                      {n.bodySnippet ? (
+                      {n.bodySnippet && !meaningRow ? (
                         <span className={styles.searchResultSnippet}>{renderSnippetMarks(n.bodySnippet)}</span>
                       ) : reason ? (
                         <span className={styles.searchResultReason}>{reason}</span>

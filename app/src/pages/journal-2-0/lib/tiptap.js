@@ -194,7 +194,29 @@ export const ALLOWED_ATTACHMENT_MIMES = new Set([
  * the public URL. Used by the editor's drag-paste handler + the
  * toolbar "insert image" button.
  */
+// ⭐ Wave 7 fix round 1 (review M-10): an image the server would refuse by
+// TYPE or SIZE is refused here, before a byte is sent -- a phone's HEIC is
+// several megabytes shipped only to learn "Only PNG/JPG/GIF/WebP images
+// allowed". The same words and the same limits as the server
+// (notes.py `save_note_image_bytes`); `tests/test_inline_image_precheck_parity.py`
+// PARSES these two constants against `_ALLOWED_IMAGE_MIMES` / `_MAX_IMAGE_BYTES`,
+// so the two sides cannot drift. An EMPTY type (some pickers send none) is not
+// refused here: the server, which reads the bytes, decides.
+export const INLINE_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
+export const INLINE_IMAGE_MAX_BYTES = 5 * 1024 * 1024
+
+function refuseBeforeUpload(file) {
+  let sentence = null
+  if (file?.type && !INLINE_IMAGE_MIMES.includes(file.type)) sentence = 'Only PNG/JPG/GIF/WebP images allowed'
+  else if (typeof file?.size === 'number' && file.size > INLINE_IMAGE_MAX_BYTES) sentence = 'Image must be < 5 MB'
+  if (!sentence) return
+  const err = new Error(sentence)
+  err.status = 400
+  throw err
+}
+
 export async function uploadInlineImage(noteId, file) {
+  refuseBeforeUpload(file)
   const fd = new FormData()
   fd.append('file', file)
   const res = await fetch(`/api/j2/notes/${noteId}/images`, {

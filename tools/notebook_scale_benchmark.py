@@ -1,50 +1,117 @@
-"""Wave 0 (P0-2 performance gate): honest search/folder read-latency numbers
-at realistic Notebook sizes — 100 / 1,000 / 10,000 / 50,000+ notes.
+"""Notebook read-latency benchmark at realistic library sizes (Wave 0 P0-2, extended in wave 7 I1).
 
-VERIFICATION ONLY. This does not change any product code — it measures the
-REAL query functions (notes.py's list_notes/count_notes/folder_note_counts/
-notes_for_folders/get_symbol_backlinks/tag_counts) against a freshly-seeded
-SQLite file per tier, through the real schema (ensure_schema) and the real
-FTS5 triggers (seeding is a bulk raw INSERT, not create_note() per row, but
-AFTER INSERT ON j2_notes fires identically regardless of the INSERT's
-source, so the FTS index it produces is byte-for-byte what production would
-build). A trivial fixture (a handful of notes, an in-memory DB with no real
-disk I/O) cannot stand in for this — the P0-2 defect it exists to catch
-(a folder's true size silently invisible past a capped page) only manifests
-at real scale, sorted the way a migrated library actually sorts.
+VERIFICATION ONLY. This does not change product code. It measures the REAL query functions
+in `notes.py` / `note_tasks.py` against a freshly seeded SQLite file per tier. It goes
+through the real schema (`ensure_schema`) and the real FTS5 triggers. Seeding is a bulk
+raw INSERT, not one `create_note()` per row, but `AFTER INSERT ON j2_notes` fires the same
+way either way, so the FTS index is what production would build. A trivial fixture cannot
+stand in for this: the defects it exists to catch only show up at real scale.
+
+Wave 7 (lane I, I1) additions:
+  * `import conftest` BEFORE any `api.*` import, the same way `tools/selection_export_bridge.py`
+    does. That applies the census pins (every `/data/...` path env var goes to a sandbox)
+    and arms the shared-root tripwire, so a stray write can never reach `C:\\data`.
+  * Every read is timed REPEATEDLY: `--warmup` untimed runs, then `--reps` timed runs.
+    Each op reports p50 / p95 / max. One sample is an anecdote, not a p95.
+  * New reads: `tag_tree`, the `/notes/tags` pair, the `GET /notes` pair (list + count),
+    `switcher_search`, and the `list_tasks` scan (the `?view=tasks` read). The two pairs call
+    what their ROUTES call (`tag_counts_and_tree`, `list_and_count_notes`), so the number is
+    what a member waits for; the single-function rows beside them are the parts.
+  * A realistic seed: nested tags (`a/b/c`) beside the flat pool, a case variant of one
+    flat tag, a trashed share and an archived share, cashtag mentions beside chart embeds,
+    task lists with due dates, spread `updated_at`, and ~2 KB bodies (the size the wave-5
+    switcher index was measured at).
+  * `--json <path>`, which is what `tools/notebook_perf_budgets.py` reads. `--thresholds`
+    compares a run against the committed budget file and exits non-zero on a breach; which
+    budgets, with `--budget` (repeatable, default `search`). The comparison itself is
+    `notebook_perf_budgets.check_search` -- ONE implementation, never a copy here.
+
+Wave 7 whole-branch fix (tooling review I-3): A BREACH MUST REPRODUCE. After a tier's timed
+pass, every op whose p95 is at or over a line it is budgeted against is RE-TIMED once, with the
+same warmup and reps, and the second reading is written beside the first (`"remeasure"`).
+`check_search` then breaches an op only when both readings are over the line; one that did not
+reproduce is printed as a note. The lines come from `--remeasure KEY` (repeatable; the CI job
+names its three budgets) and, with `--thresholds`, from every enforced `--budget` too, read out
+of the budget file (`--thresholds`, else `docs/notebook/perf-budgets.json`). No line moves:
+this changes what counts as a reading, never what a reading must be under. Measured before the
+fix: 8 of 56 runs of the CI job on `feat/notebook-w7` went red, every one on `search_ci`'s
+`q=` ops, several on commits that could not move a read.
+
+A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
+commit production pays on every search. The conftest sandbox's auth.db gets its schema
+(`auth_db.init_db()`) at start-up, so that write lands and is timed. It must not fail fast,
+because a failed write would look cheaper than a real one.
+
+`get_symbol_backlinks` also looks up sector/industry/theme through `ticker_meta`, which
+is a 24h-cached NETWORK lookup (yfinance / FMP / Finnhub). A benchmark must never make a
+network call, and a network call is not a query cost, so that lookup is STUBBED here. The
+number is the reverse-index read only.
 
 Usage:
-    python tools/notebook_scale_benchmark.py [--tiers 100,1000,10000,50000]
-                                              [--out report.json] [--keep-db]
+    python tools/notebook_scale_benchmark.py [--tiers 1000,10000,50000] [--reps 20]
+        [--warmup 2] [--json report.json] [--thresholds docs/notebook/perf-budgets.json]
+        [--budget search [--budget tasks ...]] [--remeasure search_ci [--remeasure ...]]
+        [--keep-db] [--work-dir DIR]
 
-Prints a per-tier table to stdout and (optionally) a machine-readable JSON
-report. Never hides a slow number — that is the entire point of this script.
+Exit codes: 0 = every correctness check passed and no budget was breached; 1 = a
+correctness check failed; 2 = a budget was breached (named on stdout); 3 = bad arguments
+or a thresholds file this run cannot evaluate.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import math
 import os
+import platform
 import random
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import time
 import tracemalloc
+import types
 import uuid
+from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from api.services.journal_two import db as j2db
-from api.services.journal_two import notes as notes_svc
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
+
+
+@contextlib.contextmanager
+def _ticker_meta_stubbed():
+    """Swap the network-backed metadata lookup `get_symbol_backlinks` performs for a
+    constant, for the duration of the measurement only, then put back whatever was
+    there. It goes through sys.modules because the product imports it lazily INSIDE
+    the function. It is scoped, not installed at import, because a test session that
+    imports this tool must keep the real module for every other test."""
+    key = "api.services.ticker_meta"
+    had, prior = key in sys.modules, sys.modules.get(key)
+    stub = types.ModuleType(key)
+    stub.get_ticker_meta = lambda sym: {"sector": None, "industry": None, "theme": None}
+    sys.modules[key] = stub
+    try:
+        yield stub
+    finally:
+        if had:
+            sys.modules[key] = prior
+        else:
+            sys.modules.pop(key, None)
+
+from api.services.journal_two import db as j2db  # noqa: E402
+from api.services.journal_two import note_tasks  # noqa: E402
+from api.services.journal_two import notes as notes_svc  # noqa: E402
 
 USER_ID = "bench_user"
+TODAY = "2026-09-25"  # the ET "today" every task read is evaluated against
 
-# A real trading-journal-shaped body so FTS5 has genuine text to index —
-# never an empty string (that would make every latency number a lie about
-# what production actually indexes).
-_BODY_TEMPLATE = (
+_PARAGRAPH = (
     "Reviewed the setup on {ticker} this morning. Price reclaimed the 20 EMA "
     "on above-average volume after a three-week pullback from the prior high. "
     "Watching for a base breakout above {level} with a stop under the recent "
@@ -55,52 +122,158 @@ _COMMON_MARKER = "regime check confirms constructive breadth"
 _RARE_MARKER = "zzqbenchmarkrareterm"
 _TICKERS = ["AMD", "NVDA", "TSLA", "MSFT", "AAPL", "GOOGL", "META", "AVGO", "CRM", "NFLX"]
 _TAGS_POOL = ["earnings", "setup", "watchlist", "review", "thesis", "risk", "macro"]
+# Nested tags (Obsidian `a/b/c`), including a parent that is also a flat tag ("review")
+# and a case variant of a nested path, so the tree's fold-and-recount path is exercised.
+_NESTED_POOL = [
+    "research/semis", "research/semis/memory", "research/software", "setups/breakout",
+    "setups/breakout/vcp", "setups/pullback", "macro/rates", "Macro/Rates", "review/weekly",
+]
+_CASE_VARIANT = "Earnings"  # same tag_key as "earnings": the collided-group recount path
+
+TIMED_OPS = [
+    # label                                         (the route or reader it stands for)
+    "list_notes (page 1, default sort)",
+    "count_notes (whole library)",
+    "GET /notes default (list+count)",
+    "list_notes (FTS, common term ~30%)",
+    "count_notes (FTS, common term ~30%)",
+    "GET /notes q=common (list+count)",
+    "list_notes (FTS, rare term, 1 note)",
+    "GET /notes q=rare (list+count)",
+    "GET /notes q=common, relevance (search box)",
+    "GET /notes q=rare, relevance (search box)",
+    "GET /notes tag=setups (list+count)",
+    "GET /notes embed_symbol (list+count)",
+    "tag_counts (whole library)",
+    "tag_tree (whole library)",
+    "GET /notes/tags (tags+tree)",
+    "folder_note_counts (whole library)",
+    "notes_for_folders (heavy + 2 others)",
+    "get_symbol_backlinks",
+    "switcher_search (word start)",
+    "switcher_search (fuzzy, in order)",
+    "list_tasks (open, ?view=tasks)",
+]
 
 
-def _seed(conn: sqlite3.Connection, n: int, heavy_folder_id: str, other_folder_ids: list[str]) -> dict:
-    """Bulk raw INSERT — realistic distribution, real FTS-indexable text.
-    Returns seed metadata (ticker used for embeds, marker counts) so the
-    measurement phase can build correct, non-trivial queries against it."""
-    rng = random.Random(42)  # deterministic across runs, for reproducible numbers
-    now = "2026-01-01T00:00:00+00:00"
-    rows = []
-    embed_rows = []
-    common_count = 0
-    rare_count = 0
-    # The heavy folder holds ~15% of the library — the exact shape of the
-    # P0-2 defect (one big catch-all folder whose notes sort past any
-    # capped, alphabetically-ordered page).
+def _body(ticker: str, i: int, marker: str, paragraphs: int, tasks: list[dict] | None) -> tuple[str, str]:
+    paras = []
+    plain_parts = []
+    for p in range(paragraphs):
+        text = _PARAGRAPH.format(ticker=ticker, level=round(50 + i * 0.01 + p, 2),
+                                 marker=marker if p == 0 else "")
+        paras.append({"type": "paragraph", "content": [{"type": "text", "text": text}]})
+        plain_parts.append(text)
+    if tasks:
+        items = []
+        for t in tasks:
+            content = [{"type": "text", "text": t["text"] + " "}]
+            if t.get("due"):
+                content.append({"type": "dateMention", "attrs": {"date": t["due"]}})
+            items.append({"type": "taskItem", "attrs": {"checked": t["checked"]},
+                          "content": [{"type": "paragraph", "content": content}]})
+            plain_parts.append(t["text"])
+        paras.append({"type": "taskList", "content": items})
+    return json.dumps({"type": "doc", "content": paras}), " ".join(plain_parts)
+
+
+def _seed(conn: sqlite3.Connection, n: int, heavy_folder_id: str, other_folder_ids: list[str],
+          paragraphs: int) -> dict:
+    """Bulk raw INSERT with a deterministic, realistic distribution. Returns the ground
+    truth the correctness checks compare against."""
+    rng = random.Random(42)
+    base_ts = 1_788_000_000  # fixed epoch -> reproducible, strictly ordered updated_at
+    rows, embed_rows, mention_rows = [], [], []
+    common_count = rare_count = 0
     heavy_share = max(1, int(n * 0.15))
+    trashed = archived = 0
+    truth_tags: dict[str, set[str]] = {}       # tag_key -> active note ids carrying it exactly
+    truth_under: dict[str, set[str]] = {}      # tag_key -> active note ids at or below it
+    active_ids: list[str] = []
+    open_tasks = 0
+    heavy_active = 0
+    backlink_notes: set[str] = set()
     for i in range(n):
         note_id = uuid.uuid4().hex
         ticker = _TICKERS[i % len(_TICKERS)]
         is_common = rng.random() < 0.30
-        is_rare = (i == n // 2)  # exactly one note carries the rare marker
+        is_rare = (i == n // 2)
         marker = ""
         if is_common:
             marker = _COMMON_MARKER
-            common_count += 1
         if is_rare:
             marker = (marker + " " + _RARE_MARKER).strip()
-            rare_count += 1
-        body_plain = _BODY_TEMPLATE.format(ticker=ticker, level=round(50 + i * 0.01, 2), marker=marker)
-        body_json = json.dumps({"type": "doc", "content": [
-            {"type": "paragraph", "content": [{"type": "text", "text": body_plain}]},
-        ]})
+        tags = rng.sample(_TAGS_POOL, k=rng.randint(0, 3))
+        if rng.random() < 0.25:
+            tags += rng.sample(_NESTED_POOL, k=rng.randint(1, 2))
+        if rng.random() < 0.02 and "earnings" not in tags:
+            tags.append(_CASE_VARIANT)
+        # de-dup by tag_key, the way the validator stores them
+        seen, kept = set(), []
+        for t in tags:
+            k = notes_svc.tag_key(t)
+            if k not in seen:
+                seen.add(k)
+                kept.append(t)
+        tags = kept
+        task_spec = None
+        if rng.random() < 0.08:
+            task_spec = []
+            for j in range(3):
+                due = None
+                r = rng.random()
+                if r < 0.3:
+                    due = "2026-09-2" + str(rng.randint(0, 9))
+                elif r < 0.45:
+                    due = "2026-10-0" + str(rng.randint(1, 9))
+                task_spec.append({"text": f"Follow up on {ticker} item {j}", "checked": rng.random() < 0.4,
+                                  "due": due})
+        body_json, body_plain = _body(ticker, i, marker, paragraphs, task_spec)
         folder_id = heavy_folder_id if i < heavy_share else (
-            other_folder_ids[i % len(other_folder_ids)] if other_folder_ids and i % 3 != 0 else None
-        )
-        tags = json.dumps(rng.sample(_TAGS_POOL, k=rng.randint(0, 3)))
-        rows.append((
-            note_id, USER_ID, None, folder_id, f"Note {i:06d} — {ticker} setup", None,
-            body_json, body_plain, None, None, ticker, tags, now, now,
-        ))
-        if i % 10 == 0:  # ~10% of notes carry a chart embed, for backlinks
-            embed_rows.append((note_id, USER_ID, 0, "chart", ticker, "D", None, "snapshot", now))
+            other_folder_ids[i % len(other_folder_ids)] if other_folder_ids and i % 3 != 0 else None)
+        ts = time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime(base_ts + i * 37))
+        deleted_at = archived_at = None
+        roll = rng.random()
+        if roll < 0.02:
+            deleted_at = ts
+            trashed += 1
+        elif roll < 0.05:
+            archived_at = ts
+            archived += 1
+        rows.append((note_id, USER_ID, None, folder_id, f"Note {i:06d} — {ticker} setup", None,
+                     body_json, body_plain, None, None, ticker, json.dumps(tags), ts, ts,
+                     deleted_at, archived_at))
+        live = deleted_at is None and archived_at is None
+        if live:
+            active_ids.append(note_id)
+            if is_common:
+                common_count += 1
+            if is_rare:
+                rare_count += 1
+            if folder_id == heavy_folder_id:
+                heavy_active += 1
+            for t in tags:
+                k = notes_svc.tag_key(t)
+                truth_tags.setdefault(k, set()).add(note_id)
+                segs = k.split("/")
+                for d in range(1, len(segs) + 1):
+                    truth_under.setdefault("/".join(segs[:d]), set()).add(note_id)
+            if task_spec:
+                open_tasks += sum(1 for t in task_spec if not t["checked"])
+        if i % 10 == 0:
+            embed_rows.append((note_id, USER_ID, 0, "chart", ticker, "D", None, "snapshot", ts))
+            if deleted_at is None and ticker == _TICKERS[0]:
+                backlink_notes.add(note_id)
+        if rng.random() < 0.20:
+            sym = _TICKERS[(i * 7) % len(_TICKERS)]
+            mention_rows.append((note_id, USER_ID, sym, ts))
+            if deleted_at is None and sym == _TICKERS[0]:
+                backlink_notes.add(note_id)
     conn.executemany(
         "INSERT INTO j2_notes (id, user_id, account_id, folder_id, title, subtitle,"
         " body_json, body_plain, hero_image_url, first_image_url, ticker, tags,"
-        " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        " created_at, updated_at, deleted_at, archived_at)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         rows,
     )
     conn.executemany(
@@ -108,21 +281,85 @@ def _seed(conn: sqlite3.Connection, n: int, heavy_folder_id: str, other_folder_i
         " timeframe, trade_ref, mode, captured_at) VALUES (?,?,?,?,?,?,?,?,?)",
         embed_rows,
     )
+    conn.executemany(
+        "INSERT OR IGNORE INTO j2_note_mentions (note_id, user_id, symbol, created_at) VALUES (?,?,?,?)",
+        mention_rows,
+    )
+    # A few recents and favourites, so the switcher's boost paths run.
+    for k, nid in enumerate(active_ids[:40]):
+        conn.execute("INSERT INTO j2_note_recents (user_id, note_id, opened_at) VALUES (?,?,?)",
+                     (USER_ID, nid, f"2026-09-{10 + k % 15:02d}T12:00:00+00:00"))
+    for nid in active_ids[40:60]:
+        conn.execute("INSERT INTO j2_note_favorites (user_id, note_id, created_at) VALUES (?,?,?)",
+                     (USER_ID, nid, "2026-09-01T00:00:00+00:00"))
     conn.commit()
     return {
-        "heavy_share": heavy_share, "common_count": common_count, "rare_count": rare_count,
-        "embed_symbol": _TICKERS[0],  # i % 10 == 0 always lands on _TICKERS[0] for i=0,10,20...
+        "active": len(active_ids), "trashed": trashed, "archived": archived,
+        "heavy_active": heavy_active, "common_count": common_count, "rare_count": rare_count,
+        "embed_symbol": _TICKERS[0], "backlink_notes": len(backlink_notes),
+        "truth_tags": {k: len(v) for k, v in truth_tags.items()},
+        "truth_under": {k: len(v) for k, v in truth_under.items()},
+        "open_tasks": open_tasks,
     }
 
 
-def _time_ms(fn) -> tuple[float, object]:
-    t0 = time.perf_counter()
-    result = fn()
-    return (time.perf_counter() - t0) * 1000.0, result
+def percentile(samples: list[float], pct: float) -> float:
+    """Nearest-rank percentile (no interpolation): the smallest sample with at least
+    `pct`% of the samples at or below it."""
+    if not samples:
+        raise ValueError("no samples")
+    s = sorted(samples)
+    rank = max(1, math.ceil(pct / 100.0 * len(s)))
+    return s[rank - 1]
 
 
-def run_tier(n: int, keep_db: bool = False) -> dict:
-    tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_")
+def _measure(fn, warmup: int, reps: int, clock=None) -> tuple[dict, object]:
+    # `clock` is late-bound (a default argument is bound at import): a rail drives it with a
+    # fake timer so a spike and a reproducing slowdown can be written, not waited for.
+    clock = clock or time.perf_counter
+    result = None
+    for _ in range(warmup):
+        result = fn()
+    samples = []
+    for _ in range(reps):
+        t0 = clock()
+        result = fn()
+        samples.append((clock() - t0) * 1000.0)
+    return {
+        "p50_ms": round(percentile(samples, 50), 3),
+        "p95_ms": round(percentile(samples, 95), 3),
+        "max_ms": round(max(samples), 3),
+        "min_ms": round(min(samples), 3),
+        "reps": reps,
+    }, result
+
+
+def remeasure_breaches(stats: dict[str, dict], ops: dict, lines: dict[str, float], *,
+                       warmup: int, reps: int, measure=None) -> list[str]:
+    """Re-time, ONCE and with the same warmup and reps, every op whose p95 is at or over its
+    line in `lines` (`{op label: p95 line in ms}`), and write the second reading beside the first
+    as `stats[op]["remeasure"]`. Returns the labels re-timed. `measure` is late-bound (`_measure`
+    by default) so a rail can drive both passes from one fake clock.
+
+    ⛔ This is what makes a CI latency breach mean "it reproduced" (tooling review I-3): the job
+    went red on 8 of 56 runs, all on runner noise; `check_search` now breaches an op only when
+    this second reading is over the line too. Only an op that ALREADY read over its line is
+    re-timed, so a quiet run pays nothing."""
+    measure = measure or _measure
+    again = []
+    for label, line in lines.items():
+        st = stats.get(label)
+        if st is None or label not in ops or st["p95_ms"] < line:
+            continue
+        second, _ = measure(ops[label], warmup, reps)
+        st["remeasure"] = {**second, "line_ms": line}
+        again.append(label)
+    return again
+
+
+def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool = False,
+             work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None) -> dict:
+    tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_", dir=work_dir)
     db_path = os.path.join(tmp_dir, "bench.db")
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -133,94 +370,289 @@ def run_tier(n: int, keep_db: bool = False) -> dict:
     others = [notes_svc.create_folder(USER_ID, f"Folder {i}", conn=conn)["id"] for i in range(8)]
 
     seed_t0 = time.perf_counter()
-    meta = _seed(conn, n, heavy["id"], others)
+    truth = _seed(conn, n, heavy["id"], others, paragraphs)
     seed_ms = (time.perf_counter() - seed_t0) * 1000.0
+    # No ANALYZE: production never runs ANALYZE or `PRAGMA optimize` on auth.db, so the
+    # planner here must see the same absence of sqlite_stat1 that it sees there.
+    db_bytes = os.path.getsize(db_path)
 
-    tracemalloc.start()
-    timings = {}
+    U = USER_ID
+    now_et = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)  # == TODAY in ET
 
-    timings["list_notes (page 1, default sort)"], page1 = _time_ms(
-        lambda: notes_svc.list_notes(USER_ID, conn=conn))
-    timings["count_notes (whole library)"], total = _time_ms(
-        lambda: notes_svc.count_notes(USER_ID, conn=conn))
-    timings["list_notes (FTS, common term ~30%)"], common_hits = _time_ms(
-        lambda: notes_svc.list_notes(USER_ID, q=_COMMON_MARKER, conn=conn))
-    timings["count_notes (FTS, common term ~30%)"], common_total = _time_ms(
-        lambda: notes_svc.count_notes(USER_ID, q=_COMMON_MARKER, conn=conn))
-    timings["list_notes (FTS, rare term, 1 note)"], rare_hits = _time_ms(
-        lambda: notes_svc.list_notes(USER_ID, q=_RARE_MARKER, conn=conn))
-    timings["folder_note_counts (whole library)"], counts = _time_ms(
-        lambda: notes_svc.folder_note_counts(USER_ID, conn=conn))
-    timings["notes_for_folders (heavy + 2 others)"], byfolder = _time_ms(
-        lambda: notes_svc.notes_for_folders(USER_ID, [heavy["id"], others[0], others[1]], conn=conn))
-    timings["get_symbol_backlinks"], backlinks = _time_ms(
-        lambda: notes_svc.get_symbol_backlinks(USER_ID, meta["embed_symbol"], conn=conn))
-    timings["tag_counts (whole library)"], tags = _time_ms(
-        lambda: notes_svc.tag_counts(USER_ID, conn=conn))
+    def pair(**kw):
+        # What `GET /notes` runs: the page and its true total, one call (wave 7).
+        return notes_svc.list_and_count_notes(U, conn=conn, **kw)
 
-    _, peak_bytes = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    def tags_pair():
+        # What `GET /notes/tags` runs: both halves from one grouping pass (wave 7).
+        return notes_svc.tag_counts_and_tree(U, conn=conn)
 
-    # ── Correctness, not just speed — a fast wrong answer is not a pass ──
+    ops = {
+        "list_notes (page 1, default sort)": lambda: notes_svc.list_notes(U, conn=conn),
+        "count_notes (whole library)": lambda: notes_svc.count_notes(U, conn=conn),
+        "GET /notes default (list+count)": lambda: pair(),
+        "list_notes (FTS, common term ~30%)": lambda: notes_svc.list_notes(U, q=_COMMON_MARKER, conn=conn),
+        "count_notes (FTS, common term ~30%)": lambda: notes_svc.count_notes(U, q=_COMMON_MARKER, conn=conn),
+        "GET /notes q=common (list+count)": lambda: pair(q=_COMMON_MARKER),
+        "list_notes (FTS, rare term, 1 note)": lambda: notes_svc.list_notes(U, q=_RARE_MARKER, conn=conn),
+        "GET /notes q=rare (list+count)": lambda: pair(q=_RARE_MARKER),
+        # What the search box itself asks for (FolderSidebar: sort=relevance, limit=100).
+        "GET /notes q=common, relevance (search box)": lambda: pair(q=_COMMON_MARKER, sort="relevance", limit=100),
+        "GET /notes q=rare, relevance (search box)": lambda: pair(q=_RARE_MARKER, sort="relevance", limit=100),
+        "GET /notes tag=setups (list+count)": lambda: pair(tag="setups"),
+        "GET /notes embed_symbol (list+count)": lambda: pair(embed_symbol=truth["embed_symbol"]),
+        "tag_counts (whole library)": lambda: notes_svc.tag_counts(U, conn=conn),
+        "tag_tree (whole library)": lambda: notes_svc.tag_tree(U, conn=conn),
+        "GET /notes/tags (tags+tree)": tags_pair,
+        "folder_note_counts (whole library)": lambda: notes_svc.folder_note_counts(U, conn=conn),
+        "notes_for_folders (heavy + 2 others)":
+            lambda: notes_svc.notes_for_folders(U, [heavy["id"], others[0], others[1]], conn=conn),
+        "get_symbol_backlinks": lambda: notes_svc.get_symbol_backlinks(U, truth["embed_symbol"], conn=conn),
+        "switcher_search (word start)": lambda: notes_svc.switcher_search(U, "nvda setup", conn=conn),
+        "switcher_search (fuzzy, in order)": lambda: notes_svc.switcher_search(U, "ntvds", conn=conn),
+        "list_tasks (open, ?view=tasks)": lambda: note_tasks.list_tasks(U, status="open", now=now_et, conn=conn),
+    }
+    assert list(ops) == TIMED_OPS, "TIMED_OPS and the op table drifted"
+
+    stats: dict[str, dict] = {}
+    results: dict[str, object] = {}
+    with _ticker_meta_stubbed():
+        # ⛔⛔ TIMED WITH TRACEMALLOC OFF. The wave-0 version timed every read INSIDE
+        # tracemalloc, which hooks every Python allocation. Measured on the 50k seed:
+        # switcher_search 62 ms untraced vs 435 ms traced (x7.0), list_tasks x1.9,
+        # tag_tree x1.6, while the SQL-bound reads did not move (tag_counts, folder
+        # counts x1.0). So the instrument inflated exactly the Python-heavy reads and
+        # would have sent the fix work after a slowness the product does not have.
+        for label, fn in ops.items():
+            stats[label], results[label] = _measure(fn, warmup, reps)
+        # A reading over a budgeted line is re-timed once before it can count (I-3), still
+        # untraced, after every op has had its first pass.
+        if remeasure_lines:
+            remeasure_breaches(stats, ops, remeasure_lines, warmup=warmup, reps=reps)
+        # Peak memory comes from ONE untimed pass per op, traced separately.
+        tracemalloc.start()
+        for fn in ops.values():
+            fn()
+        _, peak_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+    counts = results["folder_note_counts (whole library)"]
+    tag_rows = {notes_svc.tag_key(r["tag"]): r["count"] for r in results["tag_counts (whole library)"]}
+    tree = {nd["key"]: nd for nd in results["tag_tree (whole library)"]}
+    flat_truth = {k: c for k, c in truth["truth_tags"].items()}
+    tasks = results["list_tasks (open, ?view=tasks)"]
+    common_rows, common_total = results["GET /notes q=common (list+count)"]
+    rare_rows = results["list_notes (FTS, rare term, 1 note)"]
+    setups_rows, setups_total = results["GET /notes tag=setups (list+count)"]
     correctness = {
-        "count_notes matches seeded total": total == n,
-        "heavy folder count matches seeded share": counts["counts"].get(heavy["id"]) == meta["heavy_share"],
-        "notes_for_folders returns the heavy folder honestly (not capped at old 100)":
-            len(byfolder.get(heavy["id"], [])) == min(meta["heavy_share"], 200),
-        "FTS common-term list/count agree": len(common_hits) <= common_total and common_total == meta["common_count"],
-        "FTS rare-term finds exactly the one seeded note": len(rare_hits) == meta["rare_count"],
-        "backlinks count matches embed rows for that symbol": backlinks["count"] == (n + 9) // 10,
+        "count_notes matches the seeded active total":
+            results["count_notes (whole library)"] == truth["active"],
+        "folder counts sum to the active total": counts["total"] == truth["active"],
+        "heavy folder count matches the seeded active share":
+            counts["counts"].get(heavy["id"]) == truth["heavy_active"],
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)":
+            len(results["notes_for_folders (heavy + 2 others)"].get(heavy["id"], []))
+            == min(truth["heavy_active"], 200),
+        "FTS common-term count matches the seeded share":
+            common_total == truth["common_count"] and len(common_rows) <= common_total,
+        "FTS rare-term finds exactly the one seeded note": len(rare_rows) == truth["rare_count"],
+        "tag_counts equals the recomputed truth for every tag (flat and nested)":
+            tag_rows == flat_truth,
+        "tag_tree totals equal the recomputed subtree truth":
+            all(tree.get(k, {}).get("total") == c for k, c in truth["truth_under"].items())
+            and set(tree) == set(truth["truth_under"]),
+        "tag=setups returns the whole subtree": setups_total == truth["truth_under"].get("setups", 0),
+        "backlinks count matches embeds UNION mentions for that symbol":
+            results["get_symbol_backlinks"]["count"] == truth["backlink_notes"],
+        "list_tasks returns every open task on an active note": tasks["count"] == truth["open_tasks"],
+        "switcher finds titles": len(results["switcher_search (word start)"]["notes"]) > 0,
     }
 
     conn.close()
     if not keep_db:
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                os.remove(db_path + suffix)
+            except OSError:
+                pass
         try:
-            os.remove(db_path)
             os.rmdir(tmp_dir)
         except OSError:
             pass
 
     return {
         "n": n,
+        "active": truth["active"], "trashed": truth["trashed"], "archived": truth["archived"],
         "seed_ms": round(seed_ms, 1),
-        "timings_ms": {k: round(v, 2) for k, v in timings.items()},
+        "db_bytes": db_bytes,
+        "ops": stats,
         "peak_tracemalloc_bytes": peak_bytes,
         "correctness": correctness,
         "db_path": db_path if keep_db else None,
     }
 
 
-def main():
+def _git(*args: str) -> str | None:
+    try:
+        return subprocess.run(["git", "-C", str(_REPO_ROOT), *args], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=20).stdout.strip()
+    except Exception:  # noqa: BLE001 -- provenance is best-effort, never a reason to fail a run
+        return None
+
+
+def check_thresholds(report: dict, thresholds: dict, budget: str = "search") -> list[str]:
+    """Every breach of `thresholds[budget]` in `report`, as sentences naming the op, tier,
+    measured p95 and budget. An op the budget names but the run did not measure is a breach
+    too: a budget that cannot be checked is not a budget that passed.
+
+    ⛔ Delegates to `tools/notebook_perf_budgets.check_search`. This used to be a second copy
+    of that comparison, and two copies of one rule drift (the CI job reads the budget tool,
+    a local run read this)."""
+    from tools.notebook_perf_budgets import check_search
+    return check_search(report, thresholds[budget])
+
+
+def _prepare_activity_sink() -> None:
+    """Give the conftest sandbox's auth.db the schema and the one user row a search's
+    `activity_log` INSERT needs, so the write every `q=` search makes in production is
+    made (and timed) here too. The store is the sandbox conftest minted, never the shared
+    data root."""
+    from api.services import auth_db  # AUTH_DB_PATH was pointed at a temp store by conftest
+    auth_db.init_db()
+    aconn = auth_db.get_connection()
+    try:
+        aconn.execute("INSERT OR IGNORE INTO users (id, email, password_hash) VALUES (?, ?, ?)",
+                      (USER_ID, "bench@local.invalid", "x"))
+        aconn.commit()
+    finally:
+        aconn.close()
+
+
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--tiers", default="100,1000,10000,50000")
-    ap.add_argument("--out", default=None, help="write a JSON report to this path")
-    ap.add_argument("--keep-db", action="store_true", help="don't delete the seeded DB files")
-    args = ap.parse_args()
+    ap.add_argument("--tiers", default="1000,10000,50000")
+    ap.add_argument("--reps", type=int, default=20)
+    ap.add_argument("--warmup", type=int, default=2)
+    ap.add_argument("--paragraphs", type=int, default=5, help="body paragraphs per note (~350 chars each)")
+    ap.add_argument("--json", dest="json_path", default=None, help="write the machine-readable report here")
+    ap.add_argument("--out", dest="json_path", help=argparse.SUPPRESS)  # the old flag name
+    ap.add_argument("--thresholds", default=None, help="budget JSON (docs/notebook/perf-budgets.json)")
+    ap.add_argument("--budget", action="append", default=None,
+                    help="which budget key(s) of --thresholds to apply (repeatable; default: search)")
+    ap.add_argument("--remeasure", action="append", default=None,
+                    help="budget key(s) whose lines trigger a one-time re-measure of an op that reads "
+                         "over them (repeatable; read from --thresholds, else docs/notebook/perf-budgets.json). "
+                         "Every --budget applied with --thresholds is re-measured too")
+    ap.add_argument("--keep-db", action="store_true")
+    ap.add_argument("--work-dir", default=None, help="where the per-tier SQLite files go (default: TEMP)")
+    args = ap.parse_args(argv)
 
-    tiers = [int(x) for x in args.tiers.split(",") if x.strip()]
-    results = []
+    try:
+        tiers = [int(x) for x in args.tiers.split(",") if x.strip()]
+    except ValueError:
+        print(f"bad --tiers {args.tiers!r}")
+        return 3
+    if not tiers or args.reps < 1 or args.warmup < 0:
+        print("need at least one tier, --reps >= 1 and --warmup >= 0")
+        return 3
+    thresholds = None
+    budget_keys = args.budget or ["search"]
+    if args.thresholds:
+        try:
+            thresholds = json.loads(Path(args.thresholds).read_text(encoding="utf-8"))
+            for key in budget_keys:
+                spec = thresholds[key]
+                float(spec["p95_ms_max"]), int(spec["tier"])
+                if not spec["ops"]:
+                    raise ValueError(f"budget {key!r} names no ops")
+        except (OSError, ValueError, KeyError, TypeError) as e:
+            print(f"cannot read a search budget from {args.thresholds}: {e!r}")
+            return 3
+    # I-3: which budgets' lines trigger a re-measure. Every enforced --budget (with
+    # --thresholds) plus every --remeasure key, read from the thresholds file when one was given,
+    # else the committed budget file (looked up at CALL time, so a rail can point it elsewhere).
+    remeasure_keys = list(dict.fromkeys((budget_keys if thresholds is not None else []) + (args.remeasure or [])))
+    remeasure_src = thresholds
+    if remeasure_keys:
+        from tools import notebook_perf_budgets as pb
+        try:
+            if remeasure_src is None:
+                remeasure_src = pb.load_budgets(pb.DEFAULT_BUDGETS)
+            for key in remeasure_keys:
+                spec = remeasure_src[key]
+                float(spec["p95_ms_max"]), int(spec["tier"])
+                if not spec["ops"]:
+                    raise ValueError(f"budget {key!r} names no ops")
+        except (pb.Unevaluable, OSError, ValueError, KeyError, TypeError) as e:
+            print(f"cannot read a re-measure budget: {e!r}")
+            return 3
+
+    violations_before = len(conftest.SHARED_ROOT_VIOLATIONS)
+    _prepare_activity_sink()
+
+    report = {
+        "meta": {
+            "tool": "tools/notebook_scale_benchmark.py",
+            "argv": sys.argv[1:] if argv is None else argv,
+            "git_head": _git("rev-parse", "HEAD"),
+            "git_dirty_paths": (_git("status", "--porcelain", "--", "api", "tools") or "").splitlines(),
+            "python": platform.python_version(), "sqlite": sqlite3.sqlite_version,
+            "platform": platform.platform(), "reps": args.reps, "warmup": args.warmup,
+            "paragraphs": args.paragraphs, "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "remeasure_budgets": remeasure_keys,
+        },
+        "tiers": [],
+    }
     for n in tiers:
-        print(f"\n=== Seeding + measuring {n:,} notes ===")
-        r = run_tier(n, keep_db=args.keep_db)
-        results.append(r)
-        print(f"  seed time: {r['seed_ms']:.1f}ms")
-        for label, ms in r["timings_ms"].items():
-            print(f"  {label:52s} {ms:8.2f} ms")
-        print(f"  peak traced Python memory during queries: {r['peak_tracemalloc_bytes'] / 1e6:.2f} MB")
+        print(f"\n=== Seeding + measuring {n:,} notes ({args.reps} reps after {args.warmup} warmup) ===")
+        lines = pb.lines_at_tier(remeasure_src, remeasure_keys, n) if remeasure_keys else None
+        r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
+                     keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines)
+        report["tiers"].append(r)
+        print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
+              f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}")
+        print(f"  {'op':52s} {'p50':>9s} {'p95':>9s} {'max':>9s}")
+        for label, st in r["ops"].items():
+            print(f"  {label:52s} {st['p50_ms']:8.2f}ms {st['p95_ms']:8.2f}ms {st['max_ms']:8.2f}ms")
+        for label, st in r["ops"].items():
+            if "remeasure" in st:
+                again = st["remeasure"]
+                print(f"  re-measured {label}: p95 {st['p95_ms']:.2f} ms -> {again['p95_ms']:.2f} ms "
+                      f"(line {again['line_ms']:g} ms)")
         failed = [k for k, v in r["correctness"].items() if not v]
-        if failed:
-            print(f"  XX CORRECTNESS FAILURES: {failed}")
-        else:
-            print("  OK all correctness checks passed")
+        print(f"  XX CORRECTNESS FAILURES: {failed}" if failed else "  OK all correctness checks passed")
 
-    if args.out:
-        with open(args.out, "w", encoding="utf-8") as f:
-            json.dump(results, f, indent=2)
-        print(f"\nFull report written to {args.out}")
-
-    any_incorrect = any(not v for r in results for v in r["correctness"].values())
-    sys.exit(1 if any_incorrect else 0)
+    stray = conftest.SHARED_ROOT_VIOLATIONS[violations_before:]
+    report["meta"]["shared_root_writes"] = [{"op": v["op"], "path": v["path"]} for v in stray]
+    if args.json_path:
+        Path(args.json_path).write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(f"\nreport: {args.json_path}")
+    if stray:
+        print(f"VERDICT: FAIL -- {len(stray)} write(s) reached the shared data root: {stray[:3]}")
+        return 1
+    if any(not v for t in report["tiers"] for v in t["correctness"].values()):
+        print("VERDICT: FAIL -- a correctness check failed (a fast wrong answer is not a pass)")
+        return 1
+    if thresholds is not None:
+        breaches = []
+        from tools.notebook_perf_budgets import informational_notes, unreproduced_notes
+        for key in budget_keys:
+            breaches += [f"[{key}] {b}" for b in check_thresholds(report, thresholds, key)]
+            # reported against the same line, never a breach (review M-8; I-3's one-offs)
+            for note in informational_notes(report, thresholds[key]) + unreproduced_notes(report, thresholds[key]):
+                print(f"  note [{key}] {note}")
+        if breaches:
+            print("VERDICT: BUDGET BREACH")
+            for b in breaches:
+                print(f"  BREACH {b}")
+            return 2
+        print("VERDICT: PASS -- every budgeted op under its p95 budget: " + "; ".join(
+            f"{k} < {thresholds[k]['p95_ms_max']} ms at {int(thresholds[k]['tier']):,} notes"
+            for k in budget_keys))
+        return 0
+    print("VERDICT: PASS (no thresholds given)")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -27,6 +27,7 @@ import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
 import { drainOutbox } from '../../lib/offline/outboxDrain'
 import { landedKeyFor } from '../../lib/offline/inFlight'
+import { mergeTagDelta, sameTagList } from '../../lib/tagDelta'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -44,8 +45,11 @@ const baseNote = () => ({
 let NOTE
 let server
 const updateMock = vi.fn()
+const patchTagsMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: () => ({
+    note: NOTE, isLoading: false, error: null, update: updateMock, refresh: vi.fn(), patchTags: patchTagsMock,
+  }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -71,6 +75,20 @@ beforeEach(() => {
     const { baseUpdatedAt, ...fields } = patch || {}
     server = { ...server, ...fields, updatedAt: T3 }
     return { ...server }
+  })
+  // Wave 7 (M14): the tag door is `PATCH /notes/{id}/tags` -- the DELTA applied
+  // to the list the server holds, answering at a new revision when it wrote.
+  // The same contract as `useJ2Note().patchTags` since lane J's J9: the route
+  // answers `changed`, and the hook hands back the note ONLY when this request
+  // wrote it (`changed: true`), null for a no-op -- never judged by comparing
+  // revisions, because a no-op answers at the row as stored, which can carry
+  // another writer's revision.
+  patchTagsMock.mockReset()
+  patchTagsMock.mockImplementation(async (delta) => {
+    const tags = mergeTagDelta(server.tags, delta)
+    if (sameTagList(tags, server.tags)) return null                // changed: false
+    server = { ...server, tags, updatedAt: T3 }
+    return { ...server }                                            // changed: true
   })
   global.fetch = vi.fn(async (url, opts = {}) => {
     const u = String(url)
@@ -102,7 +120,7 @@ async function addTagAndSettle(value) {
   const input = screen.getByRole('combobox', { name: 'Add a tag to this note' })
   fireEvent.change(input, { target: { value } })
   fireEvent.submit(input.closest('form'))
-  await waitFor(() => expect(updateMock.mock.calls.some(([p]) => p && 'tags' in p)).toBe(true))
+  await waitFor(() => expect(patchTagsMock).toHaveBeenCalled())
   await act(async () => { await settleIdb(8) })
 }
 

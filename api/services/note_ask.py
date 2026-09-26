@@ -26,13 +26,29 @@ Own reserve/refund counters, deliberately NOT shared with
 `ai_search_personal`'s budget (a different feature, a different spend to cap).
 Env names are unchanged (NOTE_ASK_SYNTH_*) so migrating the prompt path could
 not quietly move a deployed knob.
+
+⭐ THE DAY'S COUNTERS ARE DURABLE (wave 7 whole-branch fix round, ruling
+D-H5b). The shared dollar cap, Ask's per-member count and writing help's
+per-member count live in auth.db (`api/services/daily_counters.py`), keyed by
+(scope, subject, ET day). ⚰️ They were module dicts, so every web deploy --
+several a day -- reset them and each "daily" cap was really a cap per uptime.
+Ask's live accounting changes only in that a deploy no longer resets it. A
+counter read/write error FAILS OPEN with one log line (the counter module's
+rule). The concurrent-stream slots (`_inflight`) stay per-process on purpose:
+they bound what is open NOW, which a restart really does end.
 """
 
 from __future__ import annotations
 
+import concurrent.futures
+import logging
 import os
 import threading
 from typing import Optional
+
+from api.services import daily_counters
+
+log = logging.getLogger(__name__)
 
 # The note-context ceiling moved to ask_retrieval.NOTE_SCOPE_MAX_CHARS when
 # Slice 6 replaced the 20k system-message blob with ranked, citable blocks.
@@ -45,7 +61,15 @@ _SYNTH_MAX_TOKENS = int(os.environ.get("NOTE_ASK_SYNTH_MAX_TOKENS", "700"))
 _SYNTH_TIMEOUT = float(os.environ.get("NOTE_ASK_SYNTH_TIMEOUT", "45"))
 _SYNTH_PERUSER_CAP = int(os.environ.get("NOTE_ASK_SYNTH_PERUSER_CAP", "40"))
 _SYNTH_GLOBAL_HARD = float(os.environ.get("NOTE_ASK_SYNTH_COST_HARD", "25"))
-_APPROX_COST = 0.02  # rough per-call USD estimate, used ONLY for the cost gate
+_APPROX_COST = 0.02  # Ask's per-call USD estimate, used ONLY for the cost gate
+# (writing help is charged its own per-action estimate, ruling D-H5:
+# `writing_help.estimate_cost`)
+
+# The durable counters' scopes (`daily_counters`). ⛔ Renaming one orphans the
+# day's rows under the old name -- a free day's allowance at the deploy.
+SCOPE_SPEND = "notebook_llm_spend_usd"        # subject daily_counters.GLOBAL
+SCOPE_ASK = "notebook_ask"                    # subject: the member's id
+SCOPE_WRITING_HELP = "notebook_writing_help"  # subject: the member's id
 
 # Concurrent streams per member. The daily cap bounds SPEND over a day; this
 # bounds what one member can hold open at an INSTANT, which is a different
@@ -58,11 +82,84 @@ _APPROX_COST = 0.02  # rough per-call USD estimate, used ONLY for the cost gate
 # goes multi-instance, where a second replica silently doubles this.
 _MAX_CONCURRENT = int(os.environ.get("NOTE_ASK_MAX_CONCURRENT", "2"))
 
+# Wave 7 lane H (H2, ruling D-H2): editor writing help has its OWN per-member
+# daily counter, beside Ask's -- a member who drafts all day must not spend
+# their Ask questions doing it, and the reverse. It SHARES the global dollar cap
+# above and the concurrent stream slots below.
+_WRITING_HELP_DEFAULT_CAP = 60
+
+
+def writing_help_peruser_cap() -> int:
+    """Writing help's per-member daily cap, read PER CALL (whole-branch tests
+    shard cross 2): a change to NOTEBOOK_WRITING_HELP_PERUSER_CAP reaches the
+    next request with no restart. Unparseable or negative falls back to 60;
+    `0` means no drafts (a closed door, never an unlimited one)."""
+    raw = os.environ.get("NOTEBOOK_WRITING_HELP_PERUSER_CAP", "60")
+    try:
+        cap = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return _WRITING_HELP_DEFAULT_CAP
+    return cap if cap >= 0 else _WRITING_HELP_DEFAULT_CAP
+
+
 _synth_lock = threading.Lock()
-_synth_day = ""
-_synth_by_user: dict = {}
-_synth_spend = 0.0
 _inflight: dict = {}
+
+
+# ── Off the event loop (ruling D-H11) ────────────────────────────────────────
+# ⚰️ D-H5b made the day's counters a SQLite write, and the stream refund ran
+# inside the async generator's `finally` -- synchronously, on the web pod's ONE
+# event loop. Measured under a held auth.db write lock: 1.17 s of stalled loop
+# for EVERY member per refund, and a provider outage makes every Ask stream
+# refund at once (the 2026-07-01 524 class). The `finally` must not `await`
+# (anyio's level-triggered cancellation would cancel the await and skip what
+# follows), so the durable write is handed to a worker thread and NOT awaited:
+# it still happens, it still fails open (the counter's own rule), and the loop
+# never waits on SQLite. The stream's telemetry write rides the same door.
+_BACKGROUND = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="note-ask-bg")
+_pending: set = set()
+_pending_lock = threading.Lock()
+
+
+def _quietly(fn, args, kwargs) -> None:
+    try:
+        fn(*args, **kwargs)
+    except Exception as e:  # noqa: BLE001 -- a background write never raises anywhere
+        log.warning("[note-ask] background %s failed (%s)",
+                    getattr(fn, "__name__", "call"), type(e).__name__)
+
+
+def run_in_background(fn, *args, **kwargs) -> None:
+    """Run `fn(*args, **kwargs)` on a worker thread, fire-and-forget: the caller
+    (an event-loop `finally`) returns at once. Never raises. After interpreter
+    shutdown has closed the pool the call runs inline -- it must still happen."""
+    try:
+        fut = _BACKGROUND.submit(_quietly, fn, args, kwargs)
+    except RuntimeError:           # the pool is shut down (interpreter exit)
+        _quietly(fn, args, kwargs)
+        return
+    with _pending_lock:
+        _pending.add(fut)
+    fut.add_done_callback(_forget)
+
+
+def _forget(fut) -> None:
+    with _pending_lock:
+        _pending.discard(fut)
+
+
+def drain_background(timeout: float = 10.0) -> None:
+    """Wait for everything handed to `run_in_background` so far. The three
+    public read helpers below call it, so a read in this process sees this
+    process's own pending refunds (read-your-writes); tests use it for the
+    telemetry row. ⛔ No request path drains: `shared_cap_reached` reads the
+    counter directly, so one member's refusal never waits on another member's
+    refund."""
+    with _pending_lock:
+        futs = list(_pending)
+    if futs:
+        concurrent.futures.wait(futs, timeout=timeout)
 
 
 def _et_day():
@@ -72,35 +169,96 @@ def _et_day():
     return d()
 
 
-def reserve_ask(user_id) -> bool:
-    """Atomic check-AND-increment under one lock hold (mirrors
-    ai_search_personal.reserve_synth). False => over cap => caller refuses
-    the ask with a 429, same shape as the AI Search widget's own limit."""
-    global _synth_day, _synth_spend
-    with _synth_lock:
-        d = _et_day()
-        if d != _synth_day:
-            _synth_day = d
-            _synth_by_user.clear()
-            _synth_spend = 0.0
-        if _synth_spend + _APPROX_COST > _SYNTH_GLOBAL_HARD:
-            return False
-        if _synth_by_user.get(user_id, 0) + 1 > _SYNTH_PERUSER_CAP:
-            return False
-        _synth_by_user[user_id] = _synth_by_user.get(user_id, 0) + 1
-        _synth_spend += _APPROX_COST
-        return True
+def charge_day() -> str:
+    """The ET day a reservation made now is keyed to. A route reads it ONCE and
+    passes it to the reservation, the busy refund and its `StreamCharge`, so a
+    stream reserved at 23:59:59.999 gives back to the day it was charged to."""
+    return _et_day()
 
 
-def refund_ask(user_id) -> None:
+def _charges(scope: str, user_id, cap, cost: float) -> list:
+    """The two counters one reservation moves: the SHARED dollar cap and the
+    member's own count for `scope`. ONE list, so a reservation and its refund
+    can never move different things."""
+    return [
+        daily_counters.Charge(SCOPE_SPEND, daily_counters.GLOBAL, float(cost), _SYNTH_GLOBAL_HARD),
+        daily_counters.Charge(scope, str(user_id), 1, cap),
+    ]
+
+
+def _reserve(scope: str, user_id, cap, cost: float, day: Optional[str]) -> bool:
+    """Atomic check-AND-increment of both counters in ONE durable transaction
+    (`daily_counters.take`). False => a cap refused => nothing was counted."""
+    return daily_counters.take(day or _et_day(), _charges(scope, user_id, cap, cost)) is None
+
+
+def _refund(scope: str, user_id, cost: float, day: Optional[str]) -> None:
+    daily_counters.give_back(day or _et_day(), _charges(scope, user_id, None, cost))
+
+
+def reserve_ask(user_id, *, day: Optional[str] = None) -> bool:
+    """Atomic check-AND-increment (mirrors ai_search_personal.reserve_synth,
+    durable since D-H5b). False => over cap => caller refuses the ask with a
+    429, same shape as the AI Search widget's own limit. `day` (default today,
+    ET) is the day charged -- the route passes the same day to its
+    `StreamCharge`, so a refund goes back to it."""
+    return _reserve(SCOPE_ASK, user_id, _SYNTH_PERUSER_CAP, _APPROX_COST, day)
+
+
+def refund_ask(user_id, *, day: Optional[str] = None) -> None:
     """Inverse of reserve_ask — give back a reservation when synthesis fails
     or produces nothing after a successful reserve, so a failed question
-    doesn't permanently consume the member's daily budget."""
-    global _synth_spend
-    with _synth_lock:
-        if _synth_by_user.get(user_id):
-            _synth_by_user[user_id] = max(0, _synth_by_user[user_id] - 1)
-        _synth_spend = max(0.0, _synth_spend - _APPROX_COST)
+    doesn't permanently consume the member's daily budget. `day` is the day
+    the reservation was made (a stream that crosses midnight refunds the day
+    it was charged to); never below zero."""
+    _refund(SCOPE_ASK, user_id, _APPROX_COST, day)
+
+
+def reserve_writing_help(user_id, *, cost: Optional[float] = None,
+                         day: Optional[str] = None) -> bool:
+    """Writing help's reservation (wave 7 H2, ruling D-H2): its OWN per-member
+    daily count (`writing_help_peruser_cap()`, default 60, read per call)
+    against the SHARED global dollar cap, charged `cost` -- the route passes
+    ruling D-H5's per-action estimate (`writing_help.estimate_cost`); None
+    charges the flat `_APPROX_COST`. Atomic, like `reserve_ask`. False => the
+    caller refuses with a 429 and the sentence the editor shows."""
+    return _reserve(SCOPE_WRITING_HELP, user_id, writing_help_peruser_cap(),
+                    _APPROX_COST if cost is None else cost, day)
+
+
+def refund_writing_help(user_id, *, cost: Optional[float] = None,
+                        day: Optional[str] = None) -> None:
+    """Inverse of `reserve_writing_help`, with the SAME `cost` it charged: a
+    draft that failed or produced nothing never costs the member one of their
+    60, nor the shared cap a cent."""
+    _refund(SCOPE_WRITING_HELP, user_id, _APPROX_COST if cost is None else cost, day)
+
+
+def ask_used(user_id, *, day: Optional[str] = None) -> int:
+    """Ask questions this member has been charged for on `day` (today). Waits
+    for this process's pending background writes first (read-your-writes)."""
+    drain_background()
+    return int(daily_counters.value(day or _et_day(), SCOPE_ASK, str(user_id)))
+
+
+def writing_help_used(user_id, *, day: Optional[str] = None) -> int:
+    """Writing-help drafts this member has been charged for on `day` (today).
+    Waits for this process's pending background writes first."""
+    drain_background()
+    return int(daily_counters.value(day or _et_day(), SCOPE_WRITING_HELP, str(user_id)))
+
+
+def spend_today(*, day: Optional[str] = None) -> float:
+    """The shared dollar cap's running total for `day` (today): Ask + writing
+    help. Waits for this process's pending background writes first."""
+    drain_background()
+    return _spend(day)
+
+
+def _spend(day: Optional[str] = None) -> float:
+    """The shared total as the counter holds it NOW -- no wait (the request
+    path's read)."""
+    return daily_counters.value(day or _et_day(), SCOPE_SPEND, daily_counters.GLOBAL)
 
 
 def _async_client():
@@ -142,3 +300,81 @@ def end_stream(user_id) -> None:
 def inflight(user_id) -> int:
     with _synth_lock:
         return _inflight.get(user_id, 0)
+
+
+def shared_cap_reached(*, cost: Optional[float] = None) -> bool:
+    """True when the SHARED dollar cap (Ask + writing help) has no room for one
+    more call costing `cost` (the flat `_APPROX_COST` when None). Read-only.
+    Lets a refused reservation say WHICH limit refused it: a member who used
+    none of their own allowance must not read that they did (wave 7 fix round
+    1, review M-2). Pass the cost the reservation was refused at."""
+    return _spend() + (_APPROX_COST if cost is None else cost) > _SYNTH_GLOBAL_HARD
+
+
+# ── Charging a stream (wave 7 lane H, fix round 1: review I-3) ─────────────────
+
+def refund_due(*, sent: bool, failed: bool) -> bool:
+    """THE ONE RULE for when a streamed Ask answer or writing-help draft gives
+    its reservation back. Both routes ask this; neither restates it.
+
+    A stream is CHARGED FROM ITS FIRST DELTA OF VISIBLE TEXT (the routes set
+    `sent` only for a delta with non-whitespace content: a whitespace-only
+    draft is refunded, as it always was). After that the member has text in
+    hand and the provider has billed the tokens, so an ABORT (Stop, closing the
+    panel, a dropped connection -- all of which land in the stream's `finally`
+    with no server error) keeps the charge. ⚰️ The rule this replaces was
+    "refund unless the stream SETTLED", which refunded every abort: clicking
+    Stop just before `final` was an unlimited supply of free drafts that never
+    reached the 60/day count or the shared dollar cap.
+
+    It refunds in exactly two cases:
+      * `failed` -- a SERVER-side failure (the provider raised). The member got
+        an error sentence, not an answer; that is our failure, not their spend.
+      * not `sent` -- no delta ever reached the member (an abort before the
+        first word, an empty answer, a stream that never started).
+    """
+    return bool(failed) or not bool(sent)
+
+
+class StreamCharge:
+    """One stream's reservation + concurrency slot, released EXACTLY ONCE.
+
+    The route sets `sent` just before it yields the first delta and `failed` in
+    its `except Exception`; `close()` releases the slot and applies
+    `refund_due`. It is called from the stream's `finally` AND from the
+    response's background task, because Starlette can cancel a response before
+    its body generator ever starts -- a generator that never ran has no
+    `finally`, and the slot and the reservation would both leak until the
+    process restarts. Idempotent: whichever runs first does the work.
+
+    `refund` is called as `refund(user_id, day=<the reservation's ET day>)` --
+    the day the reservation was charged to (pass `day`; it defaults to the day
+    at construction), so a stream that crosses midnight gives back to the right
+    day (the counters are keyed by day since ruling D-H5b).
+
+    ⛔ The refund is a durable SQLite write and `close()` is called from the
+    stream's `finally` ON THE EVENT LOOP, so it is handed to
+    `run_in_background` and not awaited (ruling D-H11); the slot release stays
+    synchronous (it is memory, and the member's next request needs it now)."""
+
+    def __init__(self, user_id, refund, *, day: Optional[str] = None):
+        self.user_id = user_id
+        self._refund = refund
+        self.day = day or _et_day()
+        self.sent = False
+        self.failed = False
+        self._closed = False
+        self._lock = threading.Lock()
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def close(self) -> None:
+        with self._lock:
+            if self._closed:
+                return
+            self._closed = True
+        end_stream(self.user_id)
+        if refund_due(sent=self.sent, failed=self.failed):
+            run_in_background(self._refund, self.user_id, day=self.day)

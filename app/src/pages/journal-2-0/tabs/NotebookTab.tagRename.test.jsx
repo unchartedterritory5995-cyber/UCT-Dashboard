@@ -322,7 +322,7 @@ describe('NotebookTab — R4-3 (wave 6 fix round 4): a LATER chunk that fails re
     })
   }
 
-  it('chunk 1 renames 500, chunk 2 fails with no server detail: "Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed)." and nothing else', async () => {
+  it('chunk 1 renames 500, chunk 2 fails with no server detail: "Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed)." then which and why (J7), never "Nothing was changed"', async () => {
     // 1,100 ids = chunks of 500, 500, 100. Chunk 2 fails, so chunk 3 is
     // never attempted and "the rest" is chunk 2 + chunk 3 = 600 notes.
     renameIds = Array.from({ length: 1100 }, (_, i) => `id-${i}`)
@@ -331,11 +331,14 @@ describe('NotebookTab — R4-3 (wave 6 fix round 4): a LATER chunk that fails re
     fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
 
     const notice = await screen.findByTestId('bulk-notice')
-    // The WHOLE rendered message is exactly this one sentence — not a
-    // substring of a longer notice that contradicts it further on.
+    // The WHOLE rendered message is exactly this — not a substring of a longer
+    // notice that contradicts it further on. ⭐ Wave 7 lane J, J7: the lead is
+    // followed by WHICH notes kept the old tag and WHY (a count alone told the
+    // member nothing to act on), still with no "Nothing was changed" in it.
     expect(notice.firstElementChild.textContent,
-      'the notice is not the one true sentence').toBe(
-      'Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed).')
+      'the notice is not the true sentence pair').toBe(
+      'Renamed 500 notes; the rest could not be renamed (600 notes left unrenamed).'
+      + ' Still #earnings (600 notes) — the server answered 500. Rename #earnings again to finish them.')
     expect(notice.textContent, 'a renamed count is followed by "Nothing was changed"').not.toMatch(/Nothing was changed/)
 
     // The loop still stops at the failed chunk: chunk 3 is never sent.
@@ -357,5 +360,74 @@ describe('NotebookTab — R4-3 (wave 6 fix round 4): a LATER chunk that fails re
       `the lead is not the stop sentence: ${text}`).toBe(true)
     expect(text).toMatch(/is waiting to sync/)
     expect(text).not.toMatch(/Nothing was changed/)
+  })
+})
+
+describe('NotebookTab — J7 (wave 7 lane J): a partly failed chunked rename says WHICH notes kept the old tag, and WHY', () => {
+  // ⚰️ A later chunk failing ended on "…(600 notes left unrenamed)." — a count. Which notes,
+  // and why the request failed, were thrown away (the reason was dropped whenever anything
+  // had been renamed, to keep runNoteBatch's "Nothing was changed." out of the sentence).
+  // The member now reads the titles this page knows among the notes never sent, the
+  // server's own reason (or its status, or that the request never reached it), and the
+  // one thing that finishes the job.
+  function renameWhereChunk2Fails(answer) {
+    // chunk 1 = 500 unknown ids; chunk 2 holds the two notes this page has titles for.
+    renameIds = [...Array.from({ length: 500 }, (_, i) => `id-${i}`), 'n1', 'n2',
+      ...Array.from({ length: 98 }, (_, i) => `late-${i}`)]
+    let calls = 0
+    global.fetch = vi.fn((url, init = {}) => {
+      const u = String(url)
+      if (u === '/api/j2/notes/batch') {
+        calls += 1
+        const body = JSON.parse(init.body)
+        batchCalls.push(body)
+        if (calls === 2) return answer()
+        return ok({ op: body.op, results: body.ids.map((id) => ({ id, status: 'changed', updatedAt: '2026-09-24T00:00:00Z' })) })
+      }
+      return ok({})
+    })
+  }
+  async function noticeText() {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'rename earnings to quarterly' }))
+    const notice = await screen.findByTestId('bulk-notice')
+    return notice.firstElementChild.textContent
+  }
+
+  it('names the unsent notes it has titles for, and quotes the server\'s own reason', async () => {
+    renameWhereChunk2Fails(() => Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({ detail: 'database is busy' }) }))
+    const text = await noticeText()
+    expect(text).toBe('Renamed 500 notes; the rest could not be renamed (100 notes left unrenamed).'
+      + ' Still #earnings (100 notes, among them "First note" and "Second note")'
+      + ' — the server refused it ("database is busy"). Rename #earnings again to finish them.')
+    expect(batchCalls).toHaveLength(2)
+  })
+
+  it('with no reason in the answer, says what the server answered', async () => {
+    renameWhereChunk2Fails(() => Promise.resolve({ ok: false, status: 502, json: () => Promise.reject(new SyntaxError('<')) }))
+    const text = await noticeText()
+    expect(text).toMatch(/Still #earnings \(100 notes, among them "First note" and "Second note"\) — the server answered 502\./)
+    expect(text).not.toMatch(/Nothing was changed/)
+  })
+
+  it('when the request never reached the server, says so — never a status it did not get', async () => {
+    renameWhereChunk2Fails(() => Promise.reject(new TypeError('Failed to fetch')))
+    const text = await noticeText()
+    expect(text).toMatch(/— the request did not reach the server \(Failed to fetch\)\. Rename #earnings again to finish them\.$/)
+    expect(text).not.toMatch(/answered/)
+  })
+
+  it('CONTROL: a first chunk that fails still says nothing was changed — and now names what it knows', async () => {
+    renameIds = ['n1', 'n2', ...Array.from({ length: 499 }, (_, i) => `id-${i}`)]
+    global.fetch = vi.fn((url, init = {}) => {
+      if (String(url) === '/api/j2/notes/batch') {
+        batchCalls.push(JSON.parse(init.body))
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'server error' }) })
+      }
+      return ok({})
+    })
+    const text = await noticeText()
+    expect(text).toMatch(/501 notes were left unrenamed, among them "First note" and "Second note" — the server refused it \("server error"\)\. Nothing was changed\./)
+    expect(batchCalls).toHaveLength(1)
   })
 })

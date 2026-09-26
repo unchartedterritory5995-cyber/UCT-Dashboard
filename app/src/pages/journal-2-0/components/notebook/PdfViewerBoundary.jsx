@@ -1,7 +1,8 @@
-import { Component, Suspense, lazy } from 'react'
+import { Component, Suspense } from 'react'
 import { SkeletonBlock } from '../../../../components/Skeleton'
 import { reportError } from '../../../../lib/errorBeacon'
 import styles from './DocumentPreviewSheet.module.css'
+import { lazyLeaf } from '../../lib/lazyChunk'
 
 /**
  * The PDF viewer, behind its own lazy boundary and its own error boundary.
@@ -20,11 +21,13 @@ import styles from './DocumentPreviewSheet.module.css'
  * nothing else. That is what a boundary buys that a version bump does not.
  *
  * Two mechanisms, because they catch different failures:
- *   - `lazy()` keeps the chunk out of the Notebook's own bundle, so a module that throws at
+ *   - `lazyLeaf()` (a React.lazy with one in-place retry of a failed FETCH and NEVER a page
+ *     reload -- wave 7 I-1, ruling D-I2: a second failure comes to THIS boundary)
+ *     keeps the chunk out of the Notebook's own bundle, so a module that throws at
  *     EVALUATION rejects a promise instead of taking the route's module graph with it;
  *   - the class boundary catches a throw during RENDER, which `lazy` does not.
  */
-const PdfDocumentViewer = lazy(() => import('./PdfDocumentViewer'))
+const PdfDocumentViewer = lazyLeaf(() => import('./PdfDocumentViewer'))
 
 /** What a member sees instead of a dead route. Plain, honest, and it keeps the sheet usable —
  *  "Open in new tab" and "Download" live in the sheet above this and still work. */

@@ -122,6 +122,48 @@ describe('Save as template in the note menu', () => {
     expect(screen.queryByRole('textbox', { name: 'Template name' })).not.toBeInTheDocument()
   })
 
+  // ⛔ Wave 7 (M-9): the SERVER copies the note, so words still inside the
+  // editor's autosave window (or queued offline) would be missing from the
+  // template while the note keeps them. The editor's pending edits are sent
+  // FIRST, and the copy is asked for only once nothing is left unsent.
+  it('sends the editor\'s pending edits BEFORE asking the server to copy the note', async () => {
+    const order = []
+    const onBeforeTemplate = vi.fn(async () => { order.push('flush'); return true })
+    global.fetch = vi.fn(async (url, init) => {
+      order.push('copy')
+      calls.push({ url: String(url), method: init.method, body: JSON.parse(init.body) })
+      return answer(JSON.parse(init.body), String(url))
+    })
+    render(<NoteMenuActions note={{ id: 'n1', title: 'T' }} onBeforeTemplate={onBeforeTemplate} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save as template/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
+    expect(await screen.findByText(/Saved “T” as a template/)).toBeInTheDocument()
+    expect(order).toEqual(['flush', 'copy'])
+  })
+
+  it('every NotebookTab mount hands the editor\'s sendPendingEdits to the menu (main pane and side pane)', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = fs.readFileSync(path.resolve(process.cwd(), 'src/pages/journal-2-0/tabs/NotebookTab.jsx'), 'utf8')
+    const mounts = src.split('<NoteMenuActions').length - 1
+    // Non-vacuity: both panes mount the menu.
+    expect(mounts).toBeGreaterThanOrEqual(2)
+    expect(src.split('onBeforeTemplate={api?.sendPendingEdits}').length - 1).toBe(mounts)
+  })
+
+  it('when edits are still unsent, NOTHING is copied and it says why', async () => {
+    const onBeforeTemplate = vi.fn(async () => false)
+    render(<NoteMenuActions note={{ id: 'n1', title: 'T' }} onBeforeTemplate={onBeforeTemplate} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save as template/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Template name' }), { target: { value: 'Mine' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Your latest edits haven't reached the server yet, so the template would miss them. Nothing was saved — try again in a moment.",
+    )
+    expect(calls).toEqual([])
+    expect(screen.getByRole('textbox', { name: 'Template name' })).toHaveValue('Mine')
+  })
+
   it('a refused save says nothing was saved and keeps what the member typed', async () => {
     answer = () => ({ ok: false, status: 400, json: async () => ({ detail: 'nope' }) })
     render(<NoteMenuActions note={{ id: 'n1', title: 'T' }} />)

@@ -760,17 +760,41 @@ def _ask_citation_n(attrs: Any) -> int | str | None:
     return n
 
 
+# Wave 7 lane H (H2): writing help's actions as the label says them -- the
+# editor's AskInsertView.WRITING_HELP_ACTION_LABELS, the same four words. An
+# unknown action reads as an Ask insert (never a raw attr value in an export).
+_WRITING_HELP_ACTION_LABELS = {
+    "summarize": "Summarize", "rewrite": "Rewrite",
+    "continue": "Continue", "translate": "Translate",
+}
+
+
 def _ask_insert_markdown(attrs: dict[str, Any], kids, resolver=None) -> str:
     """G-064 (spec §7.4): an inserted Ask Notebook answer exports as a LABELLED
     quote, so a member's Markdown never loses which passage was AI-assisted, and
     lists its sources as they stood when it was inserted."""
     date = str(attrs.get("insertedAt") or "")[:10]
     question = _prose(str(attrs.get("question") or "").strip())
-    head = "**From Ask Notebook**"
-    if date:
-        head += f" · {date}"
-    if question:
-        head += f" · Q: {question}"
+    action = _WRITING_HELP_ACTION_LABELS.get(str(attrs.get("action") or ""))
+    if action:
+        # Wave 7 lane H (H2, ruling D-H1): an accepted WRITING-HELP result is the
+        # same node with `action` (+ `model`) set. Same labelled quote, its own
+        # label: "Compass · Rewrite · claude-sonnet-5", then the date and what was
+        # asked. ⛔ The DATE, never the clock time the editor's label shows: the
+        # server does not know the member's time zone, and a UTC "14:41" under a
+        # label the member read as "09:41" would be a second, wrong record.
+        model = _prose(str(attrs.get("model") or "").strip())
+        head = "**" + " · ".join(p for p in ("Compass", action, model) if p) + "**"
+        if date:
+            head += f" · {date}"
+        if question:
+            head += f" · Asked: {question}"
+    else:
+        head = "**From Ask Notebook**"
+        if date:
+            head += f" · {date}"
+        if question:
+            head += f" · Q: {question}"
 
     sources: dict[Any, str] = {}
 
@@ -1999,6 +2023,20 @@ def build_selection_export_to_tempfile(
     finally:
         if owned:
             conn.close()
+
+
+def content_disposition(filename: str) -> str:
+    """`attachment` with the filename twice: an ASCII fallback, and the real name as RFC 5987
+    `filename*` (UTF-8, percent-encoded).
+
+    ⛔ An HTTP header is Latin-1 on the wire. The single-note export wrote the note's title into
+    `filename="..."` raw, so a title holding an em dash, a curly quote or an emoji raised
+    `UnicodeEncodeError` inside the Response and the member got a 500 instead of their note
+    (H14, found by wave 8 lane 8C, live on production 271a078b6). The whole header is ASCII
+    now. The editor reads `filename="..."`, so it saves under the fallback until it learns
+    `filename*`."""
+    ascii_name = filename.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "_")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 def build_single_note_export(

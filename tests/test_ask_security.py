@@ -213,12 +213,13 @@ class TestSynthesisBoundaryHolds:
 class TestRateAndConcurrencyLimits:
     @pytest.fixture(autouse=True)
     def _reset(self):
-        note_ask._synth_day = ""
-        note_ask._synth_by_user = {}
-        note_ask._synth_spend = 0.0
+        # The day's counters are durable since ruling D-H5b (auth.db).
+        from api.services import daily_counters
+        daily_counters.clear()
         note_ask._inflight = {}
         yield
         note_ask._inflight = {}
+        daily_counters.clear()
 
     def test_the_daily_cap_bounds_spend(self, monkeypatch):
         monkeypatch.setattr(note_ask, "_SYNTH_PERUSER_CAP", 2)

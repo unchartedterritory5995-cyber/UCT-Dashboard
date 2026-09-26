@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -7,19 +7,12 @@ import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
 import NotesTableView from '../components/notebook/NotesTableView'
-import NoteGraphView from '../components/notebook/NoteGraphView'
-import NoteBoardView from '../components/notebook/NoteBoardView'
-import NoteCalendarView from '../components/notebook/NoteCalendarView'
-import NoteTimelineView from '../components/notebook/NoteTimelineView'
-import NoteTasksView from '../components/notebook/NoteTasksView'
 import { TASK_PARAM } from '../lib/noteTasks'
 import SavedViewEditor from '../components/notebook/SavedViewEditor'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import ResearchHome from '../components/notebook/ResearchHome'
 import TemplatePicker from '../components/notebook/TemplatePicker'
-import ImportWizard from '../components/notebook/import/ImportWizard'
-import ExportDialog from '../components/notebook/export/ExportDialog'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
@@ -47,13 +40,66 @@ import { useNoteSelection } from '../lib/noteSelection'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import {
-  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
-  undoFor,
+  checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
+  joinUndo, runNoteBatch, undoFor,
 } from '../lib/noteBatch'
 import { useHubEligible } from '../../../hub/useHubActive'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
+import lazyChunk from '../lib/lazyChunk'
+
+// ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
+// Graph, board, calendar, timeline and tasks are view modes; Import and Export are
+// dialogs. None of them is what the Notebook paints first (the note list and the
+// editor are, and they stay static), so each is its own chunk, fetched the first time
+// it is shown. The wrappers keep each view's NAME, so nothing below this block
+// changed: every render site reads exactly as it did.
+// ⛔ One <Suspense> per view, never one around the page: a boundary around the page
+// would blank the list and the editor while a view's chunk downloads.
+// Each chunk loads through `lazyChunk`: a failed fetch is retried once in place, and a
+// second failure (a deploy since this tab loaded) reloads the page the way every lazy
+// route in App.jsx already does (review M-5).
+function lazyView(load, label) {
+  const Chunk = lazyChunk(load)
+  function LazyNotebookView(props) {
+    return (
+      <Suspense fallback={<div role="status" aria-label={`Loading ${label}`}><SkeletonLine width="40%" height={13} /></div>}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookView.displayName = `Lazy(${label})`
+  return LazyNotebookView
+}
+
+// A dialog that is always rendered with `open` is fetched on its FIRST open and then
+// stays mounted, so its own close handling (both reset on `open` turning false, and
+// guard their in-flight work with a generation counter) runs exactly as before.
+// Before the first open it renders nothing, which is what a closed Sheet renders.
+function lazyDialog(load, label) {
+  const Chunk = lazyChunk(load)
+  function LazyNotebookDialog(props) {
+    const [opened, setOpened] = useState(Boolean(props.open))
+    if (props.open && !opened) setOpened(true)
+    if (!opened) return null
+    return (
+      <Suspense fallback={null}>
+        <Chunk {...props} />
+      </Suspense>
+    )
+  }
+  LazyNotebookDialog.displayName = `Lazy(${label})`
+  return LazyNotebookDialog
+}
+
+const NoteGraphView = lazyView(() => import('../components/notebook/NoteGraphView'), 'graph')
+const NoteBoardView = lazyView(() => import('../components/notebook/NoteBoardView'), 'board')
+const NoteCalendarView = lazyView(() => import('../components/notebook/NoteCalendarView'), 'calendar')
+const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimelineView'), 'timeline')
+const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
+const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
+const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -981,7 +1027,8 @@ export default function NotebookTab() {
           // eslint-disable-next-line no-await-in-loop
           outcome = await runNoteBatch({ ids: chunk, op: 'renameTag', args, blockedNoteIds })
         } catch (e) {
-          stoppedAt = { reason: e?.message, left: ids.length - i }
+          // J7: keep WHICH ids never went out and the error's parts, not only a count.
+          stoppedAt = { err: e, ids: ids.slice(i), left: ids.length - i }
           break
         }
         combined = {
@@ -1001,6 +1048,12 @@ export default function NotebookTab() {
       // the rest could not be renamed (M notes left unrenamed)."), and the
       // stop sentence is kept only for a rename that changed nothing, where
       // "Nothing was changed" is true.
+      //
+      // ⭐ J7 (wave 7 lane J). That lead is a COUNT; the sentence after it now
+      // says WHICH notes still carry the old tag (the titles this page holds,
+      // at most three) and WHY the request failed (the server's own words, its
+      // status, or that it never reached the server), then what finishes the
+      // job. `describeUnsentRename` owns the words for both branches.
       const renamedSome = combined.changed > 0
       const { message, tone } = describeBatch(combined, {
         ...ctx, titleOf, stoppedLeft: stoppedAt && renamedSome ? stoppedAt.left : 0,
@@ -1010,8 +1063,8 @@ export default function NotebookTab() {
       const changedIds = combined.results.filter((r) => r.status === 'changed').map((r) => r.id)
       const parts = [message]
       if (offer) parts.push(offer.message)
-      if (stoppedAt && !renamedSome) {
-        parts.push(`${stoppedAt.left} ${stoppedAt.left === 1 ? 'note was' : 'notes were'} left unrenamed — the request itself did not go through${stoppedAt.reason ? ` (${stoppedAt.reason})` : ''}.`)
+      if (stoppedAt) {
+        parts.push(describeUnsentRename(stoppedAt.ids, { tag: from, err: stoppedAt.err, renamedSome, titleOf }))
       }
       setBulkNotice({ message: parts.filter(Boolean).join(' '), tone: stoppedAt ? 'error' : (offer ? offer.tone : tone) })
       afterBulkWrite('renameTag', changedIds)
@@ -1433,6 +1486,9 @@ export default function NotebookTab() {
                     // moves the save baseline, settles the offline queue) —
                     // never a second, thinner door.
                     onUnlock={api?.unlockNote}
+                    // M-9 (wave 7): the template copies the SERVER's note, so the
+                    // editor's pending edits are sent first.
+                    onBeforeTemplate={api?.sendPendingEdits}
                     onChanged={() => {
                       api?.refresh?.()
                       refresh()
@@ -1486,6 +1542,7 @@ export default function NotebookTab() {
                       // that also moves the save baseline and settles the
                       // offline queue.
                       onUnlock={api?.unlockNote}
+                      onBeforeTemplate={api?.sendPendingEdits}
                       onChanged={() => {
                         api?.refresh?.()
                         refresh()

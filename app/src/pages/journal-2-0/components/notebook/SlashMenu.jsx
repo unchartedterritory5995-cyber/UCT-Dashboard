@@ -18,6 +18,8 @@ import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
 import { inColumn, insertColumns } from '../../lib/columnsNode'
 import { insertTableOfContents } from '../../lib/tableOfContentsNode'
+import { DICTATE_EVENT } from '../../lib/dictationInsert'
+import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -172,6 +174,36 @@ export const ITEMS = [
       // listener is bound to the same node (`editor.view.dom`), so only the
       // editor this command actually ran against ever answers.
       editor.view.dom.dispatchEvent(new CustomEvent('uct:notebook-open-image-picker', { bubbles: true }))
+    },
+  },
+  {
+    // Wave 7 lane H1: dictation. ⛔ The menu has no mic of its own: this asks
+    // the toolbar mic of THIS editor to start — dispatched on this editor's own
+    // DOM root, never `window` (the I5 rule above), so with split view open only
+    // the pane the slash command ran in starts listening. Offered only while
+    // that mic can actually dictate (a paid member, a browser that can record),
+    // so it is never a dead item.
+    title: 'Dictate',
+    description: 'Speak, and your words go in at the cursor',
+    keywords: ['voice', 'mic', 'speak', 'dictation'],
+    available: ({ editor }) => editor?.storage?.uctJournalWidgets?.canDictate?.() === true,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(DICTATE_EVENT, { bubbles: true }))
+    },
+  },
+  {
+    // Wave 7 lane H2: writing help over the WHOLE note (a slash command leaves
+    // a caret, not a selection; the toolbar entry takes a selection). Dark
+    // behind `notebook_writing_help_enabled` and paid-only — `canWritingHelp`
+    // answers both — and dispatched on this editor's own DOM root (I5).
+    title: 'Writing help',
+    description: 'Summarize, rewrite, continue or translate — you preview before anything is added',
+    keywords: ['summarize', 'rewrite', 'translate', 'continue', 'compass', 'ai'],
+    available: ({ editor }) => editor?.storage?.uctJournalWidgets?.canWritingHelp?.() === true,
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(WRITING_HELP_EVENT, { bubbles: true }))
     },
   },
 ]

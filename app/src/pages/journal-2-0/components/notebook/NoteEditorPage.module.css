@@ -222,6 +222,10 @@
   background: rgba(220, 187, 94, 0.15);
   color: var(--accent);
 }
+/* Wave 7 G5: the camera "Scan" door exists on the touch tier only (shown in
+   the `max-width: 1024px` block at the end of this file); a desktop has no
+   rear camera to photograph a page with. Its tap floor is `.toolBtn`'s. */
+.scanBtn { display: none; }
 .proseEditor {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
@@ -727,5 +731,10 @@
   .lockBannerBtn {
     min-height: var(--tap-min, 44px);
     min-width: var(--tap-min, 44px);
+  }
+  /* Wave 7 G5: the touch tier's camera door (hidden above 1024px). */
+  .scanBtn {
+    display: inline-flex;
+    align-items: center;
   }
 }

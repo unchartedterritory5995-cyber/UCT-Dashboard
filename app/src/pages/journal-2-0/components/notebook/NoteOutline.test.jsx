@@ -228,3 +228,25 @@ describe('<NoteOutline> (touch tier)', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+// ⛔ Wave 7 carry-over M5: ONE jump. The outline and the in-note table of
+// contents both "move the caret to a heading, opening any collapsed toggle
+// around it, and scroll it into view" -- and each carried its own copy, so a
+// fix to one (S4's toggle opening was added to BOTH by hand) could miss the
+// other. The outline now asks `jumpToHeading` (lib/tableOfContentsNode.js).
+describe('one jump for both surfaces (M5)', () => {
+  it('the outline delegates to jumpToHeading -- no second copy of the toggle-opening jump', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const src = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+    const outline = src('src/pages/journal-2-0/components/notebook/NoteOutline.jsx')
+    const toc = src('src/pages/journal-2-0/lib/tableOfContentsNode.js')
+    // Non-vacuity: the shared jump really is where the toggle-opening lives.
+    expect(toc).toMatch(/export function jumpToHeading\(/)
+    expect(toc).toMatch(/setNodeAttribute\(.*'open', true\)/)
+    expect(outline).toMatch(/jumpToHeading\(editor, target\.pos\)/)
+    expect(outline).not.toMatch(/setNodeAttribute\(/)
+    expect(outline).not.toMatch(/setTextSelection\(/)
+  })
+})

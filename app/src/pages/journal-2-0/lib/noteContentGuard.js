@@ -83,10 +83,29 @@ export function noteContentGuardOptions() {
 }
 
 /**
+ * The transaction meta every `replaceDocument` swap carries: "this is the note's
+ * STORED body arriving (a Restore, a server refresh, an adopted recovery), not
+ * the member editing". A guard that exists to stop the member building something
+ * (ColumnsGuard's nesting rule) lets a swap through, so a stored body is shown as
+ * stored -- the same principle as a note that LOADS that way (wave 6 M7).
+ */
+export const WHOLE_DOCUMENT_SWAP_META = 'uctWholeDocumentSwap'
+
+/**
  * Replace the whole document, or lock the editor when `json` cannot be read.
  * Returns true when the document was replaced. `errorOnInvalidContent: false`
  * keeps the pre-guard tolerance for a document that builds but is loose — a
  * blank note is `{doc, content: []}`, which ProseMirror's check calls invalid.
+ *
+ * ⛔ TRUE MEANS THE PAGE MOVED (wave 7, M-4). `setContent` answers true once it
+ * has DISPATCHED, and a `filterTransaction` that refuses the transaction leaves
+ * the state exactly as it was -- so a refused swap used to answer true over an
+ * unchanged page, and every caller that trusts the answer (a Restore resets its
+ * carried read, an adoption saves "the adopted words" from the editor) acted on
+ * words that were never on screen. A swap that replaces the document always
+ * builds a NEW doc node (the replace step exists even for identical words; a
+ * doc is never empty), so an unchanged doc object after the dispatch IS a
+ * refusal.
  */
 export function replaceDocument(editor, json, options) {
   if (!editor || editor.isDestroyed) return false
@@ -94,7 +113,12 @@ export function replaceDocument(editor, json, options) {
     markUnreadable(editor)
     return false
   }
-  return editor.commands.setContent(json, { ...(options || {}), errorOnInvalidContent: false })
+  const before = editor.state.doc
+  const ran = editor.chain()
+    .command(({ tr }) => { tr.setMeta(WHOLE_DOCUMENT_SWAP_META, true); return true })
+    .setContent(json, { ...(options || {}), errorOnInvalidContent: false })
+    .run()
+  return Boolean(ran) && editor.state.doc !== before
 }
 
 function subscribe(fn) {

@@ -24,6 +24,8 @@ NOTEBOOK_KEYS = [
     "notebook_conflict_ux_on",
     "notebook_attachments_on",
     "notebook_ask_insert_on",
+    # Wave 7 lane H (H2): editor writing help — an enablement gate.
+    "notebook_writing_help_enabled",
 ]
 
 

@@ -1698,6 +1698,7 @@ def list_notes_endpoint(
     savedViewId: str | None = None,
     propertyFilter: str | None = None,
     propertySort: str | None = None,
+    meaning: bool = False,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """`deleted=true` (Wave 0 trash view): the mirror-image question — only
@@ -1747,7 +1748,14 @@ def list_notes_endpoint(
         property_filter = _parse_property_filter_param(propertyFilter)
         property_sort = _parse_property_sort_param(propertySort)
     try:
-        rows = notes_service.list_notes(
+        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
+        # never the length of `rows` — a migrated library of thousands of notes must
+        # see its real count, not "however many fit on this page". Built from the
+        # identical WHERE predicate as the page (`notes.py::_notes_filter_sql`)
+        # so the two can never disagree about which notes match.
+        # Wave 7 (lane I): one call, one connection, and the search/tag match sets
+        # computed ONCE for both halves (`list_and_count_notes`).
+        rows, total = notes_service.list_and_count_notes(
             user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget,
             sort=sort, limit=limit, offset=offset, deleted=deleted,
@@ -1755,19 +1763,26 @@ def list_notes_endpoint(
             property_filter=property_filter, property_sort=property_sort,
             property_filter_strict=property_filter_strict,
         )
-        # `total` is the TRUE count over the same filters (folder/tag/ticker/embed/q),
-        # never the length of `rows` — a migrated library of thousands of notes must
-        # see its real count, not "however many fit on this page". Built from the
-        # identical WHERE predicate as the list above (`notes.py::_notes_filter_sql`)
-        # so the two can never disagree about which notes match.
-        total = notes_service.count_notes(
-            user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
-            embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
-            date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            property_filter=property_filter, property_filter_strict=property_filter_strict,
-        )
     except note_properties.PropertyValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 lane H (H3), DARK behind NOTEBOOK_SEMANTIC_SEARCH_ENABLED: meaning
+    # hits APPENDED after the lexical page above, by query shape (ruling D-H3).
+    # A note-id list, never a change to the filters or a second whole-library
+    # query; off, it returns `rows` untouched and issues no SQL at all
+    # (note_semantic.append_meaning_hits says why each refusal is where it is).
+    # ⛔ OPT-IN BY REQUEST (ruling D-H9): only a request carrying `meaning=1`
+    # reaches it -- today the Notebook search box, the one list that labels a
+    # meaning row (D-H8). The [[ picker, AddPositionModal, ThesisSection and
+    # Model Book call this same endpoint and would otherwise receive rows that
+    # match no word typed, with nothing to say why (and spend an embed each).
+    if meaning:
+        from api.services.journal_two import note_semantic
+        rows = note_semantic.append_meaning_hits(
+            user["id"], q, rows, total=total, offset=offset, limit=limit,
+            only_query=not (folder_id or tag or ticker or embed_symbol or embed_widget
+                            or deleted or date_from or date_to or symbol_in is not None
+                            or savedViewId or property_filter),
+        )
     return {"notes": rows, "total": total, "limit": limit, "offset": offset}
 
 
@@ -1838,11 +1853,12 @@ def note_tag_counts_endpoint(
     Wave 5 nested tags: `tree` adds every node of the `a/b/c` hierarchy —
     implied parents included — with `own` (notes carrying exactly that tag)
     and `total` (distinct notes in its subtree, i.e. what filtering by it
-    returns). `tags` is unchanged for every existing reader."""
-    return {
-        "tags": notes_service.tag_counts(user["id"]),
-        "tree": notes_service.tag_tree(user["id"]),
-    }
+    returns). `tags` is unchanged for every existing reader.
+
+    Wave 7 (lane I): both halves come from ONE connection and ONE grouping pass
+    (`tag_counts_and_tree`), which is equal to the two separate calls by rail
+    (tests/test_journal_two_tag_counts_combined.py)."""
+    return notes_service.tag_counts_and_tree(user["id"])
 
 
 @router.get("/notes/tag-members")
@@ -2540,15 +2556,16 @@ def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_u
     the note has no attachments and a `.zip` only when it does, and why an
     in-memory build is safe here (bounded by one note, unlike the whole-
     notebook export's tempfile+semaphore path just above)."""
-    from api.services.journal_two.notes_export import build_single_note_export
+    from api.services.journal_two.notes_export import build_single_note_export, content_disposition
 
     built = build_single_note_export(user["id"], note_id)
     if built is None:
         raise HTTPException(status_code=404, detail="Not found")
     content, filename, media_type = built
+    # The filename is the member's title: never raw into a Latin-1 header (H14, 8C).
     return Response(
         content=content, media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": content_disposition(filename)},
     )
 
 
@@ -3154,7 +3171,12 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             refuse(), media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    if not note_ask.reserve_ask(user_id):
+    # The day's counters are durable (auth.db, ruling D-H5b): a SQLite write,
+    # so off the web pod's one event loop (ruling D-H11). The day is read ONCE:
+    # the reservation, the busy refund and the stream's refund all key to it.
+    from starlette.concurrency import run_in_threadpool
+    day = note_ask.charge_day()
+    if not await run_in_threadpool(note_ask.reserve_ask, user_id, day=day):
         raise HTTPException(
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
@@ -3163,7 +3185,7 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.
     if not note_ask.begin_stream(user_id):
-        note_ask.refund_ask(user_id)
+        await run_in_threadpool(note_ask.refund_ask, user_id, day=day)
         raise HTTPException(
             status_code=429,
             detail="You already have an answer in progress — wait for it to finish.",
@@ -3171,13 +3193,23 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
 
     kwargs = asvc.request(prepared, query, model=asvc.model_name(),
                           max_tokens=asvc.max_tokens(), history=history)
+    # ⛔ CHARGED FROM THE FIRST DELTA (wave 7 lane H fix round 1, review I-3 —
+    # the one Ask site the controller granted lane H; lane I is closed). The
+    # rule is `note_ask.refund_due`, shared with editor writing help: an abort
+    # after the member has text in hand keeps the charge; only a server failure
+    # or a stream that sent nothing refunds. ⚰️ This used to refund whenever
+    # the stream had not SETTLED, so Stop just before `final` was a free answer.
+    from starlette.background import BackgroundTask
+    charge = note_ask.StreamCharge(user_id, note_ask.refund_ask, day=day)
 
     async def gen():
         settled = False
         text = ""
         buffered = ""
-        yield f"data: {json.dumps(head)}\n\n"
         try:
+            # Inside the try: a disconnect at the very first chunk still
+            # reaches `finally` (review M-3, inherited here).
+            yield f"data: {json.dumps(head)}\n\n"
             async for delta in asvc.synthesize(kwargs):
                 if not delta:
                     continue
@@ -3187,25 +3219,31 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
                 # as a bracket and then flicker into a chip a chunk later.
                 safe, buffered = asvc.hold_back(buffered)
                 if safe:
+                    if safe.strip():       # BEFORE the yield; visible text only
+                        charge.sent = True
                     yield f"data: {json.dumps({'type': 'delta', 'text': safe})}\n\n"
             if buffered:
+                if buffered.strip():
+                    charge.sent = True
                 yield f"data: {json.dumps({'type': 'delta', 'text': buffered})}\n\n"
             settled = True
         except Exception:
             # ⛔ NO QUESTION, ANSWER OR SOURCE TEXT IN THE LOG. The scope and
             # the failure are enough to operate on.
+            charge.failed = True
             logger.exception(f"[ask] synthesis failed scope={scope}")
             yield f"data: {json.dumps({'type': 'error', 'detail': 'Something went wrong answering that.'})}\n\n"
         finally:
             # RELEASE FIRST, AND ALWAYS. A disconnect, an exception and a
             # cancellation all land here; a leaked slot locks the member out
-            # until the process restarts.
-            note_ask.end_stream(user_id)
-            if not settled or not text.strip():
-                note_ask.refund_ask(user_id)
+            # until the process restarts. ⛔ Neither durable write runs HERE,
+            # on the loop (ruling D-H11): `close()` hands the refund to a
+            # worker thread, and the telemetry row (an auth.db write too) rides
+            # the same fire-and-forget door.
+            charge.close()
             resolved = asvc.resolve_answer(text, prepared)
-            notes_service._log_notebook_event(
-                user_id, "notebook_ask_used",
+            note_ask.run_in_background(
+                notes_service._log_notebook_event, user_id, "notebook_ask_used",
                 asvc.telemetry(scope, prepared, started=t0, settled=settled,
                                answered=bool(text.strip()), resolved=resolved))
         yield ("data: " + json.dumps({
@@ -3214,9 +3252,12 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             "invalidCitations": resolved["invalid"],
         }) + "\n\n")
 
+    # Second door to `charge.close()`: a response cancelled before `gen` ever
+    # starts has no `finally` to release the slot. Idempotent.
     return StreamingResponse(
         gen(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        background=BackgroundTask(charge.close))
 
 
 @router.post("/ask/stream")
@@ -3431,19 +3472,23 @@ def patch_note_tags_endpoint(
     device's own concurrent add can never be silently overwritten by a list
     this request computed before that add existed.
 
-    ⛔ ANSWERS WITH THE NOTE at its new revision — the lock endpoint's shape —
-    so the client can settle it. A change that changes nothing moves no
-    revision. 404 for a trashed note, another member's, or none at all; a
-    request that cannot apply (a bad shape, or the same tag in both `add` and
-    `remove`) is a 400 and writes nothing."""
+    ⛔ ANSWERS `{note, changed}` — the note at its new revision (the lock
+    endpoint's shape) so the client can settle it, and `changed`: True
+    exactly when THIS request wrote the row (wave 7 lane J, J9). A change
+    that changes nothing moves no revision and answers `changed: false` with
+    the note as stored — whose revision may be ANOTHER writer's, which is why
+    the client must never infer "mine" from the timestamp. 404 for a trashed
+    note, another member's, or none at all; a request that cannot apply (a
+    bad shape, or the same tag in both `add` and `remove`) is a 400 and
+    writes nothing."""
     try:
         add, remove = notes_service.parse_tag_patch(payload or {})
-        n = notes_service.patch_note_tags(user["id"], note_id, add, remove)
+        n, changed = notes_service.patch_note_tags(user["id"], note_id, add, remove)
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": n, "changed": bool(changed)}
 
 
 @router.patch("/notes/{note_id}/archive")
@@ -3479,6 +3524,30 @@ def restore_note_endpoint(
     return {"note": n}
 
 
+async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, content_type,
+                                 *, kind: str) -> None:
+    """Wave 7 seam S1, for the editor's two upload routes: every saved
+    attachment reports to `document_extraction.on_attachment_saved`, which
+    decides whether it becomes a searchable document.
+
+    ⛔ GUARDED, AND OFF THE EVENT LOOP (whole-branch review M-2). The seam's own
+    promise is that "a failure here can never make the upload look broken";
+    only email-in kept it. Here it ran unguarded and synchronously inside these
+    `async` routes: `create_document` is a SQLite SELECT + INSERT + commit, so a
+    busy auth.db answered 500 for a file that was already saved (the editor then
+    said it had not uploaded) and stalled the web pod's ONE loop for every
+    member meanwhile. The bytes are saved before this runs; its failure is one
+    log line, naming the error's class only."""
+    from starlette.concurrency import run_in_threadpool
+    from api.services.journal_two import document_extraction
+    try:
+        await run_in_threadpool(document_extraction.on_attachment_saved,
+                                user_id, note_id, saved, content_type, kind=kind)
+    except Exception as e:  # noqa: BLE001 -- extraction never costs the upload
+        logger.warning("[notes] document hand-off failed after a saved upload (%s)",
+                       type(e).__name__)
+
+
 @router.post("/notes/{note_id}/images")
 async def upload_note_image_endpoint(
     note_id: str,
@@ -3494,6 +3563,11 @@ async def upload_note_image_endpoint(
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 7 seam S1: every saved attachment reports to document_extraction,
+    # which decides whether it becomes a searchable document. The decision
+    # lives THERE so this router never grows a per-type branch (lane G adds
+    # image OCR / docx behind its own gate without touching this file).
+    await _hand_off_to_documents(user["id"], note_id, img, file.content_type, kind="image")
     return img
 
 
@@ -3554,12 +3628,10 @@ async def upload_note_attachment_endpoint(
     # extraction, queued AFTER the upload itself already succeeded — never
     # blocking this response, and a failed/slow extraction can never make
     # the underlying attachment (which is already saved) look broken.
-    if content_type == "application/pdf":
-        from api.services.journal_two import document_extraction
-        doc = document_extraction.create_document(
-            user["id"], note_id, att["url"], att.get("name"),
-        )
-        document_extraction.queue_extraction(doc["id"])
+    # Wave 7 seam S1: the "is this a document?" decision moved into
+    # document_extraction.on_attachment_saved (PDF today; lane G adds docx
+    # and image kinds behind its own gate there, never here).
+    await _hand_off_to_documents(user["id"], note_id, att, content_type, kind="file")
     return att
 
 
@@ -3581,6 +3653,37 @@ def serve_note_attachment(
 
 # ── Wave I: document processing status + page-aware search ──────────────────
 from api.services.journal_two import document_extraction, document_search
+
+
+def _document_kind(row, source_kind: str | None) -> str | None:
+    """The document's own kind for a CLIENT that must pick a viewer: "pdf",
+    "image", "docx" or "web" (wave 7, lane I; review finding M-7).
+
+    `sourceKind` answers one question, "is this a captured web page?", and says
+    `attachment` for every file, so a PDF, a photographed page and a .docx look
+    the same to it and the preview had to guess the viewer from the attachment
+    URL. This field is SEPARATE on purpose: older clients switch on `sourceKind`
+    and must keep reading exactly what they read.
+
+    ⛔ Web is decided by the ONE rule `sourceKind` already used
+    (`ask_evidence.document_source_kind` -> `is_web_capture`, either column), so
+    the two fields can never disagree about a captured page. The file kinds come
+    from the stored `source_kind`, named by document_extraction's own constants.
+    ⛔ A stored value this table does not name is passed through VERBATIM, never
+    filed as a PDF: a kind added later must reach the client as itself.
+    None when the capture columns were not selected (nothing is known)."""
+    from api.services.journal_two.web_capture import SOURCE_KIND_WEB
+    if source_kind is None:
+        return None
+    if source_kind == SOURCE_KIND_WEB:
+        return "web"
+    raw = row["source_kind"] if "source_kind" in row.keys() else None
+    by_stored = {
+        document_extraction.SOURCE_KIND_ATTACHMENT: "pdf",
+        document_extraction.SOURCE_KIND_IMAGE: "image",
+        document_extraction.SOURCE_KIND_DOCX: "docx",
+    }
+    return by_stored.get(raw or document_extraction.SOURCE_KIND_ATTACHMENT, raw)
 
 
 @router.get("/notes/{note_id}/documents")
@@ -3652,6 +3755,9 @@ def list_note_documents_endpoint(
                 # and "we have the whole document" are different facts (§15).
                 "textComplete": bool(st.get("text_complete")),
                 "sourceKind": kinds[r["id"]],
+                # The document's own kind (pdf | image | docx | web), BESIDE
+                # sourceKind and never folded into it -- see `_document_kind`.
+                "kind": _document_kind(r, kinds[r["id"]]),
                 "capturePassages": sorted(
                     ({"pageNumber": p, "excerptId": eid}
                      for (d, p), eid in passages.items() if d == r["id"]),

@@ -168,7 +168,14 @@ export async function runNoteBatch({
     })
     if (!res.ok) {
       const detail = await res.json().then((b) => b?.detail).catch(() => null)
-      throw new Error(detail ? String(detail) : `That did not go through (server answered ${res.status}). Nothing was changed.`)
+      const err = new Error(detail ? String(detail) : `That did not go through (server answered ${res.status}). Nothing was changed.`)
+      // ⭐ J7 (wave 7 lane J): the parts, not only the sentence -- a caller that
+      // has ALREADY changed notes (a chunked rename's later chunk) must say why
+      // without the sentence's "Nothing was changed", which is only true of a
+      // single batch. `describeUnsentRename` reads these.
+      err.status = res.status
+      err.detail = detail ? String(detail) : null
+      throw err
     }
     body = await res.json()
     // ⛔⛔ THE LINE THAT STOPS A FORK — before any caller refreshes or renders.
@@ -281,6 +288,46 @@ export function describeBatch(outcome, {
     parts.push(`${plural(failures.length, 'note was', 'notes were')} not changed: ${named.join('; ')}${more}.`)
   }
   return { message: parts.join(' '), tone: failures.length ? (changed ? 'partial' : 'error') : 'ok' }
+}
+
+/** Why a batch REQUEST failed, as a clause: the server's own words when it gave any,
+ *  else the status it answered, else that the request never reached it. Never a
+ *  status nobody received, and never "Nothing was changed" -- that is the
+ *  caller's to say, because only the caller knows whether anything was. */
+export function whyTheRequestFailed(err) {
+  if (err?.detail) return `the server refused it ("${String(err.detail).replace(/[.\s]+$/, '')}")`
+  if (err?.status) return `the server answered ${err.status}`
+  return `the request did not reach the server${err?.message ? ` (${err.message})` : ''}`
+}
+
+const andJoin = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
+
+/**
+ * Wave 7 lane J, J7 — the notes a CHUNKED rename never sent, named, and why.
+ *
+ * ⚰️ A later chunk failing used to end the notice on "…(600 notes left unrenamed)." --
+ * a count, with the reason dropped (to keep runNoteBatch's single-batch "Nothing was
+ * changed." out of a sentence where something WAS). Which notes, and why, are what a
+ * member acts on. The titles are the ones this page holds (`titleOf`; a note it has
+ * no title for is counted, never guessed at), at most three.
+ *
+ * @param ids          the ids never sent, in order
+ * @param renamedSome  whether earlier chunks renamed anything (decides the closing words)
+ */
+export function describeUnsentRename(ids, { tag, err, renamedSome = false, titleOf = () => null } = {}) {
+  if (!ids?.length) return ''
+  const known = []
+  for (const id of ids) {
+    const t = titleOf(id)
+    if (t) known.push(`"${t}"`)
+    if (known.length === 3) break
+  }
+  const among = known.length ? `, among them ${andJoin(known)}` : ''
+  const why = whyTheRequestFailed(err)
+  if (renamedSome) {
+    return `Still #${tag} (${plural(ids.length, 'note')}${among}) — ${why}. Rename #${tag} again to finish them.`
+  }
+  return `${plural(ids.length, 'note was', 'notes were')} left unrenamed${among} — ${why}. Nothing was changed.`
 }
 
 /**

@@ -127,20 +127,22 @@ describe('NotebookTab — graph view wiring', () => {
     })
   })
 
-  it('switching to graph mounts the graph and takes down the card grid', () => {
+  it('switching to graph mounts the graph and takes down the card grid', async () => {
     renderTab()
     expect(screen.getAllByTestId('note-card').length).toBe(2)
     expect(screen.queryByTestId('note-graph')).toBeNull()
 
     fireEvent.click(graphBtn())
+    await screen.findByTestId('note-graph')
 
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
     expect(screen.queryByTestId('note-card')).toBeNull()
   })
 
-  it('does NOT hand the graph this page filtered note slice', () => {
+  it('does NOT hand the graph this page filtered note slice', async () => {
     renderTab()
     fireEvent.click(graphBtn())
+    await screen.findByTestId('note-graph')
     // ⛔ The graph reads the whole notebook from its own endpoint. Passing the
     // folder/tag/property-filtered page would draw edges to notes that are not
     // in the slice and silently drop the rest.
@@ -149,16 +151,18 @@ describe('NotebookTab — graph view wiring', () => {
     expect(typeof graphProps.onOpenNote).toBe('function')
   })
 
-  it('clicking a node in the graph opens that note', () => {
+  it('clicking a node in the graph opens that note', async () => {
     renderTab()
     fireEvent.click(graphBtn())
+    await screen.findByTestId('note-graph')
     fireEvent.click(screen.getByRole('button', { name: 'open n2' }))
     expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'n2')
   })
 
-  it('TRASH never renders the graph, even when graph mode is selected', () => {
+  it('TRASH never renders the graph, even when graph mode is selected', async () => {
     renderTab()
     fireEvent.click(graphBtn())
+    await screen.findByTestId('note-graph')
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'go to trash' }))
@@ -170,11 +174,13 @@ describe('NotebookTab — graph view wiring', () => {
     expect(screen.getAllByTestId('note-card').length).toBeGreaterThan(0)
   })
 
-  it('returning from trash restores the graph the member had chosen', () => {
+  it('returning from trash restores the graph the member had chosen', async () => {
     renderTab()
     fireEvent.click(graphBtn())
+    await screen.findByTestId('note-graph')
     fireEvent.click(screen.getByRole('button', { name: 'go to trash' }))
     fireEvent.click(screen.getByRole('button', { name: 'go to all notes' }))
+    await screen.findByTestId('note-graph')
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
   })
 

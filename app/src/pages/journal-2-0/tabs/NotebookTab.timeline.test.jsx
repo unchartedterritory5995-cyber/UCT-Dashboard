@@ -54,9 +54,10 @@ const renderTab = () => render(
 )
 
 describe('the Timeline view mode', () => {
-  it('is offered in the toolbar and draws the timeline', () => {
+  it('is offered in the toolbar and draws the timeline', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Timeline view' }))
+    await screen.findByTestId('note-timeline')
     expect(screen.getByTestId('note-timeline')).toBeInTheDocument()
     expect(timelineProps.initialSettings).toBeNull()
   })
@@ -64,6 +65,7 @@ describe('the Timeline view mode', () => {
   it('saves WITH the settings the timeline reports', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'Timeline view' }))
+    await screen.findByTestId('note-timeline')
     timelineProps.onSettingsChange({ timeBy: 'created', zoom: 'week', groupBy: 'tag' })
     fireEvent.click(screen.getByRole('button', { name: /save view/i }))
     const name = await screen.findByLabelText('Name')
@@ -83,9 +85,10 @@ describe('the Timeline view mode', () => {
   // server serves. That door — the real FolderSidebar row, a server-shaped
   // list, a fresh mount, every saveable mode — is NotebookTab.savedViewRestore
   // .test.jsx (wave 6 fix round 5, R5-2).
-  it('a saved timeline REOPENS as a timeline, with that view’s settings', () => {
+  it('a saved timeline REOPENS as a timeline, with that view’s settings', async () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: 'open saved timeline' }))
+    await screen.findByTestId('note-timeline')
     expect(screen.getByTestId('note-timeline')).toBeInTheDocument()
     expect(timelineProps.initialSettings).toEqual(SAVED.spec.timeline)
   })

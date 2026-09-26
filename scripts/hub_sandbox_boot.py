@@ -346,15 +346,23 @@ def main():
     # /api/health while writing to the live auth.db.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import data_root_snapshot as drs
+    import sandbox_identity as sid
 
+    # ⛔ A PORT IS NOT AN IDENTITY (tooling review M-3). This run's nonce is minted before
+    # anything is served, written into the integrity log's pre-boot line, and served at
+    # sid.IDENTITY_PATH, so a `--base` tool can prove the server it is about to write through
+    # IS the sandbox that writes this log (`sandbox_identity.verify`) -- never "whatever
+    # answers the port".
+    nonce = sid.mint()
     log_file = drs.log_path_for(REPO_ROOT)
     baseline = drs.snapshot()
     drs.append_log(log_file, "pre-boot (baseline)", drs.DEFAULT_ROOT,
-                   len(baseline), [], extra=f"sandbox = {sandbox}")
+                   len(baseline), [], extra=sid.log_extra(sandbox, nonce))
     print("")
     print(f"  [pre-boot] shared data root baseline: {len(baseline)} db files "
           f"hashed (sha256)")
     print(f"  [pre-boot] integrity log: {log_file}")
+    print(f"  [pre-boot] sandbox identity: {nonce} (served at {sid.IDENTITY_PATH})")
 
     pins = apply_sandbox_env(sandbox, args.test_email)
     import conftest
@@ -390,8 +398,13 @@ def main():
 
     import uvicorn
     try:
-        uvicorn.run("api.main:app", host=args.host, port=args.port,
-                    log_level="info")
+        # The app itself, wrapped so the identity path answers before any route does; every
+        # other request and the lifespan pass through untouched (sandbox_identity.wrap_app).
+        from api.main import app as _app
+        uvicorn.run(sid.wrap_app(_app, sid.payload(
+                        nonce, data_dir=sandbox, integrity_log=log_file, pid=os.getpid(),
+                        started_at=time.strftime("%Y-%m-%dT%H:%M:%S%z"))),
+                    host=args.host, port=args.port, log_level="info")
     finally:
         # Shutdown checkpoint. A leak that only happens on teardown — a
         # checkpoint, a flush, an atexit handler — would be invisible to the

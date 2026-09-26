@@ -1,0 +1,16 @@
+{
+  "name": "uct-inbound-email-worker",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Email Worker: signs each email to notes+<token>@ and POSTs it to UCT (wave 7 lane G, G3). Its own dependencies — NOT the app's.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "postal-mime": "3.0.1"
+  },
+  "devDependencies": {
+    "wrangler": "4.140.0"
+  }
+}

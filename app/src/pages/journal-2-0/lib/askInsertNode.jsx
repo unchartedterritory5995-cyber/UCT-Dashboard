@@ -84,6 +84,25 @@ export const AskInsert = Node.create({
         parseHTML: (el) => el.getAttribute('data-question') || '',
         renderHTML: (a) => (a.question ? { 'data-question': a.question } : {}),
       },
+      // ⛔⛔ Wave 7 lane H (H2, ruling D-H1) — writing help's provenance, as two
+      // OPTIONAL attrs on this existing node, never a new node type: an older
+      // bundle ignores an attr it does not know (the node still renders, as an
+      // Ask answer), so no schema level moves and nothing becomes never-revert.
+      // ABSENT on every Ask insert: a node without them renders exactly as it
+      // did before (AskInsertView.writingHelp.test.jsx rails that), and their
+      // renderHTML emits nothing for null, so an old node's HTML is unchanged.
+      //   action — summarize | rewrite | continue | translate
+      //   model  — the model that wrote it (e.g. claude-sonnet-5)
+      action: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-action') || null,
+        renderHTML: (a) => (a.action ? { 'data-action': a.action } : {}),
+      },
+      model: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-model') || null,
+        renderHTML: (a) => (a.model ? { 'data-model': a.model } : {}),
+      },
     }
   },
 

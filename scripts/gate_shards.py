@@ -410,6 +410,16 @@ GATE_READ_PATHS = (
     "api/data/cap_universe.json",
     "api/services/journal_two/notes_export.py",
     "tests/fixtures_note_tasks.json",
+    # wave 7 added one more reader (named by this rail when wave 6 was merged into
+    # feat/notebook-w7, 2026-09-25): `lib/offline/doorEnumeration.test.js` rail (5) is a ledger
+    # of the server doors that write a note -- journal_two.py itself, the personal API router
+    # and service, email-in and the daily-note append -- keyed by these root-relative paths,
+    # so a change to any of them can change that rail's result.
+    "api/routers/journal_two.py",
+    "api/routers/notebook_personal_api.py",
+    "api/services/journal_two/inbound_email.py",
+    "api/services/journal_two/note_daily.py",
+    "api/services/journal_two/note_personal_api.py",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named

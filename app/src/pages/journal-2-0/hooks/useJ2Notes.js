@@ -1,9 +1,12 @@
 /** Notebook notes SWR hook. */
-import { useCallback, useState } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import { useCallback, useEffect, useState } from 'react'
+import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../lib/notebookSchema'
+import {
+  NOTE_TAGS_KEY, rememberBounded, stampListRead, tagReadServes, tagSignature,
+} from './useJ2NoteTags'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -11,13 +14,31 @@ const fetcher = (url) =>
     return r.json()
   })
 
+// The first page's read of a list key stamps its wave (useJ2NoteTags, review N-2).
+const listFetcher = (url) => {
+  stampListRead(url)
+  return fetcher(url)
+}
+
+// Per SWR cache: each list key's last tag signature, SHARED by every hook instance showing that
+// key, so two instances of one key cannot both see the same move (review N-2).
+const sigsByCache = new WeakMap()
+function listSignatures(cache) {
+  let sigs = sigsByCache.get(cache)
+  if (!sigs) {
+    sigs = new Map()
+    sigsByCache.set(cache, sigs)
+  }
+  return sigs
+}
+
 // Mirrors the backend default (`list_notes`/`list_notes_endpoint` both
 // default `limit=100`) — the size of one page, and of a "Load more" click.
 const DEFAULT_PAGE_SIZE = 100
 
 function buildNotesUrl({
   folderId, tag, ticker, q, sort, limit, offset, deleted, dateFrom, dateTo, sector, theme,
-  savedViewId, propertyFilter, propertySort,
+  savedViewId, propertyFilter, propertySort, meaning,
 }) {
   const params = new URLSearchParams()
   if (folderId) params.set('folder_id', folderId)
@@ -43,26 +64,61 @@ function buildNotesUrl({
   if (savedViewId) params.set('savedViewId', savedViewId)
   if (propertyFilter) params.set('propertyFilter', JSON.stringify(propertyFilter))
   if (propertySort) params.set('propertySort', JSON.stringify(propertySort))
+  // Wave 7 whole-branch fix, ruling D-H9: the armed meaning search appends "related by meaning"
+  // rows ONLY to a request that asks. A caller asks only if it renders them with their reason
+  // line (FolderSidebar's search box, D-H8); every other list of notes stays exactly lexical.
+  if (meaning) params.set('meaning', '1')
   const qs = params.toString()
   return `/api/j2/notes${qs ? `?${qs}` : ''}`
 }
 
 export default function useJ2Notes({
   folderId, tag, ticker, q, sort = 'updated', limit, enabled = true, deleted = false,
-  dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort,
+  dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning = false,
 } = {}) {
   const url = enabled ? buildNotesUrl({
     folderId, tag, ticker, q, sort, limit, deleted, dateFrom, dateTo, sector, theme,
-    savedViewId, propertyFilter, propertySort,
+    savedViewId, propertyFilter, propertySort, meaning,
   }) : null
   // `enabled=false` passes SWR a null key, which skips the fetch entirely —
   // callers that only sometimes need this data (e.g. a search panel that
   // shouldn't hit the default list on every render) pass this instead of
   // calling the hook conditionally (not allowed — same hook, every render).
-  const { data, error, isLoading, isValidating, mutate } = useSWR(url, fetcher, {
-    revalidateOnFocus: true,
+  const { data, error, isLoading, isValidating, mutate } = useSWR(url, listFetcher, {
+    // ⛔ Wave 7 whole-branch fix (frontend review M-6): a list that carries a search query
+    // (`q`) does NOT re-run on focus. Every return to the tab re-sent the member's 3+ word
+    // query -- one more synchronous embed per focus once the meaning search is armed. A search
+    // is refreshed by the member's own writes (the key-predicate refresh), not by focus. Lists
+    // without a query keep following focus. Rail: useJ2Notes.searchFocus.test.jsx.
+    revalidateOnFocus: !q,
     shouldRetryOnError: false,
   })
+
+  // Review M-4 (wave 7 fix round 1): the tag cloud no longer refetches on focus
+  // (useJ2NoteTags), but this list still does. When a refresh of this list's key returns a
+  // page whose tags differ from the page it replaced -- the SAME url, so the same query seen
+  // again, never a filter change -- the tag counts are asked, so the sidebar cannot keep
+  // counts the list already contradicts. A refresh that changed nothing costs no tag query:
+  // SWR keeps `data` referentially equal for a deep-equal payload, so this effect does not
+  // even run, and a change that moves no tag (a title, a body, an untagged note) leaves the
+  // signature equal.
+  // Review N-2 (fix round 2): ONCE per refresh, never once per hook instance. The last
+  // signature lives per SWR key in module state (listSignatures), so two instances showing
+  // one key cannot both see the same move; and a list asks only when no tag read has started
+  // in its own read's wave or since (tagReadServes; useJ2NoteTags explains the wave), so the
+  // refresh's own tag read, or the first list's ask, answers every other list.
+  // The cache-bound mutate (not the module-level one), so the ask reaches the same SWR
+  // cache the tag cloud reads from, whichever provider this list is mounted under.
+  const { cache, mutate: cacheMutate } = useSWRConfig()
+  useEffect(() => {
+    if (!url || !Array.isArray(data?.notes)) return
+    const sigs = listSignatures(cache)
+    const sig = tagSignature(data.notes)
+    const prev = sigs.get(url)
+    rememberBounded(sigs, url, sig)
+    if (prev === undefined || prev === sig || tagReadServes(url)) return
+    cacheMutate(NOTE_TAGS_KEY)
+  }, [url, data, cache, cacheMutate])
 
   const firstPage = data?.notes ?? []
   // `total` is the TRUE count from SQL (`count_notes` in
@@ -104,7 +160,7 @@ export default function useJ2Notes({
     try {
       const nextUrl = buildNotesUrl({
         folderId, tag, ticker, q, sort, deleted, dateFrom, dateTo, sector, theme,
-        savedViewId, propertyFilter, propertySort,
+        savedViewId, propertyFilter, propertySort, meaning,
         limit: limit || DEFAULT_PAGE_SIZE,
         offset: notes.length,
       })
@@ -124,7 +180,7 @@ export default function useJ2Notes({
       setIsLoadingMore(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes, dateFrom, dateTo, sector, theme])
+  }, [url, hasMore, isLoadingMore, folderId, tag, ticker, q, sort, limit, deleted, notes, dateFrom, dateTo, sector, theme, meaning])
 
   return {
     notes,
@@ -203,6 +259,49 @@ export function useJ2Note(noteId) {
       // a full reload (Wave D closure pass finding).
       invalidateNoteLinkTarget(noteId)
       return body.note
+    },
+    // Wave 7 (lane H, carry-over M14) — the client of `PATCH /notes/{id}/tags`.
+    // The route applies the DELTA `{add, remove}` to the list the server holds,
+    // inside ONE transaction, so a second device's tag change landing between a
+    // page's read and its write is kept rather than overwritten by a list
+    // computed before it existed (a PUT of a whole list cannot promise that).
+    //
+    // ⛔⛔ LAND ONLY WHAT THIS WRITE MOVED. The route moves no revision for a
+    // delta that changes nothing, and then answers with the note AS STORED --
+    // whose revision may be ANOTHER writer's. Recording that as ours would tell
+    // guard 2 "ours" about a second writer's edit and the fork that protects
+    // the member would not happen.
+    //
+    // ⭐ ONLY THE ROUTE KNOWS (wave 7 lane J, J9). This used to compare the
+    // answer's `updatedAt` with the revision the caller READ (`readAt`) -- which
+    // cannot see a second writer that satisfied the SAME delta between the read
+    // and the PATCH: the route wrote nothing, answered at THAT writer's
+    // revision, and the compare called it moved. The route now says whether
+    // THIS request wrote a row (`changed`, from inside its one transaction), and
+    // that is the only thing that lands a revision. An answer without it lands
+    // nothing: unknown is never "ours". The hook takes the delta and nothing
+    // else; no caller passes the revision it read, and nothing here would read
+    // it. -> the note when this write moved it, else null.
+    patchTags: async (delta) => {
+      const res = await fetch(`/api/j2/notes/${noteId}/tags`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ add: delta?.add || [], remove: delta?.remove || [] }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        const err = new Error(body.detail || `${res.status}`)
+        err.status = res.status
+        throw err
+      }
+      const body = await res.json()
+      const moved = body.changed === true && Boolean(body.note)
+      if (moved) await settleNoteWrite(noteId, body.note)
+      // Shown either way: the answer IS the server's current list, so the chips
+      // catch up even when this delta changed nothing.
+      await mutate({ note: body.note }, { revalidate: false })
+      return moved ? body.note : null
     },
   }
 }

@@ -1,5 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react'
+import {
+  Suspense, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+} from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
@@ -37,7 +39,7 @@ import {
 } from '../../lib/offline/useDurableNote'
 import { useBlockedNotes } from '../../lib/offline/useBlockedNotes'
 import { blockedLabel, unsyncedLabel, OFFLINE_VIEWING_BANNER } from '../../lib/offline/unsyncedCopy'
-import { usableBaseline, isUsableBaseline } from '../../lib/offline/baseline'
+import { usableBaseline, isUsableBaseline, isSupersededBaseline } from '../../lib/offline/baseline'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import { baseHasNoBody, sameAuthoredContent } from '../../lib/offline/recoverLocalState'
 import {
@@ -89,6 +91,27 @@ import {
 import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
+import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
+import {
+  WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope, INSIDE_ANSWER_SENTENCE,
+} from '../../lib/writingHelp'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
+import lazyChunk from '../../lib/lazyChunk'
+
+// Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
+// Speech fallback, the Whisper upload) is not needed to open a note, and a
+// member who is not paid never downloads it at all (the mount below is gated on
+// `isPaid`). Rendered inside its own <Suspense fallback={null}>, so a note never
+// waits for it.
+// ⛔ Through lib/lazyChunk.js, never a bare React.lazy (wave 7 whole-branch fix,
+// frontend review I-1): a chunk that fails to fetch is asked for again in place,
+// then handed to the app's one-reload-per-session stale-chunk recovery. A bare lazy
+// sent the first failure straight to the route boundary -- the whole Notebook blanked
+// over an optional control. Railed tree-wide in tabs/NotebookTab.lazyViews.test.js.
+const VoiceInputButton = lazyChunk(() => import('../VoiceInputButton'))
+// Wave 7 lane H2 — the writing-help preview. LAZY for the same reason: it is
+// fetched the first time a member opens it, never on note open.
+const WritingHelpPanel = lazyChunk(() => import('./WritingHelpPanel'))
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
 // notes to Journal Notebook" export). When it does, we render an embedded
@@ -112,9 +135,28 @@ const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 // (e.g. "500") when it didn't -- which means nothing to a member and used
 // to render as-is ("Save failed: 500"). This only ever replaces the bare
 // code, never a real detail.
+//
+// ⭐ Wave 7 fix round 1 (review M-4): nor is it ever the BROWSER's words. A
+// fetch that never reached the server throws a TypeError carrying the
+// browser's own message -- Chrome "Failed to fetch", Safari "Load failed",
+// Firefox "NetworkError when attempting to fetch resource." -- which is
+// plumbing, not the server's detail this function preserves, and it reached a
+// member verbatim on Insert image / Scan / attach. It reads as the network
+// failure it is.
+//
+// ⭐ Wave 7 whole-branch fix (lane H nit N-3): the network reading is keyed on those
+// WORDS, never on the error's class. A TypeError is also what a programming fault on
+// the save or upload path throws ("Cannot read properties of undefined …"); reading
+// every TypeError as the network sent a member to check a connection that was fine.
+// A TypeError that is not a network word is a code fault: never called the network,
+// never shown verbatim (it is plumbing too), and said as a plain failed save.
+const BROWSER_NETWORK_FAILURE = /^(failed to fetch|load failed|networkerror when attempting to fetch resource\.?|network request failed)$/i
 function friendlySaveError(e, status, { retrying = false } = {}) {
   const msg = e?.message
-  if (msg && !/^\d{3}$/.test(msg)) return msg
+  const browserSaid = Boolean(msg && BROWSER_NETWORK_FAILURE.test(msg.trim()))
+  const codeFault = e instanceof TypeError && !browserSaid
+  if (codeFault) return retrying ? 'Could not save — retrying automatically.' : 'Could not save. Please try again.'
+  if (msg && !browserSaid && !/^\d{3}$/.test(msg)) return msg
   if (!status || status >= 500) {
     return retrying
       ? "Couldn't reach the server — your note is unchanged, retrying automatically."
@@ -381,14 +423,16 @@ export function NoteLinkedTradeChips({ noteId }) {
 }
 
 export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
-  const { note, isLoading, error: loadError, update, refresh } = useJ2Note(noteId)
+  const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
   useEffect(() => {
     if (loadError) console.warn('note load failed', loadError)
   }, [loadError])
   const { folders } = useJ2NoteFolders()
-  const { user } = useAuth()
+  // `isPaid` (wave 7 H1): the toolbar mic mounts only for a paid member, so an
+  // unpaid one never loads the recorder chunk and never sees a dead button.
+  const { user, isPaid } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
   // Wave 6 item 8 — a LOCKED note (lane E's `locked` field; lib/lockedNote.js).
@@ -529,7 +573,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // (the server already has this content) instead of racing a stale
   // baseUpdatedAt into a spurious 409, or re-PUTting content that's already
   // saved.
-  const onVersionRestored = (restoredNote) => {
+  //
+  // ⭐ Wave 7 whole-branch fix, ruling D-G5: this is THE path by which the open
+  // editor adopts a server copy of the same note, so it is named for that --
+  // a version restore and the clean editor's re-read on return (below, beside
+  // the Delete gate) both go through it, never through a second copy.
+  const adoptServerCopy = (restoredNote) => {
     if (!restoredNote) return
     const t = restoredNote.title || ''
     const s = restoredNote.subtitle || ''
@@ -553,6 +602,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       /* editor view not mounted yet -- next note-open effect will still show it */
     }
   }
+  const onVersionRestored = adoptServerCopy
 
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
   const columnRef = useRef(null)
@@ -672,6 +722,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
   const attachFileInputRef = useRef(null)
+  // Wave 7 lane G5 (built by H): the touch tier's camera door — its own hidden
+  // input (`capture="environment"`), handed to the SAME image-upload path.
+  const scanInputRef = useRef(null)
+  // Wave 7 lane H1: the toolbar mic's `{ start(), available }` handle. The
+  // slash menu's "Dictate" item starts THIS editor's mic through it.
+  const micRef = useRef(null)
   const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
   // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
   // means a server-side write (Send-to-Journal append, second tab) landed
@@ -1333,9 +1389,69 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       const { url } = await uploadInlineImage(noteId, file)
       ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
-      setUploadToast({ message: `Couldn't upload ${file.name || 'image'}. Your note is unchanged.`, tone: 'error' })
+      // Wave 7 (G5, the camera "Scan" door): the server's reason is a sentence a
+      // member can act on — a phone photo in HEIC is refused with "Only
+      // PNG/JPG/GIF/WebP images allowed" — so it is said, through the ONE
+      // error-to-copy authority (`friendlySaveError`, mapped on its own line;
+      // the attachment path below records why).
+      const why = friendlySaveError(e, e?.status)
+      const said = /[.!?]$/.test(why) ? why : `${why}.`
+      // The network sentences already say the note is unchanged; say it once.
+      const tail = /unchanged/i.test(said) ? '' : ' Your note is unchanged.'
+      setUploadToast({
+        message: `Couldn't upload ${file.name || 'image'} — ${said}${tail}`,
+        tone: 'error',
+      })
     }
   }
+  // Wave 7 lane H1 — dictated words, at the caret, as one undo step
+  // (lib/dictationInsert.js). A dictation that cannot land says so: the words
+  // were heard and a silent drop would lose them without a trace.
+  const insertDictated = useCallback((text) => {
+    if (insertDictation(editorRef.current, text)) return
+    setUploadToast({
+      message: "Couldn't add what you said — this note can't take changes right now.",
+      tone: 'error',
+    })
+  }, [])
+
+  // ── Wave 7 lane H (H2): writing help ──────────────────────────────────────
+  // ⛔ DARK behind `notebook_writing_help_enabled` (NOTEBOOK_WRITING_HELP_ENABLED,
+  // latched from the auth payload) and paid-only, like the route. Off ⇒ no
+  // toolbar entry, no slash item, nothing to click.
+  const writingHelpOn = notebookFlag('notebook_writing_help_enabled') === true && isPaid === true
+  const writingHelpOnRef = useRef(writingHelpOn)
+  writingHelpOnRef.current = writingHelpOn
+  // The request captured when the panel OPENS (lib/writingHelp.js), or null.
+  const [writingHelp, setWritingHelp] = useState(null)
+  const openWritingHelp = useCallback(() => {
+    const ed = editorRef.current
+    if (!writingHelpOnRef.current || !ed || ed.isDestroyed || !ed.isEditable) return
+    const req = captureWritingHelpScope(ed)
+    if (!req) return
+    // ⛔ D-H7: the caret (or selection) is in an Ask answer. Refused UP FRONT, in the product's
+    // own sentence, so no panel opens and none of the member's daily writing-help allowance is
+    // spent on a draft that could never be placed. Accept refuses it again (lib/writingHelp.js).
+    if (req.insideAnswer) {
+      setUploadToast({ message: INSIDE_ANSWER_SENTENCE, tone: 'error' })
+      return
+    }
+    setWritingHelp(req)
+  }, [])
+  // Accept — the ONE write: an askInsert block with `action` + `model`, as one
+  // undo step. Said either way; a draft that could not land keeps the panel open.
+  const acceptWritingHelpDraft = useCallback((draft) => {
+    const res = acceptWritingHelp(editorRef.current, draft)
+    if (res.ok) {
+      setUploadToast({
+        message: draft.scope === 'selection' && !res.replaced
+          ? 'Your selection changed while Compass wrote, so the draft was added after it. Nothing was replaced.'
+          : 'Added from writing help. Undo takes it back out.',
+        tone: 'success',
+      })
+    }
+    return res
+  }, [])
   // Wave I: the non-image counterpart — the backend endpoint
   // (POST /notes/{id}/attachments) has existed since before this wave; this
   // is its first live-editor caller. Inserts a real AttachmentChip node
@@ -1676,7 +1792,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     // reads the note id off editor storage for its archive upload
     // (see WidgetEmbedView's self-archive effect).
     onCreate: ({ editor: ed }) => {
-      ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), noteId }
+      // `canDictate` (wave 7 H1) is a FUNCTION over the mic's ref, read when the
+      // slash menu opens: the mic loads lazily and can mount after this editor,
+      // and a snapshot taken here would offer "Dictate" to nobody or to everybody.
+      ed.storage.uctJournalWidgets = {
+        ...(ed.storage.uctJournalWidgets || {}), noteId,
+        canDictate: () => micRef.current?.available === true,
+        // Wave 7 H2: read when the slash menu opens, like `canDictate`.
+        canWritingHelp: () => writingHelpOnRef.current === true,
+      }
       // One reading per note: the timer's own stop() speaks once.
       if (note) openTimerRef.current?.(taskIndexRef.current != null ? { source: 'tasks' } : {})
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
@@ -2465,9 +2589,23 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   useEffect(() => {
     if (!editor) return undefined
     const onOpenPicker = () => fileInputRef.current?.click()
+    // Wave 7 lane H1: the slash menu's "Dictate" item, on the SAME per-editor
+    // target and for the same reason — with two panes open, only the pane the
+    // command ran in may start listening. `start()` refuses where a click on
+    // the mic would do nothing; that is said, never silent.
+    const onDictate = () => {
+      if (micRef.current?.start?.()) return
+      setChromeMsg("Dictation isn't available right now")
+    }
+    // Wave 7 lane H2: the slash menu's "Writing help", same per-editor target.
+    const onWritingHelp = () => openWritingHelp()
     let dom = null
     const detach = () => {
-      if (dom) dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      if (dom) {
+        dom.removeEventListener('uct:notebook-open-image-picker', onOpenPicker)
+        dom.removeEventListener(DICTATE_EVENT, onDictate)
+        dom.removeEventListener(WRITING_HELP_EVENT, onWritingHelp)
+      }
       dom = null
     }
     const attach = () => {
@@ -2477,6 +2615,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       detach()
       dom = next
       dom.addEventListener('uct:notebook-open-image-picker', onOpenPicker)
+      dom.addEventListener(DICTATE_EVENT, onDictate)
+      dom.addEventListener(WRITING_HELP_EVENT, onWritingHelp)
     }
     attach()
     editor.on('mount', attach)
@@ -2568,10 +2708,18 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     await settleMetadataRevision(await update({ ticker: ticker || null }))
   }
   // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
-  // list the SERVER holds right now (read just before the write) -- never a
-  // list this page loaded earlier, which would undo a bulk change made in
-  // another tab. When that read fails nothing is sent: a list that could not
-  // be checked is never written. lib/tagDelta.js has the rule.
+  // list the SERVER holds -- never a list this page loaded earlier, which would
+  // undo a bulk change made in another tab. When the read below fails nothing
+  // is sent: a change that could not be checked is never written.
+  // lib/tagDelta.js has the rule.
+  // ⭐ Wave 7 (M14): the delta itself goes to PATCH /notes/{id}/tags, which
+  // applies it inside ONE transaction -- the read no longer supplies the list
+  // that is written (a second device's change between the read and the write
+  // survives). The read decides only "nothing to send". Whether the answer's
+  // revision is OURS is the server's to say: the route answers `changed`
+  // (lane J, J9) and `useJ2Note.patchTags` hands back the note only when THIS
+  // request wrote it, null otherwise -- so a no-op answered at another
+  // writer's revision is never recorded as ours below.
   const [tagsBusy, setTagsBusy] = useState(false)
   const applyTagDelta = async (delta) => {
     // (One change at a time: the field is `busy` -- disabled -- until this settles.)
@@ -2592,7 +2740,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // differs from the chips on screen (they did not show the tag the member
       // just added), so re-read the note and let the chips catch up.
       if (sameTagList(next, serverTags)) { refresh?.(); return }
-      await settleMetadataRevision(await update({ tags: next }))
+      await settleMetadataRevision(await patchTags(delta))
       refreshTagNodes()
     } catch {
       setChromeMsg("Couldn't update tags — try again")
@@ -2747,6 +2895,89 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     setUnsentTrash(null)
     await trashNow()
   }
+  // ⭐ Wave 7 (M-9): "Save as template" copies the SERVER's copy of the note,
+  // so words still inside the autosave window (or queued) would be missing from
+  // the template while the note keeps them. The note menu asks this first: send
+  // what is pending NOW, then confirm nothing is left unsent -- the same
+  // witnesses the Delete gate asks (`holdsUnsent`). -> true when the server
+  // holds everything this editor has.
+  const sendPendingEdits = async () => {
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    durableRef.current.flush()
+    try { await commitSaveRef.current() } catch { /* the save reports its own failure */ }
+    // The landed save settles the durable copy without being awaited, so ask
+    // again a few times before saying something is still unsent.
+    for (let i = 0; i < 5; i += 1) {
+      if (!holdsUnsent(await unsentVerdict())) return true
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    return false
+  }
+
+  // ⭐⭐ Ruling D-G5 (wave 7 whole-branch fix, frontend review I-3) — A CLEAN OPEN EDITOR RE-READS
+  // ITS NOTE WHEN THE MEMBER COMES BACK, AND ADOPTS A NEWER SERVER COPY.
+  //
+  // ⚰️ The editor adopted a server body only when the note id changed, and the single-note SWR does
+  // not revalidate on focus. So after a personal-API or email-in append (no client, nothing told
+  // this tab), the member's next keystroke saved against the pre-append base, 409'd, and the
+  // classifier -- F5-frozen, merging only widgetEmbed / financialFact / documentExcerpt -- read the
+  // appended paragraph as a BODY_REWRITE and FORKED a note whose tab held no unsent words at all.
+  //
+  // On `visibilitychange` (to visible) or window `focus`, an editor that is CLEAN re-reads the note
+  // and, when the server's revision is NEWER than its own baseline, adopts it through
+  // `adoptServerCopy` -- the path a version restore takes. CLEAN is every witness the Delete gate
+  // asks, plus the save machinery: nothing typed since the last landed save (`unsentInEditor`), no
+  // save pending, retrying or on the wire, no recovery decision on screen, and nothing unsent for
+  // the note by the offline layer's own predicate (`noteHasUnsentWork`: not dirty, nothing queued;
+  // an unreadable store is not known to be clean). The sync half is asked again after the read, so
+  // a word typed while it was on the wire keeps today's behaviour.
+  //
+  // ⛔ An editor HOLDING unsent words is untouched: its save 409s and the note forks, never
+  // clobbered. ⛔ No F5-frozen file is involved; the revision is ANOTHER writer's, so it is not
+  // recorded as landed. Rail: NoteEditorPage.cleanReread.test.jsx.
+  const rereadInFlightRef = useRef(false)
+  const rereadCleanNoteRef = useRef(null)
+  rereadCleanNoteRef.current = async () => {
+    const ed = editorRef.current
+    const editorIsClean = () => Boolean(
+      ed && editorRef.current === ed && !ed.isDestroyed && ed.isEditable && !isUnreadable(ed)
+      && hydratedRef.current && !saveTimerRef.current && !retryTimerRef.current
+      && !saveInFlightRef.current && unsentInEditor().length === 0,
+    )
+    if (rereadInFlightRef.current || !noteId || pendingAdoption || pendingDraft || !editorIsClean()) return
+    rereadInFlightRef.current = true
+    try {
+      if (holdsUnsentWork(await unsentVerdict())) return
+      const fresh = (await refresh())?.note
+      if (!fresh || fresh.id !== noteId || !editorIsClean()) return
+      // Our baseline is older than the server's revision -- PARSED, never string-compared, and an
+      // unparseable revision on either side is not newer (lib/offline/baseline.js).
+      if (!isSupersededBaseline(lastSavedRef.current.updatedAt, fresh.updatedAt)) return
+      const { from, to } = ed.state.selection
+      adoptServerCopy(fresh)
+      // The caret stays where the member left it (clamped into the new document), so the next
+      // keystroke lands there rather than wherever a whole-document swap put it. Focus untouched.
+      try {
+        const size = ed.state.doc.content.size
+        const $at = (p) => ed.state.doc.resolve(Math.max(0, Math.min(size, p)))
+        ed.view.dispatch(ed.state.tr.setSelection(TextSelection.between($at(from), $at(to))))
+      } catch { /* a caret that cannot be placed is left where the swap put it */ }
+    } catch {
+      /* a failed re-read changes nothing: the next save reconciles exactly as it always did */
+    } finally {
+      rereadInFlightRef.current = false
+    }
+  }
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState !== 'hidden') rereadCleanNoteRef.current?.() }
+    const onFocus = () => { rereadCleanNoteRef.current?.() }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
 
   const ToolButton = ({ active, onClick, label, title }) => (
     <button
@@ -3044,7 +3275,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               only the first of those three, costing the next save a 409 +
               re-fetch; passing this through lets the menu route through the
               SAME settle instead of restating a worse copy of it. */}
-          {noteMenu?.(note, { refresh, unlockNote })}
+          {noteMenu?.(note, { refresh, unlockNote, sendPendingEdits })}
         </div>
       </header>
 
@@ -3214,11 +3445,52 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               label={<UIcon name="document" size={14} />}
               title="Insert image"
             />
+            {/* Wave 7 (lane G's G5, built by H): photograph a page on a phone or
+                tablet. The touch tier only (`.scanBtn` is display:none above
+                1024px); the photo goes through the SAME image upload as Insert
+                image, so with NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and
+                J2_OCR_ENABLED on it becomes a searchable document. */}
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${styles.scanBtn}`}
+              onClick={() => scanInputRef.current?.click()}
+              aria-label="Scan a document with the camera"
+              title="Scan a document with the camera"
+            >
+              <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Scan
+            </button>
             <ToolButton
               onClick={() => attachFileInputRef.current?.click()}
               label={<UIcon name="paperclip" size={14} />}
               title="Attach a file"
             />
+            {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
+                "Dictate" starts the same mic). Paid members only — the mic
+                renders nothing for anyone else, and is not even loaded.
+                `holdOnFailure` (review I-4): a failed transcription keeps the
+                member's recording and says why, never a silent drop. */}
+            {isPaid === true && (
+              <Suspense fallback={null}>
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure />
+              </Suspense>
+            )}
+            {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
+                reaches the note only on Accept. `onMouseDown` keeps the
+                editor's selection, which is what the member is asking about. */}
+            {writingHelpOn && editor.isEditable && (
+              <button
+                type="button"
+                className={styles.toolBtn}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={openWritingHelp}
+                aria-label="Writing help"
+                title="Writing help — summarize, rewrite, continue or translate"
+              >
+                <UIcon name="sparkle" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                Writing help
+              </button>
+            )}
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
@@ -3428,6 +3700,24 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             e.target.value = ''
           }}
         />
+        {/* Wave 7 G5: the camera door. `capture="environment"` asks a phone for
+            its rear camera; everything after the pick is Insert image's path.
+            ⚠️ Whether iOS hands over a JPEG or a HEIC is NOT measured here (it
+            needs a real device); a HEIC is refused by the server and the toast
+            says so in its own words. */}
+        <input
+          ref={scanInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          aria-label="Scan a document with the camera — photo"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleImageInsert(f)
+            e.target.value = ''
+          }}
+        />
         <input
           ref={attachFileInputRef}
           type="file"
@@ -3452,6 +3742,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {writingHelp && (
+        <Suspense fallback={null}>
+          <WritingHelpPanel
+            noteId={noteId}
+            request={writingHelp}
+            onAccept={acceptWritingHelpDraft}
+            onClose={() => setWritingHelp(null)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

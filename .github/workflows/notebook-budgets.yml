@@ -1,0 +1,139 @@
+# promotion-gate: no — ADVISORY. The latency job times real reads on a shared GitHub
+#   runner whose speed is not ours to control, so a red here means "look at this", never
+#   "do not deploy". The byte job is deterministic but rides in the same file. The
+#   ENFORCING gate for the brief's number (search p95 < 100 ms at 50,000 notes) is LOCAL:
+#   `python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds
+#   docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks`
+#   (docs/notebook/perf-budgets.md). Added 2026-09-25, wave 7 lane I.
+# ─── NOTEBOOK PERFORMANCE BUDGETS, IN CI ─────────────────────────────────────
+#
+# Two budgets, both read from `docs/notebook/perf-budgets.json` (edited BY HAND) and
+# both checked by ONE tool, `tools/notebook_perf_budgets.py`:
+#
+#  1. Notebook JS bytes: the JS a browser fetches before the Notebook route renders,
+#     summed over the STATIC import closure of the route's lazy roots in the Vite build
+#     manifest (`build.manifest: true` in app/vite.config.js). Derived from the graph on
+#     every run, never a hand-typed chunk list. Budget = the I0 baseline + 5%.
+#  2. Read latency p95, from `tools/notebook_scale_benchmark.py --json`.
+#
+# ⛔ WHY ONLY THE 1k AND 10k TIERS RUN HERE. The 50k tier seeds ~50,000 notes with ~2 KB
+#   bodies and their FTS index (a ~370 MB SQLite file, minutes of seeding) and then times
+#   every read in the benchmark's TIMED_OPS (2 warm-ups, then 20 reps each). On a shared
+#   runner that is slow. At 10k the same 100 ms line is loose ON PURPOSE: it still catches
+#   the gross regressions this wave fixed (the correlated sidecar EXISTS was 717 ms p95 at
+#   10k). The 50k number is the local gate named in the marker above.
+#
+# ⚰️ THIS SAID THE 10k LINE "CANNOT CRY WOLF ON RUNNER NOISE". MEASURED, IT DID. Re-counted
+#   2026-09-25 18:26 CT (`gh run list --workflow "notebook budgets" --branch feat/notebook-w7
+#   --limit 100`): 8 of 56 runs red, every one the latency job on search_ci's `q=` ops, never
+#   bytes. On unchanged code `q=rare, relevance` read 160.0 ms p95 (730153a60, which changed
+#   one JS test file) against 13.56 ms on a green run (e6bb581a5); run 36198655258 on
+#   46334dc85, a comments-only commit, breached `q=common, relevance` at 191.6 ms while its
+#   parent 894f04c58 passed.
+# ⛔ SO A LATENCY BREACH MUST REPRODUCE (wave 7 whole-branch fix, tooling review I-3). The
+#   benchmark re-times ONCE, with the same warm-ups and reps, every op that reads over a line
+#   of a budget named with --remeasure, and the budget tool breaches an op only when BOTH
+#   readings are over it; one that did not reproduce is printed as a note. No line was raised.
+# ⚠️ AND ONE RE-MEASURE DOES NOT MAKE THE JOB QUIET. The first 7 runs under the rule
+#   (2026-09-25 18:47-19:05 CT) had 1 red: run 36203106608 on 1649bba7b (a test file and a
+#   workflow comment) REPRODUCED `q=common, relevance` at 239.1 -> 118.5 ms, while in the same run
+#   `q=rare (list+count)` read 153.0 -> 13.0 ms and was noted, not counted. A burst that
+#   outlasts the pass still reads red. Seven runs establish no rate: a red here is still a
+#   "look at it", never a verdict.
+#
+# ⛔ AN OP OR TIER THE RUN DID NOT MEASURE IS A BREACH, and a missing manifest or a
+#   renamed route root exits 3 (fails CLOSED). A budget that could not be checked did
+#   not pass.
+name: notebook budgets
+
+on:
+  push:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-budgets.yml'
+  pull_request:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-budgets.yml'
+
+jobs:
+  latency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+
+      # The benchmark imports the repo-root conftest before any api.* module, so every
+      # /data path it could touch is pinned to a sandbox and a stray write fails the run.
+      # Railed (M-4): tests/test_notebook_bridges_pin_the_root.py walks every
+      # tools/notebook_*.py that imports api. and fails on a late or missing `import conftest`.
+      - name: Benchmark the 1k and 10k tiers (50k is the local gate -- see the header)
+        # --remeasure: an op over one of these budgets' lines is re-timed once before it can
+        # count (I-3 in the header); tests/test_notebook_scale_benchmark.py holds every --budget
+        # of the next step to a --remeasure here.
+        run: >
+          python tools/notebook_scale_benchmark.py --tiers 1000,10000 --json notebook-bench.json
+          --remeasure search_ci --remeasure reads_ci --remeasure tasks_ci
+
+      - name: Latency budgets at the CI tier
+        run: >
+          python tools/notebook_perf_budgets.py --bench notebook-bench.json
+          --budget search_ci --budget reads_ci --budget tasks_ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-bench
+          path: notebook-bench.json
+          if-no-files-found: warn
+
+  bytes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Build (writes dist/.vite/manifest.json)
+        working-directory: app
+        run: npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Stdlib only: the byte check reads the manifest and the files beside it.
+      - name: Notebook JS byte budget
+        run: python tools/notebook_perf_budgets.py --dist app/dist

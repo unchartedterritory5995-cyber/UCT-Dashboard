@@ -133,6 +133,10 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # j2_task_reminder_log, likewise: note_tasks.run_task_reminders creates
     # it on its first pass (wave 6 fix round 4, R4-4).
     nt.ensure_reminder_schema(conn)
+    # j2_note_embeddings, likewise: note_semantic.py self-ensures it on the
+    # first index or search (wave 7 lane H, H3).
+    from api.services.journal_two import note_semantic as nsem
+    nsem.ensure_semantic_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)
@@ -396,6 +400,47 @@ def test_j2_task_reminder_log_is_purged_on_account_deletion(db_path, monkeypatch
             "j2_task_reminder_log still holds the deleted member's reminder rows")
         assert reminder_rows(control) == 2, "an unrelated member's reminder rows changed"
         assert result["rows_deleted"].get("j2_task_reminder_log") == 2
+    finally:
+        conn.close()
+
+
+def test_daily_usage_counters_member_rows_are_purged_and_the_global_row_is_not(db_path):
+    """Ruling D-H10 (wave 7 whole-branch fix). `daily_usage_counters` (auth.db, ruling D-H5b)
+    holds one row per (scope, subject, ET day); for the per-member scopes the SUBJECT is the
+    member's id, and the shared dollar cap's row is `daily_counters.GLOBAL` ("*"). The rows are
+    written through the REAL counter (`daily_counters.take`), never a hand INSERT, so the table
+    this rail purges is the one production writes. Hardcoded to THIS table, independent of
+    `_DIRECT_USER_TABLES`: it has no `user_id` column, so the generic manifest test above cannot
+    see it at all."""
+    from api.services import daily_counters as dc
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import account_purge as ap
+
+    target, control = f"u_ctr_{uuid.uuid4().hex[:8]}", f"u_ctrctl_{uuid.uuid4().hex[:8]}"
+    day = "2031-03-14"
+    for uid in (target, control):
+        assert dc.take(day, [dc.Charge("notebook_ask", uid, 1, 40),
+                             dc.Charge("notebook_writing_help", uid, 1, 60),
+                             dc.Charge("notebook_llm_spend_usd", dc.GLOBAL, 0.02, 25)]) is None
+
+    def rows(subject: str) -> int:
+        return conn.execute(f"SELECT COUNT(*) FROM {dc.TABLE} WHERE subject = ?", (subject,)).fetchone()[0]
+
+    conn = get_connection()
+    try:
+        # Non-vacuity: the real writer reached the database this purge deletes from.
+        assert (rows(target), rows(control), rows(dc.GLOBAL)) == (2, 2, 1), "seeding itself is broken"
+        global_value = dc.value(day, "notebook_llm_spend_usd", dc.GLOBAL)
+        assert global_value > 0, "seeding itself is broken"
+
+        result = ap.purge_user_data(target, conn)
+        assert result["ok"] is True, result["errors"]
+
+        assert rows(target) == 0, "daily_usage_counters still holds the deleted member's rows"
+        assert rows(control) == 2, "an unrelated member's counter rows changed"
+        assert rows(dc.GLOBAL) == 1, "the shared dollar cap's global row was deleted with a member"
+        assert dc.value(day, "notebook_llm_spend_usd", dc.GLOBAL) == global_value
+        assert result["rows_deleted"].get("daily_usage_counters") == 2
     finally:
         conn.close()
 

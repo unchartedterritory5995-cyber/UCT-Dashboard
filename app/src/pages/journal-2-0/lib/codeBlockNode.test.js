@@ -2,11 +2,17 @@
 //
 // Written against the REAL roster (buildExtensions) so a rail can only pass if
 // the node the editor actually runs is the highlighted one.
+//
+// Wave 7 (lane I3): the highlighter loads ON DEMAND, the first time a document holds
+// a code block, so every assertion about COLOUR first waits for it (`settled`). The
+// lazy load itself -- never fetched for a note without a code block, plain text until
+// it arrives -- is railed in codeBlockNode.lazyHighlighter.test.js, in a fresh module.
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { undo } from '@tiptap/pm/history'
 import { buildExtensions } from './tiptap'
-import { CODE_LANGUAGES, canonicalLanguage, languageLabel, notebookLowlight } from './codeHighlight'
+import { CODE_LANGUAGES, grammarAliases, notebookLowlight } from './codeHighlight'
+import { CODE_LANGUAGE_ALIASES, CODE_LANGUAGES as ROSTER, canonicalLanguage, languageLabel, loadHighlighter } from './codeLanguages'
 import { CODE_LANGUAGE_PICKER_LABEL } from './codeBlockNode'
 
 let editor
@@ -23,10 +29,13 @@ const PY = 'def total(xs):\n    return sum(xs)  # add them up'
 const hljsSpans = (ed) => [...ed.view.dom.querySelectorAll('[class*="hljs-"]')]
 const picker = (ed) => ed.view.dom.querySelector('select.uctCodeLang')
 const firstCodePos = (ed) => { let p = null; ed.state.doc.descendants((n, pos) => { if (p == null && n.type.name === 'codeBlock') p = pos }); return p }
+// The highlighter has arrived and the plugin's re-decoration has been dispatched.
+const settled = async () => { await loadHighlighter(); await new Promise((r) => setTimeout(r, 0)) }
 
 describe('highlighting', () => {
-  it('a Python block is coloured by token: `def` is a keyword, the comment is a comment', () => {
+  it('a Python block is coloured by token: `def` is a keyword, the comment is a comment', async () => {
     const ed = mount([CODE(PY, 'python')])
+    await settled()
     const kw = hljsSpans(ed).filter((s) => s.className.includes('hljs-keyword')).map((s) => s.textContent)
     expect(kw).toContain('def')
     expect(kw).toContain('return')
@@ -34,31 +43,37 @@ describe('highlighting', () => {
     expect(comments).toEqual(['# add them up'])
   })
 
-  it('a block with NO language is plain text — never auto-detected (every keystroke would guess again)', () => {
+  it('a block with NO language is plain text — never auto-detected (every keystroke would guess again)', async () => {
     const ed = mount([CODE(PY, null)])
+    await settled()
     expect(hljsSpans(ed)).toEqual([])
   })
 
-  it('an alias a pasted fence carries (```py) highlights as its language', () => {
+  it('an alias a pasted fence carries (```py) highlights as its language', async () => {
     const ed = mount([CODE(PY, 'py')])
+    await settled()
     expect(hljsSpans(ed).some((s) => s.className.includes('hljs-keyword'))).toBe(true)
   })
 
-  it('a language outside the roster renders as plain text and is KEPT on save', () => {
+  it('a language outside the roster renders as plain text and is KEPT on save', async () => {
     const ed = mount([CODE('plot(close)', 'pinescript')])
+    await settled()
     expect(hljsSpans(ed)).toEqual([])
     expect(ed.getJSON().content[0].attrs.language).toBe('pinescript')
   })
 
-  it('highlighting is decoration only: the saved JSON and HTML carry no hljs markup', () => {
+  it('highlighting is decoration only: the saved JSON and HTML carry no hljs markup', async () => {
     const ed = mount([CODE(PY, 'python')])
+    await settled()
+    expect(hljsSpans(ed).length).toBeGreaterThan(0) // non-vacuity: it IS highlighted
     expect(JSON.stringify(ed.getJSON())).not.toContain('hljs')
     expect(ed.getHTML()).not.toContain('hljs')
     expect(ed.getHTML()).toContain('<code class="language-python">')
   })
 
-  it('re-highlights as the member types (a keyword typed into the block is coloured)', () => {
+  it('re-highlights as the member types (a keyword typed into the block is coloured)', async () => {
     const ed = mount([CODE('x = 1', 'python')])
+    await settled()
     expect(hljsSpans(ed).filter((s) => s.className.includes('hljs-keyword'))).toEqual([])
     ed.commands.setTextSelection(1)
     ed.commands.insertContent('import os\n')
@@ -88,6 +103,15 @@ describe('the curated roster (no lowlight/common, no auto-detect)', () => {
     expect([...notebookLowlight.listLanguages()].sort()).toEqual(CODE_LANGUAGES.map((l) => l.id).sort())
     expect(CODE_LANGUAGES.length).toBeGreaterThanOrEqual(15) // non-vacuity
     expect(CODE_LANGUAGES.length).toBeLessThanOrEqual(22)   // curated, not `common`
+  })
+
+  it("the eager alias table is exactly the grammars' own aliases (a checked copy, never an authority)", () => {
+    expect(CODE_LANGUAGE_ALIASES).toEqual(grammarAliases())
+    expect(Object.keys(CODE_LANGUAGE_ALIASES).length).toBeGreaterThan(20) // non-vacuity
+  })
+
+  it("the highlighter's roster IS the eager roster, same ids, labels and order", () => {
+    expect(CODE_LANGUAGES.map(({ id, label }) => ({ id, label }))).toEqual(ROSTER.map(({ id, label }) => ({ id, label })))
   })
 
   it('aliases come from the grammars themselves', () => {
@@ -134,8 +158,9 @@ describe('the language picker', () => {
     expect([...b.options].map((o) => o.value)).toContain('pinescript')
   })
 
-  it('choosing a language sets the node attribute (and highlights); undo restores it', () => {
+  it('choosing a language sets the node attribute (and highlights); undo restores it', async () => {
     const ed = mount([CODE(PY, null)])
+    await settled()
     const sel = picker(ed)
     sel.value = 'python'
     sel.dispatchEvent(new Event('change', { bubbles: true }))
@@ -187,8 +212,9 @@ describe('the language picker', () => {
 })
 
 describe('read-only renderers (shared page, version preview)', () => {
-  it('show the language as a label, with no control', () => {
+  it('show the language as a label, with no control', async () => {
     const ed = mount([CODE(PY, 'python'), CODE('plain', null)], { editable: false })
+    await settled()
     expect(picker(ed)).toBe(null)
     const labels = [...ed.view.dom.querySelectorAll('.uctCodeLangLabel')]
     expect(labels.map((l) => l.textContent)).toEqual(['Python', 'Plain text'])

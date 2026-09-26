@@ -857,6 +857,211 @@ def test_relative_and_journal_and_import_link_hrefs_still_allowed():
         assert text_node["marks"][0]["attrs"]["href"] == href
 
 
+# ---------------------------------------------------------------------------
+# ⛔ Wave 7 lane J, J6 — the href is checked AS A BROWSER READS IT.
+#
+# TipTap's `isAllowedUri` (@tiptap/extension-link 3.23.6, dist/index.js:190)
+# removes every character of UNICODE_WHITESPACE_PATTERN (U+0000-U+0020,
+# U+00A0, U+1680, U+180E, U+2000-U+2029, U+205F, U+3000) from the WHOLE uri
+# before the scheme check; a browser ignores them inside a scheme too, so
+# `java<TAB>script:` IS `javascript:`. `_is_allowed_link_href` checked the
+# raw string, so these three shapes were refused by the editor and ADMITTED
+# here -- stored as links a share page or an HTML export would render.
+# ---------------------------------------------------------------------------
+
+
+def test_is_allowed_link_href_refuses_a_scheme_hidden_by_whitespace_or_control_characters():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in (
+        "  javascript:alert(1)",       # leading spaces
+        "\tjavascript:alert(1)",       # a leading tab
+        "java\x00script:alert(1)",     # NUL inside the scheme
+        "java\tscript:alert(1)",       # a tab inside the scheme
+        "java script:alert(1)",   # a no-break space inside the scheme
+        "\n\rvbscript:msgbox(1)",      # newline + CR ahead of another script scheme
+    ):
+        assert _is_allowed_link_href(href) is False, repr(href)
+
+
+def test_is_allowed_link_href_still_allows_real_links_after_the_strip():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in (
+        "https://example.com/a?b=c",
+        " https://example.com",        # a stray leading space on a real link stays a link (as in TipTap)
+        "mailto:a@example.com",
+        "/journal?j2tab=notebook&note=1",
+        "import-link://obsidian:x.md",
+        "#anchor",
+        "notes.md",                    # a relative link
+        "",                            # the empty href short-circuit
+    ):
+        assert _is_allowed_link_href(href) is True, repr(href)
+
+
+def test_an_html_link_whose_scheme_hides_behind_a_tab_or_spaces_keeps_its_words_not_its_link():
+    """Through a real call site: the HTML converter reads `href` after entity
+    decoding, so `&#9;` arrives as a TAB -- the exact shape lane G's personal
+    API had to strip around (fix round 1, M-5)."""
+    from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+
+    for raw in ('java&#9;script:alert(1)', '  javascript:alert(1)', '&#10;javascript:alert(1)'):
+        result = html_to_tiptap(f'<p><a href="{raw}">words</a></p>')
+        para = result["doc"]["content"][0]
+        assert _plain_text(para) == "words", raw
+        for n in para["content"]:
+            if n.get("type") == "text":
+                assert n.get("marks", []) == [], (raw, n)
+    # Control: an ordinary https link through the same door keeps its mark.
+    ok = html_to_tiptap('<p><a href="https://example.com">words</a></p>')["doc"]["content"][0]
+    assert ok["content"][0]["marks"] == [{"type": "link", "attrs": {"href": "https://example.com"}}]
+
+
+# ---------------------------------------------------------------------------
+# Wave 7 lane J, fix round 1 -- review M-2: ONE normaliser, written in escapes.
+#
+# Lane G's personal API kept a byte-identical copy of `_LINK_URI_INVISIBLE_RE`
+# (`note_personal_api._HREF_INVISIBLE`), and BOTH copies held the characters
+# RAW -- U+2029 among them, a paragraph separator, so `str.splitlines()`
+# counted each file one line longer than `\n` did. The class now lives once,
+# as `\u` escapes, behind `mddoc.link_href_as_read`, and the personal API asks
+# that function. Three rails: one definition site, both gates answering
+# through it, and no Python source whose lines split differently.
+# ---------------------------------------------------------------------------
+
+# U+180E belongs to the class and appears in no other string under api/: as the
+# raw character (the old copies) or as the escape text (the one copy now).
+_INVISIBLE_CLASS_SIGNATURE = ("\u180e", "\\u180e")
+
+
+def test_the_invisible_character_class_is_defined_once_under_api():
+    import ast
+    from pathlib import Path
+
+    api = Path(__file__).resolve().parents[2]
+    sites, scanned = [], 0
+    for path in sorted(api.rglob("*.py")):
+        if path.name.startswith("test_"):
+            continue
+        scanned += 1
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and any(sig in node.value.lower() for sig in _INVISIBLE_CLASS_SIGNATURE)):
+                sites.append(f"{path.relative_to(api.parent).as_posix()}:{node.lineno}")
+    # Non-vacuity: the walk read the tree (1,332 modules when written), and it SEES
+    # the one copy there is -- by name, so an empty walk cannot pass.
+    assert scanned > 1000, scanned
+    assert [s.rsplit(":", 1)[0] for s in sites] == [
+        "api/services/journal_two/note_connectors/convert/mddoc.py"], sites
+
+
+def test_both_link_gates_read_the_href_through_the_one_normaliser():
+    """The personal API's mark gate and the converters' allow-list answer a hidden
+    script scheme the same way because they strip it with the SAME function."""
+    from api.services.journal_two import note_personal_api
+    from api.services.journal_two.note_connectors.convert.mddoc import (
+        _is_allowed_link_href, link_href_as_read,
+    )
+
+    def link(href):
+        return {"type": "link", "attrs": {"href": href}}
+
+    for href in ("java\u2029script:alert(1)", "\u3000javascript:alert(1)",
+                 "java\u180escript:alert(1)", "\tjavascript:alert(1)"):
+        assert link_href_as_read(href) == "javascript:alert(1)", repr(href)
+        assert _is_allowed_link_href(href) is False, repr(href)
+        assert note_personal_api._link_mark_survives(link(href)) is False, repr(href)
+    # An import link behind whitespace is refused as well. (Both halves refuse it:
+    # stripped, it names an import document; and the allow-list refuses the
+    # stripped scheme. So the personal API's own call to the normaliser is not
+    # separately observable today -- the define-once rail above is what keeps a
+    # second copy from coming back.)
+    assert note_personal_api._link_mark_survives(link("\u2003import-link://obsidian:x.md")) is False
+    # Control: an ordinary link survives both gates.
+    assert note_personal_api._link_mark_survives(link("https://example.com/a")) is True
+    assert _is_allowed_link_href("https://example.com/a") is True
+
+
+def test_no_python_source_splits_into_more_lines_than_it_has_newlines():
+    """M-2's hazard as a property of the tree: a raw U+2028/U+2029 (or any other
+    character `str.splitlines()` breaks on) inside a source file puts every rail
+    that maps `node.lineno` through `splitlines()` one line off below it."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    offenders, scanned = [], 0
+    for top in ("api", "tools", "scripts", "tests"):
+        for path in (root / top).rglob("*.py"):
+            text = path.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
+            scanned += 1
+            newline_lines = text.count("\n") + (0 if (not text or text.endswith("\n")) else 1)
+            if len(text.splitlines()) != newline_lines:
+                offenders.append(path.relative_to(root).as_posix())
+    assert scanned > 2000, scanned          # 3,779 files when written
+    assert not offenders, offenders
+    # Control: the same comparison sees one raw paragraph separator.
+    sample = 'X = "a\u2029b"\n'
+    assert len(sample.splitlines()) != sample.count("\n")
+
+
+# ---------------------------------------------------------------------------
+# Wave 7 lane J, fix round 1 -- review M-1: the scheme check is TipTap's regex.
+#
+# TipTap's `[^a-z+.-:]` is a range `.`-`:` (it excludes `/` and the digits);
+# mddoc escaped the hyphen, so a slash-relative or digit-bearing href was a
+# link here and plain text in the editor. Measured with node against the
+# shipped regex: the six hrefs below are refused by TipTap.
+# ---------------------------------------------------------------------------
+
+
+def test_a_slash_relative_or_digit_scheme_href_is_refused_as_tiptap_refuses_it():
+    from api.services.journal_two.note_connectors.convert.mddoc import _is_allowed_link_href
+
+    for href in ("notes/x.md", "img/a.png", "sub/page.md", "a1/b",
+                 "java/script:alert(1)", "javascript0:alert(1)"):
+        assert _is_allowed_link_href(href) is False, repr(href)
+    for href in ("./notes/x.md", "../x.md", "notes.md", "notes", "x-y"):
+        assert _is_allowed_link_href(href) is True, repr(href)
+    # Through the markdown door: the words stay, the mark does not.
+    para = md_to_tiptap("[Other](sub/page.md)\n")["doc"]["content"][0]
+    assert _plain_text(para) == "Other"
+    assert all(n.get("marks", []) == [] for n in para["content"] if n.get("type") == "text")
+
+
+def test_the_link_scheme_check_is_the_regex_tiptap_ships():
+    """Derive, do not restate: the pattern, its protocol list and the invisible-
+    character class are read from the INSTALLED @tiptap/extension-link and compared
+    with mddoc's, so a TipTap upgrade that moves any of them reds here."""
+    import codecs
+    import re
+    from pathlib import Path
+
+    import pytest
+
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    dist = (Path(__file__).resolve().parents[3] / "app" / "node_modules" / "@tiptap"
+            / "extension-link" / "dist" / "index.js")
+    if not dist.is_file():
+        pytest.skip(f"TipTap link parity NOT VERIFIED in this run: {dist} is not installed")
+    src = dist.read_text(encoding="utf-8")
+    protocols = re.search(r"const allowedProtocols = \[([^\]]*)\];", src)
+    template = re.search(r"`(\^\(\?:\(\?:\$\{allowedProtocols\.join\(\"\|\"\)\}\):[^`]*)`", src)
+    space = re.search(r'var UNICODE_WHITESPACE_PATTERN = "([^"]*)";', src)
+    assert protocols and template and space, "the shipped isAllowedUri no longer has the shape this rail reads"
+
+    shipped_protocols = tuple(json.loads("[" + protocols.group(1) + "]"))
+    assert mddoc._LINK_ALLOWED_PROTOCOLS == shipped_protocols
+    shipped = template.group(1).replace('${allowedProtocols.join("|")}', "|".join(shipped_protocols))
+    assert mddoc._LINK_URI_RE.pattern == shipped
+    assert mddoc._LINK_URI_RE.flags & re.IGNORECASE
+    shipped_space = re.compile(codecs.decode(space.group(1), "unicode_escape"))
+    differ = [hex(cp) for cp in range(0x10000) if not 0xD800 <= cp <= 0xDFFF
+              and bool(shipped_space.match(chr(cp))) != bool(mddoc._LINK_URI_INVISIBLE_RE.match(chr(cp)))]
+    assert not differ, differ[:10]
+
+
 def test_media_dedup_by_ref_minor():
     # Minor: the SAME image src referenced twice must not produce two media
     # entries (JS parity, `dedupeMedia`) — both occurrences still carry the

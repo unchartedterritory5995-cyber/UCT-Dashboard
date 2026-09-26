@@ -301,10 +301,11 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     // why `useJ2NoteVersions.restoreNoteVersion` has to settle.
     // ⭐ `patch_note_tags` (wave 6, `PATCH /api/j2/notes/{id}/tags`) applies a
     // tag delta under `BEGIN IMMEDIATE` and delegates the write to
-    // `update_note` — the same shape. Its client does not exist yet (lane D's
-    // M14); when it lands it must settle the `{note}` the route answers with,
-    // and rail ③ below is what will demand that. This list is the ledger of
-    // wrappers, not permission: a third name here needs its own client settle.
+    // `update_note` — the same shape. Its client landed in wave 7 (M14):
+    // `useJ2Note().patchTags` settles the `{note}` the route answers with —
+    // only when its own write moved the revision — and rail ③ below is what
+    // demands that. This list is the ledger of wrappers, not permission: a
+    // third name here needs its own client settle.
     expect([...advancing].filter((n) => !sql.has(n)).sort()).toEqual(['patch_note_tags', 'restore_note_version'])
   })
 
@@ -324,6 +325,61 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       }
     }
     expect(offenders, '⛔ a NEW server-side writer of j2_notes is unaccounted for').toEqual([])
+  })
+
+  it('⑤ SERVER-side doors OUTSIDE journal_two.py are a LEDGER, each with its settle story', () => {
+    // ⚰️ Wave 7 (lane G, controller ledger 2026-09-25). Two new routers — the
+    // member personal API and the inbound-email door — reach `notes.create_note`
+    // / `notes.update_note` from OUTSIDE journal_two.py, so rail ③ (which reads
+    // that one router) cannot see them, and they have NO client caller at all:
+    // a Shortcut, a curl, a Cloudflare worker. Nothing records their revision,
+    // so a tab holding unsent words when one lands FORKS (ruling D-G1(b),
+    // conflict copy, never a clobber); a locked note is refused 423 (D-G1(d));
+    // both ship dark. Derived from the code the way ② is, then pinned: a file
+    // that starts calling a note writer without a row here fails by name.
+    const LEDGER = {
+      'api/routers/notebook_personal_api.py':
+        'create_note for POST /api/j2/personal/notes; the two appends delegate to note_personal_api',
+      'api/services/journal_two/note_personal_api.py':
+        'update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note, no client to settle',
+      'api/services/journal_two/inbound_email.py':
+        'create_note, then update_note(expected_updated_at) for the attachment nodes; no client to settle',
+      'api/services/journal_two/note_daily.py':
+        'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
+        + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
+        + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
+    }
+    const found = []
+    for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {
+      if (!p.endsWith('.py') || isTest(p) || p === NOTES_SERVICE) continue
+      if (rel(p) === 'api/routers/journal_two.py') continue            // rail ③ reads it
+      if (rel(p).includes('note_connectors/engine.py')) continue      // rail ② ledgers it
+      const src = readFileSync(p, 'utf8')
+      if (/\b(update_note|create_note)\(/.test(src)) found.push(rel(p))
+    }
+    // non-vacuity: the walk must at least see the wave-6 daily-note creator
+    expect(found, '⛔ the server-side door walk found nothing — the matcher is broken, not the tree')
+      .toContain('api/services/journal_two/note_daily.py')
+    expect(found.sort(), '⛔ a server-side note writer outside journal_two.py has no ledger row (or a row names a file that no longer writes)')
+      .toEqual(Object.keys(LEDGER).sort())
+
+    // ⛔ Wave 7 whole-branch fix (backend review M-8): the rail matches FILES, not callers, so
+    // a row's settle story can go stale while the file set stays green -- note_daily's row said
+    // its only caller has a client after lane G made `append_to_daily` (no client) reach it
+    // too. Every module that imports note_daily is now named in note_daily's row.
+    const DAILY = 'api/services/journal_two/note_daily.py'
+    const dailyCallers = []
+    for (const p of walk(API)) {
+      if (!p.endsWith('.py') || isTest(p) || rel(p) === DAILY) continue
+      const src = readFileSync(p, 'utf8')
+      if (/^\s*from\s+[\w.]+\s+import\s+[^\n]*\bnote_daily\b|^\s*import\s+[\w.]*\bnote_daily\b/m.test(src)) {
+        dailyCallers.push(rel(p).split('/').pop().replace(/\.py$/, ''))
+      }
+    }
+    expect(dailyCallers, '⛔ the note_daily caller walk found nothing — the matcher is broken, not the tree')
+      .toContain('journal_two')
+    const unnamed = dailyCallers.filter((mod) => !LEDGER[DAILY].includes(mod))
+    expect(unnamed, '⛔ a module reaches note_daily and its ledger row does not say so').toEqual([])
   })
 
   it('③ CLIENT: every write to a door route lands its revision, or is a NAMED exception', () => {

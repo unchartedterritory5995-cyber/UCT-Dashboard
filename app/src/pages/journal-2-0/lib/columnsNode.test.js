@@ -3,14 +3,15 @@
 // container, citation text in column order, and the phone stacking rule.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { fireEvent } from '@testing-library/react'
-import { Editor, generateJSON } from '@tiptap/core'
-import { NodeSelection, TextSelection } from '@tiptap/pm/state'
+import { Editor, Extension, generateJSON } from '@tiptap/core'
+import { NodeSelection, Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildExtensions } from './tiptap'
 import { hasNestedColumns, inColumn, insertColumns } from './columnsNode'
 import { citationText } from './askCitation'
+import { replaceDocument } from './noteContentGuard'
 import { ITEMS, blockItemsAvailable } from '../components/notebook/SlashMenu'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -224,6 +225,60 @@ describe('editing inside a column', () => {
   it('citation text reads the columns in column order, one block per line', () => {
     const ed = mount([P('Intro.'), COLS(COL(P('Bull.'), P('Wide.')), COL(P('Bear.'))), P('After.')])
     expect(citationText(ed.state.doc, 0, ed.state.doc.content.size)).toBe('Intro.\nBull.\nWide.\nBear.\nAfter.')
+  })
+})
+
+// ⛔ Wave 7 carry-over M-4. A WHOLE-DOCUMENT swap (a Restore, a server refresh,
+// an adopted recovery -- all `replaceDocument`) is the note's STORED body
+// arriving, never the member nesting columns. The guard refused one whose body
+// held more nesting than the page on screen (only an import or the API can
+// store such a body), and `setContent` still answered true -- so the page kept
+// the old words, believed it held the restored ones, and its next save could
+// quietly undo the Restore.
+describe('whole-document swaps and the nesting guard (M-4)', () => {
+  const NESTED = { type: 'doc', content: [P('Out.'), COLS(COL(COLS(COL(P('Deep.')), COL(P('Other.')))), COL(P('Side.')))] }
+
+  it('a stored body with MORE nesting than the page is shown as stored, and the swap says so', () => {
+    const ed = mount([P('Plain.')])
+    expect(hasNestedColumns(ed.state.doc)).toBe(false)
+    expect(replaceDocument(ed, NESTED, { emitUpdate: false })).toBe(true)
+    expect(hasNestedColumns(ed.state.doc)).toBe(true)
+    expect(ed.state.doc.textContent).toBe('Out.Deep.Other.Side.')
+  })
+
+  it('…and the member still cannot nest one level more by editing it afterwards', () => {
+    const ed = mount([P('Plain.')])
+    replaceDocument(ed, NESTED, { emitUpdate: false })
+    const before = ed.state.doc
+    const nested = ed.schema.nodes.columns.create(null, [
+      ed.schema.nodes.column.create(null, ed.schema.nodes.paragraph.create()),
+      ed.schema.nodes.column.create(null, ed.schema.nodes.paragraph.create())])
+    ed.view.dispatch(ed.state.tr.insert(at(ed, 'Side.') + 5 + 1, nested))
+    expect(ed.state.doc.eq(before)).toBe(true)
+  })
+
+  it('a swap a filter DOES refuse answers false -- never true over an unchanged page', () => {
+    const refuseAll = Extension.create({
+      name: 'refuseAllForTest',
+      addProseMirrorPlugins() {
+        return [new Plugin({ key: new PluginKey('refuseAllForTest'), filterTransaction: (tr) => !tr.docChanged })]
+      },
+    })
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: [...buildExtensions(), refuseAll],
+      content: { type: 'doc', content: [P('Kept.')] } })
+    const before = editor.state.doc
+    expect(replaceDocument(editor, { type: 'doc', content: [P('Replaced.')] }, { emitUpdate: false })).toBe(false)
+    expect(editor.state.doc).toBe(before)
+    expect(editor.state.doc.textContent).toBe('Kept.')
+  })
+
+  it('CONTROL: an ordinary swap -- even to identical words -- answers true', () => {
+    const ed = mount([P('Same.')])
+    expect(replaceDocument(ed, { type: 'doc', content: [P('Same.')] }, { emitUpdate: false })).toBe(true)
+    expect(replaceDocument(ed, { type: 'doc', content: [P('Other.')] }, { emitUpdate: false })).toBe(true)
+    expect(ed.state.doc.textContent).toBe('Other.')
   })
 })
 

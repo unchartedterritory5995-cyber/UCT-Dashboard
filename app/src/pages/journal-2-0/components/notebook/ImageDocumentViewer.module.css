@@ -1,0 +1,105 @@
+/* Wave 7 lane G (G4) — an image document: the picture, and the text read from it.
+   Desktop: side by side, each pane scrolling on its own. Touch tier (<=1024px,
+   phone AND tablet): stacked, the whole viewer scrolling as one column. */
+.wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.imagePane {
+  flex: 1 1 62%;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 14px;
+  background: var(--bg-elevated);
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.textPane {
+  flex: 0 0 38%;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 14px;
+  border-left: 1px solid var(--border);
+}
+
+.heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.statusRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ⛔ `pre-wrap`: the line breaks are part of what was read. A pane that
+   re-flows them rewrites the transcript. */
+.text {
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-bright);
+  user-select: text;
+}
+
+.retry {
+  min-height: 32px;
+  padding: 0 12px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.retry:hover { color: var(--ut-gold); }
+
+@media (max-width: 1024px) {
+  .wrap {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .imagePane {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+  .textPane {
+    flex: 0 0 auto;
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .retry {
+    min-height: var(--tap-min, 44px);
+  }
+}

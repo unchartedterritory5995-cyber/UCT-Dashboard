@@ -56,14 +56,24 @@ def resolve_research_symbols(symbol: str) -> dict[str, Any]:
 def _notes_for_symbols(
     user_id: str, symbols: list[str], limit: int, conn: sqlite3.Connection,
 ) -> list[dict[str, Any]]:
-    """Same OR-of-EXISTS shape `_notes_filter_sql`'s `symbol_in` already uses
-    for embed/mention matching, widened here to ALSO include the note's own
-    `ticker` field (which the existing `symbol_in` predicate deliberately
-    does not cover -- checkpoint decision 9's own reconstruction finding)."""
-    from api.services.journal_two.notes import _row_to_note_summary, _LIST_PLAIN_CHARS
+    """The same membership `_notes_filter_sql`'s `symbol_in` answers for
+    embed/mention matching -- the ONE note-id set `notes._symbol_note_ids_sql`
+    builds -- widened here to ALSO include the note's own `ticker` field (which
+    the existing `symbol_in` predicate deliberately does not cover --
+    checkpoint decision 9's own reconstruction finding).
+
+    ⛔⛔ NON-CORRELATED (wave 7 lane J, J8). This used to be two correlated
+    `EXISTS (... WHERE e.note_id = n.id AND e.user_id = n.user_id ...)`, the
+    shape lane I measured and removed from `notes.py` this wave (the planner
+    answers each from `idx_j2_note_embeds_user_sym`, once PER NOTE: 16.7 s ->
+    63 ms for `GET /notes embed_symbol` from the same fix). As `n.id IN (set)`
+    the set is computed once. `user_id` is still pinned on both sides: the set
+    is the member's own sidecar rows. Rail: tests/test_ticker_research_read_plans.py."""
+    from api.services.journal_two.notes import _LIST_PLAIN_CHARS, _row_to_note_summary, _symbol_note_ids_sql
     if not symbols:
         return []
     ph = ",".join("?" * len(symbols))
+    ids_sql, ids_params = _symbol_note_ids_sql(user_id, list(symbols))
     rows = conn.execute(
         "SELECT DISTINCT n.id, n.user_id, n.account_id, n.folder_id, n.title, n.subtitle,"
         f" substr(coalesce(n.body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain,"
@@ -71,11 +81,9 @@ def _notes_for_symbols(
         " n.deleted_at, n.properties_json"
         " FROM j2_notes n"
         " WHERE n.user_id = ? AND n.deleted_at IS NULL"
-        f" AND (n.ticker IN ({ph})"
-        f" OR EXISTS (SELECT 1 FROM j2_note_embeds e WHERE e.note_id = n.id AND e.user_id = n.user_id AND e.symbol IN ({ph}))"
-        f" OR EXISTS (SELECT 1 FROM j2_note_mentions m WHERE m.note_id = n.id AND m.user_id = n.user_id AND m.symbol IN ({ph})))"
+        f" AND (n.ticker IN ({ph}) OR n.id IN ({ids_sql}))"
         " ORDER BY n.updated_at DESC LIMIT ?",
-        (user_id, *symbols, *symbols, *symbols, limit),
+        (user_id, *symbols, *ids_params, limit),
     ).fetchall()
     return [_row_to_note_summary(r) for r in rows]
 
@@ -142,19 +150,20 @@ def _documents_for_symbols(
     if not symbols:
         return []
     from api.services.journal_two.ask_evidence import document_source_kind
+    from api.services.journal_two.notes import _symbol_note_ids_sql
     from api.services.journal_two.web_capture import capture_columns
     ph = ",".join("?" * len(symbols))
+    # ⛔ The same non-correlated note-id set as `_notes_for_symbols` above (J8).
+    ids_sql, ids_params = _symbol_note_ids_sql(user_id, list(symbols))
     rows = conn.execute(
         "SELECT DISTINCT d.id, d.note_id, d.attachment_url, d.name, d.status,"
         " d.page_count, d.created_at" + capture_columns(conn, "d") +
         " FROM j2_note_documents d"
         " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
         " WHERE d.user_id = ? AND n.deleted_at IS NULL"
-        f" AND (n.ticker IN ({ph})"
-        f" OR EXISTS (SELECT 1 FROM j2_note_embeds e WHERE e.note_id = n.id AND e.user_id = n.user_id AND e.symbol IN ({ph}))"
-        f" OR EXISTS (SELECT 1 FROM j2_note_mentions m WHERE m.note_id = n.id AND m.user_id = n.user_id AND m.symbol IN ({ph})))"
+        f" AND (n.ticker IN ({ph}) OR n.id IN ({ids_sql}))"
         " ORDER BY d.created_at DESC LIMIT ?",
-        (user_id, *symbols, *symbols, *symbols, limit),
+        (user_id, *symbols, *ids_params, limit),
     ).fetchall()
     # ⛔ WAVE N §9: a captured web source is a row here too, and the workspace
     # opens a row's `attachmentUrl` in the PDF viewer -- a `web:<sha256>`

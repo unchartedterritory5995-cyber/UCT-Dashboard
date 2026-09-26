@@ -40,6 +40,7 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_conflict_ux_on: false,
   notebook_attachments_on: false,
   notebook_ask_insert_on: false,       // G-064 enablement gate — absent ⇒ OFF
+  notebook_writing_help_enabled: false, // wave 7 H2 enablement gate — absent ⇒ OFF
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

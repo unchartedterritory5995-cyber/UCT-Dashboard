@@ -2,7 +2,7 @@
 // rule on the REAL roster, the node's HTML and text, its citation text, and the
 // contract with lane F's task reader (tests/fixtures_note_tasks.json +
 // note_tasks.extract_tasks, run for real through tools/note_tasks_bridge.py).
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { Editor, generateJSON } from '@tiptap/core'
@@ -165,7 +165,15 @@ describe('⭐ the contract with lane F (tasks read a dateMention as the due date
     console.warn('\n⛔ the @date -> task due-date contract with lane F is NOT VERIFIED in this run: `python` is '
       + 'not on PATH, so note_tasks.extract_tasks never read the editor\'s document.\n')
   }
-  it.runIf(pythonAvailable())('a date TYPED into a task is read by note_tasks.extract_tasks as its due date', () => {
+  // ⛔ ONE spawn, in a beforeAll with its own budget (wave 7 whole-branch fix, tests-shard
+  // cross 1; lib/testing/exportBridge.spawnBudget.test.js): every bridge spawn pays the ~7 s
+  // census import (J1), and vitest's hookTimeout is 10 s. The document is TYPED here, the task
+  // reader runs once, and the test reads the answer. The day is captured when the words are
+  // typed, so the assertion cannot straddle midnight.
+  let typedTasks = null
+  let typedOn = null
+  beforeAll(() => {
+    if (!pythonAvailable()) return
     const ed = mount([{ type: 'taskList', content: [
       { type: 'taskItem', attrs: { checked: false }, content: [P('Earnings prep')] },
       { type: 'taskItem', attrs: { checked: false }, content: [P('No date')] },
@@ -173,9 +181,16 @@ describe('⭐ the contract with lane F (tasks read a dateMention as the due date
     const first = ed.state.doc.firstChild.firstChild
     ed.view.dispatch(ed.state.tr.setSelection(TextSelection.create(ed.state.doc, 2 + first.firstChild.nodeSize - 1)))
     type(ed, ' @tomorrow ')
-    const tasks = extractTasks(ed.getJSON())
-    expect(tasks.map((t) => t.due)).toEqual([addDays(todayET(), 1), null])
-    expect(tasks[0].text.replace(/\s+/g, ' ').trim()).toBe('Earnings prep')
+    typedOn = todayET()
+    const doc = ed.getJSON()
+    ed.destroy()
+    editor = null
+    document.body.innerHTML = ''
+    typedTasks = extractTasks(doc)
+  }, 60_000)
+  it.runIf(pythonAvailable())('a date TYPED into a task is read by note_tasks.extract_tasks as its due date', () => {
+    expect(typedTasks.map((t) => t.due)).toEqual([addDays(typedOn, 1), null])
+    expect(typedTasks[0].text.replace(/\s+/g, ' ').trim()).toBe('Earnings prep')
   })
 })
 

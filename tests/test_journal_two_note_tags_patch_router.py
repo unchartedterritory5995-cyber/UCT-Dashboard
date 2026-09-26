@@ -87,7 +87,8 @@ def test_add_merges_into_the_stored_list_and_answers_with_the_note_at_its_new_re
     _login_as(app, "u1")
     n = _note(client, ["a"])
     body = _patch(client, n["id"], {"add": ["b"]})
-    assert set(body) == {"note"}
+    assert set(body) == {"note", "changed"}
+    assert body["changed"] is True
     note = body["note"]
     assert note["id"] == n["id"]
     assert note["tags"] == ["a", "b"]
@@ -116,10 +117,48 @@ def test_add_and_remove_together(app, client):
 def test_a_change_that_changes_nothing_moves_no_revision(app, client):
     _login_as(app, "u1")
     n = _note(client, ["Semis"])
-    note = _patch(client, n["id"], {"add": ["semis"], "remove": ["gone"]})["note"]
+    body = _patch(client, n["id"], {"add": ["semis"], "remove": ["gone"]})
+    note = body["note"]
+    assert body["changed"] is False
     assert note["tags"] == ["Semis"]
     assert note["updatedAt"] == n["updatedAt"]
     assert _get(client, n["id"])["updatedAt"] == n["updatedAt"]
+
+
+def test_a_delta_another_writer_already_satisfied_answers_changed_false_at_THEIR_revision(app, client, db_path):
+    """⛔⛔ Wave 7 lane J, J9 -- the residual race lane H's M14 left open. Between the
+    editor's read (revision R) and its PATCH, ANOTHER writer adds the same tag (revision
+    R'). The PATCH has nothing to do: it writes no row and answers with the note as
+    stored -- at R', which is NOT the revision the client read. A client judging "did my
+    write move it" by comparing R' with R calls that moved, and records another writer's
+    revision as its own. Only the route knows it wrote nothing: `changed` is False."""
+    _login_as(app, "u1")
+    n = _note(client, ["a"])
+    other = sqlite3.connect(db_path)
+    try:
+        other.execute("UPDATE j2_notes SET tags = ?, updated_at = ? WHERE id = ?",
+                      ('["a", "b"]', "2099-01-01T00:00:00+00:00", n["id"]))
+        other.commit()
+    finally:
+        other.close()
+    body = _patch(client, n["id"], {"add": ["b"]})
+    assert body["changed"] is False
+    assert body["note"]["tags"] == ["a", "b"]
+    # The answer is at the OTHER writer's revision -- not the one the client read.
+    assert body["note"]["updatedAt"] == "2099-01-01T00:00:00+00:00" != n["updatedAt"]
+    assert _get(client, n["id"])["updatedAt"] == "2099-01-01T00:00:00+00:00"   # nothing written
+
+
+def test_changed_is_true_exactly_when_this_request_wrote_a_row(app, client):
+    _login_as(app, "u1")
+    n = _note(client, ["a"])
+    first = _patch(client, n["id"], {"add": ["b"]})
+    again = _patch(client, n["id"], {"add": ["b"]})           # already there: nothing to write
+    gone = _patch(client, n["id"], {"remove": ["zzz"]})        # absent: nothing to write
+    back = _patch(client, n["id"], {"remove": ["b"]})
+    assert [first["changed"], again["changed"], gone["changed"], back["changed"]] == [True, False, False, True]
+    assert again["note"]["updatedAt"] == first["note"]["updatedAt"]
+    assert back["note"]["updatedAt"] != first["note"]["updatedAt"]
 
 
 def test_two_devices_each_adding_a_tag_both_survive(app, client):
