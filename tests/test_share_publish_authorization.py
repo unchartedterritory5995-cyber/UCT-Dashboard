@@ -27,6 +27,7 @@ Each property is its own test, parametrized over the matrix rows it applies to:
    4 revocation is immediate       9 Referrer-Policy: no-referrer on every public response
    5 no data beyond the note      10 plan (ruling D-B3), both directions
                                   11 a public read writes nothing (F-READ-WRITES)
+                                  12 a malformed body: gate, then member, then body (I-1)
 
 Share links (`notebook_shares.py`) and publish-to-web (`notebook_publish.py`, B4) are both
 rows of the one matrix; every property runs over both where it applies.
@@ -61,40 +62,42 @@ SEGMENTS = frozenset({"share", "shared", "publish", "published"})
 #:   gate    the env flag whose OFF answers 404 before anything runs
 #:   bucket  the limiter scope that counts it, or None
 #:   plan    'paid' (the router's own require_paid) | 'session' (get_current_user only) | None
+#:   body    'expiry' (reads `{expiresInDays}` through the router's `expiry_body` dependency,
+#:           AFTER the gate and the member -- wave-8 final review I-1) | None (reads no body)
 PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
     ("GET", "/api/j2/notes/{note_id}/share"):
-        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session"},
+        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
     ("POST", "/api/j2/notes/{note_id}/share"):
-        {"auth": "owner", "gate": G_SHARE, "bucket": "notebook-share-mint", "plan": "paid"},
+        {"auth": "owner", "gate": G_SHARE, "bucket": "notebook-share-mint", "plan": "paid", "body": "expiry"},
     ("DELETE", "/api/j2/notes/{note_id}/share"):
-        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session"},
+        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
     ("GET", "/api/j2/shared/{token}"):
-        {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-public", "plan": None},
+        {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-public", "plan": None, "body": None},
     ("GET", "/api/j2/shared/{token}/att/{sub}/{filename}"):
-        {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-images", "plan": None},
+        {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-images", "plan": None, "body": None},
     ("GET", "/api/j2/share/links"):
-        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session"},
+        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
     # ── publish-to-web (B4) ──
     ("GET", "/api/j2/publish"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session", "body": None},
     ("POST", "/api/j2/publish/notes/{note_id}"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid", "body": "expiry"},
     ("POST", "/api/j2/publish/folders/{folder_id}"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid", "body": "expiry"},
     ("POST", "/api/j2/publish/{slug}/refresh"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid", "body": None},
     ("PATCH", "/api/j2/publish/{slug}"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "paid"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "paid", "body": "expiry"},
     ("DELETE", "/api/j2/publish/{slug}"):
-        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session"},
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session", "body": None},
     ("GET", "/api/j2/published/{slug}"):
-        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None},
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None, "body": None},
     ("GET", "/api/j2/published/{slug}/n/{pid}"):
-        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None},
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None, "body": None},
     ("GET", "/api/j2/published/{slug}/att/{sub}/{filename}"):
-        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None},
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None, "body": None},
     ("GET", "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}"):
-        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None},
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None, "body": None},
 }
 
 #: Ruling D-B10, verbatim numbers: (requests allowed, per) for each bucket.
@@ -167,11 +170,14 @@ def test_every_row_names_a_route_that_exists(row):
 
 def test_the_matrix_columns_are_well_formed():
     for row, spec in PROOF_MATRIX.items():
-        assert set(spec) == {"auth", "gate", "bucket", "plan"}, row
+        assert set(spec) == {"auth", "gate", "bucket", "plan", "body"}, row
         assert spec["auth"] in ("owner", "public"), row
         assert spec["gate"] in (G_SHARE, G_PUBLISH), row
         assert spec["bucket"] is None or spec["bucket"] in BUCKET_LIMITS, row
         assert (spec["plan"] is None) == (spec["auth"] == "public"), row
+        assert spec["body"] in (None, "expiry"), row
+        if spec["body"] is not None:
+            assert row[0] in ("POST", "PATCH") and spec["plan"] == "paid", row
 
 
 # ── the dependency tree, read by object identity ───────────────────────────────────────
@@ -217,6 +223,33 @@ def test_the_plan_column_is_the_dependency_tree(row):
         assert authmw.get_current_user in calls, f"{method} {path} must read the session"
     else:
         assert authmw.get_current_user not in calls, f"{method} {path} is public by design"
+
+
+@pytest.mark.parametrize("row", sorted(PROOF_MATRIX), ids=lambda r: f"{r[0]} {r[1]}")
+def test_the_body_column_is_the_dependency_tree_and_no_route_declares_a_fastapi_body(row):
+    """Wave-8 final review I-1, structurally. FastAPI decodes a DECLARED body (a `Body(...)`
+    parameter: `route.body_field`) before it solves a single dependency, so a declared body
+    runs ahead of the router's gate and ahead of the session. No public-note route may
+    declare one; the rows that take `{expiresInDays}` read it through the router's own
+    `expiry_body` dependency, which itself depends on `require_paid`."""
+    method, path = row
+    route = _served_route(method, path)
+    assert route.body_field is None, (
+        f"{method} {path} declares a FastAPI body -- it is decoded BEFORE the gate and the "
+        "session; read it in a dependency that depends on require_paid (expiry_body)")
+    reader = getattr(_router_module_for(path), "expiry_body", None)
+    assert reader is not None, f"{path}'s router has no expiry_body dependency"
+    reads = reader in _dep_calls(route)
+    assert reads == (PROOF_MATRIX[row]["body"] == "expiry"), (
+        f"{method} {path}: the matrix says body={PROOF_MATRIX[row]['body']!r}, the route "
+        f"{'reads' if reads else 'does not read'} one through expiry_body")
+    if reads:
+        paid = _router_module_for(path).require_paid
+        direct = [d for d in route.dependant.dependencies if d.call is reader]
+        assert len(direct) == 1, f"{method} {path}: expiry_body is not a direct dependency of the route"
+        assert paid in {d.call for d in direct[0].dependencies}, (
+            f"{method} {path}: expiry_body must depend on require_paid, so the member is known "
+            "before a byte of the body is read")
 
 
 # ── the behaviour app ───────────────────────────────────────────────────────────────────
@@ -1125,6 +1158,75 @@ def test_8_control_the_spies_can_see_a_call(app, client, world, spies, monkeypat
     with pytest.raises(AssertionError):
         client.get(f"/api/j2/published/{world['A_pub']}")
     assert "api.services.journal_two.note_publish.resolve" in spies, spies
+
+
+# ── 8b / 12. a malformed body (wave-8 final review I-1) ─────────────────────────────────
+#
+# Three cases per POST/PATCH row of the matrix, each with `content=b"{"` -- a body that is not
+# JSON at all. ⚰️ The four expiry doors declared the body as a FastAPI PARAMETER, which is
+# decoded before any dependency: with the gate off `{` answered 422 `json_invalid` (a dark
+# door that answers differently from a missing one), and with it on a signed-out caller got
+# 422 instead of 401. `test_8_with_the_gate_off...` only ever sent well-formed JSON, so it
+# could not see either (the class wave 7 fixed twice: writing help's and the personal API's M-1).
+
+BODY_ROWS = sorted(r for r in PROOF_MATRIX if r[0] in ("POST", "PATCH"))
+MALFORMED = {"content": b"{", "headers": {"Content-Type": "application/json"}}
+
+
+def test_the_body_rows_are_every_post_and_patch_row():
+    """Non-vacuity: the malformed-body rails below run over something, and over exactly the
+    matrix's write rows -- the four expiry doors and refresh."""
+    assert len(BODY_ROWS) == 5, BODY_ROWS
+    assert sum(1 for r in BODY_ROWS if PROOF_MATRIX[r]["body"] == "expiry") == 4
+
+
+@pytest.mark.parametrize("row", BODY_ROWS, ids=_ids)
+@pytest.mark.parametrize("who", ["paid member", "signed out"])
+def test_8_with_the_gate_off_a_MALFORMED_body_is_still_404_and_nothing_runs(
+        row, who, app, client, world, gates_off, spies):
+    if who == "paid member":
+        as_member(app, A)
+    else:
+        signed_out(app)
+    before = snapshot()
+    method, url = BUILDERS[row](world, "A")
+    r = _call(client, method, url, **MALFORMED)
+    assert r.status_code == 404 and r.json() == {"detail": "Not found"}, (row, who, r.status_code, r.text)
+    assert spies == [], f"{row}: {spies} ran with the gate off"
+    assert snapshot() == before, f"{row}: wrote with the gate off"
+
+
+@pytest.mark.parametrize("row", BODY_ROWS, ids=_ids)
+def test_12_signed_out_a_malformed_body_is_401_the_member_is_known_before_the_body(row, app, client, world):
+    signed_out(app)
+    before = snapshot()
+    method, url = BUILDERS[row](world, "A")
+    r = _call(client, method, url, **MALFORMED)
+    assert r.status_code == 401, (row, r.status_code, r.text)
+    assert snapshot() == before
+
+
+@pytest.mark.parametrize("row", BODY_ROWS, ids=_ids)
+def test_12_signed_in_a_malformed_body_is_422_with_the_routes_own_sentence(row, app, client, world):
+    """The expiry doors answer anything that is not a JSON object with the ONE expiry
+    sentence -- never FastAPI's error list -- and write nothing. Refresh reads no body at
+    all, so the bytes it was sent change nothing about its answer."""
+    as_member(app, A)
+    method, url = BUILDERS[row](world, "A")
+    if PROOF_MATRIX[row]["body"] == "expiry":
+        for raw in (b"{", b"[1, 2]", b'"text"', b"7"):
+            before = snapshot()
+            r = _call(client, method, url, content=raw, headers={"Content-Type": "application/json"})
+            assert r.status_code == 422, (row, raw, r.status_code, r.text)
+            assert r.json() == {"detail": "Choose when the link stops working: never, or after 7, 30 or 90 days."}, (row, raw)
+            assert snapshot() == before, (row, raw)
+        # CONTROL: the same door with no body, and with JSON null, is the "never" expiry.
+        for kw in ({}, {"content": b"null", "headers": {"Content-Type": "application/json"}}):
+            ok = _call(client, method, url, **kw)
+            assert ok.status_code == 200, (row, kw, ok.text)
+    else:
+        r = _call(client, method, url, **MALFORMED)
+        assert r.status_code == 200, (row, r.status_code, r.text)
 
 
 # ── 9. referrer ─────────────────────────────────────────────────────────────────────────

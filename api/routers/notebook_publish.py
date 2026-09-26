@@ -29,15 +29,18 @@ tests/test_share_publish_authorization.py:
     unpublish do NOT -- a member whose plan lapsed can always see and take down a page.
   * Its paths are outside `/api/j2/notes/...`, so journal_two's `/api/j2/notes/{note_id}`
     cannot shadow them (`tests/test_main_router_order.py`).
+  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN (wave-8 final review I-1): publish, publish
+    folder and PATCH read `{expiresInDays}` through `expiry_body` below -- the gate, then the
+    member, then the body -- never a FastAPI body parameter.
 """
 
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan, is_paid_user
+from api.routers.notebook_shares import read_expiry
 from api.services.journal_two import note_publish
-from api.services.journal_two import note_shares
 from api.services.journal_two import public_note_payload as public
 
 PUBLIC_RATE = "60/minute"
@@ -73,14 +76,11 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
-def _expiry(payload: Any) -> int | None:
-    """`{expiresInDays: null | 7 | 30 | 90}`, optional; anything else is a 422 sentence."""
-    if payload is not None and not isinstance(payload, dict):
-        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE)
-    try:
-        return note_shares.validate_expiry((payload or {}).get("expiresInDays"))
-    except ValueError:
-        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
+async def expiry_body(request: Request, _user: dict = Depends(require_paid)) -> int | None:
+    """`{expiresInDays: null | 7 | 30 | 90}`, optional; anything else is the 422 sentence.
+    Read AFTER this router's `require_paid` has answered, through the ONE body parse
+    (`notebook_shares.read_expiry`)."""
+    return await read_expiry(request)
 
 
 def _mint_limit(user: dict) -> None:
@@ -97,9 +97,8 @@ def list_mine_endpoint(note_id: str | None = None, user: dict = Depends(get_curr
 
 
 @router.post("/publish/notes/{note_id}")
-def publish_note_endpoint(note_id: str, payload: Any = Body(default=None),
+def publish_note_endpoint(note_id: str, days: int | None = Depends(expiry_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
-    days = _expiry(payload)
     _mint_limit(user)
     pub = note_publish.publish_note(user["id"], note_id, expires_in_days=days)
     if pub is None:
@@ -108,9 +107,8 @@ def publish_note_endpoint(note_id: str, payload: Any = Body(default=None),
 
 
 @router.post("/publish/folders/{folder_id}")
-def publish_folder_endpoint(folder_id: str, payload: Any = Body(default=None),
+def publish_folder_endpoint(folder_id: str, days: int | None = Depends(expiry_body),
                             user: dict = Depends(require_paid)) -> dict[str, Any]:
-    days = _expiry(payload)
     _mint_limit(user)
     pub = note_publish.publish_folder(user["id"], folder_id, expires_in_days=days)
     if pub is None:
@@ -128,9 +126,8 @@ def refresh_endpoint(slug: str, user: dict = Depends(require_paid)) -> dict[str,
 
 
 @router.patch("/publish/{slug}")
-def set_expiry_endpoint(slug: str, payload: Any = Body(default=None),
+def set_expiry_endpoint(slug: str, days: int | None = Depends(expiry_body),
                         user: dict = Depends(require_paid)) -> dict[str, Any]:
-    days = _expiry(payload)
     pub = note_publish.set_expiry(user["id"], slug, days)
     if pub is None:
         raise public.not_found()

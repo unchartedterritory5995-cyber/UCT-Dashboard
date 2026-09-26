@@ -25,11 +25,15 @@ What lane 8B changed, each one a finding of `docs/notebook/share-links-authoriza
   * PLAN (F-PLAN, ruling D-B3): mint takes this router's own `require_paid`. Status and
     revoke do NOT -- a member whose plan lapsed must always be able to see and kill a
     public link.
+  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN (wave-8 final review I-1): gate, then the
+    member, then the body (`read_expiry` below) -- never a FastAPI body parameter, which is
+    decoded before any dependency and made a dark route answer a malformed body with 422.
 """
 
+import json
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan, is_paid_user
 from api.services.journal_two import note_shares
@@ -70,6 +74,53 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     return user
 
 
+#: Far past any body a real request sends (`{"expiresInDays": 30}`); it bounds what is BUFFERED.
+_MAX_BODY_BYTES = 64 * 1024
+
+
+async def read_expiry(request: Request) -> int | None:
+    """`{expiresInDays: null | 7 | 30 | 90}` from the request body, optional -> the days.
+
+    ⛔ THE ONE BODY PARSE for every expiry door (mint here; publish, publish folder and PATCH
+    in `notebook_publish.py`), called ONLY from a dependency that depends on the router's
+    `require_paid` -- so the order is always the gate (router level), the member, then the
+    body (wave-8 final review I-1; the shape `notebook_writing_help._read_payload` fixed
+    for writing help's M-1).
+
+    ⚰️ The routes declared `payload: Any = Body(default=None)`, and FastAPI decodes a
+    declared JSON body BEFORE it solves any dependency: with the gate OFF a malformed body
+    answered 422 `json_invalid` -- an answer a route that does not exist never gives -- and
+    with it on, a signed-out caller got 422 instead of 401. Anything that is not an empty
+    body, `null` or a JSON object with a valid `expiresInDays` is now the one 422 sentence."""
+    chunks: list[bytes] = []
+    total = 0
+    async for chunk in request.stream():
+        total += len(chunk)
+        if total > _MAX_BODY_BYTES:
+            raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE)
+        chunks.append(chunk)
+    raw = b"".join(chunks)
+    if not raw.strip():
+        return None
+    try:
+        payload = json.loads(raw)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
+    if payload is None:
+        return None
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE)
+    try:
+        return note_shares.validate_expiry(payload.get("expiresInDays"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
+
+
+async def expiry_body(request: Request, _user: dict = Depends(require_paid)) -> int | None:
+    """The expiry, read AFTER this router's `require_paid` has answered (see `read_expiry`)."""
+    return await read_expiry(request)
+
+
 @router.get("/notes/{note_id}/share")
 def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Status. A foreign note and a missing note both answer `{"share": null}`."""
@@ -79,18 +130,11 @@ def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)
 @router.post("/notes/{note_id}/share")
 def create_note_share_endpoint(
     note_id: str,
-    request: Request,
-    payload: Any = Body(default=None),
+    days: int | None = Depends(expiry_body),
     user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
     """Mint (or return the active link). Body `{expiresInDays: null | 7 | 30 | 90}`,
     optional. A foreign note and a missing note answer the same 404."""
-    if payload is not None and not isinstance(payload, dict):
-        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE)
-    try:
-        days = note_shares.validate_expiry((payload or {}).get("expiresInDays"))
-    except ValueError:
-        raise HTTPException(status_code=422, detail=note_shares.EXPIRY_SENTENCE) from None
     public.enforce_rate(MINT_RATE, SCOPE_MINT, f"member:{user['id']}", MINT_RATE_SENTENCE, public=False)
     share = note_shares.create_share(user["id"], note_id, expires_in_days=days)
     if share is None:
