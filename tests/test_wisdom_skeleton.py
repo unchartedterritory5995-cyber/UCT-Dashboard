@@ -23,7 +23,6 @@ import inspect
 import json
 import pathlib
 import re
-import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -236,7 +235,6 @@ def test_catch_up_leaves_a_fresh_slot_to_the_scheduler(wisdom_db, monkeypatch):
 
 def test_the_watchdog_pages_an_overdue_job_once_per_episode(wisdom_db, monkeypatch, pages):
     monkeypatch.setenv("WISDOM_INGEST_ENABLED", "1")
-    monkeypatch.setattr(registry, "_BOOT_WALL", time.time() - 10 * 86400)
     _only(monkeypatch, _spec(lambda ctx: {}, expected_every_s=300))
     now = timeutil.now_et()
     with store.write() as conn:
