@@ -1,7 +1,7 @@
 # `/flow` card data source — the decision packet (2026-09-25)
 
 **Decision owner:** Patrick, with Ravi (the Options Flow page and `live_massive_router.py`
-are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup; on master since `a1d6e5ed3`..`9558a23dd`, calendar fix `0dcc101cc`, row-order/cap/partial-TTL fix after the close the same night); the FLIP is the open decision.
+are his surface). **Written by:** the 2026-09-24/25 flow session. **Status:** A is BUILT and DARK (2026-09-25 evening, `DISCORD_FLOW_CARD_PAGE_ENABLED`, unset = rollup; on master since `a1d6e5ed3`..`9558a23dd`, calendar fix `0dcc101cc`, row-order/cap/partial-TTL fix after the close the same night, market-hours reuse `2316c8ca4`). **FLIPPED 2026-09-25 21:49 ET by owner ruling** (`DISCORD_FLOW_CARD_PAGE_ENABLED=1` on web), verified in the running process at 21:54 ET; members now get the page-derived card. Rollback: delete the variable, then redeploy web.
 
 ## The question in one sentence
 

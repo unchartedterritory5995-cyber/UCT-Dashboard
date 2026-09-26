@@ -630,9 +630,9 @@
       "owner": "owner"
     },
     "DISCORD_FLOW_CARD_PAGE_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Option A for the Discord /flow card (2026-09-25): 1 derives the card from the Options Flow page's OWN product (processFlowData via the flow-facts bundle, windowed per request on flow-worker: GET /api/flow/ticker-product/{sym}?window_days=N) so the card reads what a member sees on the page; unset or 0 is the live_massive_router By-Contract rollup members have today. An ENABLEMENT gate: unset means the rollup, never this path. The flip is owner + Ravi, after tools/flow_card_parity_audit.py reads AGREE on a 20-name sweep, because the windowed product is close to but not identical to the page's full-history product (docs/discord-render/FLOW-CARD-SOURCE-DECISION-2026-09-25.md). A page card says page-derived in its footer; a rollup fallback under the flag is labelled derivation=rollup in the payload. Rollback is this variable alone.",
+      "status": "armed",
+      "where": ["web"],
+      "note": "ON since 2026-09-25 21:49 ET (railway variables --set on web; Railway redeployed web on its own, deploy record 01:49:31Z) by owner ruling, verified in the RUNNING web process at 21:54 ET: value '1', flow_card_from_page.enabled() True, and the job's own run_flow_card_job rendered page-derived cards for AMD (BEAR $948,000/$1,530,486, exact to the page), DELL, SMH and NVDA (labelled 35-session basis) with nothing posted. The Discord /flow card is now derived from the Options Flow page's OWN product (processFlowData via the flow-facts bundle on flow-worker: GET /api/flow/ticker-product/{sym}?basis_rows=250000, full stored history under the cap, rows in the page's own order), footer 'page-derived' (', N-session basis' when capped/cut; 'as of HH:MM ET' when served behind the tape). If the page product cannot be had within 45 s the labelled rollup answers (derivation=rollup). Evidence: docs/discord-render/evidence/flow-parity/2026-09-25-row-order-and-basis-cap.md (warm, 15/15 derivable names EXACT). Re-check: python tools/flow_card_parity_audit.py --card page --symbols ... ROLLBACK: railway variable delete DISCORD_FLOW_CARD_PAGE_ENABLED --service web, THEN railway redeploy --service web --yes (a delete does not restart the process).",
       "owner": "owner"
     },
     "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
