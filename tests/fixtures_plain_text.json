@@ -1,0 +1,689 @@
+{
+  "_about": "ONE table, two readers: api/services/journal_two/notes.py::extract_plain_text (tests/test_plain_text_parity.py) and app/src/pages/journal-2-0/lib/tiptap.js::extractPlainText (lib/plainText.parity.test.js). body_plain is the notebook's search index and the text History diffs. Both serializers are ProseMirror's textBetween(0, size, ' ', leafText): runs inside one textblock join with nothing, blocks and block atoms are separated by one space. A case with \"pm\": true is also checked against the REAL textBetween over the app schema (the JS rail); \"pm\": false marks a doc the schema would refuse, which both walkers must still read.",
+  "cases": [
+    {
+      "name": "a part-bold word is ONE word (**NV**DA)",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "NV",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "DA rallies"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "NVDA rallies"
+    },
+    {
+      "name": "a highlight mid-sentence keeps single spaces",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "This is "
+              },
+              {
+                "type": "text",
+                "text": "very important",
+                "marks": [
+                  {
+                    "type": "highlight"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " to remember"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "This is very important to remember"
+    },
+    {
+      "name": "a link inside a sentence",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "see "
+              },
+              {
+                "type": "text",
+                "text": "the NVDA 10-Q",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "https://example.com/10q"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " for margins"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "see the NVDA 10-Q for margins"
+    },
+    {
+      "name": "bold, italic and a link in one paragraph",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "buy "
+              },
+              {
+                "type": "text",
+                "text": "NVDA",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " on the "
+              },
+              {
+                "type": "text",
+                "text": "reclaim",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": ", per "
+              },
+              {
+                "type": "text",
+                "text": "notes",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "https://example.com/10q"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "."
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "buy NVDA on the reclaim, per notes."
+    },
+    {
+      "name": "text in nested blocks",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "buy "
+                      },
+                      {
+                        "type": "text",
+                        "text": "NVDA",
+                        "marks": [
+                          {
+                            "type": "bold"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Plan buy NVDA"
+    },
+    {
+      "name": "a quote and a list add nothing of their own",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "quoted"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "orderedList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "first"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "second"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "quoted first second"
+    },
+    {
+      "name": "an EMPTY paragraph still earns its separator",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "one"
+              }
+            ]
+          },
+          {
+            "type": "paragraph"
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "two"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "one  two"
+    },
+    {
+      "name": "a code block is one textblock",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "codeBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "x = 1\ny = 2"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "done"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "x = 1\ny = 2 done"
+    },
+    {
+      "name": "a table reads cell by cell",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "table",
+            "content": [
+              {
+                "type": "tableRow",
+                "content": [
+                  {
+                    "type": "tableCell",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "a"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableCell",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "b"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "a b"
+    },
+    {
+      "name": "an unknown node holding text reads as a textblock",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "mysteryBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "alpha"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "beta"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "alpha beta"
+    },
+    {
+      "name": "a hard break keeps the words apart",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "line one"
+              },
+              {
+                "type": "hardBreak"
+              },
+              {
+                "type": "text",
+                "text": "line two"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "line one line two"
+    },
+    {
+      "name": "video timestamp beside text",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "videoTimestamp",
+                "attrs": {
+                  "seconds": 75
+                }
+              },
+              {
+                "type": "text",
+                "text": " note"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "[1:15] note"
+    },
+    {
+      "name": "attachment chip, named and unnamed",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "attachmentChip",
+            "attrs": {
+              "name": "plan.pdf"
+            }
+          },
+          {
+            "type": "attachmentChip",
+            "attrs": {}
+          }
+        ]
+      },
+      "expected": "[file: plan.pdf] [file: file]"
+    },
+    {
+      "name": "document excerpt",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "documentExcerpt",
+            "attrs": {
+              "excerptId": "x1"
+            }
+          }
+        ]
+      },
+      "expected": "[excerpt]"
+    },
+    {
+      "name": "widget embed with and without its search line",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "widgetEmbed",
+            "attrs": {
+              "widgetId": "chart",
+              "searchText": "[chart: AMD 5m]"
+            }
+          },
+          {
+            "type": "widgetEmbed",
+            "attrs": {
+              "widgetId": "gone"
+            }
+          }
+        ]
+      },
+      "expected": "[chart: AMD 5m] [widget]"
+    },
+    {
+      "name": "inline math reads as its LaTeX",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Sharpe is "
+              },
+              {
+                "type": "inlineMath",
+                "attrs": {
+                  "latex": "\\frac{\\mu}{\\sigma}"
+                }
+              },
+              {
+                "type": "text",
+                "text": " here"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "Sharpe is \\frac{\\mu}{\\sigma} here"
+    },
+    {
+      "name": "block math reads as its LaTeX",
+      "pm": true,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Kelly:"
+              }
+            ]
+          },
+          {
+            "type": "blockMath",
+            "attrs": {
+              "latex": "f^* = p - q/b"
+            }
+          }
+        ]
+      },
+      "expected": "Kelly: f^* = p - q/b"
+    },
+    {
+      "name": "an empty or malformed formula reads as nothing",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "blockMath",
+            "attrs": {
+              "latex": ""
+            }
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "inlineMath",
+                "attrs": {
+                  "latex": 42
+                }
+              },
+              {
+                "type": "text",
+                "text": "after"
+              }
+            ]
+          },
+          {
+            "type": "inlineMath"
+          }
+        ]
+      },
+      "expected": "after"
+    },
+    {
+      "name": "an empty doc (the schema requires a block)",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": []
+      },
+      "expected": ""
+    },
+    {
+      "name": "a node whose type is not a string reads as an unknown node",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": [
+              "x"
+            ],
+            "content": [
+              {
+                "type": "text",
+                "text": "hi"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "there"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "hi there"
+    },
+    {
+      "name": "an unknown node's child whose type is not a string is unknown too",
+      "pm": false,
+      "doc": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a"
+              }
+            ]
+          },
+          {
+            "type": "mystery",
+            "content": [
+              {
+                "type": {
+                  "k": 1
+                }
+              },
+              {
+                "type": "text",
+                "text": "b"
+              }
+            ]
+          },
+          {
+            "type": "mystery",
+            "content": [
+              {
+                "type": [
+                  "y"
+                ],
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "c"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": "a b c"
+    }
+  ]
+}

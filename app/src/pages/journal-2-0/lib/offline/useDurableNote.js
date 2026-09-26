@@ -28,7 +28,8 @@ import {
   DEFAULT_DEBOUNCE_MS, DURABLE, FAILED, IDLE, createDurableWriter,
 } from './durableWriter'
 import {
-  getMeta, getNote, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent, storagePosture,
+  getMeta, getNote, listOutbox, offlineStorageAvailable, openNotebookDb, putMeta, putNoteWithIntent,
+  storagePosture,
 } from './notebookDb'
 import {
   markerFor, holdSessionLock, markerKeyFor, landedKeyFor, withLanded,
@@ -36,8 +37,9 @@ import {
 import { offlineEnabled } from './offlineFlag'
 import {
   chooseLocalRecovery, newSessionId, sameAuthoredContent, discardsUnsentWork,
-  editorStateDiscardsUnsentWork,
+  editorStateDiscardsUnsentWork, queuedWorkToAdopt, baseOfRecovered,
 } from './recoverLocalState'
+import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
 
@@ -298,9 +300,17 @@ export async function settleLandedSave({
     // ⛔ THE DURABLE COPY WINS. When there is unsent work the record keeps the
     // member's body, keeps `dirty`, and keeps its own baseline, so the entry
     // still 409s and the drain runs classify-then-rebase/merge/fork — the path
-    // the one GREEN production cell actually measured. `serverBase` below hands
-    // the classifier the server's newer copy so it can tell a metadata move
-    // (rebase, keep the words) from a body rewrite (fork, never clobber).
+    // the one GREEN production cell actually measured.
+    // ⛔⛔ AND IT KEEPS THE BASE THOSE WORDS WERE WRITTEN ON (D3, wave 5, A-1):
+    // `serverBase` below is `prev`'s own last-known server copy, NOT `acked` —
+    // the classifier must diff the server against what the queued words were
+    // written on, or a door's appended block reads as "no change" and the
+    // rebase drops it. `acked@landed` is the base only when the record settles
+    // onto `landed` itself. (Frozen `serverChange.js:185-187` says `serverBase`
+    // is "moved forward every time the server tells us something newer (an ack,
+    // a successful drain send)". An ack while work is unsent is the one
+    // deliberate exception, and `docs/notebook/f5-fixes-2026-09-23.md` §A.3
+    // records it; that file cannot be edited under D3.)
     const state = unsentWork ? prev : (caughtUp ? (acked || current) : current)
     const record = {
       noteId,
@@ -316,9 +326,31 @@ export async function settleLandedSave({
       localSavedAt: Date.now(),
       dirty: caughtUp ? 0 : 1,
       // ⭐ The server has just spoken: `acked` is what it accepted, at `landed`.
-      // That is the newest possible base, and it replaces whatever the record
-      // was carrying.
-      serverBase: caughtUp ? null : snapshotOfServerCopy(acked, landed),
+      // When the record settles onto `landed` (it takes `current`, at `landed`),
+      // that copy IS the base of what the record now holds.
+      //
+      // ⛔⛔ D3 (wave 5) — BUT NOT WHEN THE RECORD KEEPS ITS UNSENT WORK. Then it
+      // keeps `prev`'s words AND `prev`'s baseline, and the base of THOSE words
+      // is the server copy `prev` was already carrying — not `acked`.
+      //
+      // ⚰️ THE DEFECT, measured (`offlineWordsSurvive.property.test.jsx`, the two
+      // wave-5 orderings, 6/6 append rows RED): this line always wrote
+      // `acked@landed`. After a door appended a widget/fact/excerpt, `acked`
+      // already contains that node, so the drain's classifier diffed the server
+      // against a base that held it too, read "metadata-only", rebased the
+      // member's queued body over the server's — and the captured node was gone.
+      // The same shape as the Q1-F5 append-merge finding, reached through the
+      // settle instead of the ring. Keeping the older base, the diff sees the
+      // append for what it is and the drain MERGES it.
+      // ⛔ `acked@landed` stays the fallback: a dirty `prev` with no base of its
+      // own had nothing better, and that is the behaviour it had before.
+      serverBase: caughtUp ? null
+        : (unsentWork
+          ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(acked, landed))
+          : snapshotOfServerCopy(acked, landed)),
+      // ⛔⛔ B1: the stamp comes from the SAME copy as the words — prev's when
+      // the unsent work is kept, never `current`'s over an old bundle's body.
+      writtenSchema: state?.writtenSchema,
     }
     const intent = caughtUp ? null : {
       mutationId: outboxIdFor(noteId),
@@ -332,6 +364,7 @@ export async function settleLandedSave({
       generation: record.generation,
       sessionId: SESSION_ID,
       queuedAt: Date.now(),
+      writtenSchema: record.writtenSchema,
     }
     await putNoteWithIntent(db, record, intent)
     // ⛔ The save this marker was raised for has landed, so the marker comes
@@ -355,6 +388,79 @@ export async function settleLandedSave({
     // caught by the drain's own supersede check, which is why that exists.
     return null
   }
+}
+
+/**
+ * ⭐ D3 / F5P-1 — THE OWNER FORKED: SETTLE THE NOTE THE WAY THE SWEEP WOULD.
+ *
+ * The open editor resolves a conflict it cannot prove safe by preserving BOTH
+ * copies: the member's words go into a `(conflicted copy)` sibling and the editor
+ * shows the server's version. Nothing told the durable store. The record stayed
+ * dirty with a queued entry the sibling had already preserved, and once the
+ * note closed the sweep sent it, 409'd and forked AGAIN — two copies for one
+ * conflict. That was rare while the editor only ever sent words the member had
+ * just typed; now the owner also sends the words queued while away (F5P-1), so a
+ * second writer's edit made during that time reaches exactly this branch.
+ *
+ * ⛔ ONLY AFTER THE SIBLING EXISTS. This clears the queue for the note, and the
+ * sibling is the only reason that is not a loss. It is the drain's own
+ * `settleForkedNote`, never a second copy of it — including its refusal to empty
+ * the record when the server note is unusable.
+ *
+ * ⛔⛔ AND ONLY WHILE THE STORE STILL HOLDS EXACTLY WHAT WAS FORKED (review S1,
+ * fix round 1). The sibling holds `forked` — what the editor had when it built
+ * the copy. The create request takes a network round trip, and words typed
+ * during it reach the durable record and the queue but NOT the sibling. Settling
+ * then wrote the server copy CLEAN over them and cleared the queue: the words
+ * were in no layer at all. So the record, and the queued entry if there is one,
+ * must equal `forked`; anything else is refused and the note keeps the pre-E-3
+ * behaviour — a second fork later, which preserves the words. A duplicate
+ * beats a loss. No `forked`, no proof: refused.
+ * ⚠️ "Preserves the words" holds only once those words are IN the store. A
+ * keystroke still inside the durable writer's window is not, and the writer
+ * keeps only its newest snapshot — so the editor, which refuses first when its
+ * own view has moved, FLUSHES that snapshot before it swaps the view to the
+ * server copy (re-review R1, fix round 2). Otherwise the next keystroke on the
+ * new view supersedes it before it is ever written.
+ * ⚠️ Residual, stated: a flush while a durable write is already in flight
+ * defers to that write, so a snapshot queued behind it can still be superseded
+ * by a later keystroke. The window is the rest of one durable write cycle (a
+ * read then a write — `getNote`, then `putNoteWithIntent`, in `persist`).
+ * ⚠️ The check and the settle are THREE IndexedDB transactions — `getNote`,
+ * `listOutbox`, then the write inside `settleForkedNote` — so the window runs
+ * from the first read to that write: milliseconds usually, hundreds on a slow
+ * store. What can land in it is a durable write scheduled before the editor's
+ * own check (content the sibling holds), or a keystroke's write made AFTER the
+ * view swap. The second loses nothing: `persist`'s fix-6 guard keeps the
+ * record's words rather than write `fresh+keystroke` over them, and the
+ * editor's post-settle RE-READ sees its view moved off the server copy and
+ * keeps that keystroke's draft and autosave (rail: `f5p1OwnerSendsQueued`,
+ * S1′). The protection is that re-read — not the writer's debounce.
+ *
+ * ⛔ Store-direct and mount-independent, like `settleLandedSave`; never throws;
+ * and with the wave switched off it writes nothing (§21).
+ *
+ * @param forked  { title, subtitle, bodyJson } — exactly what the sibling holds
+ * @returns true when settled · false when refused because the store has moved on
+ *          from what was forked (or no `forked` was given) · null when it could
+ *          not or may not write
+ */
+export async function settleOwnerFork({
+  accountId, noteId, serverNote, forked = null, connect = connectNotebookDb,
+} = {}) {
+  if (!offlineEnabled()) return null
+  if (!offlineStorageAvailable()) return null
+  if (!accountId || !noteId) return null
+  if (!forked) return false
+  try {
+    const db = await connect(accountId)
+    const rec = await getNote(db, noteId)
+    if (rec && !sameAuthoredContent(rec, forked)) return false
+    const queued = (await listOutbox(db)).filter((e) => e?.noteId === noteId)
+    if (queued.some((e) => !sameAuthoredContent(e.patch, forked))) return false
+    await settleForkedNote(db, noteId, serverNote)
+    return true
+  } catch { return null }
 }
 
 /**
@@ -463,6 +569,11 @@ export function useDurableNote({
         // `byDirty` exists so a reconnect can find unsynced work without
         // reading every note.
         dirty: (state?.synced && !unsentWork) ? 0 : 1,
+        // ⛔⛔ B1: the level of the editor that WROTE these words, taken from
+        // the SAME place as the words. When fix 6 keeps `prev`, the stamp is
+        // prev's: the editor's snapshot stamp on an old bundle's words is the
+        // laundering B1 names, one layer down. Absent ⇒ read as 0 at send.
+        writtenSchema: source?.writtenSchema,
       }
       // ⛔ `null` when clean — a clean record IS the base and a second copy of
       // one value is a second authority over it.
@@ -479,6 +590,8 @@ export function useDurableNote({
           generation,
           sessionId: SESSION_ID,
           queuedAt: Date.now(),
+          // B1: the entry's words ARE the record's, so is its stamp.
+          writtenSchema: record.writtenSchema,
         }
         : null
       // ⛔⛔ ONE TRANSACTION. The working copy and what we still owe the server
@@ -552,17 +665,33 @@ export function useDurableNote({
    */
   const recover = useCallback(async ({ server, lsDraft = null } = {}) => {
     let idbRecord = null
+    let queued = null
     if (supported) {
       try {
         const db = await connect(accountId)
         const rec = await getNote(db, noteId)
         // ⛔ See the header: a clean record is not a candidate.
         idbRecord = rec && rec.dirty ? rec : null
+        // ⭐ D3 / F5P-1: the queued entry is the evidence that these words were
+        // already committed to the server — see `queuedWorkToAdopt`.
+        if (idbRecord) queued = (await listOutbox(db)).find((e) => e?.noteId === noteId) || null
       } catch {
         idbRecord = null   // no durable copy is a fact, not an error to raise
+        queued = null
       }
     }
-    return chooseLocalRecovery({ server, idbRecord, lsDraft })
+    const decision = chooseLocalRecovery({ server, idbRecord, lsDraft })
+    // ⭐ `adopt` is non-null ONLY for provably queued work: the owning editor
+    // then holds those words and sends them through its own save, on the
+    // baseline they were written on. Null keeps the banner exactly as before.
+    // ⭐ `base` is what the recovered words were written on, when provable —
+    // what Restore must save against so a moved server 409s into the editor's
+    // reconcile instead of being overwritten (see `baseOfRecovered`).
+    return {
+      ...decision,
+      adopt: queuedWorkToAdopt({ decision, record: idbRecord, entry: queued }),
+      base: baseOfRecovered({ decision, record: idbRecord, entry: queued }),
+    }
   }, [supported, accountId, noteId, connect])
 
   return { supported, status, unsynced, error, persisted, schedule, markSynced, flush, recover }

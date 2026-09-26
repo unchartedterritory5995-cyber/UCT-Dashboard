@@ -39,10 +39,14 @@ const NOTE = {
   ticker: null, tags: [], heroImageUrl: null, updatedAt: 'T1',
   isFavorite: false, bodyJson: BASE_BODY,
 }
+// What the server holds NOW -- the note every render reads. NOTE unless a case
+// moves the server on (E does, to tell the words' own base from the server's
+// current revision).
+let serverNote = NOTE
 
 const updateMock = vi.fn()
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
+  useJ2Note: () => ({ note: serverNote, isLoading: false, error: null, update: updateMock, refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -58,6 +62,7 @@ beforeEach(() => {
   // matrix is reported. These rails opt this browser in, the same way
   // certification does.
   localStorage.setItem(OFFLINE_FLAG_KEY, '1')
+  serverNote = NOTE
   updateMock.mockReset()
   updateMock.mockResolvedValue({ ...NOTE, updatedAt: 'T2' })
   __resetNotebookConnections()
@@ -208,12 +213,44 @@ describe('E — the tab closes after the durable write but before the PUT', () =
     localStorage.removeItem('uct.j2.notedraft.n1')
     view.unmount()
     await act(async () => { await settleIdb(6) })
+    const sendsBefore = updateMock.mock.calls.length
+    // The words were written on 'T1'...
+    expect(store('notes')[0].baseUpdatedAt).toBe('T1')
+    // ...and while the tab was closed the server moved on (a door wrote to the
+    // note from another device). N1 (wave-5 re-review): the reopened page must
+    // read a server whose CURRENT revision is not the words' base -- with the
+    // two equal, a send "on the base" and a send "on the server's current
+    // revision" carry the same value and the assertion below proves nothing.
+    serverNote = { ...NOTE, updatedAt: 'T9' }
+    expect(serverNote.updatedAt).not.toBe(store('notes')[0].baseUpdatedAt)
 
     await renderEditor()
     await act(async () => { await settleIdb(6) })
-    await waitFor(() => expect(screen.getByText(/Unsaved changes from a previous session/i)).toBeInTheDocument())
-    // ⛔ And the sync intent is still queued: recovered on screen is not the
-    // same as sent. SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
+    // ⭐ D3 change 1 / F5P-1 (docs/notebook/f5-fixes-2026-09-23.md §B): QUEUED
+    // words are the owner's to send, so reopening ADOPTS them -- on screen, no
+    // Restore/Discard banner. ⚰️ This rail used to wait for that banner: it was
+    // pinning the defect F5P-1 describes (words behind a banner that nothing
+    // ever sent while the member sat on the note).
+    await waitFor(() => expect(screen.getByPlaceholderText('Title').value).toBe('written while the server was gone'))
+    expect(screen.queryByText(/Unsaved changes from a previous session/i)).toBeNull()
+    // …and the owner tries to send them itself (the server is still down).
+    await tick(1000)
+    await waitFor(() => expect(updateMock.mock.calls.length).toBeGreaterThan(sendsBefore))
+    // N1 (wave-5 review): and what it tried to send IS the queued words, on
+    // the words' OWN base ('T1', the revision they were typed against) --
+    // never an empty patch, and never re-based onto the server's current
+    // revision ('T9', which they never saw: on it the PUT would succeed with no
+    // 409 and drop whatever the door wrote). The ruling's second half;
+    // f5p1OwnerSendsQueued.test.jsx pins it against a fake server, this pins it
+    // through the real page. EVERY send after the reopen, not just the last.
+    const sentAfterReopen = updateMock.mock.calls.slice(sendsBefore).map((c) => c[0])
+    expect(sentAfterReopen.length).toBeGreaterThan(0)
+    for (const sent of sentAfterReopen) {
+      expect(sent.title).toBe('written while the server was gone')
+      expect(sent.baseUpdatedAt).toBe('T1')
+    }
+    // ⛔ And the sync intent is still queued: recovered on screen — and even
+    // attempted — is not the same as sent. SAVED ON THIS DEVICE ≠ SYNCED TO UCT.
     expect(store('outbox')).toHaveLength(1)
     expect(store('outbox')[0].patch.title).toBe('written while the server was gone')
   })

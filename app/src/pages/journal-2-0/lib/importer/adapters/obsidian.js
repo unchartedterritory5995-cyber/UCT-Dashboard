@@ -80,7 +80,14 @@ const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 const CALLOUT_RE = /^(\s*>\s*)\[!([A-Za-z0-9_-]+)\]\s*(.*)$/gm
-const HIGHLIGHT_RE = /==([^=\n]+)==/g
+// ⛔ A trader's prose is full of `==` COMPARISONS ("if rsi == 30 and macd == 0").
+// The old `/==([^=\n]+)==/` highlighted the span between two comparisons and
+// deleted both operators. A highlight now needs a non-space just inside each
+// `==`, and neither marker may touch a letter, digit, `_` or another `=` on its
+// outside. The leading context is CAPTURED, not a lookbehind: the iOS 16 floor
+// cannot parse lookbehind (app/src/noRegexLookbehind.test.js). The server lane
+// (`providers/obsidian.py`) uses the same rule; parity fixture `08-comparisons`.
+const HIGHLIGHT_RE = /(^|[^=\p{L}\p{N}_])==(?=\S)([^=\n]*?\S)==(?![=\p{L}\p{N}_])/gu
 
 const SAMPLE_LIMIT = 20
 const SAMPLE_MAX_BYTES = 256 * 1024
@@ -282,7 +289,7 @@ function transformCallouts(text) {
 }
 
 function transformHighlights(text) {
-  return text.replace(HIGHLIGHT_RE, (_, inner) => `<mark>${escapeHtml(inner)}</mark>`)
+  return text.replace(HIGHLIGHT_RE, (_, lead, inner) => `${lead}<mark>${escapeHtml(inner)}</mark>`)
 }
 
 // ---------------------------------------------------------------------------

@@ -150,3 +150,28 @@ def test_g064_a_shared_note_never_leaks_citation_labels_or_links(conn):
     assert "secret-note" not in dumped
     # The member's own question, inside the note they chose to share, stays.
     assert pub["bodyJson"]["content"][0]["attrs"]["question"] == "my question"
+
+
+def test_wave5_newer_editor_content_survives_the_public_copy_verbatim(conn):
+    """A shared note is read on the public page with the SAME extensions
+    (SharedNotePage.jsx): a formula, a code block's language, a colour or a
+    highlight must reach it unchanged -- the reduction strips citation
+    detail, never the member's own content."""
+    n = notes_svc.create_note("u1", {"title": "Shared maths"}, conn=conn)
+    body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "Area "},
+            {"type": "inlineMath", "attrs": {"latex": "\\pi r^2"}},
+            {"type": "text", "text": " holds."}]},
+        {"type": "blockMath", "attrs": {"latex": "E = mc^2"}},
+        {"type": "codeBlock", "attrs": {"language": "python"},
+         "content": [{"type": "text", "text": "def f():\n    return 1"}]},
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "red", "marks": [{"type": "textColor", "attrs": {"color": "red"}}]},
+            {"type": "text", "text": " and "},
+            {"type": "text", "text": "marked", "marks": [{"type": "highlight", "attrs": {"color": "blue"}}]}]},
+    ]}
+    notes_svc.update_note("u1", n["id"], {"bodyJson": body}, conn=conn)
+    share = note_shares.create_share("u1", n["id"], conn=conn)
+    pub = note_shares.resolve_share(share["token"], conn=conn)
+    assert pub["bodyJson"] == body

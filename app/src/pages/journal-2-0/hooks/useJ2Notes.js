@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
+import { notebookSchemaHeaders } from '../lib/notebookSchema'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -157,11 +158,21 @@ export function useJ2Note(noteId) {
     isLoading,
     error,
     refresh: () => mutate(),
-    update: async (patch) => {
+    update: async (patch, opts) => {
+      // ⛔ S1/H14: a BODY write declares the schema this bundle can read, so
+      // the server can refuse it over a note this bundle opened as empty.
+      // ⛔⛔ B1: a caller FORWARDING a body it did not read from the server —
+      // the editor sending words it recovered from the durable copy, the
+      // outbox or a crash draft — passes `{ writtenSchema }`, the stamp of the
+      // bundle that wrote them, and the header becomes min(stamp, this
+      // bundle). The option's PRESENCE decides: `{ writtenSchema: undefined }`
+      // is an unstamped capture and declares 0; only omitting it is "my own read".
+      const forwarded = opts && Object.hasOwn(opts, 'writtenSchema') ? { writtenSchema: opts.writtenSchema } : undefined
+      const schema = patch && Object.hasOwn(patch, 'bodyJson') ? await notebookSchemaHeaders(forwarded) : {}
       const res = await fetch(`/api/j2/notes/${noteId}`, {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...schema },
         body: JSON.stringify(patch),
       })
       if (!res.ok) {

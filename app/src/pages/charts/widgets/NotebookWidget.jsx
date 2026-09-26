@@ -26,6 +26,10 @@ import useJ2NoteFolders from '../../journal-2-0/hooks/useJ2NoteFolders'
 import { buildFolderTree } from '../../journal-2-0/components/notebook/FolderSidebar'
 import { buildExtensions } from '../../journal-2-0/lib/tiptap'
 import {
+  noteContentGuardOptions, isUnreadable, useUnreadableNote,
+} from '../../journal-2-0/lib/noteContentGuard'
+import UnreadableNoteNotice from '../../journal-2-0/lib/UnreadableNoteNotice'
+import {
   mergeNotebookWidgetSettings, notebookWidgetStyleVars, notebookDefaultsForTheme,
 } from './notebookWidgetSettings'
 import styles from './NotebookWidget.module.css'
@@ -67,14 +71,20 @@ function NoteEditorInner({ note, update, journalUrl, onBack }) {
 
   const editor = useEditor({
     extensions: buildExtensions(),
+    // ⛔ S1/H14: content this bundle cannot read LOCKS the editor instead of
+    // opening it empty -- this widget's save sends the body with NO baseline,
+    // so an empty stand-in would overwrite the note outright.
+    ...noteContentGuardOptions(),
     content: note.bodyJson || { type: 'doc', content: [] },
     onUpdate: () => scheduleRef.current(),
   }, [])
+  const unreadable = useUnreadableNote(editor)
 
   // Ref-latched (updated in an effect, not during render) so the frozen onUpdate
   // closure + the setTimeout always run against the LATEST editor/update.
   useEffect(() => {
     scheduleRef.current = () => {
+      if (isUnreadable(editor)) return        // S1: a locked note saves nothing
       setStatus('saving')
       if (saveTimer.current) clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => commitRef.current(), AUTOSAVE_MS)
@@ -97,8 +107,10 @@ function NoteEditorInner({ note, update, journalUrl, onBack }) {
 
   return (
     <div className={styles.editorPane}>
+      {unreadable && <UnreadableNoteNotice />}
       <input
         className={styles.editorTitle}
+        readOnly={unreadable}
         value={title}
         onChange={e => onTitle(e.target.value)}
         placeholder="Untitled note"

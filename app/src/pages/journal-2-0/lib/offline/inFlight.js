@@ -203,8 +203,9 @@ export function markerFor({ sessionId, baseUpdatedAt, now = Date.now() }) {
  * Either one expires it. ⛔ Never require BOTH: a browser that cannot answer
  * the lock question would then keep a dead marker alive for ever.
  *
- * @param holders  the set/array of sessionIds currently holding the sync lock,
- *                 or null when that cannot be determined (⇒ TTL decides alone)
+ * @param holders  the set/array of sessionIds whose tabs are still alive — each
+ *                 holds its own session lock (`liveSessionIds`), NOT the sync
+ *                 lock — or null when that cannot be determined (⇒ TTL decides alone)
  */
 export function isMarkerLive(marker, { now = Date.now(), holders = null, ttlMs = IN_FLIGHT_TTL_MS } = {}) {
   if (!marker || typeof marker !== 'object') return false

@@ -14,14 +14,27 @@
 // `build_export_zip` — the exact function the export ROUTE calls — with
 // tags, a subtitle, a ticker, a hero image, an inline image, a file
 // attachment, a title containing a colon, and a tag needing quoting, then
-// prints the zip as base64. This test decodes it, unzips it with the SAME
-// library `intake.js` uses, and runs it through `detectAdapter` + `parse`.
+// writes the zip to a FILE and prints only a frame naming it (below). This
+// test reads that file, unzips it with the SAME library `intake.js` uses, and
+// runs it through `detectAdapter` + `parse`.
+//
+// ⛔ THE ARCHIVE NEVER TRAVELS THROUGH STDOUT (wave-5 re-review, round 4). It
+// used to be printed base64-encoded, and twice in seven runs this file died in
+// beforeAll on "unknown compression type 8628" -- anything else the Python
+// process printed (a module's print(), a warning, a background thread) had
+// landed inside the payload. The fixture now writes the file, proves it with
+// zipfile.testzip, and prints a FRAME: begin marker, path, sha256, end marker.
+// Only what is inside the frame is read; a broken frame is reported as exactly
+// that; and the sha256 proves the file read is the file written.
 
 import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import { spawnSync } from 'node:child_process'
 import { unzipSync } from 'fflate'
+import MarkdownIt from 'markdown-it'
 import { describe, it, expect, beforeAll } from 'vitest'
 import { detectAdapter } from './registry'
 import { genericAdapter } from './adapters/generic'
@@ -46,16 +59,62 @@ function pythonAvailable() {
   }
 }
 
-function buildRealExportVfiles() {
-  const attachRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uct-export-fixture-'))
-  const script = path.join(ROOT, 'api/services/journal_two/roundtrip_export_fixture.py')
-  const result = spawnSync('python', [script, attachRoot], { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
-  if (result.status !== 0) {
-    throw new Error(`roundtrip_export_fixture.py failed (exit ${result.status}): ${result.stderr}`)
+const FIXTURE = path.join(ROOT, 'api/services/journal_two/roundtrip_export_fixture.py')
+const FRAME_BEGIN = 'UCT-EXPORT-FIXTURE-ZIP-BEGIN'
+const FRAME_END = 'UCT-EXPORT-FIXTURE-ZIP-END'
+
+/**
+ * The archive the fixture wrote, read from the file its frame names. Anything
+ * the process printed outside the frame is ignored; a frame that is missing or
+ * broken, or a file whose sha256 is not the one the fixture printed, is a CLEAR
+ * error -- never a decompress error three layers down.
+ */
+function readFixtureArchive(stdout) {
+  const lines = stdout.split(/\r?\n/)
+  const at = lines.lastIndexOf(FRAME_BEGIN)
+  if (at < 0 || lines[at + 3] !== FRAME_END) {
+    throw new Error(`fixture stdout was contaminated or cut short (no intact ${FRAME_BEGIN} frame): ${JSON.stringify(stdout.slice(0, 200))}`)
   }
-  const zipBytes = new Uint8Array(Buffer.from(result.stdout.trim(), 'base64'))
-  const entries = unzipSync(zipBytes)
-  return Object.entries(entries)
+  const zipPath = lines[at + 1]
+  const sha = lines[at + 2]
+  let bytes
+  try {
+    bytes = fs.readFileSync(zipPath)
+  } catch (err) {
+    throw new Error(`the fixture's frame names an archive that cannot be read (${JSON.stringify(zipPath)}): ${err.message}`)
+  }
+  const actual = createHash('sha256').update(bytes).digest('hex')
+  if (actual !== sha) {
+    throw new Error(`the fixture archive at ${zipPath} is not the one the fixture wrote (sha256 ${actual}, expected ${sha})`)
+  }
+  return new Uint8Array(bytes)
+}
+
+// `pythonArgs(script, attachRoot)` lets a rail run the fixture under a wrapper
+// that misbehaves (prints around it, tampers with its file); by default it is
+// the fixture itself.
+function buildRealExportVfiles(pythonArgs = (script, root) => [script, root]) {
+  const attachRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'uct-export-fixture-'))
+  let result
+  let zipBytes
+  try {
+    result = spawnSync('python', pythonArgs(FIXTURE, attachRoot), { encoding: 'utf8', maxBuffer: 50 * 1024 * 1024 })
+    if (result.status !== 0) {
+      throw new Error(`roundtrip_export_fixture.py failed (exit ${result.status}): ${result.stderr}`)
+    }
+    zipBytes = readFixtureArchive(result.stdout)
+  } finally {
+    // The archive is in memory now; the planted attachments and the zip file
+    // have nothing left to say.
+    fs.rmSync(attachRoot, { recursive: true, force: true })
+  }
+  let entries
+  try {
+    entries = unzipSync(zipBytes)
+  } catch (err) {
+    throw new Error(`the fixture archive did not unzip (${err.message}) -- it passed zipfile.testzip in Python, so the bytes changed on the way`)
+  }
+  const vfiles = Object.entries(entries)
     .filter(([name]) => !name.endsWith('/'))
     .map(([name, data]) => ({
       path: name,
@@ -63,6 +122,7 @@ function buildRealExportVfiles() {
       lastModified: null,
       bytes: async () => data,
     }))
+  return Object.assign(vfiles, { stdout: result.stdout })
 }
 
 const hasPython = pythonAvailable()
@@ -148,6 +208,23 @@ d('our own export round-trips through our own importer', () => {
     // corruption), and the front-matter block does NOT re-render as a
     // visible heading (the generic-adapter defect this audit found).
     expect(doc.html).toContain('The thesis holds.')
+    // N4: prose dollars went out escaped (so no reader takes "$5-$10" for
+    // math) and come back as plain dollars -- never a stray backslash.
+    expect(doc.html).toContain('Range $5-$10 on $NVDA.')
+    // ...and so does member text that arrives by ATTRIBUTE (fix round 2): an
+    // attachment's name, a widget's label, an Ask answer's question and its
+    // source labels. An image's alt is exported RAW on purpose: markdown-it
+    // drops an escaped character from an alt, so `\$` would come back as
+    // nothing -- this is the assertion that caught it.
+    expect(doc.html).toContain('alt="NVDA $5 base"')
+    expect(doc.html).toContain('report $Q3.pdf')
+    expect(doc.html).toContain('Chart $NVDA 1D')
+    expect(doc.html).toContain('Q: Hold above $5?')
+    expect(doc.html).toContain('[1] Deck $Q3')
+    // ...the member's own `\$` (R2-N4 and R34-N2, the next test) is the one
+    // backslash that belongs in the note; anywhere else a `\$` is our escape
+    // leaking.
+    expect(doc.html.replace('cost \\$5 and \\$6', '').replace('fee \\$3 flat', '')).not.toContain('\\$')
     expect(doc.html).not.toMatch(/<h[1-6]>\s*title:/i)
     expect(doc.html).not.toContain('subtitle:')
     // Hero image is real, visible content — not an orphaned blob referenced
@@ -165,8 +242,109 @@ d('our own export round-trips through our own importer', () => {
     // convert.test.js against this exact shape).
     expect(doc.html).toContain('<aside>')
     expect(doc.html).toContain('a tip worth keeping')
+    expect(doc.html).toContain('stop at $42') // an HTML island keeps its $ raw
     expect(doc.html).toContain('<details>')
     expect(doc.html).toContain('<summary>More detail</summary>')
     expect(doc.html).toContain('hidden until expanded')
+  })
+
+  // Re-review R2-N1 / R2-N4. An `<aside>` / `<details>` island is a CommonMark
+  // HTML block, which ENDS AT ITS FIRST BLANK LINE; an excerpt's annotation, two
+  // Shift+Enters and a code block's empty line each used to put one inside, and
+  // everything after it was read as Markdown with its `$` raw.
+  it('a raw-HTML island stays ONE block, so nothing inside it is read as Markdown; every $ comes back', async () => {
+    const noteFile = vfiles.find((f) => f.path.endsWith('.md') && f.path.includes('AAPL'))
+    const md = new TextDecoder().decode(await noteFile.bytes())
+    // The importer's own parser and options (adapters/generic.js), token by
+    // token: each island is ONE html_block, open tag to close tag.
+    const tokens = new MarkdownIt({ html: true, linkify: true }).parse(md, {})
+    for (const [open, close] of [['<aside>', '</aside>'], ['<details>', '</details>']]) {
+      const blocks = tokens.filter((t) => t.type === 'html_block' && t.content.includes(open))
+      expect(blocks.length, `every ${open} opens a block`).toBe(md.split(open).length - 1)
+      for (const t of blocks) expect(t.content, `${open} closes in the same block`).toContain(close)
+    }
+    expect(md.split('<aside>').length - 1).toBe(2) // non-vacuity: both callouts are in the file
+    expect(md).toContain('<br>') // ...and the blank lines were there to be closed
+    // R34-N1: the CR endings were made line breaks and closed, never kept
+    // (a reader ends a line at a lone \r too) and never dropped.
+    expect(md).not.toContain('\r')
+    expect(md).toContain('pasted\n<br>\nfrom Windows $8 and\n<br>\nold Mac $9')
+
+    const { adapter } = await detectAdapter(vfiles)
+    const { docs } = await adapter.parse(vfiles)
+    const [doc] = docs
+    // What came back: each island still raw HTML -- no <p>, <em>, <pre> made
+    // inside it -- and every `$` in it intact.
+    const islands = doc.html.match(/<(aside|details)>[\s\S]*?<\/\1>/g)
+    expect(islands).toHaveLength(3)
+    for (const island of islands) expect(island).not.toMatch(/<(p|em|pre|code)[\s>]/)
+    expect(doc.html).toContain('Guidance $5.2B-$6.1B for the year')
+    expect(doc.html).toContain('*stop $4 then $6*') // text inside the island, never <em>
+    expect(doc.html).toContain('$5-$10 now')
+    expect(doc.html).toContain('total = $7')
+    expect(doc.html).toContain('from Windows $8 and')
+    expect(doc.html).toContain('old Mac $9')
+
+    // R2-N4: the member typed `\$` -- it comes back exactly, and in the file
+    // every `$` of it is ESCAPED (an ODD run of backslashes before it), so a
+    // math reader cannot pair it.
+    expect(doc.html).toContain('cost \\$5 and \\$6')
+    const line = md.split('\n').find((l) => l.startsWith('cost '))
+    const runs = [...line.matchAll(/(\\*)\$/g)].map((m) => m[1].length)
+    expect(runs).toHaveLength(2)
+    for (const n of runs) expect(n % 2, `a run of ${n} backslashes before a $`).toBe(1)
+
+    // R34-N2: the same when the backslash ends a coloured run and the `$`
+    // opens the next one.
+    expect(doc.html).toContain('fee \\$3 flat')
+    const feeLine = md.split('\n').find((l) => l.startsWith('fee '))
+    const feeRun = feeLine.match(/(\\*)\$/)[1].length
+    expect(feeRun % 2, `a run of ${feeRun} backslashes before the $`).toBe(1)
+  })
+})
+
+// Round 4: the transport cannot be contaminated. Each rail runs the REAL fixture
+// under a small Python wrapper that misbehaves in exactly one way.
+d('the fixture transport cannot be contaminated', () => {
+  const runsFixture = (before, after = '') => `
+import runpy, sys
+${before}
+sys.argv = [sys.argv[1], sys.argv[2]]
+try:
+    runpy.run_path(sys.argv[0], run_name='__main__')
+finally:
+    ${after || 'pass'}
+`
+  const noteMd = async (vfiles) => {
+    const f = vfiles.find((v) => v.path.endsWith('.md') && v.path.includes('AAPL'))
+    return new TextDecoder().decode(await f.bytes())
+  }
+
+  it('stray output before and after the payload changes nothing: the same archive comes back', async () => {
+    const clean = buildRealExportVfiles()
+    const noisy = buildRealExportVfiles((script, root) => ['-c', runsFixture(
+      "print('stray: a module printed at import')\nsys.stdout.write('stray: no newline, then ')",
+      "print('stray: printed after the payload')",
+    ), script, root])
+    // non-vacuity: the wrapper really did print around the payload
+    expect(noisy.stdout).toMatch(/^stray: a module printed at import/)
+    expect(noisy.stdout).toMatch(/stray: printed after the payload\s*$/)
+    expect(noisy.map((v) => v.path).sort()).toEqual(clean.map((v) => v.path).sort())
+    expect(await noteMd(noisy)).toBe(await noteMd(clean))
+  })
+
+  it('output with no intact frame is a CLEAR failure that quotes it, never a decompress error', () => {
+    expect(() => buildRealExportVfiles(() => ['-c', "print('UEsDBBQ garbage that looks like base64 and is not a frame')"]))
+      .toThrow(/fixture stdout was contaminated or cut short .*UEsDBBQ garbage/)
+  })
+
+  it('an archive changed after the fixture wrote it is refused by its sha256', () => {
+    // Run the fixture, then append a byte to the file its frame names.
+    const tamper = runsFixture(
+      'import io, contextlib\n_buf = io.StringIO()\n_ctx = contextlib.redirect_stdout(_buf)\n_ctx.__enter__()',
+      "_ctx.__exit__(None, None, None)\n    _out = _buf.getvalue()\n    _lines = _out.splitlines()\n    _p = _lines[_lines.index('UCT-EXPORT-FIXTURE-ZIP-BEGIN') + 1]\n    open(_p, 'ab').write(b'\\0')\n    sys.stdout.write(_out)",
+    )
+    expect(() => buildRealExportVfiles((script, root) => ['-c', tamper, script, root]))
+      .toThrow(/is not the one the fixture wrote/)
   })
 })

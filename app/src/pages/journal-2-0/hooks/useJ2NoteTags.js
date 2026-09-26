@@ -17,8 +17,12 @@ const fetcher = (url) =>
     return r.json()
   })
 
+/** The SWR key — exported so a caller revalidating "every notes list" can
+ *  leave this one out when its change cannot move a tag count (R1-N4). */
+export const NOTE_TAGS_KEY = '/api/j2/notes/tags'
+
 export default function useJ2NoteTags() {
-  const { data, error, isLoading, mutate } = useSWR('/api/j2/notes/tags', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(NOTE_TAGS_KEY, fetcher, {
     revalidateOnFocus: true,
     shouldRetryOnError: false,
   })
@@ -27,6 +31,12 @@ export default function useJ2NoteTags() {
     // the REAL distribution, so a consumer's cap (e.g. FolderSidebar's
     // TAG_CAP) selects the true top N, not whichever page happened to load.
     tagCounts: data?.tags ?? [],
+    // Wave 5 nested tags: every node of the `a/b/c` hierarchy, implied
+    // parents included, as `{path, key, own, total}` — `total` is DISTINCT
+    // notes in the subtree (what filtering by it returns). Null — not [] —
+    // when the server sent no tree, so a caller can tell "no tags" from
+    // "an older answer" and fall back (lib/tagTree.fallbackNodes).
+    tagTree: Array.isArray(data?.tree) ? data.tree : null,
     isLoading,
     error,
     refresh: () => mutate(),

@@ -131,27 +131,49 @@ class TestAmbiguity:
         assert locate(_FIXTURES["simple"]["json"], "") == []
 
 
-class TestDivergenceFromBodyPlain:
-    """Proves WHY this module exists, so nobody later 'unifies' the two."""
+class TestBodyPlainIsTheSameRuleWithASpace:
+    """body_plain and the citation text are ONE rule -- ProseMirror's
+    textBetween -- run with two separators: a space for the search index, a
+    newline for citations. They differ in the separator character and in the
+    one leaf only search reads (a video timestamp, "[1:15]"), never in how
+    runs join. ⚰️ Until 2026-09-23 body_plain joined EVERY text node with a
+    space, so it double-spaced at mark boundaries and split a part-bold word
+    ("**NV**DA" -> "NV DA"), and this class pinned that as the reason the two
+    must differ. It now pins that they agree, over every fixture the real
+    library generated."""
 
-    def test_body_plain_inserts_spaces_at_mark_boundaries_and_this_does_not(self):
-        doc = _FIXTURES["markBoundary"]["json"]
-        assert "  " in extract_plain_text(doc), (
-            "body_plain is expected to double-space at mark boundaries"
-        )
-        assert "  " not in flatten(doc)["text"]
+    @staticmethod
+    def _with_space_separators(doc):
+        # The block separators are exactly the characters no span covers.
+        flat = flatten(doc)
+        covered = set()
+        for s in flat["spans"]:
+            covered.update(range(s["flat_start"], s["flat_end"]))
+        out = []
+        for i, ch in enumerate(flat["text"]):
+            if i in covered:
+                out.append(ch)
+            else:
+                assert ch == "\n", (i, ch)
+                out.append(" ")
+        return "".join(out)
 
-    def test_the_canonical_text_matches_what_a_member_reads(self):
+    @pytest.mark.parametrize("name", sorted(_FIXTURES))
+    def test_body_plain_is_the_citation_text_with_a_space_for_each_separator(self, name):
+        doc = _FIXTURES[name]["json"]
+        assert extract_plain_text(doc) == self._with_space_separators(doc)
+
+    def test_a_mark_boundary_is_invisible_to_both(self):
         doc = _FIXTURES["markBoundary"]["json"]
+        assert extract_plain_text(doc) == "Management expects gross margins to normalize lower."
         assert flatten(doc)["text"] == "Management expects gross margins to normalize lower."
 
-    def test_offsets_into_body_plain_would_address_the_wrong_characters(self):
-        # The concrete consequence: same phrase, different offset in each
-        # representation. A citation built on body_plain offsets would point
-        # somewhere else in the rendered note.
-        doc = _FIXTURES["markBoundary"]["json"]
-        needle = "to normalize lower."
-        assert extract_plain_text(doc).index(needle) != flatten(doc)["text"].index(needle)
+    def test_the_fixtures_exercise_what_this_claims(self):
+        # Non-vacuity: separators are really present, and no fixture carries
+        # the one leaf the two tables read differently (it would need its own
+        # expectation, not this equality).
+        assert sum("\n" in _FIXTURES[n]["text"] for n in _FIXTURES) >= 10
+        assert all('"videoTimestamp"' not in json.dumps(_FIXTURES[n]["json"]) for n in _FIXTURES)
 
 
 class TestRobustness:
@@ -978,3 +1000,33 @@ class TestOneIndexPerFlatten:
             monkeypatch.setattr(nct, name, per_block)
         blocks = ar._note_blocks(_FIXTURES["chartsMtfThenSingle"]["json"], "chart")
         assert len(blocks) == 6 and built == [1]
+
+
+# ── R23-N3: a type that is not a string is an unknown node, never a table key ──
+
+from api.services.journal_two.note_citation_text import _is_textblock, node_type  # noqa: E402
+
+
+def test_a_node_whose_type_is_not_a_string_is_unknown_in_the_citation_walk():
+    # A set lookup hashes its key: `{"type": ["x"]}` raised TypeError here and
+    # 500'd the save (the plain text shares these tables). Unknown, it is a
+    # container whose inline content makes it a textblock -- what the client
+    # reads (lib/tiptap.js::nodeTypeOf answers null for a non-string name).
+    doc = {"type": "doc", "content": [
+        {"type": ["x"], "content": [{"type": "text", "text": "hi"}]},
+        {"type": "paragraph", "content": [{"type": "text", "text": "there"}]}]}
+    flat = flatten(doc)
+    assert flat["text"] == "hi\nthere"
+    assert [(s["text"], s["pm_start"], s["pm_end"]) for s in flat["spans"]] == [
+        ("hi", 1, 3), ("there", 5, 10)]
+    assert flat["content_size"] == 11
+    assert flat["text"].replace("\n", " ") == extract_plain_text(doc)   # one rule, two separators
+
+
+@pytest.mark.parametrize("bad", [["x"], {"k": 1}, 7, None, True])
+def test_node_type_answers_None_for_every_non_string_and_the_inference_survives_it(bad):
+    assert node_type({"type": bad}) is None
+    assert node_type({"type": "paragraph"}) == "paragraph"                # control
+    # The textblock inference reads CHILD types too, and hashed them.
+    assert _is_textblock({"type": bad, "content": [{"type": bad}, {"type": "text", "text": "b"}]}) is True
+    assert _is_textblock({"type": "mystery", "content": [{"type": bad}]}) is False

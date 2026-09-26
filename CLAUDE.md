@@ -3613,6 +3613,37 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
+### 📓 Notebook 10/10 program — waves 5–6: wave 5 COMPLETE (awaiting the owner's PR), wave 6 in build, 2026-09-24
+
+⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
+for this program and carries exact SHAs and the next actions in order. This
+section is a pointer, not a substitute for it. `docs/notebook/RESUME-PROMPT.md`
+is a paste-ready prompt covering the whole program.
+
+Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
+wave 5, tip `34f3fb6d2`, pushed) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
+(`feat/notebook-w6`, wave 6, carries all of wave 5's code via merge `07e1a74ae`;
+behind wave 5 only by four docs/evidence commits). Plan:
+`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+
+✅ **Wave 5 is reviewed (incl. the B1 re-review), gated on its final tip
+(`8f963fefa`, 0 NEW) and walked live on that tip (`f8976a114`, all 19 checks).**
+The one open item is the OWNER opening the PR from `feat/notebook-10` — `gh` is
+unauthenticated on this box. ⛔ The three never-revert commits `8167f7aa0`,
+`fd87271fd`, `82c56dd63` and the rule for them are in `docs/notebook/wave5-rollback.md`.
+
+⛔ **`tools/notebook_wave5_walk.py` is the walk that produced the evidence** — its
+header names the three preconditions (a sandbox from the tip; a PAID walk account
+on that data dir, or every notebook route redirects; `app/dist` rebuilt). The walk
+failed three times on the INSTRUMENT before the product passed once; the lessons
+are in the resume doc §11.
+
+⛔⛔ **The SDD ledger for this program lives at
+`notebook-k/.superpowers/sdd/2026-09-23-notebook-10/` and is gitignored — local
+disk only, never pushed.** Do not delete that worktree without backing it up
+first; the full lane-by-lane history (`progress.md`) and the single open-items
+tracker (`OPEN-ITEMS.md`) exist nowhere else.
+
 ### ✅ B7 / rule 12 — the rail now identifies WHOSE change set it is (CLOSED 2026-09-13)
 
 `app/src/hub/rule12Paths.test.js` asserts *"a joystick change set must not edit

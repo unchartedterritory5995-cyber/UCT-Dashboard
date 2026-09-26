@@ -1223,6 +1223,12 @@ NAMED_BUT_NOT_READ = {
     'docs/plans/joystick/deferred.md': 'rule12Paths.test.js — a `changed` fixture row',
     'docs/plans/joystick/scope-reconciliation.md': 'rule12Paths.test.js — a `changed` fixture row',
     'api/routers/calendar.py': 'rule12Paths.test.js — a `changed` fixture row for a NON-joystick branch',
+    # master a160d6501 (rule 12's shared-artifact carve-out), met here by the master merge
+    # 259c2d0ab: the carve-out prefix and two `changed` rows naming a real gate receipt. The
+    # classifier is fed the STRINGS; nothing opens those files.
+    'docs/plans/joystick/gate-runs': 'rule12Paths.test.js — the SHARED_ARTIFACT_PREFIXES carve-out string',
+    'docs/plans/joystick/gate-runs/2026-09-24T18-04-13.json': 'rule12Paths.test.js — a `changed` fixture row (a gate receipt)',
+    'docs/plans/joystick/gate-runs/2026-09-24T18-04-13.md': 'rule12Paths.test.js — a `changed` fixture row (a gate receipt)',
 }
 
 _PATH_LITERAL = re.compile(r"""['"]([A-Za-z0-9_.\-/]+)['"]""")

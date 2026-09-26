@@ -395,3 +395,95 @@
   font-size: 13px;
   line-height: 1.45;
 }
+
+/* Wave 5 bulk operations: what a bulk action did, and the Undo after a trash.
+   The STACK is fixed to the bottom of the viewport so it is seen wherever the
+   member has scrolled; it is NOT inside the bulk bar, which unmounts when the
+   selection empties. Each notice is an ordinary box in the stack's column —
+   ⛔ never `position: fixed` itself: two fixed notices share one spot and the
+   later one paints over the Undo (R1-S2). The column grows UP from the bottom
+   edge, so the Undo (the last child) keeps its place when a sentence arrives.
+   The stack itself lets clicks through; only the notices take them. Only
+   existing tokens. */
+.bulkNoticeStack {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  /* Controller item 9: ABOVE the joystick's resting layer -- its first-run
+     coach mark shares this band on a phone and covered the Undo -- and still
+     BELOW --z-backdrop, so an OPEN fan scrims it. Railed from tokens.css. */
+  z-index: calc(var(--z-hub-rest) + 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: min(640px, calc(100vw - 32px));
+  pointer-events: none;
+}
+.bulkNotice {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 10px 12px 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--ut-gold);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+}
+.bulkNoticeError {
+  border-color: var(--loss-border);
+  background: var(--loss-bg);
+}
+.bulkNoticeText { flex: 1; min-width: 0; }
+.bulkNoticeBtn {
+  flex: none;
+  min-height: 30px;
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ut-gold);
+  background: transparent;
+  border: 1px solid var(--ut-gold);
+  border-radius: 7px;
+  cursor: pointer;
+}
+.bulkNoticeClose {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+/* R23-N6: at the touch tier the buttons go UNDER the sentence. In one row, the
+   finger-sized buttons of an armed confirmation left the sentence 41px wide at
+   390px — a 399px-tall notice, and the warning the member is consenting to read
+   one word per line. The sentence takes its own row; the buttons wrap beneath
+   it. (Clear of the joystick pad: NotebookTab.jsx lifts the stack, from the
+   hub's own constants.) */
+@media (max-width: 1024px) {
+  .bulkNotice {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .bulkNoticeText {
+    flex-basis: 100%;
+  }
+  .bulkNoticeBtn,
+  .bulkNoticeClose {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
+}

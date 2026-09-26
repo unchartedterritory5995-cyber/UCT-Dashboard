@@ -96,7 +96,14 @@ describe('the Python walker describes the SAME schema the editor runs', () => {
   })
 
   it('the leaves that read as text are exactly the Python placeholders; each is a BLOCK atom or an inline leaf Python knows', () => {
-    const reading = real.filter((t) => t.isLeaf && citationLeafText(t.create()) !== '').map((t) => t.name)
+    // A leaf whose text IS an attribute (Wave 5: a formula reads as its LaTeX)
+    // reads as nothing at its defaults, so it is sampled with that attribute
+    // set. Every other leaf is read at its defaults, as before. The empty case
+    // is pinned on both sides by the `mathEmpty` fixture.
+    const SAMPLE_ATTRS = { inlineMath: { latex: 'x^2' }, blockMath: { latex: 'x^2' } }
+    for (const n of Object.keys(SAMPLE_ATTRS)) expect(schema.nodes[n], `${n} is in the app schema`).toBeTruthy()
+    const reading = real.filter((t) => t.isLeaf && citationLeafText(t.create(SAMPLE_ATTRS[t.name])) !== '')
+      .map((t) => t.name)
     expect(sorted(pyNames('_ATOM_TEXT'))).toEqual(sorted(reading))
     // A BLOCK leaf that reads as text is its own line; an INLINE one (hardBreak
     // reads as one space, Wave 4) must emit NO separator, which the walker

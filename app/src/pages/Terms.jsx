@@ -6,7 +6,7 @@ export default function Terms() {
     <div className={styles.page}>
       <Link to="/" className={styles.backLink}>&larr; Back to home</Link>
       <h1 className={styles.heading}>Terms of Service</h1>
-      <p className={styles.subheading}>Last updated: March 26, 2026</p>
+      <p className={styles.subheading}>Last updated: September 23, 2026</p>
 
       <div className={styles.prose}>
         <h2>1. Acceptance of Terms</h2>
@@ -21,7 +21,8 @@ export default function Terms() {
           UCT Intelligence provides market analysis tools, data visualizations, and
           AI-generated trading intelligence for informational and educational purposes.
           The Service includes features such as the Morning Wire, UCT 20 portfolio tracker,
-          breadth monitor, scanner, theme tracker, and related tools.
+          breadth monitor, scanner, theme tracker, trade journal, research notebook, and
+          related tools.
         </p>
         <p>
           The Service is not a registered investment advisor, broker-dealer, or financial planner.
@@ -56,10 +57,38 @@ export default function Terms() {
 
         <h2>5. Intellectual Property</h2>
         <p>
-          All content, data, analysis, and software provided through the Service is owned by
-          UCT Intelligence LLC and protected by copyright and intellectual property laws.
-          You may not reproduce, distribute, modify, or create derivative works from any
-          content without prior written consent.
+          Except for Your Content (below), all content, data, analysis, and software provided
+          through the Service is owned by UCT Intelligence LLC or its licensors and protected by
+          copyright and intellectual property laws. You may not reproduce, distribute, modify,
+          or create derivative works from any of it without prior written consent.
+        </p>
+        <p>
+          Market data, fundamentals, news, and other information in the Service come in part
+          from third-party providers under license. That data is for your personal use within
+          the Service only and may not be redistributed, resold, or extracted.
+        </p>
+
+        <h3>Your Content</h3>
+        <p>
+          You keep ownership of what you create in the Service, including your notes,
+          attachments, trade journal entries, and watchlists ("Your Content"). You give us a
+          limited license to store, process, display, and transmit Your Content only as
+          needed to provide the Service to you. That includes sending it to the service
+          providers listed in our <Link to="/privacy">Privacy Policy</Link> when you use a
+          feature that needs them, such as an AI feature.
+        </p>
+        <p>
+          You are responsible for Your Content and must have the right to upload it. Do not
+          upload material that infringes someone else's rights or that you are not allowed
+          to share.
+        </p>
+
+        <h3>Sharing</h3>
+        <p>
+          Some features let you share Your Content, such as sharing your journal with the
+          community or creating a share link for a note. Anyone who has a share link can view
+          the shared note until you turn the link off. You are responsible for what you
+          choose to share. We may disable a share link that breaks these terms.
         </p>
 
         <h2>6. Disclaimer of Warranties</h2>
@@ -71,6 +100,15 @@ export default function Terms() {
         <p>
           Past performance of any strategy, portfolio, or signal discussed on the Service
           is not indicative of future results. Trading involves substantial risk of loss.
+        </p>
+
+        <h3>AI-Generated Content</h3>
+        <p>
+          Some features use artificial intelligence to generate answers, summaries, coaching,
+          and other content. AI-generated content can be wrong or incomplete, even when it
+          cites your own notes or market data. It is provided for informational and
+          educational purposes only, is not investment advice, and should be checked before
+          you rely on it.
         </p>
 
         <h2>7. Limitation of Liability</h2>
@@ -91,7 +129,7 @@ export default function Terms() {
           <li>Use the Service for any unlawful purpose</li>
           <li>Attempt to reverse engineer, scrape, or extract data from the Service</li>
           <li>Interfere with or disrupt the Service or its infrastructure</li>
-          <li>Share your account credentials or redistribute Service content</li>
+          <li>Share your account credentials or redistribute Service content (other than Your Content)</li>
           <li>Use automated tools to access the Service without authorization</li>
         </ul>
 
@@ -99,7 +137,8 @@ export default function Terms() {
         <p>
           We reserve the right to suspend or terminate your account at any time for violation
           of these terms or for any other reason at our sole discretion. Upon termination,
-          your right to access the Service ceases immediately.
+          your right to access the Service ceases immediately. You may export Your Content
+          before you close your account.
         </p>
 
         <h2>10. Changes to Terms</h2>

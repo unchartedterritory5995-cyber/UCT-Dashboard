@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two.notebook_schema import check_body_write
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
@@ -74,6 +75,15 @@ from api.services.journal_two.notes_quota import (
     NoteQuotaExceeded, assert_import_headroom,
 )
 from api.services.journal_two.notes_search import fts_match_expr
+# Which node types are leaves / inline leaves / textblocks: ONE table, owned by
+# the citation text and pinned against the real schema (see extract_plain_text).
+from api.services.journal_two.note_citation_text import (
+    _ATOM_TEXT as _CITATION_ATOM_TEXT,
+    _INLINE_LEAF_TYPES as _CITATION_INLINE_LEAF_TYPES,
+    _LEAF_TYPES as _CITATION_LEAF_TYPES,
+    _is_textblock as _citation_is_textblock,
+    node_type as _citation_node_type,
+)
 
 # ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
 # every redeploy wiped every note image. One authority now (attachment_root.py).
@@ -122,56 +132,106 @@ def _fmt_secs(secs: Any) -> str:
     return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
 
 
-def extract_plain_text(doc: dict[str, Any] | None) -> str:
-    """Recursively walk a TipTap ProseMirror doc and concatenate all text
-    nodes (space-separated), plus the search lines of the custom atom nodes.
-    This writes body_plain — the notebook search index — so it MUST stay in
-    lockstep with the client serializer (lib/tiptap.js extractPlainText).
+# What a LEAF node reads as in body_plain: the citation text's own leaf table
+# (note_citation_text._ATOM_TEXT -- attachment chip, excerpt, widget, hard
+# break, formulas) plus the ONE leaf the search text reads and a citation does
+# not: a video timestamp, searchable as "[1:15]". Derived, never restated --
+# WHICH types are leaves, which leaves are inline and which blocks are
+# textblocks comes from the same module, pinned against the app's real
+# ProseMirror schema by askCitation.schemaParity.test.js. The client twin is
+# lib/tiptap.js::plainLeafText (citationLeafText + the same one extra), and
+# tests/fixtures_plain_text.json pins the two serializers together.
+#   · a formula reads as its LaTeX source; an empty one as nothing.
+#   · widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
+#     derives it from the widget registry at the only moments params change
+#     (insert / toolbar edit), so this side never re-owns 13 per-widget formats.
+#   · documentExcerpt: the excerpt's durable text lives in j2_note_excerpts and
+#     is searchable through its own FTS index, so the body carries a marker.
+#   · every other leaf (image, rule, fact, noteLink, askCitation) reads as "".
+_PLAIN_LEAF_TEXT = {
+    **_CITATION_ATOM_TEXT,
+    "videoTimestamp": lambda a: f"[{_fmt_secs(a.get('seconds'))}]",
+}
 
-    widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
-    derives it from the widget registry at the only moments params change
-    (insert / toolbar edit), so this side never re-owns 13 per-widget formats
-    it could drift on. Missing/blank searchText degrades to '[widget]'."""
+# One space between blocks: FTS5 tokenizes on non-alphanumerics, so the
+# separator only has to keep two blocks' words apart.
+PLAIN_TEXT_BLOCK_SEPARATOR = " "
+
+
+def extract_plain_text(doc: dict[str, Any] | None) -> str:
+    """The note's plain text -- ProseMirror's own
+    ``doc.textBetween(0, size, " ", leafText)``, walked over the stored JSON.
+
+    This writes body_plain -- the notebook search index and the text History
+    diffs -- so it MUST stay in lockstep with the client serializer
+    (lib/tiptap.js extractPlainText). It is PINNED, not promised: both read
+    tests/fixtures_plain_text.json (tests/test_plain_text_parity.py ⇄
+    lib/plainText.parity.test.js), and each rail fails on a leaf one side reads
+    and the other does not.
+
+    The rules are textBetween's, verbatim, and the same ones the citation text
+    uses (note_citation_text.flatten, with a newline where this has a space):
+      · text runs inside one textblock join with NOTHING -- a mark (bold,
+        highlight, link) is invisible, so "**NV**DA" reads "NVDA" and a
+        highlighted phrase mid-sentence keeps single spaces around it;
+      · every textblock (an EMPTY one included) is preceded by one separator,
+        except the first thing in the document to earn one;
+      · a container that is not a textblock (list, quote, table, toggle, ...)
+        adds nothing of its own;
+      · a BLOCK leaf is preceded by a separator only when it reads as text; an
+        INLINE leaf never is.
+    ⚰️ Until 2026-09-23 every text node was joined with a space, so a partly
+    bold word was indexed as two words and a search for it missed the note.
+
+    attrs and type may be any JSON shape (permissive body validator + importer
+    round trip) -- a non-dict attrs degrades to {}, a non-string type reads as
+    an unknown node (note_citation_text.node_type), and neither 500s the note
+    write."""
     if not isinstance(doc, dict):
         return ""
-    out: list[str] = []
+    parts: list[str] = []
+    state = {"first": True}
+
+    def separator() -> None:
+        # textBetween: `if (first) first = false; else text += blockSeparator`
+        if state["first"]:
+            state["first"] = False
+            return
+        parts.append(PLAIN_TEXT_BLOCK_SEPARATOR)
+
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        ntype = node.get("type")
-        # attrs may be any JSON shape (permissive body validator + importer
-        # round-trip) — a truthy NON-dict (list/string/number) must not reach
-        # .get() in the branches below, or every save of the note 500s. The
-        # widgetEmbed branch got this guard in the review fix pass; a non-dict
-        # on videoTimestamp/attachmentChip crashed identically.
+        # A type that is not a string is an UNKNOWN node, never a table key:
+        # `{"type": ["x"]}` hashed here and 500'd create/update (R23-N3).
+        ntype = _citation_node_type(node)
         attrs = node.get("attrs")
         if not isinstance(attrs, dict):
             attrs = {}
         if ntype == "text":
             t = node.get("text")
             if isinstance(t, str):
-                out.append(t)
-        elif ntype == "videoTimestamp":
-            out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
-        elif ntype == "attachmentChip":
-            out.append(f"[file: {attrs.get('name') or 'file'}]")
-        elif ntype == "documentExcerpt":
-            # Wave J: mirrors financialFact/noteLink's own silence -- the
-            # excerpt's real, durable text lives in j2_note_excerpts and is
-            # searchable through its own FTS index (excerpt_search.py), not
-            # duplicated into note-body search. A short bracketed marker
-            # (matching attachmentChip's own idiom) keeps SOME inline trace.
-            out.append("[excerpt]")
-        elif ntype == "widgetEmbed":
-            # attrs may be any JSON shape (the body validator is deliberately
-            # permissive and the importer round-trips arbitrary HTML) — a
-            # non-dict here must degrade, never 500 the note write.
-            st = attrs.get("searchText") if isinstance(attrs, dict) else None
-            out.append(st if isinstance(st, str) and st else "[widget]")
-        for child in node.get("content", []) or []:
+                parts.append(t)
+            return
+        if ntype in _CITATION_LEAF_TYPES:
+            maker = _PLAIN_LEAF_TEXT.get(ntype)
+            leaf = maker(attrs) if maker is not None else ""
+            if leaf and ntype not in _CITATION_INLINE_LEAF_TYPES:
+                separator()
+            parts.append(leaf)
+            return
+        if _citation_is_textblock(node):
+            separator()
+        children = node.get("content")
+        if isinstance(children, list):
+            for child in children:
+                walk(child)
+
+    children = doc.get("content")
+    if isinstance(children, list):
+        for child in children:
             walk(child)
-    walk(doc)
-    return " ".join(s for s in out if s)
+    return "".join(parts)
 
 
 # ── Combined note-content sidecar sync (Performance QW-2, 2026-09-22) ───────
@@ -200,6 +260,30 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
 # measurable cost was the redundant walk, and that's what this fixes: same
 # DELETE-then-conditionally-INSERT shape per table, computed from ONE walk
 # instead of four.
+def _sync_note_mentions(
+    conn: sqlite3.Connection, user_id: str, note_id: str, body_plain: str | None,
+) -> None:
+    """Rebuild one note's `j2_note_mentions` inside the caller's transaction.
+    Cashtag-tier ONLY (see the schema comment in db.py for why): scans
+    body_plain, which every caller has already computed via
+    extract_plain_text -- this never re-derives note text or re-walks
+    body_json. Fast and local: buzz_extract is a pure regex/set-membership
+    matcher, no network call, so this never makes a note save depend on an
+    external provider. Called by `_sync_note_sidecars` on every save, and by
+    the body_plain backfill for a note whose text it re-derived."""
+    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
+    symbols = sorted({
+        sym for sym, tier in buzz_extract.extract(body_plain or "")
+        if tier == "cashtag"
+    })
+    if symbols:
+        now = _now_iso()
+        conn.executemany(
+            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
+            " VALUES (?,?,?,?)",
+            [(note_id, user_id, sym, now) for sym in symbols])
+
+
 def _sync_note_sidecars(
     conn: sqlite3.Connection, user_id: str, note_id: str,
     body_json: dict[str, Any] | None, body_plain: str | None,
@@ -288,24 +372,10 @@ def _sync_note_sidecars(
               r["trade_ref"], r["trade_ref_type"], r["mode"], r["captured_at"])
              for i, r in enumerate(embeds)])
 
-    # j2_note_mentions -- cashtag-tier ONLY (see the schema comment in db.py
-    # for why): scans body_plain, which every caller has already computed
-    # via extract_plain_text -- this never re-derives note text or re-walks
-    # body_json, which is why it stays outside the combined walk above.
-    # Fast and local: buzz_extract is a pure regex/set-membership matcher,
-    # no network call, so this never makes a note save depend on an
-    # external provider.
-    conn.execute("DELETE FROM j2_note_mentions WHERE note_id = ?", (note_id,))
-    symbols = sorted({
-        sym for sym, tier in buzz_extract.extract(body_plain or "")
-        if tier == "cashtag"
-    })
-    if symbols:
-        now = _now_iso()
-        conn.executemany(
-            "INSERT INTO j2_note_mentions (note_id, user_id, symbol, created_at)"
-            " VALUES (?,?,?,?)",
-            [(note_id, user_id, sym, now) for sym in symbols])
+    # j2_note_mentions -- the one projection derived from body_plain, not
+    # body_json; its own function so the body_plain backfill
+    # (db.run_notebook_migration_v7) rebuilds it through this same code.
+    _sync_note_mentions(conn, user_id, note_id, body_plain)
 
     # j2_note_links -- a `noteLink` node's target id is NEVER validated
     # against j2_notes here: a link to a note that doesn't exist (foreign
@@ -352,6 +422,85 @@ def _sync_note_sidecars(
 
 # ── Validation ───────────────────────────────────────────────────────────────
 
+def _normalize_tag_path(tag: str) -> str:
+    """Nested tags (Obsidian's `a/b/c`): every level trimmed, empty levels
+    dropped — so "Research / Semis", "research//semis" and a stray leading or
+    trailing slash all name ONE place in the tag tree. A flat tag (no `/`)
+    comes back exactly as `str.strip()` would give it: nothing else changes
+    for the tags every member already has."""
+    t = tag.strip()
+    if "/" not in t:
+        return t
+    return "/".join(seg.strip() for seg in t.split("/") if seg.strip())
+
+
+def tag_key(tag: Any) -> str:
+    """A tag's IDENTITY — the one key every comparison of two tags uses: the
+    tag tree's node keys, its counts, the `tag=` filter (both halves), the
+    search box's tag match and the bulk bar's add/remove.
+
+    Nested-path normalised, then lower-cased by PYTHON, which folds Unicode
+    ("Élan" -> "élan"). ⛔ Never SQLite's `lower()` for this: it folds ASCII
+    only, so "Élan" and "élan" were two tags to SQL and one to Python.
+    ⛔ And never the STORED spelling: a tag saved before nested tags ("Q3 / Q4",
+    the old validator only stripped it) is the same tag as "Q3/Q4" — the tree
+    counted it under "q3/q4" while the filter compared the raw text and found
+    nothing (review S2)."""
+    if tag is None:
+        return ""
+    return _normalize_tag_path(str(tag)).lower()
+
+
+def _sql_tag_match(value: Any, key: str) -> int:
+    """SQL `j2_tag_match(value, key)`: 1 when a stored tag IS `key` or sits
+    below it (`key/…`) — a tag is the parent of its children (Obsidian)."""
+    if value is None or not key:
+        return 0
+    k = tag_key(value)
+    return 1 if (k == key or k.startswith(key + "/")) else 0
+
+
+def _sql_tag_is(value: Any, key: str) -> int:
+    """SQL `j2_tag_is(value, key)`: 1 when a stored tag IS `key` (no children)."""
+    if value is None or not key:
+        return 0
+    return 1 if tag_key(value) == key else 0
+
+
+def register_note_sql_functions(conn: sqlite3.Connection) -> sqlite3.Connection:
+    """Register the Python functions this module's SQL calls. Every
+    connection that runs a `_notes_filter_sql` predicate MUST pass through
+    here first — `no such function` otherwise.
+    Deterministic, per-connection and idempotent; cheap enough to call on
+    every read."""
+    conn.create_function("j2_tag_match", 2, _sql_tag_match, deterministic=True)
+    conn.create_function("j2_tag_is", 2, _sql_tag_is, deterministic=True)
+    return conn
+
+
+def _tag_prefilter(key: str) -> tuple[str, list[Any]]:
+    """A cheap SUPERSET test on the raw `tags` JSON text, run before the
+    per-tag Python match so a 50k-note library does not pay one Python call
+    per tag per note. Sound WHATEVER THE WRITER, by construction:
+      · a row that is pure ASCII (no byte above 0x7F) with no `\\u`
+        escape is where SQLite's `lower()` and Python's agree, and JSON
+        escaping is per character — so the JSON-escaped first segment of
+        the key appears in `lower(tags)` whenever a stored tag's key matches;
+      · every other row passes through to the exact check: one WITH an
+        escape (`json.dumps`' default for a non-ASCII tag), AND one holding
+        raw UTF-8 (`ensure_ascii=False`, SQLite's own JSON functions, an
+        import) — `length(CAST(x AS BLOB))` counts bytes and `length(x)`
+        characters, so the two differ exactly when a byte above 0x7F is there.
+    ⚰️ Until fix round 3 only the escape passed, so soundness rested on an
+    unwritten rule that every writer escapes: a raw-UTF-8 `["Élan"]` was
+    counted by the tree and NOT found by `tag=élan` (review R1-N1)."""
+    first = key.split("/", 1)[0]
+    needle = json.dumps(first)[1:-1]
+    return ("(instr(lower(j2_notes.tags), ?) > 0 OR instr(j2_notes.tags, '\\u') > 0"
+            " OR length(CAST(j2_notes.tags AS BLOB)) != length(j2_notes.tags))",
+            [needle])
+
+
 def _validate_tags(raw: Any) -> list[str]:
     if raw is None:
         return []
@@ -364,12 +513,12 @@ def _validate_tags(raw: Any) -> list[str]:
     for t in raw:
         if not isinstance(t, str):
             raise NoteValidationError("tag entries must be strings")
-        t2 = t.strip()
+        t2 = _normalize_tag_path(t)
         if not t2:
             continue
         if len(t2) > MAX_TAG_LENGTH:
             raise NoteValidationError(f"tag exceeds {MAX_TAG_LENGTH} chars")
-        key = t2.lower()
+        key = tag_key(t2)
         if key in seen:
             continue
         seen.add(key)
@@ -974,9 +1123,27 @@ def _notes_filter_sql(
         else:
             sql += " AND 0"
     if tag:
-        # JSON LIKE — case-insensitive substring of any tag value.
-        sql += ' AND lower(tags) LIKE ?'
-        params.append(f'%"{tag.lower()}"%')
+        # A note carries this tag, or a tag BELOW it (Wave 5 nested tags: a
+        # tag is the parent of every `tag/…` tag, the Obsidian convention, so
+        # "research" also finds notes tagged only "research/semis").
+        # ⛔ Both sides compared by `tag_key` (review S2 + N2): the tree counts
+        # by that key, so the filter must find by it too — a legacy
+        # "Q3 / Q4", an "Élan" (stored as a `\u` escape the JSON text cannot
+        # fold), a `tag=` with a stray trailing slash. Decoded values, never
+        # a LIKE on the JSON text, so `%` and `_` in a tag are text.
+        # ⛔ ONE predicate for the list AND its count — both build off this;
+        # callers run it on a connection from `register_note_sql_functions`.
+        key = tag_key(tag)
+        if key:
+            pre_sql, pre_params = _tag_prefilter(key)
+            sql += (f" AND {pre_sql} AND EXISTS (SELECT 1 FROM"
+                    " json_each(COALESCE(j2_notes.tags, '[]')) jt"
+                    " WHERE j2_tag_match(jt.value, ?))")
+            params.extend([*pre_params, key])
+        else:
+            # A tag that normalises to nothing names no tag: an honest empty
+            # result, never a silently ignored filter.
+            sql += " AND 0"
     if q:
         # FTS5 when the text yields a valid MATCH expression; the old
         # LIKE scan remains the fallback so a query FTS cannot parse
@@ -997,7 +1164,18 @@ def _notes_filter_sql(
         # title/body text search. Deliberately NOT added as FTS columns —
         # that would touch the virtual table, its 3 triggers, and the v4
         # backfill, for a scope this OR clause already covers.
-        exact_tag_pattern = f'%"{q.strip().lower()}"%'   # same spelling as the `tag` filter above
+        # The search box finds a note whose tag IS the text typed -- the same
+        # `tag_key` identity the `tag=` filter uses (never its children: a
+        # search for "research" is not a request for the whole subtree).
+        q_key = tag_key(q)
+        if q_key:
+            q_pre_sql, q_pre_params = _tag_prefilter(q_key)
+            tag_sql = (f"({q_pre_sql} AND EXISTS (SELECT 1 FROM"
+                       " json_each(COALESCE(j2_notes.tags, '[]')) jt"
+                       " WHERE j2_tag_is(jt.value, ?)))")
+            tag_params: list[Any] = [*q_pre_params, q_key]
+        else:
+            tag_sql, tag_params = "0", []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
         # cashtag) used to survive into this comparison unstripped, so
         # "$NVDA" never matched a note whose only NVDA signal was the
@@ -1010,12 +1188,12 @@ def _notes_filter_sql(
         if expr:
             sql += (" AND (id IN (SELECT note_id FROM j2_notes_fts"
                     " WHERE j2_notes_fts MATCH ? AND user_id = ?)"
-                    " OR lower(tags) LIKE ? OR ticker = ?)")
-            params.extend([expr, user_id, exact_tag_pattern, exact_ticker])
+                    f" OR {tag_sql} OR ticker = ?)")
+            params.extend([expr, user_id, *tag_params, exact_ticker])
         else:
-            sql += " AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR lower(tags) LIKE ? OR ticker = ?)"
+            sql += f" AND (lower(title) LIKE ? OR lower(body_plain) LIKE ? OR {tag_sql} OR ticker = ?)"
             ql = f"%{q.lower()}%"
-            params.extend([ql, ql, exact_tag_pattern, exact_ticker])
+            params.extend([ql, ql, *tag_params, exact_ticker])
     return sql, params
 
 
@@ -1083,6 +1261,7 @@ def list_notes(
 ) -> list[dict[str, Any]]:
     owned = conn is None
     conn = conn or get_connection()
+    register_note_sql_functions(conn)
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
@@ -1198,6 +1377,7 @@ def count_notes(
     so the two can never disagree about which notes match."""
     owned = conn is None
     conn = conn or get_connection()
+    register_note_sql_functions(conn)
     try:
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
@@ -1217,6 +1397,66 @@ def count_notes(
     finally:
         if owned:
             conn.close()
+
+
+def _tag_groups(
+    conn: sqlite3.Connection, user_id: str, *, flat_only: bool = False,
+) -> dict[str, dict[str, Any]]:
+    """`tag_key -> {"tag": display spelling, "c": DISTINCT notes, "lks": [...]}`
+    over the member's active notes (flat tags only when `flat_only`).
+
+    Grouped in SQL by `LOWER(value)` — C speed, one pass — then FOLDED here by
+    `tag_key`, which is what the tree and the filter compare by. The two agree
+    for almost every tag; where they do not (a legacy "Q3 / Q4" beside
+    "Q3/Q4", or "Élan" beside "élan", which SQLite's ASCII-only LOWER keeps
+    apart) the folded group is recounted exactly, so a note carrying two
+    spellings of one tag still counts once. Measured on 50,000 notes: grouping
+    by a Python key inside SQL cost ~120 ms more per call than this."""
+    rows = conn.execute(
+        "SELECT MAX(je.value) AS tag, LOWER(je.value) AS lk,"
+        " COUNT(DISTINCT j2_notes.id) AS c"
+        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+        + (" AND instr(je.value, '/') = 0" if flat_only else "")
+        + " GROUP BY LOWER(je.value)",
+        (user_id,),
+    ).fetchall()
+    groups: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        key = tag_key(r["lk"])
+        if not key:
+            continue
+        g = groups.setdefault(key, {"tag": "", "c": 0, "lks": []})
+        g["tag"] = max(g["tag"], str(r["tag"] or ""))
+        g["c"] += int(r["c"] or 0)
+        g["lks"].append(r["lk"])
+    collided = [g for g in groups.values() if len(g["lks"]) > 1]
+    if collided:
+        ids = _note_ids_by_lowered_tag(conn, user_id, [lk for g in collided for lk in g["lks"]])
+        for g in collided:
+            g["c"] = len(set().union(*(ids.get(lk, set()) for lk in g["lks"])))
+    return groups
+
+
+def _note_ids_by_lowered_tag(
+    conn: sqlite3.Connection, user_id: str, lowered: list[str],
+) -> dict[str, set[str]]:
+    """`LOWER(tag) -> active note ids carrying it`, for the `lowered` values
+    asked about — ONE pass over the member's notes, never one per tag."""
+    out: dict[str, set[str]] = {}
+    wanted = list(dict.fromkeys(lowered))
+    for start in range(0, len(wanted), _BATCH_READ_CHUNK):
+        chunk = wanted[start:start + _BATCH_READ_CHUNK]
+        placeholders = ",".join("?" * len(chunk))
+        for nid, lk in conn.execute(
+            "SELECT j2_notes.id, LOWER(je.value)"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            f" AND LOWER(je.value) IN ({placeholders})",
+            [user_id, *chunk],
+        ):
+            out.setdefault(lk, set()).add(nid)
+    return out
 
 
 def tag_counts(
@@ -1249,10 +1489,11 @@ def tag_counts(
     member-facing intent (a member who typed 'Trading' and 'trading' means
     one tag), so THIS query is the one that must fold to match it — never
     the reverse (that would need every stored tag re-cased, and would not
-    fix a future note written with a fresh casing anyway). `LOWER(je.value)`
-    is the ONE grouping key, mirroring `_validate_tags`'s own per-note
-    dedup key (`t2.lower()`, above) and the filter's `tag.lower()` — three
-    call sites, one normalization rule. `MAX(je.value)` picks a single
+    fix a future note written with a fresh casing anyway). `tag_key` is the
+    ONE grouping key (`_tag_groups` folds SQL's groups by it) — the same function
+    `_validate_tags` dedups by and the `tag=` filter finds by (wave 5 fix
+    round: it replaced SQLite's ASCII-only `LOWER`, which split "Élan" from
+    "élan"). Counts are DISTINCT notes. `MAX(je.value)` picks a single
     display casing per group; which variant wins is not load-bearing
     (matching is case-insensitive everywhere a tag is used), only that
     there is exactly one row per case-insensitive tag."""
@@ -1261,15 +1502,91 @@ def tag_counts(
     try:
         # Wave 0 trash: a soft-deleted note's tags must not inflate the tag
         # cloud — same "active notebook only" predicate as everywhere else.
-        rows = conn.execute(
-            "SELECT MAX(je.value) AS tag, LOWER(je.value) AS tag_key, COUNT(*) AS c"
+        groups = _tag_groups(conn, user_id)
+        ordered = sorted(groups.items(), key=lambda kv: (-kv[1]["c"], kv[0]))
+        return [{"tag": g["tag"], "count": g["c"]} for _k, g in ordered]
+    finally:
+        if owned:
+            conn.close()
+
+
+def tag_tree(
+    user_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict[str, Any]]:
+    """Wave 5 nested tags — every node of the member's tag tree with its
+    counts: `[{path, key, own, total}]`.
+
+    `path` is the display spelling ("Research/Semis"), `key` its case-folded
+    identity (the same case-insensitive rule `tag_counts` and the `tag=`
+    filter use). A parent that no note carries by itself ("research" when only
+    "research/semis" exists) is still a node, with `own` 0 — otherwise the
+    tree would have a child with no parent to hang from.
+
+    ⛔ `total` is DISTINCT NOTES in the subtree, never a sum of child counts: a
+    note tagged both "research" and "research/semis" is one note under
+    "research", and a summed count would claim two — the same honest-count
+    discipline as `tag_counts`. It is what filtering by that tag returns.
+
+    ⭐ Cheap for the common case: flat tags are counted in SQL exactly as
+    `tag_counts` counts them, and only rows carrying a `/` (plus the flat
+    parents those rows actually hang under) are read into Python."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        flat_groups = _tag_groups(conn, user_id, flat_only=True)
+        nested_rows = conn.execute(
+            "SELECT j2_notes.id AS nid, je.value AS tag"
             " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
             " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-            " GROUP BY LOWER(je.value)"
-            " ORDER BY c DESC, tag_key ASC",
+            " AND instr(je.value, '/') > 0",
             (user_id,),
         ).fetchall()
-        return [{"tag": r["tag"], "count": int(r["c"] or 0)} for r in rows]
+
+        own: dict[str, int] = {}
+        spelled: dict[str, str] = {}      # explicit spellings win
+        implied: dict[str, str] = {}      # a parent named only through a child
+        for key, g in flat_groups.items():
+            own[key] = own.get(key, 0) + g["c"]
+            spelled[key] = max(spelled.get(key, ""), _normalize_tag_path(g["tag"]))
+
+        under: dict[str, set[str]] = {}  # key -> notes tagged it OR anything below it
+        own_nested: dict[str, set[str]] = {}
+        for r in nested_rows:
+            path = _normalize_tag_path(str(r["tag"] or ""))
+            if not path:
+                continue
+            segs = path.split("/")
+            for i in range(1, len(segs) + 1):
+                prefix = "/".join(segs[:i])
+                pkey = prefix.lower()
+                under.setdefault(pkey, set()).add(r["nid"])
+                if i < len(segs):
+                    implied[pkey] = max(implied.get(pkey, ""), prefix)
+            own_nested.setdefault(path.lower(), set()).add(r["nid"])
+            spelled[path.lower()] = max(spelled.get(path.lower(), ""), path)
+
+        # A flat tag that is also a PARENT: its own notes join its subtree.
+        parents = [k for k in under if "/" not in k and k in flat_groups]
+        if parents:
+            ids = _note_ids_by_lowered_tag(conn, user_id, [lk for k in parents for lk in flat_groups[k]["lks"]])
+            for k in parents:
+                for lk in flat_groups[k]["lks"]:
+                    under[k] |= ids.get(lk, set())
+
+        for k, ids in own_nested.items():
+            own[k] = own.get(k, 0) + len(ids)
+
+        out: list[dict[str, Any]] = []
+        for key in set(own) | set(under):
+            out.append({
+                "path": spelled.get(key) or implied.get(key) or key,
+                "key": key,
+                "own": own.get(key, 0),
+                "total": len(under[key]) if key in under else own.get(key, 0),
+            })
+        out.sort(key=lambda n: (-n["total"], n["key"]))
+        return out
     finally:
         if owned:
             conn.close()
@@ -2326,8 +2643,17 @@ def update_note(
     expected_updated_at: str | None = None,
     force_version: bool = False,
     restored_from_version_id: str | None = None,
+    client_schema: int | None = None,
 ) -> dict[str, Any] | None:
-    """`expected_updated_at` (optional) makes the write a compare-and-set:
+    """`client_schema` is the schema the CLIENT that sent this patch can read
+    (`notebook_schema.declared_schema` of its `X-UCT-Notebook-Schema` header —
+    0 when absent). A body write from a client older than the STORED body is
+    refused with `NotebookSchemaTooOld` before anything else is checked: that
+    client may be holding the note as an EMPTY document it could not parse
+    (H14). None = not a client's body (a version restore, a server append).
+    ⛔ Never reverted with the features: see notebook_schema.py.
+
+    `expected_updated_at` (optional) makes the write a compare-and-set:
     when it no longer matches the row's updated_at, another writer (the
     'Send to Journal' server append, a second tab) got there first and a
     blind full-doc PUT would silently delete their write — the A15 clobber.
@@ -2347,6 +2673,8 @@ def update_note(
         ).fetchone()
         if existing is None:
             return None
+        if "bodyJson" in patch:
+            check_body_write(existing["body_json"], client_schema)
         if expected_updated_at is not None and existing["updated_at"] != expected_updated_at:
             raise NoteConflictError("note changed since the client's baseline")
 
@@ -3022,6 +3350,453 @@ def list_recents(
             (user_id, limit),
         ).fetchall()
         return [_row_to_note_summary(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Quick switcher (title search over the WHOLE library) ─────────────────────
+#
+# The Ctrl/Cmd+K palette used to reach only favourites and recents. This is the
+# lean read it needs to jump to ANY note by title as the member types.
+#
+# ⛔ NOT `list_notes(q=...)`. That is the FTS search over title AND body, ranked
+# by bm25, returning a 400-char body preview per row and logging a
+# `notebook_search_used` event per call. A switcher asks a different question
+# ("which note is CALLED this?"), is fired on every debounced keystroke of an
+# app-wide palette, and must rank a title that STARTS with the query above one
+# that merely mentions it in paragraph nine.
+#
+# ⛔ EVERY LIVE TITLE IS RANKED — never a capped sample — for the tiers that
+# ask "is the typed text IN the title" (0-5). A one-letter query can match most
+# of a 50k-note library; ranking "the newest 2,000 matches" would silently lose
+# an EXACT title on an older note. What makes that affordable on every
+# keystroke is the covering index `idx_j2_notes_switcher` (db.py): one
+# member's titles read from the index alone, newest edit first — measured on
+# 50,000 notes, ~30 ms where the same read off the table took ~150 ms — and
+# ranked HERE, in Python, which also folds case the way a member reads it
+# ("Élan" is found by "élan"; SQLite's lower() folds ASCII only — review N2).
+#
+# The two FUZZY tiers (6, 7) are the one bounded exception, and they say so:
+# they read only the member's SWITCHER_FUZZY_SCOPE most recently edited notes
+# (plus every recent and favourite), because letters-in-order and one-typo
+# tests cost far more per title than a substring test — and they run only when
+# the tiers above left room on the page.
+#
+# ⛔ Substring tests, never LIKE, for the member's text: `%` and `_` are text.
+SWITCHER_DEFAULT_LIMIT = 8
+SWITCHER_MAX_LIMIT = 50
+_SWITCHER_MAX_QUERY_CHARS = 120
+_SWITCHER_MAX_TOKENS = 6
+# A title "word" can begin after a space or after one of these. Replaced by a
+# space in BOTH the title and the query before the word-start test, so
+# "NVDA-Q3 plan" word-starts "q3" and "$NVDA thesis" word-starts "nvda".
+_SWITCHER_WORD_BREAKS = ("-", "_", "/", "(", "[", "$", ":", ".", ",", "#", "|")
+_SWITCHER_BREAK_TABLE = str.maketrans({ch: " " for ch in _SWITCHER_WORD_BREAKS})
+
+# Tier numbers — lower ranks first.
+SWITCHER_TIER_EXACT = 0
+SWITCHER_TIER_PREFIX = 1
+SWITCHER_TIER_WORD_START = 2
+SWITCHER_TIER_ALL_WORDS_START = 3
+SWITCHER_TIER_SUBSTRING = 4
+SWITCHER_TIER_ALL_WORDS = 5
+SWITCHER_TIER_FUZZY = 6   # the letters in order, the first starting a word ("nvth")
+SWITCHER_TIER_TYPO = 7    # every word present, or one slip from a title word's start
+# A row at or above this tier is a title that IS, STARTS WITH, or has a WORD
+# STARTING WITH the query — `strong: true` in the response. The palette lets a
+# strong note outrank ticker rows and a weak one never. It reads the FLAG, never
+# a tier number, so renumbering the tiers cannot silently re-place rows among
+# tickers (review S3: the client used to restate this as a constant).
+SWITCHER_STRONG_TIER_MAX = SWITCHER_TIER_WORD_START
+SWITCHER_FUZZY_MIN_CHARS = 3     # fewer letters in order is noise, not a match
+SWITCHER_TYPO_MIN_LETTERS = 4    # a slip is only forgiven in a word this long
+SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers read
+
+
+# The three reads a keystroke costs. Module constants so a rail can ask
+# SQLite how it will run THESE statements (test_journal_two_notes_switcher_
+# router.py): the scan must be served by the covering index alone, and the
+# recents/favourites reads must start from the member's own (small) lists.
+_SWITCHER_SCAN_SQL = (
+    "SELECT rowid, title FROM j2_notes"
+    " WHERE user_id = ? AND deleted_at IS NULL"
+    " ORDER BY updated_at DESC, title ASC, rowid ASC"
+)
+# CROSS JOIN pins the recents/favourites table as the OUTER loop — left to
+# itself the planner chose to walk all 50k notes and probe each one (~115 ms).
+_SWITCHER_RECENTS_SQL = (
+    "SELECT n.rowid, r.opened_at FROM j2_note_recents r"
+    " CROSS JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id"
+    " WHERE r.user_id = ? AND n.deleted_at IS NULL"
+)
+_SWITCHER_FAVORITES_SQL = (
+    "SELECT n.rowid FROM j2_note_favorites f"
+    " CROSS JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id"
+    " WHERE f.user_id = ? AND n.deleted_at IS NULL"
+)
+
+
+def _switcher_word_text(text: str) -> str:
+    return " ".join(text.translate(_SWITCHER_BREAK_TABLE).split())
+
+
+def _typo_eligible(word: str) -> bool:
+    """A word earns typo tolerance at SWITCHER_TYPO_MIN_LETTERS letters. Digits
+    never count: "4999" one digit off is a different number, not a slip."""
+    return sum(ch.isalpha() for ch in word) >= SWITCHER_TYPO_MIN_LETTERS
+
+
+def _one_edit_apart(a: str, b: str) -> bool:
+    """At most ONE insertion, deletion, substitution or adjacent swap turns
+    `a` into `b`. Linear time — never a general edit-distance table."""
+    if a == b:
+        return True
+    la, lb = len(a), len(b)
+    if abs(la - lb) > 1:
+        return False
+    i = 0
+    m = min(la, lb)
+    while i < m and a[i] == b[i]:
+        i += 1
+    if la == lb:
+        if a[i + 1:] == b[i + 1:]:
+            return True
+        return (i + 1 < la and a[i] == b[i + 1] and a[i + 1] == b[i]
+                and a[i + 2:] == b[i + 2:])
+    if la > lb:
+        return a[i + 1:] == b[i:]
+    return a[i:] == b[i + 1:]
+
+
+def _typo_starts_word(token: str, word: str) -> bool:
+    """`token` is one slip away from how `word` STARTS — so a half-typed word
+    with a typo still finds it ("earbin" -> "earnings")."""
+    n = len(token)
+    return any(0 < k <= len(word) and _one_edit_apart(token, word[:k])
+               for k in (n, n - 1, n + 1))
+
+
+def _in_order_from_word_start(word_title: str, letters: str) -> bool:
+    """The letters appear in order in the title, the first one starting a word.
+    Greedy from the EARLIEST word-start hit, which is optimal for an in-order
+    test — and linear, never a backtracking regex a hostile title could stall."""
+    at = word_title.find(" " + letters[0])
+    if at < 0:
+        return False
+    pos = at + 2
+    for ch in letters[1:]:
+        pos = word_title.find(ch, pos)
+        if pos < 0:
+            return False
+        pos += 1
+    return True
+
+
+def _folder_paths(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
+    """folder_id -> "Parent / Child" for every folder the member owns. One
+    query; a cycle or a dangling parent stops the walk rather than looping."""
+    rows = conn.execute(
+        "SELECT id, name, parent_id FROM j2_note_folders WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    by_id = {r["id"]: (r["name"] or "", r["parent_id"]) for r in rows}
+    out: dict[str, str] = {}
+    for fid in by_id:
+        parts: list[str] = []
+        cur, seen = fid, set()
+        while cur and cur in by_id and cur not in seen and len(parts) <= MAX_FOLDER_DEPTH:
+            seen.add(cur)
+            name, parent = by_id[cur]
+            parts.append(name)
+            cur = parent
+        out[fid] = " / ".join(reversed(parts))
+    return out
+
+
+def switcher_search(
+    user_id: str,
+    q: str,
+    limit: int = SWITCHER_DEFAULT_LIMIT,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Notes whose TITLE matches `q`, best first. Returns
+    `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`; a blank query
+    is an empty answer, never an error.
+
+    Ranking, in order (`matchTier`, lower first):
+      0 exact title · 1 title starts with the query · 2 a title word starts
+      with the query · 3 (several words typed) every word starts a title word
+      · 4 the query appears anywhere · 5 every typed word appears somewhere
+      · 6 the letters appear in order, the first starting a word ("nvth" finds
+      "NVDA thesis") · 7 every word is present, or one slip from the start of
+      a title word, for words of 4+ letters ("semsi" finds "Semis").
+    Inside a tier: the note opened most recently first (the recents boost),
+    then favourites, then the most recently edited — so among equally good
+    matches the one the member is working in wins. Equal on all three: title,
+    then the order the notes were created.
+
+    Each row says `strong` (tier ≤ SWITCHER_STRONG_TIER_MAX) and `exact`
+    (tier 0) so the palette places it without knowing the tier numbers.
+
+    `prefixExhausted`: no note matches this query, AND none can match any
+    longer query that starts with it — so the palette may skip asking while
+    the member keeps typing. Only claimed when that is sound: every test above
+    only gets stricter as letters are appended, except that a word reaching
+    SWITCHER_TYPO_MIN_LETTERS starts forgiving a slip and a query reaching
+    SWITCHER_FUZZY_MIN_CHARS starts the in-order tier — so both must already
+    apply to the word being typed.
+
+    Scoped like every other read here: `user_id` in SQL, active notes only
+    (a trashed note cannot be opened, so offering it would be a dead row)."""
+    text = " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
+    if not text:
+        return {"notes": [], "hasMore": False, "prefixExhausted": False}
+    limit = max(1, min(int(limit or SWITCHER_DEFAULT_LIMIT), SWITCHER_MAX_LIMIT))
+    tokens = text.split()[:_SWITCHER_MAX_TOKENS]
+    word_query = _switcher_word_text(text)
+    word_tokens = [t for t in (_switcher_word_text(tok) for tok in tokens) if t]
+    words = word_query.split()          # every typed word, breaks split out
+    letters = "".join(words)
+    run_fuzzy = len(letters) >= SWITCHER_FUZZY_MIN_CHARS
+    single = tokens[0] if len(tokens) == 1 else None
+
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.cursor()
+        cur.row_factory = None           # plain tuples: 50k Row objects cost real time
+        # Served from idx_j2_notes_switcher alone (a rail pins the plan).
+        live = cur.execute(_SWITCHER_SCAN_SQL, (user_id,)).fetchall()
+        recent_at = dict(cur.execute(_SWITCHER_RECENTS_SQL, (user_id,)).fetchall())
+        favs = {rid for (rid,) in cur.execute(_SWITCHER_FAVORITES_SQL, (user_id,)).fetchall()}
+
+        tiers: list[list[int]] = [[] for _ in range(SWITCHER_TIER_TYPO + 1)]
+        # Recents and favourites lead their tier, so they are noted as they are
+        # placed; everything else is read lazily, in newest-edit order, only as
+        # far as the page needs.
+        specials = set(recent_at) | favs
+        special_in: dict[int, list[int]] = {}
+        special_pos: set[int] = set()
+
+        def _place(pos: int, rid: int, tier: int) -> None:
+            tiers[tier].append(pos)
+            if rid in specials:
+                special_in.setdefault(tier, []).append(pos)
+                special_pos.add(pos)
+
+        misses: list[tuple[int, str]] = []   # (position, lowered title) no exact tier matched
+        needle = " " + word_query
+        for pos, (rid, title) in enumerate(live):
+            t = (title or "").lower()
+            if single is not None:
+                hit = single in t
+            else:
+                hit = all(tok in t for tok in tokens)
+            if not hit:
+                misses.append((pos, t))
+                continue
+            if t == text:
+                tier = SWITCHER_TIER_EXACT
+            elif t.startswith(text):
+                tier = SWITCHER_TIER_PREFIX
+            elif word_query and needle in " " + t:
+                # A word starts with it before any break is even replaced —
+                # the common case, found without building the word text.
+                tier = SWITCHER_TIER_WORD_START
+            else:
+                wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
+                if word_query and needle in wt:
+                    tier = SWITCHER_TIER_WORD_START
+                elif len(word_tokens) > 1 and all((" " + w) in wt for w in word_tokens):
+                    tier = SWITCHER_TIER_ALL_WORDS_START
+                elif text in t:
+                    tier = SWITCHER_TIER_SUBSTRING
+                else:
+                    tier = SWITCHER_TIER_ALL_WORDS
+            _place(pos, rid, tier)
+
+        def _ranked(tier: int):
+            """One tier in display order: recents (last opened first), then
+            favourites, then everything else — each in newest-edit order."""
+            sp = special_in.get(tier, [])
+            rec = [p for p in sp if live[p][0] in recent_at]
+            fav = [p for p in sp if live[p][0] not in recent_at]
+            rec.sort(key=lambda p: (live[p][0] not in favs, p))
+            rec.sort(key=lambda p: recent_at[live[p][0]], reverse=True)
+            yield from rec
+            yield from fav
+            for p in tiers[tier]:
+                if p not in special_pos:
+                    yield p
+
+        picked: list[tuple[int, int]] = []
+
+        def _take(tier: int) -> bool:
+            for p in _ranked(tier):
+                picked.append((p, tier))
+                if len(picked) > limit:
+                    return True
+            return False
+
+        full = False
+        for tier in range(SWITCHER_TIER_ALL_WORDS + 1):
+            if _take(tier):
+                full = True
+                break
+
+        if not full and words and misses:
+            # ── the bounded fuzzy tiers ──
+            scope = [(p, t) for p, t in misses
+                     if p < SWITCHER_FUZZY_SCOPE or live[p][0] in recent_at or live[p][0] in favs]
+            typo_words = [w for w in words if _typo_eligible(w)]
+            slip_memo: dict[tuple[str, str], bool] = {}
+            for p, t in scope:
+                wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
+                if run_fuzzy and _in_order_from_word_start(wt, letters):
+                    _place(p, live[p][0], SWITCHER_TIER_FUZZY)
+                    continue
+                title_words = None
+                ok = True
+                for w in words:
+                    if w in t:
+                        continue
+                    if w not in typo_words:
+                        ok = False
+                        break
+                    if title_words is None:
+                        title_words = wt.split()
+                    found = False
+                    for tw in title_words:
+                        key = (w, tw)
+                        hit = slip_memo.get(key)
+                        if hit is None:
+                            hit = slip_memo[key] = _typo_starts_word(w, tw)
+                        if hit:
+                            found = True
+                            break
+                    if not found:
+                        ok = False
+                        break
+                if ok:
+                    _place(p, live[p][0], SWITCHER_TIER_TYPO)
+            for tier in (SWITCHER_TIER_FUZZY, SWITCHER_TIER_TYPO):
+                if _take(tier):
+                    break
+
+        has_more = len(picked) > limit
+        picked = picked[:limit]
+        prefix_exhausted = (not picked and run_fuzzy and bool(words)
+                            and _typo_eligible(words[-1]))
+        if not picked:
+            return {"notes": [], "hasMore": False, "prefixExhausted": prefix_exhausted}
+
+        rowids = [live[p][0] for p, _tier in picked]
+        placeholders = ",".join("?" * len(rowids))
+        detail = {r["rowid"]: r for r in conn.execute(
+            "SELECT rowid, id, title, folder_id, ticker, updated_at FROM j2_notes"
+            f" WHERE rowid IN ({placeholders}) AND user_id = ?",
+            [*rowids, user_id],
+        ).fetchall()}
+        paths = (_folder_paths(conn, user_id)
+                 if any(r["folder_id"] for r in detail.values()) else {})
+        notes = []
+        for p, tier in picked:
+            rid = live[p][0]
+            r = detail.get(rid)
+            if r is None:                # deleted between the two reads
+                continue
+            notes.append({
+                "id": r["id"],
+                "title": r["title"] or "",
+                "folderId": r["folder_id"],
+                "folderPath": paths.get(r["folder_id"]) if r["folder_id"] else None,
+                "ticker": r["ticker"],
+                "updatedAt": r["updated_at"],
+                "isRecent": rid in recent_at,
+                "isFavorite": rid in favs,
+                "matchTier": tier,
+                "strong": tier <= SWITCHER_STRONG_TIER_MAX,
+                "exact": tier == SWITCHER_TIER_EXACT,
+            })
+        return {"notes": notes, "hasMore": has_more, "prefixExhausted": False}
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Bulk operations: the reads a batch needs before it writes ────────────────
+#
+# ⛔ READS ONLY. The batch route (`POST /notes/batch`, journal_two.py) performs
+# every write through the ordinary single-note doors — `update_note`,
+# `delete_note`, `restore_note`, `add_favorite`, `remove_favorite` — so each
+# write keeps that door's validation, versioning and sidecar sync, and the
+# door-enumeration rail (lib/offline/doorEnumeration.test.js) derives the
+# batch route as a door from the call it can see in the router. A bulk UPDATE
+# here would be an eighth advancing function that rail does not know about.
+
+_BATCH_READ_CHUNK = 400  # stays well under SQLite's bound-parameter limit
+
+
+def note_batch_heads(
+    user_id: str,
+    note_ids: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, dict[str, Any]]:
+    """`note_id -> {folderId, tags, updatedAt, deleted}` for the ids this
+    member OWNS, active or trashed. An id that is not theirs (or does not
+    exist) is simply absent — the caller reports it as not found, which is
+    also what it must say about another member's note (never "forbidden":
+    that would confirm the id exists)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        out: dict[str, dict[str, Any]] = {}
+        ids = list(dict.fromkeys(i for i in note_ids if isinstance(i, str) and i))
+        for start in range(0, len(ids), _BATCH_READ_CHUNK):
+            chunk = ids[start:start + _BATCH_READ_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                "SELECT id, folder_id, tags, updated_at, deleted_at FROM j2_notes"
+                f" WHERE user_id = ? AND id IN ({placeholders})",
+                [user_id, *chunk],
+            ).fetchall()
+            for r in rows:
+                out[r["id"]] = {
+                    "folderId": r["folder_id"] or None,
+                    "tags": json.loads(r["tags"] or "[]"),
+                    "updatedAt": r["updated_at"],
+                    "deleted": r["deleted_at"] is not None,
+                }
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
+def favorite_note_ids(
+    user_id: str,
+    note_ids: list[str],
+    conn: sqlite3.Connection | None = None,
+) -> set[str]:
+    """Which of `note_ids` this member has favourited — so a bulk favourite
+    can say "already a favourite" instead of reporting a write that changed
+    nothing."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        out: set[str] = set()
+        ids = list(dict.fromkeys(i for i in note_ids if isinstance(i, str) and i))
+        for start in range(0, len(ids), _BATCH_READ_CHUNK):
+            chunk = ids[start:start + _BATCH_READ_CHUNK]
+            placeholders = ",".join("?" * len(chunk))
+            rows = conn.execute(
+                "SELECT note_id FROM j2_note_favorites"
+                f" WHERE user_id = ? AND note_id IN ({placeholders})",
+                [user_id, *chunk],
+            ).fetchall()
+            out.update(r["note_id"] for r in rows)
+        return out
     finally:
         if owned:
             conn.close()

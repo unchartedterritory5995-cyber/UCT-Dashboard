@@ -130,6 +130,13 @@ export function citationLeafText(node) {
     case 'widgetEmbed':
       return typeof attrs.searchText === 'string' && attrs.searchText ? attrs.searchText : '[widget]'
     case 'hardBreak': return ' '
+    // Wave 5: a formula reads as its LaTeX source -- that is the text a member
+    // can ask about and quote. `inlineMath` is an INLINE leaf (no separator,
+    // like hardBreak); `blockMath` a block one (its own line, like a chip). An
+    // empty formula reads as nothing, on both sides.
+    case 'inlineMath':
+    case 'blockMath':
+      return typeof attrs.latex === 'string' ? attrs.latex : ''
     default: return ''
   }
 }
@@ -214,6 +221,26 @@ export function isBlockAtomRange(doc, from, to) {
   if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > size || from >= to) return false
   const node = doc.nodeAt(from)
   return Boolean(node && node.isAtom && node.isBlock && from + node.nodeSize === to)
+}
+
+/**
+ * Is [from, to) exactly ONE atom — block OR inline? The question the TEXT path
+ * of resolveNoteCitation asks before claiming a passage, mirroring the server
+ * (note_citation_text.py::resolve_note_citation refuses any `_atom_span_at`,
+ * inline or block). ⛔ Wave 5: it asked `isBlockAtomRange` until an INLINE
+ * atom first read as text (a formula reads as its LaTeX) — the parity rail
+ * then caught the client claiming a precise jump onto an inline formula the
+ * server labels note-only.
+ */
+function isSingleAtomRange(doc, from, to) {
+  if (typeof doc?.nodeAt !== 'function') return false
+  const size = doc.content?.size ?? 0
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > size || from >= to) return false
+  const node = doc.nodeAt(from)
+  // ⛔ `isText` first: ProseMirror counts a TEXT node as a leaf, so `isAtom` is
+  // true for every run of prose, and a range covering one whole text node
+  // would read as "one atom".
+  return Boolean(node && !node.isText && node.isAtom && from + node.nodeSize === to)
 }
 
 // A text-verified range that turns out to be ONE atom proves only that some
@@ -320,7 +347,7 @@ export function resolveNoteCitation(doc, loc, snippet) {
     // — measured after one excerpt of two was deleted before the click. An
     // atom citation that carries no identity (an atom without one, or a
     // citation issued before identities existed) opens the note only.
-    if (isBlockAtomRange(doc, from, to)) return NO_IDENTITY
+    if (isSingleAtomRange(doc, from, to)) return NO_IDENTITY
     return { state: VALID_EXACT, from, to }
   }
 
@@ -354,7 +381,7 @@ export function resolveNoteCitation(doc, loc, snippet) {
     // NEVER jump to the wrong passage -- the file's own contract -- so re-read
     // the text at the computed range and refuse the claim unless it verifies.
     if (range && verifies(citationText(doc, range.from, range.to).trim())) {
-      if (isBlockAtomRange(doc, range.from, range.to)) return NO_IDENTITY
+      if (isSingleAtomRange(doc, range.from, range.to)) return NO_IDENTITY
       return { state: RERESOLVED_EXACT, ...range }
     }
     return { state: VALID_NOTE_ONLY }

@@ -48,8 +48,14 @@ const schema = new Schema({
     widgetEmbed: { group: 'block', atom: true, attrs: { widgetId: { default: null }, searchText: { default: null }, capturedAt: { default: null }, embedId: { default: null } }, toDOM: () => ['div'] },
     askInsert: { group: 'block', content: 'block+', toDOM: () => ['div', 0] },
     askCitation: { group: 'inline', inline: true, atom: true, attrs: { n: { default: null } }, toDOM: () => ['span'] },
+    // Wave 5 (mathNodes.js): formulas are leaves holding their LaTeX in `latex`.
+    inlineMath: { group: 'inline', inline: true, atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['span'] },
+    blockMath: { group: 'block', atom: true, attrs: { latex: { default: '' } }, toDOM: () => ['div'] },
   },
-  marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] } },
+  marks: { bold: { toDOM: () => ['strong', 0] }, italic: { toDOM: () => ['em', 0] }, link: { attrs: { href: { default: '' } }, toDOM: () => ['a', 0] },
+    // Wave 5 (textColor.js): a palette NAME, never a colour value.
+    highlight: { attrs: { color: { default: null } }, toDOM: () => ['mark', 0] },
+    textColor: { attrs: { color: { default: null } }, toDOM: () => ['span', 0] } },
 })
 
 const t = (text, marks) => (marks ? { type: 'text', text, marks: marks.map((m) => ({ type: m })) } : { type: 'text', text })
@@ -65,6 +71,8 @@ const WIDGET = (searchText, capturedAt, embedId) => ({ type: 'widgetEmbed',
     ...(embedId === undefined ? {} : { embedId }) } })
 const EXCERPT = (excerptId) => ({ type: 'documentExcerpt', attrs: { excerptId } })
 const BR = { type: 'hardBreak' }
+const MATH = (latex) => ({ type: 'inlineMath', attrs: { latex } })
+const BMATH = (latex) => ({ type: 'blockMath', attrs: { latex } })
 
 const CASES = {
   // ── text, marks, blocks, lists, quotes, ask inserts ──
@@ -214,6 +222,21 @@ const CASES = {
   longBlock: doc(p('Intro.'),
     p(`Guidance \u{1F525} raised \u{1D538}: ${'the quarter closed with margins widening across every segment. '.repeat(8)}Final word.`),
     p('After.')),
+  // ── formulas read as their LaTeX (Wave 5): an INLINE one mid-sentence (no
+  //    separator, one position however long), a BLOCK one on its own line, an
+  //    astral character inside the LaTeX (still one position), and EMPTY ones,
+  //    which read as nothing and emit no separator on either side ──
+  mathInline: doc(p('Area is ', MATH('\\pi r^2'), ' exactly.')),
+  mathBlock: doc(p('Before.'), BMATH('E = mc^2'), p('After.')),
+  mathAstral: doc(p('Set ', MATH('\u{1D538} \\subset \\mathbb{R}'), ' holds.'), BMATH('\\sum_{i=1}^{n} x_i')),
+  mathEmpty: doc(p('A', MATH(''), 'B'), BMATH(''), p('C')),
+  // ── colour and highlight are MARKS (Wave 5): they split text nodes and add
+  //    nothing -- a passage across them reads and maps exactly as plain text ──
+  colouredMarks: doc(p('Guidance ',
+    { type: 'text', text: 'raised', marks: [{ type: 'highlight', attrs: { color: 'yellow' } }] },
+    ' and ',
+    { type: 'text', text: 'margins', marks: [{ type: 'textColor', attrs: { color: 'red' } }, { type: 'bold' }] },
+    ' widened', { type: 'text', text: ' sharply', marks: [{ type: 'highlight', attrs: { color: null } }] }, '.')),
 }
 
 // Passages cited in the astral cases -- before, inside, across a mark, and
@@ -229,6 +252,12 @@ const PASSAGES = {
   astralThenExcerpts: ['NVDA thesis', 'After.'],
   astralThenChip: ['hot', '[file: q3.pdf]', 'After \u{1D538}.'],
   hardBreaks: ['Guidance raised', 'raised  again', 'lead', 'tail'],
+  mathInline: ['is \\pi r^2 exactly', '\\pi r^2', 'exactly.'],
+  mathBlock: ['E = mc^2', 'After.'],
+  // A formula is ONE position, so a passage holds a whole formula or none of
+  // it -- never half its LaTeX.
+  mathAstral: ['Set \u{1D538} \\subset \\mathbb{R} holds.', 'holds.', '\\sum_{i=1}^{n} x_i'],
+  colouredMarks: ['raised and margins widened sharply', 'margins'],
 }
 
 function passageRange(d, passage, leafText) {

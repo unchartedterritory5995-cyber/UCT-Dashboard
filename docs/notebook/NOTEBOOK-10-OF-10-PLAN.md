@@ -132,24 +132,62 @@ Only when every standard meets its bar is the Notebook called 10/10.
 
 ---
 
-## 3. Owner decisions this plan needs
+## 3. The vision, and every open decision — DECIDED 2026-09-23
 
-1. Deploy PR #183; then the `NOTEBOOK_ASK_INSERT_ON` flip.
-2. The Wave Q1 REVERT verdict: keep offline editing on, or flip it off, after the re-run.
-3. F5P-1's product ruling, and lifting the F5 freeze for that one change.
-4. The rejected rows — multiplayer/comments (G-081), plugin marketplace (G-086), a general web
-   clipper (G-043): keep them out of scope (10/10 as *the* trader research notebook) or reverse.
-5. iOS: a native wrapper, or PWA + Shortcuts.
-6. The no-service-worker charter (cold-start offline).
-7. Vendor data terms with Anthropic and OpenAI (unblocks semantic search and AI writing help).
-8. G-053 (Ask inside Compass), K-1 (its measured precondition), G-040 (descoped), G-062/G-080
-   (legal).
-9. Sign-off on the performance budgets.
-10. Whether collaboration (Phase 5 beyond share links) is in scope at all.
+**Owner delegation, verbatim:** *"make final judgement calls on all open decisions and anything
+deciding. I trust your vision and testing."* The decisions below are final unless the owner
+overrules one; each carries its reason so it is never silently re-opened.
 
----
+**The vision.** The UCT Notebook is **the best personal research notebook a trader can use**:
+everything a Notion / Evernote / Obsidian user reaches for every day works, feels fast and never
+loses a word — and on top of that it does what none of them can: evidence captured from filings
+with page-anchored citations, an AI that answers only from your notes and shows exactly where,
+research assembled per security, charts frozen as of the moment, notes wired to trades, and theses
+that warn you when they break. It is a *personal* tool that shares well, not a team wiki.
 
-## 4. Suggested order and size
+| # | Decision | Ruling | Why |
+|---|---|---|---|
+| D1 | Deploy PR #183, then flip `NOTEBOOK_ASK_INSERT_ON` | **YES** — the owner runs the push (the permission system blocks an agent's production push; denied twice on 2026-09-23); the agent then verifies the deploy, re-checks the phone Ask focus fix on production (H14), and flips the flag | Gated GREEN, walked live, reviewed; the phone Ask bug stays live until it lands |
+| D2 | Wave Q1 gate verdict (REVERT, 2026-09-20) | **KEEP offline editing ON**; commit the verdict and its log into the repo | The REVERT rests on one sampler row (2026-09-13 19:00 ET) that names no failing request; the canary queued real offline work and settled 12/12; every other error is attributed to non-Notebook endpoints. Reverting would take durability away from every member on no evidence |
+| D3 | F5 freeze | **Lifted for exactly two changes:** F5P-1 (queued words never leave while the member sits on the note) and the append-merge finding (a server-appended widget, fact or excerpt dropped by an offline sync) | Both are data-integrity defects; the freeze existed so the investigation would start from measured code, and it has — the findings are specific |
+| D3b | F5 freeze, amendment (2026-09-23) | **Lifted for one more change:** a per-note owner Web Lock so another tab's outbox sweep never sends a note open elsewhere (found by the D3 work, `wave5-A-report.md` concern 2). Lands after D3's editor half | Same class as D3. Today's worst case is an unwanted conflicted copy, not lost words, because conflict-fork-never-clobber holds; it is still a second writer |
+| D4 | Scope of collaboration and extensibility | **OUT:** real-time multiplayer, comments, team workspaces (G-081); a plugin marketplace (G-086). **IN:** share links + publish-to-web; the web clipper (publish the extension already built, G-043); a small documented personal API on the existing scoped capture tokens (G-085) | Matches the vision (personal, shares well). Multiplayer is a separate product; the API is small and powers the iOS path |
+| D5 | iOS | **PWA + Apple Shortcuts over the personal API**; no native wrapper now | Reaches the iOS share sheet without App Store overhead; revisit only on measured demand |
+| D6 | "No caching service worker" charter | **KEPT.** Cold-start offline is out of scope; open-tab offline durability stays | The rollback story relies on no service worker serving a stale bundle; the durability that matters is already live |
+| D7 | Vendor data terms | **AI writing help ships** on the Anthropic path Ask already uses (no new vendor exposure). **Semantic search is built** behind a flag with a pluggable embedding provider and **stays dark** until zero retention is confirmed in writing | The terms need an outside party; build right up to that gate |
+| D8 | G-053, K-1, G-040, G-062 / G-080 | G-053: a read-only `search_my_notes` Compass tool over the Ask retrieval, flag-gated (Phase 4). K-1: stays queued until its precondition is measured; the measurement is scheduled. G-040: stays descoped (the owner's earlier ruling). G-062 / G-080: technical authorization proven in Phase 5; legal sign-off stays with the owner | Honors the architecture constraint without re-homing the UI; K-1 is never flipped unmeasured |
+| D9 | Performance budgets | **Adopted as in the scorecard:** note open p95 < 300 ms at 1,000 paragraphs; typing < 16 ms/char up to 2,000 paragraphs; search p95 < 100 ms at 50k notes; a Notebook JS byte budget in CI. G-035 at the size cap stays as the owner ruled | Budgets make "fast" checkable; the owner already ruled on the size-cap case |
+| D10 | Pages inside pages | **OUT** — folders + links + backlinks (the Obsidian model) | A data-model change touching every surface for a pattern links already cover |
+| D11 | E2E encryption · desktop app · canvas | **OUT** (E2E conflicts with server-side AI; the PWA installs on desktop; canvas is a product of its own) | Recorded as scope, not oversight |
+| D12 | Relations / rollups | **IN:** a lightweight relation property with backlinks. Rollups and formulas OUT until demand is measured | Covers the common case cheaply |
+| D13 | Email-to-notebook | **IN**, as a provider-agnostic inbound webhook; activation (DNS + inbound provider) is an infrastructure step the owner runs | Evernote's core capture door |
+| D14 | Error reporting | **Our own** client-error beacon + server log + Notebook telemetry; `SENTRY_DSN` optional later | No new vendor, and it can ship now |
+| D15 | Backups | Build a restore-drill tool with integrity checks (the owner runs it with production credentials); **document the backup window** as the deletion window rather than rewriting snapshots. ⚰️ *Corrected 2026-09-23:* this said "14-day"; `authdb_backup.RETAIN` is 14 **snapshots** (every 6h + nightly ≈ 3 days), so the privacy policy states "up to 7 days" | Standard practice; rewriting snapshots is risky |
+| D16 | Gate baseline | Re-adopted from a fresh master gate at each landing; timeouts never banked | Keeps every gate readable |
+
+## 4. The build programme (waves, three agents at a time)
+
+| Wave | Agents (parallel, disjoint files) | Contents |
+|---|---|---|
+| **5** (now) | **A** offline integrity · **B** editor foundation + content 1 · **C** navigation 1 | A: D3's two fixes. B: its own `node_modules`, then syntax highlighting, math, text colour + highlight, emoji picker, H4–H6, find **and replace**, word count + reading time, table of contents. C: quick switcher over all notes, bulk operations, nested tags |
+| **6** | editor content 2 · organization 2 · operability | Tables UI, callout picker, image caption + alignment, drag handles, multi-column, web embeds + link previews, @date mentions · unlinked mentions, timeline view, archive, lock, split view, reminders + tasks view, member templates, daily note, relation property · error beacon + telemetry, restore-drill tool, the D2 record, stale ledger rows |
+| **7** | capture & mobile · AI · performance | Extension packaging, personal API + iOS Shortcut, camera scan + image OCR + docx text, email-in, editor dictation · writing help, semantic search (dark), Compass tool · budgets in CI, the 50k super-linear fix |
+| **8** | accessibility · sharing · onboarding + interop | axe in CI, aria everywhere, keyboard graph, screen-reader pass · share links on + publish-to-web · help articles, first-run tour, sample notebook, HTML / JSON / docx export |
+| **9** | proof | Benchmark harness + method, parity re-score, user-study kit, 30-day soak |
+
+Every wave: implementer → task review → fix rounds → whole-branch review → six-shard gate against
+the baseline → live walk → PR → **owner deploy**.
+
+## 5. What stays with the owner (cannot be delegated to an agent)
+
+1. The production push for each wave (the permission system blocks an agent's master push).
+2. Production variable flips, if the permission system blocks them (`railway variables --set …`).
+3. Legal sign-off (G-062, G-080) and written vendor data terms (Anthropic, OpenAI).
+4. Infrastructure the agent has no credentials for: the inbound-email provider and DNS, publishing
+   the browser extension to the Chrome Web Store, running the backup restore drill against R2.
+5. The Phase 7 user study with real traders.
+
+## 6. Original order and size estimate
 
 | Order | Phase | Rough size | Why this order |
 |---|---|---|---|
@@ -164,7 +202,7 @@ Only when every standard meets its bar is the Notebook called 10/10.
 
 ---
 
-## 5. Evidence this plan was built from
+## 7. Evidence this plan was built from
 - Code audits, 2026-09-23: editor and organization (every feature with file:line) and capture / AI
   / collaboration / platform plus quality-standard evidence — summarised in the scorecard above.
 - `docs/notebook/competitive-gap-ledger.md` (89 rows; stale rows listed in Phase 0 item 6).

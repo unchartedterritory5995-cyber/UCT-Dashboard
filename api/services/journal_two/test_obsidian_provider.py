@@ -365,7 +365,10 @@ async def test_an_unresolvable_wikilink_degrades_to_plain_text(db):
 # Obsidian wiki-syntax pre-pass — highlights
 # ---------------------------------------------------------------------------
 
-async def test_a_highlight_marker_is_stripped_but_the_text_survives(db):
+async def test_a_highlight_becomes_a_highlight_mark_like_the_file_importer(db):
+    # N5 (wave 5 review): the schema has a highlight mark now, and the FILE
+    # importer (adapters/obsidian.js) keeps `==x==` as one. The sync lane used
+    # to strip it to bare text, so the same vault read differently by lane.
     _stage("user-a", "vault-1", "a.md", "this is ==very important== to note", T1)
     provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
     note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
@@ -374,6 +377,27 @@ async def test_a_highlight_marker_is_stripped_but_the_text_survives(db):
     assert joined == "this is very important to note"
     assert "==" not in joined
     assert "<mark>" not in joined  # never degrade to literal, visible HTML
+    marked = [n["text"] for n in paragraph["content"]
+              if any(m.get("type") == "highlight" for m in n.get("marks") or [])]
+    assert marked == ["very important"]
+
+
+async def test_a_highlight_keeps_the_marks_inside_it(db):
+    _stage("user-a", "vault-1", "a.md", "the ==**key** level== holds", T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    runs = [(n["text"], sorted(m["type"] for m in n.get("marks") or []))
+            for n in note.doc["content"][0]["content"]]
+    assert runs == [("the ", []), ("key", ["bold", "highlight"]), (" level", ["highlight"]), (" holds", [])]
+
+
+async def test_a_comparison_is_never_read_as_a_highlight(db):
+    body = "If rsi == 30 and macd == 0 then buy. close==open stays. The ==key level== holds."
+    _stage("user-a", "vault-1", "a.md", body, T1)
+    provider = ObsidianProvider(user_id="user-a", vault_id="vault-1")
+    note = await provider.fetch({}, RemoteRef(remote_id="a.md", updated_at=T1))
+    joined = "".join(n.get("text", "") for n in note.doc["content"][0]["content"])
+    assert joined == "If rsi == 30 and macd == 0 then buy. close==open stays. The key level holds."
 
 
 # ---------------------------------------------------------------------------

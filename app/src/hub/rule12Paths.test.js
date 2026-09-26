@@ -15,7 +15,7 @@
  * ⚠️ IT FAILS RATHER THAN SKIPS when git or the base ref cannot be resolved. A rail whose important
  * half is opt-in is how a blind watcher shipped in Increment 2.
  */
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect } from 'vitest'
 import { execFileSync } from 'node:child_process'
 
 /** Paths this branch may not modify. The second is subsumed by the first; both are named because
@@ -104,7 +104,19 @@ const SHARED_ARTIFACT_PREFIXES = [
 const hubOwned = (f) => HUB_OWNED_PREFIXES.some((p) => f.startsWith(p))
   && !SHARED_ARTIFACT_PREFIXES.some((p) => f.startsWith(p))
 
+/**
+ * ⛔ A PULL-REQUEST CHECKOUT IN CI IS DETACHED. `actions/checkout` on a `pull_request` event
+ * checks out `refs/pull/N/merge`, so `rev-parse --abbrev-ref HEAD` answers the literal `HEAD`,
+ * the branch-name scope-out below can never fire, and every Notebook PR reads as joystick work
+ * — measured 2026-09-25 on PRs #186 and #193: two phantom RULE 12 rows each, on branches named
+ * `feat/notebook-10` and `feat/notebook-w6`. The same shape bit the local gate a week earlier
+ * (a detached gate worktree), which is why those run on a `notebook-*` BRANCH name. GitHub
+ * names the PR's source branch in GITHUB_HEAD_REF; read it first. It is set only on
+ * pull_request events, so a push run and a local run still ask git.
+ */
 const currentBranch = () => {
+  const fromCi = (process.env.GITHUB_HEAD_REF || '').trim()
+  if (fromCi) return fromCi
   try { return git(['rev-parse', '--abbrev-ref', 'HEAD']) } catch { return '' }
 }
 
@@ -255,6 +267,14 @@ describe('rule 12 — the Notebook workstream owns these paths', () => {
   })
 
   it('⛔ the permitted file may ONLY gain the attribute — the exception is a shape, not a filename', () => {
+    // ⚰️ 2026-09-23: this clause was NOT scoped when B7 scoped its sibling above, so it fired on
+    // the NOTEBOOK's own branch (feat/notebook-10 changed NoteCard.jsx for bulk selection) --
+    // the same identity assumption B7 removed, surviving in the clause next door. Same scope,
+    // same helper, same falsifiable scope-out.
+    if (!rule12Applies({ branch: currentBranch(), changed: changedPaths() })) {
+      expectMachineryCanSee('scoped out — this change set is not joystick work')
+      return
+    }
     const { sha } = mergeBase()
     const committed = git(['diff', '-U0', `${sha}..HEAD`, '--', PERMITTED_FILE])
     const working = git(['diff', '-U0', 'HEAD', '--', PERMITTED_FILE])
@@ -370,5 +390,29 @@ describe('rule 12 — the rail fires on joystick work and nowhere else (B7)', ()
     }
     expect(rule12Applies({ branch: 'whatever', changed: [FORBIDDEN_FILE] }), 'a change set of '
       + 'nothing but Notebook files reads as joystick work').toBe(false)
+  })
+})
+
+describe('currentBranch — a detached PR checkout still knows whose branch it is', () => {
+  const saved = process.env.GITHUB_HEAD_REF
+  afterEach(() => {
+    if (saved === undefined) delete process.env.GITHUB_HEAD_REF
+    else process.env.GITHUB_HEAD_REF = saved
+  })
+
+  it('reads GITHUB_HEAD_REF first, so a pull_request run scopes a Notebook branch out', () => {
+    process.env.GITHUB_HEAD_REF = 'feat/notebook-w6'
+    expect(currentBranch()).toBe('feat/notebook-w6')
+    // and the scope-out that depends on it fires for the PR the phantom rows came from
+    expect(rule12Applies({ branch: currentBranch(), changed: [FORBIDDEN_FILE] })).toBe(false)
+  })
+
+  it('falls back to git when the variable is absent or blank — a local or push run is unchanged', () => {
+    process.env.GITHUB_HEAD_REF = '   '
+    const fromGit = git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    expect(currentBranch()).toBe(fromGit)
+    // non-vacuity: git answered something, and `HEAD` is exactly the detached answer this
+    // fallback cannot improve on — which is the whole reason the env read comes first.
+    expect(fromGit.length).toBeGreaterThan(0)
   })
 })

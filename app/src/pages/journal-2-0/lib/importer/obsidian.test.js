@@ -49,6 +49,20 @@ describe('obsidian adapter', () => {
 // never reject (a bytes() failure counts as no signal from that file).
 // ---------------------------------------------------------------------------
 
+describe('obsidian adapter — `==` comparisons are never a highlight', () => {
+  it('keeps "rsi == 30 and macd == 0" and "close==open" exactly, and still marks a real ==highlight==', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('n.md', 'If rsi == 30 and macd == 0 then buy. close==open stays. The ==key level== holds, (==risk==) too.'),
+    ])
+    const html = docs[0].html
+    expect(html).toContain('If rsi == 30 and macd == 0 then buy.')
+    expect(html).toContain('close==open stays.')
+    expect(html).not.toContain('<mark> 30 and macd </mark>')
+    expect(html).toContain('<mark>key level</mark>')
+    expect(html).toContain('(<mark>risk</mark>)')
+  })
+})
+
 describe('obsidian adapter — code fences protect wiki-syntax inside them', () => {
   it('leaves wiki-links, embeds, and highlights untouched inside a fenced code block', async () => {
     const { docs } = await obsidianAdapter.parse([

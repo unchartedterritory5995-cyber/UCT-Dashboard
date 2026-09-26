@@ -1,0 +1,93 @@
+{
+  "_about": "ONE table, two readers: a tag's identity (`tag_key`) in api/services/journal_two/notes.py (tests/test_tag_key_parity.py) and app/src/pages/journal-2-0/lib/tagTree.js (lib/tagKey.parity.test.js). The sidebar keys a tag it was handed as text to the server's tree nodes; a row the two disagree on is a tag that cannot be highlighted or opened.",
+  "rows": [
+    {
+      "raw": "swing",
+      "key": "swing"
+    },
+    {
+      "raw": "  Swing  ",
+      "key": "swing"
+    },
+    {
+      "raw": "Research / Semis",
+      "key": "research/semis"
+    },
+    {
+      "raw": "research//semis/",
+      "key": "research/semis"
+    },
+    {
+      "raw": "/a/b/",
+      "key": "a/b"
+    },
+    {
+      "raw": "///",
+      "key": ""
+    },
+    {
+      "raw": "",
+      "key": ""
+    },
+    {
+      "raw": "Q3 / Q4",
+      "key": "q3/q4"
+    },
+    {
+      "raw": "q3_plan",
+      "key": "q3_plan"
+    },
+    {
+      "raw": "50%",
+      "key": "50%"
+    },
+    {
+      "raw": "tab\there",
+      "key": "tab\there"
+    },
+    {
+      "raw": "\u00c9lan",
+      "key": "\u00e9lan"
+    },
+    {
+      "raw": "\u00c9LAN/Vital",
+      "key": "\u00e9lan/vital"
+    },
+    {
+      "raw": "\u0130stanbul",
+      "key": "i\u0307stanbul"
+    },
+    {
+      "raw": "\u03a3\u039f\u03a6\u039f\u03a3",
+      "key": "\u03c3\u03bf\u03c6\u03bf\u03c2"
+    },
+    {
+      "raw": "Kelvin \u212a",
+      "key": "kelvin k"
+    },
+    {
+      "raw": "\u00a0nbsp\u00a0",
+      "key": "nbsp"
+    },
+    {
+      "raw": "\u0085nel",
+      "key": "nel"
+    },
+    {
+      "raw": "\u001cfs\u001f",
+      "key": "fs"
+    },
+    {
+      "raw": "\ufeffbom",
+      "key": "\ufeffbom"
+    },
+    {
+      "raw": "a /\u3000b",
+      "key": "a/b"
+    },
+    {
+      "raw": "\u200bzero-width",
+      "key": "\u200bzero-width"
+    }
+  ]
+}

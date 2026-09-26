@@ -1,0 +1,7 @@
+/* Wave 5 — the toolbar's word-count readout (NoteStats.jsx): quiet on purpose. */
+.stats {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

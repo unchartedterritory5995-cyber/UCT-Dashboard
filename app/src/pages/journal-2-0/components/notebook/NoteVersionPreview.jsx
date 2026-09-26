@@ -1,5 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import { buildExtensions } from '../../lib/tiptap'
+import { noteContentGuardOptions, useUnreadableNote } from '../../lib/noteContentGuard'
+import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteVersionPreview.module.css'
 
 /**
@@ -24,6 +26,8 @@ import styles from './NoteVersionPreview.module.css'
 export default function NoteVersionPreview({ title, subtitle, bodyJson }) {
   const editor = useEditor({
     extensions: buildExtensions(),
+    // S1/H14: a version this bundle cannot read says so, instead of rendering empty.
+    ...noteContentGuardOptions(),
     content: bodyJson || { type: 'doc', content: [] },
     editable: false,
     // BEFORE create, not onCreate -- node views can mount ahead of onCreate,
@@ -33,11 +37,13 @@ export default function NoteVersionPreview({ title, subtitle, bodyJson }) {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), shareView: true }
     },
   }, [bodyJson])
+  const unreadable = useUnreadableNote(editor)
 
   return (
     <div className={styles.wrap} data-testid="note-version-preview">
       <div className={styles.title}>{title || 'Untitled'}</div>
       {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
+      {unreadable && <UnreadableNoteNotice />}
       <EditorContent editor={editor} className={styles.body} />
     </div>
   )

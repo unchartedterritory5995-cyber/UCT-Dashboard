@@ -33,6 +33,41 @@
  * three append CALL SITES below are untouched, which is what the freeze is
  * actually about. The classifier and the settle are otherwise still frozen.
  *
+ * ⚖️ AMENDED 2026-09-23 — DECISION D3 (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`
+ * §3, the owner's delegated ruling): the freeze is lifted for EXACTLY two
+ * changes and nothing else —
+ *   (1) F5P-1: words queued for the note a member is sitting on must be sent, by
+ *       the single writer that owns the note (the editor), never by the sweep;
+ *   (2) the append-merge class: a server-appended widget, fact or excerpt must
+ *       never be dropped by an offline sync.
+ * What moved under (2), wave 5 (f2b663d86): `settleLandedSave` (useDurableNote.js)
+ * keeps the base the record's unsent words were written on instead of adopting
+ * what just landed, and `discardsUnsentWork` (recoverLocalState.js) no longer
+ * reads the server's own appends as a discard.
+ * What moved under (1), wave 5: `recover()` hands the owning editor queued work to
+ * adopt (`queuedWorkToAdopt`) and the base any recovered copy was written on
+ * (`baseOfRecovered`); `settleOwnerFork` lets the owner settle its own fork; and
+ * `outboxDrain.js` EXPORTS its fork settle as `settleForkedNote` so that owner
+ * uses the drain's code, not a copy — the sweep's behaviour is unchanged. The
+ * editor half (E-1/E-2/E-3) landed as fe4e278bc (`NoteEditorPage.jsx`, applied by
+ * the editor agent from this agent's handover).
+ * Fix round 1 of the same change (review `wave5-A-review.md`), no frozen file
+ * touched: `settleOwnerFork` now takes what was FORKED and settles only while the
+ * record and every queued entry still hold exactly that (S1), and the editor
+ * asks the same of its own view before calling it and again before `markSynced`;
+ * the editor adopts queued words silently only when the member has not edited
+ * since hydration, and a Restore waits for a save already on the wire (S2);
+ * `queuedWorkToAdopt` refuses a base whose revision is not the entry's (N4); and
+ * `discardsUnsentWork` now ASKS the frozen classifier for `APPEND_ONLY` instead of
+ * restating it (N2) — calling `serverChange.js`, not editing it. All of it is
+ * recorded, with the reproductions and the mutation proofs, in
+ * `docs/notebook/f5-fixes-2026-09-23.md` (§A.3, §B.4, §C).
+ * ⛔ NOT moved: the append CALL SITES below, `serverChange.js`,
+ * `settleNoteWrite.js`, and the drain's CLASSIFICATION — the finding's own
+ * mechanism was already closed by `ringVouchedPlan` (9a213bd45) and re-proved at
+ * HEAD. F5's table is still not all GREEN-or-NAMED, so `F5_OPEN` stays true: D3
+ * lifted the freeze for two changes, it did not close F5.
+ *
  * ⛔ THIS RAIL EXPIRES BY CONSTRUCTION. `F5_OPEN` flips to false the day every
  * cell of the seven-family × six-ordering table is GREEN or NAMED (see the
  * constant's own note — amended 2026-09-13, because "zero INCONCLUSIVE rows"

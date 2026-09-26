@@ -21,6 +21,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two.notes import extract_plain_text
+from api.services.journal_two.notebook_schema import check_body_write
 
 # ── Caps & enums (spec — hard server-side abuse ceiling, MUST ship in v1) ────
 
@@ -592,9 +593,17 @@ def update_entry(
     entry_id: str,
     patch: dict[str, Any],
     conn: sqlite3.Connection | None = None,
+    client_schema: int | None = None,
 ) -> dict[str, Any] | None:
     """Partial update — only keys present in the patch are written.
-    A body_json write re-extracts body_plain."""
+    A body_json write re-extracts body_plain.
+
+    `client_schema`: the schema the sending client can read (its
+    `X-UCT-Notebook-Schema`, 0 when absent). A body write from a client older
+    than the STORED body raises `NotebookSchemaTooOld` — that client may hold
+    the entry as an EMPTY document it could not parse, and `UpbRichEditor`
+    saves on open (H14). ⛔ Never reverted with the features:
+    journal_two/notebook_schema.py."""
     if not isinstance(patch, dict):
         raise UpbValidationError("patch must be an object")
     owned = conn is None
@@ -606,6 +615,8 @@ def update_entry(
         ).fetchone()
         if existing is None:
             return None
+        if "body_json" in patch:
+            check_body_write(existing["body_json"], client_schema)
 
         sets: list[str] = []
         params: list[Any] = []

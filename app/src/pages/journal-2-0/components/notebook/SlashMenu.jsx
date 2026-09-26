@@ -15,9 +15,12 @@ import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
 import styles from './SlashMenu.module.css'
 
-const ITEMS = [
+// Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
+// `/` offers, and what each one inserts.
+export const ITEMS = [
   {
     title: 'Heading 1',
     description: 'Big section heading',
@@ -32,6 +35,21 @@ const ITEMS = [
     title: 'Heading 3',
     description: 'Small section heading',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run(),
+  },
+  {
+    title: 'Heading 4',
+    description: 'Sub-section heading — or type #### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 4 }).run(),
+  },
+  {
+    title: 'Heading 5',
+    description: 'Minor heading — or type ##### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 5 }).run(),
+  },
+  {
+    title: 'Heading 6',
+    description: 'Smallest heading, a label — or type ###### and a space',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setNode('heading', { level: 6 }).run(),
   },
   {
     title: 'Bullet list',
@@ -88,6 +106,33 @@ const ITEMS = [
         { type: 'toggleContent', content: [{ type: 'paragraph' }] },
       ],
     }).run(),
+  },
+  {
+    title: 'Inline math',
+    description: 'A formula inside the sentence (LaTeX) — or type $x^2$ then a space',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      insertMathAndEdit(editor, INLINE_MATH)
+    },
+  },
+  {
+    title: 'Math block',
+    description: 'A displayed equation (LaTeX) — or type $$…$$ on its own line',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      insertMathAndEdit(editor, BLOCK_MATH)
+    },
+  },
+  {
+    title: 'Emoji',
+    description: 'Type : and a name — e.g. :rocket or :chart',
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      // The `:` must start a word for the emoji menu to arm (EmojiMenu.jsx).
+      const { $from } = editor.state.selection
+      const before = $from.parent.textBetween(Math.max(0, $from.parentOffset - 1), $from.parentOffset)
+      editor.chain().insertContent(before && !/\s/.test(before) ? ' :' : ':').run()
+    },
   },
   {
     title: 'Image',

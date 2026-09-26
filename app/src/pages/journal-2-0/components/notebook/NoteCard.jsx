@@ -35,8 +35,39 @@ function cardThumb(note) {
 // shared across all four note-list views (UX #15, 2026-09-22) -- see
 // BlockedBadge.jsx.
 
-export default function NoteCard({ note, onOpen, onRestore, blocked = false }) {
+/**
+ * Wave 5 bulk operations: `selectable` puts a real checkbox BESIDE the card —
+ * never inside it: the active card is a <button>, and a checkbox nested in a
+ * button is invalid HTML that screen readers flatten into one control.
+ * ⛔ `data-note-card-id` stays on the card itself and nowhere else: the
+ * joystick hub reads that attribute document-wide to count and address the
+ * notes on screen, so a second element carrying it would double-count.
+ * Shift is read off the click that produced the change, so Shift+click (or
+ * Shift+Space) selects a range.
+ */
+export default function NoteCard({
+  note, onOpen, onRestore, blocked = false,
+  selectable = false, selected = false, onToggleSelect,
+}) {
   const title = note.title?.trim() || 'Untitled'
+  const card = renderCard({ note, title, onOpen, onRestore, blocked })
+  if (!selectable) return card
+  return (
+    <div className={`${styles.selectWrap} ${selected ? styles.selectWrapOn : ''}`}>
+      <label className={styles.selectBox}>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onToggleSelect?.(note, { shift: Boolean(e.nativeEvent?.shiftKey) })}
+          aria-label={`Select ${title}`}
+        />
+      </label>
+      {card}
+    </div>
+  )
+}
+
+function renderCard({ note, title, onOpen, onRestore, blocked }) {
   const thumb = cardThumb(note)
 
   if (onRestore) {

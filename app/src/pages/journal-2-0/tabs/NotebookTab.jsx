@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
@@ -34,6 +34,16 @@ import ConfirmModal from '../components/ConfirmModal'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
+import BulkActionBar from '../components/notebook/BulkActionBar'
+import { useNoteSelection } from '../lib/noteSelection'
+import {
+  checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes, joinUndo, runNoteBatch,
+  undoFor,
+} from '../lib/noteBatch'
+import { useHubEligible } from '../../../hub/useHubActive'
+import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
+import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
+import { fallbackNodes } from '../lib/tagTree'
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -64,6 +74,9 @@ function _logNotebookVisit() {
     body: JSON.stringify({ event: 'notebook_tab_visit' }),
   }).catch(() => {})
 }
+
+/** Bulk ops that can change what GET /api/j2/notes/tags counts (R1-N4). */
+const TAG_COUNT_OPS = new Set(['addTag', 'removeTag', 'trash', 'restore'])
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -382,8 +395,11 @@ export default function NotebookTab() {
   // A key-predicate SWR revalidation (not a FolderSidebar remount, which
   // would also blow away its expanded-folder/search UI state) targets
   // exactly those hooks without disturbing anything else.
-  const refreshSidebarCounts = () => {
-    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes'))
+  // `tags: false` leaves GET /api/j2/notes/tags out — for a change that cannot
+  // move a tag count (review R1-N4: that endpoint costs ~1.4 s at 50k notes).
+  const refreshSidebarCounts = ({ tags = true } = {}) => {
+    globalMutate((key) => typeof key === 'string' && key.startsWith('/api/j2/notes')
+      && (tags || !key.startsWith(NOTE_TAGS_KEY)))
   }
 
   // ⭐ WAVE M: an optional `target` carries the OBJECT the caller actually
@@ -559,6 +575,261 @@ export default function NotebookTab() {
     }
   }
 
+  // ── Wave 5 bulk operations ────────────────────────────────────────────────
+  // Multi-select over the notes IN VIEW, in the two views that list notes one
+  // per row/card (list, table) and in the Trash. The board, calendar and graph
+  // keep their own gestures — a checkbox there would be a second way to write
+  // the same property the card's own control already writes.
+  const selectionOn = !noteId && !isHome && (isTrashView || viewMode === 'list' || viewMode === 'table')
+  const visibleIds = useMemo(() => (selectionOn ? notes.map((n) => n.id) : []), [selectionOn, notes])
+  const selection = useNoteSelection(visibleIds)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  // The state flag re-renders the bar; this ref is the guard — it is set in the
+  // same tick as the click, so a second click or a queued Undo can never start
+  // a second batch while one is in flight.
+  const bulkBusyRef = useRef(false)
+  // ⛔ OWNED HERE, NOT BY THE BAR. The bar unmounts the moment the selection
+  // empties (a trash, a restore), so a message it owned would be destroyed in
+  // the very commit that set it. This outlives it.
+  // R1-S1: a notice may carry `anyway` (describeUnchecked) — a device that
+  // could not be checked is offered a confirmed way through; `armed` is the
+  // confirmation step.
+  const [bulkNotice, setBulkNotice] = useState(null) // { message, tone, anyway?, armed? }
+  const anywayRef = useRef(null)
+  const anywayConfirmRef = useRef(null)
+  // ⛔ THE WAY BACK HAS ITS OWN NOTICE (review S4). With one shared notice, any
+  // later action's sentence replaced the only Undo, and pressing Undo while
+  // another batch ran cleared it and did nothing. Now a later sentence goes to
+  // `bulkNotice`, and an Undo pressed mid-batch is QUEUED and runs when that
+  // batch finishes.
+  const [undoNotice, setUndoNotice] = useState(null) // { message, tone, undo: {op, ids, args}, queued? }
+  const undoQueuedRef = useRef(false)
+  const undoRef = useRef(null)
+  const { tagCounts, tagTree } = useJ2NoteTags()
+  // Suggestions for the bulk "add a tag" field: the whole tag tree (implied
+  // parents included); an older answer with no tree falls back to flat tags.
+  const tagTreeNodes = useMemo(
+    () => tagTree || fallbackNodes(tagCounts),
+    [tagTree, tagCounts],
+  )
+
+  // A different folder / tag / view / mode is a different set of notes: the
+  // old selection must not ride along into it.
+  const selectionContext = [
+    folderId, tag, activeView?.id, tickerFilter, viewMode, isTrashView, noteId,
+    JSON.stringify(propertyFilter || null),
+  ].join('|')
+  const clearSelection = selection.clear
+  useEffect(() => { clearSelection() }, [selectionContext, clearSelection])
+
+  // Esc clears the selection — unless something else owns Esc right now: an
+  // open dialog, the command palette (it marks its Esc handled), or a text
+  // field (Esc there means "stop typing", not "forget my selection").
+  useEffect(() => {
+    if (!selection.count) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const t = e.target
+      const typing = t && (t.isContentEditable || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'
+        || (t.tagName === 'INPUT' && t.type !== 'checkbox'))
+      if (typing) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      clearSelection()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selection.count, clearSelection])
+
+  // Keep a notice on screen long enough to read and act on, then let it go.
+  // An error stays until dismissed: it describes something the member has to do.
+  useEffect(() => {
+    if (!bulkNotice || bulkNotice.tone === 'error') return undefined
+    const t = setTimeout(() => setBulkNotice(null), 8000)
+    return () => clearTimeout(t)
+  }, [bulkNotice])
+  // The Undo stays for 12 seconds — and indefinitely once queued: a queued Undo
+  // is a promise to the member that it WILL run. R23-N5: nor does it run out
+  // while an "anyway" offer is still on screen — confirming that offer FINISHES
+  // the same action and joins this Undo (joinUndo), so the member reading the
+  // warning must not lose the first half's way back meanwhile.
+  const anywayOffer = bulkNotice?.anyway || null
+  const anywayArmed = Boolean(bulkNotice?.armed)
+  useEffect(() => {
+    if (!undoNotice || undoNotice.queued || anywayOffer) return undefined
+    const t = setTimeout(() => setUndoNotice(null), 12000)
+    return () => clearTimeout(t)
+  }, [undoNotice, anywayOffer])
+  // R23-N5: the "anyway" offer holds focus through its two steps. When it
+  // appears (the bar that had focus is gone), focus goes to "Trash anyway";
+  // pressing it arms the confirmation and focus follows; Cancel disarms it and
+  // focus comes back to "Trash anyway" — never dropped on the page.
+  useEffect(() => {
+    if (!anywayOffer) return
+    const target = anywayArmed ? anywayConfirmRef : anywayRef
+    target.current?.focus()
+  }, [anywayOffer, anywayArmed])
+  // After a trash or a move, the bar is gone (or the notes moved out of view)
+  // and focus with it — hand focus to Undo so a keyboard member can take it back
+  // without hunting for it. Keyed on the undo itself, so queueing does not steal
+  // focus a second time. ⛔ Not while an "anyway" offer is up: a partial trash
+  // brings both at once, and the offer is the decision still waiting on the
+  // member (this effect runs after the one above, so without the check the
+  // Undo would take the focus the offer was just given).
+  const undoKey = undoNotice?.undo
+  useEffect(() => {
+    if (undoKey && !anywayOffer) undoRef.current?.focus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [undoKey])
+  // R23-N6: where the joystick can be, the notice column starts ABOVE the pad's
+  // resting box, as the hub's own toasts do — so the Undo and its close button
+  // are never under the pad. Derived from the hub's own geometry
+  // (hub/constants.js) and its own eligibility answer, never restated here;
+  // the gap is the existing spacing token.
+  const hubCorner = useHubEligible()
+  const noticeStackStyle = hubCorner
+    ? { bottom: `calc(env(safe-area-inset-bottom) + ${BOTTOM_OFFSET_PX + PAD_PX}px + var(--space-sm))` }
+    : undefined
+
+  const titleById = useMemo(() => new Map(notes.map((n) => [n.id, n.title?.trim() || 'Untitled'])), [notes])
+  const selectedTags = useMemo(() => {
+    const seen = new Map()
+    for (const n of notes) {
+      if (!selection.isSelected(n.id)) continue
+      for (const t of n.tags || []) if (!seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t)
+    }
+    return [...seen.values()].sort((a, b) => a.localeCompare(b))
+  }, [notes, selection])
+
+  const afterBulkWrite = (op, changedIds) => {
+    if (op === 'trash' || op === 'restore') {
+      // The same target-status flip a single trash/restore makes — a noteLink
+      // chip elsewhere may still show the old Trashed/active state.
+      for (const id of changedIds) invalidateNoteLinkTarget(id)
+    }
+    refresh()
+    refreshAll()
+    // The tag tree counts tags on LIVE notes: only a tag edit, or a note
+    // entering or leaving the Trash, can move it. A move or a favourite
+    // cannot, so it does not re-ask the (costly) tag endpoint.
+    refreshSidebarCounts({ tags: TAG_COUNT_OPS.has(op) })
+  }
+
+  const titleOf = (id) => titleById.get(id) || null
+  const startBulk = () => {
+    if (bulkBusyRef.current) return false
+    bulkBusyRef.current = true
+    setBulkBusy(true)
+    return true
+  }
+  const endBulk = () => {
+    bulkBusyRef.current = false
+    setBulkBusy(false)
+  }
+
+  const runBulk = async (
+    op, args = {}, ctx = {}, ids = selection.selectedIds,
+    { isUndo = false, acceptUnchecked = false, continues = false } = {},
+  ) => {
+    if (!ids.length || !startBulk()) return
+    try {
+      const outcome = await runNoteBatch({ ids, op, args, blockedNoteIds, acceptUnchecked })
+      const { message, tone } = describeBatch(outcome, { ...ctx, titleOf })
+      // R1-S1: notes this device could not be ASKED about are not "still
+      // syncing" — they get their own sentence and a confirmed "anyway".
+      const offer = describeUnchecked(
+        op, outcome.results.filter((r) => r.status === 'unchecked').map((r) => r.id), { titleOf })
+      const changedIds = outcome.results.filter((r) => r.status === 'changed').map((r) => r.id)
+      // A trash and a move can be taken back (B1: a move said where each note
+      // came from). An Undo itself cannot — and never replaces a newer one.
+      const undo = isUndo ? null : undoFor(op, outcome, args)
+      // ⛔ A queued Undo is never replaced by a newer one: it is a promise.
+      if (undo && !undoQueuedRef.current) {
+        setBulkNotice(offer)
+        // R23-N5: a confirmed "anyway" FINISHES the action whose Undo is on
+        // screen — its notes join that Undo, and the sentence counts both parts.
+        setUndoNotice((prev) => {
+          const joined = continues ? joinUndo(prev, undo) : { undo, earlier: 0 }
+          return joined.earlier
+            ? { ...describeBatch(outcome, { ...ctx, titleOf, earlier: joined.earlier }), undo: joined.undo }
+            : { message, tone, undo }
+        })
+      } else {
+        setBulkNotice(offer
+          ? { ...offer, message: [message, offer.message].filter(Boolean).join(' ') }
+          : { message, tone })
+      }
+      if (op === 'trash' || op === 'restore') clearSelection()
+      afterBulkWrite(op, changedIds)
+    } catch (e) {
+      console.error('[notebook] bulk action failed', e)
+      setBulkNotice({ message: e?.message || 'That did not go through. Nothing was changed.', tone: 'error' })
+    } finally {
+      endBulk()
+    }
+  }
+
+  const runUndo = (undo) => {
+    if (bulkBusyRef.current) return   // still queued: the effect below retries
+    undoQueuedRef.current = false
+    setUndoNotice(null)
+    runBulk(undo.op, undo.args, undo.op === 'move' ? { backToOrigin: true } : {}, undo.ids, { isUndo: true })
+  }
+  const pressUndo = () => {
+    if (!undoNotice || undoNotice.queued) return
+    if (bulkBusyRef.current) {
+      undoQueuedRef.current = true
+      setUndoNotice((n) => (n ? { ...n, queued: true } : n))
+      return
+    }
+    runUndo(undoNotice.undo)
+  }
+  // A queued Undo runs the moment the batch it waited for is done.
+  useEffect(() => {
+    if (!bulkBusy && undoNotice?.queued) runUndo(undoNotice.undo)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bulkBusy, undoNotice])
+
+  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false } = {}) => {
+    if (!ids.length || !startBulk()) return
+    try {
+      // ⛔ A note whose words the server does not have yet would export WITHOUT
+      // them, and the member would believe the file complete. It is left out and
+      // named instead — a drain-retired note (blocked) AND one still sending
+      // (noteHasUnsentWork's raw signal; review S1). A note the device could
+      // not be asked about is offered a confirmed "Export anyway" (R1-S1).
+      const blocked = ids.filter((id) => blockedNoteIds.has(id))
+      const rest = ids.filter((id) => !blockedNoteIds.has(id))
+      const checked = await checkUnsentWork(rest)
+      const unsent = rest.filter((id) => checked.unsent.has(id))
+      const unchecked = acceptUnchecked ? [] : rest.filter((id) => checked.unchecked.has(id))
+      const send = rest.filter((id) => !checked.unsent.has(id) && !unchecked.includes(id))
+      let count = 0
+      let skipped = 0
+      if (send.length) ({ count, skipped } = await exportSelectedNotes(send))
+      const said = describeExport({ count, skipped, blocked, unsent }, { titleOf })
+      const offer = describeUnchecked('export', unchecked, { titleOf })
+      const saidAnything = count || skipped || blocked.length || unsent.length
+      setBulkNotice(offer
+        ? { ...offer, message: [saidAnything ? said.message : '', offer.message].filter(Boolean).join(' ') }
+        : said)
+    } catch (e) {
+      console.error('[notebook] bulk export failed', e)
+      setBulkNotice({ message: e?.message || 'The export could not be prepared.', tone: 'error' })
+    } finally {
+      endBulk()
+    }
+  }
+
+  // R1-S1: the member CONFIRMED going ahead without the device check. Only the
+  // check that could not run is waived — the re-check still refuses a note it
+  // DOES find unsent.
+  const runAnyway = (anyway) => {
+    if (!anyway || bulkBusyRef.current) return
+    setBulkNotice(null)
+    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
+    else runBulk(anyway.op, {}, {}, anyway.ids, { acceptUnchecked: true, continues: true })
+  }
+
   // Create a note. Blank note passes no title/body; a template seeds both
   // (plus its preset tags and, when known, the ticker). The actual network
   // calls live in lib/noteCreation.js (Wave H) so the Ticker Research
@@ -660,6 +931,95 @@ export default function NotebookTab() {
     >
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
+      )}
+      {/* Wave 5: what a bulk action did, in words — and the way back from a
+          trash or a move. Rendered here, above everything the action can
+          unmount; the Undo has its own notice so no later sentence replaces it.
+          R1-S2: the two share ONE fixed stack, each in its own slot — two
+          fixed boxes at the same spot let a later sentence paint over Undo.
+          The Undo is the LAST child: the stack grows upward from the bottom,
+          so a sentence arriving later never moves the button under a finger. */}
+      {(undoNotice || bulkNotice) && (
+        <div className={styles.bulkNoticeStack} style={noticeStackStyle} data-testid="bulk-notice-stack">
+          {bulkNotice && (
+            <div
+              className={`${styles.bulkNotice} ${bulkNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
+              role={bulkNotice.tone === 'error' ? 'alert' : 'status'}
+              data-testid="bulk-notice"
+            >
+              <span className={styles.bulkNoticeText}>
+                {bulkNotice.armed ? bulkNotice.anyway.confirm : bulkNotice.message}
+              </span>
+              {bulkNotice.anyway && !bulkNotice.armed && (
+                <button
+                  type="button"
+                  ref={anywayRef}
+                  className={styles.bulkNoticeBtn}
+                  onClick={() => setBulkNotice((n) => (n ? { ...n, armed: true } : n))}
+                >
+                  {bulkNotice.anyway.label}
+                </button>
+              )}
+              {bulkNotice.anyway && bulkNotice.armed && (
+                <>
+                  <button
+                    type="button"
+                    ref={anywayConfirmRef}
+                    className={styles.bulkNoticeBtn}
+                    onClick={() => runAnyway(bulkNotice.anyway)}
+                    disabled={bulkBusy}
+                  >
+                    {bulkNotice.anyway.confirmLabel}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.bulkNoticeBtn}
+                    onClick={() => setBulkNotice((n) => (n ? { ...n, armed: false } : n))}
+                  >
+                    Cancel
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className={styles.bulkNoticeClose}
+                onClick={() => setBulkNotice(null)}
+                aria-label="Dismiss this message"
+              >
+                <UIcon name="x" size={12} gold={false} />
+              </button>
+            </div>
+          )}
+          {undoNotice && (
+            <div
+              className={`${styles.bulkNotice} ${undoNotice.tone === 'error' ? styles.bulkNoticeError : ''}`}
+              role="status"
+              data-testid="bulk-undo-notice"
+            >
+              <span className={styles.bulkNoticeText}>
+                {undoNotice.message}
+                {undoNotice.queued ? ' Undo will run as soon as the current action finishes.' : ''}
+              </span>
+              <button
+                type="button"
+                ref={undoRef}
+                className={styles.bulkNoticeBtn}
+                onClick={pressUndo}
+                disabled={Boolean(undoNotice.queued)}
+              >
+                {undoNotice.queued ? 'Undo queued' : 'Undo'}
+              </button>
+              <button
+                type="button"
+                className={styles.bulkNoticeClose}
+                onClick={() => { undoQueuedRef.current = false; setUndoNotice(null) }}
+                aria-label="Dismiss this message"
+              >
+                <UIcon name="x" size={12} gold={false} />
+              </button>
+            </div>
+          )}
+        </div>
       )}
       {/* When the panel is hidden, a single floating button brings it back. When
           open, the collapse control lives in the panel's own header toolbar. */}
@@ -907,6 +1267,28 @@ export default function NotebookTab() {
           </div>
         )}
 
+        {selectionOn && selection.count > 0 && (
+          <BulkActionBar
+            count={selection.count}
+            totalInView={visibleIds.length}
+            allSelected={selection.allSelected}
+            onSelectAll={selection.selectAll}
+            onClear={selection.clear}
+            trashView={isTrashView}
+            busy={bulkBusy}
+            selectedTags={selectedTags}
+            tagNodes={tagTreeNodes}
+            onMove={(folderId, folderName) => runBulk('move', { folderId }, { folderName })}
+            onAddTag={(t) => runBulk('addTag', { tag: t }, { tag: t })}
+            onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
+            onFavorite={() => runBulk('favorite')}
+            onUnfavorite={() => runBulk('unfavorite')}
+            onExport={() => exportSelection()}
+            onTrash={() => runBulk('trash')}
+            onRestore={() => runBulk('restore')}
+          />
+        )}
+
         {isLoading && notes.length === 0 ? (
           // G-106 (Wave B lower-frequency sweep): a small grid of card-shaped
           // skeleton placeholders -- reusing the same `.grid` layout the real
@@ -1029,6 +1411,13 @@ export default function NotebookTab() {
                 onQuickFilter={handleQuickFilter}
                 onOpenNote={openNote}
                 blockedNoteIds={blockedNoteIds}
+                selection={selectionOn ? {
+                  isSelected: selection.isSelected,
+                  onToggle: (n, opts) => selection.toggle(n.id, opts),
+                  allSelected: selection.allSelected,
+                  someSelected: selection.count > 0,
+                  onToggleAll: () => (selection.allSelected ? selection.clear() : selection.selectAll()),
+                } : null}
               />
             ) : (
               <div className={styles.grid}>
@@ -1039,6 +1428,9 @@ export default function NotebookTab() {
                     onOpen={openNote}
                     onRestore={isTrashView ? restoreNote : undefined}
                     blocked={blockedNoteIds.has(n.id)}
+                    selectable={selectionOn}
+                    selected={selection.isSelected(n.id)}
+                    onToggleSelect={(note, opts) => selection.toggle(note.id, opts)}
                   />
                 ))}
               </div>

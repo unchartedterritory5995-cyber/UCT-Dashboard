@@ -1,0 +1,51 @@
+/* Wave 5 — the `:` emoji picker (EmojiMenu.jsx). Same surface as the slash
+   menu; rows are an emoji and its shortcode. */
+.popupWrap {
+  pointer-events: auto;
+}
+.menu {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: var(--shadow-popover);
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--text-bright);
+  font: inherit;
+}
+.item:hover, .itemActive {
+  background: var(--bg-hover);
+}
+.char {
+  font-size: 18px;
+  line-height: 1;
+  width: 22px;
+  text-align: center;
+}
+.name {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Touch tier: finger-height rows. */
+@media (max-width: 1024px) {
+  .item {
+    min-height: var(--tap-min);
+  }
+}

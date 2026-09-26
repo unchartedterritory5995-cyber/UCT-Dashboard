@@ -19,7 +19,12 @@
  * back to timestamps and say so, rather than pretending the comparison is exact.
  */
 
-import { usableBaseline } from './baseline'
+import { usableBaseline, isSupersededBaseline } from './baseline'
+import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
+import { writtenSchemaOf } from '../notebookSchema'
+
+/** B1: two stamps describing the SAME words ⇒ the lower. Absent ⇒ 0. */
+const lowerStamp = (a, b) => Math.min(writtenSchemaOf(a), writtenSchemaOf(b))
 
 /** A stable-enough id for "this page's editing session". */
 export function newSessionId() {
@@ -92,7 +97,27 @@ export function discardsUnsentWork(prev, incoming) {
   // unsent work would keep every note dirty forever — the failure direction
   // that breaks sync rather than the one that loses words.
   if (!prev || !prev.dirty) return false
-  return !sameAuthoredContent(incoming, prev)
+  if (sameAuthoredContent(incoming, prev)) return false
+  // ⭐⭐ D3 (wave 5) — WHAT LANDED MAY HOLD `prev`'S WORDS *AND* THE SERVER'S OWN
+  // APPENDS, AND THAT IS NOT A DISCARD.
+  //
+  // ⚰️ MEASURED (`offlineWordsSurvive.property.test.jsx`, "the editor merged it
+  // and saved"). A door appended a block while the member held unsent words; the
+  // editor merged the block in and saved, so the server now holds prev's words
+  // PLUS the block. Strict equality answered "unsent work", the settle kept the
+  // record dirty with a queued entry lacking the block, and the drain later
+  // re-sent it — a spurious `(conflicted copy)` of a note only this member
+  // touched (and, before this wave's `serverBase` fix, the block was dropped).
+  //
+  // ⛔ PROVEN, NEVER GUESSED — and proven by the DRAIN'S OWN CLASSIFIER, asked
+  // rather than restated (review N2, fix round 1): "`incoming` is `prev` plus
+  // blocks only the server appends, at the tail, with the title and subtitle
+  // untouched" is exactly `classifyServerChange(incoming, prev) === APPEND_ONLY`.
+  // A second spelling of that rule here had already drifted (`?? ''` against the
+  // classifier's `str()`), and the day authored content gains a field the
+  // classifier learns it and this would not. Anything else is still a discard:
+  // a changed paragraph, a moved block, a member-typed tail, a title edit.
+  return classifyServerChange(incoming, prev) !== APPEND_ONLY
 }
 
 /** Flatten a record to the words a member would recognise as theirs. */
@@ -172,6 +197,10 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
   const serverState = authored(server)
   const serverBase = usableBaseline(server?.updatedAt)
 
+  // ⛔⛔ B1: every candidate carries the stamp of the bundle that WROTE it
+  // (`writtenSchema`, absent on everything written before stamps). Whatever
+  // wins, its stamp travels with it — Restore and adoption send the words at
+  // that level, never at this bundle's.
   const candidates = []
   if (idbRecord) {
     candidates.push({
@@ -181,6 +210,7 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
       generation: Number.isFinite(idbRecord.generation) ? idbRecord.generation : null,
       sessionId: idbRecord.sessionId ?? null,
       at: Number.isFinite(idbRecord.localSavedAt) ? idbRecord.localSavedAt : null,
+      writtenSchema: idbRecord.writtenSchema,
     })
   }
   if (lsDraft) {
@@ -193,6 +223,7 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
       generation: Number.isFinite(lsDraft.generation) ? lsDraft.generation : null,
       sessionId: lsDraft.sessionId ?? null,
       at: Number.isFinite(lsDraft.savedAt) ? lsDraft.savedAt : null,
+      writtenSchema: lsDraft.writtenSchema,
     })
   }
 
@@ -221,8 +252,13 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
     return { ...win, unsynced: true, ambiguous: false, reason: 'newer generation in the same session' }
   }
   // Same content in both — the choice does not matter, so do not dress it up.
+  // ⛔ B1: …except for WHO wrote it. Two writers produced these words; the
+  // lower of their levels is the one both can vouch for.
   if (sameAuthoredContent(a.state, b.state)) {
-    return { ...a, unsynced: true, ambiguous: false, reason: 'both local copies agree' }
+    return {
+      ...a, writtenSchema: lowerStamp(a.writtenSchema, b.writtenSchema),
+      unsynced: true, ambiguous: false, reason: 'both local copies agree',
+    }
   }
   // ⭐ STRUCTURAL TIE-BREAK. Within a session the synchronous draft is written
   // first and the durable copy lags it, so the draft can only be equal-or-newer.
@@ -245,4 +281,123 @@ export function chooseLocalRecovery({ server, idbRecord = null, lsDraft = null }
     ambiguous: true,
     reason: 'two local copies that cannot be ordered — the member should choose',
   }
+}
+
+/**
+ * ⭐⭐ D3 / F5P-1 — QUEUED WORK IS SENT BY THE NOTE'S OWNER, NOT OFFERED.
+ *
+ * ⚰️ THE STATE THIS ENDS (`q1-product-followups.md`, F5P-1). A member queued
+ * words offline, came back to the note, and sat on it. The sweep skips the note
+ * the editor owns (`excludeNoteId` -- two writers on one note is what Wave Q1
+ * forbids), and the editor reopened on the SERVER's copy and put the member's
+ * words behind a Restore/Discard banner. Nobody sent them; measured on
+ * production, nothing left for 120 s, and nothing would have.
+ *
+ * ⭐ WHY "OFFER" WAS THE WRONG VERB FOR THIS COPY. The banner exists for a crash
+ * draft: words that never reached the queue, which silently preferring could
+ * clobber. QUEUED words are different in kind: the member already committed them
+ * to the server, the sweep sends them WITHOUT asking the moment the note closes,
+ * and compare-and-set on their own baseline makes sending them unable to clobber
+ * anything -- the server 409s and the classifier decides rebase / merge / fork.
+ * So the owner does exactly what the sweep would, through its own save.
+ *
+ * ⛔ THIS ONLY DECIDES. It is a pure answer about what the durable store holds;
+ * the editor applies it. Null means "not provably queued work -- offer it as
+ * before", never "nothing to do".
+ *
+ * @param decision  what `chooseLocalRecovery` returned
+ * @param record    the DIRTY durable record, or null
+ * @param entry     that note's queued outbox entry, or null
+ * @returns null, or { state, base }:
+ *   state  the member's queued words -- what the editor must now hold
+ *   base   the server copy those words were written ON, with its revision. ⛔ The
+ *          editor's baseline becomes THIS, never the server's current revision:
+ *          sending the queued body on the current revision would succeed without
+ *          a 409 and silently drop whatever a door appended in between.
+ */
+export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}) {
+  if (!decision?.unsynced || decision.ambiguous) return null
+  if (!record?.dirty || !entry) return null
+  // ⛔ A BLOCKED entry is retired from sending on purpose; its badge asks the
+  // member to act. Auto-sending it would be the retry it was retired from.
+  if (entry.permanent || entry.noteId !== record.noteId) return null
+  // ⛔ EXACTLY what is queued. A winning copy that differs from the record (a
+  // crash draft ahead of it, two copies from different sessions) is the case the
+  // banner is for: the member chooses. The entry and the record are written in
+  // one transaction, so a disagreement between them is also a reason to ask.
+  if (!sameAuthoredContent(decision.state, record)) return null
+  if (!sameAuthoredContent(entry.patch, record)) return null
+  // ⛔ The base must also not be NEWER than the entry's revision (review N4). That
+  // check lives in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
+  const base = baseOfRecovered({ decision, record, entry })
+  if (!base) return null
+  // ⛔⛔ B1: the stamp of the bundle that WROTE these words — the lower of the
+  // record's and the entry's (the same words, one transaction; the lower is the
+  // one both vouch for). The editor sends the adopted words at THIS level, so an
+  // old tab's empty stand-in is refused on a note that tab could not read.
+  return { state: authored(record), base, writtenSchema: lowerStamp(record.writtenSchema, entry.writtenSchema) }
+}
+
+/**
+ * ⭐ D3 — WHICH SERVER COPY WAS THE RECOVERED WORK WRITTEN ON? One authority,
+ * asked by `queuedWorkToAdopt` and by the banner's Restore.
+ *
+ * ⚰️ MEASURED on the real editor, 2026-09-23 (wave 5): Restore sent the recovered
+ * copy on its own baseline, the server had moved, the PUT 409'd — and the editor
+ * was left holding the recovered words on the SERVER'S CURRENT revision. The
+ * member's next keystroke autosaved them over the other device's words: 0 forks,
+ * the other copy gone. With an append door instead, the captured block is gone.
+ * The editor could not do better, because nothing told it what the recovered
+ * words were written on. This does.
+ *
+ * ⛔⛔ AND IT MUST NOT BE NEWER THAN THE QUEUED ENTRY'S REVISION (review N4,
+ * fix rounds 1-3). A record written by the settle BEFORE A-1 carries
+ * `acked@landed` as its base — a copy that already holds a door's appended
+ * block — while its entry still sits on the OLDER revision the words were really
+ * written on. Adopting on that base sends the queued body at `landed`: a 200,
+ * and the block is gone. So a base NEWER than the entry is refused, by EITHER
+ * caller: `queuedWorkToAdopt` then offers the banner, and the banner's Restore
+ * falls back to its path for a copy with no known base.
+ * ⭐ A base OLDER than the entry is a legitimate shape and is used, exactly as
+ * `fe4e278bc` did (fix round 3, controller ruling on N4-b). Diffing the server
+ * against an OLDER copy can only see MORE change, so the 409 rebases, merges or
+ * forks — it can never hide an append. It happens without anything being wrong:
+ * the editor's 409 reconcile moves `lastSavedRef` forward and the retry does not
+ * land, so the next durable write takes the newer baseline while the record
+ * keeps its older last-known copy; and the drain's ring-vouched rebase moves the
+ * entry but never sees the server's document, so it leaves the base alone.
+ * ⚠️ A base NEWER than the entry is not always poison either: a drain rebase
+ * that learned the server's copy moves the entry and the base together, and a
+ * later unsent-work settle then re-derives the entry's baseline from the
+ * record's older one. That shape cannot be told apart from the poisoned one by
+ * direction, so it is refused too, and Restore's no-known-base path can then be
+ * overwritten by a later keystroke — the crash-draft class left open by ruling
+ * (`docs/notebook/f5-fixes-2026-09-23.md` §C.5; wave 6 lane D3b).
+ * ⛔ Compared PARSED, through the same authority the drain uses
+ * (`isSupersededBaseline`), never as strings. Only an equal revision or a base
+ * PROVABLY older is used; newer, unparseable, or an entry with no baseline is
+ * refused.
+ * ⚠️ Without an entry there is nothing to compare against, and the record's own
+ * base is returned as before.
+ *
+ * @param entry  that note's queued outbox entry, or null
+ * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
+ *          the winning durable record carries — or null when that cannot be
+ *          proved: no record, a winner that is not the record's words (a crash
+ *          draft ahead of it), a copy with no revision, or a revision that is not
+ *          provably at or before the queued entry's. ⛔ Null means "not known",
+ *          and the caller must not invent one from the server's current copy.
+ */
+export function baseOfRecovered({ decision, record = null, entry = null } = {}) {
+  if (!decision?.unsynced || !record?.dirty) return null
+  if (!sameAuthoredContent(decision.state, record)) return null
+  const base = lastKnownServerCopy(record)
+  const at = usableBaseline(base?.updatedAt)
+  if (!base || !at) return null
+  if (entry) {
+    const entryAt = usableBaseline(entry.baseUpdatedAt)
+    // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
+    if (at !== entryAt && !isSupersededBaseline(at, entryAt)) return null
+  }
+  return { ...authored(base), updatedAt: at }
 }

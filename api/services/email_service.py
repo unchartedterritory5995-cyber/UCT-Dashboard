@@ -36,8 +36,26 @@ else:
 
 # ── Core send ────────────────────────────────────────────────────────────────
 
+# Special-use domains that can never receive mail (RFC 2606, RFC 6761, RFC 8375,
+# and .local for mDNS). A send to one always bounces, and a bounce still spends
+# the Resend quota and the sending domain's reputation. The synthetic smoke
+# account (smoke@uctintelligence.internal) is unroutable BY DESIGN, and on
+# 2026-09-23 its watchlist alerts were part of what exhausted the daily quota
+# that password resets and verification emails share.
+_UNROUTABLE_TLDS = ("internal", "invalid", "test", "example", "localhost", "local")
+
+
+def is_unroutable(address: str) -> bool:
+    """True when the address's domain is a special-use name no mail can reach."""
+    domain = (address or "").rsplit("@", 1)[-1].strip().strip("<>").rstrip(".").lower()
+    return domain.rsplit(".", 1)[-1] in _UNROUTABLE_TLDS
+
+
 def send_email(to: str, subject: str, html: str) -> bool:
     """Send an email via Resend. Returns True on success, False on failure."""
+    if is_unroutable(to):
+        logger.info(f"[email] Not sending '{subject}' to {to}: the domain cannot receive mail")
+        return False
     if not _resend:
         logger.warning(f"[email] Skipping email to {to} (Resend not configured)")
         return False

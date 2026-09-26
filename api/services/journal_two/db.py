@@ -11,8 +11,10 @@ Spec §4 (data model), audit §5 (schema commitment).
 import json
 import os
 import sqlite3
+import time
 import uuid
 from pathlib import Path
+from typing import Any
 
 
 _J2_SCHEMA = """
@@ -1771,6 +1773,15 @@ _PHASE_2_ALTERS = [
     # before this column was added.
     "ALTER TABLE j2_notes ADD COLUMN deleted_at TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_deleted ON j2_notes(user_id, deleted_at)",
+    # Wave 5 quick switcher (Ctrl/Cmd+K over the WHOLE library): a COVERING
+    # index, so a keystroke reads one member's live titles from the index
+    # alone, newest edit first, never the wide note rows. Measured on 50,000
+    # notes (~2.4 KB of body each): the same read took ~150 ms off the table
+    # and ~30 ms off this index. Only a title change, a trash/restore or an
+    # edit (updated_at) moves an entry -- the same churn idx_j2_notes_user_updated
+    # already pays. notes.py::switcher_search is its reader.
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_switcher"
+    " ON j2_notes(user_id, deleted_at, updated_at DESC, title)",
     # Wave 1 (P1-1): a capture routed to the inbox must not silently drop the
     # member-typed comment or a trade link — the SAME two fields the "current
     # note"/"new entry" destinations already carry via the full widgetEmbed
@@ -1930,6 +1941,20 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         run_notebook_migration_v6(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v6] aborted: {e}")
+
+    # body_plain is DERIVED from body_json; v7 re-derives it under the
+    # 2026-09-23 textBetween rule (see its docstring). After v6 because it only
+    # reads/updates j2_notes + j2_note_versions, which every earlier step made.
+    try:
+        run_notebook_migration_v7(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        # ⛔ N1: roll the unfinished batch back. The next statement in this
+        # function commits, and without this it would keep half a batch -- a
+        # re-derived body_plain with its mentions already DELETED and never
+        # re-inserted, on a row that then matches and is never re-walked.
+        # Every earlier batch committed itself; only this one is discarded.
+        conn.rollback()
+        print(f"[notebook-migration-v7] aborted: {e}")
 
     # Note Connectors additive columns (Task 8): `miss_streak` on
     # j2_note_remote_index (2-strikes delete-detection counter) and
@@ -2678,3 +2703,209 @@ def run_notebook_migration_v6(conn: sqlite3.Connection) -> None:
         # probe on every boot forever. Caught here so a write failure is a
         # no-op miss, not a silent permanent cost.
         pass
+
+
+# Rows per transaction, and the most wall time one boot may spend. The clock is
+# read after EVERY row, so a boot that runs out of budget stops within one row
+# -- not at the end of a batch: 200 near-cap notes once took 68 s in one batch
+# against a 20 s budget (R23-N1), and every boot second is member-facing. The
+# next boot resumes from the last row this one walked. Both are module
+# constants so a test can shrink them.
+_BODY_PLAIN_BACKFILL_BATCH = 200
+_BODY_PLAIN_BACKFILL_BUDGET_S = 20.0
+# v7's tables, and the extra columns each row needs beyond its body. Versions
+# too: the note's versioned content is compared against its latest version's
+# (`notes._maybe_capture_version`), and History / the thesis changelog diff
+# the two -- re-deriving only the note would make every unchanged note's next
+# save look like an edit and write a spurious checkpoint. A note row carries
+# its id and owner so its mentions sidecar can be rebuilt (fix round 3).
+_BODY_PLAIN_BACKFILL_TABLES = ("j2_notes", "j2_note_versions")
+_BODY_PLAIN_BACKFILL_EXTRA = {"j2_notes": ("id", "user_id")}
+
+
+def _write_flag_atomic(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, path)
+
+
+def _stored_doc(body_json: Any) -> dict[str, Any] | None:
+    """A stored body as the doc it holds, or None when it does not hold one.
+    The save's own shape rule (`notes._validate_body_json`: an object whose
+    type is "doc"). JSON that parses to anything else -- null, [], "hello" --
+    is as unreadable as JSON that does not parse, and the backfill leaves such
+    a row exactly as it is: reading it as an empty doc would ERASE a body_plain
+    nobody can re-derive (R23-N2)."""
+    try:
+        doc = json.loads(body_json)
+    except Exception:  # noqa: BLE001 — not JSON (or not text): unreadable
+        return None
+    return doc if isinstance(doc, dict) and doc.get("type") == "doc" else None
+
+
+def rederive_body_plain(
+    conn: sqlite3.Connection, *, flag_name: str, tables: tuple[str, ...], count_table: str,
+    extra_columns: dict[str, tuple[str, ...]] | None = None, on_changed=None,
+    clock=time.monotonic, label: str = "body-plain-backfill",
+) -> dict[str, Any]:
+    """Re-derive `body_plain` from `body_json` for every row of `tables`, with
+    `notes.extract_plain_text` -- the one rule every save uses. The ENGINE for
+    run_notebook_migration_v7 (notes + versions) and the playbook's backfill
+    (user_playbook.db); see v7's docstring for why each guard exists.
+
+      · writes `body_plain` ONLY (never `updated_at`, `body_json`, a version);
+      · guarded per row on `body_json` still being the one it derived from;
+      · idempotent: a row already matching is not written (a re-run is a
+        read-only pass);
+      · a body that is not a doc (`_stored_doc`) is left exactly as it is;
+      · batched (one transaction per `_BODY_PLAIN_BACKFILL_BATCH` rows),
+        budgeted per boot (`_BODY_PLAIN_BACKFILL_BUDGET_S`, read after every
+        ROW, so a spent budget stops within one row), resumable from
+        `<flag_name>.progress` (the last rowid walked, per table);
+      · flagged only once every table is walked AND `count_table` has a row.
+    `on_changed(table, row, derived)` runs INSIDE the batch's transaction for
+    each row this pass actually rewrote -- so a derived sidecar and the text
+    it derives from commit together, or not at all. `row` is
+    (rowid, body_json, body_plain, *extra_columns[table]).
+
+    Returns counts: {<table>: {"scanned", "updated"}, "complete": bool}.
+    """
+    from api.services.journal_two.notes import extract_plain_text
+
+    flag = _data_dir() / flag_name
+    if flag.exists():
+        return {"complete": True, "skipped": "flag"}
+    progress_path = _data_dir() / f"{flag_name}.progress"
+    try:
+        progress = json.loads(progress_path.read_text(encoding="utf-8"))
+        if not isinstance(progress, dict):
+            progress = {}
+    except Exception:  # noqa: BLE001 — missing or unreadable: start over
+        progress = {}
+
+    names = tuple(dict.fromkeys((*tables, count_table)))
+    present = {
+        r[0] for r in conn.execute(
+            f"SELECT name FROM sqlite_master WHERE type='table' AND name IN ({','.join('?' * len(names))})",
+            names,
+        )
+    }
+    extra_columns = extra_columns or {}
+    started = clock()
+    out: dict[str, Any] = {"complete": False}
+    for table in tables:
+        counts = out.setdefault(table, {"scanned": 0, "updated": 0})
+        if table not in present:
+            continue
+        extra = "".join(f", {c}" for c in extra_columns.get(table, ()))
+        last = progress.get(table, 0)
+        last = last if isinstance(last, int) else 0
+        while True:
+            rows = conn.execute(
+                f"SELECT rowid, body_json, body_plain{extra} FROM {table} "
+                "WHERE rowid > ? ORDER BY rowid LIMIT ?",
+                (last, _BODY_PLAIN_BACKFILL_BATCH),
+            ).fetchall()
+            if not rows:
+                break
+            spent = False
+            for row in rows:
+                rowid, body_json, body_plain = row[0], row[1], row[2]
+                counts["scanned"] += 1
+                doc = _stored_doc(body_json)
+                try:
+                    derived = extract_plain_text(doc) if doc is not None else None
+                except Exception:  # noqa: BLE001 — unreadable body: leave the row as it is
+                    derived = None
+                if derived is not None and derived != (body_plain or ""):
+                    cur = conn.execute(
+                        f"UPDATE {table} SET body_plain = ? WHERE rowid = ? AND body_json = ?",
+                        (derived, rowid, body_json),
+                    )
+                    if cur.rowcount:
+                        counts["updated"] += cur.rowcount
+                        if on_changed is not None:
+                            on_changed(table, tuple(row), derived)
+                last = rowid
+                # After EVERY row, never only between batches: one near-cap
+                # note's mentions rebuild alone costs ~0.3 s (R23-N1). The row
+                # just walked is finished and is the resume point, so a spent
+                # budget stops within one row and the next boot re-walks none.
+                if clock() - started > _BODY_PLAIN_BACKFILL_BUDGET_S:
+                    spent = True
+                    break
+            conn.commit()
+            progress[table] = last
+            try:
+                _write_flag_atomic(progress_path, json.dumps(progress).encode("utf-8"))
+            except Exception:  # noqa: BLE001 — progress is an optimisation; the rows are committed
+                pass
+            if spent:
+                print(f"[{label}] budget spent; resuming next boot ({out})")
+                return out
+
+    out["complete"] = True
+    row_count = (conn.execute(f"SELECT COUNT(*) FROM {count_table}").fetchone()[0]
+                 if count_table in present else 0)
+    if row_count == 0:
+        return out  # v4's rule: never mark done over zero rows
+    try:
+        _write_flag_atomic(flag, b"1")
+        progress_path.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 — a missed flag costs one read-only re-pass, never data
+        pass
+    if any(out[t]["updated"] for t in tables):
+        print(f"[{label}] body_plain re-derived: {out}")
+    return out
+
+
+def _rebuild_note_mentions(conn: sqlite3.Connection):
+    """v7's `on_changed`: a note whose body_plain was re-derived gets its
+    `j2_note_mentions` sidecar rebuilt by `notes._sync_note_mentions` -- the
+    SAME function every save reaches through `_sync_note_sidecars`, so the
+    backfill can never compute a mention a save would not. (A part-bold
+    "$**NV**DA" was stored "$NV DA", and its mention was NV.) Only mentions:
+    the other four sidecars derive from body_json, which is unchanged."""
+    from api.services.journal_two.notes import _sync_note_mentions
+
+    def hook(table: str, row: tuple, derived: str) -> None:
+        if table == "j2_notes":
+            _sync_note_mentions(conn, row[4], row[3], derived)
+    return hook
+
+
+def run_notebook_migration_v7(conn: sqlite3.Connection, *, clock=time.monotonic) -> dict[str, Any]:
+    """Re-derives `body_plain` for every note and every note version under the
+    2026-09-23 plain-text rule (notes.extract_plain_text = ProseMirror's
+    textBetween with a space: text runs inside one block join with NOTHING).
+    Before it, every text node was joined with a space, so a partly bold word
+    ("**NV**DA") was stored -- and FTS-indexed -- as two words, and a search
+    for it missed the note. New saves write the new form; this fixes the rows
+    already stored. A note it rewrites also gets its mentions sidecar rebuilt,
+    in the same transaction (fix round 3).
+
+    ⛔ It writes `body_plain` ONLY. Never `updated_at`, never `body_json`, never
+    a version row: `updated_at` is the offline store's baseline and the sync
+    engine's optimistic lock, so touching it would read as a remote edit on
+    every device and fork or re-sync every note. The FTS index follows through
+    its own trigger (`j2_notes_fts_au` fires on UPDATE OF body_plain).
+
+    Guarded per row on `body_json` still being the one it derived from, so a
+    note saved between this pass's read and its write keeps what its own save
+    wrote. Idempotent: a row whose stored text already equals the derived text
+    is not written, so a re-run is a read-only pass. Batched: each batch is its
+    own transaction, and a boot stops within one row of spending
+    `_BODY_PLAIN_BACKFILL_BUDGET_S`; progress (the last rowid walked, per table) is kept in
+    `.notebook_migration_v7.progress` beside the flag so the next boot resumes
+    rather than re-walking. The flag is written only when both tables are
+    walked AND at least one note existed -- a flag over zero notes would let a
+    restored backup skip the backfill forever (v4's rule).
+
+    Returns counts: {<table>: {"scanned", "updated"}, "complete": bool}.
+    """
+    return rederive_body_plain(
+        conn, flag_name=".notebook_migration_v7", tables=_BODY_PLAIN_BACKFILL_TABLES,
+        count_table="j2_notes", extra_columns=_BODY_PLAIN_BACKFILL_EXTRA,
+        on_changed=_rebuild_note_mentions(conn), clock=clock, label="notebook-migration-v7",
+    )

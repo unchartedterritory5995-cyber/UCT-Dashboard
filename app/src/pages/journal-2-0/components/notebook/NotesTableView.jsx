@@ -60,8 +60,23 @@ export default function NotesTableView({
    *  would be invisible to every member who prefers this one, and "we told
    *  them" would be true of half the product. */
   blockedNoteIds = null,
+  /** Wave 5 bulk operations — `{ isSelected(id), onToggle(note, {shift}),
+   *  allSelected, someSelected, onToggleAll() }`, or null for no checkboxes.
+   *  ⛔ Every checkbox stops its click at its own label: the row opens the
+   *  note on click, and selecting must never also navigate away. */
+  selection = null,
 }) {
   const isBlocked = (id) => Boolean(blockedNoteIds && blockedNoteIds.has(id))
+  const rowCheckbox = (n) => (
+    <label className={styles.selectBox} onClick={(e) => e.stopPropagation()}>
+      <input
+        type="checkbox"
+        checked={selection.isSelected(n.id)}
+        onChange={(e) => selection.onToggle(n, { shift: Boolean(e.nativeEvent?.shiftKey) })}
+        aria-label={`Select ${n.title || 'Untitled'}`}
+      />
+    </label>
+  )
   const userDefs = (propertyDefs || []).filter((d) => d.source === 'user_set')
   const usedDefs = userDefs.filter((d) =>
     notes.some((n) => n.propertiesJson && n.propertiesJson[d.id] !== undefined && n.propertiesJson[d.id] !== null),
@@ -91,6 +106,27 @@ export default function NotesTableView({
   )
 
   const columns = [
+    ...(selection ? [{
+      // Desktop/tablet: its own narrow column with a select-all header. On a
+      // phone the card view drops it (a header checkbox repeated as every
+      // card's field label would be nonsense) and the box rides in the card
+      // title instead — select-all lives in the bulk bar there.
+      key: '__select',
+      hideOnPhone: true,
+      className: styles.selectCol,
+      header: (
+        <label className={styles.selectBox}>
+          <input
+            type="checkbox"
+            checked={selection.allSelected}
+            ref={(el) => { if (el) el.indeterminate = Boolean(selection.someSelected && !selection.allSelected) }}
+            onChange={() => selection.onToggleAll()}
+            aria-label={selection.allSelected ? 'Clear the selection' : 'Select all notes in view'}
+          />
+        </label>
+      ),
+      render: rowCheckbox,
+    }] : []),
     {
       key: 'title', header: titleHeader, primary: true,
       render: (n) => (
@@ -167,7 +203,9 @@ export default function NotesTableView({
       rows={notes}
       rowKey={(n) => n.id}
       mode="card"
-      cardTitle={(n) => n.title || 'Untitled'}
+      cardTitle={(n) => (selection ? (
+        <span className={styles.cardTitleRow}>{rowCheckbox(n)}<span>{n.title || 'Untitled'}</span></span>
+      ) : (n.title || 'Untitled'))}
       // D-40, 2026-09-22: the joystick hub's cursor (notebookSection.js)
       // queries `[data-note-card-id]` against the WHOLE document -- a
       // global selector, not scoped to the List/NoteCard grid. On a touch

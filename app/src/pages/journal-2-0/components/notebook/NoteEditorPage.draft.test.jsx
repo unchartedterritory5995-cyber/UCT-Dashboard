@@ -104,8 +104,11 @@ describe('NoteEditorPage — local draft safety net (P1-10)', () => {
     expect(screen.queryByText(/Unsaved changes from a previous session/)).not.toBeInTheDocument()
 
     await act(async () => { vi.advanceTimersByTime(800) })
+    // ⛔ B1: this draft carries no `writtenSchema` (every draft written before
+    // stamps existed), so Restore sends it as the OLDEST writer — never at this
+    // bundle's own level.
     await waitFor(() => expect(updateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Recovered Title' }),
+      expect.objectContaining({ title: 'Recovered Title' }), { writtenSchema: 0 },
     ))
   })
 
@@ -129,7 +132,7 @@ describe('NoteEditorPage — local draft safety net (P1-10)', () => {
     })
 
     await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1))
-    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Recovered Title' }))
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Recovered Title' }), { writtenSchema: 0 })
     expect(screen.getByPlaceholderText('Title')).toHaveValue('Recovered Title')
   })
 

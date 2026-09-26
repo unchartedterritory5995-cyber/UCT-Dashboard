@@ -39,7 +39,9 @@ def test_extract_plain_text_walks_nested_nodes():
             {"type": "text", "text": "!"},
         ]},
     ]}
-    assert extract_plain_text(doc) == "Hello World !"
+    # Runs inside one block join with NOTHING (ProseMirror textBetween); the
+    # blocks are separated by one space. Was "Hello World !" before 2026-09-23.
+    assert extract_plain_text(doc) == "Hello World!"
 
 
 def test_extract_plain_text_handles_empty():
