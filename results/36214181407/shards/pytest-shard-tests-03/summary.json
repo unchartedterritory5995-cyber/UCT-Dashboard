@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 1868,
+  "passed": 1836,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 30,
+  "wall_s": 230.42,
+  "failed_files": [
+    "tests/test_breadth_restore.py",
+    "tests/test_breadth_sampler.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 1836 passed, 30 skipped, 5 warnings in 230.42s (0:03:50)",
+  "ok": true
+}
