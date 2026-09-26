@@ -49,6 +49,13 @@ ET = ZoneInfo("America/New_York")
 _PREFIX = "j2_attachment_backups/"   # R2 key prefix
 _KEEP_MIN = 3                        # never prune the newest N, regardless of age
 _MARKER_NAME = ".j2_attachments_backup_last.json"
+# ⛔ Wave 10 (lane 10C, F-7): every tarball carries a MANIFEST of what it holds --
+# each file's relative path, size and sha256 -- as its LAST member, so a restore
+# drill can sample files and prove they come back byte-identical
+# (tools/authdb_restore_drill.py). Top-level and dot-named: a user directory is a
+# member id, so this can never collide with one. Inside the tarball rather than a
+# sidecar object so it is pruned WITH the tarball (a manifest names member ids).
+MANIFEST_NAME = ".uct-attachments-manifest.json"
 
 
 # --- config (read fresh at call time so a Railway var flip / test env takes ---
@@ -158,13 +165,33 @@ def _read_marker():
 
 def _make_tarball(root: Path, dest: Path) -> int:
     """tar.gz the attachments tree; returns file count. Skips nothing —
-    originals are <=5MB validated images, the tree IS the user data."""
+    originals are <=5MB validated images, the tree IS the user data.
+
+    ⛔ Wave 10 (F-7): each file is read ONCE and the same bytes are both archived
+    and hashed, so the manifest describes exactly what the tarball holds (a file
+    that changed between a hash and a separate `tar.add` would be described wrong).
+    The manifest is the last member; the returned count is user files only."""
+    import hashlib
+    import io
+
     count = 0
+    files = []
     with tarfile.open(dest, "w:gz") as tar:
         for p in sorted(root.rglob("*")):
             if p.is_file():
-                tar.add(p, arcname=str(p.relative_to(root)))
+                data = p.read_bytes()
+                arcname = str(p.relative_to(root))
+                info = tar.gettarinfo(str(p), arcname=arcname)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+                files.append({"path": arcname.replace("\\", "/"), "bytes": len(data),
+                              "sha256": hashlib.sha256(data).hexdigest()})
                 count += 1
+        manifest = json.dumps({"v": 1, "count": count, "files": files}).encode("utf-8")
+        minfo = tarfile.TarInfo(MANIFEST_NAME)
+        minfo.size = len(manifest)
+        minfo.mtime = int(time.time())
+        tar.addfile(minfo, io.BytesIO(manifest))
     return count
 
 
