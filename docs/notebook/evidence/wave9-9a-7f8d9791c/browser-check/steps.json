@@ -1,0 +1,196 @@
+[
+ {
+  "at": "15:22:04",
+  "step": "sandbox healthy",
+  "ok": true,
+  "base": "http://127.0.0.1:8204",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-walk"
+ },
+ {
+  "at": "15:22:07",
+  "step": "corpus seeded through import/confirm",
+  "ok": true,
+  "notes": 992
+ },
+ {
+  "at": "15:22:08",
+  "step": "All notes shows 992",
+  "ok": true,
+  "text": "Showing 100 of 992 notes"
+ },
+ {
+  "at": "15:22:08",
+  "step": "probe pasted (All notes, after load)",
+  "ok": true,
+  "version": "uct-bench-probe/1"
+ },
+ {
+  "at": "15:22:08",
+  "step": "selfTest (All notes, after load)",
+  "ok": true,
+  "ms": 203.2,
+  "window": [
+   195,
+   260
+  ]
+ },
+ {
+  "at": "15:22:08",
+  "step": "H1 check(marker) reads absent",
+  "ok": true
+ },
+ {
+  "at": "15:22:39",
+  "step": "H1 walk raised",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: |   - waiting for locator(\"button[data-note-card-id=\\\"6becc5184a97447b943ac93e39f35523\\\"]:not([title])\") to be visible"
+ },
+ {
+  "at": "15:22:41",
+  "step": "probe pasted (after the H1 failure)",
+  "ok": true,
+  "version": "uct-bench-probe/1"
+ },
+ {
+  "at": "15:22:41",
+  "step": "selfTest (after the H1 failure)",
+  "ok": true,
+  "ms": 215.3,
+  "window": [
+   195,
+   260
+  ]
+ },
+ {
+  "at": "15:22:45",
+  "step": "H4 walked: rare term typed, row appears, Escape",
+  "ok": true,
+  "samples": [
+   309.4,
+   253.2,
+   256
+  ],
+  "invalid": [],
+  "refused": null
+ },
+ {
+  "at": "15:22:48",
+  "step": "H5 walked: Ctrl+K, two-word prefix, full-title row, Escape",
+  "ok": true,
+  "query": "Quokka zephyr",
+  "samples": [
+   283.4,
+   180.1,
+   183.3
+  ],
+  "invalid": [],
+  "refused": null
+ },
+ {
+  "at": "15:22:52",
+  "step": "H6 walked: last paragraph, Ctrl+End, 60 x",
+  "ok": true,
+  "n": 60,
+  "status": "COMPLETE",
+  "refused": null
+ },
+ {
+  "at": "15:23:22",
+  "step": "H6 walk raised",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: |   - waiting for locator(\"button[data-note-card-id]:not([title])\").first to be visible"
+ },
+ {
+  "at": "15:23:23",
+  "step": "probe pasted (after the H6 failure)",
+  "ok": true,
+  "version": "uct-bench-probe/1"
+ },
+ {
+  "at": "15:23:24",
+  "step": "selfTest (after the H6 failure)",
+  "ok": true,
+  "ms": 211.5,
+  "window": [
+   195,
+   260
+  ]
+ },
+ {
+  "at": "15:23:25",
+  "step": "H8 diagnostic: '+ New note' on All notes, NO probe in the page",
+  "ok": true,
+  "editor_opened": true,
+  "probe_present": false,
+  "url_now": "/journal/notebook?note=d7b168d2c30c4c9ea2f47a0c6ed6a05c",
+  "urls_after_click": [
+   "/journal/notebook?note=d7b168d2c30c4c9ea2f47a0c6ed6a05c"
+  ],
+  "console_tail": [
+   "error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ]
+ },
+ {
+  "at": "15:23:25",
+  "step": "H8 copy from paste-payload.html with Ctrl+A, Ctrl+C",
+  "ok": false,
+  "clipboard_types": [
+   "ERROR NotAllowedError: Failed to execute 'read' on 'Clipboard': Read permission denied."
+  ]
+ },
+ {
+  "at": "15:23:25",
+  "step": "H8 walk raised",
+  "ok": false,
+  "error": "the protocol's copy step put no HTML on the clipboard here; nothing is faked"
+ },
+ {
+  "at": "15:23:26",
+  "step": "probe pasted (after the H8 failure)",
+  "ok": true,
+  "version": "uct-bench-probe/1"
+ },
+ {
+  "at": "15:23:26",
+  "step": "selfTest (after the H8 failure)",
+  "ok": true,
+  "ms": 216.1,
+  "window": [
+   195,
+   260
+  ]
+ },
+ {
+  "at": "15:23:27",
+  "step": "H9 a reload loses the probe (it must be pasted again)",
+  "ok": true
+ },
+ {
+  "at": "15:23:27",
+  "step": "H9 walked: reload, paste, arm('cold') first, selfTest, dump",
+  "ok": true,
+  "console": "[uctBench] cold (LCP proxy): 396 ms",
+  "lcp": {
+   "size": 10047,
+   "element": "DIV Meet CompassTap to talk to your trading coach \u2014 markets, set"
+  },
+  "label": "LCP proxy",
+  "samples": [
+   396
+  ],
+  "refused": null
+ },
+ {
+  "at": "15:23:32",
+  "step": "no page errors during the walk",
+  "ok": true,
+  "errors": []
+ },
+ {
+  "at": "15:24:09",
+  "step": "sandbox stopped; integrity",
+  "ok": true,
+  "status": "CLEAN",
+  "stop": "graceful to the shutdown checkpoint, then forced exit"
+ }
+]
