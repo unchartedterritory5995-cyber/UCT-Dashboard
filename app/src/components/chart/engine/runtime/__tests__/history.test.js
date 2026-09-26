@@ -331,8 +331,22 @@ describe('⭐⭐ the three offset tiers (§18) — measured, not assumed', () =>
 })
 
 describe('⛔ what 2F-2A does NOT do — every wall named', () => {
-  it('history over an EXPRESSION containing state', () => {
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`).guard)
+  it('⭐ history over an EXPRESSION at a ROOT statement now EXECUTES — see historyExpression.test.js', () => {
+    // ⚰️ This was a refusal until the root statement list learned to hoist the
+    // expression into its own committed series. The wall it named is gone at
+    // the root; the two cases below are the parts of the family that remain,
+    // and they are kept HERE rather than deleted so the boundary stays visible
+    // from the file that owns top-level history.
+    expect(() => runPine(`${head}var x = 0.0\nx := close\nplot((x + 1)[1])\n`)).not.toThrow()
+  })
+
+  it('history over an EXPRESSION inside a BRANCH still refuses', () => {
+    const src = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := (x + 1)[1]\nplot(y)\n`
+    expect(refusalOf(src).guard).toBe('runtime:history-expression')
+  })
+
+  it('history over an EXPRESSION inside a FUNCTION still refuses', () => {
+    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 

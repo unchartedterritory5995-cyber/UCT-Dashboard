@@ -1,0 +1,24 @@
+//@version=6
+indicator("UCTPROBE_W3_FORMAT", overlay = false)
+
+// ─── ⭐⭐ WHAT A NUMBER LOOKS LIKE AS TEXT, MEASURED NUMERICALLY ────────────
+//
+// A table cell's TEXT is member-visible output on the objects-only pane, and a
+// formatting difference is a visible difference on every row. Strings cannot be
+// plotted, so each reading below is a numeric PROPERTY of the rendered string —
+// its length, or where its decimal point falls. Those discriminate precision,
+// trailing zeros, sign, scientific notation and the na spelling without needing
+// any string transport out of the chart.
+plot(bar_index,                                   "F00_bar_index")
+plot(str.length(str.tostring(close)),             "F01_len_close_DEFAULT_PRECISION")
+plot(str.pos(str.tostring(close), "."),           "F02_decimal_POSITION_in_close")
+plot(str.length(str.tostring(close, "#.##")),     "F03_len_close_2dp_FORMAT")
+plot(str.length(str.tostring(1.0 / 3.0)),         "F04_len_one_third_HOW_MANY_DIGITS")
+plot(str.length(str.tostring(na)),                "F05_len_of_na_THE_SPELLING")
+plot(str.length(str.tostring(1000000.0)),         "F06_len_million_SCIENTIFIC_OR_NOT")
+plot(str.length(str.tostring(0.000001)),          "F07_len_millionth_SCIENTIFIC_OR_NOT")
+plot(str.length(str.tostring(true)),              "F08_len_true_IS_IT_4")
+plot(str.length(str.tostring(-1.5)),              "F09_len_negative_SIGN_COUNTED")
+plot(str.length(str.tostring(volume)),            "F10_len_volume_LARGE_INTEGERS")
+plot(str.length(str.tostring(2.0)),               "F11_len_two_point_zero_TRAILING")
+plot(str.length(str.format("{0,number,#.##}", close)), "F12_len_str_format")

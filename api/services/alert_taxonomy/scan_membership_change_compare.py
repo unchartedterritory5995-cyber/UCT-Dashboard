@@ -467,14 +467,84 @@ def report(predicate_id: str, *, db_path: str | None = None) -> dict[str, Any]:
     }
 
 
+def arming_census(*, db_path: str | None = None, subs=None) -> dict[str, Any]:
+    """How many subscriptions this absorption actually has — and which of them
+    have never produced a comparison at all.
+
+    ⚰️ WHY THIS EXISTS. `BLIND_SPOTS[0]` below used to say the `screen_alert_subs`
+    row count was *unmeasured*, and named it "the number that decides whether this
+    comparison can observe anything at all". On 2026-09-25 that cost a real
+    reading: three screens armed by a real member at 01:55 ET produced **zero**
+    predicates, the report still said `predicate_count 1`, and the only way anyone
+    found out was a hand-rolled `sqlite3` probe on the production pod. A predicate
+    here is keyed on a FIRE, so *armed* and *observed* are different populations
+    and the report showed only the second — the flattering one.
+
+    ⛔ IT ADDS NO SECOND AUTHORITY. The one `SELECT` over `screen_alert_subs`
+    stays where it already lived, in `scan_membership_change_projection.
+    project_cohort_subscriptions()` (cohort gate included); this only counts what
+    that returns and diffs it against the definitions the spans table has seen.
+    `subs` is injectable so the rail can prove the diff without either store.
+
+    ⛔ COUNTS FOR MEMBERS, NAMES FOR DEFINITIONS. A member id is never emitted; a
+    definition's name and hash prefix are, because *which* screen is armed and
+    silent is the actionable half (`lesson_a_differ_can_truncate_the_names_a_rail_
+    exists_to_report`).
+    """
+    out: dict[str, Any] = {}
+    try:
+        if subs is None:
+            from api.services.alert_taxonomy import (
+                scan_membership_change_projection as _proj)
+            subs = _proj.project_cohort_subscriptions()
+        subs = list(subs or [])
+        conn = _conn(db_path)
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT twin FROM scan_membership_comparison_spans").fetchall()
+        finally:
+            conn.close()
+        seen = {(json.loads(r["twin"]) or {}).get("definition_id") for r in rows}
+        seen.discard(None)
+        armed = {}
+        for s in subs:
+            h = s.get("def_hash")
+            if h:
+                armed.setdefault(h, s.get("name") or "")
+        never = [{"definition": h[:16], "name": n} for h, n in sorted(armed.items())
+                 if h not in seen]
+        out = {
+            "subscriptions": len(subs),
+            "members": len({s.get("user_id") for s in subs if s.get("user_id")}),
+            "definitions": len(armed),
+            "definitions_with_a_comparison": len(armed.keys() & seen),
+            "armed_but_never_compared": never,
+            "reading": (
+                "`armed_but_never_compared` is NOT a defect — a predicate here is "
+                "keyed on a FIRE, so a subscribed definition with no membership "
+                "movement yet has nothing to compare. It IS the reason a bar "
+                "phrased as 'N sessions across M definitions' can never be reached "
+                "by waiting: those definitions have to fire first."),
+        }
+    except Exception as e:                      # a census that crashes is worse than none
+        out = {"error": f"{type(e).__name__}: {e}"}
+    return out
+
+
 #: ⛔ §2a item 2's last clause — the report STATES WHAT IT CANNOT SEE, every
 #: time, so nobody sizes the next checkpoint against a blind spot.
 BLIND_SPOTS = (
-    "HOW MANY MEMBERS THIS ABSORPTION HAS IS UNKNOWN. `screener.db` was not "
-    "opened this pass, so the `screen_alert_subs` row count is unmeasured — and "
-    "it is the number that decides whether this comparison can observe anything "
-    "at all. A dark run over zero subscriptions prints four zeroes and reads "
-    "like agreement, which is why `observed` and `status` lead the report.",
+    "✅ HOW MANY MEMBERS THIS ABSORPTION HAS IS NOW MEASURED, BY `arming_census()` "
+    "— see the report's `arming` block (`subscriptions`, `members`, and the "
+    "`armed_but_never_compared` list). ⚰️ This clause used to say the "
+    "`screen_alert_subs` row count was unmeasured while calling it 'the number "
+    "that decides whether this comparison can observe anything at all', and on "
+    "2026-09-25 that is exactly what happened: three screens armed by a real "
+    "member produced zero predicates, the report still read `predicate_count 1`, "
+    "and it took a hand probe on the pod to find out. A dark run over zero "
+    "subscriptions prints four zeroes and reads like agreement, which is why "
+    "`observed` and `status` lead the report — and why the arming census now sits "
+    "beside them instead of in this list.",
 
     "THE CLOCK TICKS ONCE A NIGHT. Five trading sessions of forward data is five "
     "comparisons per subscribed definition. A small `n` here is the normal case, "

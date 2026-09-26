@@ -1,0 +1,13 @@
+{
+ "base": "http://127.0.0.1:8093",
+ "login": 200,
+ "save_view_buttons": 1,
+ "focus_samples": [
+  {"t_ms": 0, "tag": "DIV", "id": null, "isField": false},
+  {"t_ms": 50, "tag": "DIV", "id": null, "isField": false},
+  {"t_ms": 150, "tag": "DIV", "id": null, "isField": false},
+  {"t_ms": 600, "tag": "DIV", "id": null, "isField": false}
+ ],
+ "field_value_after_typing": "",
+ "save_requests": []
+}

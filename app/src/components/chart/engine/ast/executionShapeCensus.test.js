@@ -218,7 +218,15 @@ describe('⛔⛔ the partition — every table entry, exactly one shape', () => 
     // The REVERSE does not hold, and the difference is the honest backlog: the
     // rest are carried in SHAPE but bind a shipped implementation (`computeRSI`,
     // `computeATR`) or a Pine spelling the closed table refuses.
-    for (const fn of Object.keys(CARRIED)) {
+    // ⛔⛔ EXCEPT THE `runtimeOnly` MEMBERS, AND THE EXCEPTION IS READ OFF THE
+    // TABLE RATHER THAN NAMED HERE. This loop asks whether a `CARRIED` key is a
+    // CLOSED TABLE function name, which every member satisfied until
+    // `barssincePine` — Pine's unbounded `ta.barssince`, which exists in the
+    // runtime lane ONLY because declaring its one-argument signature in the
+    // closed table would REMOVE the working two-argument `barssince(cond, n)`
+    // (a member-visible change, and an owner ruling). It is not "filed
+    // elsewhere"; it is deliberately not a closed-table name at all.
+    for (const fn of Object.keys(CARRIED).filter((n) => !CARRIED[n].runtimeOnly)) {
       expect(SHAPES.carried[fn], `${fn} executes but is not filed as carried`).toBeTruthy()
     }
     const shipped = Object.keys(SHAPES.carried).filter((n) => CARRIED[n])

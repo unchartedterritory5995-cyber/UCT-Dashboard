@@ -234,19 +234,20 @@ def test_mutation_stale_read_path_is_caught(monkeypatch, tmp_path):
 # THE TWO NAMED GAPS -- pinned as falsifiable facts, designed to flip on CP2
 # ═════════════════════════════════════════════════════════════════════════
 
-def test_column_presets_have_no_typed_store_yet():
-    """§2 gap 1: `Watchlists.jsx`'s chosen-visible-columns state is plain,
-    unpersisted component state today. Pinned structurally (the literal
-    `useState(new Set())` initializer for `visiblePerf`, with no
-    `usePreferences`/`fetch` call on the same line) so wiring a real store
-    later makes this assertion fail ON PURPOSE -- the signal a future CP2 is
-    watched against, not a note nobody re-checks."""
+def test_column_presets_have_a_typed_store_now():
+    """§2 gap 1 -- FLIPPED 2026-09-25 by A12 CP2 (the pin below did exactly what it
+    was written to do: it failed the day the store landed, and was updated rather
+    than made to pass again). `visiblePerf` is now backed by the per-member server
+    preference `watchlist_perf_cols` through `usePreferences`: hydrated once after
+    prefs load, written on change, unknown keys dropped on read. Pinned the same way
+    the gap was -- by the literals -- so a regression to session state fails here."""
     path = os.path.join(_AT_ROOT, "app", "src", "pages", "Watchlists.jsx")
     src = open(path, encoding="utf-8").read()
-    assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" in src, (
-        "visiblePerf's declaration changed shape -- if a typed store now backs it "
-        "(CP2 shipped), this assertion SHOULD fail: update this pin, don't just "
-        "make it pass again")
+    assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" not in src, (
+        "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
+    assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
+    assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
+    assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
     assert "COL_PRESETS" in src
 
 

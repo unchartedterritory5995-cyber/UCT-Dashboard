@@ -916,6 +916,16 @@ address is unroutable by design.
 stops being a control — the next run cannot tell a product change from its own leftovers.
 Whatever a run creates, that run removes.
 
+⛔⛔ **THE OWNER'S OWN CHROME IS NEVER A SMOKE-ACCOUNT BROWSER.** Measured 2026-09-25: a
+Claude-in-Chrome session opened the owner's Chrome to arm real-member alert data and found it
+**signed in as `smoke@uctintelligence.internal`** — from the tab, indistinguishable from the
+owner. Five alerts created there would have been synthetic data wearing a member's label, and
+every S7 ruling that night was about real-member data. Rule: a tool that needs the smoke account
+uses its OWN profile (`window_check`'s rig, Playwright's context in `hub_nav_smoke.py`), never the
+extension-driven Chrome; and **before any action taken "as the owner" in a browser, read
+`/api/auth/me` and check the EMAIL DOMAIN** — `uctintelligence.internal` means stop and sign it
+out (`POST /api/auth/logout`), then let the owner sign in as themselves.
+
 **Credentials.** `SMOKE_EMAIL` / `SMOKE_PASSWORD` in the operator's environment via `setx`, the
 same pattern as the BrowserStack credentials. Never in the repo, never in a log, never in a commit,
 never pasted into a chat. To rotate: `POST /api/auth/admin/reset-password` while signed in as the
@@ -2809,8 +2819,26 @@ supplied the CRLF at `git add` time and the diff stayed at 86/13 — but it was 
 and the same helper on a CRLF-stored file it had to hand-write would have flattened it.
 ⭐ This **narrows** the provenance rule rather than contradicting it: `git show <sha>:<file>` remains
 the right way to ask what a committed file **says**; it is not the way to ask what bytes end its
-lines. Cheap check: `git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the
-file's line count — equal means uniformly CRLF, zero means LF, anything between is MIXED.
+lines.
+
+⚰⚰ **AND THE CHEAP CHECK THIS LINE USED TO GIVE WAS VACUOUS.** It read
+*`git cat-file blob $(git rev-parse <sha>:<path>) | grep -c $'\r'` against the file's
+line count*. **`grep -c $'\r'` through the Bash tool ALWAYS ANSWERS 0** — from a file or
+from a pipe — because this Git Bash's grep strips CR on input. Measured with a
+control 2026-09-22: a blob holding **195 CR bytes** answers `0`, while `grep -c
+'a'` on that same blob answers `96` and `od -c` finds all 195. Every line-ending
+check written that way measured nothing about the file and everything about the
+tool.
+
+⭐ **COUNT THE BYTES INSTEAD** — and get all four numbers at once, because the
+interesting failures are not binary:
+
+    git cat-file blob HEAD:<path> | python -c "import sys; b=sys.stdin.buffer.read(); print('CR',b.count(b'\r'),'CRLF',b.count(b'\r\n'),'LF',b.count(b'\n'),'CRCRLF',b.count(b'\r\r\n'))"
+
+`CR == CRLF == LF` is uniformly CRLF · `CR 0` is LF · anything else is **MIXED**
+· and a non-zero **CRCRLF** is the double-translation corruption described
+further down this file. `python tools/check_repo_hygiene.py` remains the gate;
+this is the per-file question it does not answer.
 
 ⚰️ **And a related one, paid for in the same hour: `git checkout -- <file>` is not a restore.** Used
 to undo a one-line probe, it discarded an unrelated finished edit to the same file that had taken
@@ -3402,8 +3430,16 @@ shared defect inverts the one thing independence buys you.
 
 ⚠️ **`tools/check_repo_hygiene.py` cannot catch this shape**, by design: it
 reports a path only when line endings are the **ONLY** difference, and a file
-you are also editing has content changes too. The byte-level check is
-`grep -c $'\r\r\n'`, or count CR against CRLF and require them equal.
+you are also editing has content changes too. ⛔ **The byte-level check is NOT a
+`grep`** — see the measured note above; that command answers 0 here whatever the
+file contains. Count the bytes and require `CR == CRLF` and `CRCRLF == 0`:
+
+    git cat-file blob HEAD:<path> | python -c "import sys; b=sys.stdin.buffer.read(); print('CR',b.count(b'\r'),'CRLF',b.count(b'\r\n'),'LF',b.count(b'\n'),'CRCRLF',b.count(b'\r\r\n'))"
+
+⚰ **AND IT IS NOT HYPOTHETICAL — THIS CORRUPTION IS COMMITTED RIGHT NOW.** Run
+against `docs/plans/joystick/deferred.md` on 2026-09-22: **CR 195, CRLF 112,
+CRCRLF 82**. Eighty-two of that ledger's line endings are CR-CR-LF. It went
+unnoticed for exactly the reason above: every check anyone ran on it returned 0.
 
 ⛔ **And the write pattern that causes it, because it looks correct:**
 
@@ -3597,7 +3633,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–7: #187 + #183 LIVE, #186 (wave 5) and #193 (wave 6) awaiting the owner's merge, wave 7 in its whole-branch fix round, 2026-09-25
+### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3610,11 +3646,15 @@ capture and mobile (image OCR, docx documents, a personal API, iOS Shortcuts, em
 writing help, meaning search and a Compass notes tool — every one of them DARK behind its
 own gate — plus lane I's performance budgets. Read it before touching that branch.
 
-Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
-wave 5, tip `145478ec1`, **PR #186 open, gated green, awaiting the owner's
-`gh pr merge 186 --squash`**) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
-(`feat/notebook-w6`, wave 6, carries wave 5 + master `74beea1d2` via merges
-`07e1a74ae`/`1a4a64988`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
+(#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
+`origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
+view controls with 0 page errors). Wave 6's final tip is tagged
+`notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
+round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
+tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
+own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
+wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
@@ -3622,11 +3662,9 @@ insert dark, master `a3d9f5a1e`; production fast-forwarded past it to `74beea1d2
 ⛔ The three never-revert commits `8167f7aa0`, `fd87271fd`, `82c56dd63` are tagged
 (`notebook-wave5-guard-*`) and the rule is `docs/notebook/wave5-rollback.md`.
 
-🔁 **Wave 6 (`feat/notebook-w6`)**: lanes D, D3b, E, F all built, task-reviewed and
-fix-rounded; the whole-branch review (0 Critical, 4 Important → fixed) and the
-combined re-review are done; the last small round, the final six-shard gate, the
-live walk (`tools/notebook_wave6_walk.py`) on the final tip and the PR are what
-remain — the resume doc §5 has the order. Wave 6 adds eight schema level-2 node
+✅ **Wave 6** shipped lanes D, D3b, E and F (landing gate
+`docs/notebook/gate-runs/wave6-landing/2026-09-25T23-28-08.md`, walk
+`docs/notebook/gate-runs/wave6/walk-787a993f5.json` 17/18). Wave 6 adds eight schema level-2 node
 types (both `lib/notebookSchema.js` and `notebook_schema.py`) — **never-revert**,
 same rule as wave 5's.
 

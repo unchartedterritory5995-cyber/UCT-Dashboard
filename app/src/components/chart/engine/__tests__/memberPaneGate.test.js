@@ -108,7 +108,13 @@ describe('the member-pane gate', () => {
     const led = JSON.parse(fs.readFileSync(LEDGER, 'utf8'))
     const entry = led.flags[GATE_NAME]
     expect(entry, `${GATE_NAME} is not declared in docs/frontend_feature_flags.json`).toBeTruthy()
-    expect(entry.status).toBe('dark')
+    // ⚰️ WAS `'dark'` — written in #145 (e855f62cd) the same day the owner flipped
+    // the flag LIVE (c2c048653, "do it so it is fully live", set on the web
+    // service as a build-time Vite arg and verified end to end on the live
+    // site). The ledger is the declared truth and it says `armed`; this case
+    // asserts that declaration EXACTLY, not "some status", so a retirement or
+    // a silent flip back to dark still reds here by name.
+    expect(entry.status).toBe('armed')
     const named = entry.readBy[0].split('::')[0]
     expect(fs.existsSync(path.join(REPO, named)), `${named} does not exist`).toBe(true)
     expect(fs.readFileSync(path.join(REPO, named), 'utf8')).toContain(GATE_NAME)

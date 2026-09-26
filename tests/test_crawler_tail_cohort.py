@@ -87,3 +87,112 @@ def test_the_known_examples_are_reachable_but_NOT_guaranteed():
     # ...and with room, it is reachable without any special-casing.
     assert "BFRG" in uc.tail_cohort(crowded + ["BFRG"], [], enabled=True,
                                     cap=2501, dollar_volume=dv)
+
+
+# ── CAPABILITY PREFERENCE (patch 2) ──────────────────────────────────────────
+#
+# ⭐ MEASURED 2026-09-24, deterministic n=80 spread of the 9,645 tail CANDIDATES:
+# **82.5% hold no 5m rows at all** — preferreds (AHLPE/BHRPB), units (ALUB.U), tiny
+# ETFs (BRRR/BULZ) — against **0.0%** in cap_universe. So a rank-only tail spends most
+# of a fixed 1-fetch-per-3s budget on instruments that never produced an intraday series.
+#
+# ⚠️ THAT 82.5% IS THE CANDIDATE POOL, NOT THIS COHORT. The cohort is the
+# dollar-volume-ranked top slice and is a better-selected subset. The sample is evidence
+# that preference is worth trying — never this cohort's no-data rate.
+#
+# ⛔ POSITIVE EVIDENCE ONLY. `has_5m` means "has previously produced a validated stored
+# 5m row" — CAPABILITY, not freshness. Nothing here records failure, so nothing here
+# can become a tombstone.
+
+_CAP_OK = {"MU", "SOXL", "KORU", "COPX"}
+
+
+def _cap(*syms):
+    known = set(syms)
+    return lambda s: s in known
+
+
+def test_capability_preference_is_off_by_default_signature():
+    """No `has_5m` => byte-identical to the shipped rank-only behaviour."""
+    ref = ["AAA", "BBB", "CCC"]
+    assert uc.tail_cohort(ref, [], enabled=True, cap=2) == \
+           uc.tail_cohort(ref, [], enabled=True, cap=2, has_5m=None)
+
+
+def test_proven_capable_candidates_are_preferred_within_the_ranking():
+    """⭐ Dollar volume still orders WITHIN each group; capability only picks the group.
+    SOXL outranks nothing here on dv — it is chosen because it is proven."""
+    ref = ["IVV", "IJR", "SOXL", "MU"]
+    dv = {"IVV": 9e9, "IJR": 8e9, "SOXL": 1e9, "MU": 5e8}
+    got = uc.tail_cohort(ref, [], enabled=True, cap=2, dollar_volume=dv,
+                         has_5m=_cap("SOXL", "MU"), discovery_every=99)
+    assert got == ["SOXL", "MU"]
+
+
+def test_dollar_volume_still_orders_inside_the_proven_group():
+    ref = ["MU", "SOXL"]
+    got = uc.tail_cohort(ref, [], enabled=True, cap=2,
+                         dollar_volume={"SOXL": 9e9, "MU": 1e8},
+                         has_5m=_cap("MU", "SOXL"), discovery_every=99)
+    assert got == ["SOXL", "MU"], "capability must not discard the ranking"
+
+
+def test_discovery_slots_keep_unproven_candidates_reachable():
+    """⛔⛔ ANTI-CIRCULARITY. no rows -> never crawled -> never any rows would lock out
+    every new listing and every provider-coverage improvement."""
+    ref = [f"P{i}" for i in range(10)] + [f"U{i}" for i in range(10)]
+    got = uc.tail_cohort(ref, [], enabled=True, cap=10,
+                         dollar_volume={s: 1e9 - i for i, s in enumerate(ref)},
+                         has_5m=_cap(*[f"P{i}" for i in range(10)]), discovery_every=5)
+    unproven = [t for t in got if t.startswith("U")]
+    assert unproven, "discovery was starved — eligibility became a closed loop"
+    assert unproven == ["U0", "U1"], "discovery must take the HIGHEST-ranked unknowns"
+
+
+def test_the_cap_is_still_exactly_respected():
+    ref = [f"S{i}" for i in range(500)]
+    got = uc.tail_cohort(ref, [], enabled=True, cap=2500,
+                         has_5m=_cap(*ref[:100]), discovery_every=5)
+    assert len(got) == 500
+    assert len(uc.tail_cohort(ref, [], enabled=True, cap=20,
+                              has_5m=_cap(*ref[:100]), discovery_every=5)) == 20
+
+
+def test_selection_stays_deterministic():
+    ref = [f"S{i}" for i in range(80)]
+    dv = {s: 1e9 - i for i, s in enumerate(ref)}
+    a = uc.tail_cohort(ref, [], enabled=True, cap=20, dollar_volume=dv,
+                       has_5m=_cap(*ref[:30]), discovery_every=5)
+    b = uc.tail_cohort(list(ref), [], enabled=True, cap=20, dollar_volume=dv,
+                       has_5m=_cap(*ref[:30]), discovery_every=5)
+    assert a == b
+
+
+def test_no_duplicates_survive_capability_partitioning():
+    ref = ["AAA", "AAA", "BBB"]
+    got = uc.tail_cohort(ref, [], enabled=True, cap=10, has_5m=_cap("AAA"))
+    assert len(got) == len(set(got))
+
+
+def test_capability_evidence_does_not_require_freshness():
+    """⚠️ `has_5m` says CAPABLE, not CURRENT. A symbol whose last 5m row is old is still
+    proven-capable; freshness is `_is_cold_stale_intraday`'s job, checked elsewhere."""
+    got = uc.tail_cohort(["OLD"], [], enabled=True, cap=1, has_5m=_cap("OLD"))
+    assert got == ["OLD"]
+
+
+def test_an_unreadable_store_keeps_the_rank_only_cohort():
+    """⛔ FAIL OPEN. A lookup error must never empty or truncate the cohort."""
+    def boom(_s):
+        raise RuntimeError("database is locked")
+    ref = ["AAA", "BBB", "CCC"]
+    got = uc.tail_cohort(ref, [], enabled=True, cap=3, has_5m=boom)
+    assert got == ["AAA", "BBB", "CCC"]
+
+
+def test_the_capability_scan_is_bounded():
+    """2,500 slots must not become 9,645 point lookups against a 26 GB store."""
+    seen = []
+    uc.tail_cohort([f"T{i}" for i in range(50_000)], [], enabled=True, cap=100,
+                   has_5m=lambda s: (seen.append(s), False)[1], discovery_every=5)
+    assert len(seen) <= 100 * 4 + 1, f"unbounded scan: {len(seen)} lookups"

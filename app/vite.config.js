@@ -134,7 +134,8 @@ function stripManifestProse() {
 export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse()],
   // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
-  // added the engine floor below as a second `build: { target }` block) until wave 7. In an
+  // added the engine floor below as a second `build: { target }` block) until 2026-09-20,
+  // fixed independently on master and on wave 7 (the two fixes met in the wave-7 merge). In an
   // object literal the LATER key wins, so the first block — `manualChunks` and
   // `chunkSizeWarningLimit` — was silently discarded and the dist shipped with zero
   // `vendor-*` chunks. Nothing errored: the build succeeded, the app worked, and the entry
@@ -158,6 +159,21 @@ export default defineConfig({
     // list that goes stale on the next rename. It changes no chunk; it only writes the graph.
     manifest: true,
     chunkSizeWarningLimit: 4000,
+    // ⚰️⚰️ THE `target` ABOVE LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
+    // OBJECT LITERAL IS NOT A MERGE — THE LAST ONE WINS AND THE FIRST IS DISCARDED ENTIRELY.
+    // So `target` was live and everything above it — `chunkSizeWarningLimit` and the WHOLE
+    // `rollupOptions.manualChunks` block — was silently dead from the commit that added the
+    // iOS floor. Measured by loading the config rather than reading it: `build` resolved to
+    // `{ target }` alone, `rollupOptions` undefined.
+    //
+    // ⛔ THE DEAD HALF WAS LOAD-BEARING. `manualChunks`'s own comment says the object form
+    // exists to stop React-dependent libraries landing in `vendor-misc`, which crashes at
+    // runtime with "Cannot read properties of undefined (reading 'PureComponent')" — so the
+    // guard against that class had been absent, not merely unenforced.
+    //
+    // ⭐ esbuild had been printing `Duplicate key "build" in object literal` on every vitest
+    // run the whole time. It scrolls past above the test summary, which is exactly where a
+    // warning goes to die.
     rollupOptions: {
       output: {
         // Object form (NOT function form): Rollup walks the dependency

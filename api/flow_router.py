@@ -68,7 +68,7 @@ Performance design:
 from fastapi import APIRouter, Request, Depends
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
-from api.flow_db import FlowDB, parse_columns
+from api.flow_db import FlowDB, parse_columns, store_date_order
 from api.services import flow_aggregate
 import collections
 from collections import OrderedDict
@@ -658,14 +658,17 @@ def search_product_cache_state() -> dict:
         }
 
 
-def _search_response(gz: bytes, version: str, cache_state: str) -> Response:
-    """One place that decides the Search product response headers."""
-    return Response(
-        content=gz, media_type="application/json",
-        headers={"Content-Encoding": "gzip", "Cache-Control": "no-store",
-                 "X-Flow-Version": version, "X-Flow-Product": "search",
-                 "X-Flow-Cache": cache_state},
-    )
+def _search_response(gz: bytes, version: str, cache_state: str, as_of: float | None = None) -> Response:
+    """One place that decides the Search product response headers.
+
+    `as_of` (the Discord card's basis path only): the epoch the served product was BUILT, sent
+    when it is behind the symbol's current version, so the card can say "as of HH:MM ET"."""
+    headers = {"Content-Encoding": "gzip", "Cache-Control": "no-store",
+               "X-Flow-Version": version, "X-Flow-Product": "search",
+               "X-Flow-Cache": cache_state}
+    if as_of is not None:
+        headers["X-Flow-Basis-As-Of"] = "%.0f" % as_of
+    return Response(content=gz, media_type="application/json", headers=headers)
 
 
 # STAGE EVIDENCE MUST SURVIVE A TIMEOUT. The first cold-miss attempt died at the
@@ -771,8 +774,16 @@ _NEWLINE = bytes([10])   # written this way so no escape survives three layers o
 _SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
 
 
-def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
+def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None,
+                          pre_chunks=None):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
+
+    `dates` (2026-09-25): restrict the rows to those `CreatedDate` values — the WINDOWED product
+    the Discord card's page-derived path asks for (`?window_days=N`), so a head name whose full
+    history exceeds the budget can still be derived over its last N sessions. `extra` is merged
+    into the response body (the window's dates, so the caller can resolve year-less `Dt`).
+    `pre_chunks` replaces the store stream with CSV chunks the caller already read (the card's
+    basis path reads newest-first under a time budget); every check below still applies.
 
     Returns `(gz_bytes, None)` on success or `(None, error_response)` on any
     failure, so the request path can return the error and the background warmer
@@ -803,7 +814,10 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
         csv_len = 0
         t_csv = time.monotonic()
         overrun = None
-        for chunk in db.stream_csv_symbol(sym, source=src, columns=None):
+        _win = {"dates": dates} if dates else {}
+        _chunks = (pre_chunks if pre_chunks is not None
+                   else db.stream_csv_symbol(sym, source=src, columns=None, **_win))
+        for chunk in _chunks:
             b = chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8")
             parts.append(b)
             csv_len += len(b)
@@ -869,6 +883,8 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st):
         "product": derived.get("product"),
         "rows": derived.get("rows", 0),
     }
+    if extra:
+        body.update(extra)
     st.mark("serialize_begin")
     raw = json.dumps(body, separators=(",", ":")).encode("utf-8")
     st.mark("serialize_end", kb=len(raw) // 1024)
@@ -999,15 +1015,338 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
     return True
 
 
+#: The page's calendar for one partition as a LOOSE INDEX SCAN: one seek per distinct date on
+#: (source, CreatedDate). Same list `db.get_available_dates(src)` returns (proven identical in the
+#: pod, 178/178 and 182/182) at 1.8 ms instead of 1.3-2.0 s warm and ~47 s on a cold pod.
+_LOOSE_SOURCE_DATES_SQL = (
+    "WITH RECURSIVE d(x) AS (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 "
+    "UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x) "
+    "FROM d WHERE d.x IS NOT NULL) SELECT x FROM d WHERE x IS NOT NULL")
+
+
+def _market_dates(src: str) -> list:
+    """Chronological 'M/D/YYYY' sessions for a partition, cached 60 s per database file."""
+    from api.services.cache import cache as _shared
+    ck = f"flow_dates_loose::{db.db_path}::{src}"
+    hit = _shared.get(ck)
+    if hit is not None:
+        return list(hit)
+    with db._conn() as conn:
+        raw = [r[0] for r in conn.execute(_LOOSE_SOURCE_DATES_SQL, (src,)).fetchall() if r[0]]
+    dated = sorted(((db._parse_date_mdy(d), d) for d in raw if db._parse_date_mdy(d)), key=lambda x: x[0])
+    out = [d for _, d in dated]
+    _shared.set(ck, list(out), ttl=60)
+    return out
+
+
+def _symbol_session_counts(sym: str) -> list:
+    """[(date 'M/D/YYYY', rows)] for ONE symbol, oldest first — a COVERING read of
+    `idx_flow_symbol_created (Symbol, CreatedDate)`, so no row is touched (NVDA, 180 sessions /
+    386K rows: 157 ms; SPY: 373 ms; measured in the pod 2026-09-25). No `source` term on purpose:
+    it would force a table read per row, and a symbol lives in one partition (the stream that
+    follows still filters on source)."""
+    with db._conn() as conn:
+        raw = conn.execute("SELECT CreatedDate, COUNT(*) FROM flow WHERE Symbol = ? GROUP BY CreatedDate",
+                           (sym,)).fetchall()
+    dated = [(db._parse_date_mdy(d), d, n) for d, n in raw if d and db._parse_date_mdy(d)]
+    dated.sort(key=lambda x: x[0])
+    return [(d, n) for _, d, n in dated]
+
+
+def _pick_basis(counts: list, cap_rows: int) -> list:
+    """The NEWEST sessions whose rows sum to <= cap_rows (always at least the newest one)."""
+    picked, acc = [], 0
+    for d, n in reversed(counts):
+        if picked and acc + n > cap_rows:
+            break
+        picked.append(d); acc += n
+    return list(reversed(picked))
+
+
+#: How long the basis path may spend READING before it derives over what it has. Newest sessions
+#: are read first, so a cold pod still gets the most recent history (measured 2026-09-25: on a pod
+#: four minutes after boot DELL's full history streamed 14,001 rows in 20.9 s, oldest first, and
+#: was declined; recent sessions stay in the page cache — NVDA's 128K recent rows read in 6.7 s).
+_BASIS_READ_BUDGET_S = float(os.environ.get("FLOW_CARD_BASIS_READ_BUDGET_S", "12") or 12)
+
+
+def _read_basis_newest_first(sym: str, src: str, dates: list, budget_s: float, clock=None):
+    """Read `dates` NEWEST FIRST, one session at a time, until `budget_s` is spent (always at least
+    the newest). Returns (sessions read, oldest first; CSV chunks with one header, in the STORE's
+    order) — the same bytes `stream_csv_symbol(dates=used)` produces, and when every session was
+    read, the same bytes as the page's own unfiltered stream.
+
+    ⛔ THE CHUNKS ARE IN `store_date_order`, NOT CHRONOLOGICAL. `processFlowData`'s ML/ volume
+    match is order-dependent and date-blind, so the page's answer is a function of its input
+    ORDER. ⚰️ This reassembled chronologically until 2026-09-25 and, over identical rows, moved
+    AMD's bear premium for the day by $217K (SMH and DELL: same size, different sha). The READ
+    stays newest-first; only the reassembly follows the store."""
+    now = clock or time.monotonic
+    t0 = now()
+    header, bodies = None, {}
+    for d in reversed(dates):
+        if bodies and (now() - t0) > budget_s:
+            break
+        text = "".join(c if isinstance(c, str) else c.decode("utf-8")
+                       for c in db.stream_csv_symbol(sym, source=src, columns=None, dates=[d]))
+        head, _, body = text.partition(chr(10))
+        header = header or head + chr(10)
+        bodies[d] = body
+    used = [d for d in dates if d in bodies]
+    return used, [header or ""] + [bodies[d] for d in store_date_order(used)]
+
+
+#: How long a basis product whose READ was cut short by `_BASIS_READ_BUDGET_S` may be served.
+#: ⚰️ It was cached like any other until 2026-09-25, and the version only moves when the symbol
+#: trades, so after hours a cold-pod read (DELL 14 of 152 sessions, HOOD 33 of 176) was served
+#: for the rest of the night while a warm read would have taken 2-3 s and been exact. Short, not
+#: zero: a burst of `/flow` for one name right after a deploy should not re-read in every request.
+_BASIS_PARTIAL_TTL_S = float(os.environ.get("FLOW_CARD_BASIS_PARTIAL_TTL_S", "60") or 60)
+_BASIS_PARTIAL_UNTIL: dict = {}
+_BASIS_PARTIAL_LOCK = threading.Lock()
+
+
+def _basis_partial_expired(key, now=None) -> bool:
+    """True when `key` holds a time-truncated product past its TTL; drops it from the cache."""
+    now = time.monotonic() if now is None else now
+    with _BASIS_PARTIAL_LOCK:
+        until = _BASIS_PARTIAL_UNTIL.get(key)
+        if until is None or now < until:
+            return False
+        _BASIS_PARTIAL_UNTIL.pop(key, None)
+    with _SEARCH_PRODUCT_LOCK:
+        _SEARCH_PRODUCT_CACHE.pop(key, None)
+    return True
+
+
+def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
+    """The Discord card's page-derived product: the SAME derivation the page runs, over the
+    largest recent history that fits `cap_rows`.
+
+    ⭐ WHY A ROW CAP AND NOT A SESSION COUNT. `processFlowData` decides a print's direction
+    partly from contract-level totals across EVERY row it is given (the whale-dominance block
+    rescue, flow shape, ML siblings, deep-OTM clusters), so parity with the page is a property of
+    which rows it sees. Measured 2026-09-25 against the page's own full-history product, one
+    session displayed: a 1-session basis flipped MSTR's direction and ran up to 1.9x gross; 60
+    sessions stayed within 2.6%; ALL stored sessions matched exactly (14/14 and 4/4). And the
+    size is concentrated in recent sessions (AMD: 220K of 224K rows are in the last 60), so a
+    fixed session count does not bound cost — rows do. Under the cap the basis is full history
+    and the card equals the page; over it, the newest sessions that fit, and the answer says so
+    (`basis_complete: false`, `basis_cut: "rows"`). A read the time budget cut short says
+    `basis_cut: "time"` and is served for `_BASIS_PARTIAL_TTL_S` only.
+
+    ⭐ A PARTIAL BASIS IS NOT A SMALL ERROR. AMD on 9/25, measured with the page's own bundle:
+    full history BEAR $948K/$1.53M (the page, exactly); its newest 37 sessions (143K rows) BULL
+    $9.2M/$2.7M. The sessions that are cut can carry the contract-level totals that decide today's
+    direction."""
+    key = (sym, src, version, f"r{cap_rows}")
+    if _basis_partial_expired(key):
+        st.mark("basis_partial_expired")
+    cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached), basis_rows=cap_rows)
+    if cached is not None:
+        st.flush("HIT_BASIS")
+        return _search_response(cached, version, "hit")
+    if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+    rec = _basis_recent_get(sym, src, cap_rows)
+    if rec is not None and rec["age_s"] <= _BASIS_REUSE_S:
+        # ⭐ THE VERSION MOVED SINCE THIS WAS BUILT (the name traded), BUT NOT BY MUCH. Serve it now,
+        # labelled with its build time, and rebuild in the background for the next request.
+        _spawn_basis_refresh(sym, src, version, cap_rows)
+        st.flush("RECENT_BASIS")
+        return _search_response(rec["gz"], rec["version"], "basis-recent", as_of=rec["built_at"])
+    counts = _symbol_session_counts(sym)
+    if not counts:
+        return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
+                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
+                             "market_dates": _market_dates(src)[-20:],
+                             "basis_complete": True, "basis_rows": 0, "sessions_total": 0,
+                             "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            st.flush("STALE_BASIS_BUSY")
+            return _search_response(rec["gz"], rec["version"], "basis-stale", as_of=rec["built_at"])
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+    try:
+        gz, err = _build_basis_locked(sym, src, version, cap_rows, st, counts=counts)
+    finally:
+        _SEARCH_BUILD_LOCK.release()
+    if err is not None:
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            return _search_response(rec["gz"], rec["version"], "basis-stale", as_of=rec["built_at"])
+        return err
+    return _search_response(gz, version, "basis")
+
+
+def _build_basis_locked(sym: str, src: str, version: str, cap_rows: int, st, counts=None):
+    """Read, derive and cache ONE basis product. The CALLER holds `_SEARCH_BUILD_LOCK`.
+    -> (gz, None) or (None, error_response). One implementation for the request path and the
+    background refresh, so the two cannot drift into different products for one key."""
+    key = (sym, src, version, f"r{cap_rows}")
+    counts = counts if counts is not None else _symbol_session_counts(sym)
+    market = _market_dates(src)[-20:]
+    dates = _pick_basis(counts, cap_rows)
+    used, chunks = _read_basis_newest_first(sym, src, dates, _BASIS_READ_BUDGET_S)
+    st.mark("basis_read", sessions=len(used), of=len(dates), total=len(counts))
+    n_by_date = dict(counts)
+    cut = "time" if len(used) < len(dates) else ("rows" if len(dates) < len(counts) else None)
+    built_at = time.time()
+    extra = {"window_dates": used, "market_dates": market, "basis_complete": len(used) == len(counts),
+             "basis_rows": sum(n_by_date.get(d, 0) for d in used), "sessions_total": len(counts),
+             "basis_cut": cut, "built_at": round(built_at, 3)}
+    gz, err = _build_search_product(sym, src, key, version, st, dates=used, extra=extra,
+                                    pre_chunks=chunks)
+    if err is not None:
+        return None, err
+    with _BASIS_PARTIAL_LOCK:
+        if cut == "time":
+            _BASIS_PARTIAL_UNTIL[key] = time.monotonic() + _BASIS_PARTIAL_TTL_S
+        else:
+            _BASIS_PARTIAL_UNTIL.pop(key, None)
+            # A time-cut read is never a "recent" answer: it would outlive its own 60 s TTL here.
+            _basis_recent_put(sym, src, cap_rows, gz, version, built_at)
+    return gz, None
+
+
+# ── market hours: the version moves with every print ─────────────────────────────────────────
+# ⛔ WHY THIS EXISTS. The card's cache key carries the symbol's freshness, which moves every time
+# the name prints, so during RTH a busy name misses on EVERY /flow and rebuilds its full history
+# (AMD: 20 s on an idle pod after the close, measured 2026-09-25; the Discord job gives up at 45 s
+# and answers with the labelled ROLLUP, which read BULL for AMD and META on 9/25 while the page
+# read BEAR). So the newest good product per (symbol, partition, cap) is kept beside the versioned
+# cache: within `_BASIS_REUSE_S` it is served at once and rebuilt in the background; within
+# `_BASIS_STALE_MAX_S` it answers only when a build cannot run (lanes busy, a failed build). Either
+# way the response carries `X-Flow-Basis-As-Of` and the card says "as of HH:MM ET": the page's own
+# derivation a minute behind the tape, labelled, instead of a different classifier.
+_BASIS_REUSE_S = float(os.environ.get("FLOW_CARD_BASIS_REUSE_S", "120") or 120)
+_BASIS_STALE_MAX_S = float(os.environ.get("FLOW_CARD_BASIS_STALE_MAX_S", "900") or 900)
+_BASIS_RECENT_MAX = 32
+_BASIS_RECENT: "OrderedDict" = OrderedDict()
+_BASIS_RECENT_LOCK = threading.Lock()
+_BASIS_REFRESHING: set = set()
+_BASIS_REFRESH_STATS = {"built": 0, "declined": 0, "failed": 0, "already": 0}
+
+
+def _basis_recent_put(sym, src, cap_rows, gz, version, built_at) -> None:
+    rk = (sym, src, int(cap_rows))
+    with _BASIS_RECENT_LOCK:
+        _BASIS_RECENT[rk] = {"gz": gz, "version": version, "built_at": built_at,
+                             "mono": time.monotonic()}
+        _BASIS_RECENT.move_to_end(rk)
+        while len(_BASIS_RECENT) > _BASIS_RECENT_MAX:
+            _BASIS_RECENT.popitem(last=False)
+
+
+def _basis_recent_get(sym, src, cap_rows):
+    """The newest good product for this name, with its age, or None."""
+    with _BASIS_RECENT_LOCK:
+        rec = _BASIS_RECENT.get((sym, src, int(cap_rows)))
+        if rec is None:
+            return None
+        return {**rec, "age_s": time.monotonic() - rec["mono"]}
+
+
+def _spawn_basis_refresh(sym: str, src: str, version: str, cap_rows: int) -> bool:
+    """Rebuild one name's basis product off the request path. Never raises, never queues: one
+    refresh per (name, partition, cap) at a time, and a busy lane is a skip, said in the log."""
+    rk = (sym, src, int(cap_rows))
+    with _BASIS_RECENT_LOCK:
+        if rk in _BASIS_REFRESHING:
+            _BASIS_REFRESH_STATS["already"] += 1
+            return False
+        _BASIS_REFRESHING.add(rk)
+
+    def _run():
+        try:
+            if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+                _BASIS_REFRESH_STATS["declined"] += 1
+                log.info("[flow-search] basis refresh %s/%s declined — build lane busy", sym, src)
+                return
+            try:
+                if _search_product_cache_get((sym, src, version, f"r{cap_rows}")) is not None:
+                    _BASIS_REFRESH_STATS["already"] += 1
+                    return
+                _, err = _build_basis_locked(sym, src, version, cap_rows,
+                                             _Stages(sym + "/" + src + " basis-refresh"))
+                _BASIS_REFRESH_STATS["failed" if err is not None else "built"] += 1
+            finally:
+                _SEARCH_BUILD_LOCK.release()
+        except Exception as e:  # noqa: BLE001 — nothing is watching this thread
+            _BASIS_REFRESH_STATS["failed"] += 1
+            log.warning("[flow-search] basis refresh failed for %s/%s: %s", sym, src, e)
+        finally:
+            with _BASIS_RECENT_LOCK:
+                _BASIS_REFRESHING.discard(rk)
+
+    threading.Thread(target=_run, name=f"flow-basis-refresh-{sym}", daemon=True).start()
+    return True
+
+
+def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
+    """The Search derivation over ONE symbol, restricted to the last `wd` MARKET sessions (the
+    Discord card's page-derived path, 2026-09-25). Its own cache key beside the full product,
+    the same single-flight build lane, and `window_dates` in the body so the caller can resolve
+    the product's year-less `Dt`.
+
+    ⛔ THE WINDOW IS THE MARKET'S CALENDAR, NOT THE TICKER'S. The page's `_scopeAllDirectional`
+    defines "Last N" as the last N market trading days from `availableDates` (a thin name must
+    not reach past the window), and `_market_dates` is that list (`db.get_available_dates`'s
+    answer, read as a loose index scan), cached 60 s. ⚰️ The
+    first cut asked `SELECT DISTINCT CreatedDate ... WHERE source=? AND Symbol=?` instead: no
+    covering index, so it read the name's whole history from disk, and on a freshly booted pod
+    it cost 70 s for DELL, 99 s for SPY and 218 s for NVDA (the stream and the derivation after
+    it took under 0.7 s). Measured from the build's own stage log, 2026-09-25."""
+    key = (sym, src, version, f"w{wd}")
+    cached = _search_product_cache_get(key)
+    st.mark("cache_lookup", hit=bool(cached), window=wd)
+    if cached is not None:
+        st.flush("HIT_WINDOWED")
+        return _search_response(cached, version, "hit")
+    if not flow_aggregate.available():
+        st.flush("NO_BUNDLE")
+        return JSONResponse({"ok": False, "error": "bundle unavailable"}, status_code=503)
+    dates = _market_dates(src)[-wd:]
+    if not dates:
+        return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
+                             "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
+                             "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
+        st.flush("DECLINED_BUSY")
+        return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
+    try:
+        gz, err = _build_search_product(sym, src, key, version, st, dates=dates,
+                                        extra={"window_dates": dates, "window_days": wd})
+        if err is not None:
+            return err
+        return _search_response(gz, version, "windowed")
+    finally:
+        _SEARCH_BUILD_LOCK.release()
+
+
+# ⛔ THE DECORATOR BELONGS TO THE HANDLER. On 2026-09-25 `_symbol_dates` was inserted between this
+# line and the handler and silently took the route: every Search request 422'd on the missing
+# `sym`/`src` query params while a test that called the handler directly stayed green.
+# tests/test_flow_card_from_page.py now requests THROUGH the router.
 @flow_router.get("/ticker-product/{symbol}")
 def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             warm_only: str = "",
+                            window_days: int = 0,
+                            basis_rows: int = 0,
                             _auth: dict = Depends(require_flow_user)):
     """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
 
     Stamped with the identity the client validates before trusting it. A client
     whose ticker/source/version disagrees declines and falls back to the legacy
     raw-tape path, which stays semantically identical.
+
+    `window_days=N` (2026-09-25, the Discord card's page-derived path): the SAME derivation
+    over the last N MARKET sessions only (the page's own calendar), cached under its own key beside the full product
+    and answering with `window_dates` so the caller can resolve year-less `Dt`. It never
+    takes the `warm_only` short-cut (its caller is a background job, not a member waiting on
+    a click) but it does take the same build lane, so it cannot run beside a member's build.
     """
     sym = (symbol or "").strip().upper()
     if not sym:
@@ -1017,6 +1356,22 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     st.mark("accepted")
     version = _search_freshness(sym, src)
     key = (sym, src, version)
+
+    try:
+        br = int(basis_rows or 0)
+    except (TypeError, ValueError):
+        br = 0
+    if br > 0:
+        return _basis_ticker_product(sym, src, version, min(br, 400_000), st)
+    try:
+        wd = int(window_days or 0)
+    except (TypeError, ValueError):
+        wd = 0
+    if wd > 0:
+        # A separate function on purpose: the member path below is railed by POSITION (its
+        # warm_only decline must precede the build-lock acquire in this handler's source), and
+        # a second acquire inlined here reads as the member's.
+        return _windowed_ticker_product(sym, src, version, min(wd, 400), st)
 
     cached = _search_product_cache_get(key)
     st.mark("cache_lookup", hit=bool(cached))

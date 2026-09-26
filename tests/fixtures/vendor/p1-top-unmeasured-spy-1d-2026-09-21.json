@@ -1,0 +1,85 @@
+{
+  "_": "VENDOR CAPTURE — the seven most-used names this engine declares and had never measured. Read from a live TradingView chart's own model (window._exposed_chartWidgetCollection -> allStudies()._data._items), not from a Table-view export, so every plot the study computes is present including ones the chart does not draw.",
+  "_probe": "tools/visual_conformance/probes/p1-top-unmeasured.pine",
+  "_studyName": "UCTPROBE_P1_TOP_UNMEASURED",
+  "_capturedET": "2026-09-21T22:26 ET",
+  "_symbol": "AMEX:SPY",
+  "_tf": "1D",
+  "_barIndexRange": [8168, 8467],
+  "_rows": 300,
+  "_gate": "v2.1 PASS — visibilityState 'visible', window y-span inside the display, read on the driven tab",
+
+  "_columnOrder": "N01..N13,N15 — N14 (ta.variance) was removed from the probe before capture because this engine does not declare it, so a vendor number for it would have nothing to compare against",
+
+  "answers": {
+    "nz_of_na": {
+      "value": 0,
+      "_": "nz(na) substitutes ZERO."
+    },
+    "nz_na_with_replacement": {
+      "value": 42,
+      "_": "nz(na, 42) substitutes the REPLACEMENT."
+    },
+    "nz_present_with_replacement": {
+      "value": 7,
+      "_": "nz(7, 42) = 7. THE ARGUMENT ORDER IS CONFIRMED: when the value is PRESENT the value wins, not the replacement. An implementation with these backwards passes every test written as nz(na, x) and fails on every real call site, which is why this reading exists."
+    },
+    "abs_negative_control": {
+      "value": 2.5,
+      "_": "math.abs(-2.5) = 2.5. CONTROL ONLY — agreed by every implementation ever written; here to prove the probe is reading this function at all."
+    },
+    "abs_of_na": {
+      "value": null,
+      "_allRowsNull": true,
+      "_": "math.abs(na) IS na. NA-PROPAGATING, NOT 0. Null on all 300 rows. An engine that answers 0 here silently changes the value of every guarded expression written `math.abs(x) > t`."
+    }
+  },
+
+  "identities": {
+    "atr_IS_rma_of_tr": {
+      "rowsChecked": 300,
+      "maxAbsDelta": 0,
+      "verdict": "EXACT",
+      "_": "ta.atr(5) === ta.rma(ta.tr(true), 5) on all 300 bars, max absolute delta EXACTLY 0 — not 'within float noise', zero. This was the probe's identity control: a capture where every reading differs is as uninformative as one where none does, and this one had to come back equal. It did."
+    }
+  },
+
+  "rulings": {
+    "stdev_denominator": {
+      "verdict": "POPULATION",
+      "divisor": "n",
+      "tradingview": 6.588506962940953,
+      "recomputed_population_div_n": 6.588506962886218,
+      "recomputed_sample_div_n_minus_1": 7.3661747196221325,
+      "atBarIndex": 8467,
+      "_": "ta.stdev divides by n, NOT n-1. The population figure matches to ~5e-11 (float noise across two engines); the sample figure is off by 0.78, i.e. 11.8%. Affects 27 corpus scripts directly and everything built on stdev (Bollinger width, z-scores, BBWP)."
+    }
+  },
+
+  "_NOT_ANSWERED_BY_THIS_CAPTURE": {
+    "ema_and_rma_SEED": {
+      "why": "The seed question is answerable ONLY in the first ~n bars of the SERIES — the probe says so in its own header. This chart loaded bars 8168..8467, so ta.ema(close,5) and ta.sma(close,5) have long since diverged under either seeding rule and their difference here says nothing about the seed.",
+      "whatIsStillOwed": "A capture on a symbol whose full history is short enough to load from bar 0, or a chart scrolled back until bar_index 0 is in the loaded window. Until then the engine's ema/rma seeding remains an unverified claim, and ta.atr inherits it — see identities.atr_IS_rma_of_tr, which proves atr and rma agree with EACH OTHER but not that either matches the vendor at the seed.",
+      "affects": "ema 65 corpus scripts, atr 73, rma 21, plus rsi/macd/stoch which are built on them"
+    }
+  },
+
+  "series": {
+    "_": "Last 12 bars, with the OHLC they were computed from, so a parity test can assert against real numbers rather than against a recomputation of our own.",
+    "_fields": ["bar_index", "t", "o", "h", "l", "c", "change", "ema5", "sma5", "atr5", "rma_tr5", "sma_tr5", "stdev5", "sum5"],
+    "rows": [
+      [8456, 1788442200, 767.9, 774.03, 767.45, 773.17, 8.009999999999991, 768.1262441265419, 767.3019999999993, 6.177693681717862, 6.177693681717862, 6.5534799999999676, 3.841142538454507, 3836.5099999999966],
+      [8457, 1788528600, 772.01, 772.87, 769, 770.19, -2.9799999999999045, 768.814162751028, 767.4699999999993, 5.776154945374282, 5.776154945374282, 5.988999999999964, 3.9440334685152854, 3837.3499999999967],
+      [8458, 1788874200, 769.07, 769.7, 765.14, 765.96, -4.230000000000018, 767.862775167352, 767.2519999999994, 5.630923956299439, 5.630923956299439, 6.07199999999998, 3.9910670253461102, 3836.259999999997],
+      [8459, 1788960600, 764.08, 764.47, 760.94, 762.4, -3.560000000000059, 766.041850111568, 767.3759999999995, 5.508739165039548, 5.508739165039548, 5.561999999999989, 3.825318810310856, 3836.8799999999974],
+      [8460, 1789047000, 758.03, 760.11, 756.64, 757.83, -4.569999999999936, 763.3045667410454, 765.9099999999995, 5.558991332031637, 5.558991332031637, 5.774000000000001, 5.452247243169901, 3829.5499999999975],
+      [8461, 1789133400, 764.72, 766.38, 763.6, 764.29, 6.459999999999923, 763.6330444940303, 764.1339999999994, 6.1571930656253, 6.1571930656253, 5.709999999999991, 4.068929097539216, 3820.6699999999973],
+      [8462, 1789392600, 759, 763.52, 757.93, 760.88, -3.409999999999968, 762.7153629960202, 762.2719999999996, 6.197754452500243, 6.197754452500243, 6.1480000000000015, 2.805675676315481, 3811.359999999998],
+      [8463, 1789479000, 760.117, 760.35, 756.15, 757.39, -3.490000000000009, 760.9402419973468, 760.5579999999995, 5.904203562000198, 5.904203562000198, 6.083999999999992, 2.6420704004031945, 3802.7899999999977],
+      [8464, 1789565400, 759.5, 761.67, 749.6, 754.05, -3.340000000000032, 758.6434946648978, 758.8879999999996, 7.137362849600146, 7.137362849600146, 7.493999999999983, 3.461770645289528, 3794.439999999998],
+      [8465, 1789651800, 763.15, 763.57, 759.96, 762.6, 8.550000000000068, 759.9623297765986, 759.8419999999995, 7.613890279680136, 7.613890279680136, 8.246000000000004, 3.6885845524788405, 3799.2099999999978],
+      [8466, 1789738200, 761.31, 762, 757.971, 761.69, -0.9099999999999682, 760.5382198510657, 759.3219999999994, 7.016912223744113, 7.016912223744113, 7.461800000000016, 3.171960907847954, 3796.6099999999974],
+      [8467, 1789997400, 766.251, 774.89, 766.03, 773.5, 11.809999999999945, 764.8588132340439, 761.8459999999995, 8.253529778995276, 8.253529778995276, 8.8298, 6.588506962940953, 3809.2299999999977]
+    ]
+  }
+}

@@ -95,6 +95,33 @@ PROD = "https://uctintelligence.com"
 # the cold-boot number itself.
 COLD_POD_FLOOR_S = 180
 
+# ⚰️ AND DURING MARKET HOURS THE FLOOR IS HIGHER — MEASURED 2026-09-25 (12:25–12:50 ET, a
+# Friday): a fresh `goto('/options-flow')` missed the same 45 s DOMContentLoaded budget at pod
+# age ~330 s on TWO builds (one with a six-line change to that page, one without it — the
+# controlled comparison H15 requires), while the server answered the route's HTML in 0.2–0.3 s
+# throughout and the R-27 rig rendered the route BY CLICK in 219 ms on the same pod. At pod
+# age 733 s the same smoke PASSED 19/19. That run had already triggered an H15 rollback of a
+# correct change — the second time in two days this instrument, not the product, was the
+# finding. Two points (330 s fail, 733 s pass) do not make a rate, so this is a REFUSAL TO
+# JUDGE below 720 s while the market is open, never a claim about the page: below it the run is
+# INCONCLUSIVE, exactly like the cold floor above. Re-derive the number the day a third point
+# lands; do not tune it from one more failure.
+MARKET_HOURS_FLOOR_S = 720
+
+
+def pod_floor_seconds(now=None) -> float:
+    """The floor a run must clear before it may judge: `MARKET_HOURS_FLOOR_S` Mon–Fri
+    09:30–16:00 America/New_York, else `COLD_POD_FLOOR_S`. Pure in `now` (a tz-aware
+    datetime) so the self-check can pin both branches; a naive/None `now` reads the clock."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    now_et = (now if now is not None else datetime.now(et)).astimezone(et)
+    if now_et.weekday() >= 5:
+        return COLD_POD_FLOOR_S
+    minutes = now_et.hour * 60 + now_et.minute
+    return MARKET_HOURS_FLOOR_S if 9 * 60 + 30 <= minutes < 16 * 60 else COLD_POD_FLOOR_S
+
 
 def pod_age_seconds(base: str):
     """`/api/health`'s uptime_seconds, or None when it cannot be read. ⛔ None is NOT "cold":
@@ -110,9 +137,12 @@ def pod_age_seconds(base: str):
         return None
 
 
-def cold_pod_verdict(age, floor: float = COLD_POD_FLOOR_S, allow_cold: bool = False):
+def cold_pod_verdict(age, floor=None, allow_cold: bool = False):
     """Pure, so the self-check can prove it fires. Returns the INCONCLUSIVE text when the run
-    must not judge, else None. An unknown age (None) never blocks — see pod_age_seconds."""
+    must not judge, else None. An unknown age (None) never blocks — see pod_age_seconds.
+    `floor=None` resolves to `pod_floor_seconds()` (720 s while the market is open, else 180)."""
+    if floor is None:
+        floor = pod_floor_seconds()
     if allow_cold or age is None or age >= floor:
         return None
     return (f"INCONCLUSIVE — the pod is {age:.0f} s old (floor {floor:.0f} s). A smoke this early "
@@ -827,14 +857,31 @@ def self_check() -> int:
     # The cold-pod floor is pure, so it is proved here rather than trusted: a young pod is
     # INCONCLUSIVE, an old one judges, an unreadable age judges (never laundered into "cold"),
     # and the override is honoured.
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    _et = ZoneInfo("America/New_York")
+    _midday_wed = datetime(2026, 9, 23, 12, 0, tzinfo=_et)     # market open
+    _evening_wed = datetime(2026, 9, 23, 20, 0, tzinfo=_et)    # after the close
+    _noon_sat = datetime(2026, 9, 26, 12, 0, tzinfo=_et)       # weekend
+    _pre_open = datetime(2026, 9, 23, 9, 29, tzinfo=_et)       # one minute before the bell
     cold_ok = (
         cold_pod_verdict(30, 180, False) is not None
         and cold_pod_verdict(600, 180, False) is None
         and cold_pod_verdict(None, 180, False) is None
         and cold_pod_verdict(30, 180, True) is None
+        # the market-hours floor: 720 while open, 180 otherwise — and a 330 s pod, which
+        # passed this instrument after hours and failed it at midday, is INCONCLUSIVE at
+        # midday and judged in the evening
+        and pod_floor_seconds(_midday_wed) == MARKET_HOURS_FLOOR_S
+        and pod_floor_seconds(_evening_wed) == COLD_POD_FLOOR_S
+        and pod_floor_seconds(_noon_sat) == COLD_POD_FLOOR_S
+        and pod_floor_seconds(_pre_open) == COLD_POD_FLOOR_S
+        and cold_pod_verdict(330, pod_floor_seconds(_midday_wed), False) is not None
+        and cold_pod_verdict(330, pod_floor_seconds(_evening_wed), False) is None
     )
     say(f"  cold-pod floor fires       : {cold_ok} "
-        "(30 s -> INCONCLUSIVE; 600 s, unknown, and --allow-cold -> judge)")
+        "(30 s -> INCONCLUSIVE; 600 s, unknown, and --allow-cold -> judge; "
+        "market hours -> 720 s floor, a 330 s pod is INCONCLUSIVE at midday and judged at 20:00)")
     if not loop_sample.get("longtaskSupported", False):
         say("SELF-CHECK FAILED — this browser reports no longtask entries, so the render probe "
             "is BLIND here. Silence from a blind instrument is not health.", err=True)
@@ -966,7 +1013,8 @@ def main(argv=None) -> int:
                          "pointer): does the hub mount where the registry says, and does any hub "
                          "code log an error? Requires --auth.")
     ap.add_argument("--allow-cold", action="store_true",
-                    help=f"judge a pod younger than {COLD_POD_FLOOR_S}s anyway (measures the boot)")
+                    help=f"judge a pod younger than the floor anyway ({COLD_POD_FLOOR_S}s, or "
+                         f"{MARKET_HOURS_FLOOR_S}s while the market is open) — measures the boot")
     args = ap.parse_args(argv)
 
     if args.self_check:

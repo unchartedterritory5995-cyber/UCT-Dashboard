@@ -38,6 +38,7 @@ _STATE: dict = {
     "enabled": None, "last_beat_ts": None, "warmed_total": 0, "skipped_total": 0,
     "empty_total": 0, "empty_parked": 0, "passes": 0, "cursor": 0, "universe": 0,
     "last_warm_sym": None, "last_error": None, "restarts": 0, "tail_cohort": 0,
+    "no_advance_total": 0,
 }
 
 
@@ -82,7 +83,7 @@ def load_universe() -> list[str]:
 
 
 def tail_cohort(reference_syms, base_universe, *, enabled: bool, cap: int,
-                dollar_volume=None) -> list[str]:
+                dollar_volume=None, has_5m=None, discovery_every=5) -> list[str]:
     """A BOUNDED, RANKED slice of the reference long tail to append after `base_universe`.
 
     ⛔⛔ THE TAIL IS WHY BFRG HAD NO 5m CHART, AND IT IS NOT IN ANY INTRADAY LIST.
@@ -124,11 +125,51 @@ def tail_cohort(reference_syms, base_universe, *, enabled: bool, cap: int,
     cands = sorted({str(s).strip().upper() for s in (reference_syms or ()) if s} - base)
     cands = [t for t in cands if not t.startswith("I:")]
     cands.sort(key=lambda t: (-dv.get(t, 0.0), t))
-    return cands[:n]
+    if has_5m is None:
+        return cands[:n]
+    # ⭐ CAPABILITY PREFERENCE, APPLIED WITHIN THE EXISTING RANKING — not instead of it.
+    # Dollar volume still decides the order inside each group; capability only decides
+    # which group you are in. Measured 2026-09-24 on a deterministic n=80 spread of the
+    # 9,645 tail CANDIDATES: **82.5% hold no 5m rows at all** (preferreds AHLPE/BHRPB,
+    # units ALUB.U, tiny ETFs BRRR/BULZ), against 0.0% in cap_universe. So a rank-only
+    # tail spends most of a fixed 1-fetch-per-3s budget on instruments that have never
+    # produced an intraday series.
+    #
+    # ⚠️ THAT 82.5% IS THE CANDIDATE POOL, NOT THIS COHORT. The cohort is the
+    # dollar-volume-ranked top slice, which is a better-selected subset; treat the
+    # sample as evidence that preference is worth trying, never as this cohort's rate.
+    #
+    # ⛔ NOT A FILTER — `discovery_every` RESERVES slots for unproven names, because
+    # no rows -> never crawled -> never any rows is a closed loop that would lock out
+    # every new listing, newly supported instrument and symbol-normalisation fix. The
+    # evidence used is POSITIVE ONLY (`get_last_ts(sym,'5') is not None` = this symbol
+    # has previously produced a validated stored 5m row). That is CAPABILITY evidence,
+    # NOT freshness: it says nothing about current, deep or complete.
+    proven, unknown = [], []
+    for t in cands:
+        try:
+            (proven if has_5m(t) else unknown).append(t)
+        except Exception:      # noqa: BLE001 — an unreadable store must not empty the cohort
+            proven.append(t)
+        if len(proven) + len(unknown) >= n * 4:
+            break              # bounded scan: never walk 9,645 candidates for 2,500 slots
+    step = max(2, int(discovery_every))
+    out, pi, ui = [], 0, 0
+    for i in range(n):
+        if ((i + 1) % step == 0) and ui < len(unknown):
+            out.append(unknown[ui]); ui += 1
+        elif pi < len(proven):
+            out.append(proven[pi]); pi += 1
+        elif ui < len(unknown):
+            out.append(unknown[ui]); ui += 1
+        else:
+            break
+    return out
 
 
 def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
-               on_warm=lambda sym: None, on_empty=lambda sym: None, budget=None):
+               on_warm=lambda sym: None, on_empty=lambda sym: None,
+               on_no_advance=lambda sym: None, budget=None):
     """ONE sweep of the universe starting at `cursor`, warming only stale/missing 5m.
 
     Pure control flow with every side-effect INJECTED, so the pacing + skip logic is
@@ -145,13 +186,16 @@ def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
       • on_warm(sym)/on_empty(sym): telemetry + the no-data cooldown hook.
       • budget (int|None)     : stop after this many ATTEMPTS this pass (None = full).
 
-    Returns (new_cursor, filled, skipped, empty). new_cursor resumes where this pass
-    stopped, so coverage rotates fairly across restarts.
+    Returns (new_cursor, filled, skipped, empty, no_advance). The four outcomes are
+    deliberately distinct: SKIPPED means the fetch was never attempted (fresh or parked);
+    NO_ADVANCE means it was attempted and the symbol already held valid 5m that simply
+    did not move; NO_DATA/empty means it was attempted and nothing usable came back;
+    FILLED means the tail advanced. Collapsing the middle two is the defect this fixes.
     """
     n = len(universe)
-    filled = skipped = empty = 0
+    filled = skipped = empty = no_advance = 0
     if n == 0:
-        return cursor, 0, 0, 0
+        return cursor, 0, 0, 0, 0
     i = cursor % n
     attempts = 0
     for _ in range(n):
@@ -162,10 +206,19 @@ def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
             if not is_stale(sym):
                 skipped += 1
                 continue
-            ok = warm(sym)
-            if ok:
+            # ⭐ THREE OUTCOMES, NOT TWO. `warm` may return the legacy bool (True =
+            # warmed, False = no usable data) or one of WARMED / NO_ADVANCE / NO_DATA.
+            # Only genuine NO_DATA parks: a symbol that already holds valid 5m and
+            # merely printed nothing new has PROVEN capability and must not be filed
+            # as unsupported. It still costs a provider call, so it still paces.
+            res = warm(sym)
+            outcome = (WARMED if res is True else NO_DATA if res is False else res)
+            if outcome == WARMED:
                 filled += 1
                 on_warm(sym)
+            elif outcome == NO_ADVANCE:
+                no_advance += 1
+                on_no_advance(sym)
             else:
                 empty += 1
                 on_empty(sym)   # cooldown so we don't retry a no-data ticker every pass
@@ -176,7 +229,7 @@ def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
             skipped += 1
         if budget is not None and attempts >= budget:
             break
-    return i, filled, skipped, empty
+    return i, filled, skipped, empty, no_advance
 
 
 # Tickers that came back EMPTY (no valid recent 5m — thin/inactive) are parked here
@@ -214,17 +267,45 @@ def _default_is_stale(sym: str) -> bool:
     return _is_cold_stale_intraday("5", last_ts)
 
 
-def _default_warm(sym: str, depth: int) -> bool:
-    """The single synchronous shallow 5m warm. On the WORKER (async-heal flag off) this
-    fetches + stores inline, so the crawler's pace() genuinely rate-limits the fetch.
-    Returns True iff rows were actually stored (fill), False if the fetch was empty."""
+#: The three things an attempted crawl can actually mean. `WARMED` and `NO_DATA` are the
+#: outcomes this module always had; `NO_ADVANCE` is the one it was hiding.
+WARMED = "warmed"
+NO_ADVANCE = "no_advance"
+NO_DATA = "no_data"
+
+
+def _default_warm(sym: str, depth: int):
+    """One paced shallow 5m warm. Returns WARMED / NO_ADVANCE / NO_DATA.
+
+    ⛔⛔ THIS USED TO RETURN A BOOL, AND THE FALSE BRANCH WAS TWO DIFFERENT FACTS.
+    It answered `after is not None and (before is None or after > before)` — "did the
+    stored tail advance?" — and everything else was reported as EMPTY and parked in the
+    no-data cooldown. But a symbol holding perfectly valid 5m bars that simply did not
+    PRINT since the last pass lands in that same branch. An illiquid name that did not
+    trade is cold-stale, so it is attempted; the provider correctly returns nothing new;
+    the tail does not move; and the crawler concluded "no usable 5m data" about a series
+    a member could chart right now.
+
+    ⭐ MEASURED 2026-09-24 by indexed point lookups (n=80 deterministic spread each):
+    in cap_universe **0.0%** of symbols have no 5m rows at all, while 12.5% hold rows and
+    are cold-stale — so the BASE population's "empty" outcomes were ENTIRELY this
+    misclassification. In the reference tail the picture inverts (82.5% hold no rows), so
+    there the label was mostly right. One counter was averaging two different populations
+    and two different meanings, which is why "46% empty" never meant what it looked like.
+
+    ⚠️ NO_DATA IS STILL A REAL OUTCOME and still parks: `after is None` after an attempt
+    means nothing usable came back. Only the no-advance case is rescued.
+    """
     from api.routers.bars import _get_bars_inner
     from api.services import bars_sqlite as _sqlite
     before = _sqlite.get_last_ts(sym, "5")
     _get_bars_inner(sym, "5", depth)
     after = _sqlite.get_last_ts(sym, "5")
-    # Filled if we now have rows we didn't before (new ticker), or the tail advanced.
-    return after is not None and (before is None or after > before)
+    if after is None:
+        return NO_DATA
+    if before is not None and after <= before:
+        return NO_ADVANCE
+    return WARMED
 
 
 def run_universe_crawler_forever():
@@ -253,14 +334,29 @@ def run_universe_crawler_forever():
             _ref = [t for t in _ref if t and not t.startswith("I:")]
             _floor = int((_dt.now(_ZI("America/New_York")) - _td(days=90)).strftime("%Y%m%d"))
             _dv = _bsq.avg_dollar_volume_bulk(20, _expected_latest_session_yyyymmdd(), _floor)
+            # Capability preference uses the DURABLE positive evidence already in the
+            # store (an indexed point lookup per candidate, bounded to 4x the cap).
+            _seen5 = {}
+
+            def _has5(sym, _c=_seen5):
+                v = _c.get(sym)
+                if v is None:
+                    v = _bsq.get_last_ts(sym, "5") is not None
+                    _c[sym] = v
+                return v
+
             _tail = tail_cohort(
                 _ref, universe, enabled=True,
                 cap=os.environ.get("PREWARM_5M_REF_TAIL_CAP", "2500"),
                 dollar_volume=_dv,
+                has_5m=(_has5 if os.environ.get("CRAWLER_TAIL_CAPABILITY", "1") == "1" else None),
+                discovery_every=int(os.environ.get("CRAWLER_TAIL_DISCOVERY_EVERY", "5")),
             )
+            _prov = sum(1 for t in _tail if _seen5.get(t))
             print(f"{log_prefix} reference-tail pilot: +{len(_tail)} ranked symbols "
                   f"(cap={os.environ.get('PREWARM_5M_REF_TAIL_CAP', '2500')}, "
-                  f"{len(_ref)} reference, {len(_dv)} with a local dollar-volume metric)")
+                  f"{len(_ref)} reference, {len(_dv)} with a local dollar-volume metric); "
+                  f"capability: {_prov} proven-capable + {len(_tail) - _prov} discovery")
             universe = universe + _tail
     except Exception as e:                       # noqa: BLE001
         # The pilot must never be able to stop the crawler doing its existing job.
@@ -292,7 +388,7 @@ def run_universe_crawler_forever():
                 _STATE["last_warm_sym"] = sym
 
         try:
-            cursor, filled, skipped, empty = crawl_pass(
+            cursor, filled, skipped, empty, no_adv = crawl_pass(
                 universe, cursor,
                 is_stale=_default_is_stale,
                 warm=lambda s: _default_warm(s, depth),
@@ -303,9 +399,11 @@ def run_universe_crawler_forever():
                 _STATE["cursor"] = cursor
                 _STATE["skipped_total"] += skipped
                 _STATE["empty_total"] += empty
-            print(f"{log_prefix} pass complete: {filled} filled, {empty} empty(parked), "
-                  f"{skipped} skipped, {len(_NO_DATA_UNTIL)} parked total")
-            if filled == 0 and empty == 0:
+                _STATE["no_advance_total"] += no_adv
+            print(f"{log_prefix} pass complete: {filled} filled, {empty} no-data(parked), "
+                  f"{no_adv} no-advance(kept), {skipped} skipped, "
+                  f"{len(_NO_DATA_UNTIL)} parked total")
+            if filled == 0 and empty == 0 and no_adv == 0:
                 # Whole universe already fresh/parked — idle instead of hot-looping skips.
                 _time.sleep(idle_sleep)
         except Exception as e:  # pragma: no cover - defensive

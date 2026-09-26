@@ -163,13 +163,37 @@ plot(close > ${use} ? 1 : 0)
     // ⚠️ THE LIST COMES FROM `PINE_TUPLE_BUILTINS` so it cannot go stale the day
     // another tuple is added — which is exactly how a hand-typed roster in this
     // file would rot.
-    const msg = bind('[st, d] = ta.supertrend(3, 10)', 'st').refusal.message
-    expect(msg).toContain('ta.supertrend')
+    //
+    // ⚰️ THIS ASKED ABOUT `ta.supertrend` AND STOPPED BEING TRUE OF IT. Task 3
+    // gave that one name a refusal OF ITS OWN (the case below), so it no longer
+    // reaches the derived list — and this case then read as the list having lost
+    // `ta.bb`. The claim itself is unharmed; it needs a name still genuinely
+    // unknown to the tuple mechanism, and `ta.percentrank` is a REAL Pine
+    // function answering with ONE value, so a member can actually arrive here.
+    const msg = bind('[a, b] = ta.percentrank(close, 10)', 'a').refusal.message
+    expect(msg).toContain('ta.percentrank')
     expect(msg).toContain('ta.bb')
     expect(msg).toContain('ta.macd')
     expect(msg).toContain('ta.dmi')
     // ⭐ and it points at the spelling that says more
     expect(msg).toContain('WITHOUT the brackets')
+  })
+
+  it('⛔⛔ CONTROL — `ta.supertrend` names ITS OWN reason, never the list', () => {
+    // ⭐⭐ THE OTHER HALF, AND IT IS WHY THE CASE ABOVE HAD TO MOVE. Supertrend
+    // carries state that depends on its own previous value, so the generic
+    // "the ones it can take apart are …" list invites precisely the WRONG fix:
+    // adding it to `PINE_TUPLE_BUILTINS`, a table of PURE, STATELESS expansions,
+    // would drop the band ratchet and the direction flip and serve a different
+    // series under the Supertrend name.
+    //
+    // ⛔ Without this, moving the case above would have DELETED that guarantee
+    // rather than relocated it, and nothing in the suite would have said so.
+    const msg = bind('[st, d] = ta.supertrend(3, 10)', 'st').refusal.message
+    expect(msg).toContain('ta.supertrend')
+    expect(msg).toMatch(/own previous value/)
+    expect(msg).toMatch(/missing primitive/)
+    expect(msg).not.toContain('the ones it can take apart')
   })
 
   it('⛔ the working tuples are untouched', () => {
