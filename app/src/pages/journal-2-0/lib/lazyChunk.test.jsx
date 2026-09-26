@@ -6,11 +6,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Component, Suspense } from 'react'
 import { render, screen } from '@testing-library/react'
-import lazyChunk, { importWithOneRetry, lazyLeaf } from './lazyChunk'
+import lazyChunk, {
+  CHUNK_RETRY_PARAM, chunkRetry, failedChunkUrl, importWithOneRetry, lazyLeaf, retrySpecifier,
+} from './lazyChunk'
 import { RELOAD_FLAG } from '../../../utils/lazyWithRetry'
 
 const realLocation = window.location
-const chunkError = () => new TypeError('Failed to fetch dynamically imported module: /assets/NoteGraphView-abc123.js')
+const realImportUrl = chunkRetry.importUrl
+// Safari names no URL, so its retry is `load()` again -- the path the rails below this block were
+// written for. The URL-bearing errors (Chromium, Firefox) take the specifier path (wave-8 walk W7).
+const chunkError = () => new TypeError('Importing a module script failed.')
+const ORIGIN = 'https://uctintelligence.com'
+const chromeError = () => new TypeError(
+  `Failed to fetch dynamically imported module: ${ORIGIN}/assets/NoteTasksView-BrXPNdrU.js`)
 
 beforeEach(() => {
   try { sessionStorage.removeItem(RELOAD_FLAG) } catch { /* private mode */ }
@@ -23,6 +31,77 @@ beforeEach(() => {
 afterEach(() => {
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
   try { sessionStorage.removeItem(RELOAD_FLAG) } catch { /* private mode */ }
+  chunkRetry.importUrl = realImportUrl
+})
+
+// ⛔ Wave-8 walk W7: in a real Chromium the retry-by-`load()` made NO second request -- a failed
+// dynamic import is remembered for its URL -- and the page reloaded 595 ms later with the chosen
+// view lost. The retry now imports the named chunk under a specifier the module map never saw.
+describe('the retry specifier (the chunk the error names, under a new query)', () => {
+  it('reads the chunk URL out of Chromium’s and Firefox’s messages, same-origin only', () => {
+    expect(failedChunkUrl(chromeError(), ORIGIN)?.href).toBe(`${ORIGIN}/assets/NoteTasksView-BrXPNdrU.js`)
+    const firefox = new TypeError(`error loading dynamically imported module: ${ORIGIN}/assets/NoteGraphView-x1.js`)
+    expect(failedChunkUrl(firefox, ORIGIN)?.pathname).toBe('/assets/NoteGraphView-x1.js')
+    const relative = new TypeError('Failed to fetch dynamically imported module: /assets/NoteBoardView-q.js')
+    expect(failedChunkUrl(relative, ORIGIN)?.href).toBe(`${ORIGIN}/assets/NoteBoardView-q.js`)
+    // no URL (Safari), another origin, and a dev-server .jsx are not retried by specifier
+    expect(failedChunkUrl(chunkError(), ORIGIN)).toBeNull()
+    expect(failedChunkUrl(new TypeError('Failed to fetch dynamically imported module: https://evil.example/a.js'), ORIGIN)).toBeNull()
+    expect(failedChunkUrl(new TypeError('error loading dynamically imported module: http://localhost:5173/src/X.jsx'), 'http://localhost:5173')).toBeNull()
+  })
+
+  it('adds a query the module map has never seen, keeping the path', () => {
+    const spec = retrySpecifier(chromeError(), 1234, ORIGIN)
+    const url = new URL(spec)
+    expect(url.pathname).toBe('/assets/NoteTasksView-BrXPNdrU.js')
+    expect(url.searchParams.get(CHUNK_RETRY_PARAM)).toBe('1234')
+  })
+})
+
+describe('importWithOneRetry, when the error names the chunk (Chromium, Firefox)', () => {
+  const at = (origin) => Object.defineProperty(window, 'location', {
+    configurable: true, value: { ...realLocation, origin, reload: vi.fn(), href: `${origin}/journal/notebook` },
+  })
+
+  it('imports the chunk under the retry specifier, and never calls load() a second time', async () => {
+    at(ORIGIN)
+    const mod = { default: () => null }
+    const load = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockResolvedValue(mod)
+    await expect(importWithOneRetry(load, 0)).resolves.toBe(mod)
+    expect(load).toHaveBeenCalledTimes(1)
+    const [spec] = chunkRetry.importUrl.mock.calls[0]
+    expect(new URL(spec).pathname).toBe('/assets/NoteTasksView-BrXPNdrU.js')
+    expect(new URL(spec).searchParams.has(CHUNK_RETRY_PARAM)).toBe(true)
+  })
+
+  it('a module with no default export keeps the ORIGINAL failure (a mapping loader is never guessed at)', async () => {
+    at(ORIGIN)
+    const original = chromeError()
+    const load = vi.fn().mockRejectedValue(original)
+    chunkRetry.importUrl = vi.fn().mockResolvedValue({ Named: () => null })
+    await expect(importWithOneRetry(load, 0)).rejects.toBe(original)
+  })
+
+  it('rendered: the view appears with NO page reload (the walk’s W7, in jsdom)', async () => {
+    at(ORIGIN)
+    const load = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockResolvedValue({ default: () => <p>tasks view</p> })
+    const View = lazyChunk(load, 0)
+    render(<Suspense fallback={<p>loading</p>}><View /></Suspense>)
+    expect(await screen.findByText('tasks view')).toBeTruthy()
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
+
+  it('rendered: when the retry fails too, the one-per-session reload still takes over', async () => {
+    at(ORIGIN)
+    const load = vi.fn().mockRejectedValue(chromeError())
+    chunkRetry.importUrl = vi.fn().mockRejectedValue(chromeError())
+    const View = lazyChunk(load, 0)
+    render(<Suspense fallback={<p>loading</p>}><View /></Suspense>)
+    await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1))
+    expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('importWithOneRetry', () => {

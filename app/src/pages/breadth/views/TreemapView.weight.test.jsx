@@ -39,3 +39,15 @@ describe('TreemapView weightBy', () => {
     expect(c.find(x => x.name === 'a').value).toBe(c.find(x => x.name === 'b').value)
   })
 })
+
+describe('TreemapView valFontSize (newsletter internals panel, 2026-09-26)', () => {
+  it('defaults to 30px so the Breadth page is unchanged', () => {
+    render(<TreemapView {...base} options={{ weightBy: 'curated' }} />)
+    expect(captured.label.rich.val.fontSize).toBe(30)
+  })
+  it('the panel can size values down so "29.0% ▼" is not truncated', () => {
+    render(<TreemapView {...base} options={{ weightBy: 'curated', valFontSize: 22 }} />)
+    expect(captured.label.rich.val.fontSize).toBe(22)
+    expect(captured.label.rich.val.lineHeight).toBe(29)
+  })
+})

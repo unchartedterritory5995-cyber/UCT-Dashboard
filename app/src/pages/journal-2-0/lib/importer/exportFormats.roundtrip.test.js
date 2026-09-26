@@ -404,7 +404,10 @@ describePy('docs/notebook/export-formats.md carries the measured table', () => {
   it('the generated block equals what this run measured', async () => {
     const { docs } = await uctAdapter.parse(vfilesOf(RESULT.jsonArchive.files))
     const table = fidelityTable(Object.fromEntries(docs.map((d) => [d.importKey, d])))
-    let text = fs.readFileSync(DOC_FILE, 'utf8')
+    // ⚰️ Read as LF. The blob is LF, but a Windows checkout with core.autocrlf=true puts CRLF on
+    // disk, and every row then compared as "row\r" against the measured "row" -- red on each fresh
+    // checkout (the wave-8 landing gate), green only in a worktree whose copy was written LF.
+    let text = fs.readFileSync(DOC_FILE, 'utf8').replace(/\r\n/g, '\n')
     if (process.env.UPDATE_EXPORT_FORMATS_DOC === '1') {
       const [head, rest] = text.split(BEGIN)
       const tail = rest.split(END)[1]

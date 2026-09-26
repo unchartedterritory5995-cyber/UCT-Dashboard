@@ -14,8 +14,10 @@ import { TOUR_PREF } from './tourPref'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { RELOAD_FLAG } from '../../../../../utils/lazyWithRetry'
+import { chunkRetry } from '../../../lib/lazyChunk'
 
 const realLocation = window.location
+const realImportUrl = chunkRetry.importUrl
 const chunkError = () => new TypeError('Failed to fetch dynamically imported module: /assets/NotebookTour-abc123.js')
 const settle = (ms = 40) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
 
@@ -64,6 +66,7 @@ afterEach(() => {
   Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
   try { sessionStorage.removeItem(RELOAD_FLAG) } catch { /* private mode */ }
   errorSpy.mockRestore()
+  chunkRetry.importUrl = realImportUrl
   __resetNotebookFlags()
   __resetTourControl()
 })
@@ -71,10 +74,14 @@ afterEach(() => {
 describe('a tour chunk that cannot load costs the tour, and nothing else', () => {
   it('a rejecting chunk import leaves the Notebook rendered and makes no reload', async () => {
     const load = vi.fn().mockRejectedValue(chunkError())
+    // the error names the chunk, so the one retry imports it under a new specifier (wave-8
+    // walk W7); here that retry fails too
+    chunkRetry.importUrl = vi.fn().mockRejectedValue(chunkError())
     const Gate = makeTourGate(load, 0)
     render(<Page Gate={Gate} />)
     // one in-place retry of the failed fetch, then the boundary -- never a reload
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(chunkRetry.importUrl).toHaveBeenCalledTimes(1))
+    expect(load).toHaveBeenCalledTimes(1)
     await settle(60)
     expect(window.location.reload).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 1, name: 'Your Notebook' })).toBeInTheDocument()

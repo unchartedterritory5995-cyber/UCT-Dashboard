@@ -124,6 +124,14 @@ NEUTRAL_LINE = "A market-data item is not shown on public pages."
 #: What a noteLink becomes (ruling D-B7): no id and no title leaves.
 LINKED_NOTE_TEXT = "linked note"
 
+#: What an in-app ADDRESS written as text becomes (wave-8 walk W3). `_reduce_marks` drops an
+#: internal link mark and keeps its text -- right for "my thesis" linked to a note, wrong when
+#: the member pasted the address itself: then the text IS `https://uctintelligence.com/journal/
+#: notebook?note=<id>`, and the other note's id reached the public page as plain text. The same
+#: happens to an address pasted as plain text, with no mark at all. So every in-app address in a
+#: public text node is replaced, whatever marks it carried.
+IN_APP_LINK_TEXT = "in-app link"
+
 _ATTACHMENT_PREFIX = "/api/j2/notes/attachments/"
 
 SHOWN, NEUTRAL = "shown", "neutral"
@@ -303,6 +311,45 @@ def _internal_href(href: Any) -> bool:
 
 
 _WEB_URL = re.compile(r"^https?://", re.IGNORECASE)
+
+# What an address looks like inside prose, four ways (the same forms the M-6 rail drives through
+# the node attributes): an absolute http(s) address; a protocol-relative one on OUR host (never
+# any `//word`, which is ordinary text); a relative in-app path (`/journal/...`, `/api/...`) that
+# does not continue a longer path; and a bare `?note=<id>` / `&note=<id>` query. Trailing
+# sentence punctuation is handed back, not swallowed.
+_ADDRESS_IN_TEXT = re.compile(
+    r"https?://[^\s<>\"'()\[\]]+"
+    r"|(?<![:\w])//(?:[\w-]+\.)*uctintelligence\.com(?![\w.-])[^\s<>\"'()\[\]]*"
+    r"|(?<![\w/.])/(?:journal|api)/[^\s<>\"'()\[\]]*"
+    r"|(?<![\w/])[?&]note=[^\s<>\"'()\[\]&]+",
+    re.IGNORECASE)
+_TRAILING_PUNCT = ".,;:!?"
+# The two PUBLIC doors on our own host (`lib/notePublishLink.js` PUBLISHED_PATH,
+# `lib/noteShareLink.js` SHARED_NOTE_PATH): an address the member already made public carries a
+# slug or token, never a note id, so it stays readable.
+_PUBLIC_PATH_PREFIXES = ("/p/", "/share/n/")
+
+
+def _is_public_address(address: str) -> bool:
+    try:
+        absolute = _WEB_URL.match(address) or address.startswith("//")
+        path = urlsplit(address).path if absolute else address.split("?", 1)[0]
+    except ValueError:
+        return False
+    return path.startswith(_PUBLIC_PATH_PREFIXES)
+
+
+def _scrub_in_app_addresses(text: str) -> str:
+    """`text` with every in-app address replaced by `IN_APP_LINK_TEXT`; an external address and
+    a public page's own address stay."""
+    def repl(m: "re.Match[str]") -> str:
+        s = m.group(0)
+        core = s.rstrip(_TRAILING_PUNCT)
+        tail = s[len(core):]
+        if core and _internal_href(core) and not _is_public_address(core):
+            return IN_APP_LINK_TEXT + tail
+        return s
+    return _ADDRESS_IN_TEXT.sub(repl, text)
 
 
 def _public_image_src(src: Any, attachment_base: str) -> str | None:
@@ -504,6 +551,8 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
             return []
         node = kept
     out = {k: v for k, v in node.items() if k not in ("content", "marks")}
+    if t == "text" and isinstance(out.get("text"), str):
+        out["text"] = _scrub_in_app_addresses(out["text"])      # wave-8 walk W3
     if "marks" in node:
         marks = _reduce_marks(node.get("marks"))
         if marks is not None and (marks or not node.get("marks")):

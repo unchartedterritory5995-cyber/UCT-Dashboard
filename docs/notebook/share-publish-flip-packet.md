@@ -213,6 +213,9 @@ lines (§1.3); a link to another note of the SAME published folder, as a link to
 * trade links;
 * backlinks and unlinked mentions;
 * other notes' titles or ids ("linked note" in their place);
+* an in-app address written as TEXT, linked or not (`…/journal/notebook?note=<id>`, a relative
+  `/journal/…` path, a bare `?note=<id>`) — "in-app link" in its place. A public page's own
+  address (`/p/…`, `/share/n/…`) and any external address stay as written (wave-8 walk W3);
 * `file` attachments;
 * vendor-data nodes the table marks neutral (the neutral line in their place);
 * the author's identity (no user id, no name, no email).
