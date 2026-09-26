@@ -22,6 +22,9 @@ const LAZY = [
   '../components/notebook/NoteTasksView',
   '../components/notebook/import/ImportWizard',
   '../components/notebook/export/ExportDialog',
+  // Wave 9 lane 9D: the folder Publish confirmation, on demand through `lazyDialog`. It shipped
+  // without this entry; the wave-9 landing gate named it (2026-09-26T17-14-34).
+  '../components/notebook/PublishFolderSheet',
   // ⚰️ Wave 8 seam S8-3 put the first-run tour here too, through `lazyChunk` in a bare
   // <Suspense>. Final-review fix I-2 moved it out: NotebookTourGate (imported statically, below)
   // owns the tour's chunk, through `lazyLeaf` inside its own boundary.
