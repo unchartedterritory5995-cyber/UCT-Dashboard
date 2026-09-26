@@ -36,3 +36,10 @@ declined-page reason. The stored golden `instruments/goldens/prev2_replies.json`
 button row for the two delivered `/flow` scenarios; its seven OTHER drift items (buzz board, the
 "reconnecting" wording, two PNG hashes) are pre-existing on `origin/master` `8ecf428bc` and are
 not this change's to re-bless.
+
+**Update 2026-09-26:** all seven traced and refreshed on `fix/discord-render-goldens-stale`, each by cause:
+two card hashes = the `derivation` field added 2026-09-25 (reproduced exactly by removing that one key);
+two failure sentences = `a3044a667` (2026-09-17) naming the real cause instead of "reconnecting"; the buzz
+board = the INSTRUMENT's stub, which rejected the required `cls=` argument added by `83e430adf` (2026-09-15) and
+so recorded no image. The stub now takes the class and hashes it by name (`member`). The goldens test is green
+(16/16) and catches a changed render class and a changed window label.

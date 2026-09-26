@@ -188,6 +188,13 @@ def _png(call: dict) -> bytes:
     return b"\x89PNG\r\n\x1a\n" + digest
 
 
+def _render_class(cls) -> str:
+    """The render class by the product's OWN name for it (render_gate.CLASS_NAMES), so a stored
+    golden reads `member` and a changed class diffs as member -> background, not 0 -> 1."""
+    from api.services.render_gate import CLASS_NAMES
+    return CLASS_NAMES.get(cls, repr(cls))
+
+
 def _payload(kw: dict) -> dict:
     """One reply payload, JSON-safe. The image is a hash and a length, never bytes."""
     out = {k: v for k, v in kw.items() if k not in ("png", "pngs", "client")}
@@ -257,7 +264,9 @@ def _capture_flow(router, name: str, spec: dict) -> dict:
 def _capture_buzz(router, name: str, spec: dict) -> dict:
     rec = Recorder()
     router.run_buzz_image_job("app", "tok", spec["content"], spec["window"],
-                              render_fn=lambda w: (_png({"buzz": w}) if spec["draws"] else None),
+                              # `cls` is part of the REQUEST (83e430adf, 2026-09-15: the render class is required);
+                              # the stub takes it and hashes it, so a change of class shows as drift.
+                              render_fn=lambda w, cls=None: (_png({"buzz": w, "cls": _render_class(cls)}) if spec["draws"] else None),
                               edit_fn=rec.edit_fn)
     return {"edits": rec.edits}
 

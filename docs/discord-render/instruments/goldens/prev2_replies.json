@@ -7,7 +7,7 @@
           "content": "**Buzz** · since the open",
           "filename": "buzz.png",
           "png_bytes": 40,
-          "png_sha256": "734c96490c57c55cadc8b1af0fa03d3aefa20d645f44f6db803f4979e6928c60"
+          "png_sha256": "53b336086a21a2b493ff3a50b047beb3b30c39e8ccbea417580a87ad20c56b9b"
         }
       ]
     },
@@ -894,7 +894,7 @@
     "flow/NVDA/1/not-ok": {
       "edits": [
         {
-          "content": "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment."
+          "content": "⚠️ **NVDA** — the options-flow service returned an error."
         }
       ]
     },
@@ -908,7 +908,7 @@
     "flow/NVDA/1/unreadable": {
       "edits": [
         {
-          "content": "⚠️ The flow feed is reconnecting — couldn't read **NVDA** right now. Try again in a moment."
+          "content": "⚠️ **NVDA** — the options-flow service returned an error."
         }
       ]
     },
@@ -958,7 +958,7 @@
           "content": "",
           "filename": "NVDA_flow.png",
           "png_bytes": 40,
-          "png_sha256": "e32ce4de74026452b85d783e519505c2fcef8818691cec79e3b12c0f3de02c23"
+          "png_sha256": "8d71187ea50142cf9135bea4a36791986c9cd67db7fbc0b5407f570739b0d82d"
         }
       ]
     },
@@ -1008,7 +1008,7 @@
           "content": "",
           "filename": "NVDA_flow.png",
           "png_bytes": 40,
-          "png_sha256": "e68bbcaff57e5317017bedc559f4d08595b77d0b1cbf2403532b15ee599a1af5"
+          "png_sha256": "613504c3388e087fd8b918ddfc526902aa6e9ce0fbeab38d95e67db4dfa076a1"
         }
       ]
     }
