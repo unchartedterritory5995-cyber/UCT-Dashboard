@@ -1,0 +1,206 @@
+# Performance baseline — 2026-09-26
+
+The deliverable named by `docs/terminal-research/07-technical-architecture/current-performance-and-realtime.md`
+§8: *"A dated `docs/perf-baseline-<YYYY-MM-DD>.md` with one table per protocol, the
+session/uptime context for every row, and an explicit delta against §4.3's numbers."*
+
+§8 proposed eight protocols (A–H) and opened with **"Nothing below was run."** This is the
+first execution. Everything here was run against **production**, read-only, with a browser
+UA, from a client — nothing was run *on* the pod (§8 Governing Rule 2).
+
+⛔ **Session context applies to every row and invalidates some of them.** All runs were
+2026-09-26 00:59Z–01:10Z, i.e. **after the close** (20:59–21:10 ET). Production took
+**fourteen web deployments in the 6.5 hours to 00:58Z**, median pod lifetime **26 minutes**,
+so several protocols could not get a warm pod. ⚠️ **Roughly half of those deploys were mine**
+— I was shipping while measuring, and I degraded the measurement I was taking. That is
+recorded because the next person will have the same conflict and should schedule around it.
+
+---
+
+## Protocol F — capacity telemetry ✅ THE HEADLINE RESULT
+
+§8: *"Export 24 h of Railway logs and plot both. This **distinguishes a leak from a
+large-but-stable working set** — which `api/main.py:3639-3644` calls 'the prerequisite for
+any further memory work'."*
+
+24 h is not reachable from one deployment when the median pod lives 26 minutes, so this used
+the **longest-lived deployment available**: `5bad63301`, which ran **104 minutes**
+(19:37→21:21Z, straddling the close). `railway logs <DEPLOYMENT_ID> --lines 5000`.
+
+| | value |
+|---|---|
+| `[mem]` samples | **76** (one per 60 s) |
+| first sample | rss **2,429 MB**, threads 98 |
+| last sample | rss **3,028 MB**, threads 41 |
+| rss range | min 1,750 · median 2,774 · **max 3,401** |
+| threads | min 41 · median 124 · **max 178** |
+| net drift | **+599 MB over ~76 minutes = +7.9 MB/min** |
+| quartile medians | **2,429 → 2,746 → 2,956 → 3,028** — monotonically rising |
+
+### ANSWER: a leak, not a stable working set — and the prerequisite is now met
+
+The quartile medians rise monotonically across the whole deployment. That is the question
+§8 posed, and the answer is the unwelcome one. ⚠️ Sample-level variance is wide (1,750 to
+3,401 MB), so individual samples dip — GC and cache eviction are visible — but the *trend*
+is unambiguous across quarters.
+
+### Delta against §4.3 — it refutes the rate and corroborates the endpoint
+
+§4.3 carries an **undated** claim: RSS *"climbs ~2.2 MB/s (1,201 MB at 105 s, 1,661 MB at
+318 s, 11,665 MB observed on a long-lived one)"*.
+
+* ⛔ **The rate is wrong by ~17×.** 2.2 MB/s is ~132 MB/min. Measured: **7.9 MB/min**.
+* ⭐ **The endpoint is corroborated almost exactly.** 7.9 MB/min × 1,440 min = **~11.4 GB**,
+  against the recorded **11,665 MB observed on a long-lived one**. Two independent
+  observations, four months apart, of the same destination by a much gentler road.
+* ⚠️ **The early-life figures do not match either.** §4.3 says 1,201 MB at 105 s and
+  1,661 MB at 318 s; a separate 5-sample read on a 5-minute-old pod tonight showed
+  **1,862–2,023 MB** — higher at the same age, and *flat-to-declining within that window*
+  (1,980 → 1,905 MB). So a 5-minute window cannot see this leak at all, which is exactly why
+  §8 asks for 24 h.
+
+### What this does NOT establish
+
+`n = 1` deployment. One 104-minute window, after the close, on one build. It does not
+identify *what* leaks, does not separate the bars cache from the SSE pools from the
+scheduler, and cannot say whether the rate is load-dependent. **It does establish that
+"large but stable" is off the table**, which is all §8 asked of it.
+
+⭐ **Threads never reached the 200 burst threshold** (max 178), so no `[thread-burst]`
+histogram fired in this window, and none appears in any log sampled tonight. Against
+§4.3's recorded *"~58 → 931 threads in minutes for ~25 min"*, this window is quiet — but
+178 is not comfortably far from 200.
+
+---
+
+## Protocol D — CDN reality check ✅ SETTLES §3.3
+
+| request | `cf-cache-status` | `age` | `content-type` |
+|---|---|---|---|
+| `/api/flow/data?days=1` | **BYPASS** | — | `application/json` |
+| `/api/flow/data?days=1` (+4 s) | **BYPASS** | — | `application/json` |
+| `/api/flow/data?days=20` | **BYPASS** | — | — |
+
+**The documented Cloudflare rule is not in effect on this endpoint.** §8's success signal was
+`MISS → HIT` with a non-null `age`; every request returned `BYPASS`, which is neither. The
+`days=20`-shares-`days=1` hazard cannot arise — there is no cache entry to share.
+
+**Delta against §4.3:** its 2026-07-25 row recorded `cf-cache-status: DYNAMIC, age: null` on
+this same endpoint. `DYNAMIC` → `BYPASS` is a change in header but not in outcome: **not
+cached then, not cached now, fourteen months of documentation notwithstanding.**
+
+⚠️ `BYPASS` does not separate *a Cloudflare rule bypassing this path* from *the origin
+sending `Cache-Control: private/no-store` and Cloudflare obeying*. That decides whether the
+fix is a dashboard rule or a response header, and it is one more `curl -D -` away.
+
+---
+
+## Protocol B — full chart-surface matrix ✅ 0 FAIL / 11 CHECKS
+
+`tools/market_open_chart_check.py`, 01:02Z, after close (§8: *"the weekend-safe baseline it
+was written against"*). **Pod uptime 85 s.**
+
+| check | result |
+|---|---|
+| health | 200 in **136 ms**, `wire_date=2026-09-25` |
+| latency: all 200 | 8/8 |
+| latency: warm server-compute | max **12.6 ms**; layers `fetch, mem, miss` |
+| weekly dedup MSTR / AAPL | 200 bars each, 0 dup-weeks, 0 non-Friday keys |
+| bar sanity AAPL/D, NVDA/5 | 300 bars each, 0 bad-OHLC, 0 future-dated |
+| live-bar liveness | ⚠️ WARN — skipped, market closed |
+| push-stream (Phase C) | `ws_connected=True`, subscribers 0, emitted 0, drops 0 |
+| daily drift monitor | `detect_only_drift_count=0`, healed 0 |
+| deep intraday 20k bars | 200, `layer=sqlite`, server **407.9 ms**, total **590 ms**, 1.42 MB |
+
+**Delta against §4.3:** the 20,000-bar deep path answering in **590 ms off `sqlite`** is the
+cheerful counterpart to §4.3's 2026-09-02 *"long-tail first view 0.3–6.8 s, localised to
+`get_bars` (WAL bloat)"* — this path, after close, on a fresh pod, is fast.
+
+⚠️ At 85 s of uptime the layer mix (`fetch, mem, miss`) is a booting pod. B passes on
+correctness and latency, so **it does not establish the warm ratio.**
+
+---
+
+## Protocol A — bars warm/cold ratio ⛔ VOID, AND RE-RUN STILL PENDING
+
+§8: *"the highest-value single number in the whole protocol and it is one command"*;
+definition of done **≥ 99 % served `mem`/`sqlite`**.
+
+**Attempt 1, 00:59Z — pod uptime 112 s. VOID by §8's own Governing Rule 1** (*"An uptime
+under ~300 s invalidates a warm measurement"*).
+
+| tf | warm | layers | cold p50 |
+|---|---|---|---|
+| D | 0 / 40 = 0 % | `fetch` × 40 | 155 ms (max 1,037 ms) |
+| 5 | 2 / 40 = 5 % | `miss` × 34, `fetch` × 4, `sqlite` × 2 | 141 ms (max 257 ms) |
+
+⛔⛔ **A 0 % warm ratio against a 99 % target is alarming, quotable, and an artifact** of a
+pod that had just booted — the bars hot tier is an in-process `TTLCache` that resets on every
+deploy. The protocol's own rule caught its first executor. **Retained only as the record of
+an invalid run.**
+
+**A re-run gated on uptime ≥ 900 s is in flight and has not yet found a window** — the pod
+was redeployed by other work twice while waiting. **No valid warm ratio exists as of this
+document.** This is the single most important hole in this baseline.
+
+**Delta against §4.3** cannot be computed. For reference, its 2026-08-19 row records *"daily
+p50 ~60–70 ms, 100 % `stale-swr`; intraday 0 % warm, p50 366 ms → p50 66 ms after the fix"*.
+
+---
+
+## Protocol E — deploy-swap behaviour ⚠️ PARTIAL, from five observed deploys
+
+Observed while shipping, not in a dedicated session:
+
+* **push → deploy SUCCESS: 3 m 40 s to 6 m 40 s** across five deploys.
+* **`uptime_seconds` resets immediately** — observed at 33–56 s on first detection.
+* **`/api/*` answered on every probe through every swap.** No 502 window was caught.
+* **Fresh-pod page loads were fast**: `/options-flow` DOMContentLoaded **3.11 s at 34 s** and
+  **3.69 s at 49 s** of uptime, with 27–30 of ~30 assets Cloudflare `HIT`.
+* ⛔ **This refuted a hypothesis of mine** — that `/options-flow`'s >45 s cold load is caused
+  by new hashed chunks. The frontend deploy that should have reproduced it did not. Withdrawn
+  in `RESUME-HERE.md` §5; cause unexplained, with market session and instrument budget as the
+  uncontrolled confounds.
+* ⚠️ **Not measured:** SSE-pool reconnection without user action, and warm-ratio recovery
+  time. Both need a browser session held open across a swap.
+
+**Delta against §4.3:** it records *"every WEB deploy costs a ~3-minute cold window —
+`bars.db integrity check passed (179.1 s)` at boot"*. Tonight's push→SUCCESS spans (3.7–6.7
+min) are consistent with that, and CP-05's own cell has already corrected the end-to-end
+figure to ~10 min against the current gated pipeline.
+
+---
+
+## Not run, and why
+
+| protocol | status | why |
+|---|---|---|
+| **C** — browser waterfall per surface, cold + warm, HAR export | **NOT RUN** | Needs a **visible foreground tab** (hidden tabs rAF-throttle and defer paint) and a HAR export. Operator task, not headless |
+| **G** — loop-lag baseline via `WATCHDOG_OBSERVE=1` | **NOT RUN, DELIBERATELY** | It is a production env-var change, and `railway variables --set` auto-redeploys. An agent restarting the member-facing pod to take a measurement is the wrong trade, especially given tonight's churn. ⭐ It is also cheap, reversible and cannot kill the process — **a good owner-run next step**, and it is the number that bounds how much event-loop budget Terminal-Next panels may spend |
+| **H** — front-end micro-timing (`?gridspike`, `mobile_audit`) | **NOT RUN** | `?gridspike` must run in a visible tab. `mobile_audit` is runnable headless but §8 warns its route list has been wrong before and must be derived from `App.jsx` first — a prerequisite, not a run |
+
+---
+
+## What this baseline changes
+
+1. ⭐⭐ **Memory work is now unblocked.** `api/main.py` called distinguishing a leak from a
+   stable working set *"the prerequisite for any further memory work"*. It is distinguished:
+   **+7.9 MB/min, monotonic across quartiles.** The 2.2 MB/s figure in §4.3 should be
+   corrected to the measured rate; the 11.7 GB endpoint stands and is now independently
+   corroborated.
+2. **The CDN rule is settled and is not working** — fourteen months of documentation
+   describing a cache that returns `BYPASS`.
+3. **The warm ratio is still unknown**, and getting it requires a 15-minute quiet window that
+   this service did not offer once tonight. ⛔ That is a scheduling problem, not a tooling
+   problem, and it is the first thing to fix about this protocol.
+4. **CP-05's remaining blocker is unchanged and is a decision:** §8 generates no load by
+   design, roadmap Rule 4 bars load against production, so a load model needs a
+   non-production target that does not exist.
+
+## SOURCES
+
+* `docs/terminal-research/07-technical-architecture/current-performance-and-realtime.md`
+  §4.3 (the numbers this deltas against), §8 (protocols A–H and their governing rules).
+* Raw runs: `docs/terminal-research/10-roadmap/evidence/2026-09-26-cp05-protocol-execution/`.
+* Tools, all pre-existing: `tools/bars_warmth_audit.py`, `tools/market_open_chart_check.py`,
+  `railway logs <DEPLOYMENT_ID> --lines`, plus a scratch cold-load probe for Protocol E.

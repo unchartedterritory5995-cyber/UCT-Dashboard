@@ -147,3 +147,39 @@ recorded from those watches rather than from a dedicated session:
    closing it needs a non-production target, which does not exist yet either. **That is the
    real remaining blocker on CP-05, and it is a decision (where to run load), not a
    measurement.**
+
+---
+
+## Protocol F — capacity telemetry ✅ EXECUTED, and it answers the memory question
+
+24 h is unreachable from one deployment when the median pod lives 26 minutes, so this used the
+**longest-lived deployment available**: `5bad63301`, 104 minutes (19:37→21:21Z), via
+`railway logs <DEPLOYMENT_ID> --lines 5000`.
+
+**76 `[mem]` samples. Quartile medians 2,429 → 2,746 → 2,956 → 3,028 MB. Net +599 MB over
+~76 minutes = +7.9 MB/min. Threads min 41 / median 124 / max 178 — the 200 burst threshold
+was never reached.**
+
+⭐⭐ **ANSWER: a leak, not a large-but-stable working set** — which `api/main.py:3639-3644`
+calls *"the prerequisite for any further memory work"*. It **refutes §4.3's 2.2 MB/s rate by
+~17×** and **corroborates its 11,665 MB long-lived endpoint almost exactly** (7.9 MB/min ×
+1,440 min ≈ 11.4 GB). ⚠️ `n = 1` deployment, after the close; it does not identify what leaks.
+
+⚠️ A separate 5-sample read on a 5-minute-old pod showed 1,862–2,023 MB and was
+**flat-to-declining** (1,980 → 1,905). A 5-minute window cannot see this leak — which is
+exactly why §8 asks for 24 h.
+
+⛔ **Two instrument bugs of my own, both in CLAUDE.md already.** The first parse read
+`/tmp/podlogs.txt`, which Git Bash and Windows Python resolve differently, so bash found the
+file and Python did not. The second piped JSON into a script that was itself a heredoc, so
+stdin carried the script and not the data. Both are recorded because each produced a clean,
+confident, empty result.
+
+---
+
+## THE DELIVERABLE
+
+§8 names its own output: *"A dated `docs/perf-baseline-<YYYY-MM-DD>.md` with one table per
+protocol, the session/uptime context for every row, and an explicit delta against §4.3's
+numbers."* Written: **`docs/perf-baseline-2026-09-26.md`**. It carries A, B, D, E and F with
+their validity state, the three protocols not run with reasons, and the §4.3 deltas.
