@@ -466,7 +466,11 @@ function journalEmbedIds() {
   const src = readFileSync(join(ROOT, EMBED_VIEW_REL), 'utf8').replace(/\r\n/g, '\n')
   const block = /const\s+EMBED_COMPONENTS\s*=\s*\{([\s\S]*?)\n\}/.exec(src)
   if (!block) return []
-  return [...block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*lazy\(/gm)].map(m => m[1])
+  // The bindings are lazy views. Wave 7 moved them from React's `lazy(` to the Notebook's
+  // `lazyChunk(` and then `lazyLeaf(` (ruling D-I2: a view inside its own error boundary never
+  // reloads the page); the three wrappers are NAMED, so any other form still parses to nothing
+  // and the non-vacuity control below goes red.
+  return [...block[1].matchAll(/^\s*([A-Za-z][A-Za-z0-9_]*)\s*:\s*(?:lazy|lazyChunk|lazyLeaf)\(/gm)].map(m => m[1])
 }
 
 describe('widget registry — journal embed bindings', () => {
