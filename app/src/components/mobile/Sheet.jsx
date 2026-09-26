@@ -142,7 +142,21 @@ export default function Sheet({
     document.addEventListener('keydown', onKey, true)
     // Focus the panel for screen readers / Escape handling. ONCE per open:
     // this effect is keyed on `open` alone (see onCloseRef above).
-    const t = requestAnimationFrame(() => panelRef.current?.focus())
+    // ⛔⛔ ONLY WHEN FOCUS IS NOT ALREADY INSIDE THE PANEL. This frame runs AFTER
+    // a child's `autoFocus` has focused its field, and an unconditional
+    // `panel.focus()` took focus straight back to the panel <div>: measured on a
+    // sandbox of the production code (wave 8, 2026-09-26), the Notebook's "Save
+    // view" dialog had the panel focused at 0/50/150/600 ms and a member's
+    // typing went nowhere until they clicked the field. Every Sheet with an
+    // autoFocus child had it (TickerActions, BuilderSheet, CotData, ModelBook,
+    // Watchlists, MobileBoardsSheet, MobileIndicatorSheet, ConnectTokenModal,
+    // SavedViewEditor, BuilderView). A panel with nothing focused inside still
+    // takes focus, so screen-reader and Escape behaviour are unchanged.
+    // Rail: Sheet.autoFocus.test.jsx.
+    const t = requestAnimationFrame(() => {
+      const panel = panelRef.current
+      if (panel && !panel.contains(document.activeElement)) panel.focus()
+    })
     return () => {
       document.removeEventListener('keydown', onKey, true)
       cancelAnimationFrame(t)
