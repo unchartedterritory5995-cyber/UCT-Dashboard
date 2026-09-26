@@ -28,11 +28,10 @@ THE RULES.
     the whole request path's budget; a counter is not worth that).
   * Counts only -- never a note, a query or a prompt.
 
-⚠️ NOT IN THE ACCOUNT PURGE, deliberately for now: a row carries a member id
-and a count and nothing else, and it is pruned within two ET days of its day.
-Adding it to `account_purge._DIRECT_USER_TABLES` also regenerates
-docs/account-deletion-manifest.md (a controller change), so it is recorded
-rather than done here.
+IN THE ACCOUNT PURGE since ruling D-H10 (`1b8eff1cd`): an account deletion
+deletes the member's rows by `subject`, and docs/account-deletion-manifest.md
+is regenerated from that line. A row carries a member id and a count and nothing
+else, and is pruned within two ET days of its day regardless.
 """
 from __future__ import annotations
 

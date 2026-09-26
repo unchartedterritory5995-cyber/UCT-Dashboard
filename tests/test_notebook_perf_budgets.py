@@ -208,13 +208,19 @@ def test_a_reading_that_did_not_reproduce_is_a_note_and_one_that_did_is_a_breach
 
 
 def test_the_ci_switcher_is_informational_at_10k_and_still_enforced_at_50k():
-    """The committed shape of M-8: the untouched switcher's fuzzy op reads 90.5 ms p95 at 10k on
-    this box (perf-budgets.md section 2) and would flap on a shared runner, so the CI twin only
-    reports it. The line is not raised, and the local 50k gate still enforces the op."""
+    """The committed shape of M-8 and ruling D-I3. The untouched switcher's fuzzy op reads 90.5 ms
+    p95 at 10k on this box (perf-budgets.md section 2), and the search box's common-term relevance
+    request is the one op that breached AND reproduced under the re-measure rule while also missing
+    its line at the local 50k gate. Both would keep the advisory CI job red, so the CI twin only
+    reports them. The list is pinned EXACTLY so it cannot grow without a ruling; the line is not
+    raised, and the local 50k gate still measures both ops."""
     budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
-    op = "switcher_search (fuzzy, in order)"
+    ops = ["switcher_search (fuzzy, in order)", "GET /notes q=common, relevance (search box)"]
     ci = budgets["search_ci"]
-    assert ci.get("informational") == [op] and op not in ci["ops"]
+    assert ci.get("informational") == ops
+    assert not set(ops) & set(ci["ops"])
     assert ci["p95_ms_max"] == 100 and budgets["search"]["p95_ms_max"] == 100
-    assert op in budgets["search"]["ops"], "the 50k gate must still enforce the switcher"
-    assert "M-8" in ci.get("informational_why", "")
+    for op in ops:
+        assert op in budgets["search"]["ops"], f"the 50k gate must still measure {op!r}"
+    why = ci.get("informational_why", "")
+    assert "M-8" in why and "D-I3" in why

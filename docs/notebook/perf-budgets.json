@@ -62,16 +62,16 @@
       "GET /notes default (list+count)",
       "GET /notes q=common (list+count)",
       "GET /notes q=rare (list+count)",
-      "GET /notes q=common, relevance (search box)",
       "GET /notes q=rare, relevance (search box)",
       "GET /notes tag=setups (list+count)",
       "GET /notes embed_symbol (list+count)",
       "switcher_search (word start)"
     ],
     "informational": [
-      "switcher_search (fuzzy, in order)"
+      "switcher_search (fuzzy, in order)",
+      "GET /notes q=common, relevance (search box)"
     ],
-    "informational_why": "Review M-8, fix round 1: lane I did not touch the switcher, and its fuzzy search already read 90.5 ms p95 at 10k on this box (perf-budgets.md section 2), inside a shared runner's variance of the 100 ms line. Enforced there it would flap red and teach people to ignore the job. It is still measured and printed against 100 ms here, the line is NOT raised, and the local 50k `search` gate still enforces it."
+    "informational_why": "Review M-8, fix round 1: lane I did not touch the switcher, and its fuzzy search already read 90.5 ms p95 at 10k on this box (perf-budgets.md section 2), inside a shared runner's variance of the 100 ms line. Enforced there it would flap red and teach people to ignore the job. It is still measured and printed against 100 ms here, the line is NOT raised, and the local 50k `search` gate still enforces it. Ruling D-I3 (2026-09-25, after the tooling fix): the search box's common-term relevance request joins it. It is the one op that breached AND reproduced under the re-measure rule (run 36203106608: 239.1 ms, then 118.5 ms on the re-measure, on a test-and-comment commit), and it does NOT meet its line at the local 50k gate either (293.5 ms p95, recorded in perf-budgets.md). Enforced at 10k on a shared runner it keeps an advisory job red on a known miss plus noise, which teaches people to ignore the job. It is still measured and printed against 100 ms, the line is NOT raised, and the 50k gate still reports its miss."
   },
   "reads_ci": {
     "tier": 10000,

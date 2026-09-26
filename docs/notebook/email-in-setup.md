@@ -323,8 +323,10 @@ The worker throws on any answer but `202`, naming the HTTP status:
   constant-time. A refusal is a bare `401` with no body.
 - **One delivery per signature:** a captured request replayed *within* its five minutes is
   answered `202` like any other and makes nothing — no note, and no charge against the address's hourly
-  allowance. The server keeps a hash of each verified signature in `j2_inbound_seen` (auth.db) until
-  the instant it could no longer verify, pruned on every delivery (`inbound_email.claim_delivery`).
+  allowance. The server keeps a hash of each verified signature in `j2_inbound_seen` (auth.db) for five
+  minutes past the last instant it could verify (`REPLAY_RECORD_MARGIN_SECONDS`, ten minutes from its
+  timestamp), pruned on every delivery (`inbound_email.claim_delivery`); each request reads the clock
+  once, so a replay is verified and claimed at the same instant however long its body takes to parse.
   The Email Worker signs every POST afresh, so a genuine retry never carries an old signature.
   ⚰️ Before the wave-7 whole-branch fix (M-6) a replay was not de-duplicated: up to 20 replays an hour
   each made a copy of the note and spent the address's rolling allowance, so the member's genuine mail
