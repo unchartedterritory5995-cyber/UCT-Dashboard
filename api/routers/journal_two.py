@@ -2556,15 +2556,16 @@ def export_single_note_endpoint(note_id: str, user: dict = Depends(get_current_u
     the note has no attachments and a `.zip` only when it does, and why an
     in-memory build is safe here (bounded by one note, unlike the whole-
     notebook export's tempfile+semaphore path just above)."""
-    from api.services.journal_two.notes_export import build_single_note_export
+    from api.services.journal_two.notes_export import build_single_note_export, content_disposition
 
     built = build_single_note_export(user["id"], note_id)
     if built is None:
         raise HTTPException(status_code=404, detail="Not found")
     content, filename, media_type = built
+    # The filename is the member's title: never raw into a Latin-1 header (H14, 8C).
     return Response(
         content=content, media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": content_disposition(filename)},
     )
 
 
