@@ -231,7 +231,12 @@ def test_the_plan_covers_every_op_with_the_manifests_markers():
     assert steps["H3-full"]["marker"] == tn["large_2000"]["last_marker"]
     assert steps["H3-full"]["anchor"] == tn["large_2000"]["first_marker"]
     assert steps["H4"]["query"] == manifest["markers"]["rare_term"] and steps["H4"]["expected_title"] == tn["rare"]["title"]
-    assert steps["H5"]["query"] == steps["H5"]["expected_title"] == manifest["switcher_title"]
+    assert steps["H5"]["expected_title"] == manifest["switcher_title"]
+    # ⛔ H5 types a strict word-PREFIX and waits for the whole title: an echo of the query (the
+    # palette's `No matches for "<query>"`) must never be able to hold the expected title
+    assert steps["H5"]["query"] != steps["H5"]["expected_title"]
+    assert steps["H5"]["expected_title"].startswith(steps["H5"]["query"] + " ")
+    assert steps["H4"]["query"] not in steps["H4"]["expected_title"]
     assert steps["H8"]["end_marker"] == manifest["markers"]["paste_end"]
 
 
@@ -275,6 +280,20 @@ def test_the_harness_own_provision_is_unchanged_without_a_member():
         h._provision(_Req(), _Req(me={}), "http://sandbox.invalid")
 
 
+def test_the_grid_card_selector_skips_the_sidebar_rows_that_share_the_id():
+    """The sidebar's note rows carry the same data-note-card-id AND a title attribute; the grid
+    card carries none (run 1 died on 'resolved to 2 elements'). Read from the product."""
+    side = (REPO / "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx").read_text(encoding="utf-8")
+    card = (REPO / "app/src/pages/journal-2-0/components/notebook/NoteCard.jsx").read_text(encoding="utf-8")
+    import re
+    side_rows = re.findall(r"title=\{note\.title\?\.trim\(\) \|\| 'Untitled'\}\s*data-note-card-id=\{note\.id\}", side)
+    assert len(side_rows) == 2, "the sidebar's two note-row buttons (with a title) are no longer where the runner assumes"
+    grid = [ln for ln in card.splitlines() if "data-note-card-id={note.id}" in ln and "<button" in ln]
+    assert grid and all("title=" not in ln for ln in grid), grid
+    assert u.card_selector("abc") == 'button[data-note-card-id="abc"]:not([title])'
+    assert u.GRID_CARD == 'button[data-note-card-id]:not([title])'
+
+
 def test_the_runner_evaluates_the_probe_file_itself():
     assert u.PROBE_FILE == rep.PROBE_FILE
     src = (REPO / "tools" / "notebook_bench_uct.py").read_text(encoding="utf-8")
@@ -288,6 +307,7 @@ def test_the_runner_evaluates_the_probe_file_itself():
     ("app/src/components/CommandPalette.jsx", 'aria-label="Search a security, company, or note"'),
     ("app/src/components/CommandPalette.jsx", "e.key.toLowerCase() === 'k'"),
     ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx", 'data-tour="new-note"'),
+    ("app/src/components/CommandPalette.jsx", "No matches for &quot;{query.trim()}&quot;"),
 ])
 def test_every_selector_the_runner_uses_is_in_the_product(path, needle):
     assert needle in (REPO / path).read_text(encoding="utf-8"), f"{path} no longer carries {needle!r}"

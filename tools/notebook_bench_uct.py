@@ -82,6 +82,15 @@ PROBE_FILE = rep.PROBE_FILE
 MEMORY_FLOOR_MB = gate_box_sampler.FREE_MEMORY_FLOOR_GB * 1024
 COMMITTED_MANIFEST = REPO / "docs" / "notebook" / "benchmark" / "corpus-manifest.json"
 REP_TIMEOUT_S = 30.0          # one rep, from the gesture, before the op is called INCONCLUSIVE
+# The GRID card. The sidebar's "Recently updated" rows and folder rows carry the SAME
+# `data-note-card-id` (FolderSidebar.jsx:219, :772) and a `title` attribute; the grid card
+# (NoteCard.jsx:126) has none. Run 1 (evidence wave9-9a-a156318cb/run1) died on the strict-mode
+# "resolved to 2 elements" for exactly this reason.
+GRID_CARD = 'button[data-note-card-id]:not([title])'
+
+
+def card_selector(note_id: str) -> str:
+    return f'button[data-note-card-id="{note_id}"]:not([title])'
 PROBE_TIMEOUT_MS = 15000      # the probe's own not-in-dom timeout
 TYPE_DELAY_MS = 25            # notebook_perf_harness.py:556
 SEARCH_KEY_DELAY_MS = 40
@@ -132,7 +141,10 @@ def plan(manifest: dict) -> list[dict]:
             p["anchor"] = tgt["first_marker"]
         elif op["kind"] == "search":
             p["expected_title"] = tgt["title"]
-            p["query"] = tgt["term"] if op["target"] == "rare" else tgt["title"]
+            # ⛔ H5 types a unique PREFIX (the first two words) and waits for the FULL title. Typing
+            # the whole title lets any echo of the query count as the result: the palette renders
+            # `No matches for "<query>"` (CommandPalette.jsx:569), and run 1 timed that echo at 1 ms.
+            p["query"] = tgt["term"] if op["target"] == "rare" else " ".join(tgt["title"].split()[:2])
         elif op["kind"] == "typing":
             p["note_key"] = tgt["key"]
             p["last_marker"] = tgt["last_marker"]
@@ -270,7 +282,7 @@ def run_live(base: str, corpus_dir: Path, manifest: dict, dumps_dir: Path) -> di
         def grid() -> None:
             pg.goto(base + "/journal/notebook?view=all")
             h._dismiss_intro(pg)
-            pg.locator("[data-note-card-id]").first.wait_for(state="visible", timeout=60000)
+            pg.locator(GRID_CARD).first.wait_for(state="visible", timeout=60000)
 
         def self_test(where: str) -> dict:
             r = pg.evaluate("() => window.__uctBench.selfTest()")
@@ -307,7 +319,8 @@ def run_live(base: str, corpus_dir: Path, manifest: dict, dumps_dir: Path) -> di
             except SelfTestFailed as e:
                 failure = f"withheld: {e}"
             except Exception as e:  # noqa: BLE001 -- the op is INCONCLUSIVE with its sentence; the run goes on
-                failure = f"the op raised {type(e).__name__}: {str(e).splitlines()[0][:240]}"
+                failure = f"the op raised {type(e).__name__}: {_first_lines(e)}"
+                _shot(pg, dumps_dir / f"{step['id']}-failure.png")
             # No print here: the sandbox's integrity verdict must be this run's FIRST output line,
             # and it cannot be known until the sandbox has stopped. Progress goes to stderr.
             out["ops"][step["id"]] = {"dumps": op_dumps, "names": names, "failure": failure}
@@ -315,6 +328,19 @@ def run_live(base: str, corpus_dir: Path, manifest: dict, dumps_dir: Path) -> di
                   file=sys.stderr, flush=True)
         br.close()
     return out
+
+
+def _first_lines(e: Exception, n: int = 4) -> str:
+    """The error's first lines, the Playwright call log included (it names the locator that
+    waited). Run 1 kept one line and could not say which wait timed out."""
+    return " | ".join(x.strip() for x in str(e).splitlines() if x.strip())[:600] if n else ""
+
+
+def _shot(pg, path: Path) -> None:
+    try:
+        pg.screenshot(path=str(path))
+    except Exception:  # noqa: BLE001 -- a missing screenshot never hides the failure it illustrates
+        pass
 
 
 class OpInconclusive(Exception):
@@ -329,7 +355,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
     kind = step["kind"]
     if kind == "cold":
         pg.goto(pg.url.split("?")[0] + "?view=all")
-        pg.locator("[data-note-card-id]").first.wait_for(state="visible", timeout=60000)
+        pg.locator(GRID_CARD).first.wait_for(state="visible", timeout=60000)
         pg.evaluate("() => window.__uctBench.arm('cold')")          # BEFORE any input finalises LCP
         self_test(f"{step['id']} round {rnd}, after the reload")
         d = _dump(pg, step["id"], rnd, dumps_dir)
@@ -338,7 +364,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
     grid()
     self_test(f"{step['id']} round {rnd}")
     if kind == "open":
-        card = pg.locator(f'[data-note-card-id="{ids[step["note_key"]]}"]')
+        card = pg.locator(card_selector(ids[step["note_key"]]))
         card.wait_for(state="visible", timeout=30000)
         if pg.evaluate("m => window.__uctBench.has(m)", step["marker"]):
             raise OpInconclusive(f"the marker is in the page before the first rep ({step['marker']})")
@@ -370,7 +396,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
                 pg.wait_for_function("t => !window.__uctBench.has(t)", arg=step["expected_title"], timeout=30000)
         return _dump(pg, step["id"], rnd, dumps_dir)
     if kind == "typing":
-        pg.locator(f'[data-note-card-id="{ids[step["note_key"]]}"]').click()
+        pg.locator(card_selector(ids[step["note_key"]])).click()
         pg.wait_for_function("m => window.__uctBench.has(m)", arg=step["last_marker"], timeout=60000)
         pg.locator(".ProseMirror p").first.click()
         pg.keyboard.press("Control+End")                                 # the caret at the end: a real key
@@ -407,7 +433,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
             pg.keyboard.press("Control+V")
             _wait_attempts(pg, k)
             pg.go_back()
-            pg.locator("[data-note-card-id]").first.wait_for(state="visible", timeout=30000)
+            pg.locator(GRID_CARD).first.wait_for(state="visible", timeout=30000)
         return _dump(pg, step["id"], rnd, dumps_dir)
     raise OpInconclusive(f"no driver for kind {kind!r}")
 

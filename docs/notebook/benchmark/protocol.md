@@ -156,7 +156,13 @@ the row titled `timed_notes.rare.title` appears; clear the field between reps.
 
 ### H5: quick switcher by unique title
 
-Type the manifest's `switcher_title` into the app's quick switcher. Same rules as H4.
+Type the FIRST TWO WORDS of the manifest's `switcher_title` into the app's quick switcher (your
+console lines print them) and wait for the row holding the FULL title. Same rules as H4.
+⛔ Never type the whole title: a switcher that echoes the query (UCT's palette renders
+`No matches for "<query>"`, `CommandPalette.jsx:569`) would then hold the expected title the
+instant the last key lands -- the first automated run timed exactly that echo at 1 ms. The two
+words are unique in the corpus (no other title or body uses them), so only the note's row can
+hold the whole title.
 
 | app | open the switcher | close between reps |
 |---|---|---|
@@ -212,8 +218,9 @@ way. Five rounds, five dumps.
 - **Virtualising editors** may never hold the last paragraph of a long note: `full` reads
   `not in DOM`, so `first` is the comparable headline (D-9A2).
 - **Warm vs cold.** H1-H8 run warm (the app loaded, the list shown); H9 is a cold-ish reload, and
-  LCP is the LARGEST paint -- in UCT that may be the brand intro that plays on every load, not the
-  usable list. The dump names the LCP element.
+  LCP is the LARGEST paint, not "the list is usable": on the UCT sandbox run it was a "Meet
+  Compass" coach card (`docs/notebook/evidence/wave9-9a-a156318cb/run1`, every H9 dump's `lcp`),
+  not the note list. The dump names the LCP element; read it before quoting an H9 number.
 - **Where t0 is.** An open's t0 is the pointerdown. An app that opens on `click` includes the press
   (pointerdown to pointerup, ~50-150 ms by hand), one that opens on pointerdown does not; the dump
   carries each rep's press beside its sample. A sample ENDS at the MutationObserver callback after
@@ -222,6 +229,10 @@ way. Five rounds, five dumps.
   ms on a 2,000-paragraph note, the same for every app.
 - **Search is not one thing**: a title-only switcher and a full-text search answer different
   questions; H4 and H5 keep them apart, and an app without a switcher is a recorded deviation.
+- **An echo of the query is not a result.** The probe ends a search rep on the first node that
+  holds the expected title outside the field being typed into; a "No matches for ..." line that
+  repeats the query would qualify if the query WERE the title. So H4 types a body term and waits
+  for a title, and H5 types a two-word prefix and waits for the whole title.
 - **Imports differ**: Evernote flattens subfolders into seven notebooks; Notion gets no tags or
   dates; Obsidian reads the front matter; UCT imports the vault. Indexing lag is why the rare term
   is proved first.
