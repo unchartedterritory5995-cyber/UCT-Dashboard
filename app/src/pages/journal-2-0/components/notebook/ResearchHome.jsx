@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -9,7 +9,9 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
   SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, isNotebookKey,
+  describeSampleHold,
 } from './onboarding/sampleNotebook'
+import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
@@ -80,7 +82,12 @@ const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => 
  * dashboard grid of dead cards. "Upcoming Catalysts" and "Recent Captures"
  * are deliberately absent (checkpoint decision 12).
  */
-export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis, onImport, hasAnyNotes }) {
+export default function ResearchHome({
+  onOpenNote, onCreateNote, onCreateThesis, onImport, hasAnyNotes,
+  // Fix I-3: what the sample's "Remove it" pre-check needs from the Notebook -- the notes
+  // this device holds as blocked (useBlockedNotes), and a title for each held note it names.
+  blockedNoteIds = null, titleOf = () => null,
+}) {
   const { home, isLoading } = useNotebookHome()
   const navigate = useNavigate()
   // What an Ask citation opened in place: a document page, or a captured web
@@ -102,7 +109,10 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState('')
   const [removing, setRemoving] = useState(false)
-  const [sampleMessage, setSampleMessage] = useState(null)   // { alert: bool, text }
+  // { alert: bool, text, anyway?: {label, confirm, confirmLabel}, armed?: bool }
+  const [sampleMessage, setSampleMessage] = useState(null)
+  const anywayRef = useRef(null)
+  const anywayConfirmRef = useRef(null)
   const wantStatus = onboarding && hasAnyNotes && !!sample && !sample.dismissedAt
   const { data: sampleStatus } = useSWR(wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false })
   const showStrip = wantStatus && Array.isArray(sampleStatus?.activeIds) && sampleStatus.activeIds.length > 0
@@ -121,19 +131,48 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
     if (out.welcomeNoteId) openNote({ id: out.welcomeNoteId })
   }
 
-  const removeSample = async () => {
+  // ⛔⛔ Fix I-3: "Remove it" TRASHES notes, so it asks what the bulk trash asks first
+  // (lib/noteBatch.js `precheckNoteBatch`, op 'trash') over the sample notes still out of
+  // Trash. The DELETE trashes all of them at once, so ONE note holding unsent words holds the
+  // whole removal back, and is named; a device that could not be asked is offered a
+  // CONFIRMED "Remove anyway" -- whose re-run still refuses a note it DOES find unsent.
+  // Before this, a note trashed under queued words met its next save as a 404 and was
+  // stranded as BLOCKED, in the Trash, where no card shows it.
+  const removeSample = async ({ acceptUnchecked = false } = {}) => {
     if (removing) return
     setRemoving(true)
     setSampleMessage(null)
-    const out = await removeSampleNotebook()
-    setRemoving(false)
-    if (!out.ok) {
-      setSampleMessage({ alert: true, text: out.message })
-      return
+    try {
+      const ids = Array.isArray(sampleStatus?.activeIds) ? sampleStatus.activeIds : []
+      const hold = describeSampleHold(
+        await precheckNoteBatch({ ids, op: 'trash', blockedNoteIds, acceptUnchecked }),
+        { titleOf },
+      )
+      if (hold) {
+        setSampleMessage({ alert: true, text: hold.message, anyway: hold.anyway || null, armed: false })
+        return
+      }
+      const out = await removeSampleNotebook()
+      if (!out.ok) {
+        setSampleMessage({ alert: true, text: out.message })
+        return
+      }
+      setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
+      mutate(isNotebookKey)
+    } finally {
+      setRemoving(false)
     }
-    setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
-    mutate(isNotebookKey)
   }
+
+  // The offer holds focus through its two steps, as the bulk trash's does: when it appears
+  // focus goes to "Remove anyway"; arming it moves focus to the confirmation; Cancel brings
+  // it back -- never dropped on the page.
+  const offer = sampleMessage?.anyway || null
+  const armed = Boolean(sampleMessage?.armed)
+  useEffect(() => {
+    if (!offer) return
+    ;(armed ? anywayConfirmRef : anywayRef).current?.focus()
+  }, [offer, armed])
 
   const dismissStrip = () => {
     if (sample) setPref(SAMPLE_PREF, { ...sample, dismissedAt: new Date().toISOString() })
@@ -144,7 +183,7 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
       {showStrip && (
         <div className={styles.sampleStrip}>
           <span className={styles.sampleStripText}>{SAMPLE_COPY.strip} —</span>
-          <button type="button" className={styles.sampleStripAction} onClick={removeSample} disabled={removing}>
+          <button type="button" className={styles.sampleStripAction} onClick={() => removeSample()} disabled={removing}>
             {removing ? SAMPLE_COPY.removing : SAMPLE_COPY.remove}
           </button>
           <button type="button" className={styles.sampleStripDismiss} onClick={dismissStrip}
@@ -156,8 +195,26 @@ export default function ResearchHome({ onOpenNote, onCreateNote, onCreateThesis,
       {sampleMessage && (
         <p className={sampleMessage.alert ? styles.sampleError : styles.sampleNote}
           role={sampleMessage.alert ? 'alert' : 'status'}>
-          {sampleMessage.text}
+          {armed ? offer.confirm : sampleMessage.text}
         </p>
+      )}
+      {offer && !armed && (
+        <button type="button" ref={anywayRef} className={styles.sampleStripAction}
+          onClick={() => setSampleMessage((m) => (m ? { ...m, armed: true } : m))}>
+          {offer.label}
+        </button>
+      )}
+      {offer && armed && (
+        <>
+          <button type="button" ref={anywayConfirmRef} className={styles.sampleStripAction}
+            disabled={removing} onClick={() => removeSample({ acceptUnchecked: true })}>
+            {offer.confirmLabel}
+          </button>
+          <button type="button" className={styles.sampleStripAction}
+            onClick={() => setSampleMessage((m) => (m ? { ...m, armed: false } : m))}>
+            {SAMPLE_COPY.cancel}
+          </button>
+        </>
       )}
     </>
   )

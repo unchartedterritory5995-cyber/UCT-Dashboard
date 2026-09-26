@@ -560,7 +560,9 @@ export const FAQS = [
       five example notes in a folder called "Sample notebook" — a welcome note, a research note, a
       thesis, a daily note and a checklist — to look around and practise on. It is only offered
       while you have no notes. To remove it, choose <strong>Remove it</strong> on the strip at the top
-      of the Notebook home; the sample notes move to Trash, where you can still restore them.
+      of the Notebook home; the sample notes move to Trash, where you can still restore them. If you
+      hid that strip, open the "Sample notebook" folder, select its notes and choose{' '}
+      <strong>Move to Trash</strong>. Deleting the folder alone keeps its notes: they move to Unfiled.
       <TourLink /></>,
   },
   {
@@ -570,7 +572,8 @@ export const FAQS = [
     q: 'How do I share a note or publish it to the web?',
     keywords: 'share sharing link publish web page public read only revoke unpublish folder',
     a: <>Use the share button in a note's toolbar.<ShareLinkSentence /><PublishSentence /> Either
-      one stops working the moment you revoke or unpublish it. Every link and page you have made is
+      one stops working the moment you revoke or unpublish it. Moving the note to Trash takes its link
+      or page down, and restoring the note brings it back. Every link and page you have made is
       listed in <Link to="/settings?section=connections">Settings → Connections</Link>.</>,
   },
   // ── The joystick ──────────────────────────────────────────────────────────

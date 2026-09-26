@@ -194,6 +194,8 @@ describe('the gated articles', () => {
     const a = screen.getByText(/Use the share button in a note's toolbar/).closest('div')
     expect(a).toHaveTextContent('Share link makes a read-only link to the note that anyone with the link can open.')
     expect(a).not.toHaveTextContent('Publish to the web')
+    // owner ruling (backend review M-5): a trashed note's link comes back with the note
+    expect(a).toHaveTextContent('Moving the note to Trash takes its link or page down, and restoring the note brings it back.')
   })
 
   it('publishing alone: the article shows, with the publish sentence only', async () => {
@@ -203,6 +205,7 @@ describe('the gated articles', () => {
     const a = screen.getByText(/Use the share button in a note's toolbar/).closest('div')
     expect(a).toHaveTextContent('Publish to the web turns the note into a public page.')
     expect(a).not.toHaveTextContent('Share link makes')
+    expect(a).toHaveTextContent('Moving the note to Trash takes its link or page down, and restoring the note brings it back.')
   })
 
   it('the sample article follows the onboarding gate, and its tour link opens the Notebook with the tour', async () => {
@@ -211,6 +214,13 @@ describe('the gated articles', () => {
     fireEvent.click(await quickAnswer(SAMPLE_Q))
     expect(screen.getByText(/five example notes in a folder called "Sample notebook"/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Take the tour' })).toHaveAttribute('href', '/journal/notebook')
+    // final review M-8: the strip can be hidden for good, so the article names the other way out --
+    // and says plainly that deleting the folder is NOT it (its notes move to Unfiled)
+    const article = screen.getByRole('button', { name: SAMPLE_Q }).parentElement
+    expect(article).toHaveTextContent(
+      'If you hid that strip, open the "Sample notebook" folder, select its notes and choose Move to Trash. '
+      + 'Deleting the folder alone keeps its notes: they move to Unfiled.',
+    )
   })
 
   it('rendered: the share question is absent from the page with the gates off', async () => {

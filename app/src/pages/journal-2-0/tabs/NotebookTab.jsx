@@ -1039,6 +1039,9 @@ export default function NotebookTab() {
   }
 
   const titleOf = (id) => titleById.get(id) || null
+  // Fix I-3: Research Home names a held sample note -- from the list on screen, else the
+  // all-notes page the sidebar already holds (the home screen shows no list of its own).
+  const titleOfAnyNote = (id) => titleOf(id) || allNotes.find((n) => n.id === id)?.title?.trim() || null
   const startBulk = () => {
     if (bulkBusyRef.current) return false
     bulkBusyRef.current = true
@@ -1701,6 +1704,9 @@ export default function NotebookTab() {
             onCreateThesis={() => handlePick(getTemplate('thesis'))}
             onImport={() => setImportOpen(true)}
             hasAnyNotes={hasAnyNotes}
+            // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
+            blockedNoteIds={blockedNoteIds}
+            titleOf={titleOfAnyNote}
           />
         ) : (
           <>

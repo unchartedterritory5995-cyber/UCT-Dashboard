@@ -355,7 +355,10 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
         'import_confirm (the file importer\'s own function) seeds NEW notes no tab holds yet, and its second pass '
         + 'rewrites only those fresh ids inside the same call; delete_note (DELETE /api/j2/onboarding/sample-notebook) '
         + 'trashes only the recorded sample ids, and a later save to one reads 404 (update_note treats a trashed note as missing); '
-        + 'UNLIKE the editor\'s Delete and the bulk trash it does not yet check the device for unsent words (wave-8 final review FE I-3, fix in flight)',
+        + 'so its one client door (ResearchHome "Remove it") first runs the bulk trash\'s own pre-check '
+        + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
+        + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
+        + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
     }
     const found = []
     for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {

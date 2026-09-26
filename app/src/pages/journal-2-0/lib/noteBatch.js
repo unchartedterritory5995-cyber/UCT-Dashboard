@@ -132,13 +132,20 @@ export async function checkUnsentWork(ids, { connect = openNotebookDb, timeoutMs
 }
 
 /**
- * @returns {Promise<{op, results: Array<{id, status, updatedAt?, error?}>,
- *                    changed: number, unchanged: number, failed: number}>}
- * @throws Error(message) when the request itself was refused (a 400/401/5xx):
- *         nothing was written, so there is nothing to land.
+ * THE pre-check a note-writing door runs before it sends anything: which of `ids`
+ * are `blocked` (a retired outbox entry; every note-writing op refuses it),
+ * `unsent` (words still on their way; `UNSENT_REFUSED_OPS` refuse it),
+ * `unchecked` (the device could not be asked; held back unless the member
+ * CONFIRMED going ahead, `acceptUnchecked`), and which may be sent.
+ *
+ * ⛔ Wave 8 final review, fix I-3: exported so the sample notebook's "Remove it"
+ * (a trash door of its own, `DELETE /api/j2/onboarding/sample-notebook`) asks
+ * exactly what the bulk trash asks, rather than a second copy of the rule that
+ * could drift from this one.
+ * @returns {Promise<{blocked: string[], unsent: string[], unchecked: string[], send: string[]}>}
  */
-export async function runNoteBatch({
-  ids, op, args = {}, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
+export async function precheckNoteBatch({
+  ids, op, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
 } = {}) {
   const isBlocked = (id) => NOTE_WRITING_OPS.has(op) && Boolean(blockedNoteIds?.has?.(id))
   const checked = UNSENT_REFUSED_OPS.has(op)
@@ -158,6 +165,21 @@ export async function runNoteBatch({
     else if (checked.unchecked.has(id) && !acceptUnchecked) unchecked.push(id)
     else send.push(id)
   }
+  return { blocked, unsent, unchecked, send }
+}
+
+/**
+ * @returns {Promise<{op, results: Array<{id, status, updatedAt?, error?}>,
+ *                    changed: number, unchanged: number, failed: number}>}
+ * @throws Error(message) when the request itself was refused (a 400/401/5xx):
+ *         nothing was written, so there is nothing to land.
+ */
+export async function runNoteBatch({
+  ids, op, args = {}, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
+} = {}) {
+  const { blocked, unsent, unchecked, send } = await precheckNoteBatch({
+    ids, op, blockedNoteIds, connect, timeoutMs, acceptUnchecked,
+  })
   let body = { op, results: [] }
   if (send.length) {
     const res = await fetch('/api/j2/notes/batch', {
