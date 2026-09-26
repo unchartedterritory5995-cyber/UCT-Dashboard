@@ -1,0 +1,11 @@
+  [H1] 0 dump(s) -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"4f3969ac5d9b4f128fe7c7dfec0985fa\"]") resolved to 2 elements:
+  [H2] 0 dump(s) -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"51d3dcb40c524cb9a9fff2247363a2b8\"]") resolved to 2 elements:
+  [H2-full] 0 dump(s) -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"51d3dcb40c524cb9a9fff2247363a2b8\"]") resolved to 2 elements:
+  [H3] 0 dump(s) -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  [H3-full] 0 dump(s) -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  [H4] 2 dump(s)
+  [H5] 2 dump(s)
+  [H6] 0 dump(s) -- the op raised Error: Locator.click: Error: strict mode violation: locator("[data-note-card-id=\"4f3969ac5d9b4f128fe7c7dfec0985fa\"]") resolved to 2 elements:
+  [H7] 0 dump(s) -- the op raised Error: Locator.click: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  [H8] 0 dump(s) -- the op raised TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+  [H9] 5 dump(s)
