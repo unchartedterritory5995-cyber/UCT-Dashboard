@@ -165,7 +165,9 @@
     },
     "AWARENESS_THESIS_REVIEW_ENABLED": {
       "status": "armed",
-      "where": ["web"],
+      "where": [
+        "web"
+      ],
       "note": "MEMBER-VISIBLE, live 2026-09-23: a 6th Awareness Engine rule (G-074, competitive gap ledger) -- when a position hits its stop AND the member has any research on that symbol, an additional in-app/email/Discord insight nudges them to review it, separate from the existing stop_hit alert. Deliberately its own flag, not folded into AWARENESS_ENGINE_ENABLED, so it can be rolled back alone if it proves noisy. Owner decision: flipped on 2026-09-22 (Patrick: \"yes turn it on\"). Verified live in the running process via railway ssh, not just --kv."
     },
     "BARSPACK_ENABLED": {
@@ -476,9 +478,11 @@
       "note": "Armed live 2026-09-06 (api/flow_worker_main.py:469-489), superseding ALPHA_GOLD_EOD_ENABLED on the adjacent cron slot (16:10 ET weekdays, 5 min after the now-dark Alpha Gold job). The scheduler job registers unconditionally and self-gates on this flag (api/cream_card.py:83) -- off means the job builds and posts nothing. Posts the day's highest-conviction AGGREGATE options-flow builds (curation-free, via live_massive_router.compute_cream) to Discord as an image-only card, filling the blind spot Top Flow (single prints) and the hand-curated Watchlist both had."
     },
     "D2_DUAL_COMPUTE_WARM_READER_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "D2 CP2 dual-compute WARM READER: an in-process APScheduler job (api/main.py, job id d2_dual_compute_warm_reader, 09:45-15:45 ET hourly on weekdays) that runs ticker_returns_warm_reader.run_warm_pass() -- a log-only comparison sweep that writes no member data and serves no surface. Default OFF ('0'); set on no service as of 2026-09-24 (go-live packet 2026-09-24 section 2b). Dark on purpose: instrumentation, not a feature -- enable when someone wants the warm-pass numbers in the logs. Declared 2026-09-24 after tests/test_feature_flag_ledger.py flagged it undeclared."
+      "status": "armed",
+      "where": [
+        "web"
+      ],
+      "note": "D2 CP2 dual-compute WARM READER: an in-process APScheduler job (api/main.py, job id d2_dual_compute_warm_reader, 09:45-15:45 ET hourly on weekdays) that runs ticker_returns_warm_reader.run_warm_pass() -- a log-only comparison sweep that writes no member data and serves no surface. ARMED on `web` 2026-09-26 01:29:13Z (owner-delegated: DECISION_CARDS_2026-09-26.md CARD 12; the go-live packet section 2b already recorded that no owner 'go' was needed because nothing member-visible depends on it). VERIFIED IN-PROCESS, not from --kv: `railway variables --set` auto-redeployed, a new boot was observed at 01:31:31Z (uptime 50s), and the pod's own log line reads `[startup] D2 dual-compute warm reader ENABLED (09:45-15:45 ET weekdays, hourly, in-process, no member data written)` with the scheduler job registered alongside it. Timing rationale: flipped after hours, and Protocol F had just measured the pod accumulating ~7.9 MB/min of RSS, so the restart it costs is if anything a small favour. First real warm pass runs in the 09:45-15:45 ET window on the next weekday. ROLLBACK: `railway variables --service web --set \"D2_DUAL_COMPUTE_WARM_READER_ENABLED=0\"` -- never `delete`, which has been measured on this project to leave the old value live in the process while --kv reports it gone. Declared 2026-09-24 after tests/test_feature_flag_ledger.py flagged it undeclared."
     },
     "D2_SAMPLE_PERSIST_ENABLED": {
       "status": "armed",
@@ -630,9 +634,9 @@
       "owner": "owner"
     },
     "DISCORD_FLOW_CARD_PAGE_ENABLED": {
-      "status": "dark",
-      "where": [],
-      "note": "Option A for the Discord /flow card (2026-09-25): 1 derives the card from the Options Flow page's OWN product (processFlowData via the flow-facts bundle, windowed per request on flow-worker: GET /api/flow/ticker-product/{sym}?window_days=N) so the card reads what a member sees on the page; unset or 0 is the live_massive_router By-Contract rollup members have today. An ENABLEMENT gate: unset means the rollup, never this path. The flip is owner + Ravi, after tools/flow_card_parity_audit.py reads AGREE on a 20-name sweep, because the windowed product is close to but not identical to the page's full-history product (docs/discord-render/FLOW-CARD-SOURCE-DECISION-2026-09-25.md). A page card says page-derived in its footer; a rollup fallback under the flag is labelled derivation=rollup in the payload. Rollback is this variable alone.",
+      "status": "armed",
+      "where": ["web"],
+      "note": "ON since 2026-09-25 21:49 ET (railway variables --set on web; Railway redeployed web on its own, deploy record 01:49:31Z) by owner ruling, verified in the RUNNING web process at 21:54 ET: value '1', flow_card_from_page.enabled() True, and the job's own run_flow_card_job rendered page-derived cards for AMD (BEAR $948,000/$1,530,486, exact to the page), DELL, SMH and NVDA (labelled 35-session basis) with nothing posted. The Discord /flow card is now derived from the Options Flow page's OWN product (processFlowData via the flow-facts bundle on flow-worker: GET /api/flow/ticker-product/{sym}?basis_rows=250000, full stored history under the cap, rows in the page's own order), footer 'page-derived' (', N-session basis' when capped/cut; 'as of HH:MM ET' when served behind the tape). If the page product cannot be had within 45 s the labelled rollup answers (derivation=rollup). Evidence: docs/discord-render/evidence/flow-parity/2026-09-25-row-order-and-basis-cap.md (warm, 15/15 derivable names EXACT). Re-check: python tools/flow_card_parity_audit.py --card page --symbols ... ROLLBACK: railway variable delete DISCORD_FLOW_CARD_PAGE_ENABLED --service web, THEN railway redeploy --service web --yes (a delete does not restart the process).",
       "owner": "owner"
     },
     "DISCORD_RENDER_V2_ADAPTERS_ENABLED": {
@@ -1552,7 +1556,6 @@
       "baked_measured_on": "1c76f9f38",
       "last_changed": "never set",
       "note": "Unset; useFlowWebSocket falls back to window.location.host, which is correct in production. An override is a local-dev affordance."
-
     },
     "VITE_PINE_MEMBER_PANE_ENABLED": {
       "status": "armed",
