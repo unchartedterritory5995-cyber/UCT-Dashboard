@@ -1,0 +1,389 @@
+{
+  "base": "http://127.0.0.1:8212",
+  "started": "2026-09-26T02:19:27",
+  "steps": [
+    {
+      "id": "S1-provision",
+      "result": "PASS",
+      "me": {
+        "tour8c@local.dev": {
+          "paid_equiv": true,
+          "plan": "pro",
+          "notebook_onboarding_enabled": true,
+          "user_id": "b0278517-64a7-4b3c-a299-78b364a42c5a"
+        },
+        "second8c@local.dev": {
+          "paid_equiv": true,
+          "plan": "pro",
+          "notebook_onboarding_enabled": true,
+          "user_id": "84088556-3876-4d9e-89a4-114f662683c7"
+        },
+        "race8c@local.dev": {
+          "paid_equiv": true,
+          "plan": "pro",
+          "notebook_onboarding_enabled": true,
+          "user_id": "078f61a5-96b0-4957-b331-0a20ddafef5f"
+        }
+      }
+    },
+    {
+      "id": "S2-tour-autostarts",
+      "result": "PASS",
+      "title": "Welcome to your Notebook",
+      "progress": "STEP 1 OF 3",
+      "shot": "A-tour-step1.png"
+    },
+    {
+      "id": "S3-tour-keyboard-done",
+      "result": "FAIL",
+      "titles": [
+        "Welcome to your Notebook",
+        "Folders and tags",
+        "Search"
+      ],
+      "pref": null,
+      "shot": "A-after-done.png"
+    },
+    {
+      "id": "S4-tour-shows-once",
+      "result": "FAIL",
+      "shot": "A-reload-no-tour.png"
+    },
+    {
+      "id": "S5-tour-reopen-escape",
+      "result": "FAIL",
+      "reopened_at": "Welcome to your Notebook",
+      "pref": null,
+      "focus_after": "Take the tour"
+    },
+    {
+      "id": "S6-sample-added-welcome-open",
+      "result": "PASS",
+      "status": {
+        "ids": [
+          "35a9f932e84a4d6db3e6c7e705d37973",
+          "3d65501c04824fa0a519b8f9e1993c95",
+          "949c8be74aae4914ae715c58f1a9ac64",
+          "29ee804ab8ec43209b736ac62266bd22",
+          "48e89c5174464e24a7b686b9d4d527a4"
+        ],
+        "activeIds": [
+          "35a9f932e84a4d6db3e6c7e705d37973",
+          "3d65501c04824fa0a519b8f9e1993c95",
+          "949c8be74aae4914ae715c58f1a9ac64",
+          "29ee804ab8ec43209b736ac62266bd22",
+          "48e89c5174464e24a7b686b9d4d527a4"
+        ]
+      },
+      "url": "http://127.0.0.1:8212/journal/notebook?note=35a9f932e84a4d6db3e6c7e705d37973",
+      "shot": "A-sample-welcome.png"
+    },
+    {
+      "id": "S7-sample-arms-nothing-db-readonly",
+      "result": "PASS",
+      "facts": {
+        "db": "C:\\data-8c\\auth.db",
+        "notes": 5,
+        "mentions": 0,
+        "embed_symbols": 0,
+        "tickers": 0,
+        "property_defs": 0,
+        "properties_json": 0,
+        "date_mentions": 0,
+        "task_items": 4,
+        "alert_or_reminder_rows": {
+          "voice_proactive_insights": 0,
+          "watchlist_alerts": 0,
+          "indicator_alerts": 0,
+          "indicator_alert_fires": 0,
+          "user_alerts": 0
+        }
+      }
+    },
+    {
+      "id": "S8-sample-removed",
+      "result": "PASS",
+      "status": {
+        "ids": [
+          "35a9f932e84a4d6db3e6c7e705d37973",
+          "3d65501c04824fa0a519b8f9e1993c95",
+          "949c8be74aae4914ae715c58f1a9ac64",
+          "29ee804ab8ec43209b736ac62266bd22",
+          "48e89c5174464e24a7b686b9d4d527a4"
+        ],
+        "activeIds": []
+      },
+      "shots": [
+        "A-strip.png",
+        "A-removed.png"
+      ]
+    },
+    {
+      "id": "S9-one-note-no-tour",
+      "result": "PASS",
+      "shot": "B-no-tour.png"
+    },
+    {
+      "id": "S10-sample-refused-409-api",
+      "result": "PASS",
+      "status": 409,
+      "body": {
+        "detail": "You already have notes, so we didn't add the sample. You can import notes instead."
+      }
+    },
+    {
+      "id": "S11-export-html-opened",
+      "result": "PASS",
+      "file": "uct-notebook-export-20260926-html.zip",
+      "members": [
+        "UCT_NOTEBOOK_EXPORT.json",
+        "Export check.html"
+      ],
+      "h1": [
+        "Export check",
+        "Export check heading"
+      ],
+      "cells": [
+        "Stage",
+        "Action",
+        "Base",
+        "Wait"
+      ],
+      "shot": "B-html-page.png"
+    },
+    {
+      "id": "S12-export-json-reimported-equal",
+      "result": "PASS",
+      "file": "uct-notebook-export-20260926-json.zip",
+      "copies": [
+        "9ef7e763143b41c298f0225787bd9ca5",
+        "e4c015d365b14bab957a86e2267189f5"
+      ],
+      "shot": "B-after-json-import.png"
+    },
+    {
+      "id": "S13-export-docx-valid",
+      "result": "PASS",
+      "file": "Export check-20260926.docx",
+      "members": [
+        "[Content_Types].xml",
+        "_rels/.rels",
+        "word/document.xml",
+        "word/styles.xml",
+        "word/numbering.xml",
+        "word/_rels/document.xml.rels"
+      ],
+      "xml_parsed": {
+        "[Content_Types].xml": "ok",
+        "_rels/.rels": "ok",
+        "word/document.xml": "ok",
+        "word/styles.xml": "ok",
+        "word/numbering.xml": "ok",
+        "word/_rels/document.xml.rels": "ok"
+      },
+      "shots": [
+        "B-export-menu.png"
+      ]
+    },
+    {
+      "id": "S14-support-articles",
+      "result": "PASS",
+      "url": "http://127.0.0.1:8212/support",
+      "questions": [
+        "How do I get started with the Notebook?",
+        "How do templates and the daily note work?",
+        "How do I link notes together?",
+        "How do I organize notes with folders, tags and archive?",
+        "How do I search my notes and jump between them?",
+        "What can Ask your notebook answer?",
+        "How do I save pages from the web or my phone into the Notebook?",
+        "Can I keep PDFs and scanned documents in a note?",
+        "How do I import notes from Notion, Obsidian or Evernote?",
+        "How do I export my notes, and what does each format keep?",
+        "Does the Notebook work offline, and what is a conflicted copy?",
+        "Can I use the Notebook with a keyboard or a screen reader?",
+        "What is the sample notebook, and how do I remove it?",
+        "How do I connect my brokerage to the Journal?",
+        "How do I upgrade, manage billing, or cancel?",
+        "How do I change my password or profile details?",
+        "How do I customize how charts look?",
+        "How do price alerts and notification sounds work?",
+        "Can I export my data?",
+        "A chart is blank, stuck, or showing wrong prices — what should I do?"
+      ],
+      "shot": "C-support.png"
+    },
+    {
+      "id": "S15-refusal-rendered-as-sentence",
+      "result": "PASS",
+      "text": "You already have notes, so we didn't add the sample. You can import notes instead.",
+      "shot": "C-409-sentence.png"
+    }
+  ],
+  "errors": [],
+  "console": [
+    "[A] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[A] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[A] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[B] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[B] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[C] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "[C] error: Failed to load resource: the server responded with a status of 409 (Conflict)"
+  ],
+  "admin_signup": 200,
+  "signup": {
+    "tour8c@local.dev": 200,
+    "second8c@local.dev": 200,
+    "race8c@local.dev": 200
+  },
+  "provision": {
+    "tour8c@local.dev": {
+      "comp": 200,
+      "verify": 200
+    },
+    "second8c@local.dev": {
+      "comp": 200,
+      "verify": 200
+    },
+    "race8c@local.dev": {
+      "comp": 200,
+      "verify": 200
+    }
+  },
+  "me": {
+    "tour8c@local.dev": {
+      "paid_equiv": true,
+      "plan": "pro",
+      "notebook_onboarding_enabled": true,
+      "user_id": "b0278517-64a7-4b3c-a299-78b364a42c5a"
+    },
+    "second8c@local.dev": {
+      "paid_equiv": true,
+      "plan": "pro",
+      "notebook_onboarding_enabled": true,
+      "user_id": "84088556-3876-4d9e-89a4-114f662683c7"
+    },
+    "race8c@local.dev": {
+      "paid_equiv": true,
+      "plan": "pro",
+      "notebook_onboarding_enabled": true,
+      "user_id": "078f61a5-96b0-4957-b331-0a20ddafef5f"
+    }
+  },
+  "pref_writes": [
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "A",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    },
+    {
+      "who": "C",
+      "key": "notebook_tour",
+      "status": 400,
+      "answer": "{\"detail\":\"Unknown preference key 'notebook_tour'.\"}"
+    }
+  ],
+  "tour_open_before_take_the_tour": true,
+  "C_tour_open_before_race": true,
+  "finished": "2026-09-26T02:21:03",
+  "summary": {
+    "PASS": 12,
+    "FAIL": 3,
+    "INCONCLUSIVE": 0
+  }
+}
