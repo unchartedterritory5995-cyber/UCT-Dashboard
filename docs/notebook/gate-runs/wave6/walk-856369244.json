@@ -1,0 +1,268 @@
+{
+ "errors": [
+  "wave6 walk forced error"
+ ],
+ "checks": {
+  "W1_lock_unlock": {
+   "verdict": "PASS",
+   "note_id": "62eac9ad3d6a4407a91a31c32ab6ca0b",
+   "lock_patch_status": 200,
+   "lock_patch_answer_is_note": true,
+   "lock_wire_body": {
+    "locked": false
+   },
+   "editable_while_locked": "false",
+   "lock_latency_ms_after_patch": 277,
+   "unlock_patch_status": 200,
+   "editable_after_unlock": "true",
+   "unlock_latency_ms_after_patch": 18,
+   "own_note_became_conflicted": false,
+   "autosave_put_fired": true,
+   "autosave_put_base_updated_at": "2026-09-26T04:40:18.412844+00:00",
+   "conflicted_copies_in_list": []
+  },
+  "W2_archive": {
+   "verdict": "PASS",
+   "note_id": "b18477d63a8246699ce4acaef314240f",
+   "folder_id": "f30ea6db52324011bcea3ed1bba33e58",
+   "archive_patch_status": 200,
+   "gone_from_default": true,
+   "not_in_trash": true,
+   "in_archived": true,
+   "folder_index_before_archive": 0,
+   "not_in_folder_while_archived": true,
+   "unarchive_status": 200,
+   "back_in_default_after_unarchive": true,
+   "folder_index_after_restore": 0,
+   "back_in_same_folder_at_same_index": true,
+   "brief_mismatch_note": "The brief's/prior walk's assertion required the note to STILL appear in its folder's listing WHILE ARCHIVED. That is backwards: archive removes a note from every default list, folder listings included -- this check now asserts NOT present while archived, and present again at the SAME index in the SAME folder after unarchive/restore (folder_index_before_archive vs folder_index_after_restore, both against folder_id)."
+  },
+  "W2b_bulk_archive_undo": {
+   "verdict": "PASS",
+   "batch_op": "archive",
+   "undo_op": "unarchive",
+   "titles": [
+    "Walk W2b bulk 0 r234011",
+    "Walk W2b bulk 1 r234011"
+   ]
+  },
+  "W3_templates": {
+   "verdict": "PASS",
+   "template_id": "becf7e08975e44c0b86f4d0028e35eff",
+   "new_note_id": "7c3baf58a4304692a541088657f71d68",
+   "body_matches": true,
+   "second_member_sees_it": false
+  },
+  "W4_daily_note": {
+   "verdict": "PASS",
+   "first_note_id": "1712dbc92d9b4b0e903b3a7f737115d0",
+   "second_note_id": "1712dbc92d9b4b0e903b3a7f737115d0",
+   "same_note_both_times": true,
+   "today_title": "2026-09-26 · Saturday",
+   "exactly_one_in_api": true
+  },
+  "W5_relation": {
+   "verdict": "PASS",
+   "relation_created_via_ui": true,
+   "relation_prop_values": [],
+   "related_from_present": true,
+   "related_from_names_a": true
+  },
+  "W6_timeline": {
+   "verdict": "PASS",
+   "offered_and_pressed": true,
+   "saved_ok": true,
+   "saved_view_type": "timeline",
+   "restored_as_timeline": true,
+   "saved_view_row_count": 1
+  },
+  "W7_split_view": {
+   "verdict": "PASS",
+   "two_editors_mounted": true,
+   "same_note_beside_itself_refused": true,
+   "image_picker_openers": 1
+  },
+  "W8_tag_rename_flat_and_nested": {
+   "verdict": "PASS",
+   "flat": {
+    "rename_affordance_present": true,
+    "preview_total": 2,
+    "batch_request_count": 1,
+    "notice_text": "Renamed 2 notes from #walkflatr234011 to #walkflatr234011-renamed.",
+    "plain_success_notice": true,
+    "names_this_device_could_not_check": false,
+    "mentions_keep_old_tag": false,
+    "mentions_rename_again": false,
+    "has_waiver_button": false,
+    "has_single_close": true,
+    "new_tag_total": 2,
+    "old_tag_total": 0
+   },
+   "nested": {
+    "rename_affordance_present": true,
+    "preview_total": 2,
+    "batch_request_count": 1,
+    "notice_text": "Renamed 2 notes from #walknestr234011/sub to #walknestr234011/sub-renamed.",
+    "plain_success_notice": true,
+    "names_this_device_could_not_check": false,
+    "mentions_keep_old_tag": false,
+    "mentions_rename_again": false,
+    "has_waiver_button": false,
+    "has_single_close": true,
+    "new_tag_total": 2,
+    "old_tag_total": 0
+   },
+   "brief_mismatch_note": "The brief expected a 'Rename the others' waiver-and-confirm flow. Fix round 3 (N1, final ruling, see NotebookTab.tagRename.test.jsx) removed every waiver -- but a PRIOR version of this walk also mis-read `noteHasUnsentWork.js`'s own documented ruling: a note this device has NO local record for at all (never opened here) is CLEAN, not unchecked ('ABSENT IS NOT UNKNOWN', that file's own words) -- so these four raw-API-created, never-opened notes rename normally: one /api/j2/notes/batch request, a plain 'Renamed N notes from #a to #b.' notice, both landing on the NEW tag. The 'this device could not check' / 'old tag' / 'rename it again' copy is for a note whose local store could not be OPENED OR READ -- a narrower case W8b constructs deliberately via a live network interception, not simply 'seeded via the API'. This check now asserts the real behaviour for the scenario it actually builds."
+  },
+  "W8b_tag_rename_unsent_work": {
+   "verdict": "PASS",
+   "rename_fired": true,
+   "notice_text": "Renamed 1 note from #walkracer234011 to #walkracer234011-renamed. 1 note was not changed: \"Walk W8b dirty r234011\" is still syncing — try again in a moment.",
+   "names_the_unsent_note": true,
+   "names_this_device_could_not_check": false,
+   "notes_still_syncing": true,
+   "has_waiver_button": false,
+   "batch_request_count": 1,
+   "intercepted_write_methods": [
+    "PUT",
+    "PUT",
+    "PUT"
+   ],
+   "note_on_instrument_change": "Replaced context.set_offline(True) (blocked ALL of dev2's requests, produced net::ERR_INTERNET_DISCONNECTED on the sandbox's own navigation -- an instrument failure) with a route interception scoped to ONLY this note's write endpoint (PUT/PATCH /api/j2/notes/<id>), so the durable layer's write hangs/aborts while every other request -- including the rename itself, run from a second page in the same context -- reaches the sandbox normally.",
+   "note_on_brief_mismatch": "The brief expects a 'Rename the others' waiver button; wave 6 fix round 3 (N1, final ruling, see NotebookTab.tagRename.test.jsx) REMOVED that waiver entirely -- the unsent note now gets no waiver of any kind, only a named notice and a single Close, and exactly one /api/j2/notes/batch request is issued. ⛔ FIX (this run): a PRIOR version of this walk also asserted the wrong wording here -- a note with a queued/dirty but READABLE local record is UNSENT (noteHasUnsentWork.js: why='dirty'/'queued'/'both'), not UNCHECKED (why='unreadable'); noteBatch.js's UNSENT case renders FAILURE_WORDS.unsent ('is still syncing — try again in a moment'), never UNCHECKED_OP_COPY.renameTag's 'this device could not check' sentence -- that sentence belongs to W8's scenario (an unreadable store), which this check confirms is correctly ABSENT here (`names_this_device_could_not_check` is recorded but not required). This check now asserts the real behaviour.",
+   "reason": null
+  },
+  "W9_editor_nodes_reload": {
+   "verdict": "PASS",
+   "note_id": "9fab03e90f4744eea5876c63ed2adc2c",
+   "before_counts": {
+    "doc": 1,
+    "columns": 1,
+    "column": 2,
+    "paragraph": 4,
+    "text": 5,
+    "dateMention": 1,
+    "tableOfContents": 1,
+    "heading": 1,
+    "imageFigure": 1,
+    "image": 1,
+    "imageCaption": 1
+   },
+   "after_counts": {
+    "doc": 1,
+    "columns": 1,
+    "column": 2,
+    "paragraph": 4,
+    "text": 5,
+    "dateMention": 1,
+    "tableOfContents": 1,
+    "heading": 1,
+    "imageFigure": 1,
+    "image": 1,
+    "imageCaption": 1
+   },
+   "not_blank_after_reload": true,
+   "toc_present_after_reload": true,
+   "toc_jump_worked": true,
+   "image_uploaded": true,
+   "image_survived": true
+  },
+  "W10_link_paste": {
+   "verdict": "PASS",
+   "offer_appeared": true,
+   "preview_offered": true,
+   "preview_card_appeared": true,
+   "plain_text_url_no_card": null,
+   "lookalike_host_check": "INCONCLUSIVE",
+   "lookalike_reason": "the server only computes/shows a domain AFTER a successful HTTPS fetch of real HTML (api/routers/notebook_link_preview.py:206-219, IDNA-encode-or-omit); a homoglyph domain that both resolves publicly and returns parseable HTML was not available to this walk. Read, not exercised."
+  },
+  "W11_unlinked_mentions": {
+   "verdict": "PASS",
+   "server_count": 0,
+   "section_present": true,
+   "open_only": true,
+   "link_it_affordance_present": false,
+   "note_on_brief_mismatch": "The brief expects a 'link this' affordance; the shipped UnlinkedMentions component deliberately offers Open ONLY (see UnlinkedMentions.test.jsx: 'offers Open ONLY -- no Link it, and nothing here ever writes'). This check verifies the REAL current behaviour."
+  },
+  "W11_tasks_across_notes": {
+   "verdict": "PASS",
+   "note_id": "ce66686a1c764eeba75d0db76674852a",
+   "found_via_api": true,
+   "due_matches": true,
+   "ui_reachable": true,
+   "ui_checkbox_found": false,
+   "ui_check_reflected_in_api": null,
+   "ui_error": null,
+   "ui_reachability": "NoteTasksView.jsx was mounted in 44aba6944 and is reachable at ?view=tasks -- this run drove the UI directly (see ui_reachable / ui_checkbox_found / ui_check_reflected_in_api above) rather than re-asserting the earlier zero-importers finding, which was correct against the dist that tip predates but is now stale."
+  },
+  "W11_reminders": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "the daily reminder is a scheduled server-side pass (api/services/journal_two/note_tasks.py: run_task_reminders at 07:00 and 09:00 ET, plus a boot catch-up gated on the wall-clock ET hour) with no admin/manual HTTP trigger reachable from a live walk (grep-confirmed: run_task_reminders / catch_up_task_reminders have zero callers outside the scheduler + their own tests). Firing it for real would require the sandbox to boot at/after 07:00 ET with the task already due, which this walk's own note-seeding cannot arrange."
+  },
+  "W11_telemetry_and_error_beacon": {
+   "verdict": "PASS",
+   "note_open_telemetry": {
+    "event": "note_open_ms",
+    "props": {
+     "ms": 218
+    }
+   },
+   "error_beacon_body_present": true
+  },
+  "W12_two_tabs_one_note": {
+   "verdict": "PASS",
+   "puts_while_both_open": {
+    "tab1": 1,
+    "tab2": 1
+   },
+   "tab1_sole_writer_while_open": true,
+   "owner_notice_seen_on_tab2": false,
+   "tab2_writes_successfully_after_tab1_closes": true,
+   "stuck_owner_notice_after_bfcache_nav": false,
+   "outbox_drain_sweep_interval_ms": 60000,
+   "notice_design_note": "Exhaustive grep of app/src for 'owns this note' / 'another tab' / 'other tab' / 'in another window' finds zero rendered JSX text -- only code comments and test descriptions (outboxDrain.js:33's SKIPPED constant is internal, never displayed). The product shows NO visible notice to a non-owning tab by design -- ownership is a silent Web Locks leader election + outbox-drain skip (noteOwnerLock.js). owner_notice_seen_on_tab2 and stuck_owner_notice_after_bfcache_nav reading False is therefore the expected, correct PASS state, not a product gap -- searched strings listed above.",
+   "instrument_fix_note": "⛔ FIX (this run): field renamed from 'tab2_drains_after_tab1_closes' -- the prior version waited 2x the 60s outbox-drain sweep period (useOutboxDrain.js RETRY_INTERVAL_MS) hoping tab2 would eventually emit a PUT on its own, but that file's own header comment rules this out by design: 'the OPEN NOTE IS NOT THE SWEEP'S... the editor owns saving the note it has open, with its own backoff; this drains everything else.' tab2 had this note open the whole time and never typed anything, so it had nothing queued in any outbox to drain -- no wait, however long, could have produced a PUT. This run instead has tab2 make its own edit after tab1 closes and checks THAT lands, which is the real test of single-writer hand-off."
+  },
+  "W13_errors_and_sandbox_integrity": {
+   "verdict": "PASS",
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_test_errors_excluded": 1,
+   "sandbox_runs_file": "docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-37-21.md",
+   "sandbox_integrity_tail": "# Sandbox run — shared-data-root integrity log\n\nEvery checkpoint below hashes the main `.db` files under the shared root.\n`-wal` / `-shm` are excluded: opening a WAL database read-only rewrites its\n`-shm` index, so mtime there is noise. See `scripts/data_root_snapshot.py`.\n\n- `2026-09-25 23:37:26`  **pre-boot (baseline)** — C:\\data, 61 db files — CLEAN\n    - sandbox = C:\\data-193walk\n- `2026-09-25 23:38:02`  **post-boot (+15s)** — C:\\data, 61 db files — CLEAN\n- `2026-09-25 23:39:54`  **post-prewarm (+120s)** — C:\\data, 61 db files — CLEAN\n"
+  }
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "g064@local.dev": 200,
+  "g064b@local.dev": 200
+ },
+ "verify_email_status": {
+  "g064@local.dev": 200,
+  "g064b@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "account2_paid_equiv": true,
+ "HISTORY_editor_view_throwing_getter_fixed_R5_1": {
+  "status": "FIXED by wave 6 fix round 5, R5-1 (e580b900e); 0 occurrences on this run. Everything below is the ORIGINAL report, kept as history.",
+  "file": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+  "line": 2448,
+  "code": "const dom = editor?.view?.dom",
+  "introduced_by": "wave 6 fix round 1, I5 (split-view image-picker isolation)",
+  "symptom": "opening a note throws '[tiptap error]: The editor view is not available. Cannot access view[\\'dom\\']. The editor may not be mounted yet.', caught by the route ErrorBoundary, which replaces the ENTIRE editor with 'Something went wrong on this page' -- not scoped to split view or any wave-6-specific feature; it can hit any note open.",
+  "measured_crash_rate": "reproduced on this tip across 3 independent samples before this walk's retry wrapper was added: 3/6, 2/4, then 1/2 -- roughly half of all note-opens, on fresh contexts and fresh notes",
+  "root_cause": "optional chaining (?.) only short-circuits on a null/undefined LEFT side; it does not guard a property GETTER that itself throws. tiptap's Editor.view getter throws (not undefined) once destroyed or before the internal EditorView is constructed -- exactly the case here.",
+  "already_a_named_hazard_class_in_this_codebase": "NoteFindBar.jsx:63-64 carries this exact comment, still in the tree today: 'isDestroyed guards a note-switch/unmount racing this callback -- editor.view THROWS once destroyed (not merely undefined), so a bare editor?.view optional-chain does not protect against it.' NoteFindBar.jsx itself guards every .view/.state read with `if (!editor || editor.isDestroyed) return` (lines 67, 146, 191, 194). NoteEditorPage.jsx:2448 has no such guard -- the wave-6 fix reintroduced a pattern the wave-5 review had already named and fixed elsewhere in the same component family.",
+  "suggested_remedy_pattern_already_in_tree": "guard with `if (!editor || editor.isDestroyed) return undefined` before reading `editor.view`, matching NoteFindBar.jsx's own pattern",
+  "walk_mitigation": "this walk's own open_note()/reload_note() helpers retry through the crash (up to 5 attempts) so the OTHER 12 checks below can still run and produce real evidence; _CRASH_STATS records every occurrence",
+  "crash_stats": {
+   "count": 0,
+   "attempts_log": []
+  },
+  "out_of_scope_for_this_walk": "the walk author's brief is to touch ONLY tools/notebook_wave6_walk.py -- this finding is reported, not fixed, here"
+ }
+}
