@@ -232,14 +232,84 @@ def test_the_gate_is_read_PER_REQUEST_a_flip_needs_no_restart(app, client, monke
     assert client.post(URL.format(n["id"]), json=BODY).status_code == 404
 
 
+def _calls_by_scope(tree, is_target):
+    """(inside a function body, at import) line lists for every Call `is_target` accepts.
+
+    ⛔ A parameter DEFAULT and a decorator are evaluated at import, so they count as
+    module scope even though they sit on a `def` -- the bound-at-import trap CLAUDE.md
+    records for injectable seams, applied to environment reads."""
+    import ast
+    inside, at_import = [], []
+
+    def visit(node, in_body):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            args = node.args
+            for n in [*getattr(node, "decorator_list", []), *args.defaults,
+                      *[d for d in args.kw_defaults if d is not None]]:
+                visit(n, in_body)
+            body = node.body if isinstance(node.body, list) else [node.body]
+            for n in body:
+                visit(n, True)
+            return
+        if isinstance(node, ast.Call) and is_target(node):
+            (inside if in_body else at_import).append(node.lineno)
+        for child in ast.iter_child_nodes(node):
+            visit(child, in_body)
+
+    visit(tree, False)
+    return inside, at_import
+
+
 def test_the_gate_function_holds_no_module_level_capture():
-    src = (REPO / "api/services/journal_two/writing_help.py").read_text(encoding="utf-8")
-    # Tests shard M-7: both spellings, and a CONTROL that the scan saw a read at all.
-    reads = [(i, line) for i, line in enumerate(src.split("\n"))
-             if "os.environ" in line or "getenv" in line]
-    assert reads, "non-vacuity: the scan saw no environment read in writing_help.py"
-    for i, line in reads:
-        assert line.startswith((" ", "\t")), f"writing_help.py:{i + 1} reads the environment at import: {line}"
+    """Wave 8 seam S8-1 moved the READ: the gate now calls the one Notebook flag parse,
+    `api/services/notebook_flags.flag_on`, so the environment is read THERE and this module
+    holds only the call. Both halves are asked, by AST (the line scan this replaced would
+    have read the new module's DOCSTRING, which names `os.environ.get`, as a capture):
+      * writing_help.py -- the `flag_on(...)` call sits inside a function body;
+      * notebook_flags.py -- every environment read sits inside a function body.
+    Tests shard M-7's CONTROL survives as non-vacuity on both halves."""
+    import ast
+
+    def is_env_read(c):
+        f = c.func
+        return isinstance(f, ast.Attribute) and (
+            f.attr == "getenv" or (f.attr == "get" and isinstance(f.value, ast.Attribute)
+                                   and f.value.attr == "environ"))
+
+    def is_flag_on(c):
+        f = c.func
+        return (isinstance(f, ast.Name) and f.id == "flag_on") or (
+            isinstance(f, ast.Attribute) and f.attr == "flag_on")
+
+    wh_src = (REPO / "api/services/journal_two/writing_help.py").read_text(encoding="utf-8")
+    inside, at_import = _calls_by_scope(ast.parse(wh_src), is_flag_on)
+    assert inside, "non-vacuity: writing_help.py no longer calls flag_on -- where does the gate read?"
+    assert not at_import, f"writing_help.py calls flag_on at import (lines {at_import})"
+    _, own_reads = _calls_by_scope(ast.parse(wh_src), is_env_read)
+    assert not own_reads, f"writing_help.py reads the environment at import (lines {own_reads})"
+
+    nf_src = (REPO / "api/services/notebook_flags.py").read_text(encoding="utf-8")
+    inside, at_import = _calls_by_scope(ast.parse(nf_src), is_env_read)
+    assert inside, "non-vacuity: the scan saw no environment read in notebook_flags.py"
+    assert not at_import, f"notebook_flags.py reads the environment at import (lines {at_import})"
+
+
+def test_CONTROL_the_scope_scan_sees_an_import_time_read_in_each_shape():
+    """The rail above is only worth its green if this is what it reports."""
+    import ast
+
+    def is_env_read(c):
+        f = c.func
+        return isinstance(f, ast.Attribute) and f.attr in ("get", "getenv")
+
+    src = (
+        "import os\n"
+        "A = os.environ.get('X')\n"                      # module level
+        "def f(x=os.getenv('Y')):\n"                     # a DEFAULT: bound at import
+        "    return os.environ.get('Z')\n"               # inside the body: fine
+    )
+    inside, at_import = _calls_by_scope(ast.parse(src), is_env_read)
+    assert sorted(at_import) == [2, 3] and inside == [4], (inside, at_import)
 
 
 # ── paid, ownership, validation ─────────────────────────────────────────────

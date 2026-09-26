@@ -41,6 +41,12 @@ export const FLAG_FALLBACKS = Object.freeze({
   notebook_attachments_on: false,
   notebook_ask_insert_on: false,       // G-064 enablement gate — absent ⇒ OFF
   notebook_writing_help_enabled: false, // wave 7 H2 enablement gate — absent ⇒ OFF
+  // Wave 8 seam S8-1 — three enablement gates, absent ⇒ OFF. ⛔ Ruling D-B9: the two
+  // sharing gates stay OFF until the owner's legal sign-off, and a tab that never hears
+  // from the server must never show a sharing door (serverDefaults rail).
+  j2_share_links_enabled: false,       // share links (lane 8B)
+  notebook_publish_enabled: false,     // publish-to-web (lane 8B)
+  notebook_onboarding_enabled: false,  // first-run tour + sample notebook (lane 8C)
   notebook_door_guard: 'full',         // ⛔ a MODE, not a boolean — see below
 })
 

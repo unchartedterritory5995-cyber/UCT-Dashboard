@@ -21,7 +21,6 @@ What a shared page serves — and deliberately does NOT:
 from __future__ import annotations
 
 import json
-import os
 import secrets
 import sqlite3
 from datetime import datetime, timezone
@@ -29,6 +28,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_service
+from api.services.notebook_flags import flag_on
 
 
 def _now_iso() -> str:
@@ -36,7 +36,15 @@ def _now_iso() -> str:
 
 
 def enabled() -> bool:
-    return os.environ.get("J2_SHARE_LINKS_ENABLED", "0") == "1"
+    """The share gate, read PER CALL through the one Notebook flag parse.
+
+    ⚰️ This was `os.environ.get(...) == "1"` — the ONLY value that meant ON —
+    while the auth payload accepted `1/true/yes/on`. Once the flag rides the
+    payload (wave 8, S8-1) that difference is a Share button whose routes 404.
+    `tests/test_notebook_flag_parse.py` pins the payload and this gate together.
+    ⛔ Ruling D-B9: the default stays OFF until the owner's legal sign-off.
+    """
+    return flag_on("J2_SHARE_LINKS_ENABLED", False)
 
 
 def _owned(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:

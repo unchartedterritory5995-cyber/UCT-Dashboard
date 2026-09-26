@@ -843,7 +843,7 @@
       "where": [
         "web"
       ],
-      "note": "STALE until 2026-09-22: this entry read status=armed with an empty note, and that was wrong — read live via `railway variables --service web --kv`, the value is 0. The owner returned it to 0 on 2026-09-07 (docs/notebook/competitive-gap-ledger.md, row G-080): no affirmative evidence the §21 legal review (shared vendor-data exposure) was ever completed, and \"a sanitized payload, static embeds, a wired UI and an uneventful live period are risk controls and elapsed time, not approval.\" The implementation is real and is NOT to be deleted; re-arm only on durable evidence that review has completed. Ledger corrected 2026-09-24: this entry said dark while the variable was SET AND OFF (value 0) on web, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv` -- a recorded decision, not an accident; status is `armed` per this file's own definition (set on a service; the VALUE is the decision), so read the value, not the status word. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
+      "note": "STALE until 2026-09-22: this entry read status=armed with an empty note, and that was wrong — read live via `railway variables --service web --kv`, the value is 0. The owner returned it to 0 on 2026-09-07 (docs/notebook/competitive-gap-ledger.md, row G-080): no affirmative evidence the §21 legal review (shared vendor-data exposure) was ever completed, and \"a sanitized payload, static embeds, a wired UI and an uneventful live period are risk controls and elapsed time, not approval.\" The implementation is real and is NOT to be deleted; re-arm only on durable evidence that review has completed. Ledger corrected 2026-09-24: this entry said dark while the variable was SET AND OFF (value 0) on web, read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv` -- a recorded decision, not an accident; status is `armed` per this file's own definition (set on a service; the VALUE is the decision), so read the value, not the status word. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note. Wave 8 seam S8-1, 2026-09-25: the flag now ALSO rides the auth payload as j2_share_links_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), and note_shares.enabled() reads it through the one Notebook flag parse, api/services/notebook_flags.flag_on -- so 1/true/yes/on mean ON where the route used to accept the exact string 1 alone, and the payload and all five share routes answer the same way for every value (tests/test_notebook_flag_parse.py). The value on web is still 0 and stays 0 until the owner records legal sign-off here as a dated owner_decision (wave 8 ruling D-B9)."
     },
     "LIVEFLOW_MONITOR_ENABLED": {
       "status": "armed",
@@ -922,6 +922,11 @@
       "where": [],
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the inbound-email door (POST /api/j2/inbound-email, HMAC-signed by the Cloudflare Email Worker in cloudflare/inbound-email-worker/, plus the member address endpoints). Unset means OFF and that is the decision: every route answers 404 and no address token is minted. Stays dark until the owner approves the Privacy page sentence naming Cloudflare as a processor (draft in docs/notebook/email-in-setup.md) and sets the routing rule + worker secret. Read per request; a flip needs no restart."
     },
+    "NOTEBOOK_ONBOARDING_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Wave 8 seam S8-1, 2026-09-25. Enablement gate for the Notebook's first-run tour and sample notebook (lane 8C; wave 8 rulings D-C6, D-C7). Unset means OFF and that is the decision: the tour never mounts, the first-run screen offers no sample, and the /api/j2/onboarding routes answer 404. Rides the auth payload as notebook_onboarding_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py); every server read goes through api/services/notebook_flags.flag_on, read per request, so a flip needs no rebuild (tests/test_notebook_flag_parse.py)."
+    },
     "NOTEBOOK_OFFLINE_READ_ON": {
       "status": "dark",
       "where": [],
@@ -931,6 +936,17 @@
       "status": "dark",
       "where": [],
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the member personal API (api/routers/notebook_personal_api.py: mint/list/revoke personal tokens; create a note; append to a note or to today's daily note). Unset means OFF and that is the decision: every route answers 404 and no token can be minted. Read per request; a flip needs no restart. Tokens are client_type=personal_api rows in j2_capture_tokens with the two notebook:notes:* scopes and never the capture scopes."
+    },
+    "NOTEBOOK_PUBLISH_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "MEMBER-VISIBLE when on: publish-to-web, a read-only public page for a note or a folder (lane 8B). Wave 8 seam S8-1, 2026-09-25. Enablement gate; unset means OFF and that is the decision: every /api/j2/publish* and /api/j2/published* route answers 404 and the editor shows no Publish door. Rides the auth payload as notebook_publish_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py); every server read goes through api/services/notebook_flags.flag_on, read per request (tests/test_notebook_flag_parse.py). Wave 8 ruling D-B9: stays unset until the owner records legal sign-off (the G-062/G-080 vendor-data questions) as a dated owner_decision here.",
+      "exposure": "public",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ]
     },
     "NOTEBOOK_SEMANTIC_PROVIDER": {
       "status": "pending",
