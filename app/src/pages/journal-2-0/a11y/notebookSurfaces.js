@@ -24,6 +24,9 @@ export const SURFACES = Object.freeze({
   'components/notebook/AskPanel.jsx': { recipe: 'ask-panel' },
   'components/notebook/TickerResearchWorkspace.jsx': { recipe: 'ticker-research' },
   'components/notebook/NoteTasksView.jsx': { recipe: 'tasks-view' },
+  // Wave 9 lane 9D (D2): the sidebar's Publish-folder confirmation; its rail is
+  // a11y/publishFolder.a11y.test.jsx (with the bulk bar's open Export panel, D1).
+  'components/notebook/PublishFolderSheet.jsx': { recipe: 'publish-folder-sheet' },
 
   // ── the list views (rendered by the tab in their own mode) ─────────────────
   'components/notebook/NoteCard.jsx': { recipe: 'note-card-states' },

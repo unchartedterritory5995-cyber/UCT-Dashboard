@@ -161,8 +161,9 @@ beforeEach(() => {
       if (a && a.__status) return Promise.resolve({ ok: false, status: a.__status, json: () => Promise.resolve({ detail: a.detail }) })
       return ok(a)
     }
-    if (u === '/api/j2/notes/batch/export') {
-      exportCalls.push(JSON.parse(init.body))
+    if (u.startsWith('/api/j2/notes/batch/export')) {
+      // Wave 9 (D1): the format rides the query string, the ids the body.
+      exportCalls.push({ format: new URL(u, 'http://x').searchParams.get('format'), ...JSON.parse(init.body) })
       const headers = { 'content-disposition': 'attachment; filename="sel.zip"', 'x-export-count': String(JSON.parse(init.body).ids.length), 'x-export-skipped': '0' }
       return ok({}, { blob: () => Promise.resolve(new Blob(['z'])), headers: { get: (k) => headers[k.toLowerCase()] ?? null } })
     }
@@ -195,6 +196,11 @@ function renderTab(entry = '/journal?view=all') {
   )
 }
 const box = (title) => screen.getByRole('checkbox', { name: `Select ${title}` })
+/** Wave 9 (D1): "Export selected" opens the format panel; the member picks one. */
+function exportAs(label = 'Markdown') {
+  fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+  fireEvent.click(within(screen.getByRole('group', { name: 'Export the selected notes as' })).getByRole('button', { name: label }))
+}
 const toolbar = () => screen.queryByRole('group', { name: 'Actions for the selected notes' })
 /** B1: choosing a folder is not moving — choose, then press Move. */
 async function moveTo(folderId) {
@@ -428,11 +434,34 @@ describe('NotebookTab — bulk actions', () => {
       renderTab()
       fireEvent.click(screen.getByRole('checkbox', { name: 'Select First note' }))
       fireEvent.click(screen.getByRole('button', { name: 'Select all 3 shown' }))
-      fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+      exportAs('Markdown')
       expect(await screen.findByText(
         'Exported 2 notes as a Markdown zip. 1 note was not included: "Third note" is waiting to sync (edit it again first).',
       )).toBeInTheDocument()
-      expect(exportCalls).toEqual([{ ids: ['n1', 'n2'] }])
+      expect(exportCalls).toEqual([{ format: 'md', ids: ['n1', 'n2'] }])
+    } finally {
+      click.mockRestore()
+      URL.createObjectURL = origCreate
+      URL.revokeObjectURL = origRevoke
+    }
+  })
+
+  it.each([
+    ['Web page (HTML)', 'html'], ['JSON', 'json'], ['Word (.docx)', 'docx'],
+  ])('export as %s: the choice reaches the request and the sentence names it (never "Markdown")', async (label, id) => {
+    const origCreate = URL.createObjectURL
+    const origRevoke = URL.revokeObjectURL
+    URL.createObjectURL = vi.fn(() => 'blob:x')
+    URL.revokeObjectURL = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      renderTab()
+      fireEvent.click(box('First note'))
+      fireEvent.click(box('Second note'))
+      exportAs(label)
+      expect(await screen.findByText(`Exported 2 notes as a ${label} zip.`)).toBeInTheDocument()
+      expect(screen.queryByText(/Markdown/)).toBeNull()
+      expect(exportCalls).toEqual([{ format: id, ids: ['n1', 'n2'] }])
     } finally {
       click.mockRestore()
       URL.createObjectURL = origCreate
@@ -693,11 +722,11 @@ describe('NotebookTab — S1: a note still SENDING is neither trashed nor export
       renderTab()
       fireEvent.click(box('Second note'))
       fireEvent.click(box('Third note'))
-      fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+      exportAs('Markdown')
       expect(await screen.findByText(
         'Exported 1 note as a Markdown zip. 1 note was not included: "Second note" is still syncing — try again in a moment.',
       )).toBeInTheDocument()
-      expect(exportCalls).toEqual([{ ids: ['n3'] }])
+      expect(exportCalls).toEqual([{ format: 'md', ids: ['n3'] }])
     } finally {
       click.mockRestore()
       URL.createObjectURL = origCreate
@@ -779,7 +808,8 @@ describe('NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and
     try {
       renderTab()
       fireEvent.click(box('Second note'))
-      fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+      // Wave 9 (D1): the member chose Word — and a confirmed "Export anyway" is still Word.
+      exportAs('Word (.docx)')
       expect(await screen.findByText(
         'Can\'t check this device for unsent words. 1 note was not included: "Second note".',
       )).toBeInTheDocument()
@@ -788,8 +818,8 @@ describe('NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and
       expect(screen.getByText(/^Export 1 note without checking this device\?/)).toBeInTheDocument()
       expect(exportCalls).toEqual([])
       fireEvent.click(screen.getByRole('button', { name: 'Yes, export anyway' }))
-      expect(await screen.findByText('Exported 1 note as a Markdown zip.')).toBeInTheDocument()
-      expect(exportCalls).toEqual([{ ids: ['n2'] }])
+      expect(await screen.findByText('Exported 1 note as a Word (.docx) zip.')).toBeInTheDocument()
+      expect(exportCalls).toEqual([{ format: 'docx', ids: ['n2'] }])
     } finally {
       click.mockRestore()
       URL.createObjectURL = origCreate

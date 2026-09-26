@@ -1,0 +1,14 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w9/app
+
+ ✓ src/pages/journal-2-0/rawErrorSurface.test.js (8 tests) 315ms
+     ✓ no native alert(), and no caught exception rendered into member-facing text  306ms
+ ✓ src/pages/journal-2-0/lib/askCitation.parity.test.js (404 tests) 39ms
+ ✓ src/pages/journal-2-0/lib/writingHelp.test.js (33 tests) 267ms
+ ✓ src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js (10 tests) 9810ms
+
+ Test Files  4 passed (4)
+      Tests  455 passed (455)
+   Start at  15:04:50
+   Duration  11.52s (transform 1.39s, setup 627ms, import 2.47s, tests 10.43s, environment 2.00s)
+

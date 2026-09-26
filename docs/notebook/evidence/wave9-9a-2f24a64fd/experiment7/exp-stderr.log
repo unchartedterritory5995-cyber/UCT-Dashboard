@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\exp7.py", line 61, in <module>
+    h._provision(a2.request, m2.request, base, member=("w9exp7@local.dev", "LocalTest2026!", "w9exp7"))
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w9\tools\notebook_perf_harness.py", line 489, in _provision
+    _signup_or_login(member_req, base, email, pw, name)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w9\tools\notebook_perf_harness.py", line 476, in _signup_or_login
+    raise SetupFailed(f"could not sign in {email}: HTTP {r.status}")
+notebook_perf_harness.SetupFailed: could not sign in w9exp7@local.dev: HTTP 401

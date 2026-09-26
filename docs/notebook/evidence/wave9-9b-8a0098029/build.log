@@ -1,0 +1,571 @@
+
+> app@0.0.0 build
+> vite build && node scripts/build-cot-facts.mjs && node scripts/build-flow-facts.mjs
+
+vite v7.3.1 building client environment for production...
+transforming...
+[uct] closedTable: dropped 37 prose keys, 102.0kB off the bundle
+✓ 4206 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/assets/KaTeX_Size3-Regular-CTq5MqoE.woff             4.42 kB
+dist/assets/KaTeX_Size4-Regular-Dl5lxZxV.woff2            4.93 kB
+dist/assets/KaTeX_Size2-Regular-Dy4dx90m.woff2            5.21 kB
+dist/assets/KaTeX_Size1-Regular-mCD8mA8B.woff2            5.47 kB
+dist/assets/KaTeX_Size4-Regular-BF-4gkZK.woff             5.98 kB
+dist/assets/KaTeX_Size2-Regular-oD1tc_U0.woff             6.19 kB
+dist/assets/KaTeX_Size1-Regular-C195tn64.woff             6.50 kB
+dist/assets/KaTeX_Caligraphic-Regular-Di6jR-x-.woff2      6.91 kB
+dist/assets/KaTeX_Caligraphic-Bold-Dq_IR9rO.woff2         6.91 kB
+dist/assets/KaTeX_Size3-Regular-DgpXs0kz.ttf              7.59 kB
+dist/assets/KaTeX_Caligraphic-Regular-CTRA-rTL.woff       7.66 kB
+dist/assets/KaTeX_Caligraphic-Bold-BEiXGLvX.woff          7.72 kB
+dist/assets/KaTeX_Script-Regular-D3wIWfF6.woff2           9.64 kB
+dist/assets/KaTeX_SansSerif-Regular-DDBCnlJ7.woff2       10.34 kB
+dist/assets/KaTeX_Size4-Regular-DWFBv043.ttf             10.36 kB
+dist/assets/KaTeX_Script-Regular-D5yQViql.woff           10.59 kB
+dist/assets/KaTeX_Fraktur-Regular-CTYiF6lA.woff2         11.32 kB
+dist/assets/KaTeX_Fraktur-Bold-CL6g_b3V.woff2            11.35 kB
+dist/assets/KaTeX_Size2-Regular-B7gKUWhC.ttf             11.51 kB
+dist/assets/KaTeX_SansSerif-Italic-C3H0VqGB.woff2        12.03 kB
+dist/assets/KaTeX_SansSerif-Bold-D1sUS0GD.woff2          12.22 kB
+dist/assets/KaTeX_Size1-Regular-Dbsnue_I.ttf             12.23 kB
+dist/assets/KaTeX_SansSerif-Regular-CS6fqUqJ.woff        12.32 kB
+dist/assets/KaTeX_Caligraphic-Regular-wX97UBjC.ttf       12.34 kB
+dist/assets/KaTeX_Caligraphic-Bold-ATXxdsX0.ttf          12.37 kB
+dist/assets/KaTeX_Fraktur-Regular-Dxdc4cR9.woff          13.21 kB
+dist/assets/KaTeX_Fraktur-Bold-BsDP51OF.woff             13.30 kB
+dist/assets/KaTeX_Typewriter-Regular-CO6r4hn1.woff2      13.57 kB
+dist/assets/KaTeX_SansSerif-Italic-DN2j7dab.woff         14.11 kB
+dist/assets/KaTeX_SansSerif-Bold-DbIhKOiC.woff           14.41 kB
+dist/assets/KaTeX_Typewriter-Regular-C0xS9mPB.woff       16.03 kB
+dist/assets/KaTeX_Math-BoldItalic-CZnvNsCZ.woff2         16.40 kB
+dist/assets/KaTeX_Math-Italic-t53AETM-.woff2             16.44 kB
+dist/assets/KaTeX_Script-Regular-C5JkGWo-.ttf            16.65 kB
+dist/index.html                                          16.75 kB │ gzip:   4.83 kB
+dist/assets/KaTeX_Main-BoldItalic-DxDJ3AOS.woff2         16.78 kB
+dist/assets/KaTeX_Main-Italic-NWA7e6Wa.woff2             16.99 kB
+dist/assets/KaTeX_Math-BoldItalic-iY-2wyZ7.woff          18.67 kB
+dist/assets/KaTeX_Math-Italic-DA0__PXp.woff              18.75 kB
+dist/assets/KaTeX_Main-BoldItalic-SpSLRI95.woff          19.41 kB
+dist/assets/KaTeX_SansSerif-Regular-BNo7hRIc.ttf         19.44 kB
+dist/assets/KaTeX_Fraktur-Regular-CB_wures.ttf           19.57 kB
+dist/assets/KaTeX_Fraktur-Bold-BdnERNNW.ttf              19.58 kB
+dist/assets/KaTeX_Main-Italic-BMLOBm91.woff              19.68 kB
+dist/assets/scan-wkkSxuHq.webp                           20.31 kB
+dist/assets/ai-CDSKkHV3.webp                             20.39 kB
+dist/assets/research-Cxl5TjMe.webp                       20.42 kB
+dist/assets/KaTeX_SansSerif-Italic-YYjJ1zSn.ttf          22.36 kB
+dist/assets/KaTeX_SansSerif-Bold-CFMepnvq.ttf            24.50 kB
+dist/assets/KaTeX_Main-Bold-Cx986IdX.woff2               25.32 kB
+dist/assets/KaTeX_Main-Regular-B22Nviop.woff2            26.27 kB
+dist/assets/breadth_sm-C--axXYt.webp                     27.28 kB
+dist/assets/KaTeX_Typewriter-Regular-D3Ib7_Hf.ttf        27.56 kB
+dist/assets/playbook-BskXEeG6.webp                       27.80 kB
+dist/assets/KaTeX_AMS-Regular-BQhdFMY1.woff2             28.08 kB
+dist/assets/KaTeX_Main-Bold-Jm3AIy58.woff                29.91 kB
+dist/assets/KaTeX_Main-Regular-Dr94JaBh.woff             30.77 kB
+dist/assets/KaTeX_Math-BoldItalic-B3XSjfu4.ttf           31.20 kB
+dist/assets/KaTeX_Math-Italic-flOr_0UB.ttf               31.31 kB
+dist/assets/KaTeX_Main-BoldItalic-DzxPMmG6.ttf           32.97 kB
+dist/assets/KaTeX_AMS-Regular-DMm9YOAa.woff              33.52 kB
+dist/assets/KaTeX_Main-Italic-3WenGoN9.ttf               33.58 kB
+dist/assets/flow-By7YgpOn.webp                           35.71 kB
+dist/assets/workspace-CgmQDSyP.webp                      37.43 kB
+dist/assets/flow.worker-jzklJhl3.js                      38.41 kB
+dist/assets/desk-4AzRvJEv.webp                           39.08 kB
+dist/assets/calendar-CuUBKFIi.webp                       39.79 kB
+dist/assets/wire-DgCpEOrh.webp                           47.03 kB
+dist/assets/liveflow-DiXmVurJ.webp                       49.14 kB
+dist/assets/KaTeX_Main-Bold-waoOVXN0.ttf                 51.34 kB
+dist/assets/KaTeX_Main-Regular-ypZvNtVU.ttf              53.58 kB
+dist/assets/setups-CfwFIwXN.webp                         57.21 kB
+dist/assets/compass-mark-DvndB-rt.png                    60.27 kB
+dist/assets/KaTeX_AMS-Regular-DRggAlZN.ttf               63.63 kB
+dist/assets/catalysts-3wewWR48.webp                     102.45 kB
+dist/assets/parchment-mark-C-pRUvxP.png                 134.23 kB
+dist/assets/modelbook-1VYO-kn-.webp                     136.77 kB
+dist/.vite/manifest.json                                189.91 kB │ gzip:  22.35 kB
+dist/assets/pdf.worker-TGcf_-kp.mjs                   2,228.49 kB
+dist/assets/UnreadableNoteNotice-ljOSuQZK.css             0.18 kB │ gzip:   0.16 kB
+dist/assets/ConfidenceStat-C8U2J4n9.css                   0.44 kB │ gzip:   0.26 kB
+dist/assets/CaptureMenu-Bv_uBcvv.css                      0.51 kB │ gzip:   0.28 kB
+dist/assets/FiltersSheet-4ImmvxL-.css                     0.55 kB │ gzip:   0.29 kB
+dist/assets/PullToRefresh-BQ7XyXky.css                    0.56 kB │ gzip:   0.33 kB
+dist/assets/useBrokerWarming-Dwl5LkUN.css                 0.56 kB │ gzip:   0.34 kB
+dist/assets/CoursesSection-BKoRuXH8.css                   0.61 kB │ gzip:   0.32 kB
+dist/assets/LinkedNotesPanel-CgJZLirE.css                 0.61 kB │ gzip:   0.36 kB
+dist/assets/ReadAloudButton-CitO_NOc.css                  0.75 kB │ gzip:   0.40 kB
+dist/assets/Traders-66mt4aox.css                          0.78 kB │ gzip:   0.40 kB
+dist/assets/RsBadge-C3U6yPu9.css                          0.81 kB │ gzip:   0.45 kB
+dist/assets/InterventionBanner-DEh6uiOt.css               0.88 kB │ gzip:   0.35 kB
+dist/assets/SyncFreshnessChip-uhLX52Tx.css                0.94 kB │ gzip:   0.46 kB
+dist/assets/profileFormat-_aoZgv0R.css                    0.96 kB │ gzip:   0.44 kB
+dist/assets/Toast-B2CVyuZT.css                            0.98 kB │ gzip:   0.49 kB
+dist/assets/CollapsibleSection-C6X1gx7M.css               0.98 kB │ gzip:   0.48 kB
+dist/assets/PageHeader-B1PmySIQ.css                       0.98 kB │ gzip:   0.45 kB
+dist/assets/CompassTab-CfswekjQ.css                       1.00 kB │ gzip:   0.40 kB
+dist/assets/StatsGrid-1foGD7kZ.css                        1.04 kB │ gzip:   0.47 kB
+dist/assets/TileCard-Buo-rEAC.css                         1.16 kB │ gzip:   0.54 kB
+dist/assets/PublishFolderSheet-CteWy8nl.css               1.17 kB │ gzip:   0.49 kB
+dist/assets/BrokerEquityCurve-0w8zH4BJ.css                1.21 kB │ gzip:   0.53 kB
+dist/assets/FrozenList-9p_pLGCZ.css                       1.22 kB │ gzip:   0.53 kB
+dist/assets/CompassOrb-l0p4ziJs.css                       1.23 kB │ gzip:   0.50 kB
+dist/assets/ScreenshotPopover-BpSX9W0P.css                1.27 kB │ gzip:   0.56 kB
+dist/assets/useTagSuggestions-va11kgQX.css                1.41 kB │ gzip:   0.52 kB
+dist/assets/Legal-guYk6pGt.css                            1.47 kB │ gzip:   0.52 kB
+dist/assets/InfoTip-DCV9kT41.css                          1.51 kB │ gzip:   0.65 kB
+dist/assets/alertState-DG3kBjOo.css                       1.55 kB │ gzip:   0.66 kB
+dist/assets/ShareToFloor-DRZTojJA.css                     1.63 kB │ gzip:   0.67 kB
+dist/assets/AddPositionModal-D22yQG8W.css                 1.63 kB │ gzip:   0.74 kB
+dist/assets/OpenFlow-B_Ya4zOx.css                         1.66 kB │ gzip:   0.63 kB
+dist/assets/DarkPool-B23pTcus.css                         1.71 kB │ gzip:   0.45 kB
+dist/assets/CaptureConnectPage-Dor1_p7a.css               1.74 kB │ gzip:   0.67 kB
+dist/assets/MarketContextWidget-CnD9IRrf.css              1.75 kB │ gzip:   0.68 kB
+dist/assets/WritingHelpPanel-D6gsIwzC.css                 1.75 kB │ gzip:   0.63 kB
+dist/assets/ContextPopover-CCmZUJdU.css                   1.81 kB │ gzip:   0.66 kB
+dist/assets/Calendar-CWAdbcZ7.css                         1.84 kB │ gzip:   0.69 kB
+dist/assets/NotebookTour-BOANFYWT.css                     1.94 kB │ gzip:   0.81 kB
+dist/assets/JournalLayout-BIPdeI3K.css                    2.03 kB │ gzip:   0.79 kB
+dist/assets/Methodology-UMZB3boZ.css                      2.03 kB │ gzip:   0.65 kB
+dist/assets/FormulaLibrary-3s1DNEfl.css                   2.04 kB │ gzip:   0.70 kB
+dist/assets/BreadthDrillList-D6KJ2yA8.css                 2.04 kB │ gzip:   0.74 kB
+dist/assets/ExportDialog-WFGG5nZu.css                     2.05 kB │ gzip:   0.80 kB
+dist/assets/format-DsjlIIcl.css                           2.07 kB │ gzip:   0.71 kB
+dist/assets/SharedScreen-ChmRaisL.css                     2.19 kB │ gzip:   0.82 kB
+dist/assets/ResearchComparePage-D9FK94Az.css              2.22 kB │ gzip:   0.84 kB
+dist/assets/ProvenanceDemo-C7ftvyaR.css                   2.26 kB │ gzip:   0.75 kB
+dist/assets/NoteTimelineView-CS40AD4Y.css                 2.29 kB │ gzip:   0.77 kB
+dist/assets/NoteGraphView-BCfL2ugx.css                    2.46 kB │ gzip:   0.84 kB
+dist/assets/IndexesWidget-CbWoNyom.css                    2.49 kB │ gzip:   0.85 kB
+dist/assets/PostMarket-Bg89A5oV.css                       2.52 kB │ gzip:   0.87 kB
+dist/assets/TranscriptPanel-CJ3-x0Bi.css                  2.54 kB │ gzip:   0.91 kB
+dist/assets/sessionStale-DC6OTyiZ.css                     2.63 kB │ gzip:   0.90 kB
+dist/assets/NoteTasksView-DlFpAXGe.css                    2.63 kB │ gzip:   0.90 kB
+dist/assets/TrackRecordPage-BnCvIQv2.css                  2.66 kB │ gzip:   0.95 kB
+dist/assets/GlobalAddPositionProvider-BxtpbEMG.css        2.67 kB │ gzip:   0.91 kB
+dist/assets/ReportPage-BVvF7SzS.css                       2.72 kB │ gzip:   0.98 kB
+dist/assets/SharedFormula-ChayxlxI.css                    2.76 kB │ gzip:   0.99 kB
+dist/assets/PublicPageMeta--s9ozCPE.css                   2.78 kB │ gzip:   0.92 kB
+dist/assets/LiveFlowMassive-BV2sUTMg.css                  2.78 kB │ gzip:   0.56 kB
+dist/assets/JournalTwoRoot-DOcN9fHk.css                   2.83 kB │ gzip:   0.94 kB
+dist/assets/PortfolioHeat-LgbO5IVr.css                    2.86 kB │ gzip:   0.81 kB
+dist/assets/NoteBoardView-D-DYPzy6.css                    2.88 kB │ gzip:   1.05 kB
+dist/assets/PdfDocumentViewer-S3lqWWv_.css                2.95 kB │ gzip:   1.11 kB
+dist/assets/AiSearchPage-Axn2w3uZ.css                     2.97 kB │ gzip:   0.97 kB
+dist/assets/FormulaReference-BZ4s_Bvr.css                 3.02 kB │ gzip:   1.02 kB
+dist/assets/GoalProgress-B78toCaj.css                     3.10 kB │ gzip:   1.00 kB
+dist/assets/EvidenceTab-Cgsdd0Oo.css                      3.18 kB │ gzip:   0.93 kB
+dist/assets/OptionsFlow-CDRrQskf.css                      3.21 kB │ gzip:   0.67 kB
+dist/assets/ChartHealth-_EZXWhXs.css                      3.26 kB │ gzip:   1.01 kB
+dist/assets/AuthForm-Canbxkkm.css                         3.27 kB │ gzip:   0.95 kB
+dist/assets/NoteCalendarView-CNw2zrEe.css                 3.40 kB │ gzip:   1.11 kB
+dist/assets/TickerResearchWorkspace-Cy0J1R2p.css          3.50 kB │ gzip:   1.06 kB
+dist/assets/NewAccountModal-Dq2de4K8.css                  3.57 kB │ gzip:   1.08 kB
+dist/assets/BreadthDrillModal-BVZlVA3e.css                3.58 kB │ gzip:   1.17 kB
+dist/assets/BrokerConnectionsCard-BfZvQ2QG.css            3.58 kB │ gzip:   1.11 kB
+dist/assets/LandingAnalytics-DYUvavgT.css                 3.77 kB │ gzip:   1.15 kB
+dist/assets/NewsSettingsPanel-B9pxbHf5.css                4.04 kB │ gzip:   1.18 kB
+dist/assets/CatalystsHistory-C_U4VvGc.css                 4.04 kB │ gzip:   1.27 kB
+dist/assets/PatternReview-BXgur0q0.css                    4.12 kB │ gzip:   1.30 kB
+dist/assets/OwnershipPanel-BCfgGpa5.css                   4.49 kB │ gzip:   1.32 kB
+dist/assets/WisdomAdmin-6K9FqgAK.css                      4.64 kB │ gzip:   1.23 kB
+dist/assets/FundamentalSnapshot-Dql1CZ7g.css              5.01 kB │ gzip:   1.45 kB
+dist/assets/NewsWidget-CYW3WSHt.css                       5.53 kB │ gzip:   1.48 kB
+dist/assets/BuzzRender-Bcq841ro.css                       5.64 kB │ gzip:   1.63 kB
+dist/assets/askInsert-CuaB5GuX.css                        5.77 kB │ gzip:   1.65 kB
+dist/assets/ChartThemesModal-DY4AVpwY.css                 5.80 kB │ gzip:   1.65 kB
+dist/assets/ModalShell-cNsm7dP-.css                       5.83 kB │ gzip:   1.58 kB
+dist/assets/MarketBreadth-s_1PJC-X.css                    5.88 kB │ gzip:   1.61 kB
+dist/assets/SetupLibrary-CnJYNopZ.css                     6.11 kB │ gzip:   1.68 kB
+dist/assets/ColorPanel-Z9MSti7L.css                       6.27 kB │ gzip:   1.81 kB
+dist/assets/CapturedSourceSheet-cVOA7qsQ.css              6.33 kB │ gzip:   1.56 kB
+dist/assets/JournalLayout-Crk83zWG.css                    6.33 kB │ gzip:   1.65 kB
+dist/assets/PatternAdmin-A3qf7CCC.css                     6.43 kB │ gzip:   1.58 kB
+dist/assets/FlowScoreboard-BnWd13il.css                   6.55 kB │ gzip:   1.86 kB
+dist/assets/ScopeBar-CLwOVfR2.css                         6.64 kB │ gzip:   1.53 kB
+dist/assets/AccountsTab-isHOciwh.css                      6.90 kB │ gzip:   1.71 kB
+dist/assets/AlertsWidget-CdFSKHGh.css                     7.10 kB │ gzip:   1.69 kB
+dist/assets/ObsidianConnectModal-vcGg7R0B.css             7.58 kB │ gzip:   1.56 kB
+dist/assets/BrokersPage-DBjKzu0N.css                      7.72 kB │ gzip:   2.23 kB
+dist/assets/PositionDetailPage-tDrB0tXZ.css               8.34 kB │ gzip:   2.05 kB
+dist/assets/CommunityTab-_jsL5Fcb.css                     8.94 kB │ gzip:   2.06 kB
+dist/assets/CalendarTab-C5j-1RQY.css                      9.33 kB │ gzip:   2.17 kB
+dist/assets/CalendarWidget-BOlCAhdV.css                   9.36 kB │ gzip:   2.26 kB
+dist/assets/ImportWizard-BF2Zz4FE.css                     9.38 kB │ gzip:   2.28 kB
+dist/assets/Compare-CzHxVSMv.css                          9.82 kB │ gzip:   2.69 kB
+dist/assets/Pricing-CEF8HJrA.css                         10.29 kB │ gzip:   2.82 kB
+dist/assets/NotebookWidget-BND7oxi_.css                  10.70 kB │ gzip:   2.10 kB
+dist/assets/Confluence-Cw-nlU-H.css                      10.78 kB │ gzip:   2.72 kB
+dist/assets/FundamentalsWidget-Bctn12iL.css              11.28 kB │ gzip:   2.78 kB
+dist/assets/FolderSidebar-BpIi6z4y.css                   12.31 kB │ gzip:   2.38 kB
+dist/assets/AiSearchWidget-CWL-Kaot.css                  13.24 kB │ gzip:   2.90 kB
+dist/assets/GlobalVoiceLayer-f1ZIoQev.css                13.39 kB │ gzip:   3.27 kB
+dist/assets/TodaySurface-Drz7PkPI.css                    13.66 kB │ gzip:   2.69 kB
+dist/assets/ImportCsvModal-C88sQP9b.css                  14.17 kB │ gzip:   3.31 kB
+dist/assets/TradeDetailPage-BP9bxy4I.css                 15.23 kB │ gzip:   3.42 kB
+dist/assets/ArticleReader-DBnk-458.css                   15.57 kB │ gzip:   3.32 kB
+dist/assets/ResearchPage-CDQugObn.css                    15.83 kB │ gzip:   3.42 kB
+dist/assets/Desk-DD_q_E1S.css                            15.93 kB │ gzip:   3.31 kB
+dist/assets/ShortcutCheatSheet-DeF6BbX-.css              16.26 kB │ gzip:   3.12 kB
+dist/assets/ComingSoon-Ddk4mPXJ.css                      16.27 kB │ gzip:   3.86 kB
+dist/assets/BreadthWidget-BZW1wFtW.css                   16.39 kB │ gzip:   3.58 kB
+dist/assets/Support-DeWu2A7r.css                         19.47 kB │ gzip:   3.89 kB
+dist/assets/FilingsTab-D-ZSSlmU.css                      21.81 kB │ gzip:   4.54 kB
+dist/assets/Dashboard-Cre0hoGt.css                       21.85 kB │ gzip:   4.96 kB
+dist/assets/DayDetailPage-BUgQJHmw.css                   22.48 kB │ gzip:   4.09 kB
+dist/assets/UCT20-D8gWG5GN.css                           23.62 kB │ gzip:   4.48 kB
+dist/assets/CatalystTable-CkJeo7fR.css                   23.68 kB │ gzip:   4.84 kB
+dist/assets/tiptap-oN1UfRTF.css                          25.52 kB │ gzip:   5.02 kB
+dist/assets/katexRender-BYZTj3zW.css                     29.29 kB │ gzip:   8.05 kB
+dist/assets/BuilderSheet-DfDxkeIj.css                    31.48 kB │ gzip:   5.65 kB
+dist/assets/Admin-Dcpx0eXd.css                           33.30 kB │ gzip:   6.22 kB
+dist/assets/Landing-BkfJTMbf.css                         33.85 kB │ gzip:   7.01 kB
+dist/assets/ThemeTrackerPage-CCBOpePU.css                34.57 kB │ gzip:   6.14 kB
+dist/assets/CommunityRedesign-FRoWOeHE.css               35.18 kB │ gzip:   6.11 kB
+dist/assets/TradeJournalTab-BUA0d9cQ.css                 37.76 kB │ gzip:   6.81 kB
+dist/assets/MorningWire-CZLzzPSU.css                     38.58 kB │ gzip:   6.79 kB
+dist/assets/Watchlists-iEG8maoM.css                      42.40 kB │ gzip:   7.74 kB
+dist/assets/AnalyticsTab-Bu8yLXke.css                    49.33 kB │ gzip:   8.33 kB
+dist/assets/ChartsWorkspace-BDQlFNbr.css                 50.53 kB │ gzip:   8.80 kB
+dist/assets/Screener-Tl48_njt.css                        50.82 kB │ gzip:   8.88 kB
+dist/assets/VideosSection-CdplgTY8.css                   60.34 kB │ gzip:  10.25 kB
+dist/assets/Settings-CHg3YT5D.css                        61.48 kB │ gzip:  10.93 kB
+dist/assets/StockChart-B_dRD2xf.css                      74.64 kB │ gzip:  14.16 kB
+dist/assets/EarningsCard-CQ53L7T6.css                    84.03 kB │ gzip:  15.31 kB
+dist/assets/NotebookTab-BDxN_IQA.css                     84.39 kB │ gzip:  14.79 kB
+dist/assets/Breadth-CL3CZyfo.css                         85.07 kB │ gzip:  15.57 kB
+dist/assets/ChartPane-DBC20TXI.css                       88.21 kB │ gzip:  15.14 kB
+dist/assets/ModelBook-rhG37qUF.css                       92.75 kB │ gzip:  15.29 kB
+dist/assets/index-D-c0q2go.css                          118.89 kB │ gzip:  23.58 kB
+dist/assets/PopoutShell-DT6ooOHH.css                    132.47 kB │ gzip:  22.26 kB
+dist/assets/renderToken-Bn6PC_ku.js                       0.03 kB │ gzip:   0.05 kB
+dist/assets/compassScope-BdtmPm2h.js                      0.07 kB │ gzip:   0.08 kB
+dist/assets/chartFont-CDkg7iii.js                         0.09 kB │ gzip:   0.11 kB
+dist/assets/captureSafety-CEs8hJU4.js                     0.12 kB │ gzip:   0.14 kB
+dist/assets/index-C2_j0szr.js                             0.12 kB │ gzip:   0.12 kB
+dist/assets/DrillSourceContext-DMX1QcxD.js                0.13 kB │ gzip:   0.14 kB
+dist/assets/Legal.module-DY6XB7hA.js                      0.18 kB │ gzip:   0.14 kB
+dist/assets/readAloudProgress-DWtCuYlC.js                 0.20 kB │ gzip:   0.18 kB
+dist/assets/UnreadableNoteNotice-DOfun13y.js              0.21 kB │ gzip:   0.19 kB
+dist/assets/useJ2UnviewedEOD-CS_IsKIl.js                  0.23 kB │ gzip:   0.19 kB
+dist/assets/tourControl-D0TqODih.js                       0.25 kB │ gzip:   0.20 kB
+dist/assets/ChartsSymContext-CeEnpEOm.js                  0.27 kB │ gzip:   0.22 kB
+dist/assets/CommunitySurface-DZVWKMns.js                  0.31 kB │ gzip:   0.23 kB
+dist/assets/useFundamentalSnapshot-DTAJ_4Fd.js            0.31 kB │ gzip:   0.26 kB
+dist/assets/useBrokerMarkPreference-D6oF3usO.js           0.31 kB │ gzip:   0.22 kB
+dist/assets/widgetSnapshotFetcher-B1x_-5Kd.js             0.33 kB │ gzip:   0.24 kB
+dist/assets/JournalSurface-CsIwDZcb.js                    0.36 kB │ gzip:   0.28 kB
+dist/assets/useJ2AccountComparison-kgkIumhF.js            0.38 kB │ gzip:   0.29 kB
+dist/assets/shareRefusal-BnGAwoob.js                      0.38 kB │ gzip:   0.29 kB
+dist/assets/feedFormat-BGgewwOj.js                        0.39 kB │ gzip:   0.28 kB
+dist/assets/useJ2Accounts-CxiTGH6C.js                     0.40 kB │ gzip:   0.30 kB
+dist/assets/CaptureConnectPage.module-7HUsWqVD.js         0.41 kB │ gzip:   0.24 kB
+dist/assets/LegacyRedirect-gbo1tQjz.js                    0.42 kB │ gzip:   0.30 kB
+dist/assets/useJ2BrokerPerformance-D1iyoOTA.js            0.48 kB │ gzip:   0.35 kB
+dist/assets/useCommunity-DRqOVcBD.js                      0.51 kB │ gzip:   0.32 kB
+dist/assets/documentProvenance-BdzAm6ny.js                0.52 kB │ gzip:   0.31 kB
+dist/assets/useJ2PositionsAttention-C3ss7Vfa.js           0.52 kB │ gzip:   0.38 kB
+dist/assets/TickerResearchSurface-Cr8EtfN4.js             0.52 kB │ gzip:   0.35 kB
+dist/assets/highlightThesis-D78C3HPp.js                   0.53 kB │ gzip:   0.34 kB
+dist/assets/useJ2Positions-BSXc_iGW.js                    0.54 kB │ gzip:   0.39 kB
+dist/assets/useEarningsTable-M24djulw.js                  0.54 kB │ gzip:   0.40 kB
+dist/assets/disclaimer-tPtCwLAi.js                        0.55 kB │ gzip:   0.35 kB
+dist/assets/platform-Bx76oUM1.js                          0.55 kB │ gzip:   0.33 kB
+dist/assets/CalendarSurface-CUE0sGdq.js                   0.55 kB │ gzip:   0.32 kB
+dist/assets/TheStreetPanel-CaNzuS7U.js                    0.56 kB │ gzip:   0.37 kB
+dist/assets/useJ2OptionMarks-DRxuL7-6.js                  0.58 kB │ gzip:   0.42 kB
+dist/assets/AuthForm.module-CIsCp_Uv.js                   0.58 kB │ gzip:   0.31 kB
+dist/assets/PageHeader-sh52pWsR.js                        0.63 kB │ gzip:   0.35 kB
+dist/assets/useSavedColors-DaO2woD7.js                    0.66 kB │ gzip:   0.38 kB
+dist/assets/ScannerEmbed-5cW7mXRV.js                      0.67 kB │ gzip:   0.47 kB
+dist/assets/setupGroups-C9ExwJp5.js                       0.68 kB │ gzip:   0.44 kB
+dist/assets/weekAnchor-D1gKDUXv.js                        0.68 kB │ gzip:   0.27 kB
+dist/assets/AccountsSurface-BNpWYySY.js                   0.68 kB │ gzip:   0.41 kB
+dist/assets/useJ2Trades-BseqIxVS.js                       0.69 kB │ gzip:   0.47 kB
+dist/assets/WatchlistEmbed-CuNN_Y3r.js                    0.70 kB │ gzip:   0.47 kB
+dist/assets/researchReturnContext-CEE1AXQC.js             0.71 kB │ gzip:   0.35 kB
+dist/assets/frozenWorkspace-BZpHfo3H.js                   0.73 kB │ gzip:   0.40 kB
+dist/assets/FiltersSheet-2BORf0wc.js                      0.73 kB │ gzip:   0.42 kB
+dist/assets/ThemesEmbed-DOJUyWEA.js                       0.74 kB │ gzip:   0.52 kB
+dist/assets/Toast-u85zWtVu.js                             0.75 kB │ gzip:   0.46 kB
+dist/assets/useAnimatedNumber-vW61QSJc.js                 0.77 kB │ gzip:   0.44 kB
+dist/assets/WorkspaceContext-DcbH5BN3.js                  0.78 kB │ gzip:   0.44 kB
+dist/assets/chartCapture-C8xBUG2s.js                      0.80 kB │ gzip:   0.44 kB
+dist/assets/sessionModel-DTo3YKzK.js                      0.80 kB │ gzip:   0.46 kB
+dist/assets/TagChipPicker-Cjx_DPv3.js                     0.81 kB │ gzip:   0.53 kB
+dist/assets/IndexesEmbed-DIPlMXGd.js                      0.81 kB │ gzip:   0.51 kB
+dist/assets/articleProgress-MFehNa9t.js                   0.81 kB │ gzip:   0.47 kB
+dist/assets/useJ2Calendar-BDmo3sXG.js                     0.81 kB │ gzip:   0.53 kB
+dist/assets/TileCard-C6wjwRFx.js                          0.82 kB │ gzip:   0.43 kB
+dist/assets/landingTrack-5DRmL-Z3.js                      0.82 kB │ gzip:   0.48 kB
+dist/assets/CompassSurface-Dit-afkC.js                    0.83 kB │ gzip:   0.48 kB
+dist/assets/lazyChunk-DtNB2Woh.js                         0.83 kB │ gzip:   0.49 kB
+dist/assets/chipLabel-B3ij-Pux.js                         0.86 kB │ gzip:   0.42 kB
+dist/assets/index-Chjiymov.js                             0.87 kB │ gzip:   0.52 kB
+dist/assets/ReadAloudButton-07Zob9dl.js                   0.87 kB │ gzip:   0.50 kB
+dist/assets/MarketContextEmbed-CUE6UbsV.js                0.88 kB │ gzip:   0.53 kB
+dist/assets/useLongPress-7REY2IAY.js                      0.88 kB │ gzip:   0.48 kB
+dist/assets/RsBadge-BjoPcB1M.js                           0.90 kB │ gzip:   0.61 kB
+dist/assets/featureFlags-DDtfe8CA.js                      0.90 kB │ gzip:   0.50 kB
+dist/assets/WidgetThemeSection-DguJ5rol.js                0.91 kB │ gzip:   0.56 kB
+dist/assets/InsightsSurface-3fE27hHD.js                   0.92 kB │ gzip:   0.49 kB
+dist/assets/NotebookSurface-DLxyrKuA.js                   0.98 kB │ gzip:   0.54 kB
+dist/assets/AlertsEmbed-DBaPpqI5.js                       0.99 kB │ gzip:   0.58 kB
+dist/assets/useJ2SelectedAccount-DWh4EGen.js              1.01 kB │ gzip:   0.53 kB
+dist/assets/AiSearchEmbed-BsG6wYSK.js                     1.01 kB │ gzip:   0.60 kB
+dist/assets/CalendarEmbed-Dg0RxXz3.js                     1.06 kB │ gzip:   0.61 kB
+dist/assets/NewsEmbed-B7wiKPT0.js                         1.07 kB │ gzip:   0.61 kB
+dist/assets/barTime-C-_jFuuD.js                           1.08 kB │ gzip:   0.52 kB
+dist/assets/CaptureMenu-CVZ5nyQw.js                       1.08 kB │ gzip:   0.65 kB
+dist/assets/LinkedNotesPanel-Bd9fnyPI.js                  1.09 kB │ gzip:   0.65 kB
+dist/assets/BreadthEmbed-B8OOT8l0.js                      1.09 kB │ gzip:   0.61 kB
+dist/assets/Traders-BFP8vTAp.js                           1.10 kB │ gzip:   0.60 kB
+dist/assets/FundamentalsEmbed-BJ_fBJ2_.js                 1.12 kB │ gzip:   0.62 kB
+dist/assets/useJ2Settings-C9fY-zVB.js                     1.14 kB │ gzip:   0.67 kB
+dist/assets/Sparkline-Cuys4P0D.js                         1.14 kB │ gzip:   0.69 kB
+dist/assets/ConfidenceStat-BHEwDWcD.js                    1.15 kB │ gzip:   0.73 kB
+dist/assets/captureFinancialFact-BCXqT2Bq.js              1.15 kB │ gzip:   0.55 kB
+dist/assets/PullToRefresh-3J9eQQR6.js                     1.16 kB │ gzip:   0.68 kB
+dist/assets/ModalShell.module-BBDh_wSF.js                 1.17 kB │ gzip:   0.53 kB
+dist/assets/useLiveBreadth-TFEm6OQ0.js                    1.19 kB │ gzip:   0.66 kB
+dist/assets/SmokeLogin-CA7jegTk.js                        1.21 kB │ gzip:   0.68 kB
+dist/assets/ConfirmModal-hPZTCSQj.js                      1.22 kB │ gzip:   0.61 kB
+dist/assets/format-D4AQN_X2.js                            1.22 kB │ gzip:   0.59 kB
+dist/assets/useReadAloudFollow-EFqHlUj0.js                1.23 kB │ gzip:   0.69 kB
+dist/assets/JournalLayout.module-Dw2Sf9Kx.js              1.24 kB │ gzip:   0.55 kB
+dist/assets/useBrokerWarming-DlULUvR3.js                  1.26 kB │ gzip:   0.73 kB
+dist/assets/useOptimisticNoteProperty-BAy-Nd5-.js         1.26 kB │ gzip:   0.78 kB
+dist/assets/darkPoolCluster-atDS86Ke.js                   1.26 kB │ gzip:   0.65 kB
+dist/assets/SyncFreshnessChip-BlEtiqV7.js                 1.30 kB │ gzip:   0.79 kB
+dist/assets/NotFound-Z3LLT2PW.js                          1.31 kB │ gzip:   0.61 kB
+dist/assets/enrichment-CdTMEarL.js                        1.32 kB │ gzip:   0.65 kB
+dist/assets/PaywallTeaser-Cl9s-XWN.js                     1.41 kB │ gzip:   0.67 kB
+dist/assets/disciplineGuards-BETme5OJ.js                  1.41 kB │ gzip:   0.63 kB
+dist/assets/useThemeIndexBars-BFNcUV9p.js                 1.44 kB │ gzip:   0.80 kB
+dist/assets/presentationPrimitives-DnhepxHa.js            1.45 kB │ gzip:   0.66 kB
+dist/assets/VerifyPending-DtCllJ1W.js                     1.46 kB │ gzip:   0.73 kB
+dist/assets/CollapsibleSection-DO1R3G0Y.js                1.48 kB │ gzip:   0.78 kB
+dist/assets/index-Vcq4gwWv.js                             1.49 kB │ gzip:   0.82 kB
+dist/assets/fontFamilies-BFcQTEuQ.js                      1.54 kB │ gzip:   0.59 kB
+dist/assets/InfoTip-CGytMtKH.js                           1.56 kB │ gzip:   0.83 kB
+dist/assets/PublicPageMeta-DhWIK4Az.js                    1.63 kB │ gzip:   0.85 kB
+dist/assets/FrozenList-D_GBpYzn.js                        1.68 kB │ gzip:   0.77 kB
+dist/assets/calendar-DXn8k2S0.js                          1.68 kB │ gzip:   0.85 kB
+dist/assets/ForgotPassword-CuyDtNvc.js                    1.71 kB │ gzip:   0.86 kB
+dist/assets/useWatchlistThemes-BmhfJ82v.js                1.74 kB │ gzip:   0.74 kB
+dist/assets/VerifyEmail-Bpi4ucvA.js                       1.75 kB │ gzip:   0.86 kB
+dist/assets/useTagSuggestions-C9FRhM6Q.js                 1.79 kB │ gzip:   0.94 kB
+dist/assets/Signup-0k9DY4Zq.js                            1.82 kB │ gzip:   0.80 kB
+dist/assets/SharedNotePage-CHJ4W_cG.js                    1.85 kB │ gzip:   0.91 kB
+dist/assets/ShareTargetPage-BpLrz_m1.js                   1.88 kB │ gzip:   0.89 kB
+dist/assets/StatsGrid-CA0IwL6I.js                         2.02 kB │ gzip:   0.80 kB
+dist/assets/ScreenshotPopover-Dxk_FCHU.js                 2.09 kB │ gzip:   0.73 kB
+dist/assets/InterventionBanner-CcFFha2_.js                2.23 kB │ gzip:   1.17 kB
+dist/assets/ContextPopover-DtH-rDJW.js                    2.26 kB │ gzip:   1.10 kB
+dist/assets/reviewSession-BdSb_kd8.js                     2.35 kB │ gzip:   1.01 kB
+dist/assets/ResetPassword-B_GcOV-1.js                     2.46 kB │ gzip:   1.04 kB
+dist/assets/ShareToFloor-CfH-wwmN.js                      2.46 kB │ gzip:   1.16 kB
+dist/assets/Subscribe-dIetHf86.js                         2.47 kB │ gzip:   1.26 kB
+dist/assets/uctJson-Be6rCK2i.js                           2.71 kB │ gzip:   1.32 kB
+dist/assets/ChartEmbed-CkKiQD1w.js                        2.74 kB │ gzip:   1.47 kB
+dist/assets/PostMarket-BOIC6vRH.js                        2.81 kB │ gzip:   1.16 kB
+dist/assets/useScope-CoWpPPsR.js                          2.82 kB │ gzip:   1.18 kB
+dist/assets/DiscordActivity-6fTwiNRJ.js                   2.93 kB │ gzip:   1.50 kB
+dist/assets/TradesSurface-BFNkW6pX.js                     2.94 kB │ gzip:   1.36 kB
+dist/assets/PublishFolderSheet-Bj-I1ajz.js                2.97 kB │ gzip:   1.35 kB
+dist/assets/convert-DU8MSPYz.js                           3.03 kB │ gzip:   1.38 kB
+dist/assets/PublishedPage-3jwtV187.js                     3.03 kB │ gzip:   1.36 kB
+dist/assets/Login-CtA_3M5Q.js                             3.12 kB │ gzip:   1.24 kB
+dist/assets/SharedScreen-nxNnFqBn.js                      3.23 kB │ gzip:   1.38 kB
+dist/assets/FormulaLibrary-D1dLLuGJ.js                    3.42 kB │ gzip:   1.51 kB
+dist/assets/TreemapView-pVe3AtN2.js                       3.45 kB │ gzip:   1.65 kB
+dist/assets/TweetsRender-Bq0j1FkD.js                      3.50 kB │ gzip:   1.54 kB
+dist/assets/BrokerEquityCurve-6HfOdYCv.js                 3.54 kB │ gzip:   1.82 kB
+dist/assets/CoursesSection-B86N779S.js                    3.56 kB │ gzip:   1.79 kB
+dist/assets/MoversRender-DBYLjdEP.js                      3.59 kB │ gzip:   1.58 kB
+dist/assets/InternalsRender-CWc8Jd7Q.js                   3.66 kB │ gzip:   1.69 kB
+dist/assets/CaptureConnectPage-CEpT3uG1.js                3.67 kB │ gzip:   1.54 kB
+dist/assets/ThemesRender-chU4Kd6s.js                      3.68 kB │ gzip:   1.60 kB
+dist/assets/CompassOrb-BGIiIftP.js                        3.69 kB │ gzip:   1.34 kB
+dist/assets/EconRender-CnW1vkUS.js                        3.79 kB │ gzip:   1.58 kB
+dist/assets/GoalProgress-CJ8gFtmv.js                      3.89 kB │ gzip:   1.77 kB
+dist/assets/PostsSection-UyO3_cbt.js                      3.95 kB │ gzip:   1.67 kB
+dist/assets/MarketContextWidget-AOmJMkXV.js               4.04 kB │ gzip:   1.82 kB
+dist/assets/OpenFlow-BYQ9mF1x.js                          4.08 kB │ gzip:   1.69 kB
+dist/assets/IndexesWidget-D5zdw2Rg.js                     4.15 kB │ gzip:   1.90 kB
+dist/assets/CatalystsRender-wM-KyXfW.js                   4.15 kB │ gzip:   1.79 kB
+dist/assets/optionCalcs-CLU8gfZl.js                       4.17 kB │ gzip:   1.61 kB
+dist/assets/drawingLabels-NKZJQ5iF.js                     4.33 kB │ gzip:   1.95 kB
+dist/assets/BookRender-RhfhXShc.js                        4.39 kB │ gzip:   1.74 kB
+dist/assets/PlanTradeSheet-CG7krsgl.js                    4.43 kB │ gzip:   1.84 kB
+dist/assets/TranscriptPanel-LshJmgMS.js                   4.53 kB │ gzip:   2.10 kB
+dist/assets/useCompassOverview-CWwK4TTr.js                4.56 kB │ gzip:   1.85 kB
+dist/assets/chartScreenshot-CWIBq6S7.js                   4.62 kB │ gzip:   2.27 kB
+dist/assets/NoteTasksView-Brx-FcBS.js                     4.62 kB │ gzip:   2.11 kB
+dist/assets/ResearchPage.module-DRBAl357.js               4.68 kB │ gzip:   1.78 kB
+dist/assets/BreadthRender-DRlwaWa_.js                     4.72 kB │ gzip:   2.19 kB
+dist/assets/ExportDialog-BcLy5YlZ.js                      4.74 kB │ gzip:   2.05 kB
+dist/assets/CalendarRender-CZsr0zpl.js                    4.75 kB │ gzip:   2.07 kB
+dist/assets/TradeReviewCard-XMX_6PK5.js                   4.90 kB │ gzip:   1.92 kB
+dist/assets/PortfolioHeat-DKrPDfjL.js                     5.06 kB │ gzip:   1.69 kB
+dist/assets/alertState-o5qIuDEx.js                        5.11 kB │ gzip:   2.38 kB
+dist/assets/useNoteConnectors-CHyblMf3.js                 5.19 kB │ gzip:   1.70 kB
+dist/assets/chartReadoutStore-DkdQ-tTe.js                 5.21 kB │ gzip:   2.26 kB
+dist/assets/SharedFormula-ButVHhuy.js                     5.27 kB │ gzip:   2.00 kB
+dist/assets/ProvenanceDemo-BNj6gNL2.js                    5.29 kB │ gzip:   2.20 kB
+dist/assets/TrackRecordPage-BVGZrEoY.js                   5.41 kB │ gzip:   2.25 kB
+dist/assets/CatalystsHistory-CJUsvouM.js                  5.45 kB │ gzip:   2.27 kB
+dist/assets/Methodology-DqGeBWB5.js                       5.52 kB │ gzip:   2.33 kB
+dist/assets/NoteBoardView-Ccz6cKF1.js                     5.54 kB │ gzip:   2.54 kB
+dist/assets/FlowRender-CxrLEDSI.js                        5.71 kB │ gzip:   2.22 kB
+dist/assets/index-BGDCpw6y.js                             5.79 kB │ gzip:   2.32 kB
+dist/assets/NewsSettingsPanel-Bz-PyQV2.js                 5.87 kB │ gzip:   2.30 kB
+dist/assets/BuzzRender-C7VPgf9L.js                        6.01 kB │ gzip:   2.41 kB
+dist/assets/EarnResultsRender-BsjLBI2L.js                 6.07 kB │ gzip:   2.36 kB
+dist/assets/EarnCardsRender-Be8MCoIc.js                   6.09 kB │ gzip:   2.36 kB
+dist/assets/commit-DMPV0RH5.js                            6.16 kB │ gzip:   2.47 kB
+dist/assets/index-C7yKKq-w.js                             6.19 kB │ gzip:   2.10 kB
+dist/assets/LandingAnalytics-ChFhg8dm.js                  6.35 kB │ gzip:   1.88 kB
+dist/assets/NoteCalendarView-C44EoM6S.js                  6.42 kB │ gzip:   2.81 kB
+dist/assets/profileFormat-BL7LHQlP.js                     6.47 kB │ gzip:   2.71 kB
+dist/assets/WritingHelpPanel-B2MKF2nZ.js                  6.68 kB │ gzip:   2.91 kB
+dist/assets/PatternReview-DR4_7mOv.js                     6.76 kB │ gzip:   2.74 kB
+dist/assets/sessionStale-DptuocTv.js                      6.99 kB │ gzip:   2.66 kB
+dist/assets/Desk-DqdvdiDz.js                              7.14 kB │ gzip:   2.81 kB
+dist/assets/ArticlesSection-BI0SG-0M.js                   7.14 kB │ gzip:   2.72 kB
+dist/assets/VoiceInputButton-rb7bOWNZ.js                  7.31 kB │ gzip:   2.92 kB
+dist/assets/calculations-D1FU6tq6.js                      7.39 kB │ gzip:   3.04 kB
+dist/assets/AboutPanel-DXJgyZaS.js                        7.69 kB │ gzip:   2.68 kB
+dist/assets/MarketBreadth-FPUS6GjI.js                     7.82 kB │ gzip:   3.19 kB
+dist/assets/intake-nTcQ8PJH.js                            7.87 kB │ gzip:   3.84 kB
+dist/assets/NotebookTour-_sdUkX6Q.js                      7.91 kB │ gzip:   3.43 kB
+dist/assets/FormulaReference-CHfBTW1t.js                  7.95 kB │ gzip:   3.25 kB
+dist/assets/NoteTimelineView-D-120guK.js                  7.97 kB │ gzip:   3.37 kB
+dist/assets/TickerResearchWorkspace-r_SWQH_3.js           8.04 kB │ gzip:   2.89 kB
+dist/assets/Terms-B7PRh5qf.js                             8.11 kB │ gzip:   3.17 kB
+dist/assets/BreadthDrillList-BaZhhH3v.js                  8.36 kB │ gzip:   3.69 kB
+dist/assets/PatternAdmin-C9XuaEfx.js                      8.55 kB │ gzip:   2.91 kB
+dist/assets/FundamentalSnapshot-DYjHRyPL.js               8.64 kB │ gzip:   3.32 kB
+dist/assets/OwnershipPanel-CMMxnW6l.js                    8.99 kB │ gzip:   3.09 kB
+dist/assets/GlobalAddPositionProvider-BxO-8YVM.js         9.01 kB │ gzip:   3.75 kB
+dist/assets/TeamSection-CxMvFjvW.js                       9.03 kB │ gzip:   2.80 kB
+dist/assets/BrokersPage-grmo9Eq-.js                       9.05 kB │ gzip:   3.26 kB
+dist/assets/Compare-KWqIGExd.js                           9.20 kB │ gzip:   3.20 kB
+dist/assets/JournalTwoRoot-CqQjDLHu.js                    9.21 kB │ gzip:   3.89 kB
+dist/assets/NewAccountModal-8F0rN-Ox.js                   9.23 kB │ gzip:   3.23 kB
+dist/assets/AiSearchPage-DeGuBVkK.js                      9.27 kB │ gzip:   3.30 kB
+dist/assets/NoteGraphView-D_UFVOrq.js                     9.39 kB │ gzip:   4.14 kB
+dist/assets/AccountsTab-CPA9C8uQ.js                       9.52 kB │ gzip:   3.62 kB
+dist/assets/FlowScoreboard-vyULZuPW.js                    9.54 kB │ gzip:   3.05 kB
+dist/assets/format-BRMX68UA.js                            9.71 kB │ gzip:   4.11 kB
+dist/assets/Pricing-DqZWOpuc.js                           9.77 kB │ gzip:   3.49 kB
+dist/assets/NewsWidget-fB6aJHcm.js                       10.03 kB │ gzip:   4.27 kB
+dist/assets/ReportPage-C7-PseK3.js                       10.21 kB │ gzip:   2.74 kB
+dist/assets/AddTradeModal-Cd35TJ7f.js                    10.36 kB │ gzip:   3.37 kB
+dist/assets/SetupLibrary-Bm3RKoww.js                     10.36 kB │ gzip:   3.17 kB
+dist/assets/AlertsWidget-zc6RMCXT.js                     10.49 kB │ gzip:   4.15 kB
+dist/assets/ScopeBar-Ca7Ul8xk.js                         10.79 kB │ gzip:   3.77 kB
+dist/assets/MyStocksHub-BKt4fYQv.js                      10.86 kB │ gzip:   3.88 kB
+dist/assets/Privacy-aFtdxWMq.js                          11.11 kB │ gzip:   3.80 kB
+dist/assets/ChartHealth-CqeSm4-I.js                      11.18 kB │ gzip:   3.23 kB
+dist/assets/Confluence-Bj3bv1H7.js                       11.20 kB │ gzip:   4.32 kB
+dist/assets/ObsidianConnectModal-DJWzbdHc.js             11.28 kB │ gzip:   3.93 kB
+dist/assets/ColorPanel-CawHdKo5.js                       11.57 kB │ gzip:   4.47 kB
+dist/assets/ResearchComparePage-DxMEprQh.js              11.57 kB │ gzip:   3.70 kB
+dist/assets/BreadthDrillModal-DdMBnHme.js                12.07 kB │ gzip:   5.03 kB
+dist/assets/BrokerConnectionsCard-CIoLrauB.js            12.48 kB │ gzip:   4.00 kB
+dist/assets/MorningWire-CHNMvqx4.js                      13.06 kB │ gzip:   5.48 kB
+dist/assets/ComingSoon-ICvSMHtk.js                       13.31 kB │ gzip:   5.08 kB
+dist/assets/TradeDrawer-BnNUNkUz.js                      13.40 kB │ gzip:   4.07 kB
+dist/assets/NotebookWidget-BFwTbcqx.js                   13.46 kB │ gzip:   5.17 kB
+dist/assets/CommunityTab-C_ThG7l6.js                     14.49 kB │ gzip:   4.29 kB
+dist/assets/JournalLayout-BP_2i6Nq.js                    14.99 kB │ gzip:   4.52 kB
+dist/assets/WisdomAdmin-D9aN94Ri.js                      15.22 kB │ gzip:   5.19 kB
+dist/assets/ChartRender-C8mNq8FS.js                      15.25 kB │ gzip:   6.10 kB
+dist/assets/ramp200-BRVqmtmF.js                          15.47 kB │ gzip:   4.55 kB
+dist/assets/FundamentalsWidget-BDAHLA2B.js               15.70 kB │ gzip:   5.62 kB
+dist/assets/ArticleReader-DHWgWuwv.js                    16.27 kB │ gzip:   5.73 kB
+dist/assets/CalendarWidget-CcADm_VD.js                   16.32 kB │ gzip:   6.24 kB
+dist/assets/index-CCYs1hlb.js                            16.51 kB │ gzip:   5.23 kB
+dist/assets/EvidenceTab-K6N-BP0U.js                      17.05 kB │ gzip:   5.37 kB
+dist/assets/CalendarTab-B47DpPR7.js                      17.86 kB │ gzip:   6.74 kB
+dist/assets/PositionDetailPage-BQ6X4jeK.js               19.87 kB │ gzip:   7.01 kB
+dist/assets/vendor-swr-_43fCvjP.js                       19.87 kB │ gzip:   8.21 kB
+dist/assets/useDurableNote-D9AwYkS0.js                   21.73 kB │ gzip:   7.51 kB
+dist/assets/BreadthWidget-BsR5WPFM.js                    25.02 kB │ gzip:   9.35 kB
+dist/assets/AddPositionModal-DJL6J4Bx.js                 25.89 kB │ gzip:   8.81 kB
+dist/assets/ChartThemesModal-CvHumpXo.js                 26.54 kB │ gzip:   8.98 kB
+dist/assets/CapturedSourceSheet-CMzzxgqa.js              26.83 kB │ gzip:   9.29 kB
+dist/assets/GlobalVoiceLayer-Bm-bMWRR.js                 28.31 kB │ gzip:   9.77 kB
+dist/assets/AiSearchWidget-C9eJ0y2Z.js                   29.19 kB │ gzip:  10.54 kB
+dist/assets/ImportWizard-DXUcnCI-.js                     31.50 kB │ gzip:  10.82 kB
+dist/assets/TodaySurface-batElJ2x.js                     31.80 kB │ gzip:  10.80 kB
+dist/assets/indicatorRegistry-p_SUPUfE.js                32.82 kB │ gzip:  10.59 kB
+dist/assets/FlowCharts-DxB_WUdJ.js                       32.97 kB │ gzip:   9.12 kB
+dist/assets/ImportCsvModal-DpWJHCNr.js                   34.76 kB │ gzip:  12.39 kB
+dist/assets/ResearchPage-hP8KiCy8.js                     34.82 kB │ gzip:  10.53 kB
+dist/assets/heatmapMetrics--SX_hOq0.js                   35.32 kB │ gzip:  10.27 kB
+dist/assets/FolderSidebar-DHeeFPsF.js                    36.49 kB │ gzip:  10.30 kB
+dist/assets/Dashboard-DLJTV3_P.js                        37.03 kB │ gzip:  13.42 kB
+dist/assets/DayDetailPage-D_TQ730k.js                    38.01 kB │ gzip:  12.72 kB
+dist/assets/CompassTab-ClQ8Q41-.js                       39.00 kB │ gzip:  10.72 kB
+dist/assets/TradeDetailPage-B4-rgUEZ.js                  41.09 kB │ gzip:  14.32 kB
+dist/assets/intraday5m-DlrZrBfk.js                       41.48 kB │ gzip:   9.93 kB
+dist/assets/ShortcutCheatSheet-a97A29l1.js               41.49 kB │ gzip:  12.34 kB
+dist/assets/flowCompute-Dm3inuxV.js                      41.65 kB │ gzip:  15.58 kB
+dist/assets/AlertTester-CqL2ZGMm.js                      41.77 kB │ gzip:   9.72 kB
+dist/assets/Support-BHy3DUNh.js                          45.61 kB │ gzip:  15.50 kB
+dist/assets/UCT20-CHT39zDZ.js                            45.99 kB │ gzip:  14.99 kB
+dist/assets/ThemeTrackerPage-C3K1hcsE.js                 48.21 kB │ gzip:  16.96 kB
+dist/assets/CommunityRedesign-C6pAaIxO.js                54.29 kB │ gzip:  18.32 kB
+dist/assets/Landing-Bhl7BBiW.js                          55.42 kB │ gzip:  17.38 kB
+dist/assets/Calendar-BnzqcGxR.js                         63.20 kB │ gzip:  20.65 kB
+dist/assets/FilingsTab-CemC6N7u.js                       70.10 kB │ gzip:  20.52 kB
+dist/assets/VideosSection-D7Pctqrz.js                    86.61 kB │ gzip:  26.36 kB
+dist/assets/Watchlists-DhMV6kVJ.js                       88.13 kB │ gzip:  28.87 kB
+dist/assets/EarningsCard-BX5jFLzL.js                     91.80 kB │ gzip:  31.71 kB
+dist/assets/Admin-P_S2nlrL.js                            93.49 kB │ gzip:  22.98 kB
+dist/assets/codeHighlight-DRgaoGhq.js                   100.63 kB │ gzip:  32.69 kB
+dist/assets/AnalyticsTab-B08LaCvG.js                    104.13 kB │ gzip:  32.98 kB
+dist/assets/DarkPool-DFu20tUO.js                        104.83 kB │ gzip:  29.22 kB
+dist/assets/LiveFlowMassive-DyneA60c.js                 106.44 kB │ gzip:  30.96 kB
+dist/assets/ChartPane-D0rc5XKs.js                       120.23 kB │ gzip:  37.87 kB
+dist/assets/registry-BA85Ttbe.js                        141.27 kB │ gzip:  58.72 kB
+dist/assets/index-COz2YCmt.js                           149.65 kB │ gzip:  44.75 kB
+dist/assets/Screener-DUpL20m1.js                        151.15 kB │ gzip:  50.54 kB
+dist/assets/Settings-C-9msJr_.js                        153.05 kB │ gzip:  43.28 kB
+dist/assets/TradeJournalTab-CmbfVmHr.js                 153.99 kB │ gzip:  48.86 kB
+dist/assets/CatalystTable-CgCjNS_A.js                   155.78 kB │ gzip:  47.70 kB
+dist/assets/vendor-charts-DHOb9Clg.js                   185.38 kB │ gzip:  59.55 kB
+dist/assets/useUserDefinitions-GAnoo-XO.js              188.41 kB │ gzip:  60.53 kB
+dist/assets/ModelBook-gNGTfQaT.js                       192.95 kB │ gzip:  61.93 kB
+dist/assets/BuilderSheet-DmfEZ0-F.js                    212.60 kB │ gzip:  69.83 kB
+dist/assets/vendor-react-cFHfmPl1.js                    221.41 kB │ gzip:  70.89 kB
+dist/assets/NotebookTab-CuuFaPA4.js                     239.59 kB │ gzip:  77.07 kB
+dist/assets/katexRender-Am29EVkZ.js                     261.25 kB │ gzip:  77.60 kB
+dist/assets/tiptap-Bxheyuk_.js                          262.93 kB │ gzip:  87.25 kB
+dist/assets/PopoutShell-BSEIEOao.js                     281.63 kB │ gzip:  87.44 kB
+dist/assets/ChartsWorkspace-DcrfjyqT.js                 286.49 kB │ gzip:  89.95 kB
+dist/assets/OptionsFlow-DOzUmwZs.js                     315.65 kB │ gzip:  83.71 kB
+dist/assets/askInsert-C3TMGqD_.js                       321.89 kB │ gzip:  99.73 kB
+dist/assets/CodeEditor-D-hlQ7uE.js                      357.80 kB │ gzip: 116.71 kB
+dist/assets/BarChart-B3Yccedv.js                        379.59 kB │ gzip: 104.49 kB
+dist/assets/Breadth-DXTJZEAE.js                         458.51 kB │ gzip: 153.37 kB
+dist/assets/PdfDocumentViewer-CQiTsG9f.js               482.77 kB │ gzip: 145.17 kB
+dist/assets/index-C83nQpbQ.js                           502.23 kB │ gzip: 131.00 kB
+dist/assets/index-B7xOssF6.js                           561.02 kB │ gzip: 189.98 kB
+dist/assets/index-CHIa68J2.js                           588.94 kB │ gzip: 194.55 kB
+dist/assets/StockChart-Npias85f.js                      638.96 kB │ gzip: 209.00 kB
+dist/assets/index-DrN3v1t9.js                           873.40 kB │ gzip: 277.57 kB
+✓ built in 18.09s
+
+  dist\cot-facts.cjs  39.0kb
+
+Done in 39ms
+cot-facts: wrote C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9B\export-8a0098029\app\dist\cot-facts.cjs
+
+  dist\flow-facts.cjs  79.8kb
+
+Done in 50ms
+flow-facts: wrote C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9B\export-8a0098029\app\dist\flow-facts.cjs

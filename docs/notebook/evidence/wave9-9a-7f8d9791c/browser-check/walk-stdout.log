@@ -1,0 +1,25 @@
+[PASS] sandbox healthy {"base": "http://127.0.0.1:8204", "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-walk"}
+[PASS] corpus seeded through import/confirm {"notes": 992}
+[PASS] All notes shows 992 {"text": "Showing 100 of 992 notes"}
+[PASS] probe pasted (All notes, after load) {"version": "uct-bench-probe/1"}
+[PASS] selfTest (All notes, after load) {"ms": 203.2, "window": [195, 260]}
+[PASS] H1 check(marker) reads absent {}
+[FAIL] H1 walk raised {"error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: |   - waiting for locator(\"button[data-note-card-id=\\\"6becc5184a97447b943ac93e39f35523\\\"]:not([title])\") to be visible"}
+[PASS] probe pasted (after the H1 failure) {"version": "uct-bench-probe/1"}
+[PASS] selfTest (after the H1 failure) {"ms": 215.3, "window": [195, 260]}
+[PASS] H4 walked: rare term typed, row appears, Escape {"samples": [309.4, 253.2, 256], "invalid": [], "refused": null}
+[PASS] H5 walked: Ctrl+K, two-word prefix, full-title row, Escape {"query": "Quokka zephyr", "samples": [283.4, 180.1, 183.3], "invalid": [], "refused": null}
+[PASS] H6 walked: last paragraph, Ctrl+End, 60 x {"n": 60, "status": "COMPLETE", "refused": null}
+[FAIL] H6 walk raised {"error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: |   - waiting for locator(\"button[data-note-card-id]:not([title])\").first to be visible"}
+[PASS] probe pasted (after the H6 failure) {"version": "uct-bench-probe/1"}
+[PASS] selfTest (after the H6 failure) {"ms": 211.5, "window": [195, 260]}
+[PASS] H8 diagnostic: '+ New note' on All notes, NO probe in the page {"editor_opened": true, "probe_present": false, "url_now": "/journal/notebook?note=d7b168d2c30c4c9ea2f47a0c6ed6a05c", "urls_after_click": ["/journal/notebook?note=d7b168d2c30c4c9ea2f47a0c6ed6a05c"], "console_tail": ["error: Failed to load resource: the server responded with a status of 503 (Service 
+[FAIL] H8 copy from paste-payload.html with Ctrl+A, Ctrl+C {"clipboard_types": ["ERROR NotAllowedError: Failed to execute 'read' on 'Clipboard': Read permission denied."]}
+[FAIL] H8 walk raised {"error": "the protocol's copy step put no HTML on the clipboard here; nothing is faked"}
+[PASS] probe pasted (after the H8 failure) {"version": "uct-bench-probe/1"}
+[PASS] selfTest (after the H8 failure) {"ms": 216.1, "window": [195, 260]}
+[PASS] H9 a reload loses the probe (it must be pasted again) {}
+[PASS] H9 walked: reload, paste, arm('cold') first, selfTest, dump {"console": "[uctBench] cold (LCP proxy): 396 ms", "lcp": {"size": 10047, "element": "DIV Meet CompassTap to talk to your trading coach \u2014 markets, set"}, "label": "LCP proxy", "samples": [396], "refused": null}
+[PASS] no page errors during the walk {"errors": []}
+[PASS] sandbox stopped; integrity {"status": "CLEAN", "stop": "graceful to the shutdown checkpoint, then forced exit"}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\browser-check\integrity.md

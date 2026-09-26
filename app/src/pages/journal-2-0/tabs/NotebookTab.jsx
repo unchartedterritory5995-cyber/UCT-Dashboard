@@ -102,6 +102,28 @@ const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimel
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
+// Wave 9 (lane 9D, D2): the sidebar's Publish-folder confirmation, fetched on its first open.
+const PublishFolderSheet = lazyDialog(() => import('../components/notebook/PublishFolderSheet'), 'publish folder')
+
+// ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
+// FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
+// `${label} ${folder.name}` (its wave-8 extension point); it is NOT edited (ruling D-9D3).
+/** The action's label, and the first word of its accessible name. */
+const PUBLISH_FOLDER_ACTION = 'Publish'
+/** No actions: one frozen array, so a render with the gate off hands FolderSidebar the same value. */
+const NO_FOLDER_ACTIONS = Object.freeze([])
+/**
+ * The button FolderSidebar rendered for this action on `folder`, to hand focus back to when the
+ * sheet closes. `onSelect` gets the folder, not the event: after a keyboard press or a Chromium
+ * click the button IS the focused element; Safari does not focus a clicked button, so it is found
+ * by the name FolderSidebar gives it.
+ */
+function folderActionButton(label, folder) {
+  const name = `${label} ${folder.name}`
+  const active = typeof document !== 'undefined' ? document.activeElement : null
+  if (active?.getAttribute?.('aria-label') === name) return active
+  return [...document.querySelectorAll('button[aria-label]')].find((b) => b.getAttribute('aria-label') === name) || null
+}
 
 // Wave 8 seam S8-3: the first-run tour (lane 8C builds it in onboarding/NotebookTour.jsx).
 // Its own chunk, outside the Notebook's first-open closure (dispatch-plan R9). ⛔ Final-review
@@ -176,6 +198,24 @@ export default function NotebookTab() {
   // reason to take the Notebook down.
   const auth = useContext(AuthContext)
   const drain = useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
+
+  // Wave 9 (lane 9D, D2): "Publish" on every folder row — only while the publish gate is
+  // LATCHED on (`notebookFlag`, as SharingCard and the editor's Share door read it; a tab that
+  // has not heard from the server reads as off) and for a paid member, the same pair the Share
+  // door requires: the server answers a free member 402, and a door whose only result is a
+  // refusal is not offered. Selecting it opens a confirmation (ruling D-9D1), never a publish.
+  const publishOn = notebookFlag('notebook_publish_enabled') === true && auth?.isPaid === true
+  const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
+  const extraFolderActions = useMemo(() => (publishOn ? [{
+    id: 'publish',
+    label: PUBLISH_FOLDER_ACTION,
+    icon: 'globe',
+    onSelect: (folder) => setPublishFolder({
+      id: folder.id, name: folder.name, opener: folderActionButton(PUBLISH_FOLDER_ACTION, folder), open: true,
+    }),
+  }] : NO_FOLDER_ACTIONS), [publishOn])
+  // Closing keeps the folder (and its button) until the sheet has handed focus back.
+  const closePublishFolder = useCallback(() => setPublishFolder((f) => (f ? { ...f, open: false } : f)), [])
 
   // Wave Q1 — and the member has to be able to SEE it. A blocked entry is
   // honest on the open note and was completely silent everywhere else: the
@@ -1212,7 +1252,10 @@ export default function NotebookTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkBusy, undoNotice])
 
-  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false } = {}) => {
+  // Wave 9 (lane 9D, D1): `format` is the member's choice in the bulk bar's Export
+  // panel (`EXPORT_FORMATS[].id`), carried to the request, to the sentence that names
+  // it, and through a confirmed "Export anyway" (its `args`).
+  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false, format } = {}) => {
     if (!ids.length || !startBulk()) return
     try {
       // ⛔ A note whose words the server does not have yet would export WITHOUT
@@ -1228,9 +1271,9 @@ export default function NotebookTab() {
       const send = rest.filter((id) => !checked.unsent.has(id) && !unchecked.includes(id))
       let count = 0
       let skipped = 0
-      if (send.length) ({ count, skipped } = await exportSelectedNotes(send))
-      const said = describeExport({ count, skipped, blocked, unsent }, { titleOf })
-      const offer = describeUnchecked('export', unchecked, { titleOf })
+      if (send.length) ({ count, skipped } = await exportSelectedNotes(send, format))
+      const said = describeExport({ count, skipped, blocked, unsent, format }, { titleOf })
+      const offer = describeUnchecked('export', unchecked, { titleOf, args: { format } })
       const saidAnything = count || skipped || blocked.length || unsent.length
       setBulkNotice(offer
         ? { ...offer, message: [saidAnything ? said.message : '', offer.message].filter(Boolean).join(' ') }
@@ -1249,7 +1292,7 @@ export default function NotebookTab() {
   const runAnyway = (anyway) => {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
-    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
+    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
     // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
     // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
     // `{from, to}` 400s at the server, and its own success sentence would
@@ -1555,6 +1598,7 @@ export default function NotebookTab() {
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
             onRenameTag={onRenameTag}
+            extraFolderActions={extraFolderActions}
           />
         </div>
       </div>
@@ -1926,7 +1970,7 @@ export default function NotebookTab() {
             onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
             onFavorite={() => runBulk('favorite')}
             onUnfavorite={() => runBulk('unfavorite')}
-            onExport={() => exportSelection()}
+            onExport={(format) => exportSelection(selection.selectedIds, { format })}
             onTrash={() => runBulk('trash')}
             onRestore={() => runBulk('restore')}
             onArchive={() => runBulk('archive')}
@@ -2135,6 +2179,16 @@ export default function NotebookTab() {
           </>
         )}
       </div>
+      {/* Wave 9 (lane 9D, D2): mounted OUTSIDE the pane's branches. The folder tree it opens
+          from is on screen on the home page, beside an open note and over the list alike; a
+          sheet mounted inside the list branch would make the action a dead button everywhere
+          else. */}
+      <PublishFolderSheet
+        open={Boolean(publishFolder?.open)}
+        folder={publishFolder}
+        returnFocusTo={publishFolder?.opener || null}
+        onClose={closePublishFolder}
+      />
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}

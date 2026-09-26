@@ -1,0 +1,7 @@
+quotes checked for length only (no --pages): the verbatim check needs the fetched page texts
+REFUSING TO WRITE — the built scorecard does not hold at the revision it records (2f24a64fd); commit its cited inputs first:
+  - RECORD docs/notebook/competitive-gap-ledger.md:142 no longer holds "⚰️ was: see G-044 ⟶ **DUPLICATE of G-044 — tracked there** (2026-09-26, controll"
+  - RECORD docs/notebook/competitive-gap-ledger.md:448 no longer holds "BLOCKED (owner)** — a person on a real device every release, or an Automate purc"
+  - RECORD docs/notebook/competitive-gap-ledger.md:428 no longer holds "OPEN** — not built"
+  - RECORD docs/notebook/competitive-gap-ledger.md:418 no longer holds "PARTIAL** — add/delete rows and columns and the header row DONE (wave 6); resize"
+main --write returned 1 ; wrote a file: False

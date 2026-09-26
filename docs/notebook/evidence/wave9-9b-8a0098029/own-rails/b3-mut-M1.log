@@ -1,0 +1,52 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___________ test_an_unknown_status_is_listed_under_unbucketed_by_id ___________
+
+    def test_an_unknown_status_is_listed_under_unbucketed_by_id():
+        text = _fixture(_row('G-901', '**DONE**'), _row('G-902', 'wibble — nobody knows'))
+        rows = {r.rid: r for r in gls.parse(text)}
+        assert rows['G-901'].bucket == 'DONE'
+>       assert rows['G-902'].bucket is None
+E       AssertionError: assert 'DONE' is None
+E        +  where 'DONE' = Row(rid='G-902', line=6, status='wibble — nobody knows', bucket='DONE', reason='').bucket
+
+tests\test_gap_ledger_summary.py:100: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+______________ test_the_committed_block_equals_the_tools_output _______________
+
+    def test_the_committed_block_equals_the_tools_output():
+        text = _ledger_text()
+        have = gls.committed_block(text)
+        assert have is not None, 'the ledger carries no GENERATED:gap-ledger-summary block'
+>       assert have == gls.render(gls.parse(text))
+E       AssertionError: assert '<!-- GENERAT...mmary:END -->' == '<!-- GENERAT...mmary:END -->'
+E         
+E         Skipping 371 identical leading characters in diff, use -v to show
+E         - | DONE | 110 | G-001, G-002, G-003, G-004, G-005, G-010, G-011, G-012, G-013, G-014, G-015, G-016, G-018, G-020, G-021, G-022, G-023, G-024, G-025, G-026, G-030, G-031, G-032, G-033, G-034, G-036, G-036b, G-041, G-042, G-045, G-050, G-051, G-053, G-060, G-061, G-063, G-064, G-070, G-072, G-073, G-073b, G-074, G-075, G-080, G-082, G-083, G-084, G-090, G-091, G-092, G-093, G-094, G-100, G-101, G-102, G-103, G-104, G-105, G-106, G-128, G-110, G-111, G-112, G-113, G-114, G-115, G-116, G-117, G-118, G-119, G-...
+E         
+E         ...Full output truncated (13 lines hidden), use '-vv' to show
+
+tests\test_gap_ledger_summary.py:57: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 550 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 19 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_gap_ledger_summary.py::test_an_unknown_status_is_listed_under_unbucketed_by_id
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_gap_ledger_summary.py::test_an_unknown_status_is_listed_under_unbucketed_by_id
+FAILED tests/test_gap_ledger_summary.py::test_the_committed_block_equals_the_tools_output
+2 failed, 570 warnings in 0.47s

@@ -711,8 +711,11 @@ function FolderNode({
               title="Delete folder"
               aria-label={`Delete ${node.name}`}
             ><UIcon name="x" size={11} gold={false} /></button>
-            {/* The wave-9 door (ruling D-B8: folder publish). Nothing passes an
-                action in wave 8; each one renders with the same idiom. */}
+            {/* The wave-9 door (ruling D-B8: folder publish). Each action renders with the
+                same idiom as its neighbours: an `icon` (a UIcon name) in the 11px slot, its
+                label as the title and the accessible name. ⚰️ Wave 9 lane 9D shipped the
+                LABEL text in that slot, which pushed a long folder name onto two lines;
+                an action without an icon still shows its label. */}
             {extraFolderActions.map((action) => (
               <button
                 key={action.id}
@@ -721,7 +724,7 @@ function FolderNode({
                 onClick={() => action.onSelect(node)}
                 title={action.label}
                 aria-label={`${action.label} ${node.name}`}
-              >{action.label}</button>
+              >{action.icon ? <UIcon name={action.icon} size={11} gold={false} /> : action.label}</button>
             ))}
           </span>
         </>)}

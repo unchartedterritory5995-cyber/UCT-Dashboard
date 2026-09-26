@@ -7,6 +7,8 @@ it and the tree it was built from. A number with no command beside it does not b
 The enforced values live in `docs/notebook/perf-budgets.json` (edited by hand; §3).
 This file explains them.
 
+The head-to-head speed benchmark against Notion, Evernote and Obsidian (wave 9, lane 9A) keeps its own record in `docs/notebook/benchmark/` (protocol, data sheet, generated results), and nothing it measures ever moves a budget here.
+
 ## 1. Bundle baseline (I0, the merged `vite.config.js`)
 
 ### What changed and why the bytes moved

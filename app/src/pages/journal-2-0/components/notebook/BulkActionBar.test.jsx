@@ -3,6 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import BulkActionBar, { folderPathOptions, UNFILED_VALUE } from './BulkActionBar'
+import { EXPORT_FORMATS } from './export/exportFormats'
 
 const FOLDERS = [
   { id: 'f2', name: 'Semis', parentId: 'f1' },
@@ -150,10 +151,11 @@ describe('BulkActionBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Favorite' }))
     fireEvent.click(screen.getByRole('button', { name: 'Unfavorite' }))
     fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
     expect(p.onFavorite).toHaveBeenCalled()
     expect(p.onUnfavorite).toHaveBeenCalled()
-    expect(p.onExport).toHaveBeenCalled()
+    expect(p.onExport).toHaveBeenCalledWith('md')
     expect(p.onTrash).toHaveBeenCalled()
   })
 
@@ -172,6 +174,73 @@ describe('BulkActionBar', () => {
     expect(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Move' })).toBeDisabled()
     expect(screen.getByRole('status')).toHaveTextContent('Working…')
+  })
+})
+
+describe('BulkActionBar — Export selected offers every format (wave 9, D1)', () => {
+  const panel = () => screen.queryByRole('group', { name: 'Export the selected notes as' })
+
+  it('opens a panel listing EXPORT_FORMATS — every label, in order, each describing what it keeps', () => {
+    setup()
+    const btn = screen.getByRole('button', { name: 'Export selected' })
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    expect(panel()).toBeNull()
+    fireEvent.click(btn)
+    expect(btn).toHaveAttribute('aria-expanded', 'true')
+    expect(btn.getAttribute('aria-controls')).toBe(panel().id)
+    const buttons = within(panel()).getAllByRole('button')
+    expect(buttons.map((b) => b.textContent)).toEqual(EXPORT_FORMATS.map((f) => f.menuLabel))
+    // non-vacuity: the list really is the four formats the server takes
+    expect(EXPORT_FORMATS.map((f) => f.id)).toEqual(['md', 'html', 'json', 'docx'])
+    for (const f of EXPORT_FORMATS) {
+      expect(within(panel()).getByRole('button', { name: f.menuLabel })).toHaveAccessibleDescription(f.keeps)
+    }
+  })
+
+  it.each(EXPORT_FORMATS.map((f) => [f.menuLabel, f.id]))('choosing %s sends %s, once, and closes the panel', (label, id) => {
+    const p = setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+    fireEvent.click(within(panel()).getByRole('button', { name: label }))
+    expect(p.onExport).toHaveBeenCalledTimes(1)
+    expect(p.onExport).toHaveBeenCalledWith(id)
+    expect(panel()).toBeNull()
+    expect(screen.getByRole('button', { name: 'Export selected' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('opening Export closes Tags, and opening Tags closes Export — one panel at a time', () => {
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+    expect(screen.getByRole('combobox', { name: 'Tag to add to the selected notes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+    expect(panel()).not.toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Tag to add to the selected notes' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Tags' }))
+    expect(panel()).toBeNull()
+  })
+
+  it('Escape closes the panel, marks the key handled, and hands focus back to Export selected', () => {
+    setup()
+    const btn = screen.getByRole('button', { name: 'Export selected' })
+    fireEvent.click(btn)
+    const json = within(panel()).getByRole('button', { name: 'JSON' })
+    json.focus()
+    // fireEvent answers false when the event was default-prevented: the page's
+    // "Esc clears the selection" skips an Esc already marked handled.
+    expect(fireEvent.keyDown(json, { key: 'Escape' })).toBe(false)
+    expect(panel()).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('the Archived view offers the same four formats', () => {
+    const p = setup({ archiveView: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Word (.docx)' }))
+    expect(p.onExport).toHaveBeenCalledWith('docx')
+  })
+
+  it('while busy the formats cannot be chosen', () => {
+    setup({ busy: true })
+    expect(screen.getByRole('button', { name: 'Export selected' })).toBeDisabled()
   })
 })
 

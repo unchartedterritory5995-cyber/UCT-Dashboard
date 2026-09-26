@@ -1,0 +1,161 @@
+{
+  "counts": {
+    "folders": 146,
+    "large_notes": 2,
+    "notes_with_ticker": 262,
+    "paste_paragraphs": 200,
+    "small_notes": 990,
+    "tags": 24,
+    "top_level_folders": 7,
+    "total_notes": 992,
+    "uct_batches": 2
+  },
+  "enex_notebooks": {
+    "Bench.enex": {
+      "notebook": "Bench",
+      "notes": 4,
+      "subfolders_flattened_into_it": 0
+    },
+    "Daily log.enex": {
+      "notebook": "Daily log",
+      "notes": 162,
+      "subfolders_flattened_into_it": 25
+    },
+    "Ideas.enex": {
+      "notebook": "Ideas",
+      "notes": 174,
+      "subfolders_flattened_into_it": 21
+    },
+    "Playbooks.enex": {
+      "notebook": "Playbooks",
+      "notes": 142,
+      "subfolders_flattened_into_it": 21
+    },
+    "Reading.enex": {
+      "notebook": "Reading",
+      "notes": 180,
+      "subfolders_flattened_into_it": 24
+    },
+    "Research.enex": {
+      "notebook": "Research",
+      "notes": 176,
+      "subfolders_flattened_into_it": 27
+    },
+    "Reviews.enex": {
+      "notebook": "Reviews",
+      "notes": 154,
+      "subfolders_flattened_into_it": 21
+    }
+  },
+  "formats": {
+    "enex": {
+      "files": 7,
+      "path": "enex/",
+      "tree_sha256": "b8ffd2ab9022760285590a19dc7f6ca11e95d53fad07f1182fe2f8f7d61b8c79"
+    },
+    "notion": {
+      "files": 992,
+      "note": "members hashed, not the zip bytes",
+      "path": "notion-import.zip",
+      "tree_sha256": "f8fddc62a8c1c4a1dbc34ca0e11f6eaf246ad57c91197110b9cb1baff7f206e3"
+    },
+    "paste": {
+      "files": 2,
+      "path": "paste-payload.html",
+      "tree_sha256": "39c103a70e13852da1464f4b000d3204c34a7f9c401e0eb67dc368911b11f91f"
+    },
+    "uct": {
+      "files": 2,
+      "path": "uct/",
+      "tree_sha256": "dc7f07060a37d4473a72901619129d465193df2a12d8e79ac5fcab5b04ed718b"
+    },
+    "vault": {
+      "files": 992,
+      "path": "vault/",
+      "tree_sha256": "fbd0468f7f4aa035bbf7fea3f1e71ac1238c532879ca623543d5b933fdd1fc10"
+    }
+  },
+  "generator": "tools/notebook_bench_corpus.py",
+  "generator_version": "notebook-bench-corpus/1",
+  "limits": {
+    "largest_body_json_bytes": 689912,
+    "list_preview_chars": 400,
+    "max_body_json_bytes": 1000000,
+    "max_body_json_bytes_source": "api/services/journal_two/notes.py MAX_BODY_JSON_BYTES (read by ast)",
+    "uct_batch_max": 500
+  },
+  "markers": {
+    "large_1000_first": "zzqbonekfirstcbashq",
+    "large_1000_last": "zzqboneklastcbashq",
+    "large_2000_first": "zzqbtwokfirstcbashq",
+    "large_2000_last": "zzqbtwoklastcbashq",
+    "neutral_first": "zzqbneutralfirstcbashq",
+    "neutral_last": "zzqbneutrallastcbashq",
+    "paste_end": "zzqbpasteendcbashq",
+    "rare_term": "zzqbrarecbashq",
+    "small_first": "zzqbsmallfirstcbashq",
+    "small_last": "zzqbsmalllastcbashq"
+  },
+  "ruling": "D-9A5 (amending D-9A1): 990 small notes + a 1,000- and a 2,000-paragraph note = 992 notes for EVERY app; no attachments",
+  "seed": 20260926,
+  "switcher_title": "Quokka zephyr cobalt",
+  "timed_notes": {
+    "large_1000": {
+      "first_marker": "zzqbonekfirstcbashq",
+      "folder": [
+        "Bench"
+      ],
+      "key": "bench:20260926:0990",
+      "last_marker": "zzqboneklastcbashq",
+      "paragraphs": 1000,
+      "title": "Bench large note 1000"
+    },
+    "large_2000": {
+      "first_marker": "zzqbtwokfirstcbashq",
+      "folder": [
+        "Bench"
+      ],
+      "key": "bench:20260926:0991",
+      "last_marker": "zzqbtwoklastcbashq",
+      "paragraphs": 2000,
+      "title": "Bench large note 2000"
+    },
+    "neutral": {
+      "first_marker": "zzqbneutralfirstcbashq",
+      "folder": [
+        "Bench"
+      ],
+      "key": "bench:20260926:0001",
+      "last_marker": "zzqbneutrallastcbashq",
+      "paragraphs": 5,
+      "title": "Bench neutral note"
+    },
+    "rare": {
+      "folder": [
+        "Reviews",
+        "Summer",
+        "Week 06"
+      ],
+      "key": "bench:20260926:0002",
+      "term": "zzqbrarecbashq",
+      "title": "Early willow notebook 0002"
+    },
+    "small": {
+      "first_marker": "zzqbsmallfirstcbashq",
+      "folder": [
+        "Bench"
+      ],
+      "key": "bench:20260926:0000",
+      "last_marker": "zzqbsmalllastcbashq",
+      "paragraphs": 5,
+      "title": "Bench small note"
+    },
+    "switcher": {
+      "folder": [
+        "Reading"
+      ],
+      "key": "bench:20260926:0003",
+      "title": "Quokka zephyr cobalt"
+    }
+  }
+}

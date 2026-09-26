@@ -476,17 +476,23 @@ def _signup_or_login(req, base: str, email: str, pw: str, name: str) -> None:
         raise SetupFailed(f"could not sign in {email}: HTTP {r.status}")
 
 
-def _provision(admin_req, member_req, base: str) -> None:
+def _provision(admin_req, member_req, base: str, *, member: tuple[str, str, str] | None = None) -> None:
     """The wave-6 walk's recipe (tools/notebook_wave6_walk.py): admin in its OWN context,
     the member comped AND email-verified (AuthGuard sends an unverified member to
-    /verify-pending whatever the plan), then /api/auth/me must say paid-equivalent."""
+    /verify-pending whatever the plan), then /api/auth/me must say paid-equivalent.
+
+    `member` is (email, password, display name); None is this harness's own perf account. Wave 9
+    (lane 9A) added it so the benchmark runner provisions ITS account through this one recipe
+    instead of a copy; with no `member` the behaviour is unchanged."""
+    email, pw, name = member or (PERF_EMAIL, PERF_PW, "w7perf")
     _signup_or_login(admin_req, base, ADMIN_EMAIL, ADMIN_PW, "hubtest")
-    _signup_or_login(member_req, base, PERF_EMAIL, PERF_PW, "w7perf")
-    c = admin_req.post(base + "/api/auth/admin/comp-access", data={"email": PERF_EMAIL, "action": "grant"})
-    v = admin_req.post(base + "/api/auth/admin/verify-email", data={"email": PERF_EMAIL})
+    _signup_or_login(member_req, base, email, pw, name)
+    c = admin_req.post(base + "/api/auth/admin/comp-access", data={"email": email, "action": "grant"})
+    v = admin_req.post(base + "/api/auth/admin/verify-email", data={"email": email})
     me = member_req.get(base + "/api/auth/me").json()
     if not me.get("paid_equiv"):
-        raise SetupFailed(f"perf account is not paid-equivalent (comp HTTP {c.status}, verify HTTP {v.status}) "
+        who = "perf account" if member is None else email
+        raise SetupFailed(f"{who} is not paid-equivalent (comp HTTP {c.status}, verify HTTP {v.status}) "
                          "-- every notebook route would redirect and every number would be a redirect")
 
 

@@ -2223,7 +2223,8 @@ def build_export_zip_to_tempfile(
 def build_selection_export_to_tempfile(
     user_id: str, note_ids: list[str], conn: sqlite3.Connection | None = None, *, fmt: str = "md",
 ) -> tuple[Path, str, int, list[str]]:
-    """The SELECTED notes as one Markdown zip, on disk (wave 6, item 10) -- the
+    """The SELECTED notes as one zip in `fmt` (Markdown by default; any export format
+    since wave 9, lane 9D), on disk (wave 6, item 10) -- the
     same archive writer as the whole-notebook export (`_write_notes_archive`,
     restricted to `note_ids`), so a selection keeps each note's folder path
     and a link between two selected notes is a relative `.md` path, not the

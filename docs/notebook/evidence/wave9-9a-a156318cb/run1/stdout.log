@@ -1,0 +1,13 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-a156318cb\run1\uct-auto.sandbox.log; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-a156318cb\run1\uct-auto.integrity.md
+  H1       INCONCLUSIVE -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"4f3969ac5d9b4f128fe7c7dfec0985fa\"]") resolved to 2 elements:
+  H2       INCONCLUSIVE -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"51d3dcb40c524cb9a9fff2247363a2b8\"]") resolved to 2 elements:
+  H2-full  INCONCLUSIVE -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"51d3dcb40c524cb9a9fff2247363a2b8\"]") resolved to 2 elements:
+  H3       INCONCLUSIVE -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  H3-full  INCONCLUSIVE -- the op raised Error: Locator.wait_for: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  H4         20 samples  p50 263.2 ms  p95 314.8 ms
+  H5         20 samples  p50 1 ms  p95 1.1 ms
+  H6       INCONCLUSIVE -- the op raised Error: Locator.click: Error: strict mode violation: locator("[data-note-card-id=\"4f3969ac5d9b4f128fe7c7dfec0985fa\"]") resolved to 2 elements:
+  H7       INCONCLUSIVE -- the op raised Error: Locator.click: Error: strict mode violation: locator("[data-note-card-id=\"e3f38bb3214640169a3a1d3cbf6ef9e7\"]") resolved to 2 elements:
+  H8       INCONCLUSIVE -- the op raised TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+  H9          5 samples  p50 416 ms  p95 440 ms
+VERDICT: INCONCLUSIVE -- 8 of 11 op(s): H1, H2, H2-full, H3, H3-full, H6, H7, H8 (summary: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-a156318cb\run1\uct-auto.json)

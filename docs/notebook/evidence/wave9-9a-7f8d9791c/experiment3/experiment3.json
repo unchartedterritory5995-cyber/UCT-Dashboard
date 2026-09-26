@@ -1,0 +1,181 @@
+[
+ {
+  "at": "15:50:42",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "15:50:45",
+  "step": "seeded",
+  "api_total": 992
+ },
+ {
+  "at": "15:50:48",
+  "step": "variant ctrl",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=774b6e4430d04831a222106a5d7cad8d",
+  "urls_after_click": [
+   "/journal/notebook?note=774b6e4430d04831a222106a5d7cad8d"
+  ],
+  "done": [],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=774b6e4430d04831a222106a5d7cad8d",
+    "ev": null,
+    "t": 1103,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:50:52",
+  "step": "variant ctrl-wait",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=9a56130c8d494c80945a07c4a3a7bbcc",
+  "urls_after_click": [
+   "/journal/notebook?note=9a56130c8d494c80945a07c4a3a7bbcc"
+  ],
+  "done": [
+   "waited 2 s"
+  ],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=9a56130c8d494c80945a07c4a3a7bbcc",
+    "ev": null,
+    "t": 3069,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:50:55",
+  "step": "variant perms",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=93ba833009af4b36a8437bab762d798b",
+  "urls_after_click": [
+   "/journal/notebook?note=93ba833009af4b36a8437bab762d798b"
+  ],
+  "done": [],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=93ba833009af4b36a8437bab762d798b",
+    "ev": null,
+    "t": 1071,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:50:58",
+  "step": "variant a",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=1f652387f34b4764a11b9ae82a1f5e74",
+  "urls_after_click": [
+   "/journal/notebook?note=1f652387f34b4764a11b9ae82a1f5e74"
+  ],
+  "done": [],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=1f652387f34b4764a11b9ae82a1f5e74",
+    "ev": null,
+    "t": 1050,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:51:01",
+  "step": "variant b",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=0452758d7b764897a3739d9dbf6d5fd8",
+  "urls_after_click": [
+   "/journal/notebook?note=0452758d7b764897a3739d9dbf6d5fd8"
+  ],
+  "done": [
+   [
+    "selfTest",
+    true
+   ]
+  ],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=0452758d7b764897a3739d9dbf6d5fd8",
+    "ev": null,
+    "t": 1297,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:51:04",
+  "step": "variant c",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=89aeb239687448f28c666efde975fbe8",
+  "urls_after_click": [
+   "/journal/notebook?note=89aeb239687448f28c666efde975fbe8"
+  ],
+  "done": [
+   [
+    "selfTest",
+    true
+   ],
+   [
+    "clipboard",
+    "text/plain,text/html"
+   ]
+  ],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=89aeb239687448f28c666efde975fbe8",
+    "ev": null,
+    "t": 1311,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ },
+ {
+  "at": "15:51:07",
+  "step": "variant d",
+  "editor_opened": true,
+  "editor_still_open": true,
+  "url_now": "/journal/notebook?note=f660175435cd4e6aa322ce519e200298",
+  "urls_after_click": [
+   "/journal/notebook?note=f660175435cd4e6aa322ce519e200298"
+  ],
+  "done": [
+   [
+    "selfTest",
+    true
+   ],
+   [
+    "clipboard",
+    "text/plain,text/html"
+   ],
+   [
+    "arm",
+    "[uctBench] armed paste for 5 reps; target absent now"
+   ]
+  ],
+  "trace": [
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=f660175435cd4e6aa322ce519e200298",
+    "ev": null,
+    "t": 1314,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8207/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8207/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ]
+ }
+]

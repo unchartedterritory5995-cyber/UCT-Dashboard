@@ -1,0 +1,41 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F.....                                                              [100%]
+================================== FAILURES ===================================
+_____ test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head ______
+
+    def test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head():
+        tracked = _tracked()
+        assert 'docs/notebook/competitive-gap-ledger.md' in tracked, 'non-vacuity: git ls-files did not answer'
+        paths = set()
+        for cell in _evidence_cells():
+            for tok in re.findall(r'`([^`\s]+)`', cell):
+                if '/' not in tok or tok.startswith('http'):
+                    continue
+                paths.add(re.sub(r':[\d\-]+$', '', tok))
+        assert len(paths) > 50, f'non-vacuity: only {len(paths)} cited paths found'
+        missing = sorted(p for p in paths if p not in tracked)
+>       assert not missing, missing
+E       AssertionError: ['api/services/journal_two/notes_gone.py']
+E       assert not ['api/services/journal_two/notes_gone.py']
+
+tests\test_parity_scorecard.py:135: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 539 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 11 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head
+1 failed, 10 passed, 551 warnings in 0.60s

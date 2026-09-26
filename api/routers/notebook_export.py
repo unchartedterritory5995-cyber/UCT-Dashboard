@@ -28,7 +28,8 @@ The rules, each a decision:
     (a refused request must never cost another member the slot).
   * A foreign, missing or trashed note is 404 -- the same answer, never distinguished.
   * Auth is `get_current_user`, the same as every export route.
-  * Selected-notes export stays Markdown in wave 8 (ruling D-C8); it has no route here.
+  * Selected-notes export has no route here: it is `POST /api/j2/notes/batch/export`, which
+    since wave 9 (lane 9D) takes the same `?format=` and checks it with `_format_or_422`.
   * The prefix is outside `/api/j2/notes/...`, so mount order against `journal_two` does
     not matter (`tests/test_main_router_order.py`).
 """

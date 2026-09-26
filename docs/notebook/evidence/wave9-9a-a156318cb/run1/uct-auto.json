@@ -1,0 +1,313 @@
+{
+ "tool": "tools/notebook_bench_uct.py",
+ "git_head": "a156318cb72d29c4aba7cf81645c3ca4a5f25ead",
+ "base": "http://127.0.0.1:8096",
+ "app": "uct-sandbox-auto",
+ "certifying": false,
+ "note": "a lane acceptance run and per-release cross-check: NOT certification evidence and NOT the UCT column of the head-to-head (ruling D-9A3)",
+ "corpus": {
+  "dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\corpus-live",
+  "generator_version": "notebook-bench-corpus/1",
+  "seed": 20260926,
+  "total_notes": 992,
+  "verified": true
+ },
+ "machine": {
+  "available_mbytes_before": 13927.0,
+  "floor_mbytes": 4608.0,
+  "box_state": "FREE",
+  "box_load": "load: QUIET \u2014 0 marked processes outside our own tree at 2026-09-26T15:04:03",
+  "lock": {
+   "acquired": true,
+   "path": "C:\\ProgramData\\uct\\gate-box.lock",
+   "run_id": "notebook-bench-uct-20260926T150405",
+   "reclaimed": null,
+   "released": true
+  },
+  "hostname": "DESKTOP-1NPCBSM",
+  "python": "3.14.0",
+  "available_mbytes_after": 13966.0
+ },
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-a156318cb\\run1\\uct-auto.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 15:04:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 15:04:50",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-26 15:06:41",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 15:07:08",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-a156318cb\\run1\\uct-auto.integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T15-04-07.md"
+ },
+ "self_test": {
+  "ok": true,
+  "ms": 203.8,
+  "readings": [
+   {
+    "ok": true,
+    "ms": 203.8,
+    "where": "step 0, before any timing (R-HON)"
+   },
+   {
+    "ok": true,
+    "ms": 200.8,
+    "where": "H1 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 200.9,
+    "where": "H2 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.3,
+    "where": "H2-full round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.6,
+    "where": "H3 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 204.7,
+    "where": "H3-full round 1"
+   },
+   {
+    "ok": true,
+    "ms": 206.6,
+    "where": "H4 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.5,
+    "where": "H4 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 200.5,
+    "where": "H5 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 213,
+    "where": "H5 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 201.1,
+    "where": "H6 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 204,
+    "where": "H7 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.5,
+    "where": "H8 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 215.4,
+    "where": "H9 round 1, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 202.4,
+    "where": "H9 round 2, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 216.2,
+    "where": "H9 round 3, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 200.9,
+    "where": "H9 round 4, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 216.1,
+    "where": "H9 round 5, after the reload"
+   }
+  ]
+ },
+ "count": {
+  "manifest": 992,
+  "api_total": 992,
+  "ui_total": 992
+ },
+ "chromium": "145.0.7632.6",
+ "page_errors": [],
+ "failure": null,
+ "per_op": {
+  "H1": {
+   "op": "H1",
+   "kind": "open",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.wait_for: Error: strict mode violation: locator(\"[data-note-card-id=\\\"4f3969ac5d9b4f128fe7c7dfec0985fa\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H2": {
+   "op": "H2",
+   "kind": "open",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.wait_for: Error: strict mode violation: locator(\"[data-note-card-id=\\\"51d3dcb40c524cb9a9fff2247363a2b8\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H2-full": {
+   "op": "H2-full",
+   "kind": "open",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.wait_for: Error: strict mode violation: locator(\"[data-note-card-id=\\\"51d3dcb40c524cb9a9fff2247363a2b8\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H3": {
+   "op": "H3",
+   "kind": "open",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.wait_for: Error: strict mode violation: locator(\"[data-note-card-id=\\\"e3f38bb3214640169a3a1d3cbf6ef9e7\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H3-full": {
+   "op": "H3-full",
+   "kind": "open",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.wait_for: Error: strict mode violation: locator(\"[data-note-card-id=\\\"e3f38bb3214640169a3a1d3cbf6ef9e7\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H4": {
+   "op": "H4",
+   "kind": "search",
+   "n": 20,
+   "p50_ms": 263.2,
+   "p95_ms": 314.8,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H4__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H4__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H5": {
+   "op": "H5",
+   "kind": "search",
+   "n": 20,
+   "p50_ms": 1,
+   "p95_ms": 1.1,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H5__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H5__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H6": {
+   "op": "H6",
+   "kind": "typing",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.click: Error: strict mode violation: locator(\"[data-note-card-id=\\\"4f3969ac5d9b4f128fe7c7dfec0985fa\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H7": {
+   "op": "H7",
+   "kind": "typing",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised Error: Locator.click: Error: strict mode violation: locator(\"[data-note-card-id=\\\"e3f38bb3214640169a3a1d3cbf6ef9e7\\\"]\") resolved to 2 elements:",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H8": {
+   "op": "H8",
+   "kind": "paste",
+   "n": 0,
+   "p50_ms": null,
+   "p95_ms": null,
+   "status": "INCONCLUSIVE",
+   "reason": "the op raised TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.",
+   "dumps": [],
+   "invalid": {}
+  },
+  "H9": {
+   "op": "H9",
+   "kind": "cold",
+   "n": 5,
+   "p50_ms": 416,
+   "p95_ms": 440,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H9__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r2.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r3.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r4.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r5.json"
+   ],
+   "invalid": {}
+  }
+ }
+}
