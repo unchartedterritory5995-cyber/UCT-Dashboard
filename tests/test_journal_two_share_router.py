@@ -58,6 +58,12 @@ def client(app):
 
 def _login_as(app, user_id):
     app.dependency_overrides[authmw.get_current_user] = lambda: {"id": user_id, "role": "member"}
+    # Wave 8 lane 8B, ruling D-B3: MINT is paid-gated now (notebook_shares.require_paid
+    # reads get_current_user_with_plan), so the member these tests sign in as is a paid
+    # one. Status and revoke still read get_current_user alone. The unpaid direction is
+    # railed in tests/test_share_publish_authorization.py, not here.
+    app.dependency_overrides[authmw.get_current_user_with_plan] = (
+        lambda: {"id": user_id, "role": "member", "plan": "pro"})
 
 
 def _create_note(client, title="A note"):

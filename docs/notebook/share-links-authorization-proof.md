@@ -90,4 +90,37 @@ F-BODIES; the admin gate = F-ADMIN-GATE. The rest were found while reading for t
 
 ## Part 2 — closure (appended by the lane-8B commits)
 
-*Filled in by the commit that closes each finding.*
+*Filled in by the commit that closes each finding. The rail named is the one that goes red
+if the fix is undone; the mutation row in `wave8-8B-report.md` shows it doing so.*
+
+### 2.1 Closed by the B1 + B2 commit (the authorization rail and the hardening)
+
+| Finding | Closed how | Rail (red if undone) |
+|---|---|---|
+| F-GATE-ORDER | The gate is a ROUTER dependency (`notebook_shares.py`, `APIRouter(dependencies=[Depends(_require_enabled)])`), so it runs before any route's own dependencies: flag off answers the one 404 before the session or the plan is read. | `test_8_with_the_gate_off_every_route_answers_404_and_nothing_runs` (every row, with spies and a table snapshot; `test_8_control_the_spies_can_see_a_call` is its control) |
+| F-REVOKE-RAIL | Unchanged predicate, now railed. | `test_1_member_B_cannot_touch_A_and_the_answer_equals_a_missing_id[DELETE ...]` (M1 in the report) |
+| F-STATUS-RAIL | Unchanged predicate, now railed. | `test_1_...[GET /api/j2/notes/{note_id}/share]` |
+| F-BODIES | Every public miss and the flag-off path answer `public_note_payload.not_found()`: one status, one body (`"Not found"`), one header set. Mint on a foreign or missing note answers the same 404. | `test_7_every_dead_token_answers_byte_identically` (unknown, revoked, expired, trashed, archived, flag off; page AND image; M7 in the report) |
+| F-ENTROPY-RAIL | `TOKEN_BYTES = 24` named; mint calls `secrets.token_urlsafe(TOKEN_BYTES)`. | `test_2_share_tokens_are_at_least_128_bits_and_all_distinct` (1,000 minted tokens plus the structural read; M2) |
+| F-EXPIRY | Optional expiry per link, never / 7 / 30 / 90 days (ruling D-B2); `expires_at` is self-ensured by `note_shares.ensure_share_schema` (PRAGMA + ALTER, never `db.py`). An expired link answers the unknown-token 404 on the page and the image. Anything else in `expiresInDays` is a 422 with one sentence. | `test_3_an_expired_share_answers_the_unknown_404_on_resolve_and_image`, `test_3_mint_takes_an_expiry_and_refuses_anything_else` (M3) |
+| F-NO-STORE | `Cache-Control: no-store, private` on the JSON, the image `FileResponse`, every 404 and every 429 (`public_note_payload.PUBLIC_HEADERS`). | `test_4_every_public_response_carries_no_store_private` (M6) |
+| F-ARCHIVED | `_live_share_row` joins the note and requires `deleted_at IS NULL AND archived_at IS NULL`, for the page AND the image proxy. | `test_7_...` (archived case), `test_note_shares.py` |
+| F-EXACT-KEYS | The payload is built by `public_note_payload.public_note`, which returns exactly `PUBLIC_NOTE_KEYS`. | `test_5_the_public_keys_are_exactly_the_note_keys` (M5) |
+| F-BODY-LEAKS (a) | A `noteLink` becomes the text "linked note" (ruling D-B7): no id, no title, and so nothing for the public page to fetch with the viewer's cookie. | `tests/test_public_note_payload.py::test_each_type_becomes_what_is_declared[noteLink-*]`, `test_never_other_notes_titles_or_ids` |
+| F-BODY-LEAKS (b) | A shown widget keeps only `EMBED_KEPT_ATTRS` and, of `params`, only `EMBED_PARAM_KEYS[widgetId]`; `tradeRef`, `searchText`, `annotations` and `embedId` never leave. A neutral widget leaves nothing but the neutral line. | `test_a_shown_widget_keeps_exactly_what_the_archived_render_reads` (M15) |
+| F-BODY-LEAKS (c) | An image (and a figure, a hero, a widget fallback) whose URL still names ANOTHER note's attachment path is dropped. | `test_attachment_urls_of_this_note_are_rewritten_and_other_notes_images_dropped` |
+| F-BODY-LEAKS (d) | `attachmentChip` is dropped in both modes. | `test_each_type_becomes_what_is_declared[attachmentChip-*]`, `test_never_file_attachments` |
+| F-BODY-LEAKS (e) | `financialFact` becomes a plain paragraph (shown vendors) or the neutral line; `documentExcerpt` is the neutral line (D-B4). No `factId` or `excerptId` leaves. | `test_facts_render_by_vendor` |
+| F-BODY-LEAKS (f) | A `link` mark whose href is relative or on our own host loses the link and keeps its words. | `test_internal_link_marks_lose_the_link_and_keep_the_words` |
+| F-VENDOR (server half) | The owner's sign-off (L3 + correction) is ONE named table: `MARKET_DATA_VENDORS` (node type and discriminator to vendor) and `VENDOR_VERDICT` (vendor to shown / neutral). Massive-sourced charts and bar widgets are the neutral line on share links and published pages; FMP and Finnhub figures render. Loosening Massive later is one line. | `test_the_owner_sign_off_in_words`, `test_every_registered_widget_has_a_vendor_row` (derived from `registry.js`), `test_every_fact_source_has_a_vendor_row` (M11, M12) |
+| F-RATE | Inline limiter hits (ruling D-B10): 60/min per IP on the public read, 240/min per IP on images, 30/hour per member on mint. Over the limit: 429 with one sentence and the public headers. Per-process state, recorded in the report for the CLAUDE.md single-process roster. | `test_6_the_bucket_admits_its_limit_then_answers_429_with_a_sentence` (per-IP and per-member controls; M8) |
+| F-PLAN | Mint takes this router's own `require_paid` ("Share links require a paid plan"). Status and revoke do not: a member whose plan lapsed can always see and kill a link. | `test_the_plan_column_is_the_dependency_tree`, `test_10_*` (M9, M10) |
+| F-API-HEADERS | `X-Robots-Tag: noindex, nofollow` and `Referrer-Policy: no-referrer` on every public API response, hit or miss. | `test_9_every_public_response_carries_no_referrer_and_noindex` |
+
+### 2.2 Still open after B1 + B2
+
+| Finding | Why | Closed by |
+|---|---|---|
+| F-IN-PAGE-META | the page's own `<meta>` tags are the B3 page change | B3 |
+| F-ADMIN-GATE | the editor's controls are the B3 page change | B3 |
+| F-READ-WRITES | `notes.get_note` is not lane 8B's file; the write is the owner's own derived column. Recorded, not changed. | open (minor, accepted) |

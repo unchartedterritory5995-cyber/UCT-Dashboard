@@ -6,6 +6,10 @@ It held by construction -- `note_shares._reduce_ask_citations` rewrites only
 `askCitation` chips -- and nothing pinned it, while the brief names shares
 explicitly. This is the server half; SharedNotePage.writingHelp.test.jsx is
 the page half (the label rendered on the public page).
+
+Wave 8 lane 8B: `_reduce_ask_citations` is GONE -- every public copy now goes
+through the ONE reducer, `public_note_payload.reduce` (ruling D-B7). The first
+test calls that reducer in share mode instead; its two assertions are unchanged.
 """
 from __future__ import annotations
 
@@ -16,7 +20,7 @@ import tempfile
 
 import pytest
 
-from api.services.journal_two import note_shares
+from api.services.journal_two import note_shares, public_note_payload
 
 U = "u-share"
 WH_ATTRS = {"insertedAt": "2026-09-25T09:41:00", "scope": "selection",
@@ -44,7 +48,8 @@ def _find(node, kind):
 
 
 def test_the_share_reducer_keeps_every_writing_help_attr_and_still_reduces_the_chip():
-    out = note_shares._reduce_ask_citations(copy.deepcopy(_body()))
+    out = public_note_payload.reduce(copy.deepcopy(_body()), mode="share", owner_id=U,
+                                     note_id="n", attachment_base="/x/")
     assert _find(out, "askInsert")["attrs"] == WH_ATTRS
     assert _find(out, "askCitation")["attrs"] == {"n": 1}          # control: the reducer ran
 
