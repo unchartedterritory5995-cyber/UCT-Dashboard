@@ -146,11 +146,31 @@ const BASELINE_OPAQUE = {
   'pages/Watchlists.jsx': 2,
   'pages/breadth/drill/BreadthDrillModal.jsx': 2,
   'pages/breadth/useBreadthViews.js': 2,
+  // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). Data Charts V2 (7626f6fb7,
+  // 2026-09-19) writes through the module constant `PREF_KEY =
+  // 'breadth_charts_state'` — the SAME key `pages/BreadthCharts.jsx` above already
+  // writes opaquely and that the header lists in group 2. Not computed: a literal
+  // one hop away. Naming the key here is what the rail asks for; moving the
+  // literal to the call site is a product edit outside this sweep.
+  'pages/breadth/v2/BreadthChartsV2.jsx': 1,
   'pages/charts/ChartsWorkspace.jsx': 1,
   'pages/charts/LayoutDock.jsx': 1,
   'pages/charts/widgets/AiSearchWidget.jsx': 2,
   'pages/charts/widgets/BreadthWidget.jsx': 2,
   'pages/charts/widgets/FundamentalsWidget.jsx': 2,
+  // ⚰️ 2026-09-25, wave 6: MemberTemplates writes the daily-note template preference
+  // through the constant DAILY_TEMPLATE_PREF (lib/dailyNote.js) -- the same identifier
+  // its reader imports, so the key has ONE spelling. The rail cannot read an
+  // identifier, so the site is baselined the way master baselined its own two
+  // (f6b1e3d72, mirrored verbatim above and below so the merge sees one text).
+  // The key behind it is `notebook_daily_template`.
+  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 1,
+  // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). The screener redesign
+  // (a7176a764, PR #157, 2026-09-20) added column presets written through the
+  // exported constant `PRESETS_KEY = 'screener_column_presets'` — a NEW key, one
+  // literal one hop from both sites (save, delete). Not computed. Declared with
+  // its literal so the census knows which preference these two sites write.
+  'pages/screener/hooks/useColumnPresets.js': 2,
   'pages/watchlist/watchlistTemplates.js': 2,
   'testing/device/authHarness.js': 4,
 }

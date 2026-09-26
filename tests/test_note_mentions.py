@@ -158,22 +158,42 @@ def test_archive_is_excluded_when_the_column_exists(svc):
     archived = _note(ns, "u1", "Archived", "A gap and go that worked.")
     live = _note(ns, "u1", "Live", "Another gap and go.")
     conn = auth_db.get_connection()
-    conn.execute("ALTER TABLE j2_notes ADD COLUMN archived_at TEXT")
+    # Wave 6 (lane E, 3d838c0e8) made `archived_at` a real column of j2_notes, so the
+    # ALTER this test used to run unconditionally now raises "duplicate column name"
+    # (PR #193's CI, 2026-09-25). Add it only when the schema under test lacks it, so
+    # the test holds on both sides of that wave.
+    if not nm.has_column(conn, "j2_notes", "archived_at"):
+        conn.execute("ALTER TABLE j2_notes ADD COLUMN archived_at TEXT")
     conn.execute("UPDATE j2_notes SET archived_at = '2026-09-20' WHERE id = ?", (archived,))
     conn.commit()
     conn.close()
     assert _ids(nm.get_unlinked_mentions("u1", target)) == [live]
 
 
-def test_without_the_archive_column_the_read_still_works(svc):
+def test_without_the_archive_column_the_read_still_works(svc, monkeypatch):
+    """The read must not depend on the column: a database created before wave 6's
+    Archive still answers. The column IS real on this branch now (it was not when
+    this test was written, and the old assertion `not has_column(...)` pinned that
+    stale world), so the no-column schema is simulated by making the module's own
+    probe answer False for exactly this column -- the read then takes the branch
+    whose SQL never names `archived_at`, which is the branch a pre-wave-6 database
+    would run."""
     ns, nm = svc
-    from api.services import auth_db
-    conn = auth_db.get_connection()
-    assert not nm.has_column(conn, "j2_notes", "archived_at")   # the branch under test
-    conn.close()
+    calls = []
+    real = nm.has_column
+
+    def _no_archive_column(conn, table, column):
+        calls.append((table, column))
+        if (table, column) == ("j2_notes", "archived_at"):
+            return False
+        return real(conn, table, column)
+
+    monkeypatch.setattr(nm, "has_column", _no_archive_column)
     target = _note(ns, "u1", "Inside day")
     hit = _note(ns, "u1", "Log", "An inside day into earnings.")
     assert _ids(nm.get_unlinked_mentions("u1", target)) == [hit]
+    # non-vacuity: the read consulted the probe, so the patch reached the branch under test
+    assert ("j2_notes", "archived_at") in calls
 
 
 def test_another_members_notes_are_never_read(svc):
