@@ -241,6 +241,12 @@ A14's shipped door is paid-gated the normal way. **None of that evidence spoke t
 tiers there are — I inferred a second tier from nothing.** That is exactly the invention a
 defaultable ruling exists to make cheap to correct, and it cost one sentence.
 
+⚰️⚰️ **CORRECTION, 2026-09-26, and it makes the error worse than "inferred from nothing": THE ANSWER WAS ALREADY IN THIS PROGRAMME'S OWN CHARTER AND I DID NOT READ IT.** `00-program-control/charter/OWNER_SEED_FACTS.md:61`, section 6, dated **2026-09-01** — twenty-five days before I defaulted — reads: *"one paid tier whose paywalled item is the Morning Wire, with a $7 weekly promo."* Found by the gate-item-13 author while sourcing displacement evidence, not by me.
+
+⭐ **So the owner did not overturn a defensible default; he restored a fact the programme had drifted off.** The distinction matters for how the next default is taken: *"no evidence speaks to this, so I will decide and label it"* is sound method, and it is only sound if the search for evidence actually covered the documents in hand. **The seed-facts file is the FIRST place an owner-only question is answered, and it is the one I did not search.** ⛔ Any future defaultable ruling states which owner-input documents were searched before it defaults — a default over an unread answer is not a default, it is an overwrite.
+
+⚠️ **And that line carries a SECOND fact, which reopens point 4 below in a sharper form:** a **$7 weekly promo**. That is a different unit from the `$200/mo or $2,000/yr` in `app/src/pages/Pricing.jsx:6`. **Two price artifacts exist, they disagree in kind as well as magnitude, and neither is owner-ratified** — so the accurate open question is not "what is the price" but "which of two recorded prices is real, and is either current?" ⛔ Not resolved here: picking one would put a third authority on a number two artifacts already claim.
+
 ⛔⛔ **WHAT THIS FORECLOSES, and every downstream document must respect it:**
 
 1. **No tier-comparison surface, ever.** With one paid tier there is nothing to compare: no pricing

@@ -68,12 +68,27 @@ either way. The tell is whether you ever want a market-wide page to *stop* being
 $2,000/yr. So the accurate statement is not *"there is no price"* but **"there is no owner-ratified
 price and no cost ceiling"**, and that is what leaves this open. No engineering work depends on it.
 
+⭐⭐ **AND A SECOND PRICE TURNED UP TODAY, WHICH CHANGES WHAT I AM ASKING YOU.** Your seed facts
+(`charter/OWNER_SEED_FACTS.md:61`, 2026-09-01) record a **$7 weekly promo**. Your code records
+**$200/mo or $2,000/yr**. Those are different units, not just different numbers, so they cannot
+both be describing the same offer.
+
+⛔ **I am deliberately not picking one, and that is the whole ask:** two artifacts already claim
+this number and choosing between them from the outside would make me a third. **Which is live —
+the weekly promo, the monthly/annual, or neither any more?** One sentence settles it, and until
+it does, every document in this programme says "contested between two named artifacts" rather
+than quoting either.
+
 ---
 
 ## ✅ Closed today, one line each
 
 - **Tiers** — you ruled **one paid tier**, vetoing my two-tier default. ⛔ It forecloses any
   tier-comparison surface and collapses the entitlement axis to a binary (CARD 17).
+  ⚰️ **And you were not overruling me — you were repeating yourself.** Your seed facts said
+  *"one paid tier"* on **2026-09-01**, in this programme's own charter
+  (`charter/OWNER_SEED_FACTS.md:61`). I defaulted over an answer you had already given and I had
+  not read. Found by one of my own agents, not by me.
 - **The CDN question** — ✅ **answered, fixed and verified.** The edge was already caching; a
   **zone-wide setting, not a cache rule**, was overriding your code's `max-age=0` to four hours.
   One scoped action was added to the rule matching those two paths, and the wire now reads
