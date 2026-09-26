@@ -560,8 +560,9 @@ export default function NotebookTab() {
   const openedFromRef = useRef(null)
   // what the NEXT emptying of the pane should focus: { rowId } | { heading: true }
   const paneFocusPlanRef = useRef(null)
-  // the note whose title input takes focus once it loads (an explicit open only)
-  const [titleFocusFor, setTitleFocusFor] = useState(null)
+  // where an explicit open puts focus once the note loads: { id, to: 'title' | 'landmark' }
+  // (final-review fix I-1: an existing note lands on its heading, a new one in its title)
+  const [openFocus, setOpenFocus] = useState(null)
   // A refusal is said IN the pane it points at, and focus goes there.
   const [paneNotice, setPaneNotice] = useState(null) // { pane: 'main'|'side', text }
   useEffect(() => {
@@ -581,20 +582,31 @@ export default function NotebookTab() {
   // pass nothing and behave exactly as before.
   // Wave 6: `task` opens the note AT one of its checklist items (`?task=`, read
   // by the editor — lib/noteTasks.js); any other open drops a stale one.
-  const openNote = (note, target = null, { task = null } = {}) => {
+  // Final-review fix I-1: `fresh` marks a note the member just MADE (createNote
+  // below) -- the one open whose next act is typing its title.
+  const openNote = (note, target = null, { task = null, fresh = false } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
     setPaneNotice(null)
     // Wave 8 (8A): remember where this note was opened FROM (the rows on
     // screen, in order) so the way back -- or a delete -- can put focus on a
-    // row; and give the title the focus, unless the open aims somewhere
-    // inside the note (a task, a page, an excerpt), which is where it goes.
+    // row. Focus goes to the note -- its heading for a note that exists, its
+    // title for one just made -- unless the open aims somewhere inside the
+    // note (a task, a page, an excerpt), which is where it goes.
+    // ⛔ Final-review fix I-1: never the title of an EXISTING note -- a live
+    // caret there took a reader's Space as a title edit, and raised a phone's
+    // keyboard on every open.
     const rows = mainRef.current
       ? [...mainRef.current.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
       : []
     openedFromRef.current = { id: note.id, order: [...new Set(rows)] }
-    setTitleFocusFor(!target && !(Number.isInteger(task) && task >= 0) ? note.id : null)
+    // M-5: a plan left by an earlier delete (split view keeps the side note
+    // open, so the pane never emptied and the plan was never spent) belongs to
+    // THAT open, not this one.
+    paneFocusPlanRef.current = null
+    const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
+    setOpenFocus(inside ? null : { id: note.id, to: fresh ? 'title' : 'landmark' })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -621,7 +633,10 @@ export default function NotebookTab() {
       const order = openedFromRef.current?.id === trashed ? openedFromRef.current.order : []
       const at = order.indexOf(trashed)
       const nextId = at >= 0 ? order[at + 1] : undefined
-      paneFocusPlanRef.current = nextId ? { rowId: nextId } : { heading: true }
+      // M-5: only when the pane will EMPTY. With a note beside it, that note
+      // stays open (below), the pane never empties, and a plan made here would
+      // wait for some later, unrelated close and send focus to a stale row.
+      if (!sideId) paneFocusPlanRef.current = nextId ? { rowId: nextId } : { heading: true }
       openedFromRef.current = null
     }
     setSearchParams((prev) => {
@@ -674,7 +689,8 @@ export default function NotebookTab() {
   const skipToPane = (e) => {
     e.preventDefault()
     if (noteId) {
-      const title = mainPaneRef.current?.querySelector('input[aria-label="Note title"]')
+      // M-6: the editor's own hook on its title input, never the input's label.
+      const title = mainPaneRef.current?.querySelector('[data-note-title]')
       ;(title || mainPaneRef.current)?.focus()
       return
     }
@@ -1267,7 +1283,8 @@ export default function NotebookTab() {
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
-      openNote(created)
+      // I-1: the one open that lands in the title -- the member made this note.
+      openNote(created, null, { fresh: true })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -1589,9 +1606,10 @@ export default function NotebookTab() {
                 noteId={noteId}
                 onBack={closeNote}
                 showBack={false}
-                // Wave 8 (8A): an explicit open lands in the title.
-                focusTitle={titleFocusFor === noteId}
-                onTitleFocused={() => setTitleFocusFor(null)}
+                // Wave 8 (8A; final-review fix I-1): an explicit open lands on
+                // the note's heading, or in the title of a note just made.
+                openFocus={openFocus?.id === noteId ? openFocus.to : null}
+                onOpenFocused={() => setOpenFocus(null)}
                 onTitleChange={updateTreeNoteTitle}
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders

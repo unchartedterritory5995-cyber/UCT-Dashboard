@@ -8,7 +8,9 @@
 // settles, over the real NotebookTab / NoteEditorPage with only the network
 // faked (fixtures.jsx).
 //
-//   open a note from the list          -> its title input
+//   open a note from the list          -> the note's heading, NEVER a field
+//                                         (final-review fix I-1)
+//   make a new note                    -> its title input
 //   go back to the list (history Back) -> the row that opened it
 //   delete it through ConfirmModal     -> the NEXT row, or the pane heading
 //   close Ask                          -> the Ask toggle
@@ -23,7 +25,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { useNavigate } from 'react-router-dom'
-import { installFetch, latchWave8Flags, Providers } from './fixtures'
+import { installFetch, latchWave8Flags, noteDetail, NOTES, Providers } from './fixtures'
 import NotebookTab from '../tabs/NotebookTab'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 
@@ -52,15 +54,24 @@ async function renderTab(route = '/journal/notebook?folder=f1') {
 const rowOrder = (pane) => [...pane.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
 const rowFor = (pane, id) => pane.querySelector(`[data-note-card-id="${id}"]`)
 const titleInput = () => screen.findByRole('textbox', { name: 'Note title' })
+/** The open note's heading: what an existing note's open focuses (I-1). */
+const noteHeading = () => waitFor(() => {
+  const h = document.querySelector('#notebook-pane [data-note-landmark]')
+  if (!h) throw new Error('no note heading yet')
+  return h
+})
+/** Whether `el` takes typed text: a field, or anything editable. */
+const takesText = (el) => Boolean(el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)))
 
 async function openFromList(pane, id) {
   const row = rowFor(pane, id)
   row.focus()
   fireEvent.click(row)
-  const title = await titleInput()
-  await waitFor(() => expect(active()).toBe(title))
+  await titleInput() // the note has loaded
+  const heading = await noteHeading()
+  await waitFor(() => expect(active()).toBe(heading))
   await settle()
-  return title
+  return heading
 }
 
 async function deleteOpenNote() {
@@ -78,11 +89,36 @@ async function deleteOpenNote() {
 describe('focus in the Notebook tab', () => {
   beforeEach(() => { installFetch(); latchWave8Flags(true); navigate = null })
 
-  it('opening a note from the list puts focus in its title', async () => {
+  // ⛔⛔ Final-review fix I-1. This rail used to assert the TITLE INPUT, and
+  // that was the defect: a live caret in an existing note's title took a
+  // reader's Space as a title edit (autosave wrote it) and raised a phone's
+  // keyboard on every open. An existing note lands on its heading.
+  it('opening an existing note from the list focuses its heading, never a field', async () => {
     const pane = await renderTab()
     const [first] = rowOrder(pane)
-    const title = await openFromList(pane, first)
+    const heading = await openFromList(pane, first)
+    expect(heading.tagName).toBe('H2')
+    expect(heading.tabIndex).toBe(-1)
+    expect(heading.textContent).toBe('NVDA thesis') // announced by the note's own title
+    expect(takesText(active())).toBe(false)
+    expect(screen.getByRole('heading', { level: 2, name: 'NVDA thesis' })).toBe(active())
+    // and it is the note pane's own heading, inside the pane that wears the ring
+    expect(active().closest('[data-note-pane="main"]')).not.toBeNull()
+  })
+
+  it('making a NEW note puts focus in its title (typing it is the next act)', async () => {
+    const fresh = noteDetail({ id: 'n9', title: '', subtitle: '' })
+    installFetch([
+      // POST /api/j2/notes answers the created note; the list GET reads `notes`
+      [/^\/api\/j2\/notes$/, { note: fresh, notes: NOTES, total: NOTES.length }],
+      [/^\/api\/j2\/notes\/n9$/, { note: fresh }],
+    ])
+    const pane = await renderTab()
+    fireEvent.click(within(pane).getByRole('button', { name: '+ New note' }))
+    const title = await titleInput()
+    await waitFor(() => expect(active()).toBe(title))
     expect(title.tagName).toBe('INPUT')
+    expect(takesText(active())).toBe(true)
   })
 
   it('going back to the list puts focus on the row that opened the note', async () => {

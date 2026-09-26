@@ -426,8 +426,12 @@ export function NoteLinkedTradeChips({ noteId }) {
 
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
-  // Wave 8 (8A, A4): an explicit open from the Notebook lands in the title.
-  focusTitle = false, onTitleFocused = null,
+  // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
+  // Notebook puts focus -- 'title' for a note the member just made (typing the
+  // title is the next act), 'landmark' for a note that already exists (the
+  // note's heading, which is not editable), null for an open aimed inside the
+  // note (a task, a page, an excerpt), which places focus itself.
+  openFocus = null, onOpenFocused = null,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
@@ -638,21 +642,32 @@ export default function NoteEditorPage({
   // stale the moment the header wraps — review finding).
   const chromeRef = useRef(null)
   const pageRef = useRef(null)
-  // Wave 8 (8A, A4): focus has somewhere to land -- the title on an explicit
+  // Wave 8 (8A, A4): focus has somewhere to land -- the note on an explicit
   // open, the Ask toggle when Ask closes (see `askRowRef` below).
+  // ⛔⛔ Final-review fix I-1: an EXISTING note's open lands on the note's
+  // heading (`landmarkRef`, tabIndex -1), NEVER in the title input. With a live
+  // caret in the title, a reader's Space typed into the title and autosave wrote
+  // it, and a phone raised its keyboard over the note on every open. A heading
+  // takes no text: Space scrolls, and the screen reader says the note's name.
+  // Only a note the member just MADE focuses its title.
   const titleInputRef = useRef(null)
-  const titleFocusDoneRef = useRef(false)
+  const landmarkRef = useRef(null)
+  const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!focusTitle || titleFocusDoneRef.current || !titleInputRef.current) return
-    titleFocusDoneRef.current = true
-    titleInputRef.current.focus({ preventScroll: true })
-    onTitleFocused?.()
-  }, [focusTitle, isLoading, note, onTitleFocused])
+    if (!openFocus || openFocusDoneRef.current) return
+    const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
+    if (!target) return
+    openFocusDoneRef.current = true
+    target.focus({ preventScroll: true })
+    onOpenFocused?.()
+  }, [openFocus, isLoading, note, onOpenFocused])
   /** Ask's panel lives in AskPanel; its toggle is the button that opened it.
-   *  Closing the panel unmounts what held focus, so focus goes back there. */
+   *  Closing the panel unmounts what held focus, so focus goes back there.
+   *  M-6: found by the hook AskPanel puts on its own toggle, never by its
+   *  label -- a wording change must not silently break the way back. */
   const focusAskToggle = () => {
-    askRowRef.current?.querySelector('button[aria-expanded][aria-label^="Ask a question"]')?.focus()
+    askRowRef.current?.querySelector('[data-ask-toggle]')?.focus()
   }
   useEffect(() => {
     const chrome = chromeRef.current
@@ -2997,6 +3012,14 @@ export default function NoteEditorPage({
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      {/* Final-review fix I-1: where an existing note's open puts focus. A
+          heading, not a field, named by the note's title; visually hidden (the
+          title input below shows the same words), and the pane's ring shows
+          where focus went for a keyboard open (NotebookTab.module.css,
+          `.notePane:has([data-note-landmark]:focus-visible)`). */}
+      <h2 ref={landmarkRef} tabIndex={-1} className="sr-only" data-note-landmark>
+        {title.trim() || 'Untitled note'}
+      </h2>
       <Toast
         message={uploadToast?.message}
         tone={uploadToast?.tone}
@@ -3563,6 +3586,9 @@ export default function NoteEditorPage({
           }}
           placeholder="Title"
           aria-label="Note title"
+          // M-6: the hook NotebookTab's skip link finds the title by -- never
+          // the label, whose wording is free to change.
+          data-note-title
         />
         <input
           className={styles.subtitleInput}
