@@ -167,6 +167,61 @@ def report(rows: list[dict], anomalies: list[str]) -> int:
     return 0
 
 
+def audit_counts(text: str, resolve=None) -> list[str]:
+    """Compare line/byte counts QUOTED in a status cell against the real file.
+
+    ⛔ WHY. The status cells are hand-written prose, and I quoted a stale figure
+    in them TWICE in one session: row 14 carried a break-out shape that a later
+    correction had moved, and row 17 attributed a count to the wrong document.
+    Both survived review because nothing re-derived them. This turns the
+    programme's own "derive, never restate" rule on its own index.
+
+    Only LINE and BYTE counts are checked, because those are the two figures a
+    file can answer for itself. Item counts inside a document (jobs, workflows,
+    tickets) are the document's own to derive and are deliberately out of scope
+    -- a check that guesses at them would cry wolf and get muted.
+    """
+    # "1,597 lines" / "123,825 bytes" — thousands separators optional.
+    LINES = re.compile(r"([\d,]+)\s+lines\b")
+    BYTES = re.compile(r"([\d,]+)\s+bytes\b")
+    PATH = re.compile(r"`([^`]+\.md)`")
+
+    def _default_resolve(rel: str):
+        p = os.path.join("docs", "terminal-research", rel)
+        if not os.path.exists(p):
+            return None
+        raw = io.open(p, "rb").read()
+        return raw.count(b"\n"), len(raw)
+
+    resolve = resolve or _default_resolve
+    out: list[str] = []
+    for line in text.splitlines():
+        m = ROW.match(line)
+        if not m:
+            continue
+        item = m.group(1)
+        cells = split_cells(line)
+        if len(cells) < 3:
+            continue
+        status = cells[-1]
+        paths = PATH.findall(cells[3]) if len(cells) > 3 else []
+        # A glob (ADR-*.md) or a multi-path row cannot be resolved to one file.
+        paths = [p for p in paths if "*" not in p]
+        if len(paths) != 1:
+            continue
+        got = resolve(paths[0])
+        if got is None:
+            continue
+        real_lines, real_bytes = got
+        for rx, label, real in ((LINES, "lines", real_lines), (BYTES, "bytes", real_bytes)):
+            for raw in rx.findall(status):
+                claimed = int(raw.replace(",", ""))
+                if claimed != real:
+                    out.append(f"row {item} ({paths[0]}): status cell says "
+                               f"{claimed:,} {label}, file has {real:,}")
+    return out
+
+
 def self_check() -> int:
     """Prove the tool can fail, and that it reads the LAST cell.
 
@@ -206,6 +261,22 @@ def self_check() -> int:
     # (No report() assertion on a one-row fixture: it would trip the <20-row
     # non-vacuity guard above, which is correct behaviour, not a failure.)
 
+    # --audit-counts must catch a stale quoted figure, and must NOT fire on a
+    # correct one. Fixture pair, so the check cannot pass by answering "no".
+    hit = audit_counts(
+        "| 9 | X | 1 | `a.md` | F | DRAFT COMPLETE -- 100 lines, 200 bytes |",
+        resolve=lambda _p: (999, 200))          # lines disagree, bytes agree
+    if not any("lines" in m for m in hit):
+        failures.append("case 7: a stale LINE count was not reported")
+    if any("bytes" in m for m in hit):
+        failures.append("case 7: a CORRECT byte count was reported as stale")
+
+    quiet = audit_counts(
+        "| 9 | X | 1 | `a.md` | F | DRAFT COMPLETE -- 100 lines, 200 bytes |",
+        resolve=lambda _p: (100, 200))
+    if quiet:
+        failures.append(f"case 8: correct counts were reported as stale -> {quiet}")
+
     # A literal pipe inside a cell must be reported, not silently trusted.
     two = ("| 1 | A | 1 | `a.md` | X | NOT STARTED |\n"
            "| 2 | B | 1 | `b.md` | X | DRAFT COMPLETE |\n"
@@ -219,8 +290,13 @@ def self_check() -> int:
         for f in failures:
             print("  - " + f, file=sys.stderr)
         return 1
-    print("SELF-CHECK PASSED (4 cases, incl. the whole-row-search regression and "
-          "a control proving the empty-parse guard fires)")
+    # ⛔ No count in this message. It read "(4 cases ...)" while the function had
+    # grown to seven checks -- a hand-typed count beside the list it describes,
+    # in the tool written to stop exactly that. Describe, do not tally.
+    print("SELF-CHECK PASSED -- incl. the whole-row-search regression, the "
+          "ordering-dependence regression, a control proving the empty-parse "
+          "guard fires, and a fixture PAIR proving --audit-counts reports a "
+          "stale figure and stays quiet on a correct one")
     return 0
 
 
@@ -228,11 +304,42 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--self-check", action="store_true")
+    ap.add_argument("--audit-counts", action="store_true",
+                    help="re-derive every line/byte count QUOTED in a status cell")
     ap.add_argument("--path", default=CHECKLIST)
     args = ap.parse_args()
 
     if args.self_check:
         return self_check()
+
+    if args.audit_counts:
+        if not os.path.exists(args.path):
+            print(f"FAIL: {args.path} not found -- run from the repo root.",
+                  file=sys.stderr)
+            return 2
+        text = io.open(args.path, encoding="utf-8").read()
+        rows, _ = parse(text)
+        if len(rows) < 20:
+            print(f"FAIL: parsed only {len(rows)} rows", file=sys.stderr)
+            return 2
+        stale = audit_counts(text)
+        if not stale:
+            print(f"OK -- every line/byte count quoted in a status cell matches "
+                  f"its file ({len(rows)} rows scanned).")
+            return 0
+        # ⛔ CANDIDATES, NOT VERDICTS. A status cell legitimately quotes OTHER
+        # files' sizes -- "rollout.py (347 lines)", the deleted DrillModal's
+        # "~320 lines", a test count -- and this check cannot tell those from a
+        # stale self-description. Measured on the real checklist: of 9 hits, 5
+        # were quotes about a different artifact and 4 were genuine drift from
+        # my own later edits. Calling all 9 "stale" would be an instrument
+        # reporting a property of itself, so each needs an eye.
+        print(f"{len(stale)} CANDIDATE(S) -- each may be genuine drift OR a "
+              f"legitimate quote about a DIFFERENT file. Read before acting:",
+              file=sys.stderr)
+        for s in stale:
+            print("  " + s, file=sys.stderr)
+        return 1
 
     if not os.path.exists(args.path):
         print(f"FAIL: {args.path} not found -- run from the repo root.",
