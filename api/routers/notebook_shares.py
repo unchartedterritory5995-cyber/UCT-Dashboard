@@ -136,7 +136,7 @@ def create_note_share_endpoint(
     user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
     """Mint (or return the active link). Body `{expiresInDays: null | 7 | 30 | 90}`,
-    optional. A foreign note and a missing note answer the same 404."""
+    optional. A foreign, missing, trashed or archived note answers the same 404."""
     public.enforce_rate(MINT_RATE, SCOPE_MINT, f"member:{user['id']}", MINT_RATE_SENTENCE, public=False)
     share = note_shares.create_share(user["id"], note_id, expires_in_days=days)
     if share is None:

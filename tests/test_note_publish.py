@@ -244,7 +244,26 @@ def test_the_editor_context_names_the_notes_folder(svc):
     f = _folder(A, "Weekly plans")
     n = _note(A, "in a folder", folderId=f)
     u = _note(A, "unfiled")
-    assert svc.list_mine(A, note_id=n)["note"] == {"noteId": n, "exists": True, "folderId": f,
-                                                    "folderName": "Weekly plans"}
-    assert svc.list_mine(A, note_id=u)["note"] == {"noteId": u, "exists": True, "folderId": None,
-                                                    "folderName": None}
+    assert svc.list_mine(A, note_id=n)["note"] == {"noteId": n, "exists": True, "publishable": True,
+                                                    "folderId": f, "folderName": "Weekly plans"}
+    assert svc.list_mine(A, note_id=u)["note"] == {"noteId": u, "exists": True, "publishable": True,
+                                                    "folderId": None, "folderName": None}
+
+
+def test_M3_the_editor_context_reports_an_archived_note_as_not_publishable(svc):
+    """Wave-8 final review M-3: `exists` alone read true for an archived note that
+    `publish_note` refuses (and a share link could never serve). The context now says so."""
+    from api.services.journal_two import notes
+    f = _folder(A, "Weekly plans")
+    archived = _note(A, "archived", folderId=f)
+    notes.set_note_archived(A, archived, True)
+    ctx = svc.list_mine(A, note_id=archived)["note"]
+    assert ctx["exists"] is True and ctx["publishable"] is False, ctx
+    assert svc.publish_note(A, archived) is None                     # the door agrees
+    trashed = _note(A, "trashed")
+    notes.delete_note(A, trashed)
+    ctx = svc.list_mine(A, note_id=trashed)["note"]
+    assert ctx["exists"] is False and ctx["publishable"] is False, ctx
+    notes.set_note_archived(A, archived, False)                      # CONTROL: unarchived is publishable
+    assert svc.list_mine(A, note_id=archived)["note"]["publishable"] is True
+    assert svc.publish_note(A, archived) is not None

@@ -386,9 +386,13 @@ def list_mine(user_id: str, note_id: str | None = None,
         out: dict[str, Any] = {"publications": pubs,
                                "shares": note_shares.list_shares(user_id, conn=conn)}
         if note_id:
-            n = conn.execute("SELECT id, folder_id FROM j2_notes WHERE id = ? AND user_id = ?"
-                             " AND deleted_at IS NULL", (note_id, user_id)).fetchone()
+            n = conn.execute("SELECT id, folder_id, archived_at FROM j2_notes WHERE id = ?"
+                             " AND user_id = ? AND deleted_at IS NULL", (note_id, user_id)).fetchone()
+            # ⚰️ Wave-8 final review M-3: `exists` alone read true for an ARCHIVED note that
+            # `publish_note` refuses with 404 (and that a share link could never serve).
+            # `publishable` is the door's answer: the caller's live note, not archived.
             ctx: dict[str, Any] = {"noteId": note_id, "exists": n is not None,
+                                   "publishable": n is not None and not n["archived_at"],
                                    "folderId": None, "folderName": None}
             if n is not None and n["folder_id"]:
                 f = _folder_row(conn, user_id, n["folder_id"])

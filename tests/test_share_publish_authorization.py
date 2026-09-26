@@ -538,7 +538,32 @@ def test_1_the_owner_list_holds_only_the_callers_things(app, client, world):
     assert [s["token"] for s in mine["shares"]] == [world["A_token"]]
     # The editor's context read: A asking about B's note learns nothing about it.
     ctx = client.get(f"/api/j2/publish?note_id={world['B_note']}").json()["note"]
-    assert ctx == {"noteId": world["B_note"], "exists": False, "folderId": None, "folderName": None}
+    assert ctx == {"noteId": world["B_note"], "exists": False, "publishable": False,
+                   "folderId": None, "folderName": None}
+
+
+def test_1_M3_an_archived_note_gets_no_share_link_and_answers_like_a_trashed_one(app, client, world):
+    """Wave-8 final review M-3. `note_shares._owned` read only `deleted_at`, so a link could be
+    minted for an ARCHIVED note that `_live_share_row` would never serve. Archived now answers
+    the mint exactly like trashed and missing (the one not-found), and writes nothing."""
+    from api.services.journal_two import note_shares, notes
+    archived = _note(A, "Archived, never shared")["id"]
+    notes.set_note_archived(A, archived, True)
+    trashed = _note(A, "Trashed, never shared")["id"]
+    notes.delete_note(A, trashed)
+    as_member(app, A)
+    before = snapshot()
+    on_archived = client.post(f"/api/j2/notes/{archived}/share")
+    on_trashed = client.post(f"/api/j2/notes/{trashed}/share")
+    on_missing = client.post(f"/api/j2/notes/{MISSING_NOTE}/share")
+    assert on_archived.status_code == 404, on_archived.text
+    assert _sig(on_archived) == _sig(on_trashed) == _sig(on_missing)
+    assert snapshot() == before, "a share row was written for an archived note"
+    assert note_shares.create_share(A, archived) is None                      # the service agrees
+    # CONTROL: the same note, unarchived, is shareable -- the refusal is the archive, not the note.
+    notes.set_note_archived(A, archived, False)
+    ok = client.post(f"/api/j2/notes/{archived}/share")
+    assert ok.status_code == 200 and ok.json()["share"]["token"], ok.text
 
 
 def test_1_the_service_scopes_revoke_by_the_caller(db_path):

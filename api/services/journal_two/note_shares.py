@@ -126,14 +126,16 @@ def validate_expiry(value: Any) -> int | None:
 
 
 def _owned(conn: sqlite3.Connection, user_id: str, note_id: str) -> bool:
-    # Wave 0 trash: a soft-deleted note must not be shareable — creating a
-    # new share link for a note already in the trash would be surprising,
-    # and `resolve_share` (below) already stops SERVING an existing share
-    # the moment its note is deleted, via `notes_service.get_note`'s own
-    # default `deleted_at IS NULL` filter — this closes the symmetric gap
-    # on the creation side.
+    """The caller's note, and one a link could SERVE: neither trashed nor archived.
+
+    Wave 0 trash: a soft-deleted note must not be shareable -- `_live_share_row` stops
+    serving a link the moment its note is trashed, and this closes the symmetric gap on the
+    creation side. ⚰️ Wave-8 final review M-3: an ARCHIVED note passed this check (it read
+    only `deleted_at`), so a link could be minted that `_live_share_row` would never serve.
+    Archived now answers exactly like trashed: the one not-found, nothing written."""
     row = conn.execute(
-        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+        "SELECT 1 FROM j2_notes WHERE id = ? AND user_id = ?"
+        " AND deleted_at IS NULL AND archived_at IS NULL",
         (note_id, user_id),
     ).fetchone()
     return row is not None
@@ -163,7 +165,8 @@ def get_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None
 def create_share(user_id: str, note_id: str, conn: sqlite3.Connection | None = None,
                  expires_in_days: int | None = None) -> dict | None:
     """Mint (or return the existing active) share token. None = not the
-    caller's note. An existing active link keeps its own expiry: to change it,
+    caller's note, or one in Trash or archived (M-3). An existing active
+    link keeps its own expiry: to change it,
     revoke and create again (the old URL must die, not quietly live longer)."""
     days = validate_expiry(expires_in_days)
     owned = conn is None
