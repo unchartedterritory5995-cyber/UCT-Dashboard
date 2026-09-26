@@ -559,6 +559,65 @@ def test_loosening_massive_is_one_line():
         pnp.VENDOR_VERDICT["massive"] = saved
 
 
+# ── M-11: market data NESTED in a container, in SHARE mode (wave-8 final review) ────────
+#
+# The ruling-critical case the top-level fixtures cannot see: a Massive chart or price
+# inside columns, a callout, a table cell or an Ask insert (share links KEEP Ask answers,
+# G-064) must still become the neutral line, and an FMP / Finnhub figure nested the same way
+# must still render. Recursion is generic, which is exactly why it is pinned here.
+
+NESTED_CONTAINERS: dict[str, Callable[[dict], dict]] = {
+    "columns": lambda n: doc({"type": "columns", "content": [
+        {"type": "column", "content": [n]}, {"type": "column", "content": [p(t("right"))]}]}),
+    "callout": lambda n: doc({"type": "callout", "attrs": {"variant": "info"}, "content": [n]}),
+    "tableCell": lambda n: doc({"type": "table", "content": [{"type": "tableRow", "content": [
+        {"type": "tableHeader", "content": [p(t("head"))]}, {"type": "tableCell", "content": [n]}]}]}),
+    "askInsert": lambda n: doc({"type": "askInsert", "attrs": {"question": "q", "scope": "notebook"},
+                                "content": [n]}),
+}
+#: the container type that must still be there, so the node was reduced IN PLACE
+_CONTAINER_TYPE = {"columns": "column", "callout": "callout", "tableCell": "tableCell", "askInsert": "askInsert"}
+
+MASSIVE_NODES: dict[str, Callable[[], dict]] = {
+    "chart widget": lambda: _widget("chart"),
+    "price fact (massive)": lambda: {"type": "financialFact", "attrs": {"factId": "fact-massive"}},
+}
+#: approved-vendor nodes -> (the type that stays, a string of the figure that must render)
+APPROVED_NODES: dict[str, tuple[Callable[[], dict], str, str]] = {
+    "fundamentals widget (fmp)": (lambda: _widget("fundamentals"), "widgetEmbed", "fundamentals"),
+    "consensus fact (fmp)": (lambda: {"type": "financialFact", "attrs": {"factId": "fact-fmp"}},
+                             "paragraph", "$212.50"),
+    "price fact (finnhub)": (lambda: {"type": "financialFact", "attrs": {"factId": "fact-finnhub"}},
+                             "paragraph", "$401.00"),
+}
+
+
+@pytest.mark.parametrize("node", sorted(MASSIVE_NODES))
+@pytest.mark.parametrize("container", sorted(NESTED_CONTAINERS))
+def test_M11_a_nested_massive_node_is_the_neutral_line_in_share_mode(container, node):
+    body = NESTED_CONTAINERS[container](MASSIVE_NODES[node]())
+    out = reduce(body, "share")
+    assert _CONTAINER_TYPE[container] in types_in(out), (container, out)     # reduced in place
+    assert "widgetEmbed" not in types_in(out) and "financialFact" not in types_in(out), out
+    assert NEUTRAL in texts_in(out), (container, node, out)
+    raw = json.dumps(out)
+    assert "101.25" not in raw and "w.png" not in raw and "AAPL" not in raw, raw   # no Massive data
+
+
+@pytest.mark.parametrize("node", sorted(APPROVED_NODES))
+@pytest.mark.parametrize("container", sorted(NESTED_CONTAINERS))
+def test_M11_a_nested_fmp_or_finnhub_node_is_kept_in_share_mode(container, node):
+    build, kept_type, figure = APPROVED_NODES[node]
+    out = reduce(NESTED_CONTAINERS[container](build()), "share")
+    assert _CONTAINER_TYPE[container] in types_in(out), (container, out)
+    assert NEUTRAL not in texts_in(out), (container, node, out)
+    if kept_type == "widgetEmbed":
+        widgets = find(out, "widgetEmbed")
+        assert [w["attrs"]["widgetId"] for w in widgets] == [figure], out
+    else:
+        assert any(figure in s for s in texts_in(out)), (container, node, texts_in(out))
+
+
 @pytest.mark.parametrize("mode", ["share", "publish"])
 def test_a_shown_widget_keeps_exactly_what_the_archived_render_reads(mode):
     out = reduce(doc(_widget("fundamentals")), mode)
