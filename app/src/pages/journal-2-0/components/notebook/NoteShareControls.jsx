@@ -12,6 +12,11 @@
 // A member whose plan lapsed still sees and revokes every link in Settings, which is not
 // plan-gated (ruling D-B3).
 //
+// ⛔ THE PUBLISH CALL LIVES IN lib/notePublishLink.js (wave 9, lane 9D, ruling D-9D2): this door
+// and the sidebar's folder door (PublishFolderSheet) publish through the ONE `publishTarget`, find
+// an existing page with the ONE `findLivePublication`, and say what becomes public in the SAME
+// sentences, which moved there with it. Nothing here restates them.
+//
 // It opens a `Sheet` (a centered dialog on desktop, a bottom sheet on touch), which owns focus
 // trapping, Escape and focus return. Nothing is fetched until it opens: the editor already
 // makes enough requests on mount.
@@ -24,44 +29,18 @@ import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../lib/noteShareLink'
-import { PUBLISH_ENDPOINT, publishedUrl } from '../../lib/notePublishLink'
+import {
+  FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE, PUBLISH_PUBLIC_SENTENCE,
+  copyText, findLivePublication, pageCopiedSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
+} from '../../lib/notePublishLink'
 import editorStyles from './NoteEditorPage.module.css'
 import styles from './NoteShareControls.module.css'
-
-/** The server's sentence when it sent one, else ours. */
-async function requestJson(url, opts = {}) {
-  const res = await fetch(url, {
-    credentials: 'include',
-    ...opts,
-    headers: opts.body ? { 'Content-Type': 'application/json', ...(opts.headers || {}) } : opts.headers,
-  })
-  let body = null
-  try { body = await res.json() } catch { body = null }
-  if (!res.ok) {
-    const detail = body && typeof body.detail === 'string' ? body.detail : null
-    const err = new Error(detail || String(res.status))
-    err.detail = detail
-    err.status = res.status
-    throw err
-  }
-  return body || {}
-}
 
 function whenText(expiresAt) {
   if (!expiresAt) return 'It never expires.'
   const d = new Date(expiresAt)
   if (Number.isNaN(d.getTime())) return 'It never expires.'
   return `It stops working on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
-}
-
-async function copyText(text) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch { /* fall through: the address is on screen to copy by hand */ }
-  return false
 }
 
 export default function NoteShareControls({ noteId, onMessage }) {
@@ -157,9 +136,8 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     return () => { alive = false }
   }, [noteId, shareOn, publishOn])
 
-  const livePub = (kind, targetId) => pubs.find((p) => p.kind === kind && p.targetId === targetId && p.state === 'active') || null
-  const notePub = livePub('note', noteId)
-  const folderPub = ctx?.folderId ? livePub('folder', ctx.folderId) : null
+  const notePub = findLivePublication(pubs, 'note', noteId)
+  const folderPub = ctx?.folderId ? findLivePublication(pubs, 'folder', ctx.folderId) : null
 
   const run = async (fn) => {
     if (busy) return
@@ -199,25 +177,20 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   })
 
   const publish = (kind) => run(async () => {
-    const url = kind === 'note'
-      ? `${PUBLISH_ENDPOINT}/notes/${encodeURIComponent(noteId)}`
-      : `${PUBLISH_ENDPOINT}/folders/${encodeURIComponent(ctx.folderId)}`
     try {
-      const b = await requestJson(url, { method: 'POST', body: JSON.stringify({ expiresInDays: null }) })
-      const pub = { ...b.publication, state: 'active' }
+      const pub = await publishTarget(kind, kind === 'note' ? noteId : ctx.folderId)
       setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
       focusNextRef.current = kind === 'note' ? 'copyPage' : 'copyFolder'
       const copied = await copyText(publishedUrl(pub.slug))
-      const what = kind === 'note' ? 'Published' : `Published "${ctx.folderName}"`
-      say(copied ? `${what}. Page link copied.` : `${what}. Copy the address above.`)
+      say(publishedSentence(kind === 'note' ? null : ctx.folderName, copied))
     } catch (e) {
-      say(e.detail || 'Could not publish. Try again.')
+      say(e.detail || PUBLISH_FAILED_SENTENCE)
     }
   })
 
   const copyPage = (pub) => run(async () => {
     const copied = await copyText(publishedUrl(pub.slug))
-    say(copied ? 'Page link copied.' : 'Copy the address above.')
+    say(pageCopiedSentence(copied))
   })
 
   const unpublish = (pub) => run(async () => {
@@ -294,9 +267,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       {publishOn && (
         <section className={styles.section} aria-labelledby={ids.publishHeading}>
           <h3 id={ids.publishHeading} className={styles.heading}>Publish to the web</h3>
-          <p className={styles.lede}>
-            A published page can be read by anyone with its address, without signing in. Search engines are asked not to index it.
-          </p>
+          <p className={styles.lede}>{PUBLISH_PUBLIC_SENTENCE}</p>
           {notePub ? (
             <>
               <input
@@ -348,9 +319,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
                     {`Publish folder "${ctx.folderName}"`}
                   </button>
                 </div>
-                <p className={styles.caption}>
-                  Publishes up to 500 notes in this folder and the folders inside it. A note added later appears when you update the page in Settings.
-                </p>
+                <p className={styles.caption}>{FOLDER_PUBLISH_SCOPE_SENTENCE}</p>
               </>
             )
           )}
