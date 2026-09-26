@@ -12,6 +12,9 @@ import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { __resetTourControl } from './tourControl'
 import { expectNoAxeViolations } from '../../../a11y/axeHarness'
+import { installTourLayout } from './__fixtures__/tourLayout'
+
+let restoreLayout = () => {}
 
 function Page() {
   return (
@@ -33,6 +36,10 @@ beforeEach(() => {
   __resetTourControl()
   latchNotebookFlags({ notebook_onboarding_enabled: true })
   global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+  // The tour asks whether each anchor can be SEEN (fix M-7) and jsdom lays nothing out, so the
+  // anchors get a box while the tour walks -- and lose it again before axe runs, so axe sees the
+  // page exactly as it did before (every element one shared box would read as overlapping targets).
+  restoreLayout = installTourLayout()
 })
 afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
 
@@ -40,6 +47,7 @@ describe('NotebookTour -- axe', () => {
   it('the first step: zero violations', async () => {
     render(<Page />)
     expect(await screen.findByRole('dialog', {}, { timeout: 2000 })).toBeInTheDocument()
+    restoreLayout()
     await expectNoAxeViolations(document.body)
   })
 
@@ -48,6 +56,7 @@ describe('NotebookTour -- axe', () => {
     await screen.findByRole('dialog', {}, { timeout: 2000 })
     for (let i = 1; i < TOUR_STEPS.length; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByRole('link', { name: 'Read the Notebook help' })).toBeInTheDocument()
+    restoreLayout()
     await expectNoAxeViolations(document.body)
   })
 })

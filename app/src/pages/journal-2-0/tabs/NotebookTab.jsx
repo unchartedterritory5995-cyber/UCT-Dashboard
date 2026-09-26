@@ -49,6 +49,7 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
+import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -103,17 +104,10 @@ const ImportWizard = lazyDialog(() => import('../components/notebook/import/Impo
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
 
 // Wave 8 seam S8-3: the first-run tour (lane 8C builds it in onboarding/NotebookTour.jsx).
-// Its own chunk, outside the Notebook's first-open closure (dispatch-plan R9), mounted only
-// while `notebook_onboarding_enabled` is on -- with the gate off the chunk is never fetched.
-// The fallback is null: a tour that is still loading shows nothing, never a skeleton.
-const NotebookTourChunk = lazyChunk(() => import('../components/notebook/onboarding/NotebookTour'))
-function NotebookTour(props) {
-  return (
-    <Suspense fallback={null}>
-      <NotebookTourChunk {...props} />
-    </Suspense>
-  )
-}
+// Its own chunk, outside the Notebook's first-open closure (dispatch-plan R9). ⛔ Final-review
+// fix I-2: NotebookTourGate (static, small) decides whether the chunk is fetched AT ALL -- only
+// when the tour is about to show -- and loads it through `lazyLeaf` inside a boundary that
+// renders nothing, so a failed chunk can neither reload the page nor take the Notebook down.
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -2136,7 +2130,7 @@ export default function NotebookTab() {
         )}
       </div>
       {notebookFlag('notebook_onboarding_enabled') === true && (
-        <NotebookTour hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
+        <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
     </div>
     </SplitViewContext.Provider>

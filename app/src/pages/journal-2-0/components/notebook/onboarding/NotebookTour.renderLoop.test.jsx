@@ -16,6 +16,7 @@ import { TOUR_STEPS } from './tourSteps'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { __resetTourControl } from './tourControl'
+import { installTourLayout } from './__fixtures__/tourLayout'
 
 /** Commits of the tour's subtree allowed across the whole run. Measured: 3 (all of them
  *  while it opens); a setState per animation frame adds one per 100 ms step (20). */
@@ -43,6 +44,7 @@ beforeEach(() => {
   __resetTourControl()
   latchNotebookFlags({ notebook_onboarding_enabled: true })
   global.fetch = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({}) }))
+  installTourLayout() // jsdom lays nothing out; the tour asks whether an anchor can be seen (M-7)
   commits = 0
 })
 afterEach(() => {

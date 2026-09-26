@@ -7,12 +7,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import NotebookTour, { TOUR_PREF } from './NotebookTour'
+import NotebookTour, { TOUR_PREF, AUTO_START_DELAY_MS } from './NotebookTour'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY, TOUR_UI } from './tourCopy'
 import { openNotebookTour, __resetTourControl } from './tourControl'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
+import { installTourLayout } from './__fixtures__/tourLayout'
 
 let server
 function installFetch() {
@@ -39,7 +40,11 @@ function Support() {
   return <p>support page from {loc.state?.from}</p>
 }
 
-function Page({ anchors = TOUR_STEPS.map((s) => s.anchor), paid = true, tour = {}, initial = '/journal/notebook' }) {
+// `boxes` (fix M-7): an anchor's layout -- 'none' (no box) or 'l,t,r,b' -- and `slot`, the anchors
+// placed inside a 0-width clipping slot the way the collapsed sidebar holds its own: the slot sits
+// at x=200, the panel is translated left of it, so the panel's box is ON screen and only the
+// slot's clip hides it.
+function Page({ anchors = TOUR_STEPS.map((s) => s.anchor), paid = true, tour = {}, initial = '/journal/notebook', boxes = {}, slot = [] }) {
   return (
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <AuthContext.Provider value={{ isPaid: paid }}>
@@ -49,7 +54,12 @@ function Page({ anchors = TOUR_STEPS.map((s) => s.anchor), paid = true, tour = {
             <Route path="*" element={(
               <div>
                 <button type="button">before the tour</button>
-                {anchors.map((a) => <div key={a} data-tour={a}>anchor {a}</div>)}
+                {anchors.filter((a) => !slot.includes(a)).map((a) => <div key={a} data-tour={a} data-test-box={boxes[a]}>anchor {a}</div>)}
+                {slot.length > 0 && (
+                  <div style={{ overflow: 'hidden' }} data-test-box="200,0,200,600">
+                    {anchors.filter((a) => slot.includes(a)).map((a) => <div key={a} data-tour={a} data-test-box="-60,20,200,60">anchor {a}</div>)}
+                  </div>
+                )}
                 <NotebookTour hasAnyNotes={false} notesKnown {...tour} />
               </div>
             )} />
@@ -66,6 +76,8 @@ beforeEach(() => {
   latchNotebookFlags({ notebook_onboarding_enabled: true })
   server = { prefs: {} }
   installFetch()
+  // jsdom lays nothing out; the tour asks whether an anchor can be SEEN (fix M-7)
+  installTourLayout()
 })
 afterEach(() => {
   __resetNotebookFlags()
@@ -133,6 +145,29 @@ describe('when it starts', () => {
     server.prefs = { [TOUR_PREF]: JSON.stringify({ v: 1, state: 'done', step: null }) }
     render(<Page initial={{ pathname: '/journal/notebook', state: { startTour: true } }} />)
     await dialog()
+  })
+
+  // ⛔ Fix M-7: leaving inside the help link's wait used to open the tour anyway -- on a page
+  // the member had left -- and record `started`.
+  // The anchors live in a tree of their own that STAYS, so a stray timer would find something to
+  // open -- otherwise the unmount would take the anchors with it and the rail could not tell.
+  const standaloneAnchors = () => render(<div>{TOUR_STEPS.map((s) => <div key={s.anchor} data-tour={s.anchor}>anchor {s.anchor}</div>)}</div>)
+  it("M-7: leaving before the help link's wait ends opens nothing and records nothing", async () => {
+    server.prefs = { [TOUR_PREF]: JSON.stringify({ v: 1, state: 'done', step: null }) }
+    standaloneAnchors()
+    const { unmount } = render(<Page anchors={[]} initial={{ pathname: '/journal/notebook', state: { startTour: true } }} />)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    unmount()
+    await act(async () => { await new Promise((r) => setTimeout(r, AUTO_START_DELAY_MS + 200)) })
+    expect(tourWrites()).toEqual([])
+  })
+
+  it('M-7 CONTROL: the same arrangement, not left, does open (so the rail above can fail)', async () => {
+    server.prefs = { [TOUR_PREF]: JSON.stringify({ v: 1, state: 'done', step: null }) }
+    standaloneAnchors()
+    render(<Page anchors={[]} initial={{ pathname: '/journal/notebook', state: { startTour: true } }} />)
+    await dialog()
+    await waitFor(() => expect(tourWrites().at(-1)).toEqual({ v: 1, state: 'started', step: 'first-run' }))
   })
 
   it('with no anchor on the page there is no tour, and nothing is recorded', async () => {
@@ -203,6 +238,37 @@ describe('how it walks', () => {
     expect(seen).not.toContain('Search')
     expect(seen).not.toContain('Ask your notebook')
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+  })
+
+  // ⛔ Wave 8 final review, fix M-7: PRESENT IS NOT VISIBLE. With the sidebar collapsed its
+  // anchors stay in the DOM, translated out of a 0-width slot that clips them; the tour used
+  // to outline those, pointing at nothing the member could see.
+  it('M-7: anchors in a collapsed sidebar (clipped to nothing) are skipped', async () => {
+    render(<Page slot={['sidebar', 'search']} />)
+    await dialog()
+    expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length - 2}`)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(title()).toHaveTextContent('New note')
+    expect(document.querySelector('[data-tour="sidebar"]')).not.toHaveAttribute('data-tour-active')
+  })
+
+  it('M-7: an anchor with no box (display: none) or off the side of the window is skipped', async () => {
+    render(<Page boxes={{ search: 'none', import: '-400,100,-200,140' }} />)
+    await dialog()
+    expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length - 2}`)).toBeInTheDocument()
+    const seen = [title().textContent]
+    for (let i = 1; i < TOUR_STEPS.length - 2; i += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+      seen.push(title().textContent)
+    }
+    expect(seen).not.toContain('Search')
+    expect(seen).not.toContain('Import')
+  })
+
+  it('M-7 CONTROL: an anchor below the fold still counts (the step scrolls it into view)', async () => {
+    render(<Page boxes={{ sidebar: '100,5000,300,5040' }} />)
+    await dialog()
+    expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length}`)).toBeInTheDocument()
   })
 
   it('an anchor that leaves the page mid-tour is skipped on the way past it', async () => {

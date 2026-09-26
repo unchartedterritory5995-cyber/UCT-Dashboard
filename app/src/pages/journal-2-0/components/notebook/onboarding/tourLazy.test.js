@@ -1,8 +1,9 @@
 // @vitest-environment node
 // The tour stays LAZY (wave 8, lane 8C, C2; dispatch plan R9): no file under
 // app/src/pages/journal-2-0/** imports `onboarding/NotebookTour` STATICALLY, so its code
-// stays out of the Notebook's first-open byte closure. NotebookTab reaches it through a
-// dynamic `import()` only. Read by AST (acorn + acorn-jsx, already the tree's parser),
+// stays out of the Notebook's first-open byte closure. Since the final-review fix I-2 the one
+// dynamic `import()` of it lives in NotebookTourGate (which NotebookTab imports statically,
+// and which loads the tour only when it is about to show). Read by AST (acorn + acorn-jsx, already the tree's parser),
 // never grep: a path in a comment is not an import.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
@@ -50,10 +51,13 @@ const FOUND = FILES.map((f) => ({
 }))
 
 describe('the tour stays out of the first-open closure', () => {
-  it('NON-VACUITY: the walk sees NotebookTab, and its one dynamic import of the tour', () => {
+  it('NON-VACUITY: the walk sees the gate, and its one dynamic import of the tour', () => {
     expect(FILES.length).toBeGreaterThan(100)
-    const tab = FOUND.find((f) => f.file === 'tabs/NotebookTab.jsx')
-    expect(tab.dynamics).toEqual(['../components/notebook/onboarding/NotebookTour'])
+    const gate = FOUND.find((f) => f.file === 'components/notebook/onboarding/NotebookTourGate.jsx')
+    expect(gate.dynamics).toEqual(['./NotebookTour'])
+    // and it is the ONLY one: NotebookTab no longer reaches the tour's chunk itself (I-2)
+    expect(FOUND.filter((f) => f.dynamics.length).map((f) => f.file))
+      .toEqual(['components/notebook/onboarding/NotebookTourGate.jsx'])
   })
 
   it('no file under journal-2-0 imports onboarding/NotebookTour statically', () => {

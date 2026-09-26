@@ -23,6 +23,13 @@ export function openNotebookTour() {
   }
 }
 
+/** Whether a request is waiting, WITHOUT taking it (wave 8 final review, fix I-2): the gate
+ *  that decides whether to fetch the tour's chunk asks this; the tour itself, once mounted,
+ *  takes the request. */
+export function hasPendingTourOpen() {
+  return pending
+}
+
 /** The tour asks once, on mount: was it asked to open before it existed? */
 export function takePendingTourOpen() {
   const was = pending

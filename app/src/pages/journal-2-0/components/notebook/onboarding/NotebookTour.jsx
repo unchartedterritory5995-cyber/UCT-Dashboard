@@ -1,9 +1,11 @@
 // The Notebook's first-run tour (wave 8, lane 8C, C2; ruling D-C7).
 //
-// THE MOUNT (tabs/NotebookTab.jsx, lane 8A's file): its own lazy chunk, mounted only while
-// `notebook_onboarding_enabled` is on, handed `hasAnyNotes` (the same value the first-run
-// screen reads) and `notesKnown` (false while the count loads — `hasAnyNotes` also reads
-// false then, so a member WITH notes would look new to anything that trusted it alone).
+// THE MOUNT (NotebookTourGate.jsx, which tabs/NotebookTab.jsx renders): its own lazy chunk,
+// fetched only while `notebook_onboarding_enabled` is on AND the tour is about to show
+// (wave 8 final review, fix I-2), inside a boundary that renders nothing if the chunk fails.
+// Handed `hasAnyNotes` (the same value the first-run screen reads) and `notesKnown` (false
+// while the count loads — `hasAnyNotes` also reads false then, so a member WITH notes would
+// look new to anything that trusted it alone).
 //
 // WHEN IT SHOWS.
 //   * Auto-start, once per mount, only when ALL hold: the gate is on, the member is paid,
@@ -22,43 +24,83 @@
 //     Done records `done`, and focus goes back to whatever held it before.
 //   * On the touch tier the card sits at the bottom; motion only without reduced motion.
 //
-// ⛔ H14: NOTHING HERE MEASURES THE PAGE. The anchor is found once per step and outlined
-// with an attribute; the card has a fixed place. No layout read sets state, so nothing can
-// set state on every frame (NotebookTour.renderLoop.test.jsx, mutation-proved).
+// ⛔ H14: NOTHING HERE MEASURES THE PAGE ON A LOOP. An anchor's box is read at two moments
+// only -- when the tour opens and when a step moves past one -- to ask whether the member
+// can see it (fix M-7); the anchor is then outlined with an attribute and the card has a
+// fixed place. No read is taken in response to layout, and none sets state per frame
+// (NotebookTour.renderLoop.test.jsx, mutation-proved).
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import usePreferences, { parsePref } from '../../../../../hooks/usePreferences'
+import usePreferences from '../../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../../context/AuthContext'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY, TOUR_UI } from './tourCopy'
 import { TOUR_OPEN_EVENT, takePendingTourOpen } from './tourControl'
+import { TOUR_PREF, TOUR_STATES, readTourPref, tourFinished, tourIsForThisMember } from './tourPref'
 import styles from './NotebookTour.module.css'
 
-export const TOUR_PREF = 'notebook_tour'
-export const TOUR_STATES = Object.freeze({ started: 'started', done: 'done', dismissed: 'dismissed' })
+// The preference and the "is it for this member" rule live in tourPref.js, which the
+// gate that fetches this chunk reads too (fix I-2). Re-exported: callers import them here.
+export { TOUR_PREF, TOUR_STATES, readTourPref }
 /** How long the auto-start waits for the page it points at to finish its first paint. */
 export const AUTO_START_DELAY_MS = 300
 const ACTIVE_ATTR = 'data-tour-active'
 
-/** The on-screen element for an anchor, or null. Explicitly hidden elements do not count. */
+/**
+ * Whether the member can SEE `el` (wave 8 final review, fix M-7). Present is not visible:
+ * the collapsed sidebar keeps its anchors in the DOM, translated out of a 0-width slot that
+ * clips them, and a `display: none` anchor has no box at all. So an anchor counts only when
+ *   * it has a box (client rects, and a non-zero area);
+ *   * that box is not wholly left or right of the window (a page scrolls up and down, never
+ *     sideways, so nothing can bring a sideways box into view); and
+ *   * no ancestor that CLIPS (overflow hidden/clip) cuts it to nothing.
+ * Below the fold is fine: the step scrolls its anchor into view. An ancestor that SCROLLS
+ * (auto/scroll) can bring the anchor into its own box, so past it what must be visible is
+ * that scroller's box, not the anchor's.
+ */
+const CLIPS = new Set(['hidden', 'clip'])
+const SCROLLS = new Set(['auto', 'scroll', 'overlay'])
+export function isOnScreen(el) {
+  if (!el?.getClientRects || el.getClientRects().length === 0) return false
+  const r = el.getBoundingClientRect()
+  const box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom }
+  const area = (b) => Math.max(0, b.right - b.left) * Math.max(0, b.bottom - b.top)
+  if (area(box) === 0) return false
+  const vw = window.innerWidth || document.documentElement?.clientWidth || 0
+  if (vw && (box.right <= 0 || box.left >= vw)) return false
+  for (let a = el.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+    const cs = window.getComputedStyle(a)
+    // A browser always resolves both axes; the shorthand is the fallback for an engine
+    // that reports only what it was given (jsdom does).
+    const x = cs.overflowX || cs.overflow
+    const y = cs.overflowY || cs.overflow
+    if (!CLIPS.has(x) && !CLIPS.has(y) && !SCROLLS.has(x) && !SCROLLS.has(y)) continue
+    const ar = a.getBoundingClientRect()
+    if (SCROLLS.has(x)) { box.left = ar.left; box.right = ar.right }
+    else if (CLIPS.has(x)) { box.left = Math.max(box.left, ar.left); box.right = Math.min(box.right, ar.right) }
+    if (SCROLLS.has(y)) { box.top = ar.top; box.bottom = ar.bottom }
+    else if (CLIPS.has(y)) { box.top = Math.max(box.top, ar.top); box.bottom = Math.min(box.bottom, ar.bottom) }
+    if (area(box) === 0) return false
+  }
+  return true
+}
+
+/** The on-screen element for an anchor, or null. Explicitly hidden elements do not count,
+ *  and nor does one the member cannot see (M-7: a collapsed sidebar's anchors). */
 export function anchorFor(anchor) {
   if (typeof document === 'undefined') return null
   const el = document.querySelector(`[data-tour="${anchor}"]`)
   if (!el || el.closest('[hidden],[aria-hidden="true"]')) return null
+  if (!isOnScreen(el)) return null
   return el
 }
 
 /** The steps whose anchors are on screen now, in tour order. */
 export function availableSteps() {
   return TOUR_STEPS.filter((s) => anchorFor(s.anchor))
-}
-
-export function readTourPref(raw) {
-  const v = parsePref(raw, null)
-  return v && typeof v === 'object' && typeof v.state === 'string' ? v : null
 }
 
 export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }) {
@@ -102,10 +144,11 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
   }, [steps, index, record])
 
   // ── auto-start: once per mount, and only for a member the tour is for ──────────────
+  // The rule is tourPref.js's, shared with the gate that fetched this chunk (fix I-2).
   useEffect(() => {
     if (autoTriedRef.current || steps) return undefined
-    if (!enabled || !isPaid || !notesKnown || hasAnyNotes || loading) return undefined
-    if (savedState === TOUR_STATES.done || savedState === TOUR_STATES.dismissed) {
+    if (!tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading })) return undefined
+    if (tourFinished(savedState)) {
       autoTriedRef.current = true
       return undefined
     }
@@ -132,6 +175,13 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
     return () => window.removeEventListener(TOUR_OPEN_EVENT, onOpen)
   }, [enabled, open, record])
 
+  // ⛔ Fix M-7: the help link's timer is cleared if the tour unmounts first (a member who
+  // navigates away inside the wait used to have the tour open -- and record `started` -- on
+  // a page they had left). A REF, cleared on unmount only: the effect below re-runs the
+  // moment it clears `state.startTour` from the URL, and a cleanup there would cancel the
+  // very timer it had just set.
+  const startTimerRef = useRef(null)
+  useEffect(() => () => clearTimeout(startTimerRef.current), [])
   useEffect(() => {
     if (!enabled || !location.state?.startTour) return
     const rest = { ...location.state }
@@ -139,7 +189,9 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
     navigate(`${location.pathname}${location.search}`, { replace: true, state: Object.keys(rest).length ? rest : null })
     // Arriving from another page, the Notebook is still painting: give it the same moment
     // the auto-start gives it before looking for anchors.
-    setTimeout(() => {
+    clearTimeout(startTimerRef.current)
+    startTimerRef.current = setTimeout(() => {
+      startTimerRef.current = null
       const first = open(null)
       if (first) record(TOUR_STATES.started, first.id)
     }, AUTO_START_DELAY_MS)
