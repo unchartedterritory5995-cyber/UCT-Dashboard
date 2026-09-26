@@ -69,6 +69,12 @@ def test_the_three_wave7_routers_are_mounted__by_source():
         assert alias in lines, f"{alias} is imported but never mounted"
 
 
+def test_the_wave9_soak_router_is_mounted__by_source():
+    # Wave 9 lane 9C: the soak's one admin read (ruling D-9C2).
+    lines = _include_router_lines()
+    assert "notebook_soak_router" in lines, "notebook_soak is imported but never mounted"
+
+
 def test_the_routes_resolve_and_tasks_precedes_the_note_id_wildcard__on_the_real_app():
     # Under pytest the repo-root conftest has already pinned every /data path to a sandbox
     # and armed the tripwire, so importing the app is safe here (it is NOT safe bare).
@@ -82,6 +88,7 @@ def test_the_routes_resolve_and_tasks_precedes_the_note_id_wildcard__on_the_real
     assert "/api/j2/notes/tasks" in paths, "notebook_insights' tasks route did not mount"
     assert "/api/j2/link-preview" in paths, "notebook_link_preview did not mount"
     assert any(p.startswith("/api/client-errors") for p in paths), "client_errors did not mount"
+    assert "/api/admin/notebook-soak" in paths, "notebook_soak did not mount"
     assert paths.index("/api/j2/notes/tasks") < paths.index("/api/j2/notes/{note_id}"), (
         "/api/j2/notes/tasks is shadowed by /api/j2/notes/{note_id}: a request for the tasks view "
         "would be answered as a note whose id is 'tasks'")

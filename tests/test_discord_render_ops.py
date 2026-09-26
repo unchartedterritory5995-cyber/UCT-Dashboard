@@ -96,8 +96,16 @@ def test_the_pre_warm_stops_at_its_budget_and_obeys_its_switches(monkeypatch):
 
 # ── the smoke ─────────────────────────────────────────────────────────────────────────────
 
-def _bars(week_close=630.63, week_high=639.0):
+_ET4 = dt.timezone(dt.timedelta(hours=-4))
+FRI_1555 = dt.datetime(2026, 9, 25, 15, 55, tzinfo=_ET4).timestamp()      # the last session before ET_NOON_MON
+WED_1555 = dt.datetime(2026, 9, 23, 15, 55, tzinfo=_ET4).timestamp()      # two sessions stale
+
+
+def _bars(week_close=630.63, week_high=639.0, intraday_last=FRI_1555):
     def fetch(sym, tf, n):
+        if tf in ("60", "5"):                                               # intraday `t` is epoch seconds
+            return [{"t": int(intraday_last) - 300, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1},
+                    {"t": int(intraday_last), "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}]
         if tf == "D":
             return [{"t": "2026-09-24", "o": 1, "h": 632.0, "l": 1, "c": 620.0, "v": 1},
                     {"t": "2026-09-25", "o": 1, "h": 639.0, "l": 1, "c": 630.63, "v": 1}]
@@ -107,33 +115,49 @@ def _bars(week_close=630.63, week_high=639.0):
 
 def test_a_healthy_deploy_reads_green(monkeypatch):
     _page_on(monkeypatch)
-    r = ops.run_smoke(produce=lambda tf: ("ok", b"png", "f.png"), bars=_bars(),
-                      flow=lambda diag: {"derivation": "page"})
+    asked = []
+    r = ops.run_smoke(produce=lambda tf: asked.append(tf) or ("ok", b"png", "f.png"), bars=_bars(),
+                      flow=lambda diag: {"derivation": "page"}, now=ET_NOON_MON)
     assert r["ok"] and r["text"].startswith("✅ render smoke")
-    assert "chart D ok" in r["text"] and "chart W ok" in r["text"] and "weekly = daily ok (5/5)" in r["text"]
+    assert asked == ["D", "W", "60", "5"], "every chart button a member presses, intraday included"
+    assert all(f"chart {tf} ok" in r["text"] for tf in ("D", "W", "60", "5"))
+    assert "5m fresh ok (last bar Fri Sep 25)" in r["text"] and "weekly = daily ok (5/5)" in r["text"]
     assert "/flow AMD ok (page-derived" in r["text"]
 
 
 def test_each_shipped_defect_turns_it_red(monkeypatch):
     _page_on(monkeypatch)
-    stand_in = ops.run_smoke(produce=lambda tf: ("fallback" if tf == "W" else "ok", b"png", "f"), bars=_bars(),
-                             flow=lambda d: {"derivation": "page"})
-    assert not stand_in["ok"] and "chart W FAIL (fallback" in stand_in["text"]
+    stand_in = ops.run_smoke(produce=lambda tf: ("fallback" if tf in ("W", "5") else "ok", b"png", "f"), bars=_bars(),
+                             flow=lambda d: {"derivation": "page"}, now=ET_NOON_MON)
+    assert not stand_in["ok"] and "chart W FAIL (fallback" in stand_in["text"] and "chart 5 FAIL (fallback" in stand_in["text"]
+    stale = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(intraday_last=WED_1555),
+                          flow=lambda d: {"derivation": "page"}, now=ET_NOON_MON)
+    assert not stale["ok"] and "5m fresh FAIL (last bar Wed Sep 23, want Fri Sep 25)" in stale["text"], stale["text"]
+    assert "chart 5 ok" in stale["text"], "a frozen feed still RENDERS - only the freshness check sees it"
     frozen = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(week_close=615.52, week_high=616.69),
-                           flow=lambda d: {"derivation": "page"})
+                           flow=lambda d: {"derivation": "page"}, now=ET_NOON_MON)
     assert not frozen["ok"] and "weekly = daily FAIL (0/5 off:" in frozen["text"]
 
     def rollup(diag):
         diag["reason"] = "busy"
         return None
-    no_page = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(), flow=rollup)
+    no_page = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(), flow=rollup, now=ET_NOON_MON)
     assert not no_page["ok"] and "no page card (busy)" in no_page["text"]
 
 
 def test_with_the_page_card_off_the_flow_check_says_so_and_passes(monkeypatch):
     _page_on(monkeypatch, False)
-    r = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(), flow=lambda d: pytest.fail("off"))
+    r = ops.run_smoke(produce=lambda tf: ("ok", b"", "f"), bars=_bars(), flow=lambda d: pytest.fail("off"),
+                      now=ET_NOON_MON)
     assert r["ok"] and "page card off (rollup)" in r["text"]
+
+
+def test_the_last_closed_session_is_holiday_and_close_aware():
+    at = lambda *a: dt.datetime(*a, tzinfo=_ET4).timestamp()
+    assert ops.last_closed_session(at(2026, 9, 26, 12, 0)) == dt.date(2026, 9, 25)    # Saturday -> Friday
+    assert ops.last_closed_session(at(2026, 9, 28, 15, 59)) == dt.date(2026, 9, 25)   # Monday before the close
+    assert ops.last_closed_session(at(2026, 9, 28, 16, 0)) == dt.date(2026, 9, 28)    # Monday once closed
+    assert ops.last_closed_session(at(2026, 9, 8, 10, 0)) == dt.date(2026, 9, 4)      # over Labor Day (9/7)
 
 
 def test_smoke_and_post_posts_the_line_and_a_failure_also_alerts(monkeypatch):
@@ -269,11 +293,15 @@ def test_the_three_jobs_are_registered_and_call_the_ops_module():
            for kw in n.keywords if kw.arg == "id" and isinstance(kw.value, ast.Constant)}
     assert {"discord_flow_hot_warm", "discord_render_smoke", "discord_flow_daily_stats"} <= ids
     assert "discord_chart_hot_warm" in ids, "control: the probe can see a registration it is not looking for"
-    import api.main as m
-    for fn, target in ((m._discord_render_smoke, "smoke_and_post"), (m._discord_flow_hot_warm, "flow_hot_warm"),
-                       (m._discord_flow_daily_stats, "daily_stats_and_post")):
-        import inspect
-        assert f"flow_card_ops.{target}()" in inspect.getsource(fn)
+    # Read, never import: importing api.main pulls in the whole app, and this runs in the deploy
+    # gate on a small install. The wrapper must CALL the ops function (an attribute call on
+    # flow_card_ops), not merely mention it.
+    defs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    for fn, target in (("_discord_render_smoke", "smoke_and_post"), ("_discord_flow_hot_warm", "flow_hot_warm"),
+                       ("_discord_flow_daily_stats", "daily_stats_and_post")):
+        calls = {(c.func.value.id, c.func.attr) for c in ast.walk(defs[fn]) if isinstance(c, ast.Call)
+                 and isinstance(c.func, ast.Attribute) and isinstance(c.func.value, ast.Name)}
+        assert ("flow_card_ops", target) in calls, f"{fn} no longer calls flow_card_ops.{target}()"
 
 
 # ── the reason a page card could not be had ──────────────────────────────────────────────

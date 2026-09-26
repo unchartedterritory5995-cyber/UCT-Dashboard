@@ -778,7 +778,7 @@ The voice orb (`voice/FloatingOrb.jsx`, paid-only, bottom-right) and the feedbac
 `hooks/useMediaQuery.js` seeds from `matchMedia(q).matches` at MOUNT and only updates on a media **`change`** event. In a fixed mobile context the viewport never changes, so a JS `useIsTouch()` read can render the desktop variant on a phone. **Use CSS `@media` queries for layout/positioning** (for inline-styled components add a CSS-module class + `!important` inside the query); reserve `useIsTouch()` for click-triggered conditional rendering (open a `Sheet` vs anchored popover on tap). Scroll listeners must use capture phase — the app scrolls the inner `.main` element, not `window` (`Layout.module.css`: `.shell` overflow:hidden, `.main` overflow-y:auto).
 
 ### OptionsFlow mobile (partner-owned, ~7k lines, all inline styles)
-Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here. ⚰️ **Correction, 2026-09-24: `of-order` was NOT a real hook** — re-verified against current `OptionsFlow.jsx` (literal grep, case-insensitive grep, and a template-literal-className grep, all zero hits outside an unrelated "Out-of-order guard" code comment at line ~3903). Dropped from this list; the eight `of-*` hooks above are the complete, re-verified set. **New in this window, unmounted by design:** `app/src/pages/optionsFlow/FlowExplainButton.jsx` (+ `FlowExplainModal`) is a complete, tested (9/9) "explain this print" UI for the existing `POST /api/flow-explain` backend — built as `PACKET-AA CP1`, deliberately **not** imported by `OptionsFlow.jsx`. Mounting it (`CP2`, one additive `of-explain*` className hook) is queued and requires owner+Ravi coordination before it lands — tracked in `docs/terminal-research/12-decisions/gates/packet-aa-flow-explain-wiring-gate.md` and the `AWAITING_A_DECISION` entry in `app/src/components/screener/reachable.test.js`. Do not mount it without that coordination.
+Rebase-safe technique only: add `className` HOOKS to `OptionsFlow.jsx` (never edit its inline `style={{}}` objects) + ride the additive `OptionsFlow.mobile.css` layer (all `@media (max-width:640px)` + `!important`). Hooks in use, verified against `OptionsFlow.jsx` source 2026-09-22: `of-mroot` (root), `of-tabs` (tab bar), `of-chiprow-seg`/`of-chiprow-wrap` (filter strips → horizontal scroll, 44px), plus `of-fetchpl`/`of-pickrow`/`of-picks`/`of-refresh` (present, not previously documented here). ⚰️ **`of-tip` and its `data-pin` tap-toggle are GONE** — the theme-help ⓘ hook this line described no longer exists in the component. `OptionsFlow.mobile.css` still declares `.of-tip` and a bare `.of-chiprow` selector that now match nothing in the JSX (dead CSS, not a live hook) — a cleanup candidate, not corrected here. ⚰️ **Correction, 2026-09-24: `of-order` was NOT a real hook** — re-verified against current `OptionsFlow.jsx` (literal grep, case-insensitive grep, and a template-literal-className grep, all zero hits outside an unrelated "Out-of-order guard" code comment at line ~3903). Dropped from this list; the eight `of-*` hooks above are the complete, re-verified set. ⚰️ **CORRECTED 2026-09-26 — THIS SAID "unmounted by design" AND IT IS MOUNTED.** `app/src/pages/optionsFlow/FlowExplainButton.jsx` (+ `FlowExplainModal`), the "explain this print" UI over `POST /api/flow-explain`, **is imported at `OptionsFlow.jsx:57` and rendered at `:3419`** in an `of-explain` table cell, guarded on a live spot price. Verified by grep against the file, twice — the first check printed a hardcoded "not mounted" label underneath a grep that had returned three matches, which is why it is stated with line numbers here. ⛔ **So the instruction this paragraph used to carry — that mounting it is queued and needs owner+Ravi coordination "before it lands" — describes work that has already landed, and a reader following it would coordinate about a decision somebody already took.** The gate file and the `AWAITING_A_DECISION` entry named below are stale for the same reason and are NOT updated here (different owners). It was `PACKET-AA CP1`; CP2 is done — tracked in `docs/terminal-research/12-decisions/gates/packet-aa-flow-explain-wiring-gate.md` and the `AWAITING_A_DECISION` entry in `app/src/components/screener/reachable.test.js`. Do not mount it without that coordination.
 
 ## Responsive / Mobile System (2026-06-05 — mobile-seamless initiative)
 
@@ -2923,7 +2923,8 @@ authoritative is the PROXY failure**, in the tool built to prevent it.
 OTHERWISE.** ⚰️ It read *"the master gate runs the full suite against the actual landed
 tree"*. Measured 2026-09-20 from `.github/workflows/master-deploy-gate.yml`: it runs
 **five fast checks** — secret scan, `test_no_shadowed_definitions.py`, VITE build-arg +
-flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py`. **No
+flag-ledger tests, `test_visibility_flag_ledger.py`, `tools/check_repo_hygiene.py` — plus,
+since 2026-09-26, the Discord render reply golden + render-ops rails (a sixth). **No
 vitest, no frontend build.** The workflow's own header says exactly that, so two files in
 this repo contradicted each other and the reassuring one was the one people read.
 
@@ -3637,7 +3638,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
+### 📓 Notebook 10/10 program — waves 5–7 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`), the 9C soak PR next, waves 8–9 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3653,12 +3654,15 @@ own gate — plus lane I's performance budgets. Read it before touching that bra
 ✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
 (#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
 `origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
-view controls with 0 page errors). Wave 6's final tip is tagged
+view controls with 0 page errors). ✅ **Wave 7 LIVE** (#196, master `f883e0996`, web
+SUCCESS 2026-09-26 08:04Z, fresh boot, ancestor of `origin/production`, `hub_nav_smoke --auth`
+PASS; it also carried the H14 fix for the single-note export's Latin-1 header). Its gates
+`NOTEBOOK_WRITING_HELP_ENABLED` and `COMPASS_NOTES_TOOL_ENABLED` were ARMED on web
+2026-09-26 08:13Z (see `docs/feature_flags.json`); the other wave-7 gates stay dark. Wave 6's final tip is tagged
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
-round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
-tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
-own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
-wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
+(worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
+`feat/notebook-w9c`. Landing order: the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064

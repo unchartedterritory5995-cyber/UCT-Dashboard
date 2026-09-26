@@ -165,6 +165,28 @@ def flow_warm_enabled() -> bool:
     return os.environ.get("DISCORD_FLOW_HOTWARM_ENABLED", "1").strip().lower() not in ("0", "false", "off", "")
 
 
+def _is_session(day: dt.date) -> bool:
+    if day.weekday() >= 5:
+        return False
+    try:
+        from api.services.bars_fetch import _is_nyse_holiday
+        return not _is_nyse_holiday(int(day.strftime("%Y%m%d")))
+    except Exception:  # noqa: BLE001 — without the calendar, a weekday is a session
+        return True
+
+
+def last_closed_session(now: float | None = None) -> dt.date:
+    """The ET date of the most recent NYSE session whose 16:00 close has passed — the newest day an
+    intraday chart must reach whatever the hour. Today once it has closed, else the session before."""
+    et = _et(now)
+    day = et.date()
+    if not (_is_session(day) and et.hour >= 16):
+        day -= dt.timedelta(days=1)
+        while not _is_session(day):
+            day -= dt.timedelta(days=1)
+    return day
+
+
 def market_hours(now: float | None = None) -> bool:
     """Weekday, 09:25-16:10 ET, not an NYSE holiday: when a name's version moves with every print."""
     et = _et(now)
@@ -251,6 +273,14 @@ def post_smoke(content: str, *, client=None) -> bool:
 SMOKE_CHART_SYMBOL = "NVDA"
 SMOKE_WEEKLY_BASKET = ("NVDA", "AMD", "QQQ", "MSFT", "TSLA")
 SMOKE_FLOW_SYMBOL = "AMD"
+#: Every button a member can press on a /chart card except 15m (COLLAPSED_TFS): the two intraday ones
+#: go through a different bar path (intraday cache + delta fetch) from D/W, so D/W green says
+#: nothing about them.
+SMOKE_CHART_TFS = ("D", "W", "60", "5")
+#: The intraday timeframe whose NEWEST bar must reach the last closed session. A render alone cannot
+#: see a frozen feed: a chart of four-day-old bars draws perfectly (the 2026-05-16 universe-wide
+#: intraday freeze rendered clean charts for days).
+SMOKE_FRESH_TF = "5"
 
 
 def smoke_enabled() -> bool:
@@ -265,13 +295,14 @@ def _commit() -> str:
     return "?"
 
 
-def run_smoke(*, produce=None, bars=None, flow=None, clock=time.monotonic) -> dict:
+def run_smoke(*, produce=None, bars=None, flow=None, clock=time.monotonic, now: float | None = None) -> dict:
     """Exercise the member paths in-process; nothing reaches a member. Returns
     {"ok": bool, "text": str, "checks": [...]}. The seams exist for the rails; production passes none.
 
     Checks, each one a defect this programme shipped once:
-      1. /chart D and W for SMOKE_CHART_SYMBOL come back from the HOUSE renderer (outcome `ok`),
-         not the stand-in — the blank-render and bare-header class;
+      1. /chart for SMOKE_CHART_SYMBOL on every SMOKE_CHART_TFS comes back from the HOUSE renderer
+         (outcome `ok`), not the stand-in — the blank-render and bare-header class; and the newest
+         SMOKE_FRESH_TF bar reaches last_closed_session() — the frozen-intraday class;
       2. the weekly bar equals the daily bars for SMOKE_WEEKLY_BASKET (close, and the week's high
          covers the last daily high) — the frozen-weekly-candle class;
       3. /flow for SMOKE_FLOW_SYMBOL: the page card when it is switched on (derivation `page`)."""
@@ -293,7 +324,7 @@ def run_smoke(*, produce=None, bars=None, flow=None, clock=time.monotonic) -> di
                                     cls=MEMBER, bars_fn=fetch_bars, render_fn=render_chart_png,
                                     house_fn=house.render_house_chart if house.house_enabled() else None,
                                     quote_fn=rt.fetch_ext_quote, slot_wait=25.0)
-        for tf in ("D", "W"):
+        for tf in SMOKE_CHART_TFS:
             t = clock()
             try:
                 out = _produce(tf)
@@ -302,6 +333,16 @@ def run_smoke(*, produce=None, bars=None, flow=None, clock=time.monotonic) -> di
                 outcome = f"raised {type(e).__name__}"
             checks.append({"name": f"chart {tf}", "ok": outcome == "ok",
                            "detail": f"{outcome} {clock() - t:.1f}s"})
+        want = last_closed_session(now)
+        try:
+            ib = fetch_bars(SMOKE_CHART_SYMBOL, SMOKE_FRESH_TF, 3) or []
+            newest = _et(float(ib[-1]["t"])).date() if ib else None
+        except Exception as e:  # noqa: BLE001
+            ib, newest = [], None
+            log.debug("[flow-ops] smoke intraday read failed: %s", e)
+        checks.append({"name": f"{SMOKE_FRESH_TF}m fresh", "ok": newest is not None and newest >= want,
+                       "detail": (f"last bar {newest:%a %b} {newest.day}" if newest else "no bars")
+                                 + ("" if newest is not None and newest >= want else f", want {want:%a %b} {want.day}")})
         bad = []
         for sym in SMOKE_WEEKLY_BASKET:
             try:
