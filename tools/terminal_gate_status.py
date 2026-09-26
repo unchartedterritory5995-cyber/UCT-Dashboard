@@ -180,6 +180,22 @@ def audit_counts(text: str, resolve=None) -> list[str]:
     file can answer for itself. Item counts inside a document (jobs, workflows,
     tickets) are the document's own to derive and are deliberately out of scope
     -- a check that guesses at them would cry wolf and get muted.
+
+    ⭐ HOW IT TELLS A SELF-DESCRIPTION FROM A QUOTE ABOUT ANOTHER FILE, which is
+    the whole difficulty. First pass reported 9 hits of which only 4 were real:
+    the rest were `rollout.py` (347 lines), a deleted component's "~320 lines",
+    `api/main.py` at 11,066, a "+4 lines" delta, and a retracted "first said 317
+    lines". Reporting all nine as stale would be the instrument describing
+    itself. But the distinction IS derivable, because the rows obey a convention:
+
+      THE SELF-DESCRIPTION IS THE **FIRST** LINE COUNT AND THE **FIRST** BYTE
+      COUNT IN THE CELL. Everything later is commentary -- a delta, a retraction,
+      or another artifact's size.
+
+    Two belt-and-braces guards on top, so a row that breaks the convention is
+    SKIPPED rather than misread: a count prefixed `~` or `+` is approximate or a
+    delta, and a count whose nearest preceding backticked token is a DIFFERENT
+    file is about that file.
     """
     # "1,597 lines" / "123,825 bytes" — thousands separators optional.
     LINES = re.compile(r"([\d,]+)\s+lines\b")
@@ -213,12 +229,24 @@ def audit_counts(text: str, resolve=None) -> list[str]:
         if got is None:
             continue
         real_lines, real_bytes = got
+        own = os.path.basename(paths[0])
         for rx, label, real in ((LINES, "lines", real_lines), (BYTES, "bytes", real_bytes)):
-            for raw in rx.findall(status):
-                claimed = int(raw.replace(",", ""))
-                if claimed != real:
-                    out.append(f"row {item} ({paths[0]}): status cell says "
-                               f"{claimed:,} {label}, file has {real:,}")
+            m2 = rx.search(status)          # FIRST match only — later ones are commentary
+            if not m2:
+                continue
+            before = status[:m2.start()]
+            # Guard 1: approximate or a delta, so not a self-description.
+            if before.rstrip().endswith(("~", "+")):
+                continue
+            # Guard 2: the nearest preceding backticked token names another file.
+            ticks = re.findall(r"`([^`]+)`", before[-60:])
+            if ticks and re.search(r"\.(py|js|jsx|md|json)\b", ticks[-1]) \
+                    and os.path.basename(ticks[-1].split(":")[0]) != own:
+                continue
+            claimed = int(m2.group(1).replace(",", ""))
+            if claimed != real:
+                out.append(f"row {item} ({paths[0]}): status cell says "
+                           f"{claimed:,} {label}, file has {real:,}")
     return out
 
 
@@ -277,6 +305,31 @@ def self_check() -> int:
     if quiet:
         failures.append(f"case 8: correct counts were reported as stale -> {quiet}")
 
+    # ⛔ THE DISCRIMINATOR CASES. Each is a REAL shape from the live checklist
+    # that the first version of this check misreported as stale. They must all
+    # be quiet while the first count is correct.
+    for label, cell in (
+        ("a later retraction", "**100 lines**. This row first said 317 lines, because"),
+        ("a delta in parentheses", "100 lines, 200 bytes (98/190 as authored; +4 lines from"),
+        ("another file's size", "100 lines, 200 bytes -- and `rollout.py` (347 lines) ships"),
+        ("an approximate size", "100 lines -- records `DrillModal` (~320 lines) as DELETED"),
+        ("a path with a line number", "100 lines -- `api/main.py:8830` at 11,066 lines against"),
+    ):
+        got2 = audit_counts(f"| 9 | X | 1 | `a.md` | F | {cell} |",
+                            resolve=lambda _p: (100, 200))
+        if got2:
+            failures.append(f"case 9 ({label}): reported {got2} — the first count "
+                            f"was correct, so this cell must be quiet")
+
+    # ...and the convention must still CATCH a stale FIRST count even when a
+    # correct-looking number follows it, or the rule has just muted the check.
+    caught = audit_counts(
+        "| 9 | X | 1 | `a.md` | F | 999 lines, 200 bytes (`other.py` 100 lines) |",
+        resolve=lambda _p: (100, 200))
+    if not any("lines" in m for m in caught):
+        failures.append("case 10: a stale FIRST count was missed — the "
+                        "first-match rule has muted the check")
+
     # A literal pipe inside a cell must be reported, not silently trusted.
     two = ("| 1 | A | 1 | `a.md` | X | NOT STARTED |\n"
            "| 2 | B | 1 | `b.md` | X | DRAFT COMPLETE |\n"
@@ -327,15 +380,15 @@ def main() -> int:
             print(f"OK -- every line/byte count quoted in a status cell matches "
                   f"its file ({len(rows)} rows scanned).")
             return 0
-        # ⛔ CANDIDATES, NOT VERDICTS. A status cell legitimately quotes OTHER
-        # files' sizes -- "rollout.py (347 lines)", the deleted DrillModal's
-        # "~320 lines", a test count -- and this check cannot tell those from a
-        # stale self-description. Measured on the real checklist: of 9 hits, 5
-        # were quotes about a different artifact and 4 were genuine drift from
-        # my own later edits. Calling all 9 "stale" would be an instrument
-        # reporting a property of itself, so each needs an eye.
-        print(f"{len(stale)} CANDIDATE(S) -- each may be genuine drift OR a "
-              f"legitimate quote about a DIFFERENT file. Read before acting:",
+        # These ARE findings, not candidates: the first-count convention plus the
+        # two guards resolve every shape the live checklist actually contains,
+        # and the self-check pins all five of them. ⚠️ The honest residual is the
+        # other direction: a row that breaks the convention -- one whose cell
+        # opens by discussing a different file -- is SKIPPED, not misread. So
+        # this check under-reports rather than crying wolf, which is the correct
+        # way round for something that runs unattended.
+        print(f"STALE QUOTED COUNT(S) ({len(stale)}) -- a status cell's own "
+              f"line/byte figure disagrees with the file it names:",
               file=sys.stderr)
         for s in stale:
             print("  " + s, file=sys.stderr)
