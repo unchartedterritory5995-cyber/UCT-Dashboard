@@ -412,8 +412,91 @@ def test_the_routes_are_mounted_on_the_real_app():
         assert (m, "/api/j2/onboarding/sample-notebook") in paths
 
 
-def test_the_seed_takes_the_write_lock_before_it_counts():
-    # The concurrency rail's mechanism, named: BEGIN IMMEDIATE precedes the count.
+def test_the_seed_counts_unlocked_then_takes_the_write_lock_and_counts_again():
+    # The concurrency rail's mechanism, named (wave-8 final review M-9): an UNLOCKED count
+    # answers the common refusal, then BEGIN IMMEDIATE, then the count that decides.
     src = sample_notebook.SAMPLE_PATH.with_suffix(".py").read_text(encoding="utf-8")
     body = src[src.index("def seed("):src.index("def _link_targets(")]
-    assert body.index('conn.execute("BEGIN IMMEDIATE")') < body.index("count_all_notes(user_id, conn)")
+    begin = body.index('conn.execute("BEGIN IMMEDIATE")')
+    counts = [m.start() for m in re.finditer(re.escape("count_all_notes(user_id, conn)"), body)]
+    assert len(counts) == 2 and counts[0] < begin < counts[1], (counts, begin)
+    # ...and the ids are recorded between pass 1 and pass 2.
+    passes = [m.start() for m in re.finditer(re.escape("notes.import_confirm("), body)]
+    record = body.index("auth_service.set_user_preference(user_id, PREF_KEY")
+    assert len(passes) == 2 and passes[0] < record < passes[1], (passes, record)
+
+
+def test_M9_a_refusal_never_takes_the_write_lock(db):
+    """The common POST is a refusal, and it used to take `BEGIN IMMEDIATE` (the auth.db write
+    lock) just to count and roll back. With ANOTHER connection holding the write lock, a
+    member who has notes is still refused at once -- and never reported busy -- because the
+    refusal is answered by an unlocked count."""
+    _own_note(U1)
+    holder = _conn()
+    try:
+        holder.execute("BEGIN IMMEDIATE")
+        with pytest.raises(sample_notebook.SampleRefused):
+            sample_notebook.seed(U1)
+    finally:
+        holder.rollback()
+        holder.close()
+    # ...and the statement trace of a refusal holds no BEGIN at all.
+    traced: list[str] = []
+    c = _conn()
+    try:
+        c.set_trace_callback(traced.append)
+        with pytest.raises(sample_notebook.SampleRefused):
+            sample_notebook.seed(U1, conn=c)
+    finally:
+        c.close()
+    assert traced and not any("BEGIN" in s.upper() for s in traced), traced
+
+
+def test_M9_CONTROL_a_member_with_no_note_does_take_the_lock(db):
+    """CONTROL: the lock is still what a real seed takes -- with another writer holding it,
+    a member with NO note is told the notebook is busy rather than seeded twice."""
+    holder = _conn()
+    try:
+        holder.execute("BEGIN IMMEDIATE")
+        c = auth_db.get_connection()
+        c.execute("PRAGMA busy_timeout = 0")
+        try:
+            with pytest.raises(sample_notebook.SampleBusy):
+                sample_notebook.seed(U1, conn=c)
+        finally:
+            c.close()
+    finally:
+        holder.rollback()
+        holder.close()
+    assert sample_notebook.seed(U1)["ids"], "the seed runs once the lock is free"
+
+
+def test_M9_a_failure_in_pass_2_leaves_a_sample_that_can_be_removed(db, monkeypatch):
+    """⚰️ The ids were recorded only after pass 2: anything raising between the passes left
+    five notes no `remove` could find -- and a member who now 'has notes' can never re-seed.
+    They are recorded right after pass 1 now."""
+    real = notes.import_confirm
+    calls = []
+
+    def fail_second(*a, **k):
+        calls.append(1)
+        if len(calls) == 2:
+            raise RuntimeError("pass 2 failed")
+        return real(*a, **k)
+
+    monkeypatch.setattr(notes, "import_confirm", fail_second)
+    with pytest.raises(RuntimeError):
+        sample_notebook.seed(U1)
+    assert len(calls) == 2, "non-vacuity: pass 1 ran and pass 2 was reached"
+    c = _conn()
+    try:
+        written = {r[0] for r in c.execute("SELECT id FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL",
+                                           (U1,))}
+    finally:
+        c.close()
+    assert len(written) == 5
+    assert set(sample_notebook.recorded_ids(U1)) == written, "the sample pass 1 wrote is not recorded"
+    monkeypatch.setattr(notes, "import_confirm", real)
+    trashed = sample_notebook.remove(U1)["trashed"]
+    assert set(trashed) == written
+    assert sample_notebook.active_ids(U1) == []

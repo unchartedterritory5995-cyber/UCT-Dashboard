@@ -17,14 +17,16 @@ member wrote about a stock.
 one too: a second `import_confirm` pass over the same import keys, whose bodies now carry
 the ids the first pass created. No SQL here writes a note row.
 
-⛔ REFUSED FOR ANYONE WHO HAS A NOTE. `seed` takes the write lock (`BEGIN IMMEDIATE`)
-BEFORE it counts, and counts EVERY note row the member has -- active, archived and trashed
--- so two clicks at once produce one sample, and a member's own work never shares a
-notebook with practice notes they did not ask for.
+⛔ REFUSED FOR ANYONE WHO HAS A NOTE. `seed` counts EVERY note row the member has --
+active, archived and trashed -- first WITHOUT the lock (the common refusal never takes it;
+wave-8 final review M-9), then, for a member with none, takes the write lock
+(`BEGIN IMMEDIATE`) and counts AGAIN under it -- so two clicks at once produce one sample,
+and a member's own work never shares a notebook with practice notes they did not ask for.
 
 The seeded ids are recorded in the member's preference `notebook_sample`
-(`{"v": 1, "ids": [...], "at": "<iso>"}`), which is what `remove` and the Research Home
-strip read. `remove` trashes exactly those ids that are not in Trash already, through the
+(`{"v": 1, "ids": [...], "at": "<iso>"}`) the moment pass 1 has written them (M-9: a
+failure in pass 2 still leaves a sample `remove` can find), which is what `remove` and the
+Research Home strip read. `remove` trashes exactly those ids that are not in Trash already, through the
 Notebook's own soft delete, so every one of them can be restored from Trash.
 """
 from __future__ import annotations
@@ -141,6 +143,13 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # ⭐ THE FAST PATH IS UNLOCKED (wave-8 final review M-9). The common POST is a refusal
+        # (the member already has notes), and it used to take `BEGIN IMMEDIATE` -- the auth.db
+        # write lock -- just to count and roll back, on a route with no rate limit. A plain
+        # COUNT answers it without the lock; only a member who has NO note takes the lock, and
+        # then counts AGAIN under it, which is what makes two clicks at once produce one sample.
+        if count_all_notes(user_id, conn) > 0:
+            raise SampleRefused(REFUSED_SENTENCE)
         try:
             conn.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as exc:
@@ -156,6 +165,15 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         first = notes.import_confirm(
             user_id, _payload(entries, {e["key"]: _without_links(e["body"]) for e in entries}), conn=conn)
         ids = {item["importKey"][len(KEY_PREFIX):]: item["id"] for item in first["created"]}
+        seeded = [ids[e["key"]] for e in entries if e["key"] in ids]
+
+        # ⭐ RECORDED RIGHT AFTER PASS 1 (M-9). The notes exist from this moment, so their ids
+        # are recorded now: if anything below raises, "Remove it" can still find every one.
+        # ⚰️ The ids were recorded after pass 2, so a failure between the two passes left
+        # notes no `remove` could see -- and a member who now "has notes" can never re-seed.
+        auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
+            "v": 1, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }))
 
         # Pass 2: the notes that link to another, now that every id exists -- the same
         # function, over the same import keys, so each is an update of its own note.
@@ -165,7 +183,6 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
             notes.import_confirm(
                 user_id, _payload(linked, {e["key"]: _with_links(e["body"], ids) for e in linked}), conn=conn)
 
-        seeded = [ids[e["key"]] for e in entries if e["key"] in ids]
         welcome_id = ids.get(_sample()["welcome"])
         folder_id = None
         if welcome_id:
@@ -175,9 +192,6 @@ def seed(user_id: str, *, conn: sqlite3.Connection | None = None) -> dict[str, A
         if owned:
             conn.close()
 
-    auth_service.set_user_preference(user_id, PREF_KEY, json.dumps({
-        "v": 1, "ids": seeded, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-    }))
     return {"folderId": folder_id, "welcomeNoteId": welcome_id, "ids": seeded}
 
 
