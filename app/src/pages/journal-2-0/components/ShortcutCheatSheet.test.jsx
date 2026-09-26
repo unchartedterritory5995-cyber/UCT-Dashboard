@@ -159,5 +159,8 @@ describe('ShortcutCheatSheet -- the graph canvas keys', () => {
     expect(keysText('Graph view: go to the last note by title')).toBe(end)
     expect(keysText('Graph view: open the selected note')).toBe('Enter')
     expect(keysText('Graph view: clear the selected note')).toBe('Esc')
+    // the way out of a table, in the member's own keyboard's words
+    expect(keysText('In a table: move to the table toolbar (Esc returns to the cell)'))
+      .toBe(platform === 'MacIntel' ? 'Option + F10' : 'Alt + F10')
   })
 })

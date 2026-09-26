@@ -77,6 +77,11 @@ function notebookShortcuts() {
     { keys: end, label: 'Graph view: go to the last note by title' },
     { keys: ['Enter'], label: 'Graph view: open the selected note' },
     { keys: ['Esc'], label: 'Graph view: clear the selected note' },
+    // Wave 8 (lane 8A, browser check): inside a table, Tab moves cell to cell
+    // (and adds a row at the last one), so the way OUT is the table toolbar's
+    // own door (TableToolbar.jsx: Alt+F10 in, Escape back to the cell).
+    { keys: ['Tab'], label: 'In a table: next cell (adds a row at the last cell)' },
+    { keys: [alt, 'F10'], label: 'In a table: move to the table toolbar (Esc returns to the cell)' },
   ]
 }
 
