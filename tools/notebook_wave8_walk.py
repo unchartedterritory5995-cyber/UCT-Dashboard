@@ -1359,16 +1359,23 @@ with sync_playwright() as p:
     # =========================================================================
     # W2 -- share links: a stranger's view of a note holding market data
     # =========================================================================
-    def public_facts(pctx, url, testid, needles, resp_filter):
+    def public_facts(pctx, url, testid, needles, resp_filter, ready=None):
         """A stranger opens `url` in `pctx` (no cookie): the page's text and full HTML, the
         HTML response's headers, and every /api/ answer the page fetched -- each searched
-        for the needles."""
+        for the needles.
+
+        ⛔ INSTRUMENT (the evidence run on 220354a6b): `ready(pg)` runs BEFORE the answers are
+        read. W2 used to wait for the public image AFTER this returned, so the list of answers
+        was read before the image's had arrived: on a slower load the image rendered and its
+        headers were never looked at, and the row read "image headers not ok" about headers
+        it had not seen. Whatever a row judges must have arrived before the list is read."""
         pg = _fresh_page(pctx)
         seen = []
         pg.on("response", lambda r: seen.append(r))
         doc_resp = pg.goto(url)
         dismiss_intro(pg)
         pg.get_by_test_id(testid).first.wait_for(state="visible", timeout=30000)
+        ready_out = ready(pg) if ready else None
         text = pg.locator("body").inner_text()
         html_doc = pg.content()
         payloads = []
@@ -1391,7 +1398,7 @@ with sync_playwright() as p:
             "meta": pg.evaluate("() => ({robots: document.querySelector('meta[name=robots]')?.content || null,"
                                 " referrer: document.querySelector('meta[name=referrer]')?.content || null})"),
             "dom_leaks": find_leaks(html_doc, needles), "text": text,
-            "payloads": payloads,
+            "payloads": payloads, "ready": ready_out,
         }
 
     @guarded("W2_share_links")
@@ -1437,16 +1444,18 @@ with sync_playwright() as p:
 
         sctx = watch_beacons(browser.new_context(viewport={"width": 1280, "height": 900}), "stranger-w2")
         is_api = lambda u: f"/api/j2/shared/{token}" in u  # noqa: E731
-        sp, live = public_facts(sctx, share_url, "shared-note", needles, is_api)
-        img_ok = False
-        try:
-            sp.wait_for_function(
-                "(t) => [...document.querySelectorAll('img')].some((i) => i.src.includes('/api/j2/shared/' + t + '/att/')"
-                " && i.complete && i.naturalWidth > 0)", arg=token, timeout=20000)
-            img_ok = True
-        except Exception:  # noqa: BLE001
-            pass
-        live["fmp_image_rendered"] = img_ok
+
+        def image_rendered(pg):
+            """The FMP figure's archived image, loaded, before the answers are read."""
+            try:
+                pg.wait_for_function(
+                    "(t) => [...document.querySelectorAll('img')].some((i) => i.src.includes('/api/j2/shared/' + t + '/att/')"
+                    " && i.complete && i.naturalWidth > 0)", arg=token, timeout=20000)
+                return True
+            except Exception:  # noqa: BLE001
+                return False
+        sp, live = public_facts(sctx, share_url, "shared-note", needles, is_api, ready=image_rendered)
+        live["fmp_image_rendered"] = live.pop("ready")
         live["shot"] = shot(sp, "w2-stranger-share")
         api_json = [x for x in live["payloads"] if x["matched"] and "/att/" not in x["url"]]
         img_resp = [x for x in live["payloads"] if x["matched"] and "/att/" in x["url"]]

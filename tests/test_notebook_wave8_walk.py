@@ -236,6 +236,22 @@ def test_W11_judges_only_the_UNFENCED_errors():
     assert ast.unparse(call.args[0]) == "res['errors']" and ast.unparse(call.args[1]) == "ERROR_FENCES"
 
 
+def test_W2_waits_for_the_image_BEFORE_the_answers_are_read():
+    """The evidence run on 220354a6b read the stranger's answers before the public image's
+    had arrived, and judged headers it had not seen. The image wait is `public_facts`'s
+    `ready`, which runs before the answers are read -- never a wait after the call."""
+    main = _main_block(_tree())
+    fns = {n.name: n for n in ast.walk(main) if isinstance(n, ast.FunctionDef)}
+    calls = _calls(fns["check_w2"], "public_facts")
+    assert len(calls) == 1 and any(k.arg == "ready" for k in calls[0].keywords)
+    pf = fns["public_facts"]
+    ready_line = min(n.lineno for n in ast.walk(pf) if isinstance(n, ast.Name) and n.id == "ready_out")
+    read_line = min(n.lineno for n in ast.walk(pf) if isinstance(n, ast.For))
+    assert ready_line < read_line, "`ready` must run before the answers are read"
+    assert not [c for c in _calls(fns["check_w2"], "wait_for_function")
+                if c.lineno > calls[0].lineno], "no image wait may follow the answers' read"
+
+
 def test_every_row_the_brief_names_is_recorded():
     main = _main_block(_tree())
     keys = {c.args[0].value for c in _calls(main, "guarded")
