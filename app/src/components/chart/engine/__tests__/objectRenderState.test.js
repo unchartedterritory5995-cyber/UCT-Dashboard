@@ -42,6 +42,98 @@ describe('C3B — the bar clock', () => {
     withGap[5] = { ...withGap[5], t: withGap[4].t + 3 * 86400 }
     expect(makeBarClock(withGap).step).toBe(86400)
   })
+
+  // ─── RC-C — THE FUTURE IS SESSIONS, NOT CALENDAR DAYS ────────────────────
+  //
+  // ⚰️⚰️ `bar_index + N` MEANS N FUTURE BARS, and a chart's future bars are
+  // TRADING SESSIONS. Extending by a constant step — even a measured one — walks
+  // straight onto Saturday, because the median gap of a weekday series is one
+  // calendar day and four gaps in five really are one day.
+  //
+  // Measured against TradingView on 2026-09-23: Fair Value Gaps put two box
+  // right edges on a weekend, and Inside Bar Range stopped two sessions short of
+  // the vendor's. Both are this one arithmetic.
+  //
+  // ⛔ THE CADENCE IS DERIVED FROM THE SERIES, NEVER ASSUMED. Hard-coding
+  // "skip Saturday and Sunday" would be another resemblance: it is wrong for a
+  // 24/7 market and wrong for a weekly series. What the bars actually tell us is
+  // WHICH WEEKDAYS CARRY SESSIONS, and that one fact answers all three cases.
+
+  /** A daily series of ISO date strings on weekdays only — the product's real
+   *  daily shape (`"2026-09-04"`), not unix seconds. */
+  const weekdaySeries = (startISO, count) => {
+    const out = []
+    const d = new Date(`${startISO}T00:00:00Z`)
+    while (out.length < count) {
+      const wd = d.getUTCDay()
+      if (wd !== 0 && wd !== 6) out.push({ t: d.toISOString().slice(0, 10) })
+      d.setUTCDate(d.getUTCDate() + 1)
+    }
+    return out
+  }
+
+  it('⛔⛔ a DAILY series extrapolates in SESSIONS — the forward edge skips the weekend', () => {
+    // 9 weekday bars, 2026-09-01 (Tue) .. 2026-09-11 (Fri) — the same series end
+    // date as the Fair Value Gaps vendor capture.
+    const bars = weekdaySeries('2026-09-01', 9)
+    expect(bars[8].t, 'the fixture does not end on the Friday it claims').toBe('2026-09-11')
+    const clock = makeBarClock(bars)
+
+    // ⛔ the next BAR after Friday is Monday, not Saturday
+    expect(clock.timeAt(9)).toBe('2026-09-14')
+    expect(clock.timeAt(10)).toBe('2026-09-15')
+    expect(clock.timeAt(11)).toBe('2026-09-16')
+    // …and `bar_index + 3` from the last bar clears the whole weekend
+    expect(clock.timeAt(8 + 3)).toBe('2026-09-16')
+  })
+
+  it('⛔ and BACKWARD too — a bar before the first is the PREVIOUS session', () => {
+    // ⭐ The same arithmetic runs in both directions, so a rail on one is half a
+    // rail. `line.new(bar_index - 300, …)` on a short series lands here.
+    const bars = weekdaySeries('2026-09-07', 5) // Mon 09-07 .. Fri 09-11
+    expect(bars[0].t).toBe('2026-09-07')
+    const clock = makeBarClock(bars)
+    expect(clock.timeAt(-1)).toBe('2026-09-04') // the Friday before, not Sunday
+    expect(clock.timeAt(-3)).toBe('2026-09-02')
+  })
+
+  it('⭐ a WEEKLY series still steps a whole week — one rule, not a special case', () => {
+    // ⛔ CONTROL. A weekly series carries exactly one session weekday, so
+    // "advance to the next session weekday" IS "+7 days" with nothing added for
+    // it. If this needed its own branch, the rule would be wrong.
+    const weekly = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date('2026-08-07T00:00:00Z') // a Friday
+      d.setUTCDate(d.getUTCDate() + i * 7)
+      return { t: d.toISOString().slice(0, 10) }
+    })
+    expect(weekly[5].t).toBe('2026-09-11')
+    const clock = makeBarClock(weekly)
+    expect(clock.timeAt(6)).toBe('2026-09-18')
+    expect(clock.timeAt(7)).toBe('2026-09-25')
+  })
+
+  it('⛔⛔ a 24/7 series is NOT session-adjusted — it has no non-session day to skip', () => {
+    // ⭐ THE CONTROL THAT STOPS THIS BECOMING A HARD-CODED WEEKEND RULE. Crypto
+    // trades every day, so every weekday carries a session and the clock must
+    // fall back to its measured step. `BARS` above is exactly this shape, which
+    // is why the two cases at the top of this block still read the same.
+    const allWeek = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date('2026-09-01T00:00:00Z')
+      d.setUTCDate(d.getUTCDate() + i)
+      return { t: d.toISOString().slice(0, 10) }
+    })
+    const clock = makeBarClock(allWeek)
+    expect(clock.timeAt(14)).toBe('2026-09-15') // the next calendar day, weekend or not
+    expect(clock.timeAt(18)).toBe('2026-09-19')
+  })
+
+  it('⛔ an INTRADAY series is untouched — its sessions are not whole days', () => {
+    // ⭐ CONTROL. Session-skipping is whole-day arithmetic; an hourly series
+    // must keep stepping in hours or every projection lands a day out.
+    const hourly = Array.from({ length: 8 }, (_, i) => ({ t: 1_700_000_000 + i * 3600 }))
+    const clock = makeBarClock(hourly)
+    expect(clock.timeAt(8)).toBe(1_700_000_000 + 8 * 3600)
+  })
 })
 
 describe('C3B — render state', () => {

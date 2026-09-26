@@ -1,0 +1,284 @@
+{
+ "samples": [
+  [
+   45,
+   "true"
+  ],
+  [
+   352,
+   "false"
+  ]
+ ],
+ "requests": [
+  {
+   "t_ms": 42,
+   "m": "PATCH",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/lock"
+  },
+  {
+   "t_ms": 58,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/lock"
+  },
+  {
+   "t_ms": 66,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a"
+  },
+  {
+   "t_ms": 66,
+   "m": "GET",
+   "url": "/api/j2/notes?sort=updated"
+  },
+  {
+   "t_ms": 66,
+   "m": "GET",
+   "url": "/api/j2/notes?sort=title"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes/folder-counts"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes?sort=updated&limit=1&deleted=true"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes/favorites"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes/recents"
+  },
+  {
+   "t_ms": 67,
+   "m": "GET",
+   "url": "/api/j2/notes/tags"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/documents"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/excerpts"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes?sort=updated"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes?sort=title"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/trade-ref/resolve"
+  },
+  {
+   "t_ms": 68,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/properties"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/thesis-summary"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/facts"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/evidence-candidates"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/backlinks"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/related-from"
+  },
+  {
+   "t_ms": 69,
+   "m": "GET",
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/unlinked-mentions"
+  },
+  {
+   "t_ms": 143,
+   "resp": 200,
+   "url": "/api/j2/notes/folder-counts"
+  },
+  {
+   "t_ms": 148,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a"
+  },
+  {
+   "t_ms": 149,
+   "resp": 200,
+   "url": "/api/j2/notes?sort=updated&limit=1&deleted=true"
+  },
+  {
+   "t_ms": 150,
+   "resp": 200,
+   "url": "/api/j2/notes?sort=updated"
+  },
+  {
+   "t_ms": 154,
+   "resp": 200,
+   "url": "/api/j2/notes?sort=title"
+  },
+  {
+   "t_ms": 156,
+   "resp": 200,
+   "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+  },
+  {
+   "t_ms": 193,
+   "resp": 200,
+   "url": "/api/j2/notes/favorites"
+  },
+  {
+   "t_ms": 202,
+   "resp": 200,
+   "url": "/api/j2/notes/recents"
+  },
+  {
+   "t_ms": 225,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/excerpts"
+  },
+  {
+   "t_ms": 228,
+   "resp": 200,
+   "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+  },
+  {
+   "t_ms": 238,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/documents"
+  },
+  {
+   "t_ms": 241,
+   "resp": 200,
+   "url": "/api/j2/notes/tags"
+  },
+  {
+   "t_ms": 264,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/trade-ref/resolve"
+  },
+  {
+   "t_ms": 297,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/facts"
+  },
+  {
+   "t_ms": 301,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/backlinks"
+  },
+  {
+   "t_ms": 301,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/properties"
+  },
+  {
+   "t_ms": 302,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/evidence-candidates"
+  },
+  {
+   "t_ms": 309,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/thesis-summary"
+  },
+  {
+   "t_ms": 313,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/related-from"
+  },
+  {
+   "t_ms": 336,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a/unlinked-mentions"
+  },
+  {
+   "t_ms": 337,
+   "resp": 200,
+   "url": "/api/j2/notes/86582087f26c4237af7a26db2121ba6a"
+  },
+  {
+   "t_ms": 343,
+   "resp": 200,
+   "url": "/api/j2/notes?sort=title"
+  },
+  {
+   "t_ms": 349,
+   "resp": 200,
+   "url": "/api/j2/notes?sort=updated"
+  },
+  {
+   "t_ms": 5897,
+   "m": "GET",
+   "url": "/api/voice/insights/unspoken"
+  },
+  {
+   "t_ms": 5917,
+   "resp": 200,
+   "url": "/api/voice/insights/unspoken"
+  }
+ ],
+ "pageerrors": [],
+ "console": [
+  "error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ ],
+ "login": 200,
+ "note_id": "86582087f26c4237af7a26db2121ba6a",
+ "editable_before": "true",
+ "first_false_ms": 352,
+ "server_note_locked": true,
+ "menu_buttons": [
+  "Unlock",
+  "Archive",
+  "Save as template",
+  "Open a note beside\u2026"
+ ],
+ "status_text": [
+  "Locked. Editing is off until you unlock it.",
+  "Locked \u2014 editing is off\nUnlock",
+  ""
+ ]
+}

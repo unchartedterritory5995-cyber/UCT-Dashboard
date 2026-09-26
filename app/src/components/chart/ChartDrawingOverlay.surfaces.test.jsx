@@ -36,7 +36,13 @@ import { fileURLToPath } from 'node:url'
 import ChartDrawingOverlay from './ChartDrawingOverlay'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
-const SRC = fs.readFileSync(path.join(HERE, 'ChartDrawingOverlay.jsx'), 'utf8')
+// ⛔ LINE ENDINGS ARE NORMALISED BEFORE ANY DISTANCE IS MEASURED. `near()` below
+// slices a fixed character span around an anchor, and on a CRLF checkout every
+// line costs one extra byte: the EDIT-MODE probe's anchor-to-spread distance
+// measured 689 chars under LF and 701 under CRLF against a 700 span, so the same
+// source read green on one checkout and red on another (sweep, 2026-09-24).
+// A text probe must measure the CODE, not the checkout's `core.autocrlf`.
+const SRC = fs.readFileSync(path.join(HERE, 'ChartDrawingOverlay.jsx'), 'utf8').replace(/\r\n/g, '\n')
 
 // ── fakes ───────────────────────────────────────────────────────────────────
 const bars = [

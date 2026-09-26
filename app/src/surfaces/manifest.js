@@ -61,6 +61,13 @@ export const MANIFEST = [
   { path: "/live-flow", pathKind: "literal", element: "Navigate", kind: "redirect", order: null },
   { path: "/live-massive", pathKind: "literal", element: "LiveFlowMassive", kind: "surface", order: 2 },
   { path: "/flow-scoreboard", pathKind: "literal", element: "FlowScoreboard", kind: "surface", order: null },
+  // ⚰️ ADDED 2026-09-24. Both routes landed in App.jsx (Packet L CP1: /open-flow;
+  // A14 CP1: /portfolio-heat) without a row here, and this manifest's own rail --
+  // "every Layout-hosted route has a declaration" -- had been red on master since.
+  // Neither is a sidebar entry (NAV_ITEMS carries no row for either), so `order` is
+  // null, as it is for every other reachable-but-unlisted surface above.
+  { path: "/open-flow", pathKind: "literal", element: "OpenFlow", kind: "surface", order: null },
+  { path: "/portfolio-heat", pathKind: "literal", element: "PortfolioHeat", kind: "surface", order: null },
   { path: "/traders", pathKind: "literal", element: "Traders", kind: "surface", order: null },
   { path: "/dark-pool", pathKind: "literal", element: "DarkPool", kind: "surface", order: null },
   { path: "/post-market", pathKind: "literal", element: "PostMarket", kind: "surface", order: null },

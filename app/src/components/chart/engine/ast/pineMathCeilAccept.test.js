@@ -100,11 +100,26 @@ plot(math.ceil(close))
   it('⛔⛔ the other six real scripts naming math.ceil refuse on an earlier, unrelated blocker (measured, not overclaimed)', () => {
     const cases = [
       ['cvd-cumulative-volume-delta-chart__84da7a14bf.pine', 'pine:module'],
-      ['htf-candle-footprint-cartel-console__ca3ff4e904.pine', 'pine:no-output'],
+      // ⚰️ WAS `pine:no-output`. The merge of 2026-09-23 kept the NARROWER guard
+      // for a script that DRAWS: it offers no column to screen on AND it draws,
+      // which are two different facts, and `pine:objects-only` says which one it
+      // means. The claim here is unchanged — this script still refuses, and still
+      // on a blocker that has nothing to do with `math.ceil`.
+      ['htf-candle-footprint-cartel-console__ca3ff4e904.pine', 'pine:objects-only'],
       ['smart-money-concepts-by-welotrades__0bff41a2e5.pine', 'pine:function'],
-      ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:character'],
+      // ⚰️ WAS `pine:character`, AND THE SCRIPT NOW WALKS FURTHER. The merge of
+      // 2026-09-23 brought the postfix member-access fix, which cleared that
+      // lexer wall for 23 scripts — so this one reaches its NEXT blocker, an
+      // `import` of a Pine library. The case's claim is unchanged: it still
+      // refuses, and still on something unrelated to `math.ceil`.
+      ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:module'],
       ['volume-profile-auto-line-v2__b0e947fd20.pine', 'pine:no-output'],
-      ['volumized-order-blocks-flux-charts__1675b2b8e3.pine', 'pine:no-output'],
+      // ⚰️ WAS `pine:no-output`, for the same reason as the footprint row above:
+      // the merge kept the NARROWER guard for a script that draws. ⭐ The row two
+      // lines down (`volume-profile-auto-line-v2`) still reads `pine:no-output`
+      // and is what proves the two guards discriminate rather than one having
+      // simply been renamed to the other.
+      ['volumized-order-blocks-flux-charts__1675b2b8e3.pine', 'pine:objects-only'],
     ]
     for (const [file, guard] of cases) {
       const s = fs.readFileSync(path.join(CORPUS, file), 'utf8')

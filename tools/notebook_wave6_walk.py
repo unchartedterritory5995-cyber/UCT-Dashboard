@@ -463,7 +463,22 @@ with sync_playwright() as p:
         lock_resp = resp_info.value
         lock_body = lock_resp.json()
 
-        page.wait_for_timeout(300)
+        # ⛔ A WAITER, NOT A SAMPLE (2026-09-26, landing f25774ee7). This read
+        # `contenteditable` once, 300 ms after the PATCH answered. The editor
+        # only goes read-only when the REFETCHED note lands (lib/lockedNote.js ->
+        # settleNoteWrite revalidates ~20 keys at once), which a probe on this
+        # tree measured at ~290 ms after the PATCH (352 ms after the click;
+        # scratchpad w1_probe_1.json) -- so the old sample was a coin flip on box
+        # load and FAILED 2/2 on a busy box over byte-identical notebook code.
+        # The ceiling is 5 s; a note that never locks still reads "true" and FAILS.
+        _t_lock = _t.monotonic()
+        try:
+            page.wait_for_function(
+                "() => document.querySelector('.ProseMirror')?.getAttribute('contenteditable') === 'false'",
+                timeout=5000)
+        except Exception:  # noqa: BLE001
+            pass
+        lock_latency_ms = round((_t.monotonic() - _t_lock) * 1000)
         editable_attr = page.locator(".ProseMirror").get_attribute("contenteditable")
 
         # Unlock -> a keystroke -> the autosave PUT
@@ -479,7 +494,17 @@ with sync_playwright() as p:
         with page.expect_response(lambda r: r.url.endswith(f"/api/j2/notes/{nid}/lock")) as unlock_info:
             menu.get_by_role("button", name="Unlock", exact=True).click()
         unlock_resp = unlock_info.value
-        page.wait_for_timeout(400)
+        # Same waiter as the lock side (see above): the unlock lands through the
+        # editor's own `unlockNote`, so this usually settles faster, but it was
+        # the same fixed-sample shape and would fail the same way on a busy box.
+        _t_unlock = _t.monotonic()
+        try:
+            page.wait_for_function(
+                "() => document.querySelector('.ProseMirror')?.getAttribute('contenteditable') !== 'false'",
+                timeout=5000)
+        except Exception:  # noqa: BLE001
+            pass
+        unlock_latency_ms = round((_t.monotonic() - _t_unlock) * 1000)
         editable_after_unlock = page.locator(".ProseMirror").get_attribute("contenteditable")
 
         page.locator(".ProseMirror").click()
@@ -530,8 +555,10 @@ with sync_playwright() as p:
             lock_patch_answer_is_note="note" in lock_body,
             lock_wire_body=lock_req.get("body"),
             editable_while_locked=editable_attr,
+            lock_latency_ms_after_patch=lock_latency_ms,
             unlock_patch_status=unlock_resp.status,
             editable_after_unlock=editable_after_unlock,
+            unlock_latency_ms_after_patch=unlock_latency_ms,
             own_note_became_conflicted=own_note_became_conflicted,
             autosave_put_fired=len(put_bodies) > 0,
             autosave_put_base_updated_at=(put_bodies[-1].get("baseUpdatedAt") if put_bodies else None),
@@ -2105,7 +2132,17 @@ with sync_playwright() as p:
         sandbox_integrity_tail=integrity_summary,
     )
 
-    res["CRITICAL_FINDING_editor_view_throwing_getter"] = {
+    # ⚰️ This block was written as a LIVE finding and stamped into every run's
+    # JSON unconditionally -- after wave 6 fix round 5, R5-1 (e580b900e) had
+    # already fixed it. A fixed defect reported as CRITICAL on every run is a
+    # record that was true when written (kind 3b). The KEY now follows the
+    # measurement: CRITICAL only when this run's `_CRASH_STATS` saw the crash.
+    _crash_key = ("CRITICAL_FINDING_editor_view_throwing_getter" if _CRASH_STATS["count"]
+                  else "HISTORY_editor_view_throwing_getter_fixed_R5_1")
+    res[_crash_key] = {
+        "status": ("RECURRED on this run -- see crash_stats" if _CRASH_STATS["count"] else
+                   "FIXED by wave 6 fix round 5, R5-1 (e580b900e); 0 occurrences on this run. "
+                   "Everything below is the ORIGINAL report, kept as history."),
         "file": "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
         "line": 2448,
         "code": "const dom = editor?.view?.dom",

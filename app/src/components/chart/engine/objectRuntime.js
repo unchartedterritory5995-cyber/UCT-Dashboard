@@ -32,6 +32,15 @@
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram,
 } from './ast/objectProgram'
+// ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
+// (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
+// by nothing — parked on the reachability allowlist with an expiry that had
+// passed. This is the seam it was built for.
+import { POOL_LIMITS, resolveCapacity } from './objectPool'
+
+/** Own-property test — a family name must not reach `POOL_LIMITS` through the
+ *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 
 export const OBJECT_STATUS = Object.freeze({
   OK: 'ok',
@@ -50,6 +59,25 @@ function truthy(v) {
 }
 
 /**
+ * ⭐⭐ THE DRAWING, ONE BAR AT A TIME — SO SOMETHING ELSE CAN OWN THE BAR LOOP.
+ *
+ * `evaluateObjects` below is this driven to completion, and it is the only
+ * caller that needs to be. The stepper exists because of ONE measured fact:
+ * the runtime lane's per-iteration buffers are written by the VM as it walks
+ * bars and are OVERWRITTEN every bar, so a drawing that reads a per-row value
+ * on any bar but the last was reading whatever the last bar left behind.
+ *
+ * ⛔⛔ THE ALTERNATIVE WAS MEASURED AND IS NOT BUILDABLE. Giving those buffers
+ * a bar dimension costs, for ONE corpus script at the 5,000 bars a chart asks
+ * for, 1,621MB in full form and 801MB counting only the buffers that need it,
+ * against a 64MB runtime ceiling — see `iterStorageCost.measure.test.js`. The
+ * value does not have to be STORED per bar if the drawing is standing on the
+ * bar that produced it, which is what this makes possible.
+ *
+ * ⭐ AND IT IS WHAT PINE ACTUALLY DOES. A member's `for` loop and the
+ * `line.new` inside it are one program advancing one bar at a time; the two
+ * separate passes were this engine's convenience, never the vendor's model.
+ *
  * @param {object} program        a validated object program
  * @param {object} ctx
  * @param {number} ctx.barCount
@@ -58,10 +86,34 @@ function truthy(v) {
  * @param {(bar:number)=>number}         [ctx.readTime]  bar timestamp
  * @param {object}                       [ctx.limits]    override the envelope
  * @param {boolean}                      [ctx.trace]     keep a per-bar event log
+ * @returns {{barCount:number, ok:()=>boolean, step:(bar:number)=>void,
+ *            finish:()=>object}}
  */
-export function evaluateObjects(program, ctx) {
+export function beginObjects(program, ctx) {
   assertObjectProgram(program)
+  // ⭐⭐ CAPACITY IS PINE'S, AND `objectPool` OWNS THAT KNOWLEDGE.
+  //
+  // `DEFAULT_OBJECT_LIMITS` is this module's own envelope (a flat 500) and it is
+  // NOT Pine's rule: Pine defaults each drawing family to **50** when the script
+  // declares no `max_*_count`, and clamps a declared one to 500.
+  // `objectPool.resolveCapacity` is the one place that table lives.
+  //
+  // ⛔ ONE OWNER PER QUESTION. The pool owns CAPACITY; the `live` Map below owns
+  // LIVENESS. The pool also ships a FIFO store, and using it here would give us
+  // two truths about what is live — registers, collections, table cells and the
+  // output ordering all read `live`, so the two would drift on the first delete.
+  //
+  // ⚠️ `table` AND `linefill` ARE NOT IN THE POOL, AND THAT IS CORRECT. Pine
+  // publishes no `max_tables_count`/`max_linefills_count`; those two keep this
+  // module's own envelope rather than being given an invented Pine rule.
   const limits = { ...DEFAULT_OBJECT_LIMITS, ...(program.limits || {}), ...(ctx.limits || {}) }
+  const pineVersion = Number.isFinite(program.pineVersion) ? program.pineVersion : 6
+  for (const fam of OBJECT_FAMILIES) {
+    if (!own(POOL_LIMITS, fam)) continue
+    if (ctx.limits && ctx.limits[fam] !== undefined) continue   // an explicit test override wins
+    const declared = (program.limits || {})[fam]
+    limits[fam] = resolveCapacity(fam, declared === undefined ? null : declared, pineVersion).capacity
+  }
   const barCount = Math.max(0, ctx.barCount | 0)
   const readNode = ctx.readNode || (() => NaN)
   const readParam = ctx.readParam || (() => undefined)
@@ -81,7 +133,7 @@ export function evaluateObjects(program, ctx) {
    *  initialises the first time the path is reached and never again. */
   const firedOnce = new Set()
   let nextId = 1
-  let created = 0; let updated = 0; let deleted = 0
+  let created = 0; let updated = 0; let deleted = 0; let evicted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
@@ -96,11 +148,139 @@ export function evaluateObjects(program, ctx) {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.LIMIT_EXCEEDED; reason = why }
   }
 
-  for (let bar = 0; bar < barCount && status === OBJECT_STATUS.OK; bar += 1) {
+  /**
+   * ⭐⭐ THE ONE WAY AN OBJECT STOPS EXISTING.
+   *
+   * An explicit `*.delete()` and a quota EVICTION are two different reasons for
+   * the same event, and they must leave the world in the same state. This is
+   * that state, in one place:
+   *
+   *   · it leaves `live`, so nothing renders it
+   *   · its table cells go with it
+   *   · its family's slot is returned
+   *   · ⛔ AND IT LEAVES EVERY CONTAINER THAT NAMED IT. A register or collection
+   *     still holding the id is a handle to nothing, and the next write against
+   *     it lands nowhere without a word — the "why did my update stop working"
+   *     bug. That rule predates eviction; eviction now owes it too.
+   *
+   * ⚠️ A SECOND COPY OF THIS IS THE DEFECT IT PREVENTS. Two teardown paths drift
+   * the first time either is touched, and the half that forgets a container
+   * fails silently rather than loudly.
+   */
+  /**
+   * ⛔⛔ A LINEFILL IS NOT AN INDEPENDENT OBJECT — IT IS BOUND TO TWO LINES.
+   *
+   * Pine destroys a linefill when either of its lines is deleted, so the fill
+   * count can never outrun the line count and Pine publishes no
+   * `max_linefills_count` at all. This index is how that lifetime is enforced
+   * here without walking every live object on each reap.
+   *
+   * ⚰️ MEASURED ON `liquidity-pools` AGAINST THE VENDOR CAPTURE, 2026-09-22:
+   * the run REFUSED at bar 250 — "more than 500 live linefill objects" — while
+   * only 74 lines were live. Five hundred fills hanging off seventy-four lines,
+   * because reaping a line left its fills behind. The run then stopped
+   * stepping, so every object it had drawn was older than 2025-04-15 on a
+   * series running to 2026-09-11. That is the year-stale chart the vendor
+   * comparison found, and it is NOT the line-cap defect RC-B fixed: the script
+   * declares `max_lines_count=500` and never came close to it.
+   */
+  /**
+   * ⛔⛔ WHICH FAMILIES EVICT AT THE CAP, AND WHY `linefill` IS HERE.
+   *
+   * `POOL_LIMITS` is Pine's own roster — the kinds with a `max_*_count` and a
+   * documented FIFO. `linefill` is not one of them, and it is added anyway for
+   * a MEASURED reason rather than a symmetry argument.
+   *
+   * ⚰️ `liquidity-pools`, against the vendor capture on 2026-09-22: our run
+   * REFUSED at bar 250 on "more than 500 live linefill objects" and stopped
+   * stepping, so nothing after 2025-04-15 was drawn on a series reaching
+   * 2026-09-11. TradingView renders the same script across the whole window.
+   * Pine publishes NO linefill ceiling, so whatever Pine does at 500 fills, it
+   * certainly does not abandon the drawing — and abandoning it is the one
+   * behaviour we could be sure was wrong.
+   *
+   * ⭐ So the house envelope stays (a runaway is still bounded) and its
+   * behaviour at the ceiling changes from REFUSE to EVICT THE OLDEST, which is
+   * what Pine does for every drawing family that does have a limit.
+   *
+   * ⛔ `table` is deliberately NOT here. Its ceiling is 8 — a number no honest
+   * script approaches — so reaching it means something is wrong rather than
+   * something is busy, and a refusal with a named reason is the useful answer.
+   */
+  const EVICTS = new Set([...Object.keys(POOL_LIMITS), 'linefill'])
+
+  const fillsOfLine = new Map()
+  const fillRefs = (inst) => {
+    const p = inst.props || {}
+    const out = []
+    for (const k of ['line1', 'line2']) {
+      const r = p[k]
+      const id = r && typeof r === 'object' ? r.__ref : null
+      if (Number.isFinite(id)) out.push(id)
+    }
+    return out
+  }
+  const indexFill = (inst) => {
+    for (const lineId of fillRefs(inst)) {
+      let s = fillsOfLine.get(lineId)
+      if (!s) { s = new Set(); fillsOfLine.set(lineId, s) }
+      s.add(inst.id)
+    }
+  }
+  const unindexFill = (inst) => {
+    for (const lineId of fillRefs(inst)) {
+      const s = fillsOfLine.get(lineId)
+      if (s) { s.delete(inst.id); if (s.size === 0) fillsOfLine.delete(lineId) }
+    }
+  }
+
+  function reap(inst) {
+    live.delete(inst.id)
+    cells.delete(inst.id)
+    counts[inst.family] -= 1
+    for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
+    for (const [cid, arr] of colls) {
+      const at = arr.indexOf(inst.id)
+      if (at >= 0) arr.splice(at, 1)
+    }
+    // ⭐ A fill leaves the index and takes nothing with it; a LINE takes every
+    // fill that named it. The recursion is one level deep by construction — the
+    // branch above returns before it can nest.
+    if (inst.family === 'linefill') { unindexFill(inst); return }
+    const fills = fillsOfLine.get(inst.id)
+    if (!fills) return
+    fillsOfLine.delete(inst.id)
+    for (const fid of [...fills]) {
+      const f = live.get(fid)
+      if (f) reap(f)
+    }
+  }
+
+  /**
+   * The oldest live object of one family — Pine's next eviction victim.
+   *
+   * ⭐ INSERTION ORDER IS CREATION ORDER for a JS Map, and ids are minted
+   * monotonically, so the first match walking `live` IS the oldest. That is the
+   * same contract `line.all`/`box.all` publish (read-only, oldest first, index 0
+   * is the next to go) — the order is a property of the structure rather than a
+   * sort anyone has to keep correct.
+   */
+  function oldestOf(family) {
+    for (const inst of live.values()) if (inst.family === family) return inst
+    return null
+  }
+
+  // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
+  // byte-for-byte what the `for` body was; the only change is who advances it.
+  const stepBar = (bar) => {
     /** site id → instanceId created on THIS bar. ⭐ Cleared every bar, which is
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
     const siteNow = new Map()
+    /** counter id → its value for the iteration being executed RIGHT NOW.
+     *  ⛔ PER BAR, and cleared with the bar: a counter that outlived its loop
+     *  would let a later op read a stale index and write the wrong row. */
+    const loopVars = new Map()
     let opsThisBar = 0
 
     /**
@@ -172,8 +352,15 @@ export function evaluateObjects(program, ctx) {
       switch (t.t) {
         case 'lit': return t.s
         case 'num': {
-          const n = Number(readNode(t.node, bar))
+          const n = Number(readNode(t.node, bar, loopVars))
           return formatNumber(n, t.fmt)
+        }
+        // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
+        // string, never `String(v)`: an `undefined` row would render the word
+        // "undefined" into a dashboard cell, and a member reads that as data.
+        case 'str': {
+          const v = readNode(t.node, bar, loopVars)
+          return typeof v === 'string' ? v : ''
         }
         case 'cat': return (t.args || []).map(textOf).join('')
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
@@ -192,9 +379,37 @@ export function evaluateObjects(program, ctx) {
       if (!isObj(ref)) return undefined
       switch (ref.v) {
         case 'const': return ref.value
-        case 'graph': return readNode(ref.node, bar)
+        // ⭐ `loopVars` RIDES ALONG so a reader can answer a value that depends
+        // on the ITERATION, not just the bar. An ordinary reader ignores it.
+        case 'graph': return readNode(ref.node, bar, loopVars)
         case 'param': return readParam(ref.id)
         case 'bar': return bar
+        // ⭐ THE LOOP COUNTER, supplied by the RUNTIME exactly as `bar` is.
+        // ⛔ AN UNBOUND COUNTER IS `undefined`, NOT 0. A body op referencing a
+        // loop id nothing declares would otherwise silently read row zero and
+        // overwrite one cell N times — a table with one row where the author
+        // wrote forty, and nothing anywhere saying so.
+        case 'loop': return loopVars.has(ref.id) ? loopVars.get(ref.id) : undefined
+        // ⭐⭐ ARITHMETIC OVER ADDRESSES — `table.cell(t, 0, r + 1, …)`, the
+        // corpus idiom for a header row at 0 and data from 1.
+        //
+        // ⛔ A NON-NUMERIC OPERAND ANSWERS `undefined`, NEVER A COERCION.
+        // JavaScript would happily give `undefined + 1 === NaN` and `"2" * 3
+        // === 6`; both put a cell somewhere plausible and wrong. An address
+        // this grammar cannot compute is an address it declines to guess, and
+        // the op that reads it is skipped by the same finiteness checks that
+        // already guard a coordinate.
+        case 'op': {
+          const a = value(ref.args[0])
+          if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
+          if (ref.args.length === 1) return ref.op === '-' ? -a : a
+          const b = value(ref.args[1])
+          if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
+          if (ref.op === '+') return a + b
+          if (ref.op === '-') return a - b
+          if (ref.op === '*') return a * b
+          return undefined
+        }
         case 'time': return readTime(bar)
         // ⛔⛔ TEXT AND COLOUR ARE EVALUATED PER BAR LIKE EVERYTHING ELSE. A
         // dashboard whose cells were computed once and reused would show the
@@ -234,7 +449,13 @@ export function evaluateObjects(program, ctx) {
       return out
     }
 
-    for (const op of program.ops) {
+    /** Execute a list of ops in order. Answers FALSE when the bar's envelope is
+     *  spent, so a loop stops the whole bar rather than its own body only.
+     *
+     *  ⭐⭐ RE-ENTRANT BECAUSE A LOOP CONTAINS OPS. This was a flat `for` over
+     *  `program.ops`, which is why a loop could not be an operation at all. */
+    const runOps = (list) => {
+    for (const op of list) {
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
       // Pine's own idiom for a dashboard is "draw it once, on the newest bar",
       // and an object program is a picture of the chart as it stands — so this
@@ -257,13 +478,86 @@ export function evaluateObjects(program, ctx) {
       opsExecuted += 1
       if (opsThisBar > limits.opsPerBar) {
         fail(`more than ${limits.opsPerBar} object operations on bar ${bar}`)
-        break
+        return false
       }
 
       switch (op.k) {
+        // ⭐⭐ THE LOOP. Pine's `for i = from to to` is INCLUSIVE at both ends
+        // and counts DOWN when `to < from`, which is why the step is derived
+        // rather than assumed — `for i = n to 0` is a real and common idiom and
+        // an ascending-only reader draws nothing for it, silently.
+        case 'loop': {
+          const from = Number(value(op.from))
+          const to = Number(value(op.to))
+          // ⛔ A BOUND THAT IS NOT A NUMBER RUNS ZERO TIMES, NEVER "from 0".
+          // `array.size(syms) - 1` on a bar before the array is filled is `na`,
+          // and treating that as 0 would draw a row of blanks that looks like
+          // data. Drawing nothing is the honest answer for a list that is empty.
+          if (!Number.isFinite(from) || !Number.isFinite(to)) break
+          const step = to >= from ? 1 : -1
+          const had = loopVars.has(op.id)
+          const prev = loopVars.get(op.id)
+          let ok = true
+          for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
+            loopVars.set(op.id, n)
+            if (!runOps(op.body)) { ok = false; break }
+          }
+          // ⛔ RESTORED, NOT DELETED. Nested loops over the same id are
+          // pathological but legal, and clearing unconditionally would leave an
+          // outer counter unbound for the rest of its own body.
+          if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+          if (!ok) return false
+          break
+        }
         case 'create': {
+          // ⭐⭐ PINE EVICTS THE OLDEST. IT DOES NOT REFUSE.
+          //
+          // ⚰️⚰️ THIS BRANCH USED TO `fail(...)` AND STOP CREATING, which keeps
+          // the OLDEST objects — the exact opposite of Pine, which deletes the
+          // oldest to make room for the newest. Measured against TradingView
+          // 2026-09-23: `liquidity-pools` held lines whose newest was
+          // 2025-04-09 against a series running to 2026-09-11, while the vendor
+          // held the newest 90. Zero overlap. Every count looked healthy and the
+          // chart was a year stale.
+          //
+          // ⛔ THE EVICTION USES THE SAME TEARDOWN AS `delete`, and that is not
+          // tidiness. An object can stop existing two ways now, and an evicted
+          // one must leave every register and collection that named it exactly
+          // as a deleted one does — otherwise a handle points at nothing and the
+          // next write lands nowhere, silently. One `reap`, two callers.
+          // ⛔⛔ ONLY THE FAMILIES PINE ACTUALLY POOLS EVICT. `POOL_LIMITS` is
+          // the roster of kinds with a `max_*_count` parameter and a documented
+          // FIFO — line, label, box, polyline. A family with no vendor rule
+          // (table, linefill) keeps the house envelope's hard refusal, because
+          // we have no evidence about what the vendor does there and inventing
+          // an eviction rule is the same substitution this whole fix exists to
+          // undo: satisfying a Pine concept with a locally-reasonable primitive
+          // that RESEMBLES it.
+          // ⚰️ Written family-agnostic at first, which silently made TABLES
+          // evict too and turned the envelope's refusal into dead code.
+          const pooled = EVICTS.has(op.family)
+          while (pooled && counts[op.family] >= limits[op.family]) {
+            const victim = oldestOf(op.family)
+            // ⛔ NOTHING TO EVICT AND STILL OVER THE CAP is not a script error,
+            // it is a contradiction in our own bookkeeping — say so rather than
+            // spin.
+            if (victim === null) {
+              fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
+              break
+            }
+            reap(victim)
+            evicted += 1
+            if (ctx.trace) events.push({ bar, k: 'evict', family: op.family, id: victim.id })
+          }
+          // ⛔ STILL AT THE CAP MEANS TWO DIFFERENT THINGS, AND ONLY ONE IS
+          // SILENT. A POOLED family that is still full here already called
+          // `fail` above (the victim-less contradiction), so it must not be
+          // reported twice. A NON-POOLED family never entered the loop at all
+          // and this is its refusal — without the `fail`, it would simply stop
+          // creating and report `ok`, which is a script drawing less than it
+          // asked for with nothing saying so.
           if (counts[op.family] >= limits[op.family]) {
-            fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
+            if (!pooled) fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
             break
           }
           const id = nextId
@@ -272,6 +566,11 @@ export function evaluateObjects(program, ctx) {
             family: op.family, id, site: op.site, createdBar: bar, props: resolveProps(op.props, {}),
           }
           live.set(id, inst)
+          // ⭐ A fill records which lines own it AT CREATE, because that is the
+          // only moment both refs are resolved. `linefill.set_color` is the only
+          // update Pine offers and it cannot move a fill to different lines, so
+          // there is no re-index path to keep in step.
+          if (op.family === 'linefill') indexFill(inst)
           counts[op.family] += 1
           if (counts[op.family] > peak[op.family]) peak[op.family] = counts[op.family]
           siteNow.set(op.site, id)
@@ -382,22 +681,48 @@ export function evaluateObjects(program, ctx) {
           if (ctx.trace) events.push({ bar, k: 'clearcells', id: inst.id })
           break
         }
+        // ⭐⭐ THE RECTANGLE THE AUTHOR REMOVED. Pine's `table.clear` takes an
+        // INCLUSIVE block of cells out of the drawing; the corpus idiom is to
+        // clear a block and repopulate it, so skipping this leaves last bar's
+        // rows under this bar's header with nothing marking them stale.
+        case 'clear': {
+          const target = resolveRef(op.target)
+          const inst = target === null ? null : live.get(target)
+          if (!inst) { writesToDeleted += 1; break }
+          const startCol = Number(value(op.startCol))
+          const startRow = Number(value(op.startRow))
+          const endCol = Number(value(op.endCol))
+          const endRow = Number(value(op.endRow))
+          // ⛔ A BOUND THAT IS NOT A WHOLE NUMBER CLEARS NOTHING, never "all of
+          // it" — the same call `cell` makes for its address. `array.size(x)-1`
+          // before the array is filled is `na`, and treating that as a bound
+          // would empty a table the author was still writing into.
+          if (![startCol, startRow, endCol, endRow].every(Number.isInteger)) break
+          const map = cells.get(inst.id)
+          if (!map) break
+          // ⚠️ ASCENDING ONLY, AND DELIBERATELY NOT NORMALISED. Whether Pine
+          // swaps a rectangle whose end precedes its start is NOT measured, and
+          // the two readings fail in opposite directions: iterating a reversed
+          // range clears nothing (stale cells, the defect this op fixes),
+          // normalising it clears cells nobody named (content destroyed). No
+          // corpus call site writes one, so the cheaper mistake is taken until
+          // a vendor capture says otherwise.
+          for (let c = startCol; c <= endCol; c += 1) {
+            for (let r = startRow; r <= endRow; r += 1) map.delete(`${c},${r}`)
+          }
+          updated += 1
+          if (ctx.trace) events.push({ bar, k: 'clear', id: inst.id, startCol, startRow, endCol, endRow })
+          break
+        }
         case 'delete': {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)
           if (!inst) { writesToDeleted += 1; break }
-          live.delete(inst.id)
-          cells.delete(inst.id)
-          counts[inst.family] -= 1
+          // ⭐ THE SAME TEARDOWN AN EVICTION USES — see `reap`. The container
+          // cleanup this branch used to spell out lives there now, so the two
+          // reasons an object can stop existing cannot drift apart.
+          reap(inst)
           deleted += 1
-          // ⭐ A DELETED OBJECT LEAVES EVERY CONTAINER THAT NAMED IT. Otherwise a
-          // register or collection keeps a handle to nothing and the next write
-          // silently lands nowhere — the "why did my update stop working" bug.
-          for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
-          for (const [cid, arr] of colls) {
-            const at = arr.indexOf(inst.id)
-            if (at >= 0) arr.splice(at, 1)
-          }
           if (ctx.trace) events.push({ bar, k: 'delete', id: inst.id })
           break
         }
@@ -438,9 +763,13 @@ export function evaluateObjects(program, ctx) {
           break
       }
     }
+    return true
+    }
+    runOps(program.ops)
     if (opsThisBar > maxOpsInABar) maxOpsInABar = opsThisBar
   }
 
+  const finish = () => {
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
@@ -466,6 +795,33 @@ export function evaluateObjects(program, ctx) {
     },
     ...(ctx.trace ? { events } : {}),
   }
+  }
+
+  return {
+    barCount,
+    // ⛔⛔ THE ENVELOPE STOP LIVES HERE, AND IN EXACTLY ONE PLACE. It was the
+    // `for` loop's own condition, and a second driver arrived (`runObjectLane`
+    // advances this from inside the VM's bar loop) which has no loop condition
+    // to put it in — it cannot stop feeding bars, because the VM owns the loop.
+    // ⛔ SO IT IS NOT REPEATED IN THE DRIVERS. Two copies of one invariant is a
+    // guard that cannot be mutation-proved: killing either leaves the other
+    // answering, and the rail stays green while half the protection is gone
+    // (`lesson_a_guard_repeated_is_a_guard_unproved`). The rail that watches
+    // THIS one is `objectRuntime.test.js`'s "it stops stepping" case, which
+    // counts the ops executed AFTER the failure — the status alone cannot tell
+    // a run that stopped from one that kept going, because `fail()` latches.
+    step: (bar) => { if (status === OBJECT_STATUS.OK) stepBar(bar) },
+    finish,
+  }
+}
+
+/** ⭐ THE WHOLE DRAWING, DRIVEN HERE — the shape every caller but the runtime
+ *  lane wants, and the ONE driver for everyone who has no bar loop of their own.
+ *  ⛔ DERIVED FROM THE STEPPER, NEVER A SECOND COPY OF THE WALK. */
+export function evaluateObjects(program, ctx) {
+  const run = beginObjects(program, ctx)
+  for (let bar = 0; bar < run.barCount; bar += 1) run.step(bar)
+  return run.finish()
 }
 
 function cellsOf(map) {

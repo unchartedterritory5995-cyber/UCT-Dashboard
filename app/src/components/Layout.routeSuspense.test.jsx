@@ -16,7 +16,19 @@ import { MemoryRouter } from 'react-router-dom'
 import { vi, test, expect, beforeEach, afterEach } from 'vitest'
 import Layout from './Layout'
 
-vi.mock('./NavBar', () => ({ default: () => <div data-testid="nav-marker">nav</div> }))
+// `NAV_ITEMS` must survive this mock: `surfaces/pageTitle.js` (imported by
+// Layout since S1 CP2, 8baca199b) builds its label map from the REAL
+// `NAV_ITEMS` at module-evaluation time, so a mock exporting only `default`
+// throws "No NAV_ITEMS export is defined on the ./NavBar mock" before a single
+// test runs -- the whole file fails to load. Spreading the original keeps every
+// real export, present and future, in sync while still replacing the rendered
+// component: the same "mock reflects the REAL module surface" rule the
+// `usePreferences` mock below already follows. Evaluating the real module is
+// safe -- Layout.pageTitle.test.jsx renders the real NavBar outright.
+vi.mock('./NavBar', async (importOriginal) => ({
+  ...(await importOriginal()),
+  default: () => <div data-testid="nav-marker">nav</div>,
+}))
 vi.mock('./MobileNav', () => ({ default: () => null }))
 vi.mock('./FeedbackWidget', () => ({ default: () => null }))
 vi.mock('./mobile/MoreSheet', () => ({ default: () => null }))

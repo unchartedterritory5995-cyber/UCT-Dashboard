@@ -88,7 +88,25 @@ describe('🔴 the half-window the advice names is the one the manifest declares
     // `idiv(x, 1)` still agrees for a positive x — it is the fallback spelling
     // this advice would fall back to were `floor` ever undeclared again.
     expect(col('idiv(27.5, 1)')[199]).toBe(27)
+
+    // ⛔⛔ THE ADVICE TEXT STILL SAYS `idiv`, AND IT IS LEFT ALONE ON PURPOSE.
+    // `idiv(x, 1)` is still correct for a positive window, so nothing a member
+    // is told today is false — it is merely no longer the ONLY spelling. Changing
+    // member-facing copy is a product decision with its own assertions two cases
+    // down, and quietly rewriting it inside a maths change is how copy drifts
+    // away from the rulings that chose it.
+    //
+    // ⚠️ FOLLOW-UP, NAMED SO IT IS NOT LOST: offer `floor(…)` beside `idiv(…)`
+    // in `pine:window` advice. It is the name a member would reach for first,
+    // and the only reason it was not offered has now gone.
+    //
+    // ⛔ AND `floor` IS NOT A DROP-IN FOR `idiv` ON A NEGATIVE WINDOW — floor
+    // goes toward -∞ and integer division toward zero. A window is positive by
+    // construction, so they agree HERE and would not agree everywhere.
+    expect(col('floor(-2.5)')[199]).toBe(-3)
+    expect(col('idiv(-2.5, 1)')[199]).toBe(-2)
   })
+
 
   it('⭐ the advice names BOTH whole numbers, with their values, when they differ', () => {
     const r = refusalFor('plot(ta.wma(close, 55 * 1/2))')

@@ -1,0 +1,85 @@
+{
+  "_README": [
+    "THE TARGET LIST — the indicators we are committing to make draw identically.",
+    "",
+    "Run:  cd app && node node_modules/vitest/vitest.mjs run \\",
+    "        src/components/chart/engine/ast/targetScriptReport.measure.test.js",
+    "",
+    "Paths resolve relative to the REPO ROOT, or may be absolute.",
+    "A path that does not exist FAILS the run rather than being skipped — a target",
+    "list that quietly drops entries is a list that lies about coverage.",
+    "",
+    "⛔ Do NOT commit a licence-bearing third-party script into this repo. It is",
+    "PUBLIC. Park the file outside it (e.g. C:/Users/Patrick/uct-pine-local/) and",
+    "point at it by absolute path — the report reads it, the repo never holds it.",
+    "",
+    "⭐ THE CORPUS ENTRIES BELOW ARE A STAND-IN, CHOSEN FOR SPREAD, NOT A WISH",
+    "LIST. They were picked to span capability classes — plain plots, bands,",
+    "pivots, VWAP, CVD/MTF, drawing objects, SMC/UDT, matrix — so the report shows",
+    "a DISTRIBUTION of blockers rather than one blocker repeated fifteen times.",
+    "Swap in the indicators actually wanted and the queue re-orders itself."
+  ],
+  "scripts": [
+    {
+      "name": "RVOL + ATR Dashboard",
+      "path": "C:/Users/Patrick/uct-pine-local/rvol-atr-dashboard.pine",
+      "why": "THE acceptance script — owner's own, drives the runtime-lane programme"
+    },
+    {
+      "name": "RVOL",
+      "path": "corpus/committed/rvol__05fcd9e160.pine",
+      "why": "host lane draws it TODAY; one capability (gradient fill) from a full runtime clear"
+    },
+    {
+      "name": "Strong Start RVOL Dashboard",
+      "path": "corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine",
+      "why": "previous acceptance target; cells still drop at guard:cell"
+    },
+
+    { "name": "Donchian Channels",
+      "path": "corpus/committed/donchian-channels__5df15aaa23.pine",
+      "why": "class: plainest possible plots — the floor. If this does not draw, nothing does." },
+    { "name": "ATR Bands",
+      "path": "corpus/committed/atr-bands__ad60b125e6.pine",
+      "why": "class: bands off a smoothed series — exercises the ema/rma SEED the wave-1 probe measures" },
+    { "name": "ADX and DI (v4)",
+      "path": "corpus/committed/adx-and-di-for-v4__932.pine",
+      "why": "class: classic oscillator AND a v4-era script — version-evolution coverage" },
+    { "name": "Engulfing Candle",
+      "path": "corpus/committed/engulfingcandle__0df91dc775.pine",
+      "why": "class: candlestick pattern — bar-relative logic, plotshape territory" },
+    { "name": "Chart VWAP",
+      "path": "corpus/committed/chart-vwap__804099ca2f.pine",
+      "why": "class: session-anchored VWAP — exercises the session clock" },
+    { "name": "EMA Ribbon Trend Filter",
+      "path": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+      "why": "class: many plots on one pane — the CARRY_MAX/visible-ceiling path" },
+    { "name": "Average Day Range (ADR) Pivots",
+      "path": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+      "why": "class: daily-anchored levels on an intraday chart — MTF without request.security" },
+    { "name": "Bollinger Band Width Percentile",
+      "path": "corpus/committed/bollinger-band-width-percentile__03JuGF728K.pine",
+      "why": "class: stdev + percentile — the population-vs-sample question, in a real script" },
+    { "name": "Cumulative Volume Delta",
+      "path": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
+      "why": "class: lower-timeframe request — Phase 5 territory, measured early on purpose" },
+    { "name": "Fair Value Gap",
+      "path": "corpus/committed/fair-value-gap__1048fa103a.pine",
+      "why": "class: DRAWING OBJECTS (boxes) — the wave-1 agent's territory" },
+    { "name": "BigBeluga Smart Money Concepts",
+      "path": "corpus/committed/bigbeluga-smart-money-concepts__e41b7abd03.pine",
+      "why": "class: modern SMC — expected UDT/array heavy, i.e. Phase 3. A deliberate HARD case." },
+    { "name": "All Chart Patterns (theEccentricTrader)",
+      "path": "corpus/committed/all-chart-patterns-theeccentrictrader__03e4633d31.pine",
+      "why": "class: large pattern library — expected the worst case on the list, included to bound it" },
+    { "name": "Correlation Matrix",
+      "path": "corpus/committed/correlation-matrix__dzN3DMCFJL.pine",
+      "why": "class: matrix.* + multi-symbol — bounds how far Phase 5/7 actually has to reach" },
+
+    {
+      "name": "P1 probe (self-check)",
+      "path": "tools/visual_conformance/probes/p1-top-unmeasured.pine",
+      "why": "NOT a target — a standing check that the wave-1 vendor probe still translates on BOTH lanes, so every reading stays comparable"
+    }
+  ]
+}

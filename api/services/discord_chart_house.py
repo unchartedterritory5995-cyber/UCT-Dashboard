@@ -38,7 +38,8 @@ _VIEWPORT_PAD = 40
 # The page's own held-still flag, gated on its bars-landed flag: an EMPTY
 # chart holds still too (5-minute renders shipped blank twice on 2026-08-25
 # while the 5,000-bar fetch was still in flight).
-HOUSE_READY_JS = "() => window.__chartBarsReady === true && window.__chartReady === true"
+HOUSE_READY_JS = ("() => window.__chartBarsReady === true && window.__chartHeaderReady !== false"
+                  " && window.__chartReady === true")
 # A sized-but-EMPTY canvas still passes every DOM predicate (bars late after a
 # deploy, empty series): judge the pixels like the Substack harness does —
 # grayscale std-dev of the chart body with the chrome bands dropped. Measured
@@ -90,6 +91,10 @@ def house_ready_js(sym: str) -> str:
         # alone satisfy the colour-variety test below, and the page's held-still
         # flag is true of an empty chart, so this guard comes before both.
         " if (window.__chartBarsReady !== true) return false;"
+        # The header (company, price, change) is DOM text from its own lookups, which neither
+        # flag waited for: AMD's first weekly render after the 2026-09-25 deploy read just
+        # "AMD W". `!== false`, so a page that predates the flag is not held.
+        " if (window.__chartHeaderReady === false) return false;"
         " if (window.__chartReady === true) return true;"
         " const e = document.querySelector('#chart-export'); if (!e) return false;"
         f" if (!(e.innerText || '').toUpperCase().includes({sym_js})) return false;"

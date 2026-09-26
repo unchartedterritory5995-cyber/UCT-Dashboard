@@ -2593,6 +2593,29 @@ export const TS_CALL_SHAPES = Object.freeze({
     args: [{ from: 'value' }],
     cite: 'Functions/Math---Trig/Sqrt: "Calculates the square root of an argument."',
   },
+  // ⭐⭐ `Floor` / `Ceil` MAP NOW (2026-09-22), and the reason they did not is
+  //    exactly the reason they do. `thinkscript.test.js` refused them with
+  //    *"this engine declares no `floor` callable"* and warned that `round`
+  //    is round-to-whole (half AWAY FROM ZERO), "a DIFFERENT function on every
+  //    value whose fraction is >= .5" — mapping onto it would have been wrong on
+  //    about half of all bars. `closedTable` declares both names now, so each
+  //    maps onto ITSELF rather than onto an approximation.
+  //    ⛔ AND THE DEFINITIONS AGREE TO THE WORD, which is what makes this a
+  //    mapping rather than a guess: thinkorswim rounds "down to the nearest
+  //    integer" and this engine's `floor` goes toward -∞ — the same answer on a
+  //    negative value, which is where "down" and "toward zero" part company.
+  floor: {
+    engine: 'floor',
+    params: ['value'],
+    args: [{ from: 'value' }],
+    cite: 'Functions/Math---Trig/Floor: "Rounds a value down to the nearest integer."',
+  },
+  ceil: {
+    engine: 'ceil',
+    params: ['value'],
+    args: [{ from: 'value' }],
+    cite: 'Functions/Math---Trig/Ceil: "Rounds a value up to the nearest integer."',
+  },
   sqr: {
     engine: 'pow',
     params: ['value'],
@@ -3033,20 +3056,17 @@ export const TS_CALL_SHAPES = Object.freeze({
  *  RateOfChange). So a study is mappable only where its own DESCRIPTION states
  *  the missing defaults in prose, which is true of `ATR` and of none of these. */
 export const TS_UNCITED = Object.freeze({
-  // ⚰️ THIS USED TO SAY "closedTable declares no `floor` and no `ceil`" —
-  // FALSE since 2026-09-20, when both joined `closedTable.functions` for
-  // Pine's `math.floor`/`math.ceil`. The reason `Floor(...)` still refuses
-  // here is unchanged and was never that the underlying primitive was
-  // missing: this ThinkScript FRONTEND has no `TS_CALL_SHAPES.floor` (or
-  // `.ceil`) row routing thinkorswim's own call onto it, because nobody has
-  // fetched thinkorswim's Floor/Ceiling page to confirm its signature and
-  // cite it the way the rows above do. `round` is round-to-whole (half away
-  // from zero), which is a DIFFERENT function on every value whose fraction
-  // is at least one half, so it is not a stand-in either.
-  Floor: 'closedTable declares `floor` and `ceil` for Pine, but this ThinkScript '
-    + 'frontend has no cited route to either — nobody has fetched thinkorswim\'s '
-    + 'Floor/Ceiling page to confirm its signature. `round` is round-to-whole, which is '
-    + 'a different function on every value whose fraction is at least one half.',
+  // ⚰️ `Floor` LEFT THIS ROSTER ON 2026-09-22, and it left because its reason
+  // stopped being true rather than because anyone decided to be lenient. It read:
+  // *"closedTable declares no `floor` and no `ceil`; `round` is round-to-whole,
+  // which is a different function on every value whose fraction is at least one
+  // half."* Both names are declared now, so `Floor` and `Ceil` map onto
+  // THEMSELVES — see their rows in the map above.
+  //
+  // ⛔ THE OBJECT IS DELIBERATELY EMPTY, NOT DELETED. It is the roster of
+  // thinkScript names refused for want of an engine callable, and an empty one is
+  // a real and useful statement: there are none today. Deleting it would make the
+  // next such name look like an oversight instead of a decision.
 })
 
 /**

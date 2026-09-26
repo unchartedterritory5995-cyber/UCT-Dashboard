@@ -341,6 +341,28 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/ast/pineRuntimeFrontend.js':
     'PINE RUNTIME (C4 Phase 2) — the version-aware front end that decides which '
     + 'lane a script takes. Same mount, same expiry.',
+  // ── THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20) ───────────────────────
+  //
+  // ⛔ SAME MOUNT, SAME EXPIRY as the block above, and recorded for the same
+  // reason: each is imported by `pineRuntimeFrontend.js` and by nothing a member
+  // can navigate to, so the rail is RIGHT that no route reaches them. They are
+  // listed individually rather than waved through by directory, because a
+  // directory rule would silently adopt whatever lands there next.
+  'app/src/components/chart/engine/runtime/collections.js':
+    'PINE RUNTIME — typed arrays (`array.new<T>`, get/set/push). Same mount, '
+    + 'same expiry.',
+  'app/src/components/chart/engine/runtime/colours.js':
+    'PINE RUNTIME — the colour channel (`color.new`/`color.rgb` to a packed '
+    + '0xTTBBGGRR int). Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/text.js':
+    'PINE RUNTIME — the text channel (`str.tostring` and friends). Same mount, '
+    + 'same expiry.',
+  'app/src/components/chart/engine/runtime/objectLane.js':
+    'PINE RUNTIME — the LANE SEAM: runs the runtime lane and feeds its outputs '
+    + 'to an object program, so a table cell can hold a value only that lane can '
+    + 'compute (arrays, loops, sorts). Deliberately unmounted: ruling D2 keeps '
+    + 'the member pane on the HOST lane\'s saved definition, and wiring this to a '
+    + 'member is a separate, flagged decision. Same mount, same expiry.',
   'app/src/components/chart/engine/ast/oosHarness.js':
     'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
     + 'corpus against both lanes and is invoked by tooling and tests only. It '
@@ -388,9 +410,15 @@ const AWAITING_A_DECISION = {
     'R0.1 RENDERER PRIMITIVE — the text engine lightweight-charts lacks. Built '
     + 'ahead of the drawing path that consumes it. Wave 2 in flight; '
     + 'reachability decided at Wave 2 close (2026-09-14).',
-  'app/src/components/chart/engine/objectPool.js':
-    'R0.2 RENDERER PRIMITIVE — Pine\'s drawing-object quota and its FIFO '
-    + 'eviction. Same wave, same expiry.',
+  // ⭐ `objectPool.js` WAS HERE AND IS NOW WIRED (RC-B, 2026-09-22), so its
+  // entry is gone rather than renewed. `objectRuntime.beginObjects` imports
+  // `POOL_LIMITS` + `resolveCapacity` and takes its capacity policy from them.
+  // ⚰️ Its expiry — "Wave 2 close, 2026-09-14" — had PASSED while the module
+  // still sat here, and nothing failed on the date: that is the whole of
+  // `lesson_built_tested_green_and_unreachable` with a deadline attached. The
+  // correct FIFO lived in this repo, with tests, while the runtime it belonged
+  // to refused at the cap and kept the OLDEST objects — which is what made
+  // `liquidity-pools` draw a year-stale chart against TradingView.
   'app/src/components/chart/engine/versionRender.js':
     'R0.3 RENDERER PRIMITIVE — the version-dependent renderer. Same wave, same '
     + 'expiry.',
@@ -675,24 +703,158 @@ const AWAITING_A_DECISION = {
     'COMMUNITY SURFACE — the pooled EventSource for the chat stream. Its only '
     + 'importers are the community files above, so it moves with them or not '
     + 'at all (same pairing rule as buildRail / DeskVideoRail).',
-  // ── PACKET-AA CP1 (fingerprint f7fb7c477) — held unmounted ON PURPOSE ────
-  //
-  // The AI Print Explainer backend (api/flow_explain.py) is fully built,
-  // cost-guarded, paid-gated, and had zero frontend caller. CP1 built the
-  // standalone UI door (this file, exporting both FlowExplainButton and
-  // FlowExplainModal) in complete isolation, deliberately WITHOUT touching
-  // OptionsFlow.jsx — see the packet's own §5 ("why this is two checkpoints
-  // and not one"). CP2 is the only piece that mounts a trigger for it, via
-  // one additive className hook on a flow-print row, and CP2 explicitly
-  // requires the owner's coordination with Ravi (OptionsFlow.jsx's partner
-  // owner) before it lands — same treatment as the joystick hub's own
-  // "kept on purpose" entries above. DELETE THIS ENTRY in the same commit
-  // that lands CP2's mount.
-  'app/src/pages/optionsFlow/FlowExplainButton.jsx':
-    'PACKET-AA CP1 — built and tested, deliberately unmounted pending CP2 '
-    + '(requires owner+Ravi coordination on the OptionsFlow.jsx insertion '
-    + 'point). See docs/terminal-research gate packet-aa-flow-explain-wiring-gate.md.',
+  // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
+  // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
+  // and its expiry were deleted in that commit, as the block's own text said.)
   }
+
+/**
+ * ─── S4 — A PARKING NOTE MAY NOT OUTLIVE ITS OWN EXPIRY ────────────────────
+ *
+ * ⚰️⚰️ THE REGISTER ABOVE IS HONEST AND WAS STILL NOT ENOUGH. Every block in it
+ * carries a date and an intent, in prose, and NOTHING READ THEM.
+ * `objectPool.js` sat here under "Wave 2 close, 2026-09-14"; that date passed
+ * and no test noticed, so the module stayed parked while the runtime it belongs
+ * to refused at its drawing cap and kept the OLDEST objects. Measured against
+ * TradingView on 2026-09-23, that is what made `liquidity-pools` draw a
+ * year-stale chart — the correct FIFO was in this repo, with its own green
+ * tests, unreachable. `lesson_built_tested_green_and_unreachable` WITH A
+ * DEADLINE ATTACHED, and the deadline was the part that failed.
+ *
+ * ⭐ SO THE DATE BECOMES DATA. Each parked block declares an ISO expiry here,
+ * and the rail below reads the register's OWN SOURCE for its block markers — so
+ * a block added without an expiry fails rather than parking itself forever, and
+ * an expiry naming no block fails too. Neither list can drift from the other,
+ * which is the only reason it is safe for them to be two lists.
+ *
+ * ⚠️ THESE DATES ARE PROPOSALS, NOT POLICY. The register already grants the
+ * owner a per-module veto and any of these can move in one line. What is not
+ * negotiable is that a lapsed date now FAILS rather than sitting quietly.
+ *
+ * ⚠️ AND YES, THIS MAKES THE SUITE DEPEND ON THE CLOCK. That is the feature: an
+ * expiry that cannot fire on its own date is the thing being fixed. It fails
+ * BY NAME, with the block and every path still parked under it, so the fix is
+ * always "decide these modules", never "find out what broke".
+ */
+const PARKING_EXPIRES = {
+  'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
+  "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
+  // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
+  // `objectPool.js` has been removed from it (RC-B wired it), but five
+  // primitives remain — and three of them, `zorder.js`, `colorInt.js` and
+  // `textLayout.js`, are named in `docs/pine/PARITY-ROOT-CAUSE.md` as the next
+  // seams where a house concept stands in for a Pine one with nothing measuring
+  // the difference. They are the same shape as the defect that cost this.
+  'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-06',
+  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
+  'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
+  'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+  'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
+  // `origin/master` carries this parking block and has NO S4 rail; this branch
+  // carries the S4 rail and had no such block. The rail meeting the block is
+  // what is new — the merge, not either side, and exactly the interaction S4
+  // exists to surface rather than let park itself forever.
+  //
+  // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
+  // the component, so the parking note had nothing left to outlive.)
+}
+
+/** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
+ *  compares correctly as a string and has no timezone to get wrong — the one
+ *  arithmetic in this file that must never drift by a day. */
+const hasLapsed = (expires, todayISO) => String(expires) < String(todayISO)
+
+/** The register's blocks, READ FROM ITS OWN SOURCE — never a second hand-typed
+ *  list of what is parked where. A block with no entries under it is a
+ *  historical marker (the two JOYSTICK ones are wired now) and parks nothing,
+ *  so it owes no expiry. */
+function parkedBlocks() {
+  const src = read(path.join(ROOT, 'app/src/components/screener/reachable.test.js'))
+  const lines = src.split('\n')
+  const from = lines.findIndex((l) => l.startsWith('const AWAITING_A_DECISION = {'))
+  expect(from, 'the register moved — this rail cannot find it').toBeGreaterThan(-1)
+  const to = lines.findIndex((l, i) => i > from && l === '  }')
+  expect(to, 'the register never closes — this rail cannot bound it').toBeGreaterThan(from)
+
+  const blocks = []
+  let cur = null
+  for (let i = from + 1; i < to; i += 1) {
+    const head = /^\s*\/\/ ── (.+?) ─+$/.exec(lines[i])
+    if (head) { cur = { name: head[1], paths: [] }; blocks.push(cur); continue }
+    // ⛔ MATCH THE KEY BY ITS SHAPE — a repo path — NOT by its indentation and
+    // not by "quoted string then colon". Two entries are indented four spaces
+    // rather than two, and several carry their reason INLINE after the colon
+    // instead of on the next line; an indentation rule missed the first pair
+    // and an end-of-line rule missed the second. Every key in this register is
+    // a path under `app/`, and a value never is.
+    const entry = /^\s+'(app\/[^']+)':/.exec(lines[i])
+    if (entry && cur) cur.paths.push(entry[1])
+  }
+  return blocks
+}
+
+describe('🔴 S4 — a parking note may not outlive its own expiry', () => {
+  it('⛔ CONTROL — the register is really being read, blocks and all', () => {
+    // ⭐ NON-VACUITY, and it is the whole rail. Every assertion below is over a
+    // parsed set: if the parse returned nothing, "no block has lapsed" and
+    // "every block has an expiry" are both trivially true and this file would
+    // report a clean bill of health for a register it never opened.
+    const blocks = parkedBlocks()
+    expect(blocks.length, 'no blocks parsed — the marker format changed')
+      .toBeGreaterThan(4)
+    const parked = blocks.filter((b) => b.paths.length > 0)
+    expect(parked.length).toBeGreaterThan(4)
+    // a path known to be in there, named rather than counted
+    const all = parked.flatMap((b) => b.paths)
+    expect(all).toContain('app/src/components/chart/engine/zorder.js')
+    expect(all.length).toBe(Object.keys(AWAITING_A_DECISION).length)
+  })
+
+  it('⛔⛔ every parked block declares an expiry, and every expiry names a block', () => {
+    // ⛔ BOTH DIRECTIONS, because each catches a different mistake: a new block
+    // added without a date would park itself forever, and a date left behind
+    // after its block is cleared reads as protection that no longer covers
+    // anything.
+    const parked = parkedBlocks().filter((b) => b.paths.length > 0).map((b) => b.name)
+    const declared = Object.keys(PARKING_EXPIRES)
+    expect(parked.filter((n) => !declared.includes(n)),
+      'these blocks park modules with no expiry — add one to PARKING_EXPIRES')
+      .toEqual([])
+    expect(declared.filter((n) => !parked.includes(n)),
+      'these expiries name no block that parks anything — drop them')
+      .toEqual([])
+    for (const [name, when] of Object.entries(PARKING_EXPIRES)) {
+      expect(when, `${name} has a malformed expiry`).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    }
+  })
+
+  it('⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have', () => {
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const lapsed = parkedBlocks()
+      .filter((b) => b.paths.length > 0 && hasLapsed(PARKING_EXPIRES[b.name], todayISO))
+      .map((b) => `${b.name} (expired ${PARKING_EXPIRES[b.name]}, still parking `
+        + `${b.paths.length}: ${b.paths.join(', ')})`)
+    expect(lapsed, 'these parking notes have outlived their own expiry. WIRE the '
+      + 'modules, DELETE them, or renew the date deliberately — what you may not '
+      + 'do is leave them, which is exactly how objectPool.js stayed unreachable '
+      + 'for eight days past its date while the engine drew a year-stale chart.')
+      .toEqual([])
+  })
+
+  it('⛔ CONTROL — and the expiry check can actually FAIL', () => {
+    // ⚰️ A GATE NOBODY HAS SEEN FIRE IS NOT A GATE (`lesson_gate_that_cannot_
+    // fail`). The case above passes on a healthy register and would pass just
+    // as happily if `hasLapsed` always answered false.
+    expect(hasLapsed('2026-09-14', '2026-09-22')).toBe(true)
+    expect(hasLapsed('2026-11-30', '2026-09-22')).toBe(false)
+    // ⛔ and the boundary: a note expires at the END of its stated day, so the
+    // day itself is not lapsed. An off-by-one here fires a day early on every
+    // block at once, which reads as a broken rail rather than a real decision.
+    expect(hasLapsed('2026-09-22', '2026-09-22')).toBe(false)
+  })
+})
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
   const reachable = reachableFrom(ROOTS)

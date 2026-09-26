@@ -15,15 +15,23 @@ vi.mock('../../../../components/StockChart', () => ({
 vi.mock('../../../../components/CompanyLogo', () => ({
   default: ({ sym }) => <span data-testid={`logo-${sym}`} />,
 }))
-// ChartPane calls useFlagged() (Shift+F flag toast, flag button state), which
-// reads useAuth() — stub it logged-out so that call doesn't throw "useAuth
-// must be used within AuthProvider" (this file renders without an AuthProvider).
-// ⭐ Wave 7 lane J, J10: useFlagged (hooks/useFlagged.js:34) reads
-// `useContext(AuthContext)` since master's 7ac9ff5ce, so the mock must export the
-// context too -- a real one, defaulting to the same logged-out user useAuth returns.
+// ChartPane calls useFlagged() (Shift+F flag toast, flag button state).
+//
+// ⚰️ THIS SAID useFlagged "reads useAuth()", AND THAT IS THE BUG. It reads
+// `useContext(AuthContext)` — the CONTEXT OBJECT — so the mock stubbed the wrong
+// export and vitest refused the module by name. The page then rendered NOTHING
+// and the failures read as missing UI rather than a missing mock export.
+// (The same stale sentence, and the same 24-case outage, in TradeDetailPage.)
+//
+// ⭐ A REAL CONTEXT so `useContext` returns a value instead of `undefined`, and
+// its default agrees with `useAuth()` about being logged out — two mocks that
+// disagreed on that would be a second authority over one fact.
 vi.mock('../../../../context/AuthContext', async () => {
   const { createContext } = await import('react')
-  return { useAuth: () => ({ user: null }), AuthContext: createContext({ user: null }) }
+  return {
+    useAuth: () => ({ user: null }),
+    AuthContext: createContext({ user: null }),
+  }
 })
 // The canonical SymbolSearch component has its own dedicated coverage
 // elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
