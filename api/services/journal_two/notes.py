@@ -700,6 +700,67 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
     return raw
 
 
+# ⛔ THIS SENTENCE REACHES A MEMBER VERBATIM (the import wizard's "Needs attention"
+# list, the personal API's "The note wasn't saved: ..."), like the size cap above.
+UNBUILDABLE_BODY_DETAIL = (
+    "This note has a piece of text the editor can't open (an empty or malformed "
+    "text node), so it wasn't saved. Remove that piece or give it some text, then "
+    "try again.")
+
+
+def _body_build_problem(doc: dict[str, Any]) -> str | None:
+    """Why the editor could not BUILD `doc`, or None when it can.
+
+    ⛔⛔ WAVE 10, LANE 10C (OPEN-ITEMS "POST accepts a body the editor cannot
+    build"). A body whose every TYPE is known can still be unbuildable: ProseMirror's
+    `Node.fromJSON` throws on an EMPTY text node ("Empty text nodes are not
+    allowed"), on a text node whose `text` is not a string, on `content` or
+    `marks` that is present but not a list, and on a node that is not an object.
+    The editor's content guard then LOCKS the note -- and until wave 10 told the
+    member it held "content from a newer version of the app", which is false for a
+    note that is merely malformed. Refusing it at the door means a note the editor
+    cannot open is never CREATED.
+
+    ⛔ Mirrors ProseMirror's own throws and nothing more: an unknown TYPE is not
+    this check's business -- that is the newer-schema case the
+    `X-UCT-Notebook-Schema` guard owns (`notebook_schema.check_body_write`). And it
+    is ITERATIVE: a body may be nested deeper than Python's recursion limit.
+    """
+    top = doc.get("content")
+    if top and not isinstance(top, list):
+        return "the document's content is not a list"
+    stack: list[Any] = list(top) if top else []
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or not node:
+            return "a node is not an object"
+        marks = node.get("marks")
+        if marks:
+            if not isinstance(marks, list):
+                return "a node's marks are not a list"
+            if any(not isinstance(m, dict) or not m for m in marks):
+                return "a mark is not an object"
+        if node.get("type") == "text":
+            text = node.get("text")
+            if not isinstance(text, str):
+                return "a text node has no text"
+            if text == "":
+                return "a text node is empty"
+            continue
+        content = node.get("content")
+        if content:
+            if not isinstance(content, list):
+                return "a node's content is not a list"
+            stack.extend(content)
+    return None
+
+
+def _refuse_unbuildable(body_json: dict[str, Any]) -> None:
+    """Raise the member-facing sentence when the editor could not build the body."""
+    if _body_build_problem(body_json) is not None:
+        raise NoteValidationError(UNBUILDABLE_BODY_DETAIL)
+
+
 def _extract_first_image(body_json: Any) -> str | None:
     """The `src` of the FIRST picture in a TipTap doc (document order, depth
     first), else None. Cached to `first_image_url` so the notebook card can show
@@ -926,6 +987,9 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 if key is None:
                     raise NoteValidationError("importKey required on every note")
                 body_json = _validate_body_json(n.get("bodyJson"))
+                # ⛔ Wave 10 (10C): an imported note the editor cannot build lands in
+                # "Needs attention" with the sentence, never as a locked note.
+                _refuse_unbuildable(body_json)
                 body_plain = extract_plain_text(body_json)
                 first_image = _extract_first_image(body_json)
                 title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
@@ -2724,6 +2788,8 @@ def create_note(
         if subtitle and len(subtitle) > MAX_SUBTITLE_CHARS:
             raise NoteValidationError("subtitle too long")
     body_json = _validate_body_json(payload.get("bodyJson"))
+    # ⛔ Wave 10 (10C): never CREATE a note the editor would open locked.
+    _refuse_unbuildable(body_json)
     body_plain = extract_plain_text(body_json)
     first_image = _extract_first_image(body_json)
     folder_id = payload.get("folderId") or None
@@ -2768,10 +2834,8 @@ def create_note(
             ),
         )
         _sync_note_sidecars(conn, user_id, new_id, body_json, body_plain)
+        row = _read_own_write(conn, new_id)  # before the commit -- see update_note
         conn.commit()
-        row = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
-        ).fetchone()
         _log_notebook_event(user_id, "notebook_note_created")
         if "thesis" in tags:
             _log_notebook_event(user_id, "notebook_thesis_note_created")
@@ -3189,14 +3253,32 @@ def update_note(
         )
         if "bodyJson" in patch:
             _sync_note_sidecars(conn, user_id, note_id, bj, bp)
+        # ⛔⛔ THE ANSWER IS READ INSIDE THE TRANSACTION, BEFORE THE COMMIT (wave 10,
+        # lane 10C; wave-7 review J M-3). Read after the commit, a second writer
+        # that commits in the gap -- another request thread on the single web pod,
+        # parked in its busy handler -- is returned as OUR row, and every door that
+        # settles this answer records THEIR revision as ours: the next save's
+        # baseline then carries their `updated_at`, the compare-and-set passes, and
+        # it overwrites their words (the J9 class, in a microsecond window). The
+        # connection sees its own uncommitted write, so this is exactly the row
+        # this call is about to commit. Rail: tests/test_notes_answer_is_the_committed_row.py.
+        row = _read_own_write(conn, note_id)
         conn.commit()
-        row = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
-        ).fetchone()
         return _row_to_note(row)
     finally:
         if owned:
             conn.close()
+
+
+def _read_own_write(conn: sqlite3.Connection, note_id: str) -> sqlite3.Row:
+    """The row this connection has just written, read BEFORE its commit.
+
+    ⛔ The ONE helper every note writer here answers through, so "read before the
+    commit" is a property of one line rather than of seven call sites -- the
+    three-copies lesson (`lesson_a_guard_repeated_is_a_guard_unproved`). The
+    census rail in tests/test_notes_answer_is_the_committed_row.py fails on any
+    new `conn.commit()` followed by a `SELECT * FROM j2_notes` re-read."""
+    return conn.execute("SELECT * FROM j2_notes WHERE id = ?", (note_id,)).fetchone()
 
 
 def append_widget_embed(
@@ -3243,10 +3325,8 @@ def append_widget_embed(
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
         _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
+        out = _read_own_write(conn, note_id)  # before the commit -- see update_note
         conn.commit()
-        out = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
-        ).fetchone()
         return _row_to_note(out)
     except Exception:
         conn.rollback()
@@ -3300,10 +3380,8 @@ def append_financial_fact(
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
         _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
+        out = _read_own_write(conn, note_id)  # before the commit -- see update_note
         conn.commit()
-        out = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
-        ).fetchone()
         return _row_to_note(out)
     except Exception:
         conn.rollback()
@@ -3358,10 +3436,8 @@ def append_document_excerpt(
             (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
         )
         _sync_note_sidecars(conn, user_id, note_id, body_json, body_plain)
+        out = _read_own_write(conn, note_id)  # before the commit -- see update_note
         conn.commit()
-        out = conn.execute(
-            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
-        ).fetchone()
         return _row_to_note(out)
     except Exception:
         conn.rollback()
@@ -3546,11 +3622,15 @@ def restore_note(
             " WHERE id = ? AND user_id = ? AND deleted_at IS NOT NULL",
             (_now_iso(), note_id, user_id),
         )
-        conn.commit()
         if not cur.rowcount:
+            conn.commit()
             return None
+        # ⛔ Read before the commit -- see update_note. The restored note's
+        # `updatedAt` is the revision the Trash view hands the editor it opens.
+        note = get_note(user_id, note_id, conn=conn)
+        conn.commit()
         _log_notebook_event(user_id, "notebook_note_restored")
-        return get_note(user_id, note_id, conn=conn)
+        return note
     finally:
         if owned:
             conn.close()
@@ -3592,11 +3672,12 @@ def set_note_archived(
             " AND (archived_at IS NULL) = ?",
             (stamp, note_id, user_id, 1 if archived else 0),
         )
+        note = get_note(user_id, note_id, conn=conn)  # before the commit -- see update_note
         conn.commit()
         if cur.rowcount:
             _log_notebook_event(
                 user_id, "notebook_note_archived" if archived else "notebook_note_unarchived")
-        return get_note(user_id, note_id, conn=conn)
+        return note
     finally:
         if owned:
             conn.close()
