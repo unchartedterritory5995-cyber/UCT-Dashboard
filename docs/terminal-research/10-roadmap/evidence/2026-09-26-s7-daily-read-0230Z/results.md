@@ -1,4 +1,4 @@
-# S7 daily dark read — 2026-09-26 02:30Z (2026-09-25 22:30 ET, Thursday night)
+# S7 daily dark read — 2026-09-26 02:30Z (2026-09-25 22:30 ET, **Friday** night)
 
 Run by the agent under the owner's delegation of the alert lifecycle ("You do it",
 2026-09-25). Instrument: `tools/s7_arming_inventory.py`, the all-seven-type inventory, which
@@ -46,7 +46,7 @@ member an *extra* alert on flip. That is the half of the risk that stays closed.
 | previous | 2026-09-25 21:05Z (17:05 ET) | **5**, spanning `2026-09-14 … 2026-09-18` |
 | this one | 2026-09-26 02:30Z (22:30 ET) | **5** |
 
-⭐ **A full trading session (Thursday 2026-09-25) opened and closed between those two reads,
+⭐ **A full trading session (⚰️ **FRIDAY** 2026-09-25 — this said "Thursday" until 2026-09-26; the substance is unchanged because a full session did open and close, but the weekday was wrong and a wrong weekday in an evidence file is exactly the kind of small error that makes a reader distrust the large ones) opened and closed between those two reads,
 and the predicate did not gain a session.** Nor did it gain one for 09-19, 09-22, 09-23 or
 09-24. **Five trading sessions have elapsed since its span ends, and it has accumulated
 none of them.**
