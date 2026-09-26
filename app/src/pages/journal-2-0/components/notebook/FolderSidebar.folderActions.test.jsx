@@ -111,3 +111,21 @@ describe('extraFolderActions — the wave-9 door', () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'f3' })))
   })
 })
+
+describe('the selected row is SAID, not only painted (wave 8, lane 8A)', () => {
+  it('the active folder carries aria-current, and no other folder or All notes does', async () => {
+    renderSidebar({ activeFolderId: 'f1' })
+    const theses = await folderRowButton('Theses')
+    expect(theses).toHaveAttribute('aria-current', 'true')
+    expect(await folderRowButton('Plans')).not.toHaveAttribute('aria-current')
+    const allNotes = (await screen.findByText('All notes')).closest('button')
+    expect(allNotes).not.toHaveAttribute('aria-current')
+  })
+
+  it('with no folder, tag or home selected, All notes is the current row', async () => {
+    renderSidebar({ activeFolderId: null, isHome: false })
+    const allNotes = (await screen.findByText('All notes')).closest('button')
+    expect(allNotes).toHaveAttribute('aria-current', 'true')
+    expect(await folderRowButton('Theses')).not.toHaveAttribute('aria-current')
+  })
+})

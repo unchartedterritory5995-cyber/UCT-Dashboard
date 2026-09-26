@@ -325,6 +325,8 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
             <button
               type="button"
               className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
+              // Wave 8 (8A): which view is on is said, not only painted.
+              aria-current={activeViewId === view.id ? 'true' : undefined}
               onClick={() => onSelectView(view)}
               onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
               title={view.name}
@@ -672,6 +674,9 @@ function FolderNode({
           <button
             type="button"
             className={`${styles.row} ${activeFolderId === node.id ? styles.rowActive : ''}`}
+            // Wave 8 (8A): the selected folder is said, not only painted (tag
+            // rows already carried this; folders and All notes did not).
+            aria-current={activeFolderId === node.id ? 'true' : undefined}
             onClick={() => { onSelectFolder(node.id); onSelectTag(null) }}
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
           >
@@ -1630,6 +1635,7 @@ export default function FolderSidebar({
               <button
                 type="button"
                 className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
+                aria-current={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
               >
                 <span>All notes</span>
