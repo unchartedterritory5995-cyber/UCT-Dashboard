@@ -485,3 +485,38 @@ def test_send_uses_the_webhook_when_set_and_the_desktop_when_blank():
     assert posted and posted[0][1]["content"].endswith("- DRIFT x")
     assert noted == [("UCT Notebook soak", "- DRIFT x")]
     assert soak.send([], "", notify=lambda *_: noted.append("never")) == 0 and "never" not in noted
+
+
+# ── the weekly verdict archive ───────────────────────────────────────────────
+
+def test_the_gates_overwritten_verdict_is_archived_once_by_its_own_date(tmp_path):
+    cur, into = tmp_path / "wave-q1-gate-verdict.md", tmp_path / "verdicts"
+    cur.write_text(_sundays()[0], encoding="utf-8")
+    first = soak.archive_verdict(cur, into)
+    again = soak.archive_verdict(cur, into)
+    assert first == again and first.name.startswith("soak-gate-verdict-2026-10-11")
+    assert [p.name for p in into.iterdir()] == [first.name]
+    # a RE-RUN the same day with a different answer is kept beside, never over
+    cur.write_text(_sundays({_first_sunday(): "REVERT"})[0], encoding="utf-8")
+    second = soak.archive_verdict(cur, into)
+    assert second != first and first.read_text(encoding="utf-8").count("KEEP") == 1
+    assert len(list(into.iterdir())) == 2
+
+
+def test_two_files_for_one_sunday_count_once_the_latest(tmp_path):
+    sun = _first_sunday()
+    early = f"VERDICT: **REVERT**\nat:        {sun} 18:05 ET\n"
+    late = f"VERDICT: **KEEP**\nat:        {sun} 18:40 ET\n"
+    rest = _sundays()[1:]
+    f = facts(verdict_texts=[early, late] + rest)
+    assert soak.verdict(f)[0] == "PASS"
+    assert [v["day"] for v in f["sundays"]["verdicts"]].count(sun) == 1
+
+
+def test_main_archives_the_current_verdict_named_by_NB_GATE_VERDICT(tmp_path):
+    args = _tree(tmp_path)
+    cur = tmp_path / "wave-q1-gate-verdict.md"
+    cur.write_text(_sundays()[-1], encoding="utf-8")
+    assert soak.main(args + ["--no-alerts", "--verdict-current", str(cur)], now=NOW) == 0
+    assert any(p.name.startswith("soak-gate-verdict-") for p in (tmp_path / "verdicts").iterdir())
+

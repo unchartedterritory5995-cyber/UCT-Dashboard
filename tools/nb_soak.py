@@ -430,12 +430,17 @@ def signals(start, now, end, samples, rows, canary, rulings) -> dict:
 
 def sunday_verdicts(start, now, end, verdicts, rulings) -> dict:
     """Each Sunday's verdict inside the window, classified; and the Sundays
-    that should have one and do not."""
-    inside, seen = [], set()
+    that should have one and do not. Two files for one ET day (the archived
+    copy and the gate's current file, or a re-run) count ONCE: the latest."""
+    by_day: dict = {}
     for v in verdicts:
         if v["at"] is None or not (start <= v["at"] <= max(now, start)):
             continue
         d = et_day(v["at"]).isoformat()
+        if d not in by_day or v["at"] > by_day[d]["at"]:
+            by_day[d] = v
+    inside, seen = [], set()
+    for d, v in by_day.items():
         cls = classify_verdict(v["verdict"])
         ruled = rulings["VERDICT"].get(d) == "FOREIGN"
         inside.append({**v, "day": d, "class": cls, "ruled_foreign": ruled})
@@ -803,6 +808,31 @@ def _post(url: str, payload: dict) -> None:
     urllib.request.urlopen(req, timeout=20).read()
 
 
+def archive_verdict(current: pathlib.Path, into: pathlib.Path) -> pathlib.Path | None:
+    """Keep this week's Sunday verdict. `nb_gate.py` OVERWRITES one file
+    (NB_GATE_VERDICT) every run, so without a copy the soak would only ever see
+    the newest Sunday. The copy is named by the verdict's own `at:` date and is
+    NEVER overwritten: an identical copy is left alone, a different verdict for
+    the same day (a re-run) gets its own file beside it."""
+    if not current.is_file():
+        return None
+    raw = current.read_bytes()
+    v = parse_verdict(raw.decode("utf-8", errors="replace"))
+    if v["at"] is None:
+        return None
+    stamp = v["at"].astimezone(STAMP_TZ)
+    into.mkdir(parents=True, exist_ok=True)
+    for name in (f"soak-gate-verdict-{stamp:%Y-%m-%d}.md", f"soak-gate-verdict-{stamp:%Y-%m-%d-%H%M}.md"):
+        target = into / name
+        if target.exists():
+            if target.read_bytes() == raw:
+                return target
+            continue
+        target.write_bytes(raw)
+        return target
+    return None
+
+
 def _atomic_write(path: pathlib.Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
@@ -816,6 +846,8 @@ def main(argv=None, now: dt.datetime | None = None) -> int:
     ap.add_argument("--log", default=env("NB_OBSERVE_LOG", ""))
     ap.add_argument("--samples", default=env("NB_SOAK_SAMPLES", ""))
     ap.add_argument("--verdicts", default=env("NB_SOAK_VERDICTS", ""))
+    # the gate's CURRENT verdict file — the same variable nb_gate.py writes to
+    ap.add_argument("--verdict-current", default=env("NB_GATE_VERDICT", ""))
     ap.add_argument("--canary-doc", default=env("NB_RESUME_DOC", ""))
     ap.add_argument("--drills", default=env("NB_SOAK_DRILLS", ""))
     ap.add_argument("--ruled", default=env("NB_SOAK_RULED", ""))
@@ -853,6 +885,13 @@ def main(argv=None, now: dt.datetime | None = None) -> int:
                                 rp.read_bytes() if rp and rp.is_file() else None)
                      if repo else {"name": name, "state": "not checked (no repo given)",
                                    "copy": None, "repo": None})
+    # The archive is a DIRECTORY (a glob or a single file cannot be archived into).
+    if (a.verdict_current and a.verdicts and not a.dry_run
+            and not any(ch in a.verdicts for ch in "*?[") and not pathlib.Path(a.verdicts).is_file()):
+        archive_verdict(pathlib.Path(a.verdict_current), pathlib.Path(a.verdicts))
+    verdict_files = _files(a.verdicts) + ([pathlib.Path(a.verdict_current)]
+                                          if a.verdict_current and pathlib.Path(a.verdict_current).is_file()
+                                          else [])
     budgets = None
     if repo and (repo / "docs" / "notebook" / "perf-budgets.json").is_file():
         budgets = json.loads(_read(repo / "docs" / "notebook" / "perf-budgets.json"))
@@ -860,7 +899,7 @@ def main(argv=None, now: dt.datetime | None = None) -> int:
     facts = build_facts(
         start=start, start_sha=a.start_sha, now=now,
         q1_text=_read(log), samples_text=_read(samples_path),
-        verdict_texts=[_read(p) for p in _files(a.verdicts)],
+        verdict_texts=[_read(p) for p in verdict_files],
         canary_text=_read(a.canary_doc), drill_texts=[_read(p) for p in _files(a.drills)],
         ruled_text=_read(a.ruled),
         incident_texts=[(p.name, _read(p)) for p in _files(a.incidents)],
