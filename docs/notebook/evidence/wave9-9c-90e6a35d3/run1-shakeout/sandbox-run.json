@@ -1,0 +1,144 @@
+{
+ "tip": "90e6a35d3",
+ "export": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export",
+ "data_dir": "C:\\data-9c",
+ "port": 8206,
+ "events": [
+  {
+   "t": "22:36:24",
+   "msg": "launcher started",
+   "pid": 29700,
+   "cmd": [
+    "C:\\Python314\\python.exe",
+    "-u",
+    "-c",
+    "<_SHIM>",
+    "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\soak_sandbox_boot.py",
+    "--data-dir",
+    "C:\\data-9c",
+    "--port",
+    "8206",
+    "--host",
+    "127.0.0.1"
+   ]
+  },
+  {
+   "t": "22:36:37",
+   "msg": "integrity log",
+   "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md"
+  },
+  {
+   "t": "22:37:23",
+   "msg": "/api/health",
+   "healthy": true
+  },
+  {
+   "t": "22:37:23",
+   "msg": "soak router mount line",
+   "line": "[9C] mounted ['/api/admin/notebook-soak'] from api/routers/notebook_soak.py AHEAD of the SPA catch-all"
+  },
+  {
+   "t": "22:39:40",
+   "msg": "checkpoints before the browser",
+   "line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN; 61 db files hashed; log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md"
+  },
+  {
+   "t": "22:44:23",
+   "msg": "browser check finished",
+   "rc": 0
+  },
+  {
+   "t": "22:44:23",
+   "msg": "CTRL_BREAK sent to the launcher's process group"
+  },
+  {
+   "t": "22:47:23",
+   "msg": "launcher stopped",
+   "how": "FORCED after 180 s -- no graceful exit"
+  },
+  {
+   "t": "22:47:23",
+   "msg": "final integrity",
+   "line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 61 db files hashed; log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md"
+  }
+ ],
+ "data_dir_existed_before": false,
+ "integrity_before_browser": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 22:36:36",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 22:37:47",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 22:39:40",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "stop": "FORCED after 180 s -- no graceful exit",
+ "integrity_final": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 22:36:36",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 22:37:47",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 22:39:40",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-25 22:44:32",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "browser_rc": 0
+}
