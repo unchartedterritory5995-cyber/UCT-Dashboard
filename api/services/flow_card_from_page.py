@@ -323,11 +323,22 @@ def fetch_product(ticker: str, source: str, window, timeout_s: float, *, get=Non
 #: dark V2 path's 10 s would send anything this size to the labelled rollup fallback.
 BASIS_ROWS = 250_000
 
+#: How long the job waits for the page-derived card before answering with the labelled rollup.
+#: 45 s, not the rollup's 30: a first build of a 150-250K-row name after it traded takes ~10-20 s
+#: on an idle pod (AMD 20.0 s, measured 2026-09-25 after the close), and during RTH the pod is also
+#: consuming the tape. The interaction is deferred (Discord allows 15 min), and a wait is better
+#: than a different classifier's answer (the rollup read BULL for AMD and META on 9/25 where the
+#: page read BEAR). Every build that outlives the wait still lands and serves the next request.
+PAGE_FETCH_TIMEOUT_S = float(os.environ.get("FLOW_CARD_PAGE_TIMEOUT_S", "45") or 45)
+
 
 def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: float, *, get=None) -> dict | None:
-    """The page's derivation over the largest recent history under `cap_rows`, or None."""
+    """The page's derivation over the largest recent history under `cap_rows`, or None.
+
+    `get(ticker, params, headers)` replaces the internal HTTP call: the tests' fake, and the parity
+    tool's member session through web. With a `get`, no worker URL is needed."""
     base = (os.environ.get("WORKER_INTERNAL_URL") or "").rstrip("/")
-    if not base:
+    if not base and get is None:
         return None
     params = {"source": "indexes" if source == "etfs" else "stocks", "basis_rows": int(cap_rows)}
     headers = {}
@@ -343,6 +354,9 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
                 log.info("[flow-card:page] %s basis declined: HTTP %s", ticker, r.status_code)
                 return None
             body = r.json()
+            as_of = r.headers.get("X-Flow-Basis-As-Of")
+            if as_of and isinstance(body, dict):
+                body["_as_of"] = float(as_of)       # served a product the tape has moved past
         else:
             body = get(ticker, params, headers)
     except Exception as e:  # noqa: BLE001 — a failed derivation is the fallback's job
@@ -354,7 +368,8 @@ def fetch_basis_product(ticker: str, source: str, cap_rows: int, timeout_s: floa
 
 
 def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float = 20.0,
-                         top_n: int = 15, *, get=None, cap_rows: int = BASIS_ROWS) -> dict | None:
+                         top_n: int = 15, *, get=None, cap_rows: int = BASIS_ROWS,
+                         enrich: bool = True) -> dict | None:
     """The page-derived card payload for `/flow ticker days`: ONE derivation (`basis_rows`), then
     the display ladder (days → 5 → 20 → all) climbed over that same product, each rung scoped to
     the MARKET's last N sessions the way the page's `_scopeAllDirectional` scopes "Last N".
@@ -362,7 +377,11 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
     Returns None only when the product could not be derived (the caller then answers with the
     LABELLED rollup). A product that is empty on every rung returns an empty payload carrying
     `widened_checked`, so the reply's "none on record" sentence is spoken on the same evidence
-    the rollup path uses. `timeout_s` bounds the single fetch; nothing here retries."""
+    the rollup path uses. `timeout_s` bounds the single fetch; nothing here retries.
+
+    `window.scope_dates` names the sessions the served rung summed, so an audit can scope the
+    page's own product to exactly those dates. `enrich=False` skips the live OI/mark decoration
+    (it never changes a premium, a side or a count), which the parity tool does off-box."""
     body = fetch_basis_product(ticker, source, cap_rows, timeout_s, get=get)
     if body is None:
         return None
@@ -377,17 +396,22 @@ def page_derived_payload(ticker: str, days: str, source: str, timeout_s: float =
     for rung in rungs:
         if rung == "all":
             label = "all" if complete else str(len(basis))
-            payload = build_payload(product, basis or market, ticker, source, label,
+            scope = basis or market
+            payload = build_payload(product, scope, ticker, source, label,
                                     top_n=top_n, all_history=True)
         else:
             label = str(rung)
-            payload = build_payload(product, market[-int(rung):], ticker, source, label, top_n=top_n)
+            scope = market[-int(rung):]
+            payload = build_payload(product, scope, ticker, source, label, top_n=top_n)
         payload["window"]["basis_sessions"] = len(basis)
         payload["window"]["basis_complete"] = complete
+        payload["window"]["scope_dates"] = list(scope)
+        payload["window"]["scope_all_history"] = rung == "all"
+        payload["window"]["as_of"] = body.get("_as_of")
         if payload["contracts"]:
             if label != first_label:
                 payload["window"]["widened_from"] = first_label
-            return enrich_live(payload)
+            return enrich_live(payload) if enrich else payload
     payload["window"]["days_requested"] = first_label
     payload["window"]["widened_checked"] = [str(r) for r in rungs[1:]]
     return payload

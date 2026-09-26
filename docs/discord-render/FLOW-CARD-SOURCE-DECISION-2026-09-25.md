@@ -92,6 +92,27 @@ could read, labelled as such.
    matches exactly. At 250K, META/AMD/AMZN/AAPL/MSFT derive their full history. AMD, the slowest,
    takes about 20 s end to end, inside the job's 30 s. Eight names stay over the cap (SPXW, SPY,
    QQQ, MU, SPX, SNDK, NVDA, TSLA) and are labelled "N-session basis".
+**After the deploy (`ba6d4fb64`, warm pod): 15 of 15 derivable names EXACT to the dollar**, including
+AMD, META, AMZN, AAPL, MSFT, SMH and IWM. NVDA, TSLA and SPY carry a labelled partial basis, and the
+page's server cannot derive them either. Re-run it with
+`python tools/flow_card_parity_audit.py --card page --symbols ... --days 1`.
+
+**Market hours (built the same night, before the flip).** Every print moves a busy name's version,
+so without help each `/flow` would rebuild its full history (AMD 20 s idle). Four changes cover it:
+
+- **Reuse.** The newest good product per name is kept. Within 120 s
+  (`FLOW_CARD_BASIS_REUSE_S`) it answers at once and is rebuilt in the background: one refresh per
+  name, never queued, skipped when the lanes are busy.
+- **Busy or failed build.** If the lanes are busy or a build fails, a product up to 15 min old
+  answers (`FLOW_CARD_BASIS_STALE_MAX_S`).
+- **Label.** Either way the card says "as of HH:MM ET".
+- **Longer wait.** The job waits 45 s for the page-derived card (`FLOW_CARD_PAGE_TIMEOUT_S`)
+  instead of the rollup's 30, so a first build is not cut off. Only then does the labelled rollup
+  answer.
+
+The first market-hours run should still be read with the tool; a card served "as of" is held to
+direction, not to the dollar.
+
 3. **A read the time budget cut short is served for 60 s, not cached until the name trades.** The
    HOOD/SOFI/MSTR/CRWV/PLTR/DELL bases in the first post-deploy run were cold reads (19K–87K rows,
    nowhere near a cap) that stayed cached all night. `basis_cut` now says `"time"`, `"rows"` or

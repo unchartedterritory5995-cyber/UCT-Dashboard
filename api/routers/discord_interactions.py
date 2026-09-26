@@ -292,7 +292,8 @@ def run_flow_card_job(app_id: str, token: str, ticker: str, days: str,
     from api.services import flow_card_from_page as _page
     if _page.enabled():                      # on BOTH paths: `fetch_fn` (V2) is the fallback, not a bypass
         try:
-            data = _page.page_derived_payload(ticker, days, source, timeout_s=timeout_s)
+            data = _page.page_derived_payload(ticker, days, source,
+                                              timeout_s=max(timeout_s, _page.PAGE_FETCH_TIMEOUT_S))
         except Exception as e:  # noqa: BLE001 — the rollup is the fallback
             log.warning("[flow] page-derived card failed %s (%s): %s", ticker, days, e)
             data = None
