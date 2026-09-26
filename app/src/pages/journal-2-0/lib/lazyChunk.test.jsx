@@ -4,9 +4,9 @@
 // Location mocking follows StalledLoadFallback.test.jsx: under vitest's jsdom environment
 // `window.location` is a configurable property of the global, so it is swapped and restored.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { Suspense } from 'react'
+import { Component, Suspense } from 'react'
 import { render, screen } from '@testing-library/react'
-import lazyChunk, { importWithOneRetry } from './lazyChunk'
+import lazyChunk, { importWithOneRetry, lazyLeaf } from './lazyChunk'
 import { RELOAD_FLAG } from '../../../utils/lazyWithRetry'
 
 const realLocation = window.location
@@ -59,5 +59,59 @@ describe('lazyChunk (a Notebook view, rendered)', () => {
     await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1))
     expect(load).toHaveBeenCalledTimes(2)
     expect(screen.getByText('loading')).toBeTruthy() // held on the fallback until the reload lands
+  })
+})
+
+// ⛔ Ruling D-I2 (frontend re-review R-2): a view that sits inside its OWN error boundary loads
+// through `lazyLeaf` -- one in-place retry, then the error goes to that boundary. NEVER a page
+// reload: a reload to heal one PDF preview or one chart embed replaces a working editor, and
+// offline it lands on the browser's offline page. The re-review's leaf probe, kept: lazyChunk here
+// measured reloadCalls 1 with the leaf's fallback never shown.
+class LeafBoundary extends Component {
+  constructor(props) { super(props); this.state = { failed: false } }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? <p>leaf fallback</p> : this.props.children }
+}
+const inLeaf = (View) => (
+  <LeafBoundary><Suspense fallback={<p>loading</p>}><View /></Suspense></LeafBoundary>
+)
+
+describe('lazyLeaf (a view inside its OWN error boundary)', () => {
+  let errorSpy
+  beforeEach(() => { errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {}) })
+  afterEach(() => { errorSpy.mockRestore() })
+
+  it('one failed import followed by success renders the view with NO page reload', async () => {
+    const load = vi.fn()
+      .mockRejectedValueOnce(chunkError())
+      .mockResolvedValueOnce({ default: () => <p>chart embed</p> })
+    render(inLeaf(lazyLeaf(load, 0)))
+    expect(await screen.findByText('chart embed')).toBeTruthy()
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
+
+  it('two failed imports: NO page reload, and the leaf’s own fallback is shown', async () => {
+    const load = vi.fn().mockRejectedValue(chunkError())
+    render(inLeaf(lazyLeaf(load, 0)))
+    expect(await screen.findByText('leaf fallback')).toBeTruthy()
+    expect(load).toHaveBeenCalledTimes(2)
+    expect(window.location.reload).not.toHaveBeenCalled()
+    expect(screen.queryByText('loading')).toBeNull()
+  })
+
+  it('a module that throws while it evaluates is not retried; the leaf’s fallback, no reload', async () => {
+    const load = vi.fn().mockRejectedValue(new ReferenceError("Can't find variable: Iterator"))
+    render(inLeaf(lazyLeaf(load, 0)))
+    expect(await screen.findByText('leaf fallback')).toBeTruthy()
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(window.location.reload).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL — the same two failures through lazyChunk DO reload (the difference is the point)', async () => {
+    const load = vi.fn().mockRejectedValue(chunkError())
+    render(inLeaf(lazyChunk(load, 0)))
+    await vi.waitFor(() => expect(window.location.reload).toHaveBeenCalledTimes(1))
+    expect(screen.queryByText('leaf fallback')).toBeNull()
   })
 })

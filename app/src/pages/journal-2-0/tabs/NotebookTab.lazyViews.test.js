@@ -69,9 +69,15 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
 // to every source file under app/src/pages/journal-2-0/. Lane H's editor added two bare
 // React.lazy chunks (the mic and the writing-help panel) that the NotebookTab-only rail could not
 // see; a stale chunk after a deploy then blanked the whole Notebook route instead of retrying in
-// place. Any lazy chunk in this tree loads through lib/lazyChunk.js (one in-place retry, then the
-// app's one-reload-per-session stale-chunk recovery) -- a leaf that also needs to survive an
-// EVALUATION throw keeps its own error boundary around it (PdfViewerBoundary, WidgetEmbedView).
+// place. Any lazy chunk in this tree loads through lib/lazyChunk.js, in one of exactly two forms:
+//   * `lazyChunk` -- one in-place retry, then the app's one-reload-per-session stale-chunk recovery;
+//     for a view with NO error boundary of its own (the mic, the writing-help panel, the ChartPane
+//     pages): its failure reaches the route boundary like every App route.
+//   * `lazyLeaf` -- one in-place retry, NEVER a reload; the error goes to the view's OWN boundary
+//     (ruling D-I2, frontend re-review R-2). Only where this rail can SEE that boundary -- an error
+//     boundary class declared in the file, rendered around the <Suspense> -- or where a named list
+//     below says why not. A view inside its own boundary must use it: a reload there replaces a
+//     working editor (offline, the browser's offline page) to heal one embed.
 const J2_ROOT = path.resolve(__dirname, '..')
 const SKIP_DIRS = new Set(['node_modules', '__tests__', '__fixtures__'])
 function sourceFiles(dir, out = []) {
@@ -86,7 +92,9 @@ function sourceFiles(dir, out = []) {
   return out
 }
 
-/** Every call of React's `lazy` in `src`, however it was imported, and every `lazyChunk(` call. */
+/** Every call of React's `lazy` in `src`, however it was imported, and every `lazyChunk(` /
+ *  `lazyLeaf(` call. `boundary`: an error-boundary class (getDerivedStateFromError or
+ *  componentDidCatch) declared in the file is rendered as JSX with a <Suspense> inside it. */
 function lazyCalls(src) {
   const tree = JsxParser.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
   const lazyNames = new Set()      // `import { lazy }` / `import { lazy as l }` from 'react'
@@ -100,34 +108,67 @@ function lazyCalls(src) {
   }
   const bare = []
   const chunked = []
-  ;(function visit(n) {
+  const leafed = []
+  const boundaryClasses = new Set()
+  const jsxOf = (el) => (el.openingElement?.name?.type === 'JSXIdentifier' ? el.openingElement.name.name : null)
+  const walk = (n, fn) => {
     if (!n || typeof n.type !== 'string') return
+    fn(n)
+    for (const v of Object.values(n)) {
+      if (Array.isArray(v)) v.forEach((c) => walk(c, fn))
+      else if (v && typeof v.type === 'string') walk(v, fn)
+    }
+  }
+  walk(tree, (n) => {
     if (n.type === 'CallExpression') {
       const c = n.callee
       if (c.type === 'Identifier' && lazyNames.has(c.name)) bare.push(n.start)
       if (c.type === 'MemberExpression' && c.object.type === 'Identifier' && reactNames.has(c.object.name)
           && !c.computed && c.property.name === 'lazy') bare.push(n.start)
       if (c.type === 'Identifier' && c.name === 'lazyChunk') chunked.push(n.start)
+      if (c.type === 'Identifier' && c.name === 'lazyLeaf') leafed.push(n.start)
     }
-    for (const v of Object.values(n)) {
-      if (Array.isArray(v)) v.forEach(visit)
-      else if (v && typeof v.type === 'string') visit(v)
+    if ((n.type === 'ClassDeclaration' || n.type === 'ClassExpression') && n.id?.name
+        && n.body.body.some((m) => m.type === 'MethodDefinition'
+          && ['getDerivedStateFromError', 'componentDidCatch'].includes(m.key?.name))) {
+      boundaryClasses.add(n.id.name)
     }
-  })(tree)
-  return { bare, chunked }
+  })
+  let boundary = false
+  walk(tree, (n) => {
+    if (boundary || n.type !== 'JSXElement' || !boundaryClasses.has(jsxOf(n))) return
+    walk(n, (d) => { if (d !== n && d.type === 'JSXElement' && jsxOf(d) === 'Suspense') boundary = true })
+  })
+  return { bare, chunked, leafed, boundary }
 }
+
+// The helper module IS the wrapper: the one file under journal-2-0 allowed to call React.lazy.
+const LAZY_HELPER = 'lib/lazyChunk.js'
+// A `lazyLeaf` whose enclosing boundary this rail cannot see must be named here, with the reason.
+// Empty on purpose: both of today's leaves render their own boundary around the <Suspense>.
+const LEAF_WITHOUT_VISIBLE_BOUNDARY = {}
 
 describe('no file under journal-2-0 loads a chunk through a bare React.lazy', () => {
   const files = sourceFiles(J2_ROOT)
   const rel = (f) => path.relative(J2_ROOT, f).split(path.sep).join('/')
   const bare = []
   const chunkedIn = []
+  const leafIn = []
+  const leafUnbounded = []
+  const chunkInsideOwnBoundary = []
   const unparsed = []
+  let helperWrapsLazy = false
   for (const f of files) {
     let found
     try { found = lazyCalls(fs.readFileSync(f, 'utf8')) } catch (e) { unparsed.push(`${rel(f)}: ${e.message}`); continue }
+    if (rel(f) === LAZY_HELPER) { helperWrapsLazy = found.bare.length > 0; continue }
     if (found.bare.length) bare.push(`${rel(f)} (${found.bare.length})`)
     if (found.chunked.length) chunkedIn.push(rel(f))
+    if (found.leafed.length) {
+      leafIn.push(rel(f))
+      if (!found.boundary && !LEAF_WITHOUT_VISIBLE_BOUNDARY[rel(f)]) leafUnbounded.push(rel(f))
+    }
+    if (found.chunked.length && found.boundary) chunkInsideOwnBoundary.push(rel(f))
   }
 
   it('CONTROL — the detector fires on every import form of React.lazy, and not on lazyChunk', () => {
@@ -140,14 +181,38 @@ describe('no file under journal-2-0 loads a chunk through a bare React.lazy', ()
     expect(ok.chunked).toHaveLength(1)
   })
 
+  it('CONTROL — lazyLeaf is seen, and a boundary is seen only when it renders around a <Suspense>', () => {
+    const cls = 'class B extends Component { static getDerivedStateFromError() { return {} } render() { return null } }\n'
+    const imp = "import { Component, Suspense } from 'react'\nimport { lazyLeaf } from '../lib/lazyChunk'\nconst A = lazyLeaf(() => import('./a'))\n"
+    const wrapped = lazyCalls(`${imp}${cls}export default () => <B><Suspense fallback={null}><A /></Suspense></B>`)
+    expect(wrapped).toMatchObject({ bare: [], chunked: [], boundary: true })
+    expect(wrapped.leafed).toHaveLength(1)
+    expect(lazyCalls(`${imp}export default () => <Suspense fallback={null}><A /></Suspense>`).boundary).toBe(false)
+    expect(lazyCalls(`${imp}${cls}export default () => <div><B /><Suspense fallback={null}><A /></Suspense></div>`).boundary).toBe(false)
+    const didCatch = 'class C extends Component { componentDidCatch() {} render() { return null } }\n'
+    expect(lazyCalls(`${imp}${didCatch}export default () => <C><div><Suspense fallback={null}><A /></Suspense></div></C>`).boundary).toBe(true)
+  })
+
   it('NON-VACUITY — the walk parsed the tree and sees the real lazyChunk callers', () => {
     expect(files.length).toBeGreaterThan(200)
     expect(unparsed).toEqual([])
     expect(chunkedIn).toContain('tabs/NotebookTab.jsx')
     expect(chunkedIn).toContain('components/notebook/NoteEditorPage.jsx')
+    expect(leafIn).toEqual(expect.arrayContaining([
+      'components/notebook/PdfViewerBoundary.jsx', 'components/notebook/WidgetEmbedView.jsx',
+    ]))
+    expect(helperWrapsLazy, 'the helper exemption names a file that no longer wraps React.lazy').toBe(true)
   })
 
   it('every lazy chunk in the tree goes through lib/lazyChunk.js', () => {
     expect(bare, 'a bare React.lazy under journal-2-0: a stale chunk takes the route down instead of retrying in place').toEqual([])
+  })
+
+  it('D-I2 — a lazyLeaf is used only where its own error boundary is visible (or named with a reason)', () => {
+    expect(leafUnbounded, 'a lazyLeaf with no boundary: its failure would reach the route with no retry-reload').toEqual([])
+  })
+
+  it('D-I2 — a view inside its OWN error boundary never reloads the page (lazyLeaf, not lazyChunk)', () => {
+    expect(chunkInsideOwnBoundary, 'a lazyChunk inside a file that renders its own boundary would reload the page instead').toEqual([])
   })
 })
