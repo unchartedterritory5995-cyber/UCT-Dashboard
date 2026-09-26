@@ -7,7 +7,7 @@
  * It installs window.__uctBench:
  *
  *   await __uctBench.selfTest()        // R-HON: must print PASS before anything is timed
- *   __uctBench.check(marker)           // true/false: is this text in the page right now?
+ *   __uctBench.check(marker)           // true/false: is this text in the page right now? (has() is silent)
  *   __uctBench.arm('open',   {marker, mode: 'first'|'full', anchor, reps, timeoutMs})
  *   __uctBench.arm('search', {expectedTitle, reps, timeoutMs})
  *   __uctBench.arm('typing', {expectKeys})
@@ -494,6 +494,7 @@
 
   window.__uctBench = Object.freeze({
     version: PROBE_VERSION, selfTest, arm, check, samples, status, dump, disarm, setHooks, _uninstall,
+    has: (text) => present(text),          // check() without the console line, for a runner's poll
     finished: () => (session ? session.finished : Promise.resolve(null)),
   })
   console.log('[uctBench] ' + PROBE_VERSION + ' installed -- run: await __uctBench.selfTest()')
