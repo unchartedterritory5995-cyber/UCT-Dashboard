@@ -30,13 +30,18 @@ export default function NoteVersionPreview({ title, subtitle, bodyJson }) {
     ...noteContentGuardOptions(),
     content: bodyJson || { type: 'doc', content: [] },
     editable: false,
+    // Wave 8 (8A): TipTap gives every editor element role="textbox"; a READ-ONLY
+    // version with that role and no name is an axe aria-input-field-name
+    // violation. It is an article named by the version's title -- the idiom the
+    // public read-only page uses (public/ReadOnlyNote.jsx, lane 8B).
+    editorProps: { attributes: { role: 'article', 'aria-label': `Earlier version: ${title || 'Untitled'}` } },
     // BEFORE create, not onCreate -- node views can mount ahead of onCreate,
     // and a view that misses the flag would mount a live component for one
     // tick (see SharedNotePage.jsx's identical comment).
     onBeforeCreate: ({ editor: ed }) => {
       ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), shareView: true }
     },
-  }, [bodyJson])
+  }, [bodyJson, title])
   const unreadable = useUnreadableNote(editor)
 
   return (

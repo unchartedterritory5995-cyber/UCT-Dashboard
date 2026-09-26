@@ -153,7 +153,8 @@ describe('two notes, side by side', () => {
     fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { target: { value: 'th' } })
     // n1 is the note already open, so the search never offers it.
-    const list = await screen.findByRole('listbox', { name: 'Notes to open beside' })
+    // Wave 8 (8A): a named LIST of buttons, no longer a listbox (axe nested-interactive).
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
     expect(within(list).queryByText('One')).toBeNull()
     fireEvent.click(within(list).getByRole('button', { name: 'Three' }))
     await waitFor(() => expect(sidePane()).not.toBeNull())

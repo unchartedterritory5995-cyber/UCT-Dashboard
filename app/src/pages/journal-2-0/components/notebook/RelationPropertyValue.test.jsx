@@ -80,7 +80,8 @@ describe('the picker', () => {
     render(<RelationPropertyValue value={['live']} onChange={onChange} labelId="l" currentNoteId="self" />)
     fireEvent.click(screen.getByRole('button', { name: /Link a note/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to link' }), { target: { value: 'thesis' } })
-    const list = await screen.findByRole('listbox', { name: 'Notes to link' })
+    // Wave 8 (8A): a named LIST of buttons, no longer a listbox (axe nested-interactive).
+    const list = await screen.findByRole('list', { name: 'Notes to link' })
     expect(switcherCalls[0]).toContain('/api/j2/notes/switcher?q=thesis')
     expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['AMD thesis'])
     fireEvent.click(within(list).getByRole('button', { name: 'AMD thesis' }))

@@ -82,6 +82,13 @@ function optionsFor(level) {
     runOnly: { type: 'tag', values: [...WCAG_TAGS] },
     rules: Object.fromEntries(excluded.map((id) => [id, { enabled: false }])),
     resultTypes: ['violations'],
+    // Do not descend INTO frames. In jsdom a frame's window cannot answer
+    // axe's cross-frame messages ("Respondable target must be a frame in the
+    // current window", measured on the session-video iframe), and the frames
+    // the Notebook embeds are other origins (YouTube) that are not ours to
+    // audit. The FRAME ELEMENT itself is still checked (`frame-title`), and
+    // the contract's known-bad control proves it.
+    iframes: false,
   }
 }
 

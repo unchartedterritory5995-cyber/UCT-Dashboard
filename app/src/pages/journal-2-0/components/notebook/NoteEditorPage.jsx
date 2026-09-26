@@ -1739,7 +1739,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       } catch { /* private mode */ }
     },
     editorProps: {
-      attributes: { class: styles.proseEditor },
+      // Wave 8 (8A): TipTap makes the body role="textbox" with no name, so a
+      // screen reader announced a bare "edit text". It is the note's body.
+      attributes: { class: styles.proseEditor, 'aria-label': 'Note body' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         if (!items) return false
@@ -3136,10 +3138,13 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             History
           </button>
           <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
+          {/* Wave 8 (8A): the header's select and inputs carry names -- a
+              placeholder vanishes once there is a value, and a select has none. */}
           <select
             className={styles.headerSelect}
             value={note.folderId || ''}
             onChange={(e) => onFolderChange(e.target.value)}
+            aria-label="Folder"
           >
             <option value="">Unfiled</option>
             {folders.map((f) => (
@@ -3149,6 +3154,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <input
             className={styles.headerInput}
             placeholder="Ticker"
+            aria-label="Ticker"
             defaultValue={note.ticker || ''}
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
@@ -3525,6 +3531,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onTitleChange?.(noteId, v)
           }}
           placeholder="Title"
+          aria-label="Note title"
         />
         <input
           className={styles.subtitleInput}
@@ -3537,6 +3544,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             scheduleAutosave()
           }}
           placeholder="Subtitle (optional)"
+          aria-label="Subtitle"
         />
 
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --

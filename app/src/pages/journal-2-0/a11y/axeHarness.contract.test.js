@@ -120,6 +120,9 @@ describe('(b) the known-bad fixture control: each defect MUST produce its violat
     ['an image with no alt', html('<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=">'), 'image-alt'],
     ['a button nested in a button', nestedButtons, 'nested-interactive'],
     ['an input with no label', html('<input type="text">'), 'label'],
+    // `iframes: false` stops axe descending INTO a frame; the frame element
+    // itself must still be judged.
+    ['an iframe with no title', html('<iframe src="about:blank"></iframe>'), 'frame-title'],
   ]
 
   for (const level of ['component', 'page']) {

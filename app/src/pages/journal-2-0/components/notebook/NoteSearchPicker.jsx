@@ -58,9 +58,13 @@ export default function NoteSearchPicker({
       />
       {searchError && <span className={styles.hint} role="alert">Couldn't search your notes.</span>}
       {results.length > 0 && (
-        <ul className={styles.results} role="listbox" aria-label={listLabel}>
+        // Wave 8 (8A, axe nested-interactive): a named LIST of buttons. It was a
+        // listbox whose <li role="option"> held a <button> -- an option's
+        // children are presentational, so the focusable button inside it was
+        // nested interaction, and a listbox promised arrow keys it never had.
+        <ul className={styles.results} aria-label={listLabel}>
           {results.map((n) => (
-            <li key={n.id} role="option" aria-selected={false}>
+            <li key={n.id}>
               <button type="button" className={styles.result} onClick={() => onPick(n)}>
                 {n.title || 'Untitled'}
               </button>

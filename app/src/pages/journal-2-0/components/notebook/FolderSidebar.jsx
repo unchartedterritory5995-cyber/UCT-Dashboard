@@ -646,6 +646,8 @@ function FolderNode({
             className={styles.editInput}
             autoFocus
             value={editName}
+            // Wave 8 (8A, axe `label`): the rename field had no name at all.
+            aria-label={`Rename folder ${node.name}`}
             onChange={(e) => setEditName(e.target.value)}
             onBlur={() => submitRename(node.id)}
             onKeyDown={(e) => {
@@ -746,6 +748,7 @@ function FolderNode({
                 onBlur={addForm.onBlur}
                 onKeyDown={addForm.onKeyDown}
                 placeholder="Folder name"
+                aria-label={`New subfolder in ${node.name}`}
               />
             </form>
           )}
@@ -1261,6 +1264,7 @@ export default function FolderSidebar({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search notes…"
+              aria-label="Search your notes"
               onKeyDown={(e) => {
                 if (e.key === 'Escape') { if (query) setQuery(''); else setMode('folders') }
                 if (e.key === 'Enter' && serverSearchResults[0]) onOpenNote(serverSearchResults[0])
@@ -1680,6 +1684,7 @@ export default function FolderSidebar({
                   onBlur={() => { if (!newName.trim()) cancelAdd() }}
                   onKeyDown={(e) => { if (e.key === 'Escape') cancelAdd() }}
                   placeholder="Folder name"
+                  aria-label="New folder name"
                 />
               </form>
             ) : (

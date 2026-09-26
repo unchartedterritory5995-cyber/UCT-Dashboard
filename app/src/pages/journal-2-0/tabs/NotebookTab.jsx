@@ -1599,6 +1599,9 @@ export default function NotebookTab() {
               className={styles.sortSelect}
               value={sort}
               onChange={(e) => setSort(e.target.value)}
+              // Wave 8 (8A, axe select-name): a select with no name is read as
+              // "combo box, Recently updated" with nothing saying what it orders.
+              aria-label="Sort notes"
             >
               <option value="updated">Recently updated</option>
               <option value="created">Recently created</option>
