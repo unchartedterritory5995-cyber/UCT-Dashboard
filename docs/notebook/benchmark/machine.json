@@ -1,0 +1,20 @@
+{
+  "run_id": "FILL",
+  "sitting_date": "FILL",
+  "operator": "FILL",
+  "machine_name": "FILL",
+  "os": "FILL",
+  "cpu": "FILL",
+  "ram_gb": "FILL",
+  "power_plan": "FILL",
+  "display": "FILL",
+  "network": "FILL",
+  "chrome_version": "FILL",
+  "chrome_profile": "FILL",
+  "obsidian_version": "FILL",
+  "notion_plan": "FILL",
+  "evernote_plan": "FILL",
+  "uct_build": "FILL",
+  "gate_box_lock": "FILL",
+  "trading_platform_and_zoom_closed": "FILL"
+}
