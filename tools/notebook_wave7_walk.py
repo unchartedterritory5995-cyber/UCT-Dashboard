@@ -78,11 +78,13 @@ drop counter (`j2_inbound_drops`) and the embeddings table (`j2_note_embeddings`
   W15     G1: a token minted in PersonalApiCard; create / append / daily append
           with the bearer; 423 on a locked note; refused at capture and /me
   W16     G3: signed email-in with attachments; unsigned is a bare 401; the
-          per-address limit drops AND records
+          per-address limit drops AND records (a fresh member per run, whose
+          address is made by pressing "Create my address" -- the GET never mints)
   W17     H1 on the touch tier: Scan -> a hidden rear-camera picker; the mic and
           /Dictate; the sentence when the microphone is denied
   W18     H2 with no model key: the failure sentence in the preview, the note
-          byte-identical after dismissing, the 60/day counter untouched
+          byte-identical after dismissing, the 60/day counter untouched (a fresh
+          member per run: the count is durable in auth.db since ruling D-H5b)
   W19     H3 dark: a natural-language query gets the lexical list only; no
           embeddings; the sweep is registered
   W20     H4 dark: search_my_notes is never offered (INCONCLUSIVE by the brief's
@@ -524,15 +526,26 @@ def jdecode(raw):
         return None
 
 
+SIGNATURES_SENT = []   # every X-UCT-Signature this run has sent, in order
+
+
 def signed_email(payload, *, secret, ts=None, bad_signature=False):
     """POST one email exactly as the Cloudflare worker does
     (cloudflare/inbound-email-worker/src/sign.js): compact JSON, then hex
-    HMAC-SHA256 over `<timestamp>.<raw body>` in X-UCT-Signature."""
+    HMAC-SHA256 over `<timestamp>.<raw body>` in X-UCT-Signature.
+
+    wave 7 phase 2 (whole-branch M-6, `57bcd2551`): a signature is DELIVERED ONCE
+    -- a replay answers 202, makes nothing and spends no allowance
+    (`inbound_email.claim_delivery`, keyed on a hash of the signature). Every
+    message this walk sends has its own subject, so its own bytes and its own
+    signature; W16 records `signatures_distinct` so a replay drop can never be
+    read as a product failure."""
     body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
     ts = ts or str(int(_t.time()))
     sig = hmac.new(secret.encode("utf-8"), ts.encode("ascii") + b"." + body, hashlib.sha256).hexdigest()
     if bad_signature:
         sig = ("0" if sig[0] != "0" else "1") + sig[1:]
+    SIGNATURES_SENT.append(sig)
     return http("POST", "/api/j2/inbound-email", raw=body,
                 headers={"Content-Type": "application/json", "X-UCT-Timestamp": ts, "X-UCT-Signature": sig})
 
@@ -578,6 +591,19 @@ def sandbox_db(sql, params=()):
         return conn.execute(sql, params).fetchall()
     finally:
         conn.close()
+
+
+def _py_constant(relpath, name):
+    """A module-level string constant read off its SOURCE by AST (wave 7 phase 2) -- never
+    by importing `api.*`, whose module-level paths would resolve to C:\\data from this
+    process. A name that is not a plain string there is a LookupError, never a guess."""
+    import ast
+    tree = ast.parse(open(os.path.join(REPO, relpath), encoding="utf-8").read())
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets)
+                and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)):
+            return node.value.value
+    raise LookupError(f"{name} is not a module-level string constant in {relpath}")
 
 
 def percentile(samples, pct):
@@ -767,6 +793,8 @@ with sync_playwright() as p:
     # a dark route is FastAPI's own 404, an armed one is not.
     obs = {}
     obs["GET /api/j2/personal/tokens"] = api.get(BASE + "/api/j2/personal/tokens").status
+    # Since whole-branch M-10 this GET never mints (an armed route answers 200 with
+    # {"address": null} until the member creates one), so reading it here writes nothing.
     obs["GET /api/j2/inbound-email/address"] = api.get(BASE + "/api/j2/inbound-email/address").status
     obs["auth_me.notebook_writing_help_enabled"] = find_key(me, "notebook_writing_help_enabled")
     obs["launcher: j2-ocr fingerprint"] = launcher_lines(r"\[startup\] j2-ocr:")
@@ -2922,16 +2950,39 @@ with sync_playwright() as p:
         mpage = _fresh_page(mctx)
         mpage.goto(BASE + "/settings?section=connections")
         dismiss_intro(mpage)
-        addr_box = mpage.get_by_role("textbox", name="Your Notebook email address")   # InboundEmailCard.test.jsx
+        # wave 7 phase 2 (whole-branch M-10, `0ac0a3cb1` + the card half `f77915669`): the
+        # address is created on INTENT. GET /api/j2/inbound-email/address answers
+        # {"address": null} and never mints; the card offers "Create my address" until it is
+        # pressed, then shows the address. This member is new, so it has none: the walk
+        # presses Create -- the member's own door -- and reads what that made.
+        addr_box = mpage.get_by_role("textbox", name="Your Notebook email address")   # InboundEmailCard.test.jsx:46
+        create_btn = mpage.get_by_role("button", name="Create my address", exact=True)  # InboundEmailCard.test.jsx:69
         try:
-            addr_box.wait_for(state="visible", timeout=20000)
+            create_btn.or_(addr_box).first.wait_for(state="visible", timeout=20000)
         except Exception:  # noqa: BLE001
             st = mctx.request.get(BASE + "/api/j2/inbound-email/address").status
             record("W16_email_in", "INCONCLUSIVE" if st == 404 else "FAIL", provision=prov, address_status=st,
                    reason="the Email to Notebook card is absent and the address route is 404 -- the gate is "
-                          "dark on the sandbox" if st == 404 else "the card never rendered though the route answers")
+                          "dark on the sandbox" if st == 404 else
+                          "neither 'Create my address' nor the address rendered, though the route answers")
             return
+        # What the server holds AFTER the card has mounted and made its own GET: nothing
+        # (M-10 -- viewing Settings must not leave a live address nobody asked for).
+        pre = mctx.request.get(BASE + "/api/j2/inbound-email/address")
+        address_before_create = pre.json() if pre.ok else {"status": pre.status}
+        create_status = None
+        if create_btn.count():
+            with mpage.expect_response(lambda r: r.request.method == "POST"
+                                       and r.url.split("?", 1)[0].endswith("/api/j2/inbound-email/address"),
+                                       timeout=20000) as made:
+                create_btn.click()
+            create_status = made.value.status
+        addr_box.wait_for(state="visible", timeout=20000)
         address = addr_box.input_value()
+        post = mctx.request.get(BASE + "/api/j2/inbound-email/address")
+        address_after_create = (post.json() or {}).get("address") if post.ok else None
+        created_ok = (address_before_create == {"address": None} and create_status is not None
+                      and 200 <= create_status < 300 and bool(address) and address_after_create == address)
 
         unsigned_st, unsigned_body, _ = http("POST", "/api/j2/inbound-email", raw=b'{"to":"x"}',
                                              headers={"Content-Type": "application/json"})
@@ -2987,7 +3038,7 @@ with sync_playwright() as p:
             drops_error = f"{type(e).__name__}: {e}"
         drop_log = launcher_lines(rf"\[inbound-email\] dropped for {re.escape(uid or '?')}: ")
 
-        core_ok = (unsigned_st == 401 and unsigned_body == b"" and bad_st == 401 and bad_body == b""
+        core_ok = (created_ok and unsigned_st == 401 and unsigned_body == b"" and bad_st == 401 and bad_body == b""
                    and old_st == 401 and all(a == 202 for a in answers) and all(o["status"] == 202 for o in over)
                    and mail_note is not None and kinds.get("image", 0) >= 1 and kinds.get("attachmentChip", 0) >= 1
                    and folder_name == "Inbox" and ui_row and ui_img and ui_chip
@@ -2999,6 +3050,9 @@ with sync_playwright() as p:
         else:
             verdict, why = ("PASS" if drops.get("address_rate") == 2 else "FAIL"), None
         record("W16_email_in", verdict, reason=why, provision=prov, address=address,
+               address_before_create=address_before_create, create_status=create_status,
+               address_after_create=address_after_create, address_created_on_intent=created_ok,
+               signatures_distinct=len(set(SIGNATURES_SENT)) == len(SIGNATURES_SENT),
                unsigned_status=unsigned_st, unsigned_body_bytes=len(unsigned_body),
                bad_signature_status=bad_st, bad_signature_body_bytes=len(bad_body),
                stale_timestamp_status=old_st,
@@ -3120,38 +3174,46 @@ with sync_playwright() as p:
 
     @guarded("W18_writing_help_no_key")
     def check_w18():
-        global page
         mismatch("W18", "Discard leaves the document byte-identical",
                  "after a FAILED draft the panel offers 'Write it' and 'Cancel'; 'Cancel' calls the same "
                  "`discard` the ready state's 'Discard' does", "WritingHelpPanel.jsx footer (status 'error')")
         mismatch("W18", "if a fake provider mode exists, drive Accept",
                  "no fake provider mode exists (writing_help.py streams through note_ask._async_client only), "
                  "so Accept cannot be driven without a model", "api/services/journal_two/writing_help.py")
+        # ⛔ A FRESH MEMBER PER RUN (wave 7 phase 2, ruling D-H5b, `ce95a2717`): the 60/day
+        # count is DURABLE in auth.db (`daily_usage_counters`, one row per scope, member and
+        # ET day -- api/services/daily_counters.py). It no longer resets when the sandbox
+        # restarts, so an account reused across runs on one ET day would carry an earlier
+        # run's charges into this probe. A member made for this run starts at zero by
+        # construction -- the same reason W16 makes one.
+        hctx, prov = provision_member(browser, actx, f"w7help{RUN}@local.dev", "w7help")
+        hapi, uid = hctx.request, prov["user_id"]
         passage = "I sold NVDA early because I was scared."
-        note = api.post(BASE + "/api/j2/notes", data={
+        note = hapi.post(BASE + "/api/j2/notes", data={
             "title": f"Walk W18 help {RUN}",
             "bodyJson": {"type": "doc", "content": [P(f"Keep this. {passage} Keep that.")]},
         }).json()["note"]
         nid = note["id"]
-        before = api.get(BASE + f"/api/j2/notes/{nid}").json()["note"]
-        page = open_note(ctx, notebook_url(nid), page)
-        wh = page.get_by_role("button", name="Writing help", exact=True)   # NoteEditorPage.writingHelp.test.jsx
+        before = hapi.get(BASE + f"/api/j2/notes/{nid}").json()["note"]
+        hpage = open_note(hctx, notebook_url(nid))
+        wh = hpage.get_by_role("button", name="Writing help", exact=True)   # NoteEditorPage.writingHelp.test.jsx
         if wh.count() == 0:
-            flag = find_key(api.get(BASE + "/api/auth/me").json(), "notebook_writing_help_enabled")
+            flag = find_key(hapi.get(BASE + "/api/auth/me").json(), "notebook_writing_help_enabled")
             record("W18_writing_help_no_key", "INCONCLUSIVE" if flag is not True else "FAIL",
-                   reason="no Writing help entry; the auth payload's flag is " + repr(flag), flag=flag)
+                   reason="no Writing help entry; the auth payload's flag is " + repr(flag), flag=flag,
+                   provision=prov)
             return
         # select the paragraph's text (the member's selection is what the panel works on)
-        page.locator(".ProseMirror p").first.click()
-        page.keyboard.press("Home")
-        page.keyboard.press("Shift+End")
+        hpage.locator(".ProseMirror p").first.click()
+        hpage.keyboard.press("Home")
+        hpage.keyboard.press("Shift+End")
         wh.click()
-        dialog = page.get_by_role("dialog")
+        dialog = hpage.get_by_role("dialog")
         dialog.wait_for(state="visible", timeout=15000)
         scope_selection = dialog.get_by_text(re.compile(r"^Working on your selection")).count() > 0
         dialog.get_by_role("button", name="Rewrite shorter", exact=True).click()
-        with page.expect_response(lambda r: r.url.split("?", 1)[0].endswith(f"/api/j2/notes/{nid}/writing-help/stream"),
-                                  timeout=60000) as sr:
+        with hpage.expect_response(lambda r: r.url.split("?", 1)[0].endswith(f"/api/j2/notes/{nid}/writing-help/stream"),
+                                   timeout=60000) as sr:
             dialog.get_by_role("button", name="Write it", exact=True).click()
         stream_status = sr.value.status
         try:
@@ -3163,21 +3225,24 @@ with sync_playwright() as p:
         alert_text = alert.inner_text().strip()
         dialog.get_by_role("button", name="Cancel", exact=True).click()
         dialog.wait_for(state="detached", timeout=10000)
-        page.wait_for_timeout(3000)   # past the autosave debounce: a save, if any, would have fired by now
-        after = api.get(BASE + f"/api/j2/notes/{nid}").json()["note"]
+        hpage.wait_for_timeout(3000)   # past the autosave debounce: a save, if any, would have fired by now
+        after = hapi.get(BASE + f"/api/j2/notes/{nid}").json()["note"]
         byte_identical = (json.dumps(before.get("bodyJson"), sort_keys=True) == json.dumps(after.get("bodyJson"), sort_keys=True)
                           and before.get("updatedAt") == after.get("updatedAt"))
 
-        # ⛔ THE 60/DAY COUNTER IS NOT EXPOSED (note_ask._writing_help_by_user, per-process),
-        # so it is read through the product's own refusal: every FAILED request is refunded
-        # (router: `charge.failed`), so 61 more failures must never meet the 429 whose sentence
-        # is the member's budget. Were a failure charged, request 60 or 61 of this batch would.
-        # With no key the SDK refuses locally before any request is sent
-        # (anthropic 0.83.0 `_validate_headers`: "Could not resolve authentication method").
+        # ⛔ THE 60/DAY COUNT IS READ TWO WAYS (wave 7 phase 2: ruling D-H5b removed the
+        # per-process `note_ask._writing_help_by_user` this comment used to name).
+        # (1) Through the product's own refusal. Every FAILED request is refunded
+        # (`note_ask.refund_due`: a server-side failure, or nothing sent), so 61 more
+        # failures must never meet the 429 whose sentence is the member's budget -- were a
+        # failure charged, request 60 or 61 of this batch would. With no key the SDK refuses
+        # locally before any request is sent (anthropic 0.83.0 `_validate_headers`: "Could
+        # not resolve authentication method").
+        # (2) From the durable counter itself (below), read-only.
         statuses, budget_refusals, tails = {}, 0, set()
         for _ in range(61):
-            r = api.post(BASE + f"/api/j2/notes/{nid}/writing-help/stream",
-                         data={"action": "rewrite", "style": "shorter", "scope": "selection", "text": passage})
+            r = hapi.post(BASE + f"/api/j2/notes/{nid}/writing-help/stream",
+                          data={"action": "rewrite", "style": "shorter", "scope": "selection", "text": passage})
             statuses[r.status] = statuses.get(r.status, 0) + 1
             try:
                 body = r.text()
@@ -3188,14 +3253,47 @@ with sync_playwright() as p:
             evs = [json.loads(ln[5:]) for ln in body.splitlines() if ln.startswith("data:")] if r.status == 200 else []
             if evs:
                 tails.add(evs[-1].get("type"))
-        ok = (stream_status == 200 and scope_selection and alert_text == FAILED_SENTENCE and byte_identical
-              and budget_refusals == 0 and statuses.get(200, 0) == 61)
+
+        # (2) THE DURABLE COUNT, read-only from the sandbox's auth.db (no HTTP surface shows
+        # it). Its table and scope are read off their source (`_py_constant`), never typed.
+        # ⛔ A WAITER, NOT A SAMPLE: a refund is fire-and-forget on a worker thread (ruling
+        # D-H11), so the member's rows are re-read until every one is back at zero, bounded.
+        counter_rows, counter_error, counter_settled = None, None, False
+        try:
+            wh_table = _py_constant("api/services/daily_counters.py", "TABLE")
+            wh_scope = _py_constant("api/services/note_ask.py", "SCOPE_WRITING_HELP")
+        except Exception as e:  # noqa: BLE001
+            wh_table = wh_scope = None
+            counter_error = f"{type(e).__name__}: {e}"
+        settle_end = _t.time() + 20.0
+        while wh_table and wh_scope:
+            try:
+                counter_rows = [{"day": d, "value": v} for d, v in sandbox_db(
+                    f"SELECT day, value FROM {wh_table} WHERE scope = ? AND subject = ? ORDER BY day",
+                    (wh_scope, str(uid)))]
+                counter_error = None
+            except Exception as e:  # noqa: BLE001
+                counter_rows, counter_error = None, f"{type(e).__name__}: {e}"
+            counter_settled = counter_rows is not None and all(abs(r["value"]) < 1e-9 for r in counter_rows)
+            if counter_settled or _t.time() >= settle_end:
+                break
+            _t.sleep(0.5)
+
+        probe_ok = (stream_status == 200 and scope_selection and alert_text == FAILED_SENTENCE and byte_identical
+                    and budget_refusals == 0 and statuses.get(200, 0) == 61)
+        # The refusal probe decides alone when the counter cannot be read (it is independent
+        # evidence of the same fact); a readable counter left above zero is a charged failure.
+        ok = probe_ok and (counter_rows is None or counter_settled)
         record("W18_writing_help_no_key", "PASS" if ok else "FAIL",
-               note_id=nid, scope_says_selection=scope_selection, stream_status=stream_status,
+               provision=prov, note_id=nid, scope_says_selection=scope_selection, stream_status=stream_status,
                stream_events=events, alert_text=alert_text, expected_sentence=FAILED_SENTENCE,
                note_byte_identical_after_cancel=byte_identical,
                counter_probe={"requests": 61, "statuses": statuses, "budget_refusals": budget_refusals,
                               "last_event_types": sorted(t for t in tails if t)},
+               durable_counter={"table": wh_table, "scope": wh_scope, "subject": uid, "rows": counter_rows,
+                                "settled_at_zero": counter_settled, "read_error": counter_error,
+                                "read_from": "the sandbox's auth.db, read-only, after 62 failed drafts "
+                                             "(1 from the panel + 61 direct)"},
                accept_path="INCONCLUSIVE -- no fake provider mode exists, so Accept cannot be driven without a model")
 
     check_w18()
@@ -3498,20 +3596,35 @@ with sync_playwright() as p:
             page = judge("personal_api_markdown", r.json()["note"]["id"])
         else:
             doors["personal_api_markdown"] = {"status": r.status, "undriven": True}
-        # (b) email-in's HTML body, to the WALK account's own address (one message a run)
+        # (b) email-in's HTML body, to the WALK account's own address (one message a run).
+        # wave 7 phase 2 (whole-branch M-10): the GET never mints -- it answers
+        # {"address": null} until the member makes one -- so a null answer is followed by the
+        # member's own create (POST, what the card's "Create my address" sends). An address
+        # that already exists is used as it is: a second POST would ROTATE it.
         addr = api.get(BASE + "/api/j2/inbound-email/address")
-        if addr.ok and INBOUND_SECRET:
+        to_addr = (addr.json() or {}).get("address") if addr.ok else None
+        address_source, create_status = ("existing" if to_addr else None), None
+        if addr.ok and not to_addr:
+            made = api.post(BASE + "/api/j2/inbound-email/address")
+            create_status = made.status
+            to_addr = (made.json() or {}).get("address") if made.ok else None
+            address_source = "created by POST" if to_addr else None
+        if to_addr and INBOUND_SECRET:
             subj = f"Walk W23 mddoc email {RUNWORD}"
-            s, _b, _h = signed_email({"to": addr.json()["address"], "from": "walker@example.com", "subject": subj,
+            s, _b, _h = signed_email({"to": to_addr, "from": "walker@example.com", "subject": subj,
                                       "text": "", "html": html, "attachments": []}, secret=INBOUND_SECRET)
             hit = next((n for n in api.get(BASE + f"/api/j2/notes?q={RUNWORD}&limit=100").json().get("notes", [])
                         if n.get("title") == subj), None)
             if s == 202 and hit:
                 page = judge("email_in_html", hit["id"])
+                doors["email_in_html"]["address_source"] = address_source
             else:
-                doors["email_in_html"] = {"status": s, "note_found": bool(hit), "undriven": True}
+                doors["email_in_html"] = {"status": s, "note_found": bool(hit), "address_source": address_source,
+                                          "undriven": True}
         else:
-            doors["email_in_html"] = {"status": addr.status, "secret": bool(INBOUND_SECRET), "undriven": True}
+            doors["email_in_html"] = {"status": addr.status, "create_status": create_status,
+                                      "address_source": address_source, "secret": bool(INBOUND_SECRET),
+                                      "undriven": True}
         # (c) the member-facing Import (client-side converter, lib/importer/convert.js):
         # NotebookTab.test.jsx:264 `getAllByRole('button', {name: /import/i})[0]` ->
         # testid import-wizard -> ImportWizard.test.jsx testid import-file-input -> /1 note/i
