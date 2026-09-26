@@ -26,8 +26,8 @@ facilitator does, in order.
 2. **Run the pre-flight** (kit §5) signed in to the new account, and write which tasks are
    eligible today on the observation sheet. A core task (T1, T2, T4, T6, T8) that is not
    eligible means rescheduling, not scoring around it.
-3. **The notebook stays EMPTY until T1 is done.** Have the study notebook ready to import
-   (`study-notebook/`, all of its files, folders included) — you import it AFTER T1 (below).
+3. **The notebook stays EMPTY until T1 is done.** Have the study notebook folder ready to
+   import (`study-notebook/`, as a folder) — you import it AFTER T1 (below).
    ⛔ Not the wave-8 sample notebook (ruling D-9C8).
 4. **Materials:** one public article URL with a quotable paragraph (T2); one public 10-Q PDF on
    the participant's computer or ready to send in the call chat (T6).
@@ -54,7 +54,8 @@ facilitator does, in order.
   are the record; write the seconds on the sheet afterwards from the recording, not from memory.
   Record whether the wave-8 tour appeared.
 - **After T1, before T2:** in your own browser, import the study notebook into the account
-  (Notebook → Import → select every file in `study-notebook/`). If the importer offers to add
+  (Notebook → **Import** → **Choose a folder** → pick `study-notebook/`, so its folders come
+  along; "Choose files" would flatten them). If the importer offers to add
   live charts for tickers it found, choose **not now** — the offer is opt-in and the study does
   not need it. Then ask the participant to reload.
 - **The hint rule:** give a hint **only after 60 seconds of being stuck**, and mark the task **H**.
