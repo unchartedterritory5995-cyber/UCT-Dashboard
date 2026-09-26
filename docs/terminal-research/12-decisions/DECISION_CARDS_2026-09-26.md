@@ -433,6 +433,173 @@ That restores the original unrestricted bar immediately.
 
 ---
 
+## CARD 22 — the MVP definition of done ✅ RULED, after a three-reviewer panel
+
+**Delegated by the owner 2026-09-26: "You do, based on simulated beta tests and judgement as a
+team of decision makers from various backgrounds and skill sets."**
+
+⛔⛔ **THE SIMULATION HALF WAS REFUSED, AND THE REASON IS THE WHOLE POINT OF THIS CARD.** *"Do our
+own traders voluntarily prefer it"* is a claim about real human behaviour. A simulated trader
+preferring a simulated terminal is evidence about the simulation. Running one and reporting a
+verdict would be this programme's signature failure — an instrument that cannot observe the thing
+it names — committed on the definition of done itself. ⭐ **A panel can decide the RULE. Only a
+person can supply the VERDICT.** The panel was therefore convened on the rule.
+
+**The panel: three independent reviewers, same question, different backgrounds, briefed NOT to
+pre-compromise toward consensus.** A working trader; an evaluation methodologist; an adversarial
+reviewer whose only job was to break it. ⚠️ Every factual claim they made was checked before use,
+and **three of the practitioner's citations were wrong and are not carried forward** — see §5.
+
+---
+
+### §1 ⭐⭐ WHERE THEY CONVERGED, WITH NO CONTACT BETWEEN THEM
+
+1. **The owner cannot supply the YES.** All three, by different routes: he is a *subject* and a
+   subject cannot adjudicate their own preference (methodologist); his switching cost is ~0 and he
+   needs no onboarding, making him **the worst available subject**, not the most convenient one
+   (adversarial); a builder's session is QA and in a log QA is indistinguishable from preference
+   (practitioner).
+2. ⭐⭐ **TWO REVIEWERS INDEPENDENTLY INVENTED THE SAME INSTRUMENT: the WITHDRAWAL test.** Turn the
+   surface off for a defined block, unannounced. If nobody asks for it back before the close, it
+   was tolerated, not preferred. **When two disciplines reach for the same instrument unprompted,
+   that is the closest thing to corroboration this exercise can produce**, and it is now the
+   strongest element in the design.
+3. **Preference is a SUBTRACTION, never an addition.** A tool added while nothing is removed has
+   been tolerated. "I use it every morning" is true of five open tabs.
+4. **A consecutive-days bar is the wrong shape** — see §3.
+
+### §2 WHERE THEY DISAGREED, AND HOW I RULE
+
+**On who adjudicates.** Practitioner: a named non-builder trader decides, owner holds a veto but
+cannot supply the yes. Methodologist: split the role — the *recorder* is whoever did the work, the
+*adjudicator* is a named non-subject applying a pre-committed rule with a three-way verdict.
+Adversarial: the reward corruption (one person owns product, desk and deadline) **is not mitigable
+by procedure at all**, only disclosed — and disclosure written by that same person fails.
+
+**RULING: adopt the methodologist's split, and adopt the adversarial reviewer's honesty clause.**
+Recorder and adjudicator are different people. The adjudicator's act is not *"did we like it"* but
+*"does this record satisfy the rule signed on date D"*, answered **PASS / FAIL / INCONCLUSIVE**.
+⛔ **And if no non-subject adjudicator exists at this headcount, the verdict is
+INCONCLUSIVE-BY-CONSTRUCTION and says so on its face.** It does not become a PASS because nobody
+was available to disagree.
+
+**On whether to operationalise the sentence at all.** The adversarial reviewer says demote it:
+keep the charter sentence as a thesis and replace the *definition of done* with a displacement
+ledger. **RULING: adopt that too, and the two are compatible** — what follows IS a displacement
+ledger, and the charter sentence stays as the thesis it always was.
+
+### §3 ⚰️⚰️ I PROPOSED A DEFAULT EARLIER TODAY AND THE PANEL KILLED IT, CORRECTLY
+
+I proposed *"a run of at least five consecutive trading days"*, and `success-metrics.md`'s SM-11
+carries the same shape, defended there as *"introduces no new number"*.
+
+⛔ **It is a conjunction of five events that a HEALTHY product fails** whenever the workflow
+legitimately is not wanted: a holiday, travel, no setup that morning. **That is CARD 21's defect
+exactly** — a bar whose failure mode is the product behaving correctly — and I ruled on CARD 21
+hours before proposing it. ⭐ *"Introduces no new number"* is a fine reason for a display constant
+and a bad one for a statistical parameter.
+
+**RULING: replace it with K of N ELIGIBLE OCCASIONS**, where K and N are derived from a **baseline
+phase that first measures how often the workflow occurs at all**. A rate needs a denominator
+somebody measured, not a span somebody liked.
+
+### §4 ✅ THE RULE
+
+**The measured clause.** On a named occasion, for a named task: the work happened in
+Terminal-Next, **and** the named incumbent tool was not opened for that task. Recorded the same
+day, one line per person-occasion, append-only, with **what else was open, named**. ⛔ A missing
+day is UNREADABLE, never a zero.
+
+**The judged clauses** — *meaningful*, *reasonable onboarding*, *voluntarily* — **cannot be made
+rigorous at this n and are not going to be dressed as metrics.** They are written as a signed,
+dated judgement that says on its face that it is a judgement. ⭐ **A judgement that admits what it
+is cannot be quietly waived — only reversed by its signatory.** That accountability is the prize.
+
+⛔⛔ **THE ONE BLOCKING REQUIREMENT, and it costs one sentence: PRE-REGISTRATION.** The workflow,
+the incumbent tool it must displace, the subject, and the span must appear in a dated artifact
+whose timestamp **precedes day 1**. Absent ⇒ the claim is blocked regardless of anyone's opinion.
+
+⭐ **Why this one and not a behavioural log.** With pre-registration and no log, a false pass
+requires a lie. Without pre-registration but with a log, **the honest bad case passes fully
+documented** — which is this organisation's signature failure mode. Pre-registration is also the
+only thing that makes a NO reachable.
+
+**Also required:** at least one **non-builder subject**; a **withdrawal block** inside or after the
+span; per-person verdicts published **unaggregated** (⛔ a 2-1 majority among three raters carries
+**zero** evidential weight — under a coin-flip null the probability of ≥2 agreeing with you is
+0.5, so **there is no vote**); eligibility declared **that morning**, never retrospectively, with
+**more than a third ineligible ⇒ INCONCLUSIVE**; and the failure sentence written in advance.
+
+⛔⛔ **AND THE ANTI-WAIVER CLAUSE, which is the sharpest thing the panel produced.** This
+programme has precedent for retiring a bar it fails and calling it a correction — CARD 16 and
+CARD 21 are both that move, and both were right. **So: a re-cut of this bar must QUOTE THE READING
+THAT FAILED.** Without that, "we re-cut the bar" and "we failed and moved it" are the same
+sentence, and this card would otherwise be the precedent that makes the next waiver easy.
+
+### §5 ⚠️ THREE PRACTITIONER CITATIONS WERE WRONG AND ARE NOT CARRIED FORWARD
+
+Recorded because one of them was used to disqualify a named person:
+
+1. ⛔ *"the owner declined to itemize rank and time-spent across the four external tools"* — **the
+   record says the opposite.** `CRITICAL_PATH.md` CP-06: OI-06 **was answered by the owner directly
+   on 2026-09-19**, naming all four tools; what is unitemised is *other* tools beyond those four.
+   One of the two legs under its disqualification argument does not exist. ⭐ The conclusion still
+   stands on the other leg, which the other two reviewers reached independently.
+2. ⛔ *"three named morning queries through `finviz_client.py`"* — **that file does not exist.** The
+   real modules are `screener/finviz_universe.py` and `wisdom/capture/families/finviz.py`.
+3. ⛔ *"Finviz is the only one of the four the firm already instruments"* — **false**, and it was
+   the basis for its recommended first target. Unusual Whales has dedicated integration
+   (`api/uw_live_flow.py`, `oi_massive_snapshots.py`, `live_massive_router.py`).
+
+⭐ **The practitioner's REASONING survives all three**, because none of its good ideas depended on
+them. But an argument that disqualifies a specific person on a misread record must not propagate,
+and this is why a synthesis verifies rather than aggregates.
+
+### §6 ⛔ WHAT IS STILL THE OWNER'S
+
+**Name a non-builder subject.** Everything above is unblocked except this. ⚠️ **If no such person
+exists at this headcount, that is itself the finding**, and the honest output is a verdict labelled
+INCONCLUSIVE-BY-CONSTRUCTION rather than a PASS nobody could have contradicted.
+
+**Reversal condition.** OI-02 being answered supersedes this card. ⛔ And per the adversarial
+reviewer's catch, **a verdict rendered under this card must state whether it survives OI-02 being
+answered** — otherwise a pass becomes orphaned rather than confirmed.
+
+---
+
+## CARD 20-EXEC — the Cloudflare browser TTL ✅ EXECUTED 2026-09-26, and CARD 20's diagnosis was WRONG about WHERE
+
+✅ **DONE. Measured before and after, both halves together:**
+
+| | before | after |
+|---|---|---|
+| `Cache-Control` browser lifetime | `max-age=14400` | **`max-age=0`** |
+| 2nd request `cf-cache-status` | HIT | **still HIT** |
+
+⚰️ **CARD 20 said a Cache Rule was rewriting the browser TTL. It was not.** Read in the dashboard:
+the rule matching `/api/flow/data` (and `/api/flow/indexes-data`) set only **Eligible for cache**
+and **Edge TTL**, with Browser TTL **unset**. The `max-age=14400` came from the **zone-wide
+Browser Cache TTL setting**, under Caching → Configuration, set to **4 hours**.
+
+⛔⛔ **That materially changed the fix and is why it was read before it was changed.** Changing
+the global would have altered **every response on the domain**. Instead one action was added to the
+existing rule — **Browser TTL → Respect origin TTL** — scoping the change to those two paths.
+Cache eligibility and the existing **1-minute Edge TTL override** were left untouched, which is
+why the edge cache survived.
+
+⭐ **This is the house pattern here, not an invention:** the other three cache rules
+(`/api/bars-history/`, `/api/ticker-logo/`, `/api/bars-today-pack`) already set Browser TTL
+per-path for exactly this reason.
+
+⚠️ **STILL OPEN, and deliberately not changed: the zone-wide 4-hour Browser Cache TTL remains.**
+Any other route whose origin asks for a shorter browser lifetime is presumably being raised the
+same way this one was. **Two responses were measured; the blast radius was NOT**, so no claim is
+made about how many routes are affected — only that the mechanism exists. ⭐ The evidence that it
+behaves as a FLOOR rather than an override: the hashed static assets still carry
+`max-age=31536000` on the wire, so a longer origin value is not being lowered.
+
+---
+
 ## What remains genuinely owner-only after these cards
 
 | item | why no determination can close it | can it become the agent's? |
