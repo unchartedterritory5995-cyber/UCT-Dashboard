@@ -12,7 +12,7 @@ role: the owner's own action list. Every open item an agent cannot close, why, a
 | # | item | why it is yours | cost |
 |---|---|---|---|
 | 1 | **Name a non-builder who will actually use the terminal** | ⭐ from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name — ✅ **and you just told me the pool is 750 paying Discord members, so "there isn't one" is no longer the likely answer** |
-| 2 | **The OI-04 contract answer** | it comes from outside the company | one email |
+| 2 | **OI-04 — a billing-statement check** | ⚰️ this row said *"it comes from outside the company"* and that was **wrong**; and ✅ your licensing clearance may have closed it outright | minutes, or nothing — see below |
 | 3 | **Watch yourself work one trading morning** | an observation, not a decision | one morning, nothing waits on it |
 
 **Everything else that was on this list is closed.** The quiet window is scheduled and your partner
@@ -50,10 +50,13 @@ close, it was tolerated rather than preferred.**
 
 ---
 
-## 2 · The OI-04 contract answer
+## 2 · OI-04 — and I had this one wrong twice
 
-Still the last thing holding the provider ledger at amber, and still from outside the company.
-Nothing else in the programme waits on it.
+⚰️ **First error:** this list called it *"a contract answer from outside the company"* for hours. It is **not** — `OWNER_INPUTS_REQUESTED.md` records OI-04 as **DEFAULT-APPLIED 2026-09-18**, and what it actually wants is a **billing-statement check** (Bullflow, Unusual Whales, Polygon-direct, TheFly), worth minutes rather than an email to a vendor.
+
+✅ **Second, and better: your licensing sentence today may have closed it.** You said you are *"good everywhere that already has access and data and information"*. OI-04 exists to decide whether providers with no observed calls in 30 days are retired — and *having access* is close to being the answer.
+
+⚠️ **I am NOT recording it as closed on that reading, because the two questions are adjacent rather than identical:** yours is about *permission*, OI-04's is about *whether a subscription is still being paid for*. A feed can be licensed and cancelled. **One sentence from you closes it — or the existing default already stands ("no observed calls in 30 days ⇒ retired"), and nothing in the programme waits on it either way.**
 
 ## 3 · Watch yourself work one trading morning
 

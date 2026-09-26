@@ -710,3 +710,35 @@ Three further owner facts arrived with it, also verbatim: **"We have 750 members
 ⚠️ **MY READING OF ITS SCOPE, stated so it can be corrected in one line rather than assumed: I am treating this as de-scoping gate item 34 (Cost Model) and the cost half of item 23**, while leaving **licensing and permission** work fully in force — *"can this feed legally serve members, and whose advantage is it"* is a compliance question, not a cost question, and item 4's provider ledger plus the licensing register remain load-bearing. **If item 34 is meant to be written anyway, one sentence reinstates it.**
 
 **Reversal condition:** none on the thesis — it is the owner's statement of what his product is for. The de-scoping of costs is likewise an owner instruction. ⚠️ The execution ceiling in §2 is a *consequence* recorded here, not a ruling, and the owner may move it.
+
+## CARD 26 — licensing and compliance: OWNER-CLEARED for the current estate ✅, and the four things that clearance structurally cannot reach
+
+✅ **Owner, 2026-09-26, verbatim: "in terms of license and compliance we already have everythign checked off and are good everywhere that already has access and data and information so we are good."**
+
+**Accepted and recorded as the owner's risk decision.** It is consistent with the register's own post-2026-09-19/20 state, which had already moved **76 of 118 rows to Likely Allowed** (from 7) and cut Restricted to **18** (from 81) on written provider confirmations. ⛔ **This card does not relitigate it and no downstream document should treat licensing as a blocker again.**
+
+⭐⭐ **But a blanket clearance recorded WITHOUT its exceptions is precisely the artifact class this programme keeps getting burned by** — a record that was true when written, standing in for a live obligation. So the four things the sentence cannot reach are named here, **not as objections, but so that nobody later reads "we are good" as covering them.**
+
+### 1. ⛔ ACCESS AND DERIVED WORKS ARE TWO DIFFERENT PERMISSIONS — and only one of them is what the clearance is about
+
+The clearance is scoped, in the owner's own words, to *"everywhere that already has access and data and information."* **`ESC-03` asks a different question: does the grant reach DERIVED WORKS** — charts, breadth, RS, analytics, AI summaries — **or only display of the underlying data?** The register records it as **still open** (`09-security-licensing-cost/licensing-register.md`, §1D and the ESC-03 row, affecting T-11, T-14, N-16, N-22, N-25).
+
+⭐ **Under CARD 25's aggregation thesis this gets MORE important, not less.** Almost everything this product would aggregate is a derived work — the whole point is to compute on vendor data rather than resell it. ⚠️ Having access to a feed and being permitted to publish what you compute from it are separate grants, and the clearance sentence speaks to the first.
+
+### 2. ⚠️ THE ANSWERS EXIST; THE DOCUMENTS ARE NOT FILED
+
+Several confirmations are recorded as given by the provider and **not captured for the record** — `ESC-08` (Finnhub: *"written approval confirmed to exist, document not yet captured"*) and `ESC-10` (Schwab: Commercial/Redistribution tier confirmed, *"Document not yet captured"*), among others. ⭐ **This is an evidence-filing gap, not a compliance gap, and the distinction matters exactly once — if anybody ever challenges it.** Today the programme's record cannot prove what the owner correctly knows. Cheap to close; worth closing while the emails still exist.
+
+### 3. ⛔ yfinance HAS NO LICENCE TO HAVE, so "checked off" cannot apply to it
+
+**Yahoo sells no licence**, so there is no document to obtain and nothing to check off. It is already recorded correctly and deliberately as an explicit, informed **risk acceptance** in `OWNER_DECISIONS.md` **D-004**, not as a clearance. ✅ **So the owner's statement and the record do not conflict** — but a reader of "we are good everywhere" would reasonably conclude yfinance is licensed, and it is not. **FRED** is the neighbouring case: a structural per-series compliance task that no provider confirmation can close.
+
+### 4. ⭐⭐ THE CLEARANCE IS SCOPED TO WHAT WE ALREADY HAVE — AND THE THESIS REQUIRES THINGS WE DO NOT
+
+**This is the forward-looking consequence and the reason this card exists.** The sentence clears *"everywhere that already has access and data and information."* CARD 25's goal is to **aggregate all the best features so someone can only use our site** — and a coverage gap is frequently a **data** gap, not a code gap. Every capability the gap ledger (item 9) names that needs a feed we do not currently hold is therefore an **open** licensing question, not a cleared one.
+
+⭐ **So the honest rule going forward, and it is a small one: licensing is CLEARED for the current estate and OPEN for each new data source the roadmap adds.** That keeps the owner's ruling intact, keeps it from being read as a blank cheque for feeds nobody has bought yet, and gives item 9 a column it would otherwise have had to invent.
+
+⚠️ Two register rows worth carrying forward for the same reason, both from item 15's pass: **LIC-06** (*"no terms document exists at all"*) and **LIC-08** (*"no purchasable remedy at any price"*). A gap with no purchasable remedy is a permanent product boundary, like the no-execution ceiling — not a backlog item.
+
+**Reversal condition:** none on the clearance. ⚠️ §4 is a *scope statement*, not a challenge: if the owner intends the clearance to extend to feeds not yet acquired, one sentence says so and this section is struck.
