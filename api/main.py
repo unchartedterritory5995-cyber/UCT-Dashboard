@@ -81,6 +81,7 @@ from api.routers import journal_two as journal_two_router
 # note id. Pinned by tests/test_main_router_order.py.
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
+from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
@@ -8681,6 +8682,9 @@ app.include_router(alerts_router.router)
 # (lane F's report; rail tests/test_main_router_order.py).
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
+# Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
+# one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
+app.include_router(notebook_soak_router.router)
 app.include_router(notebook_link_preview_router.router)
 # Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.
 # Mounted beside the other pre-journal_two Notebook routers; no path here can
