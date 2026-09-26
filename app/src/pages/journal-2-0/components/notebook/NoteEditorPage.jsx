@@ -32,7 +32,6 @@ import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
-import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import {
   useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
   recordLandedRevision, settleOwnerFork, SESSION_ID,
@@ -48,7 +47,10 @@ import {
 import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
-import { sharedNoteUrl } from '../../lib/noteShareLink'
+// Wave 8 seam S8-3: the share controls (lane 8B) and the export group (lane 8C)
+// live in their own files so neither lane edits this one.
+import NoteShareControls from './NoteShareControls'
+import NoteExportControls from './NoteExportControls'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
@@ -605,8 +607,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const onVersionRestored = adoptServerCopy
 
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
+  // Wave 8 seam S8-3: the export buttons (PNG / Print / Markdown) and the share
+  // controls moved into NoteExportControls and NoteShareControls, behaviour
+  // unchanged. The editor keeps the column they rasterize and the message line
+  // they speak through.
   const columnRef = useRef(null)
-  const [exportBusy, setExportBusy] = useState(false)
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -637,86 +642,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const t = setTimeout(() => setChromeMsg(null), 2400)
     return () => clearTimeout(t)
   }, [chromeMsg])
-  const savePng = async () => {
-    if (exportBusy) return
-    setExportBusy(true)
-    setChromeMsg('rendering…')
-    try {
-      const ok = await exportNoteAsPng(columnRef.current, title)
-      setChromeMsg(ok ? 'PNG saved' : 'export failed')
-    } catch {
-      setChromeMsg('export failed')
-    } finally {
-      setExportBusy(false)
-    }
-  }
-  // Wave C: portable single-note export (directive §46-58) -- unlike PNG/
-  // Print above, this is a round-trippable .md/.zip a member can bring to
-  // another app, matching the full-notebook export's own format
-  // (build_single_note_export reuses that exact markdown+front-matter code
-  // path). A bare fetch+blob download, not the ExportDialog machinery: one
-  // note is bounded in size, so there's no multi-minute wait to progress-bar.
-  const downloadMarkdown = async () => {
-    if (exportBusy) return
-    setExportBusy(true)
-    setChromeMsg('preparing…')
-    try {
-      const res = await fetch(`/api/j2/notes/${noteId}/export`, { credentials: 'include' })
-      if (!res.ok) throw new Error(String(res.status))
-      const blob = await res.blob()
-      const cd = res.headers.get('content-disposition') || ''
-      const m = /filename="([^"]+)"/.exec(cd)
-      const filename = m ? m[1] : 'note.md'
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.rel = 'noopener'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
-      setChromeMsg('downloaded')
-    } catch {
-      setChromeMsg('export failed')
-    } finally {
-      setExportBusy(false)
-    }
-  }
-  // Share links: admin-only surface while the owner evaluates (the server
-  // pair is additionally flag-gated). One active token per note; Unshare
-  // revokes it — a leaked link dies instantly.
-  const isAdmin = user?.role === 'admin'
-  const [share, setShare] = useState(null)
-  useEffect(() => {
-    if (!isAdmin || !noteId) return undefined
-    let alive = true
-    fetch(`/api/j2/notes/${noteId}/share`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { share: null }))
-      .then((b) => { if (alive) setShare(b.share) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [isAdmin, noteId])
-  const copyShareLink = async () => {
-    try {
-      let s = share
-      if (!s) {
-        const res = await fetch(`/api/j2/notes/${noteId}/share`, { method: 'POST', credentials: 'include' })
-        if (!res.ok) throw new Error(String(res.status))
-        s = (await res.json()).share
-        setShare(s)
-      }
-      await navigator.clipboard.writeText(sharedNoteUrl(s.token))
-      setChromeMsg('Share link copied')
-    } catch {
-      setChromeMsg('share failed')
-    }
-  }
-  const unshare = async () => {
-    await fetch(`/api/j2/notes/${noteId}/share`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
-    setShare(null)
-    setChromeMsg('Link revoked')
-  }
   const saveTimerRef = useRef(null)
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
@@ -3159,7 +3084,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
           </div>
         )}
-        <div className={styles.headerControls}>
+        <div className={styles.headerControls} data-tour="ask-row">
           <button
             type="button"
             className={styles.chromeBtn}
@@ -3210,20 +3135,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             History
           </button>
-          {isAdmin && (
-            <>
-              <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
-                title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
-                {share ? 'Copy link' : 'Share'}
-              </button>
-              {share && (
-                <button type="button" className={styles.chromeBtn} onClick={unshare}
-                  title="Revoke the public link — it stops working immediately">
-                  Unshare
-                </button>
-              )}
-            </>
-          )}
+          <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
           <select
             className={styles.headerSelect}
             value={note.folderId || ''}
@@ -3523,29 +3435,12 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name="rows" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             Outline
           </button>
-          <div className={styles.toolbarExports}>
+          <div className={styles.toolbarExports} data-tour="note-export">
             {/* Wave 5: word count + reading time (the selection's share while
                 text is selected). */}
             <NoteStats editor={editor} />
             {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-            {/* Export: PNG rasterizes the note column (charts included); Print
-                rides the browser's Save-as-PDF via the print stylesheet. */}
-            <button type="button" className={styles.chromeBtn} onClick={savePng} disabled={exportBusy}
-              title="Download this note as a PNG image">
-              PNG
-            </button>
-            <button type="button" className={styles.chromeBtn} onClick={printNote}
-              title="Print — or Save as PDF from the print dialog">
-              Print
-            </button>
-            {/* Wave C: portable markdown export -- unlike PNG/Print, this
-                round-trips back into this product (or Obsidian/any
-                markdown-aware app), matching the full-notebook export's
-                own format. */}
-            <button type="button" className={styles.chromeBtn} onClick={downloadMarkdown} disabled={exportBusy}
-              title="Download this note as portable Markdown — the same format the full notebook export uses">
-              Markdown
-            </button>
+            <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg} />
           </div>
         </div>
       )}

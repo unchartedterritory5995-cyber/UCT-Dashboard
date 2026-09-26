@@ -24,6 +24,7 @@ import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
+import { notebookFlag } from '../lib/offline/notebookFlags'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
@@ -100,6 +101,19 @@ const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimel
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
+
+// Wave 8 seam S8-3: the first-run tour (lane 8C builds it in onboarding/NotebookTour.jsx).
+// Its own chunk, outside the Notebook's first-open closure (dispatch-plan R9), mounted only
+// while `notebook_onboarding_enabled` is on -- with the gate off the chunk is never fetched.
+// The fallback is null: a tour that is still loading shows nothing, never a skeleton.
+const NotebookTourChunk = lazyChunk(() => import('../components/notebook/onboarding/NotebookTour'))
+function NotebookTour(props) {
+  return (
+    <Suspense fallback={null}>
+      <NotebookTourChunk {...props} />
+    </Suspense>
+  )
+}
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -428,6 +442,11 @@ export default function NotebookTab() {
   const {
     notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
   } = useJ2Notes({ sort: 'title' })
+  // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
+  // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
+  // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
+  const hasAnyNotes = allNotesTotal > 0
+  const notesKnown = allNotesTotal !== undefined
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -1564,7 +1583,7 @@ export default function NotebookTab() {
             onCreateNote={() => createNote()}
             onCreateThesis={() => handlePick(getTemplate('thesis'))}
             onImport={() => setImportOpen(true)}
-            hasAnyNotes={allNotesTotal > 0}
+            hasAnyNotes={hasAnyNotes}
           />
         ) : (
           <>
@@ -1603,7 +1622,7 @@ export default function NotebookTab() {
             </button>
           )}
           {!isShelfView && (
-            <div className={styles.viewModeWrap}>
+            <div className={styles.viewModeWrap} data-tour="view-switcher">
               {/*
                 ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
                 five hand-written blocks and every one of them was missing
@@ -1664,6 +1683,7 @@ export default function NotebookTab() {
               className={styles.importBtn}
               onClick={() => setImportOpen(true)}
               aria-haspopup="dialog"
+              data-tour="import"
             >
               <UIcon name="upload" size={16} gold={false} />
               Import
@@ -1701,6 +1721,7 @@ export default function NotebookTab() {
               className="btn btn-primary btn-sm"
               onClick={() => createNote()}
               disabled={creating}
+              data-tour="new-note"
             >
               + New note
             </button>
@@ -1988,6 +2009,9 @@ export default function NotebookTab() {
           </>
         )}
       </div>
+      {notebookFlag('notebook_onboarding_enabled') === true && (
+        <NotebookTour hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
+      )}
     </div>
     </SplitViewContext.Provider>
   )

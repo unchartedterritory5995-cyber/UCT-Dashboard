@@ -22,6 +22,9 @@ const LAZY = [
   '../components/notebook/NoteTasksView',
   '../components/notebook/import/ImportWizard',
   '../components/notebook/export/ExportDialog',
+  // Wave 8 seam S8-3: the first-run tour (lane 8C) -- its own chunk, mounted only while
+  // `notebook_onboarding_enabled` is on, outside the Notebook's first-open closure (R9).
+  '../components/notebook/onboarding/NotebookTour',
 ]
 
 const ast = JsxParser.parse(fs.readFileSync(FILE, 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
@@ -56,7 +59,7 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
     expect(staticImports).toContain('../lib/lazyChunk')
     expect(calls).toContain('useState') // non-vacuity: the walk sees ordinary calls
     expect(calls.filter((c) => c === 'lazy')).toEqual([])
-    expect(calls.filter((c) => c === 'lazyChunk')).toHaveLength(2) // lazyView + lazyDialog
+    expect(calls.filter((c) => c === 'lazyChunk')).toHaveLength(3) // lazyView + lazyDialog + the tour (S8-3)
   })
 
   it('the editor, the first paint, stays static', () => {

@@ -1207,7 +1207,7 @@ export default function FolderSidebar({
   }
 
   return (
-    <aside className={styles.sidebar}>
+    <aside className={styles.sidebar} data-tour="sidebar">
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
@@ -1239,6 +1239,7 @@ export default function FolderSidebar({
             onClick={() => setMode('search')}
             title="Search notes"
             aria-label="Search notes"
+            data-tour="search"
           >
             <SearchModeIcon />
           </button>
