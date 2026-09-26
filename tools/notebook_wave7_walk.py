@@ -65,6 +65,16 @@ traps bit real attempts, and they are still the three preconditions:
 `--only W14,W15` runs a subset (provisioning always runs) -- a SHAKE-OUT
 convenience; an evidence run runs everything.
 
+W13 IS DECIDED AFTER THE SANDBOX STOPS (tooling review I-2). When the rows are
+done the walk closes its browser and waits `--shutdown-wait` seconds (default
+the harness's 300) for the launcher's SHUTDOWN checkpoint: stop the sandbox
+then, gracefully (CTRL_BREAK to its process group, the harness's `_SHIM` path;
+never TerminateProcess, which skips the `finally` that writes that line). The
+log is read with `tools/notebook_perf_harness.read_integrity`; W13 is PASS only
+when pre-boot, +15 s and shutdown are all present and every checkpoint is
+CLEAN, INCONCLUSIVE when one is missing (or no log was given), FAIL when one is
+not CLEAN.
+
 Real Chromium (Playwright), synthetic accounts. Desktop 1280x800 unless noted.
 Each check records what the DOM or the API said; nothing is inferred.
 Selectors come ONLY from committed components and their own test files -- the
@@ -137,6 +147,87 @@ import urllib.request
 
 from playwright.sync_api import sync_playwright
 
+# ─────────────────────────────────────────────────────────────────────────────
+# THE IMPORTABLE PART (wave 7 phase 2). Everything above `ARGS = _ap.parse_args()`
+# runs with no argv, no browser and no sandbox: tests/test_notebook_wave7_walk.py
+# executes exactly this prefix (cut by AST at that assignment) to rail W13's
+# verdict. Nothing here reads ARGS or sends a request.
+# ─────────────────────────────────────────────────────────────────────────────
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO not in sys.path:
+    sys.path.insert(0, REPO)
+from tools import notebook_perf_harness as _harness  # noqa: E402  (ONE integrity-log reader, review I-2)
+
+# W13 needs the launcher's pre-boot, +15 s AND shutdown checkpoints -- the harness's
+# labels, which are the launcher's own words (railed against scripts/hub_sandbox_boot.py
+# by tests/test_notebook_perf_harness.py). +120 s is not required (a walk that ends
+# early has not reached it), but read_integrity still judges it when it is present.
+W13_REQUIRED = (_harness.PRE_BOOT, _harness.POST_BOOT, _harness.SHUTDOWN)
+
+
+def wait_for_shutdown_checkpoint(path, wait_s, *, poll_s=1.0):
+    """Wait, bounded by `wait_s`, for the sandbox's SHUTDOWN checkpoint to land in its
+    integrity log; the seconds waited. ⛔ WHY (tooling review I-2): the launcher hashes
+    C:\\data at pre-boot, +15 s, +120 s and shutdown, and the shutdown line is the ONLY
+    one taken after the walk's own writes -- a leak from a door the walk drives shows
+    there and nowhere else. It exists only once the sandbox has stopped, so the operator
+    stops it (gracefully, the SIGBREAK path) while this waits. Nothing to wait for (no
+    log, a zero budget, a shutdown line already there) returns at once."""
+    def has_shutdown():
+        return any(c["label"] == _harness.SHUTDOWN for c in _harness.read_integrity(path, [])["checkpoints"])
+    if not path or not os.path.isfile(path) or not wait_s or wait_s <= 0 or has_shutdown():
+        return 0.0
+    print(f"(W13: waiting up to {wait_s:.0f} s for the shutdown checkpoint in {path} -- stop the "
+          "sandbox now, gracefully; W13 is INCONCLUSIVE without it)", file=sys.stderr, flush=True)
+    start = _t.time()
+    while _t.time() - start < wait_s and not has_shutdown():
+        _t.sleep(poll_s)
+    return round(_t.time() - start, 2)
+
+
+def integrity_log_named_in(launcher_text):
+    """The path the launcher printed on its `[pre-boot] integrity log:` line (the harness's
+    own pattern), or None."""
+    for line in (launcher_text or "").splitlines():
+        m = _harness._INTEGRITY_PATH_RE.search(line)
+        if m:
+            return m["path"].strip()
+    return None
+
+
+def w13_integrity(path, launcher_text=None):
+    """The launcher's integrity log, read by the HARNESS's reader against W13_REQUIRED
+    (never a second parser), plus the review's cross-check: is `path` the log the launcher
+    itself named in its output? None = no launcher output to ask."""
+    integ = _harness.read_integrity(path, list(W13_REQUIRED))
+    named = integrity_log_named_in(launcher_text)
+    integ["launcher_log_names"] = named
+    integ["launcher_log_agrees"] = (None if not (named and path) else
+                                    os.path.normcase(os.path.abspath(named)) == os.path.normcase(os.path.abspath(path)))
+    return integ
+
+
+def w13_verdict(integ, genuine_errors):
+    """(verdict, reason) for W13. PASS needs EVIDENCE: every required checkpoint present
+    and every checkpoint CLEAN, in the log the launcher named, with no unforced page error.
+      * a checkpoint that is NOT CLEAN -> FAIL (the shared data root changed);
+      * an unforced page error -> FAIL;
+      * no log, or a required checkpoint missing (above all SHUTDOWN) -> INCONCLUSIVE;
+      * a log the launcher did not name -> INCONCLUSIVE.
+    ⚰️ It was `leak = all_clean is False` -> PASS: no `--integrity-log` was a PASS, the
+    shutdown line was never read, and a log holding only pre-boot read clean (review I-2)."""
+    if integ.get("status") == "NOT CLEAN":
+        return "FAIL", "the shared data root changed: " + (integ.get("why") or "")
+    if genuine_errors:
+        return "FAIL", f"{len(genuine_errors)} unforced page error(s) during the walk"
+    if not integ.get("clean"):
+        return "INCONCLUSIVE", f"sandbox integrity is {integ.get('status')}: {integ.get('why')}"
+    if integ.get("launcher_log_agrees") is False:
+        return "INCONCLUSIVE", ("--integrity-log is not the log the launcher named on its "
+                                f"`[pre-boot] integrity log:` line ({integ.get('launcher_log_names')})")
+    return "PASS", None
+
+
 _ap = argparse.ArgumentParser(description="Wave 7 live walk (see the module header).")
 _ap.add_argument("out", nargs="?", default="wave7_walk.json")
 _ap.add_argument("--base", default="http://127.0.0.1:8094")
@@ -147,6 +238,10 @@ _ap.add_argument("--launcher-log", default=None,
                  help="the sandbox launcher's captured stdout/stderr")
 _ap.add_argument("--integrity-log", default=None,
                  help="the launcher's own integrity log (<export>/docs/plans/joystick/sandbox-runs/<ts>.md)")
+_ap.add_argument("--shutdown-wait", type=float, default=_harness.BASE_SHUTDOWN_WAIT_S,
+                 help="seconds to wait, after the rows, for the sandbox's SHUTDOWN checkpoint "
+                      f"(default {_harness.BASE_SHUTDOWN_WAIT_S:.0f}, the harness's); stop the sandbox "
+                      "to supply it -- W13 is INCONCLUSIVE without it")
 _ap.add_argument("--dist", default=None, help="the app/dist the sandbox serves (for .vite/manifest.json)")
 _ap.add_argument("--only", default=None, help="comma list of check prefixes, e.g. W14,W15 (shake-out only)")
 ARGS = _ap.parse_args()
@@ -493,7 +588,6 @@ PNG_1PX = base64.b64decode(
 import hashlib  # noqa: E402
 import hmac  # noqa: E402
 
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_PATH = os.path.join(REPO, "api", "services", "desk_assets", "DejaVuSans-Bold.ttf")
 
 
@@ -3679,42 +3773,13 @@ with sync_playwright() as p:
     check_w23()
 
     # =========================================================================
-    # W13 -- errors + sandbox integrity (regression row), and W21's boundary row
+    # W21's boundary row, then W13 -- errors + sandbox integrity (regression row)
     # =========================================================================
-    integrity = {"log": ARGS.integrity_log, "reason": None}
-    if ARGS.integrity_log and os.path.exists(ARGS.integrity_log):
-        txt = read_text_any(ARGS.integrity_log)
-        checkpoints = [ln.strip() for ln in txt.splitlines() if ln.startswith("- `")]
-        integrity.update({
-            "checkpoint_lines": checkpoints,
-            "all_clean": bool(checkpoints) and all(ln.endswith("— CLEAN") for ln in checkpoints),
-            "tail": txt[-4000:],
-        })
-    else:
-        integrity["reason"] = "no --integrity-log given, or the file is missing"
-    res["sandbox_integrity"] = integrity
-    res["launcher_excerpts"] = {
-        "startup_gate_lines": launcher_lines(r"\[startup\] (j2-ocr|notebook )"),
-        "shared_root_blocked": launcher_lines(r"SHARED-ROOT WRITE BLOCKED"),
-        "integrity_lines": launcher_lines(r"shared data root (CLEAN|baseline)|\[post-boot\]|\[shutdown\]"),
-    }
-
     genuine_errors = [e for e in res["errors"] if FORCED_ERROR_MARKER not in e]
     deliberate_test_errors = [e for e in res["errors"] if FORCED_ERROR_MARKER in e]
     beacons = unforced_beacons()
     boundary_beacons = [b for b in beacons if b.get("kind") == "boundary"]
 
-    if wanted("W13"):
-        leak = integrity.get("all_clean") is False
-        record(
-            "W13_errors_and_sandbox_integrity",
-            "PASS" if not genuine_errors and not leak else "FAIL",
-            pageerror_count=len(genuine_errors), pageerrors=genuine_errors[:20],
-            deliberate_test_errors_excluded=len(deliberate_test_errors),
-            client_error_beacons_unforced=len(beacons), beacon_kinds=sorted({str(b.get("kind")) for b in beacons}),
-            beacons=beacons[:20], forced_beacon_fence=FORCED_BEACONS,
-            sandbox_integrity_all_clean=integrity.get("all_clean"), sandbox_integrity_log=integrity.get("log"),
-        )
     if wanted("W21"):
         record(
             "W21_no_route_error_boundary",
@@ -3728,7 +3793,38 @@ with sync_playwright() as p:
                   "(AppErrorFallback) seen by a mount waiter"),
         )
 
+    # ⛔ W13 IS JUDGED LAST, AFTER THE BROWSER HAS CLOSED (tooling review I-2). The shutdown
+    # checkpoint is the only one the launcher takes AFTER this walk's writes, and it exists
+    # only once the sandbox has stopped. So nothing of the walk's is left talking to the
+    # server, then it waits `--shutdown-wait` for the operator's graceful stop to write that
+    # line, then reads the log with the harness's reader: pre-boot, +15 s AND shutdown, all
+    # CLEAN, or W13 is not a PASS.
     browser.close()
+    shutdown_waited_s = (wait_for_shutdown_checkpoint(ARGS.integrity_log, ARGS.shutdown_wait)
+                         if wanted("W13") else None)
+    launcher_text = (read_text_any(ARGS.launcher_log)
+                     if ARGS.launcher_log and os.path.exists(ARGS.launcher_log) else None)
+    integrity = w13_integrity(ARGS.integrity_log, launcher_text)
+    integrity["shutdown_waited_s"] = shutdown_waited_s
+    res["sandbox_integrity"] = integrity
+    res["launcher_excerpts"] = {
+        "startup_gate_lines": launcher_lines(r"\[startup\] (j2-ocr|notebook )"),
+        "shared_root_blocked": launcher_lines(r"SHARED-ROOT WRITE BLOCKED"),
+        "integrity_lines": launcher_lines(r"shared data root (CLEAN|baseline)|\[post-boot\]|\[shutdown\]"),
+    }
+    if wanted("W13"):
+        w13_v, w13_why = w13_verdict(integrity, genuine_errors)
+        record(
+            "W13_errors_and_sandbox_integrity", w13_v, reason=w13_why,
+            pageerror_count=len(genuine_errors), pageerrors=genuine_errors[:20],
+            deliberate_test_errors_excluded=len(deliberate_test_errors),
+            client_error_beacons_unforced=len(beacons), beacon_kinds=sorted({str(b.get("kind")) for b in beacons}),
+            beacons=beacons[:20], forced_beacon_fence=FORCED_BEACONS,
+            sandbox_integrity_status=integrity["status"],
+            sandbox_integrity_checkpoints=[f'{c["label"]}: {c["verdict"]}' for c in integrity["checkpoints"]],
+            sandbox_integrity_required=integrity["required"], sandbox_integrity_log=integrity["path"],
+            launcher_log_names=integrity["launcher_log_names"], shutdown_waited_s=shutdown_waited_s,
+        )
 
 json.dump(res, open(OUT, "w", encoding="utf-8"), indent=1, ensure_ascii=False, default=str)
 print(json.dumps({"checks": {k: v.get("verdict") for k, v in res["checks"].items()}}, indent=1))
