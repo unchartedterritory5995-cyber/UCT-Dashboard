@@ -205,6 +205,23 @@ def test_the_summary_per_op_records_validate_against_the_reports_schema():
     assert rep.validate_summary(s) == ["H1: lacks reason"]
 
 
+def test_the_owners_console_lines_carry_the_runners_own_arm_options():
+    """One authority: the lines `--dry-run --corpus DIR` prints for a hand sitting ARE the options
+    this runner passes to arm() -- and the runner passes nothing else."""
+    manifest = json.loads(u.COMMITTED_MANIFEST.read_text(encoding="utf-8"))
+    for step in u.plan(manifest):
+        lines = u.console_lines(step)
+        opts = u.arm_options(step)
+        if step["kind"] == "cold":
+            assert opts is None and lines[0].startswith("await __uctBench.arm('cold')")
+            continue
+        assert f"__uctBench.arm('{step['kind']}', {json.dumps(opts)})" in lines
+        assert lines[0] == "await __uctBench.selfTest()"
+    src = (REPO / "tools" / "notebook_bench_uct.py").read_text(encoding="utf-8")
+    for kind in ("open", "search", "typing", "paste"):
+        assert f"pg.evaluate(\"o => window.__uctBench.arm('{kind}', o)\", arm_options(step))" in src, kind
+
+
 def test_the_plan_covers_every_op_with_the_manifests_markers():
     manifest = json.loads(u.COMMITTED_MANIFEST.read_text(encoding="utf-8"))
     steps = {s["id"]: s for s in u.plan(manifest)}

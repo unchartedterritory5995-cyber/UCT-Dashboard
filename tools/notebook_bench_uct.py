@@ -142,6 +142,42 @@ def plan(manifest: dict) -> list[dict]:
     return out
 
 
+def arm_options(step: dict) -> dict | None:
+    """The probe's arm() options for one op round -- the ONE source for both this runner and the
+    console lines the owner pastes (`--dry-run --corpus DIR` prints them). None for cold."""
+    kind = step["kind"]
+    if kind == "open":
+        o = {"marker": step["marker"], "mode": step["mode"], "reps": step["reps_per_round"],
+             "timeoutMs": PROBE_TIMEOUT_MS}
+        if step["mode"] == "full":
+            o["anchor"] = step["anchor"]
+        return o
+    if kind == "search":
+        return {"expectedTitle": step["expected_title"], "reps": step["reps_per_round"], "timeoutMs": PROBE_TIMEOUT_MS}
+    if kind == "typing":
+        return {"expectKeys": step["chars_per_round"]}
+    if kind == "paste":
+        return {"endMarker": step["end_marker"], "reps": step["reps_per_round"], "timeoutMs": PROBE_TIMEOUT_MS}
+    return None
+
+
+def console_lines(step: dict) -> list[str]:
+    """What the owner types in DevTools for one round of this op, in order."""
+    opts = arm_options(step)
+    guard = {"open": step.get("marker"), "search": step.get("expected_title"),
+             "paste": step.get("end_marker")}.get(step["kind"])
+    lines = ["await __uctBench.selfTest()"]
+    if guard:
+        lines.append(f"__uctBench.check({json.dumps(guard)})    // must print: absent")
+    if step["kind"] == "cold":
+        lines = ["await __uctBench.arm('cold')    // FIRST, before any click in the page", "await __uctBench.selfTest()"]
+    else:
+        lines.append(f"__uctBench.arm('{step['kind']}', {json.dumps(opts)})")
+    lines.append("// ...close DevTools, do the reps, reopen DevTools...")
+    lines.append(f"copy(__uctBench.dump('<app>', '{step['id']}'))    // save as <app>__{step['id']}__r<round>.json")
+    return lines
+
+
 def summarize_op(op: dict, dumps: list[dict], failure: str | None = None, paths: list[str] | None = None) -> dict:
     """One per-op record in A5's SUMMARY_OP_KEYS. Pure."""
     samples = [x for d in dumps for x in d.get("samples", [])]
@@ -306,9 +342,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
         card.wait_for(state="visible", timeout=30000)
         if pg.evaluate("m => window.__uctBench.has(m)", step["marker"]):
             raise OpInconclusive(f"the marker is in the page before the first rep ({step['marker']})")
-        pg.evaluate("o => window.__uctBench.arm('open', o)",
-                    {"marker": step["marker"], "mode": step["mode"], "anchor": step["anchor"],
-                     "reps": step["reps_per_round"], "timeoutMs": PROBE_TIMEOUT_MS})
+        pg.evaluate("o => window.__uctBench.arm('open', o)", arm_options(step))
         for k in range(1, step["reps_per_round"] + 1):
             card.click()
             _wait_attempts(pg, k)
@@ -316,9 +350,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
             card.wait_for(state="visible", timeout=30000)
         return _dump(pg, step["id"], rnd, dumps_dir)
     if kind == "search":
-        pg.evaluate("o => window.__uctBench.arm('search', o)",
-                    {"expectedTitle": step["expected_title"], "reps": step["reps_per_round"],
-                     "timeoutMs": PROBE_TIMEOUT_MS})
+        pg.evaluate("o => window.__uctBench.arm('search', o)", arm_options(step))
         if step["target"] == "rare":
             pg.get_by_role("tab", name="Search notes").click()
             box = pg.get_by_label("Search your notes")
@@ -342,7 +374,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
         pg.wait_for_function("m => window.__uctBench.has(m)", arg=step["last_marker"], timeout=60000)
         pg.locator(".ProseMirror p").first.click()
         pg.keyboard.press("Control+End")                                 # the caret at the end: a real key
-        pg.evaluate("n => window.__uctBench.arm('typing', {expectKeys: n})", step["chars_per_round"])
+        pg.evaluate("o => window.__uctBench.arm('typing', o)", arm_options(step))
         pg.keyboard.type("x" * step["chars_per_round"], delay=TYPE_DELAY_MS)
         try:
             pg.wait_for_function("n => window.__uctBench.status().samples >= n", arg=step["chars_per_round"],
@@ -367,8 +399,7 @@ def _drive(pg, step: dict, rnd: int, ids: dict, corpus_dir: Path, grid, self_tes
         }""", [html, plain])
         if wrote != "ok":
             raise OpInconclusive(f"the clipboard write failed ({wrote}); never a synthetic ClipboardEvent")
-        pg.evaluate("o => window.__uctBench.arm('paste', o)",
-                    {"endMarker": step["end_marker"], "reps": step["reps_per_round"], "timeoutMs": PROBE_TIMEOUT_MS})
+        pg.evaluate("o => window.__uctBench.arm('paste', o)", arm_options(step))
         for k in range(1, step["reps_per_round"] + 1):
             pg.locator('[data-tour="new-note"]').first.click()
             pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
@@ -436,12 +467,23 @@ def _measure(args, manifest: dict, corpus_dir: Path, home: Path, stem: str):
     return integ, live, failure, not_run, note
 
 
-def dry_run() -> int:
+def dry_run(corpus_dir: Path | None = None) -> int:
+    """No browser, no sandbox, no lock. With --corpus, also print the exact console lines the owner
+    pastes for that corpus (the same arm_options this runner uses)."""
     version = rep.probe_version()
     src = PROBE_FILE.read_text(encoding="utf-8")
     assert "window.__uctBench" in src and not re.search(r"^\s*(import|export)\s", src, re.M), "the probe is not self-contained"
-    manifest = json.loads(COMMITTED_MANIFEST.read_text(encoding="utf-8"))
+    mpath = (corpus_dir / corpus_tool.MANIFEST_NAME) if corpus_dir else COMMITTED_MANIFEST
+    manifest = json.loads(mpath.read_text(encoding="utf-8"))
     steps = plan(manifest)
+    if corpus_dir:
+        print(f"CONSOLE LINES for the corpus at {corpus_dir} (probe {version}):")
+        for s in steps:
+            what = f"; type: {s['query']}" if s["kind"] == "search" else ""
+            print(f"\n## {s['id']} -- {s['what']}{what}")
+            for line in console_lines(s):
+                print(f"    {line}")
+        print("")
     assert [s["id"] for s in steps] == [o["id"] for o in rep.OPS]
     for s in steps:
         need = {"open": ("marker", "anchor", "note_key"), "search": ("expected_title", "query"),
@@ -490,7 +532,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
-        return dry_run()
+        return dry_run(Path(args.corpus) if args.corpus else None)
     if not args.boot or not args.data_dir or not args.corpus or not args.json_path:
         return refusal("pass --boot, --data-dir, --corpus and --json (or --dry-run)")
     why = h.refuse_shared_root(args.data_dir)

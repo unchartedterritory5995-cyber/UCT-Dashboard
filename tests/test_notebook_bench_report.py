@@ -72,12 +72,16 @@ def _row(text: str, op: str, label: str) -> list[str]:
 # ── the committed artifacts ────────────────────────────────────────────────────────────────
 
 def test_the_committed_results_equal_the_tools_output_over_the_committed_run():
+    """Regenerated from the inputs results.md names on its own Inputs line -- today the empty run
+    and the FILL template; after a sitting, that sitting's directory and machine.json."""
     committed = (BENCH / "results.md").read_bytes().replace(b"\r\n", b"\n").decode("utf-8")
-    fresh = r.build_report(BENCH / "runs", BENCH / "machine.json")
+    run, machine, auto = r.inputs_of(committed)
+    assert run.is_dir() and machine.is_file(), (run, machine)
+    fresh = r.build_report(run, machine, auto)
     assert committed == fresh, ("docs/notebook/benchmark/results.md is not the tool's output: regenerate it "
                                 "with tools/notebook_bench_report.py, never edit it by hand")
-    dumps = [p for p in (BENCH / "runs").rglob("*.json")]
-    if not dumps:   # until the owner's first sitting, EVERY cell reads NOT MEASURED
+    dumps = [p for p in run.rglob("*.json") if p.name != "machine.json"]
+    if not dumps and auto is None:   # until the owner's first sitting, EVERY cell reads NOT MEASURED
         for op in r.OPS:
             for _, label, _ in r.APPS:
                 n, p50, p95 = _row(fresh, op["id"], label)[3:6]

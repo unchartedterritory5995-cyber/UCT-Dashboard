@@ -5,6 +5,7 @@
 > Internal only until the owner has checked each vendor's terms on publishing benchmarks (ruling D-9A6).
 
 - Probe: `tools/bench_probes/bench_probe.js`, version `uct-bench-probe/1`.
+- Inputs: --run `docs/notebook/benchmark/runs` --machine `docs/notebook/benchmark/machine.json` --uct-auto `(none)`
 - Hand run directory: `docs/notebook/benchmark/runs`.
 - Machine record: `docs/notebook/benchmark/machine.json` -- REFUSED: machine.json still holds FILL in 18 of 18 keys (run_id, sitting_date, operator, machine_name, ...) -- a template, not a sitting.
 - UCT automated summary: not given -- the UCT sandbox row reads NOT MEASURED.

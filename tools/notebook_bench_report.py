@@ -366,9 +366,26 @@ def _instrument(app: str, op: dict, version: str) -> str:
     return f"bench_probe.js `{version}`, {how}{lcp}"
 
 
+INPUTS_RE = re.compile(r"^- Inputs: --run `(?P<run>[^`]+)` --machine `(?P<machine>[^`]+)` "
+                       r"--uct-auto `(?P<auto>[^`]+)`$", re.M)
+
+
+def inputs_of(results_text: str) -> tuple[Path, Path, Path | None]:
+    """The three inputs a results.md was generated from, read off its own Inputs line -- so the
+    rail can regenerate ANY committed results.md (the empty template run, or a real sitting with
+    its own machine.json) from exactly what produced it."""
+    m = INPUTS_RE.search(results_text)
+    if not m:
+        raise ValueError("results.md has no Inputs line")
+    def resolve(s: str) -> Path:
+        p = Path(s)
+        return p if p.is_absolute() else REPO / p
+    return resolve(m["run"]), resolve(m["machine"]), (None if m["auto"] == "(none)" else resolve(m["auto"]))
+
+
 def render(cells: dict, refused: list, *, version: str, run_dir: Path, machine_path: Path,
            machine: dict | None, machine_problem: str | None, auto_note: str,
-           apps: tuple = APPS) -> str:
+           apps: tuple = APPS, auto_path: Path | None = None) -> str:
     lines = [
         "# Head-to-head benchmark: results",
         "",
@@ -379,6 +396,8 @@ def render(cells: dict, refused: list, *, version: str, run_dir: Path, machine_p
         "> Internal only until the owner has checked each vendor's terms on publishing benchmarks (ruling D-9A6).",
         "",
         f"- Probe: `tools/bench_probes/bench_probe.js`, version `{version}`.",
+        f"- Inputs: --run `{_display(run_dir)}` --machine `{_display(machine_path)}` "
+        f"--uct-auto `{_display(auto_path) if auto_path else '(none)'}`",
         f"- Hand run directory: `{_display(run_dir)}`.",
         f"- Machine record: `{_display(machine_path)}` -- "
         + (f"REFUSED: {machine_problem}." if machine is None else
@@ -451,7 +470,7 @@ def build_report(run_dir: Path, machine_path: Path, uct_auto: Path | None = None
     auto_cells, auto_refused, auto_note = collect_auto(uct_auto, version)
     cells.update(auto_cells)
     return render(cells, refused + auto_refused, version=version, run_dir=run_dir, machine_path=machine_path,
-                  machine=machine, machine_problem=problem, auto_note=auto_note, apps=apps)
+                  machine=machine, machine_problem=problem, auto_note=auto_note, apps=apps, auto_path=uct_auto)
 
 
 def main(argv: list[str] | None = None) -> int:
