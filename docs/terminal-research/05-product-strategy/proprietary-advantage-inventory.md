@@ -184,7 +184,7 @@ this is the case that proves it: nothing about the 7,766 rows is in doubt except
 
 ⚠️ **An open question this creates rather than closes, stated and not resolved:** whether the ~750
 community-member figure this programme quotes counts the Whop audience, the UCT Intelligence audience,
-or a union of the two. Nobody knows yet. So no row here reasons from community size.
+or a union of the two. ✅ **CLOSED THE SAME DAY, 2026-09-26 — and this file already says so in §0.0b, so it contradicted itself:** the owner stated *"We have 750 members in discord paying"*, so the figure is the **Whop product's paying Discord members** (CARD 25 §3). ⛔ The boundary rule this paragraph exists to enforce is UNCHANGED and still right — **no row here reasons from community size, and the two populations are never one denominator** (UCT Intelligence is ~26 accounts, 13 with any page-view row). Only the *"nobody knows"* clause was stale.
 
 ### 0.6 The deriving commands
 
