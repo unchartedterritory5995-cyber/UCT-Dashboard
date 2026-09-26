@@ -1,0 +1,102 @@
+[
+ {
+  "at": "15:26:09",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "15:26:19",
+  "step": "E1 Alt+Left in the default headless shell",
+  "browser": "145.0.7632.6",
+  "opened": "/journal/notebook?note=db57c43645004dc2acac498b479e2730",
+  "after": "/journal/notebook?note=db57c43645004dc2acac498b479e2730",
+  "went_back": false
+ },
+ {
+  "at": "15:26:29",
+  "step": "E1 Alt+Left in the new headless (channel=chromium)",
+  "browser": "145.0.7632.6",
+  "opened": "/journal/notebook?note=db57c43645004dc2acac498b479e2730",
+  "after": "/journal/notebook?note=db57c43645004dc2acac498b479e2730",
+  "went_back": false
+ },
+ {
+  "at": "15:26:31",
+  "step": "E2 variant a: '+ New note'",
+  "editor_opened": true,
+  "steps": [],
+  "focus_before_click": "BODY.",
+  "urls_after_click": [
+   "/journal/notebook?note=cbfee9a32a65497f9972a9352cf8782a"
+  ],
+  "url_now": "/journal/notebook?note=cbfee9a32a65497f9972a9352cf8782a"
+ },
+ {
+  "at": "15:26:32",
+  "step": "E2 variant b: '+ New note'",
+  "editor_opened": true,
+  "steps": [
+   [
+    "selfTest",
+    true
+   ]
+  ],
+  "focus_before_click": "BODY.",
+  "urls_after_click": [
+   "/journal/notebook?note=4cfb608fa74c4fa29ba1f0ecd4a0c859"
+  ],
+  "url_now": "/journal/notebook?note=4cfb608fa74c4fa29ba1f0ecd4a0c859"
+ },
+ {
+  "at": "15:26:34",
+  "step": "E2 variant c: '+ New note'",
+  "editor_opened": true,
+  "steps": [
+   [
+    "selfTest",
+    true
+   ],
+   [
+    "clipboard",
+    "text/plain,text/html"
+   ]
+  ],
+  "focus_before_click": "BODY.",
+  "urls_after_click": [
+   "/journal/notebook?note=aee7f7e159e24fd8b72763c911a9f8d7"
+  ],
+  "url_now": "/journal/notebook?note=aee7f7e159e24fd8b72763c911a9f8d7"
+ },
+ {
+  "at": "15:26:35",
+  "step": "E2 variant d: '+ New note'",
+  "editor_opened": true,
+  "steps": [
+   [
+    "selfTest",
+    true
+   ],
+   [
+    "clipboard",
+    "text/plain,text/html"
+   ],
+   [
+    "arm",
+    "[uctBench] armed paste for 1 reps; target absent now"
+   ]
+  ],
+  "focus_before_click": "BODY.",
+  "urls_after_click": [
+   "/journal/notebook?note=37d88d8ed91f4b4ca437edca1d912593"
+  ],
+  "url_now": "/journal/notebook?note=37d88d8ed91f4b4ca437edca1d912593"
+ },
+ {
+  "at": "15:26:36",
+  "step": "E3 Ctrl+A/Ctrl+C in paste-payload.html, read from the UCT page",
+  "clipboard": [
+   "text/plain:38137",
+   "text/html:147328"
+  ]
+ }
+]
