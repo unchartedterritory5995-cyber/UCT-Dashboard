@@ -76,9 +76,10 @@ read at CALL time so the conftest census pins it and a monkeypatch reaches it).
 Rows are kept `RETENTION_DAYS` (14) and pruned opportunistically on write.
 
 ⛔ THE STORE IS BOUNDED IN BYTES, and that bound — not the rate limit — is the
-real one against a caller rotating keys. `client_ip` trusts `CF-Connecting-IP`
-first, so a caller that reaches the origin directly can present a fresh address
-on every request and a per-key limit counts nothing. So:
+real one against a caller rotating keys. Since 2026-09-26 `client_ip` trusts
+`CF-Connecting-IP` only behind a Cloudflare edge, so a direct caller can no longer
+forge a fresh address per request -- but a caller with many real addresses still
+can, and a per-key limit alone would count little. So:
   * every field is capped in UTF-8 bytes; the caps plus the fixed columns sum
     under MAX_ROW_BYTES (8 KiB);
   * the table is hard-capped at MAX_ROWS (15,000) rows; every write deletes the
