@@ -311,3 +311,101 @@ def test_the_runner_evaluates_the_probe_file_itself():
 ])
 def test_every_selector_the_runner_uses_is_in_the_product(path, needle):
     assert needle in (REPO / path).read_text(encoding="utf-8"), f"{path} no longer carries {needle!r}"
+
+
+# ── H8's create pacing (_Traffic): experiment 5's second click, ~50 ms after Back, opened nothing ──
+
+class _Evt:
+    def __init__(self, url, resource_type="fetch"):
+        self.url, self.resource_type = url, resource_type
+
+
+class _EventPage:
+    """Only what _Traffic touches: `on` and `wait_for_timeout` (which really sleeps)."""
+
+    def __init__(self):
+        self.handlers = {}
+
+    def on(self, name, fn):
+        self.handlers.setdefault(name, []).append(fn)
+
+    def emit(self, name, req):
+        for fn in self.handlers.get(name, []):
+            fn(req)
+
+    def wait_for_timeout(self, ms):
+        import time as _t
+        _t.sleep(ms / 1000)
+
+
+def test_the_traffic_gate_waits_for_short_requests_and_never_for_a_stream():
+    pg = _EventPage()
+    t = u._Traffic(pg)
+    stream = _Evt("http://127.0.0.1:8096/api/stream/prices?tickers=SPY", "eventsource")
+    fetch = _Evt("http://127.0.0.1:8096/api/j2/notes?sort=title")
+    pg.emit("request", stream)                          # never finishes, and must not block
+    assert t.quiet(pg, quiet_ms=30, timeout_s=2) is True
+    pg.emit("request", fetch)                           # a refetch in flight: not quiet
+    assert t.quiet(pg, quiet_ms=30, timeout_s=0.3) is False
+    pg.emit("requestfinished", fetch)
+    assert t.quiet(pg, quiet_ms=30, timeout_s=2) is True
+    pg.emit("requestfinished", stream)                  # a stream's end never drives the count negative
+    assert t.inflight == 0
+
+
+class _Loc:
+    def __init__(self, page, sel):
+        self.page, self.sel, self.first = page, sel, self
+
+    def click(self):
+        self.page.log.append(("click", self.sel))
+
+    def wait_for(self, **_):
+        self.page.log.append(("wait_for", self.sel))
+        if self.sel == ".ProseMirror":                  # the editor never shows in this fixture
+            raise TimeoutError("waiting for locator('.ProseMirror').first to be visible")
+
+
+class _PastePage:
+    url = "http://127.0.0.1:8096/journal/notebook?view=all"
+
+    def __init__(self):
+        self.log = []
+
+    def bring_to_front(self):
+        pass
+
+    def evaluate(self, script, arg=None):
+        return "ok" if "clipboard" in script else None
+
+    def locator(self, sel):
+        return _Loc(self, sel)
+
+    def wait_for_url(self, pred, timeout):
+        self.log.append(("wait_for_url", timeout))
+        if not pred(self.url):                          # the click opened nothing: the URL never moved
+            raise TimeoutError(f"wait_for_url timed out after {timeout} ms")
+
+
+class _Quiet:
+    def __init__(self, page):
+        self.page = page
+
+    def quiet(self, pg):
+        self.page.log.append(("quiet",))
+        return True
+
+
+def test_each_create_waits_for_quiet_and_a_click_that_opens_nothing_is_INCONCLUSIVE(tmp_path):
+    (tmp_path / "paste-payload.html").write_text("<p>fixture-app paste</p>", encoding="utf-8")
+    (tmp_path / "paste-payload.txt").write_text("fixture-app paste", encoding="utf-8")
+    pg = _PastePage()
+    step = {"id": "H8", "kind": "paste", "reps_per_round": 5, "end_marker": "zzqbfixtureend"}
+    with pytest.raises(u.OpInconclusive) as ei:
+        u._drive(pg, step, 1, {}, tmp_path, lambda: None, lambda where: {"ok": True}, tmp_path,
+                 traffic=_Quiet(pg))
+    msg = str(ei.value)
+    assert "rep 1" in msg and "no note opened" in msg and "nothing was pasted" in msg, msg
+    kinds = [e[0] for e in pg.log]
+    assert kinds.index("quiet") < kinds.index("click"), f"the create must wait for quiet first: {kinds}"
+    assert ("wait_for", ".ProseMirror") not in pg.log, "the create check decides before the editor wait"
