@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
@@ -84,6 +84,22 @@ export default function Sheet({
   const onCloseRef = useRef(onClose)
   useLayoutEffect(() => { onCloseRef.current = onClose }, [onClose])
 
+  // ⛔⛔ WHERE FOCUS WAS BEFORE THE SHEET OPENED IS READ DURING RENDER — the one
+  // moment no child of this sheet can have taken it yet. React applies a
+  // child's `autoFocus` during COMMIT, before any effect or layout effect of
+  // this component runs, so the focus effect below used to record the child's
+  // own field as "where focus was" and, on close, focus a field that no longer
+  // existed: focus fell to <body>. Measured on the Notebook's "Save view"
+  // dialog (wave 8, lane 8A, a11y/focusFlows.test.jsx) — every Sheet with an
+  // autoFocus child lost its restore this way. Memoised on `open`, so it is read
+  // once per opening (no ref is touched during render); if React ever drops the
+  // memo the effect's own fallback is exactly the old behaviour.
+  // Rail: Sheet.autoFocus.test.jsx.
+  const openerAtRender = useMemo(
+    () => (open && typeof document !== 'undefined' ? document.activeElement : null),
+    [open],
+  )
+
   // Resolve effective variant
   const resolved =
     variant === 'auto' ? (isTouch ? 'bottom-sheet' : 'modal') : variant
@@ -100,7 +116,12 @@ export default function Sheet({
   // Escape to close + focus management
   useEffect(() => {
     if (!open) return
-    restoreFocusRef.current = document.activeElement
+    // The opener captured at render (see openerAtRender); the live value only
+    // when there was none -- never a child that took focus during commit.
+    const opener = openerAtRender
+    restoreFocusRef.current = opener && opener !== document.body && !panelRef.current?.contains(opener)
+      ? opener
+      : document.activeElement
     // ⛔ THE TOPMOST OPEN SHEET ANSWERS, AND ONLY IT. Sheets nest (a chart
     // pop-out inside the phone earnings modal), every one listens here on the
     // same node, and stopPropagation cannot stop a sibling listener — the
@@ -163,7 +184,9 @@ export default function Sheet({
       const el = restoreFocusRef.current
       if (el && typeof el.focus === 'function') el.focus()
     }
-  }, [open])
+    // `openerAtRender` changes exactly when `open` does (it is memoised on it),
+    // so this is still keyed once per open.
+  }, [open, openerAtRender])
 
   // Reset drag offset whenever opened
   useEffect(() => { if (open) { dragYRef.current = 0; setDragY(0) } }, [open])

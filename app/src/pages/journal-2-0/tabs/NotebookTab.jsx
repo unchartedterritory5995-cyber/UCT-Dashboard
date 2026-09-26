@@ -475,6 +475,14 @@ export default function NotebookTab() {
   const viewParam = searchParams.get('view')
   const viewAll = viewParam === 'all' || viewParam === 'tasks'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // Wave 8 (8A): the pane heading's words -- what the member is looking at.
+  const paneHeading = isTrashView ? 'Trash'
+    : isArchiveView ? 'Archived notes'
+      : isHome ? 'Research home'
+        : activeView?.name ? `Saved view: ${activeView.name}`
+          : tag ? `Notes tagged ${tag}`
+            : folderId ? 'Notes in this folder'
+              : 'All notes'
   // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
   // pattern as `?folder=`/`?ticker=` above): it selects the Tasks mode and
   // becomes the explicit All-notes state, so the switcher, a reload and Back
@@ -540,6 +548,20 @@ export default function NotebookTab() {
   }, [sideParam, noteId, setSearchParams])
   const mainPaneRef = useRef(null)
   const sidePaneRef = useRef(null)
+  // ── Wave 8 (8A, A4): focus always has somewhere to go ──────────────────────
+  // ⛔ When the note pane empties, the element that held focus is gone with it,
+  // and a keyboard member is dropped at the top of the page. Three places to
+  // land, in order: the row a delete leaves NEXT, the row the note was opened
+  // from, and -- when there is no such row -- the heading of what the pane now
+  // shows (`paneHeadingRef`, visually hidden until it takes focus).
+  const mainRef = useRef(null)
+  const paneHeadingRef = useRef(null)
+  // { id, order } -- the note last opened and the row order it was opened from
+  const openedFromRef = useRef(null)
+  // what the NEXT emptying of the pane should focus: { rowId } | { heading: true }
+  const paneFocusPlanRef = useRef(null)
+  // the note whose title input takes focus once it loads (an explicit open only)
+  const [titleFocusFor, setTitleFocusFor] = useState(null)
   // A refusal is said IN the pane it points at, and focus goes there.
   const [paneNotice, setPaneNotice] = useState(null) // { pane: 'main'|'side', text }
   useEffect(() => {
@@ -564,6 +586,15 @@ export default function NotebookTab() {
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
     setPaneNotice(null)
+    // Wave 8 (8A): remember where this note was opened FROM (the rows on
+    // screen, in order) so the way back -- or a delete -- can put focus on a
+    // row; and give the title the focus, unless the open aims somewhere
+    // inside the note (a task, a page, an excerpt), which is where it goes.
+    const rows = mainRef.current
+      ? [...mainRef.current.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
+      : []
+    openedFromRef.current = { id: note.id, order: [...new Set(rows)] }
+    setTitleFocusFor(!target && !(Number.isInteger(task) && task >= 0) ? note.id : null)
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -580,7 +611,19 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
   }
-  const closeNote = () => {
+  const closeNote = (opts) => {
+    // Wave 8 (8A): the editor closes itself after a delete with
+    // `{ trashed: id }` (every other caller passes nothing, or a click event).
+    // The deleted note's row is gone, so focus goes to the row AFTER it in
+    // the order it was opened from, or to the pane heading when it was last.
+    const trashed = opts && typeof opts === 'object' && typeof opts.trashed === 'string' ? opts.trashed : null
+    if (trashed) {
+      const order = openedFromRef.current?.id === trashed ? openedFromRef.current.order : []
+      const at = order.indexOf(trashed)
+      const nextId = at >= 0 ? order[at + 1] : undefined
+      paneFocusPlanRef.current = nextId ? { rowId: nextId } : { heading: true }
+      openedFromRef.current = null
+    }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       // Wave 6 item 7: with a note open beside it, closing this one (the
@@ -593,6 +636,49 @@ export default function NotebookTab() {
     refresh()
     refreshAll()
     refreshSidebarCounts()
+  }
+
+  // Wave 8 (8A): the pane just emptied (Back, a delete, anything that drops
+  // `?note=`). ⛔ Only when focus was LOST with it -- a member who clicked a
+  // folder in the sidebar is holding focus there on purpose, and taking it
+  // away from them is the opposite defect.
+  const prevPaneNoteRef = useRef(noteId)
+  useEffect(() => {
+    const was = prevPaneNoteRef.current
+    prevPaneNoteRef.current = noteId
+    if (!was || noteId) return
+    const plan = paneFocusPlanRef.current || (openedFromRef.current ? { rowId: openedFromRef.current.id } : { heading: true })
+    paneFocusPlanRef.current = null
+    const active = document.activeElement
+    if (active && active !== document.body && document.contains(active)) return
+    focusPaneTarget(plan)
+  }, [noteId])
+
+  /** A row by note id (a card is a button; a table row holds one), else the
+   *  pane heading. */
+  function focusPaneTarget(plan) {
+    const root = mainRef.current
+    if (plan?.rowId && root) {
+      const row = [...root.querySelectorAll('[data-note-card-id]')]
+        .find((el) => el.getAttribute('data-note-card-id') === plan.rowId)
+      const target = row && (row.matches('button, a[href], [tabindex]')
+        ? row
+        : row.querySelector('button, a[href], [tabindex]:not([tabindex="-1"])'))
+      if (target) { target.focus(); return }
+    }
+    paneHeadingRef.current?.focus()
+  }
+
+  // The skip link's target: the note's title (or its pane, while it loads), or
+  // the heading of whatever the pane shows.
+  const skipToPane = (e) => {
+    e.preventDefault()
+    if (noteId) {
+      const title = mainPaneRef.current?.querySelector('input[aria-label="Note title"]')
+      ;(title || mainPaneRef.current)?.focus()
+      return
+    }
+    paneHeadingRef.current?.focus()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -1321,6 +1407,12 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
+      {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
+          folder tree, straight to the note or the list. Visually hidden until
+          it takes focus. */}
+      <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
+        {noteId ? 'Skip to note' : 'Skip to notes list'}
+      </a>
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
@@ -1461,7 +1553,17 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}>
+      <div
+        ref={mainRef}
+        id="notebook-pane"
+        className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}
+      >
+        {/* Wave 8 (8A, A4): what the pane shows, as a heading -- the landing
+            place for the skip link and for focus when a delete leaves no row
+            after it. Visually hidden until it takes focus. */}
+        {!noteId && (
+          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
+        )}
         {noteId ? (
           <>
           {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
@@ -1487,6 +1589,9 @@ export default function NotebookTab() {
                 noteId={noteId}
                 onBack={closeNote}
                 showBack={false}
+                // Wave 8 (8A): an explicit open lands in the title.
+                focusTitle={titleFocusFor === noteId}
+                onTitleFocused={() => setTitleFocusFor(null)}
                 onTitleChange={updateTreeNoteTitle}
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders

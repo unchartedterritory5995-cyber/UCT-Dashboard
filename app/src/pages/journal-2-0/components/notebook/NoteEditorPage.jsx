@@ -424,7 +424,11 @@ export function NoteLinkedTradeChips({ noteId }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
+export default function NoteEditorPage({
+  noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
+  // Wave 8 (8A, A4): an explicit open from the Notebook lands in the title.
+  focusTitle = false, onTitleFocused = null,
+}) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
@@ -543,10 +547,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // Only when the find bar's OWN input isn't already handling it (its
       // handler calls stopPropagation on Escape) -- this is the fallback
       // for Escape pressed while focus is elsewhere on the page.
-      setFindOpen(false)
-      setFindWithReplace(false)
-      editor?.commands.noteFindClear()
+      closeFind()
     }
+  }
+
+  // Wave 8 (8A, A4): closing find hands focus back to the note -- the caret
+  // where it was -- instead of dropping it with the bar that held it.
+  const closeFind = () => {
+    setFindOpen(false)
+    setFindWithReplace(false)
+    editor?.commands.noteFindClear()
+    editor?.commands.focus()
   }
 
   const onToggleFavorite = async () => {
@@ -627,6 +638,22 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // stale the moment the header wraps — review finding).
   const chromeRef = useRef(null)
   const pageRef = useRef(null)
+  // Wave 8 (8A, A4): focus has somewhere to land -- the title on an explicit
+  // open, the Ask toggle when Ask closes (see `askRowRef` below).
+  const titleInputRef = useRef(null)
+  const titleFocusDoneRef = useRef(false)
+  const askRowRef = useRef(null)
+  useEffect(() => {
+    if (!focusTitle || titleFocusDoneRef.current || !titleInputRef.current) return
+    titleFocusDoneRef.current = true
+    titleInputRef.current.focus({ preventScroll: true })
+    onTitleFocused?.()
+  }, [focusTitle, isLoading, note, onTitleFocused])
+  /** Ask's panel lives in AskPanel; its toggle is the button that opened it.
+   *  Closing the panel unmounts what held focus, so focus goes back there. */
+  const focusAskToggle = () => {
+    askRowRef.current?.querySelector('button[aria-expanded][aria-label^="Ask a question"]')?.focus()
+  }
   useEffect(() => {
     const chrome = chromeRef.current
     const page = pageRef.current
@@ -2734,7 +2761,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
-      onBack()
+      // Wave 8 (8A): say WHICH note went, so the list can put focus on the
+      // row after it (NotebookTab.closeNote).
+      onBack({ trashed: noteId })
       return
     }
     // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
@@ -3086,7 +3115,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
           </div>
         )}
-        <div className={styles.headerControls} data-tour="ask-row">
+        <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
           <button
             type="button"
             className={styles.chromeBtn}
@@ -3108,6 +3137,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
             onInsert={askInsertHere}
+            onClose={focusAskToggle}
           />
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
@@ -3520,6 +3550,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
             NoteEditorPage.unreadable.test.jsx. */}
         <input
+          ref={titleInputRef}
           className={styles.titleInput}
           readOnly={locked || unreadable}
           value={title}
@@ -3573,7 +3604,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <NoteFindBar
             editor={editor}
             initialReplace={findWithReplace}
-            onClose={() => { setFindOpen(false); setFindWithReplace(false); editor?.commands.noteFindClear() }}
+            onClose={closeFind}
           />
         )}
 

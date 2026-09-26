@@ -56,3 +56,31 @@ test('the Notebook "Save view" dialog opens with its name field focused, ready t
   await frames(3)
   expect(document.activeElement).toBe(document.getElementById('save-view-name'))
 })
+
+// Wave 8, lane 8A (A4): the restore half. React focuses an autoFocus child
+// during commit, BEFORE the Sheet's effect reads "where focus was" -- so the
+// effect recorded the child's own field, and on close focused a field that no
+// longer existed: focus fell to <body>. The opener is now captured at render.
+function OpenerHost({ autoFocus }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>Open</button>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Name it">
+        <input aria-label="View name" autoFocus={autoFocus} />
+      </Sheet>
+    </>
+  )
+}
+
+test.each([[true], [false]])('closing gives focus back to the button that opened it (child autoFocus: %s)', async (autoFocus) => {
+  render(<OpenerHost autoFocus={autoFocus} />)
+  const opener = screen.getByRole('button', { name: 'Open' })
+  opener.focus()
+  fireEvent.click(opener)
+  await frames(3)
+  expect(document.activeElement).not.toBe(opener) // focus really went into the sheet
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(screen.queryByRole('textbox', { name: 'View name' })).toBeNull()
+  expect(document.activeElement).toBe(opener)
+})
