@@ -44,7 +44,7 @@
   background: var(--bg-hover);
 }
 .option:focus-within {
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--ut-gold);
 }
 .optionOn {
   border-color: var(--ut-gold);

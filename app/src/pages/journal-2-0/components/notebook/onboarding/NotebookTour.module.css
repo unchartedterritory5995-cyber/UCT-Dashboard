@@ -36,11 +36,11 @@
   font-weight: 600;
   color: var(--text-bright);
 }
-.title:focus {
-  outline: none;
-}
+/* The heading takes focus on every step so a screen reader reads it; the ring is the
+   solid gold one (the translucent --focus-ring is 1.72:1 on the light theme). */
 .title:focus-visible {
-  box-shadow: var(--focus-ring);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
   border-radius: var(--radius-sm);
 }
 .body {
@@ -79,7 +79,7 @@
 }
 .skip:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--ut-gold);
   border-radius: var(--radius-sm);
 }
 
