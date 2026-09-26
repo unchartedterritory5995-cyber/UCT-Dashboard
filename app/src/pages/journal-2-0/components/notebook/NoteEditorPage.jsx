@@ -3650,7 +3650,10 @@ export default function NoteEditorPage({
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
             a note with nothing set renders only a small "+ Add property"
             link, never a permanent header (progressive disclosure). */}
-        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} />
+        {/* Wave 10 (G-165): "Suggest values" rides writing help's own gate and
+            paid check (`writingHelpOn`, one authority); a suggestion is written
+            only on the member's Accept, through `update` -- the same door. */}
+        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} autofillOn={writingHelpOn} />
 
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case
