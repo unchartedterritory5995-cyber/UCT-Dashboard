@@ -1,0 +1,1 @@
+SANDBOX INTEGRITY: INCOMPLETE -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; no checkpoint 'shutdown'; stop: FORCED after 120 s without a graceful exit; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-2f24a64fd\experiment6\integrity.md

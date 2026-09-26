@@ -1,0 +1,99 @@
+[
+ {
+  "at": "16:13:45",
+  "step": "sandbox healthy",
+  "ok": true,
+  "end_marker": "zzqbpasteendcbashq"
+ },
+ {
+  "at": "16:13:49",
+  "step": "seeded",
+  "api_total": 992
+ },
+ {
+  "at": "16:14:09",
+  "step": "X1",
+  "page_errors": [],
+  "console_all": [
+   "error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ],
+  "first_note": "/journal/notebook?note=35cf5b697605433282ded9918953c643",
+  "second_opened": false,
+  "url_now": "/journal/notebook?view=all",
+  "button_before_second_click": {
+   "disabled": false,
+   "text": "+ New note",
+   "topIsButton": true,
+   "top": "BUTTON.btn btn-primary btn-sm",
+   "active": "H2 All notes"
+  },
+  "requests_after_second_click": [
+   [
+    8.55,
+    "GET",
+    "/api/voice/insights/unspoken"
+   ]
+  ],
+  "console_after_second_click": [],
+  "couldnt_create": 0
+ },
+ {
+  "at": "16:14:29",
+  "step": "X2",
+  "page_errors": [],
+  "console_all": [
+   "error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ],
+  "first_note": "/journal/notebook?note=f53d8d84f55340659e0cdb0e7fe11229",
+  "second_opened": false,
+  "url_now": "/journal/notebook?view=all",
+  "button_before_second_click": {
+   "disabled": false,
+   "text": "+ New note",
+   "topIsButton": true,
+   "top": "BUTTON.btn btn-primary btn-sm",
+   "active": "H2 All notes"
+  },
+  "requests_after_second_click": [
+   [
+    8.57,
+    "GET",
+    "/api/voice/insights/unspoken"
+   ]
+  ],
+  "console_after_second_click": [],
+  "couldnt_create": 0
+ },
+ {
+  "at": "16:14:35",
+  "step": "X3",
+  "page_errors": [],
+  "console_all": [
+   "error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  ],
+  "first_note": "/journal/notebook?note=5805e04eda464e3b9b118a33ead71402",
+  "second_opened": true,
+  "url_now": "/journal/notebook?note=fe9cf45fe51841f982295b4e0f6bd17c",
+  "button_before_second_click": {
+   "disabled": false,
+   "text": "+ New note",
+   "topIsButton": false,
+   "top": null,
+   "active": "BUTTON All notes995"
+  },
+  "requests_after_second_click": [
+   [
+    5.23,
+    "POST",
+    "/api/j2/notes"
+   ],
+   [
+    5.25,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ]
+  ],
+  "console_after_second_click": [],
+  "couldnt_create": 0
+ }
+]
