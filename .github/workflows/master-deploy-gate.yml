@@ -286,6 +286,20 @@ jobs:
       - name: Line endings match the stored blobs
         run: python tools/check_repo_hygiene.py
 
+      # The Discord /chart, /flow and buzz replies a member gets, pinned byte-for-byte against the
+      # stored golden (docs/discord-render/instruments/goldens/prev2_replies.json), plus the render
+      # ops rails (smoke, /flow ledger, window buttons, pre-warm). Nothing else here exercises a
+      # Discord reply, so a broken card used to reach web and be found by the post-deploy smoke or
+      # by a member. ~10 s. The four extra packages are the whole import closure of these two files,
+      # measured on a clean venv 2026-09-26 — NOT requirements.txt.
+      # ⚠️ ADVISORY (continue-on-error) until its first green run on Linux is recorded: a step that
+      # fails for an environment reason would halt every promotion, for every session. Then gating.
+      - name: Discord render replies match the golden (ADVISORY until proven on Linux)
+        continue-on-error: true
+        run: |
+          python -m pip install --quiet fastapi tzdata matplotlib pynacl
+          python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q
+
       - name: Explain a failure
         if: failure()
         run: |
