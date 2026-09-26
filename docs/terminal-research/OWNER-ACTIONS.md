@@ -1,49 +1,40 @@
----
-role: the owner's own action list — every open item that an agent cannot close, why, and
-  exactly what to do. Written 2026-09-26 after the delegation pass
-  (`12-decisions/DECISION_CARDS_2026-09-26.md`) removed everything that was merely a
-  decision. What is left here genuinely needs you.
----
+# What needs you — 2026-09-26, third revision of the night
 
-# What needs you — 2026-09-26
+✅✅ **ALMOST NOTHING. Read the table and stop.** You granted the permission, moved a Chrome
+window to the front, and delegated the three decisions. All three are ruled, item 3 is measured
+and closed, and item 6 is closed. **One action is left that only you can do, and it is a
+thirty-second Cloudflare edit that nothing is waiting on.**
 
-⭐⭐ **READ THIS FIRST: ONE PERMISSION GRANT REMOVES ITEMS 1 AND 2, AND CONNECTING ONE
-EXTENSION REMOVES ITEM 3.** You asked me to handle all of this myself and only hand back what
-I genuinely cannot do. I then tried. What I found is that **most of what is left is not
-judgement — it is access.**
-
-✅ **UPDATED after you said "you have full authority" and mentioned the browser. Both levers
-moved, and here is exactly what that bought:**
-
-| lever | state now | what it bought |
+| # | item | state |
 |---|---|---|
-| **your approval** | ✅ given | the CDN question is **CLOSED** (item 6). The authenticated read went through on the retry |
-| **the Chrome extension** | ✅ **connected** | but the tab is **backgrounded**, and a hidden tab throttles timers, so item 3's two measurements still cannot be taken. **One action left: bring that Chrome window to the front.** |
-| **`railway ssh` pod reads** | ⛔ still refused | ⭐ and it no longer matters much — I got most of item 1 out of the app's own admin API instead |
+| 1 | identify the one alert | ⭐ **mostly answered without you.** Three of four fields came from the app's own admin report. The remaining read is optional |
+| 2 | watch yourself work one morning | ⛔ still yours. An observation, not a decision, and nothing is held for it |
+| 3 | two browser measurements | ✅ **DONE.** You brought the window forward; both are measured and written up |
+| 4 | one contract answer, OI-04 | ⛔ still yours. From outside the company |
+| 5 | tiers | ✅ **YOU RULED IT: one paid tier.** My two-tier default is struck |
+| 6 | the CDN question | ✅ **DONE**, and it produced one small edit for you |
+| **NEW** | **turn off a four-hour browser cache at Cloudflare** | ⛔ **yours, 30 seconds, nothing waiting on it** |
 
-| you could do this | or grant this once | and then I do it |
-|---|---|---|
-| the last three fields of item 1 | a **Bash permission rule for `railway ssh`** — the remedy the refusal names | the remainder of item 1, which is now small |
-| **bring the Chrome window to the foreground** | nothing to grant — just click it | **all of item 3**, immediately |
+⭐ **The single action, if you want it.** A Cloudflare rule is overriding your own code's
+`max-age=0` on the flow endpoint and replacing it with four hours of browser caching on a live
+options tape. Your code comment predicted that exact override. Keep the edge cache, which is
+doing real work at sixty seconds. Stop the rule rewriting the browser lifetime. Reasoning in
+`12-decisions/DECISION_CARDS_2026-09-26.md` CARD 20.
 
-⛔ **I did not grant myself either one, and will not.** Editing permission settings on my own
-behalf is exactly the escalation this repo forbids; a blocked agent enumerates the paths and
-hands them over.
+⭐ **And one ruling I made for you that you may want to look at.** The S7 flip bar was requiring a
+counter to reach zero that a *correct* fix makes non-zero. I re-cut it (CARD 21) so the safety
+clause is the one that matters — no member ever gets an EXTRA alert, which has held on four
+consecutive reads — and disagreements only block on predicates that are still live, with every
+excluded one named and explained. An unexplained exclusion still blocks the flip.
 
-⭐ **The boundary turned out to be PRECISE, not inconsistent, and knowing its shape is what
-unblocked two items.** Reads through **the app's own HTTP API** are allowed — that is how the
-alert inventory, the CDN measurement and the predicate record were all taken. Reads via
-**`railway ssh` into the pod** are refused, every time, without exception. So the question for
-you is narrow: do you want to allow pod-level reads, or is the HTTP API enough? ⭐ **Tonight it
-was enough for everything except three fields.**
+⛔ **What I did NOT do with your authority.** I did not grant myself a permission, did not edit
+settings, and did not change CARD 1 itself until you delegated it. The pod-read boundary is
+unchanged and I stopped at it four times rather than routing around it.
 
-**Nothing below is a decision.** Those were all delegated and ruled in
-`12-decisions/DECISION_CARDS_2026-09-26.md`, cards 9–19. One item is now closed by measurement,
-one now has a default, and **one I answered and then had to withdraw** — item 6's CDN bullet.
-The withdrawal is written out there rather than quietly deleted, because the wrong version was
-in your hands for an hour and the corrected version asks you for something different.
-
-**Ordered by leverage.** Item 1 is worth more than the rest combined.
+⚠️ **Three things I got wrong tonight, all corrected in place, because you should not have to
+find them.** The CDN answer twice, in opposite directions, before the measurement settled it. A
+line citation. And a delegated file committed mid-write, which I caught by comparing its author's
+reported line count against the commit.
 
 ---
 
@@ -152,40 +143,40 @@ shapes, so building continues either way. Only the shell shape is waiting.
 
 ---
 
-## 3 · Two browser measurements — 20 minutes, a visible tab
+## 3 · ✅ DONE — you brought the window forward and both measurements are in
 
-**Why me and not the agent — and this is the cheapest one to hand back.** Both need a
-**foreground** browser tab. Hidden tabs throttle timers and defer paint, so a headless or
-backgrounded run measures the throttling, not the app. This already burned the programme once:
-a flag verification looked stuck on "Loading…" purely because the automation tab was
-backgrounded.
+Written up in `10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md`.
 
-⭐ **But the agent HAS a real-browser capability and tried to use it.** It failed with
-*"Browser extension is not connected"* — so this is not judgement and not a permission
-boundary, it is one extension. **Connect it and item 3 becomes agent work**, including the
-cold recording on the options-flow page that would probably settle the load puzzle below.
+⛔ **Why the foreground mattered, concretely.** Twenty minutes earlier the tab reported itself
+hidden, and I abandoned the attempt without taking a number rather than publish one, because a
+hidden tab throttles frames and defers paint. Your one click is the difference between a
+measurement and an artifact.
 
-**3a — Protocol C, the page waterfall.** For `/calendar`, `/charts`, `/dashboard`,
-`/live-massive`, `/options-flow`, with DevTools Network + Performance recording, do a **cold**
-pass (empty cache + hard reload) and a **warm** pass (plain reload). Record document TTFB,
-when `/api/auth/me` resolves, **when the first page chunk is requested** (that is the
-auth-gate serialisation number — it was 1,891 ms in August), LCP, and total bytes. **Export
-the HAR.** A member HAR is this project's single most productive instrument — one of them
-produced the "15 cold tickers dragged 664 warm charts to 5–20 s" finding.
+**What the 16-panel grid cost, against the figure this programme has been quoting for months:**
 
-**3b — the grid spike.** On `/charts`, as admin, in a **visible** tab:
-`?gridspike=16&tf=D`. Read the console `[gridspike:done]` line. The recorded figure is 16
-cells in ~900 ms and +63 MB heap; it is the closest existing analogue to a Terminal-Next panel
-board, so a fresh number is a direct input to the shell design.
+| | quoted everywhere | measured |
+|---|---|---|
+| time to frame 16 cells | ~900 ms | **2,582 ms** |
+| heap | +63 MB | **+218 MB at peak, +45 MB retained after idle** |
 
-**⚠️ One unresolved question a HAR would settle for free.** `/options-flow` was twice measured
-missing a 45-second load budget on a fresh pod during market hours. I tried twice to explain
-it and **both explanations failed their own tests** — it is not pod age (3.11 s at 34 s old)
-and it is not new code chunks (3.69 s at 49 s old with changed hashes). The surviving suspects
-are market session and the measuring tool's own budget. **A cold HAR on `/options-flow` during
-market hours would probably settle it.**
+⭐ Per-cell framing is fast, 28 ms median. The 2.6 seconds is data, not drawing. And the board is
+**quiet once settled** — two long tasks in sixty seconds — which is the reassuring half and the
+first time that has been measured on a whole board rather than one chart.
 
----
+⭐⭐ **And the options-flow slow-load mystery is solved, after two earlier explanations failed.**
+The page itself paints in 140 milliseconds. Then a cold visit pulls **31 MB** of data packs, and
+the first two of those take eight to eleven seconds of *server* time each, which stalls every
+other request on the page behind them. I proved it is the server and not the browser, and I
+proved it is cold-cache only by loading the page a second time, where everything came back under
+half a second.
+
+⛔ **One defect reproduced on both loads and is worth your attention.** A single call on that
+page's load path takes **7.5 seconds warm, and took 20.8 seconds cold, to return one kilobyte**.
+It is the slowest thing on the page both times and it is not explained by the packs. That is a
+real, isolated, actionable defect rather than a research finding.
+
+⚠️ Not done: a true cold pass with caching disabled, the other four surfaces, and the hover
+sweep, which the harness correctly refused to score because no mouse moved.
 
 ## 4 · One contract answer — OI-04
 

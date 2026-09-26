@@ -224,33 +224,40 @@ prices, which would make the tier the right gate after all.
 
 ---
 
-## CARD 17 — S9 tiers: a DEFAULT is set, vetoable in one word ✅ RULED (defaultable)
+## CARD 17 — S9 tiers ⚰️⚰️ MY DEFAULT WAS VETOED BY THE OWNER. **ONE PAID TIER. THAT IS IT.**
 
-**The question.** A14 and everything past `/portfolio-heat` is gated on S9 entitlements — "a
-business decision about tiers". The owner asked for determinations on everything, so refusing
-outright would be ducking it; committing the company to a price would be overreaching.
+☠️ **What I ruled, and it was wrong:** *"two paid tiers and no free tier, with Terminal-Next
+entirely inside the existing paid boundary."*
 
-**RULING: use this program's own DEFAULTABLE idiom** (the OI-triage pattern: a default is
-annotated and *"remains open in the sense that the owner can still veto in one word"*).
+✅ **THE OWNER'S RULING, verbatim, 2026-09-26: "there is one paid tier only that is it."**
 
-**DEFAULT: two paid tiers and no free tier, with Terminal-Next entirely inside the existing
-paid boundary.** Reasoning, all from what already ships:
-* `FREE_PAGES` is **one page** (`/morning-wire`) and everything else is already paid-gated
-  server-side, so a free Terminal tier would be a *new* commercial posture, not a continuation.
-* OI-12 already flagged that the code and the seed facts disagreed about which item is
-  paywalled; the code won that argument. **Default to what the code does.**
-* A14's own door (`/portfolio-heat`) shipped paid-gated "the normal way", so the precedent
-  inside the feature is already set.
+**So: ONE paid tier. No free tier. No second paid tier. Terminal-Next sits inside that single paid
+boundary.** This is an owner decision, not a delegated determination, so it carries no reversal
+condition — changing it needs a new owner instruction.
 
-⛔ **What this default does NOT do:** it sets no price, no trial length, and no seat model.
-Those are revenue decisions with no engineering dependency, and nothing in the programme is
-blocked by them.
+⭐ **Why it was defaulted at all, and why being wrong was cheap.** The free-tier half was
+evidenced: the free-page whitelist is one page, everything else already gates server-side, and
+A14's shipped door is paid-gated the normal way. **None of that evidence spoke to how many PAID
+tiers there are — I inferred a second tier from nothing.** That is exactly the invention a
+defaultable ruling exists to make cheap to correct, and it cost one sentence.
 
-**Veto in one word.** "Free tier" or "three tiers" or "seats" reopens it and the entitlement
-architecture (gate item 23) adapts — it is being written to express *a* tier boundary, not a
-specific number of them.
+⛔⛔ **WHAT THIS FORECLOSES, and every downstream document must respect it:**
 
----
+1. **No tier-comparison surface, ever.** With one paid tier there is nothing to compare: no pricing
+   table, no upgrade affordance, no locked-behind-a-higher-tier state, no per-tier entitlement rows.
+   A design leaving room for a second tier is carrying dead weight.
+2. **The entitlement architecture is SIMPLER than gate item 23 assumed, and survives anyway.** That
+   document was deliberately written to express *a* tier boundary rather than a count, which was the
+   right call. Its tier axis now collapses to a **binary**: paid or not. ⭐ Re-read it with that in
+   mind rather than rewriting it.
+3. **The dark-cohort ladder is unaffected.** Cohorts are not tiers. A named cohort inside the single
+   paid tier is still how Terminal-Next ships dark, and item 23's rung analysis stands.
+4. ⚠️ **Still undecided and still not mine:** price, trial, seat model. One paid tier says nothing
+   about what it costs.
+
+⛔ **And the free-page choice now carries more weight than it did.** With a single paid tier the
+paywall is one binary line, so *which* page is free is the only remaining lever on acquisition.
+That is a marketing decision and is deliberately untouched here.
 
 ## CARD 18 — arming the event-loop killer: NOT YET, and the condition is named ✅ RULED
 
@@ -336,6 +343,93 @@ way, and nobody in this programme chose it.
 ⚠️ **The lesson, stated generally because it will recur:** *an unauthenticated probe of a gated
 route measures the gate.* Any future latency or cache measurement against a paid surface either
 authenticates first or declares that it did not.
+
+---
+
+## CARD 20 — the Cloudflare four-hour BROWSER TTL on flow data ✅ RULED: TAKE IT OFF
+
+**Delegated by the owner, 2026-09-26: "you decide all the best decisions."**
+
+**The measurement.** `/api/flow/data?days=1` ships `Cache-Control: public, max-age=14400,
+s-maxage=60, stale-while-revalidate=600` on the wire, while the origin constant
+(`api/flow_router.py:132`) sets **`max-age=0`**. A Cloudflare rule is rewriting the browser TTL to
+**four hours**. The edge cache itself is confirmed working: MISS then HIT.
+
+**RULING: keep the edge cache. Remove the browser-TTL override. Let the origin's `max-age=0`
+through.** Three reasons, in order of weight:
+
+1. ⭐ **The origin's author already made this decision and wrote down that it was being overridden.**
+   `max-age=0` is not an oversight; the comment above it says a Cloudflare rule *can* override it and
+   that production *was* doing so. A rule silently overriding a deliberate, commented instruction is
+   the **second-authority-over-one-value** defect this repo has paid for with three separate
+   outages. Remove one authority, and the code is the one that ships with a reviewer attached.
+2. **`s-maxage=60` already delivers the whole performance win.** The edge revalidates every sixty
+   seconds and absorbs the fan-out. **The four-hour browser TTL adds nothing measurable to what
+   `s-maxage` already provides, and costs freshness.**
+3. ⛔ **Four hours is wrong for this payload in particular.** It is a live options tape. The origin
+   stamps `X-Flow-Version` precisely so a client can *detect* a stale body — and ⭐ **detection is
+   not freshness.** A member holding four-hour-old flow data who has not tripped the version check
+   is reading the afternoon's tape in the evening.
+
+⚠️ **What this does NOT rule.** Whether the edge should cache a gated payload at all. It measurably
+does not leak — a cookie-free retry after the cache was populated returns 401 and 30 bytes — but
+that is **measured behaviour, not a read of the cache-key configuration**, so it is correct for a
+reason nobody has established and a rule edit could change it silently. ⛔ That stays worth one
+dashboard read. It is a durability question, not an incident.
+
+**Reversal condition.** A measurement showing `s-maxage=60` alone materially raises origin load on
+this endpoint. Nothing in tonight's data suggests it would.
+
+⛔ **This is a Cloudflare dashboard edit and I cannot make it.** The ruling is recorded; the action
+is one line in `OWNER-ACTIONS.md`.
+
+---
+
+## CARD 21 — CARD 1's flip clause measures the WRONG DIRECTION ✅ RULED AND RE-CUT
+
+**Delegated by the owner, 2026-09-26.**
+
+**The problem is not a threshold.** CARD 1's flip clause requires `legacy_only == 0` across the S7
+population. Tonight's reads establish what that counter actually contains: **one predicate holds
+all 2,344 of it**, it has **one span**, the span is **five consecutive sessions ending
+2026-09-18**, it has gained **none** of the five trading sessions since, and `agreed` over those
+same sessions is **0**.
+
+⛔⛔ **Read together: the legacy rule evaluated true on essentially every tick for five days while
+the new rule never did — ≈469 times a session, a tick cadence and not a delivery rate. That is a
+stale alert sitting on the wrong side of its own level, re-firing forever. So `legacy_only` here
+counts alerts a member would have been SPAMMED with, which the new rule correctly declines to
+send.**
+
+⭐⭐ **So `legacy_only == 0` is not a safety bar. It is a bar that a correct fix makes impossible to
+pass.** A rule that stops a spam loop will always show `legacy_only > 0`, so the clause treats the
+product's best behaviour as its blocking defect — and a gate a healthy system fails is a gate that
+gets waived, which is **exactly** how the warm-ratio gate failed earlier in this programme
+(CARD 16).
+
+**RULING: re-cut the clause. FLIP when all three hold:**
+
+1. **`new_only == 0` across every type.** ⭐ *This is the real safety clause, and it has held on
+   four consecutive reads.* An EXTRA alert is the direction that harms a member; a suppressed one is
+   the direction the new rule exists to produce.
+2. **`legacy_only == 0` across every predicate STILL ACCUMULATING SESSIONS.** A predicate whose
+   `sessions_covered` has not advanced in five trading sessions is excluded — **named in the flip
+   packet, with its counter reported beside the exclusion rather than hidden by it.**
+3. **Every excluded predicate is DISPOSITIONED before the flip**, as one of *confirmed inactive*,
+   *confirmed correct suppression*, or *unexplained*. ⛔ **An `unexplained` exclusion blocks the
+   flip.** That is what stops clause 2 becoming a way to ignore an inconvenient counter.
+
+⭐ **Why this is not lowering the bar.** The old clause asked one question — "is any alert lost?" —
+with a counter that cannot tell a lost alert from a suppressed spam loop. The new clause asks two,
+and the second is strictly harder to satisfy dishonestly, because an exclusion must be named and
+dispositioned rather than merely being a zero.
+
+⚠️ **What would settle the remaining doubt:** `is_active` on that one row. Three of the four fields
+are already in hand from the admin report — `is_trendline: false`, `level_kinds: ["price"]`, one
+span. The pod read stays refused and is no longer load-bearing.
+
+**Reversal condition.** Any `legacy_only > 0` on a predicate that IS still accumulating sessions.
+That restores the original unrestricted bar immediately.
 
 ---
 
