@@ -1,0 +1,231 @@
+2026-09-26T20:58:42.074Z pw:api → POST http://127.0.0.1:8209/api/auth/signup
+2026-09-26T20:58:42.081Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.081Z pw:api   accept: */*
+2026-09-26T20:58:42.081Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.081Z pw:api   content-type: application/json
+2026-09-26T20:58:42.081Z pw:api   content-length: 87
+2026-09-26T20:58:42.324Z pw:api ← 200 OK
+2026-09-26T20:58:42.325Z pw:api   date: Sat, 26 Sep 2026 20:58:41 GMT
+2026-09-26T20:58:42.325Z pw:api   server: uvicorn
+2026-09-26T20:58:42.325Z pw:api   content-type: application/json
+2026-09-26T20:58:42.325Z pw:api   set-cookie: uct_session=[REDACTED]; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax,uct_chart_edge=""; expires=Sat, 26 Sep 2026 20:58:42 GMT; Max-Age=0; Path=/api/bars; SameSite=lax
+2026-09-26T20:58:42.325Z pw:api   content-encoding: gzip
+2026-09-26T20:58:42.325Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:42.325Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:42.331Z pw:api → POST http://127.0.0.1:8209/api/auth/signup
+2026-09-26T20:58:42.331Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.331Z pw:api   accept: */*
+2026-09-26T20:58:42.331Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.331Z pw:api   content-type: application/json
+2026-09-26T20:58:42.331Z pw:api   content-length: 87
+2026-09-26T20:58:42.555Z pw:api ← 200 OK
+2026-09-26T20:58:42.555Z pw:api   date: Sat, 26 Sep 2026 20:58:42 GMT
+2026-09-26T20:58:42.555Z pw:api   server: uvicorn
+2026-09-26T20:58:42.555Z pw:api   content-type: application/json
+2026-09-26T20:58:42.555Z pw:api   set-cookie: uct_session=[REDACTED]; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax,uct_chart_edge=""; expires=Sat, 26 Sep 2026 20:58:42 GMT; Max-Age=0; Path=/api/bars; SameSite=lax
+2026-09-26T20:58:42.555Z pw:api   content-encoding: gzip
+2026-09-26T20:58:42.555Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:42.555Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:42.559Z pw:api → POST http://127.0.0.1:8209/api/auth/admin/comp-access
+2026-09-26T20:58:42.559Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.559Z pw:api   accept: */*
+2026-09-26T20:58:42.559Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.559Z pw:api   content-type: application/json
+2026-09-26T20:58:42.559Z pw:api   content-length: 49
+2026-09-26T20:58:42.559Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:42.588Z pw:api ← 200 OK
+2026-09-26T20:58:42.588Z pw:api   date: Sat, 26 Sep 2026 20:58:42 GMT
+2026-09-26T20:58:42.588Z pw:api   server: uvicorn
+2026-09-26T20:58:42.588Z pw:api   content-type: application/json
+2026-09-26T20:58:42.588Z pw:api   content-encoding: gzip
+2026-09-26T20:58:42.588Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:42.588Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:42.591Z pw:api → POST http://127.0.0.1:8209/api/auth/admin/verify-email
+2026-09-26T20:58:42.591Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.591Z pw:api   accept: */*
+2026-09-26T20:58:42.591Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.591Z pw:api   content-type: application/json
+2026-09-26T20:58:42.591Z pw:api   content-length: 30
+2026-09-26T20:58:42.591Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:42.605Z pw:api ← 200 OK
+2026-09-26T20:58:42.605Z pw:api   date: Sat, 26 Sep 2026 20:58:42 GMT
+2026-09-26T20:58:42.605Z pw:api   server: uvicorn
+2026-09-26T20:58:42.605Z pw:api   content-type: application/json
+2026-09-26T20:58:42.605Z pw:api   content-encoding: gzip
+2026-09-26T20:58:42.605Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:42.605Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:42.608Z pw:api → GET http://127.0.0.1:8209/api/auth/me
+2026-09-26T20:58:42.608Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.608Z pw:api   accept: */*
+2026-09-26T20:58:42.608Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.608Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:42.628Z pw:api ← 200 OK
+2026-09-26T20:58:42.628Z pw:api   date: Sat, 26 Sep 2026 20:58:42 GMT
+2026-09-26T20:58:42.628Z pw:api   server: uvicorn
+2026-09-26T20:58:42.628Z pw:api   content-type: application/json
+2026-09-26T20:58:42.628Z pw:api   set-cookie: uct_chart_edge=""; expires=Sat, 26 Sep 2026 20:58:42 GMT; Max-Age=0; Path=/api/bars; SameSite=lax
+2026-09-26T20:58:42.628Z pw:api   content-encoding: gzip
+2026-09-26T20:58:42.628Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:42.628Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:42.677Z pw:api → POST http://127.0.0.1:8209/api/j2/notes/import/confirm
+2026-09-26T20:58:42.677Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:42.677Z pw:api   accept: */*
+2026-09-26T20:58:42.677Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:42.677Z pw:api   content-type: application/json
+2026-09-26T20:58:42.677Z pw:api   content-length: 1039272
+2026-09-26T20:58:42.677Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:43.387Z pw:api ← 200 OK
+2026-09-26T20:58:43.387Z pw:api   date: Sat, 26 Sep 2026 20:58:42 GMT
+2026-09-26T20:58:43.387Z pw:api   server: uvicorn
+2026-09-26T20:58:43.387Z pw:api   content-type: application/json
+2026-09-26T20:58:43.387Z pw:api   content-encoding: gzip
+2026-09-26T20:58:43.387Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:43.387Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:43.488Z pw:api → POST http://127.0.0.1:8209/api/j2/notes/import/confirm
+2026-09-26T20:58:43.488Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:43.488Z pw:api   accept: */*
+2026-09-26T20:58:43.488Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:43.488Z pw:api   content-type: application/json
+2026-09-26T20:58:43.488Z pw:api   content-length: 2042151
+2026-09-26T20:58:43.488Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:44.582Z pw:api ← 200 OK
+2026-09-26T20:58:44.582Z pw:api   date: Sat, 26 Sep 2026 20:58:43 GMT
+2026-09-26T20:58:44.582Z pw:api   server: uvicorn
+2026-09-26T20:58:44.582Z pw:api   content-type: application/json
+2026-09-26T20:58:44.582Z pw:api   content-encoding: gzip
+2026-09-26T20:58:44.582Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:44.582Z pw:api   transfer-encoding: chunked
+2026-09-26T20:58:44.590Z pw:api → GET http://127.0.0.1:8209/api/j2/notes?limit=1
+2026-09-26T20:58:44.590Z pw:api   user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36
+2026-09-26T20:58:44.590Z pw:api   accept: */*
+2026-09-26T20:58:44.590Z pw:api   accept-encoding: gzip,deflate,br
+2026-09-26T20:58:44.590Z pw:api   cookie: uct_session=[REDACTED]
+2026-09-26T20:58:44.603Z pw:api ← 200 OK
+2026-09-26T20:58:44.603Z pw:api   date: Sat, 26 Sep 2026 20:58:44 GMT
+2026-09-26T20:58:44.603Z pw:api   server: uvicorn
+2026-09-26T20:58:44.603Z pw:api   content-type: application/json
+2026-09-26T20:58:44.603Z pw:api   content-encoding: gzip
+2026-09-26T20:58:44.603Z pw:api   vary: Accept-Encoding
+2026-09-26T20:58:44.603Z pw:api   transfer-encoding: chunked
+===== W1 begins
+2026-09-26T20:58:44.657Z pw:api navigating to "http://127.0.0.1:8209/journal/notebook?view=all", waiting until "load"
+2026-09-26T20:58:44.688Z pw:api   "commit" event fired
+2026-09-26T20:58:44.688Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:58:44.789Z pw:api   "domcontentloaded" event fired
+2026-09-26T20:58:44.790Z pw:api   "load" event fired
+2026-09-26T20:58:44.795Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be visible
+2026-09-26T20:58:44.798Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:58:45.021Z pw:api   locator resolved to visible <div role="dialog" aria-label="Welcome" class="_overlay_5wcyo_13 _reducedMotion_5wcyo_31">…</div>
+2026-09-26T20:58:45.035Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be detached
+2026-09-26T20:58:45.045Z pw:api waiting for locator("button[data-note-card-id]:not([title])").first to be visible
+2026-09-26T20:58:45.860Z pw:api   locator resolved to visible <button type="button" class="_card_105g7_1" data-hub-cursor="active" data-note-card-id="c5e712e10df146b9bb5e7ee3afe25c99">…</button>
+2026-09-26T20:58:46.060Z pw:api   "networkidle" event fired
+2026-09-26T20:58:46.091Z pw:api waiting for locator("[data-tour=\"new-note\"]").first
+2026-09-26T20:58:46.093Z pw:api   locator resolved to <button type="button" data-tour="new-note" class="btn btn-primary btn-sm">+ New note</button>
+2026-09-26T20:58:46.093Z pw:api attempting click action
+2026-09-26T20:58:46.093Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:58:46.112Z pw:api   element is visible, enabled and stable
+2026-09-26T20:58:46.112Z pw:api   scrolling into view if needed
+2026-09-26T20:58:46.113Z pw:api   done scrolling
+2026-09-26T20:58:46.115Z pw:api   performing click action
+2026-09-26T20:58:46.123Z pw:api   click action done
+2026-09-26T20:58:46.123Z pw:api   waiting for scheduled navigations to finish
+2026-09-26T20:58:46.124Z pw:api   navigations have finished
+2026-09-26T20:58:46.125Z pw:api waiting for locator(".ProseMirror").first to be visible
+2026-09-26T20:58:46.152Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?note=6b42291ebf7540d0b956bb8f258aeb4b"
+2026-09-26T20:58:46.280Z pw:api   locator resolved to visible <div tabindex="0" translate="no" contenteditable="true" aria-label="Note body" class="tiptap ProseMirror _proseEditor_159g4_329">…</div>
+2026-09-26T20:58:46.291Z pw:api waiting for locator(".ProseMirror").first
+2026-09-26T20:58:46.294Z pw:api   locator resolved to <div tabindex="0" translate="no" contenteditable="true" aria-label="Note body" class="tiptap ProseMirror _proseEditor_159g4_329">…</div>
+2026-09-26T20:58:46.294Z pw:api attempting click action
+2026-09-26T20:58:46.294Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:58:46.329Z pw:api   element is not stable
+2026-09-26T20:58:46.329Z pw:api retrying click action
+2026-09-26T20:58:46.330Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:58:46.362Z pw:api   element is visible, enabled and stable
+2026-09-26T20:58:46.362Z pw:api   scrolling into view if needed
+2026-09-26T20:58:46.365Z pw:api   done scrolling
+2026-09-26T20:58:46.366Z pw:api   performing click action
+2026-09-26T20:58:46.373Z pw:api   click action done
+2026-09-26T20:58:46.373Z pw:api   waiting for scheduled navigations to finish
+2026-09-26T20:58:46.373Z pw:api   navigations have finished
+2026-09-26T20:58:46.428Z pw:api waiting for navigation until "load"
+2026-09-26T20:58:46.431Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:58:46.431Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:58:46.432Z pw:api waiting for locator("button[data-note-card-id]:not([title])").first to be visible
+2026-09-26T20:58:46.462Z pw:api   locator resolved to visible <button type="button" class="_card_105g7_1" data-note-card-id="c5e712e10df146b9bb5e7ee3afe25c99">…</button>
+2026-09-26T20:58:46.475Z pw:api waiting for locator("[data-tour=\"new-note\"]").first
+2026-09-26T20:58:46.480Z pw:api   locator resolved to <button type="button" data-tour="new-note" class="btn btn-primary btn-sm">+ New note</button>
+2026-09-26T20:58:46.482Z pw:api attempting click action
+2026-09-26T20:58:46.482Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:58:46.511Z pw:api   element is visible, enabled and stable
+2026-09-26T20:58:46.511Z pw:api   scrolling into view if needed
+2026-09-26T20:58:46.512Z pw:api   done scrolling
+2026-09-26T20:58:46.513Z pw:api   performing click action
+2026-09-26T20:58:46.517Z pw:api   click action done
+2026-09-26T20:58:46.517Z pw:api   waiting for scheduled navigations to finish
+2026-09-26T20:58:46.518Z pw:api   navigations have finished
+2026-09-26T20:58:46.519Z pw:api waiting for locator(".ProseMirror").first to be visible
+2026-09-26T20:59:16.557Z pw:api taking page screenshot
+2026-09-26T20:59:16.559Z pw:api waiting for fonts to load...
+2026-09-26T20:59:16.560Z pw:api fonts loaded
+===== W1 ends
+===== W2 begins
+2026-09-26T20:59:16.689Z pw:api navigating to "http://127.0.0.1:8209/journal/notebook?view=all", waiting until "load"
+2026-09-26T20:59:16.874Z pw:api   "commit" event fired
+2026-09-26T20:59:16.875Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:59:17.213Z pw:api   "domcontentloaded" event fired
+2026-09-26T20:59:17.213Z pw:api   "load" event fired
+2026-09-26T20:59:17.215Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be visible
+2026-09-26T20:59:17.216Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:59:17.428Z pw:api   locator resolved to visible <div role="dialog" aria-label="Welcome" class="_overlay_5wcyo_13 _reducedMotion_5wcyo_31">…</div>
+2026-09-26T20:59:17.438Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be detached
+2026-09-26T20:59:17.447Z pw:api waiting for locator("button[data-note-card-id]:not([title])").first to be visible
+2026-09-26T20:59:19.783Z pw:api   locator resolved to visible <button type="button" class="_card_105g7_1" data-note-card-id="6b42291ebf7540d0b956bb8f258aeb4b">…</button>
+2026-09-26T20:59:20.022Z pw:api waiting for locator("[data-tour=\"new-note\"]").first
+2026-09-26T20:59:20.024Z pw:api   locator resolved to <button type="button" data-tour="new-note" class="btn btn-primary btn-sm">+ New note</button>
+2026-09-26T20:59:20.025Z pw:api attempting click action
+2026-09-26T20:59:20.025Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:59:20.026Z pw:api   element is visible, enabled and stable
+2026-09-26T20:59:20.026Z pw:api   scrolling into view if needed
+2026-09-26T20:59:20.027Z pw:api   done scrolling
+2026-09-26T20:59:20.029Z pw:api   performing click action
+2026-09-26T20:59:20.039Z pw:api   click action done
+2026-09-26T20:59:20.039Z pw:api   waiting for scheduled navigations to finish
+2026-09-26T20:59:20.040Z pw:api   navigations have finished
+2026-09-26T20:59:20.041Z pw:api waiting for locator(".ProseMirror").first to be visible
+2026-09-26T20:59:20.079Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?note=bfb0549798d846849de0618dcf51f415"
+2026-09-26T20:59:20.266Z pw:api   locator resolved to visible <div tabindex="0" translate="no" contenteditable="true" aria-label="Note body" class="tiptap ProseMirror _proseEditor_159g4_329">…</div>
+2026-09-26T20:59:20.273Z pw:api taking page screenshot
+2026-09-26T20:59:20.275Z pw:api waiting for fonts to load...
+2026-09-26T20:59:20.277Z pw:api fonts loaded
+===== W2 ends
+===== W3 begins
+2026-09-26T20:59:20.500Z pw:api navigating to "http://127.0.0.1:8209/journal/notebook?view=all", waiting until "load"
+2026-09-26T20:59:20.508Z pw:api   "commit" event fired
+2026-09-26T20:59:20.508Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:59:20.594Z pw:api   "domcontentloaded" event fired
+2026-09-26T20:59:20.594Z pw:api   "load" event fired
+2026-09-26T20:59:20.596Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be visible
+2026-09-26T20:59:20.598Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?view=all"
+2026-09-26T20:59:20.732Z pw:api   locator resolved to visible <div role="dialog" aria-label="Welcome" class="_overlay_5wcyo_13 _reducedMotion_5wcyo_31">…</div>
+2026-09-26T20:59:20.748Z pw:api waiting for locator("div[role=\"dialog\"][aria-label=\"Welcome\"]").first to be detached
+2026-09-26T20:59:20.752Z pw:api waiting for locator("button[data-note-card-id]:not([title])").first to be visible
+2026-09-26T20:59:21.560Z pw:api   locator resolved to visible <button type="button" class="_card_105g7_1" data-note-card-id="bfb0549798d846849de0618dcf51f415">…</button>
+2026-09-26T20:59:21.793Z pw:api waiting for locator("[data-tour=\"new-note\"]").first
+2026-09-26T20:59:21.795Z pw:api   locator resolved to <button type="button" data-tour="new-note" class="btn btn-primary btn-sm">+ New note</button>
+2026-09-26T20:59:21.796Z pw:api attempting click action
+2026-09-26T20:59:21.796Z pw:api   waiting for element to be visible, enabled and stable
+2026-09-26T20:59:21.810Z pw:api   element is visible, enabled and stable
+2026-09-26T20:59:21.810Z pw:api   scrolling into view if needed
+2026-09-26T20:59:21.811Z pw:api   done scrolling
+2026-09-26T20:59:21.813Z pw:api   performing click action
+2026-09-26T20:59:21.820Z pw:api   click action done
+2026-09-26T20:59:21.820Z pw:api   waiting for scheduled navigations to finish
+2026-09-26T20:59:21.821Z pw:api   navigations have finished
+2026-09-26T20:59:21.822Z pw:api waiting for locator(".ProseMirror").first to be visible
+2026-09-26T20:59:21.856Z pw:api   navigated to "http://127.0.0.1:8209/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538"
+2026-09-26T20:59:21.986Z pw:api   locator resolved to visible <div tabindex="0" translate="no" contenteditable="true" aria-label="Note body" class="tiptap ProseMirror _proseEditor_159g4_329">…</div>
+2026-09-26T20:59:22.005Z pw:api taking page screenshot
+2026-09-26T20:59:22.006Z pw:api waiting for fonts to load...
+2026-09-26T20:59:22.007Z pw:api fonts loaded
+===== W3 ends
