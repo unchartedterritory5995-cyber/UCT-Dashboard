@@ -3633,7 +3633,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–7: #187 + #183 LIVE, #186 (wave 5) and #193 (wave 6) awaiting the owner's merge, wave 7 in its whole-branch fix round, 2026-09-25
+### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3646,11 +3646,15 @@ capture and mobile (image OCR, docx documents, a personal API, iOS Shortcuts, em
 writing help, meaning search and a Compass notes tool — every one of them DARK behind its
 own gate — plus lane I's performance budgets. Read it before touching that branch.
 
-Two worktrees: `C:\Users\Patrick\uct-worktrees\notebook-k` (`feat/notebook-10`,
-wave 5, tip `145478ec1`, **PR #186 open, gated green, awaiting the owner's
-`gh pr merge 186 --squash`**) and `C:\Users\Patrick\uct-worktrees\notebook-w6`
-(`feat/notebook-w6`, wave 6, carries wave 5 + master `74beea1d2` via merges
-`07e1a74ae`/`1a4a64988`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
+(#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
+`origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
+view controls with 0 page errors). Wave 6's final tip is tagged
+`notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
+round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
+tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
+own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
+wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
@@ -3658,11 +3662,9 @@ insert dark, master `a3d9f5a1e`; production fast-forwarded past it to `74beea1d2
 ⛔ The three never-revert commits `8167f7aa0`, `fd87271fd`, `82c56dd63` are tagged
 (`notebook-wave5-guard-*`) and the rule is `docs/notebook/wave5-rollback.md`.
 
-🔁 **Wave 6 (`feat/notebook-w6`)**: lanes D, D3b, E, F all built, task-reviewed and
-fix-rounded; the whole-branch review (0 Critical, 4 Important → fixed) and the
-combined re-review are done; the last small round, the final six-shard gate, the
-live walk (`tools/notebook_wave6_walk.py`) on the final tip and the PR are what
-remain — the resume doc §5 has the order. Wave 6 adds eight schema level-2 node
+✅ **Wave 6** shipped lanes D, D3b, E and F (landing gate
+`docs/notebook/gate-runs/wave6-landing/2026-09-25T23-28-08.md`, walk
+`docs/notebook/gate-runs/wave6/walk-787a993f5.json` 17/18). Wave 6 adds eight schema level-2 node
 types (both `lib/notebookSchema.js` and `notebook_schema.py`) — **never-revert**,
 same rule as wave 5's.
 
