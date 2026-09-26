@@ -31,7 +31,8 @@ proof (`lib/importer/exportFormats.roundtrip.test.js`).
 node Word can hold is written as Word writes it; every other node becomes the plain text of
 its descendants. It never raises on a node it does not know: an export runs over content
 written by every editor version a member has ever used. Its images are this note's own
-attachments, embedded, and they count against the same byte cap as every other export.
+attachments, embedded, and their EMBEDDED size (a converted image's, not the stored file's)
+counts against the same byte cap as every other export.
 
 The per-node table of what each format keeps is `docs/notebook/export-formats.md`, generated
 from the rails' results.
@@ -623,8 +624,22 @@ _NS = (
 _REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 _R_TYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 _EMU_PER_PX = 9525
-_MAX_IMAGE_EMU = 6 * 914400          # six inches: the text width of a Letter page
-_CONVERT_PIXEL_BUDGET = 40_000_000   # a WebP converted to PNG decodes; bounded
+_EMU_PER_INCH = 914400
+_MAX_IMAGE_EMU = 6 * _EMU_PER_INCH   # six inches: the text width of a Letter page
+# ⛔ A format Word does not read everywhere (WebP, or anything else Pillow opens) is DECODED
+# and re-encoded as PNG. Both halves are bounded (wave-8 final review I-2):
+#   * the decode, by the SOURCE pixel budget -- at most 16 Mpx, i.e. <= 64 MiB as RGBA, freed
+#     per image (a 12 Mpx phone photo and a 4K screenshot both fit; it was 40 Mpx = 160 MiB,
+#     plus a second full-size RGBA copy for the convert);
+#   * the result, by downscaling BEFORE encoding to the size the image is placed at: never
+#     wider than six inches at `_CONVERT_DPI` (twice the 96 px/in the page maps pixels at,
+#     so it stays sharp on a high-density screen and in print). The placement is unchanged
+#     -- anything wider than six inches was already drawn at six inches.
+# The embedded bytes, not the stored file's, are what count against the export byte cap
+# (`notes_export._make_attachment_bytes_loader`).
+_CONVERT_DPI = 192
+_CONVERT_MAX_WIDTH_PX = _MAX_IMAGE_EMU * _CONVERT_DPI // _EMU_PER_INCH   # 1152
+_CONVERT_PIXEL_BUDGET = 16_000_000
 _INVALID_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
 _CHECK = {True: "☑ ", False: "☐ "}   # content, not UI: the task's state as text
 
@@ -683,7 +698,7 @@ def _link_of(marks: Any) -> str | None:
 class _Docx:
     """One note's Word document, built as it is walked."""
 
-    def __init__(self, *, load_image: Callable[[str], tuple[bytes, str] | None] | None,
+    def __init__(self, *, load_image: Callable[..., tuple[str, bytes, int, int] | None] | None,
                  resolver: Callable | None, bundle_file: Callable[[str], str | None] | None = None) -> None:
         self.load_image = load_image
         self.resolver = resolver
@@ -715,29 +730,32 @@ class _Docx:
 
     # ── images ──
     def image(self, url: str | None) -> tuple[str, int, int] | None:
-        """(relationship id, cx, cy) for one of this note's attachments, embedded once."""
+        """(relationship id, cx, cy) for one of this note's attachments, embedded once.
+
+        `load_image(url, prepare)` reads the attachment, runs `prepare` (`_prepare_image`)
+        and CHARGES THE PREPARED BYTES against the export cap, returning `prepare`'s result,
+        or None -- recording why -- when the file is not ours, is missing, is not an image
+        this document can hold, or its embedded size would pass the cap (wave-8 final review
+        I-2: the stored size was charged while a converted PNG could be many times larger)."""
         if not url or self.load_image is None:
             return None
         if url in self.image_cache:
             return self.image_cache[url]
         got = None
         try:
-            loaded = self.load_image(url)
+            prepared = self.load_image(url, _prepare_image)
         except Exception:  # noqa: BLE001 -- an image costs itself, never the document
-            loaded = None
-        if loaded:
-            data, _name = loaded
-            prepared = _prepare_image(data)
-            if prepared:
-                ext, blob, w, h = prepared
-                name = f"image{len(self.media) + 1}.{ext}"
-                self.media.append((name, blob))
-                rid = self._rel(f"{_R_TYPE}/image", f"media/{name}")
-                cx, cy = w * _EMU_PER_PX, h * _EMU_PER_PX
-                if cx > _MAX_IMAGE_EMU:
-                    cy = int(cy * _MAX_IMAGE_EMU / cx)
-                    cx = _MAX_IMAGE_EMU
-                got = (rid, max(cx, 1), max(cy, 1))
+            prepared = None
+        if prepared:
+            ext, blob, w, h = prepared
+            name = f"image{len(self.media) + 1}.{ext}"
+            self.media.append((name, blob))
+            rid = self._rel(f"{_R_TYPE}/image", f"media/{name}")
+            cx, cy = w * _EMU_PER_PX, h * _EMU_PER_PX
+            if cx > _MAX_IMAGE_EMU:
+                cy = int(cy * _MAX_IMAGE_EMU / cx)
+                cx = _MAX_IMAGE_EMU
+            got = (rid, max(cx, 1), max(cy, 1))
         self.image_cache[url] = got
         return got
 
@@ -763,20 +781,28 @@ class _Docx:
 
 
 def _prepare_image(data: bytes) -> tuple[str, bytes, int, int] | None:
-    """(extension, bytes, width px, height px) from the image HEADER; a format Word does not
-    read everywhere (WebP) is converted to PNG within a pixel budget. None when the bytes are
-    not an image at all."""
+    """(extension, bytes, width px, height px) of what the document EMBEDS. PNG, JPEG, GIF
+    and BMP go in as stored, sized from the HEADER (nothing is decoded). Any other image
+    (WebP, or a format uploaded under an allowed type) is decoded -- only within
+    `_CONVERT_PIXEL_BUDGET` -- downscaled to at most `_CONVERT_MAX_WIDTH_PX` wide BEFORE it
+    is encoded, and embedded as PNG; the width and height returned are the embedded ones.
+    None when the bytes are not an image, or are too large to convert."""
     try:
         from PIL import Image
-        with Image.open(BytesIO(data)) as im:
-            fmt, (w, h) = im.format, im.size
+        with Image.open(BytesIO(data)) as src:
+            fmt, (w, h) = src.format, src.size
             ext = {"PNG": "png", "JPEG": "jpeg", "GIF": "gif", "BMP": "bmp"}.get(fmt or "")
             if ext:
                 return ext, data, w, h
             if w * h > _CONVERT_PIXEL_BUDGET:
                 return None
+            im = src if src.mode in ("RGB", "RGBA") else src.convert("RGBA")
+            if w > _CONVERT_MAX_WIDTH_PX:
+                h = max(1, round(h * _CONVERT_MAX_WIDTH_PX / w))
+                w = _CONVERT_MAX_WIDTH_PX
+                im = im.resize((w, h), Image.LANCZOS)
             buf = BytesIO()
-            im.convert("RGBA").save(buf, "PNG")
+            im.save(buf, "PNG")
             return "png", buf.getvalue(), w, h
     except Exception:  # noqa: BLE001 -- not an image, or one Pillow cannot read
         return None
@@ -1215,11 +1241,12 @@ def _numbering_xml(ordered_starts: list[int]) -> str:
 def note_docx(doc: Any, *, title: str, subtitle: str | None = None, tags: list[str] | None = None,
               ticker: str | None = None, properties: list[dict[str, str]] | None = None,
               hero_url: str | None = None, updated_at: str | None = None,
-              load_image: Callable[[str], tuple[bytes, str] | None] | None = None,
+              load_image: Callable[..., tuple[str, bytes, int, int] | None] | None = None,
               resolver: Callable | None = None, bundle_file: Callable[[str], str | None] | None = None,
               issues: list[str] | Callable[[], list[str]] | None = None) -> bytes:
-    """ONE note as a .docx (bytes). `load_image(url) -> (bytes, filename) | None` reads one of
-    this note's attachments within the export's byte cap; `resolver` is the Markdown writer's
+    """ONE note as a .docx (bytes). `load_image(url, prepare) -> prepare(bytes) | None` reads one
+    of this note's attachments, prepares it for embedding (`_prepare_image`) and charges the
+    EMBEDDED bytes against the export's byte cap; `resolver` is the Markdown writer's
     own (note links, excerpts); `bundle_file(url)` puts a file attachment beside the document
     in an archive (None for a lone .docx). `issues` -- what the export could not include --
     is listed at the end, so a member reading the file sees what is missing, and so is every

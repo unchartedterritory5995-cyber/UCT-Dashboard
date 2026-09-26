@@ -12,6 +12,13 @@ Mounted by seam S8-2 under `/api/j2/export`. Two routes:
     bounded by one note (`notes_export.build_single_note_export`). Word is always one
     `.docx`; HTML and JSON are a bare file when the note has no attachments and a zip when
     it has some; Markdown is byte-for-byte what `GET /api/j2/notes/{id}/export` gives today.
+    ⛔ Bounded in CONCURRENCY too (wave-8 final review I-2): "bounded by one note" is a
+    bound per build, not per pod -- the formats ship ungated (D-C5), so every signed-in
+    member reaches this door, and a Word build decodes images and holds its embedded
+    blobs (up to the export byte cap) in memory until the document is zipped. At most
+    `SINGLE_NOTE_CONCURRENCY` builds run at once on this pod (a DEDICATED, non-blocking
+    semaphore, so a multi-minute whole-notebook export never blocks a one-note download);
+    one more is refused with the export slot's own 429 sentence.
 
 The rules, each a decision:
   * ⛔ The existing Markdown routes in `journal_two.py` stay byte-identical and untouched;
@@ -27,6 +34,7 @@ The rules, each a decision:
 """
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -37,6 +45,11 @@ from api.middleware.auth_middleware import get_current_user
 router = APIRouter(prefix="/api/j2/export", tags=["journal-2-0", "notebook-export"])
 
 BUSY_SENTENCE = "An export is already running. Please wait a moment and try again."
+
+#: One-note builds allowed at once on this pod (I-2). ⚠️ PER-PROCESS STATE: a second web
+#: process would double it, like the whole-notebook export slot beside it.
+SINGLE_NOTE_CONCURRENCY = 2
+_SINGLE_NOTE_SLOTS = threading.BoundedSemaphore(SINGLE_NOTE_CONCURRENCY)
 
 
 def _format_or_422(raw: Optional[str]) -> str:
@@ -82,12 +95,19 @@ def export_one_note(
     format: Optional[str] = Query(default=None),  # noqa: A002 -- the public query name
     user: dict = Depends(get_current_user),
 ) -> Response:
-    """ONE note in `format`: bounded by one note, so built in memory (no slot, the same as
-    the Markdown single-note route)."""
+    """ONE note in `format`: bounded by one note, so built in memory -- and at most
+    `SINGLE_NOTE_CONCURRENCY` at once (I-2): one more answers 429 with the export slot's own
+    sentence. The format is decided BEFORE a slot is taken; the slot is given back on every
+    path, the build is synchronous, so no disconnect can strand it."""
     from api.services.journal_two.notes_export import build_single_note_export, content_disposition
 
     fmt = _format_or_422(format)
-    built = build_single_note_export(user["id"], note_id, fmt=fmt)
+    if not _SINGLE_NOTE_SLOTS.acquire(blocking=False):
+        raise HTTPException(status_code=429, detail=BUSY_SENTENCE)
+    try:
+        built = build_single_note_export(user["id"], note_id, fmt=fmt)
+    finally:
+        _SINGLE_NOTE_SLOTS.release()
     if built is None:
         raise HTTPException(status_code=404, detail="Not found")
     content, filename, media_type = built

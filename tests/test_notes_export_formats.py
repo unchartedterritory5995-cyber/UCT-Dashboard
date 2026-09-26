@@ -546,6 +546,106 @@ def test_word_images_count_against_the_export_byte_cap(library, monkeypatch):
     assert "left out: export attachment size cap reached" in files["EXPORT_ISSUES.txt"].decode("utf-8")
 
 
+# ── I-2: a CONVERTED image is charged at its embedded size (wave-8 final review) ──────
+#
+# ⚰️ A WebP (or any format Word does not read everywhere) is decoded and re-encoded as PNG,
+# and the cap charged the STORED file's size -- so a note of WebPs comfortably under the cap
+# could embed PNGs many times its size, every blob held in memory until the document is
+# zipped. The single-note door is ungated (D-C5), so this was member-reachable on merge.
+
+CAP_SENTENCE = "left out: export attachment size cap reached"
+
+
+def _noise_webp(w: int, h: int, seed: int) -> bytes:
+    """High-entropy pixels: a lossy WebP that is small on disk and large as a PNG."""
+    import random
+    from PIL import Image
+    im = Image.frombytes("RGB", (w, h), random.Random(seed).randbytes(w * h * 3))
+    buf = io.BytesIO()
+    im.save(buf, "WEBP", quality=80)
+    return buf.getvalue()
+
+
+@pytest.fixture()
+def webp_note(tmp_path, monkeypatch):
+    """One note ("w") whose body holds four noise WebPs, stored under its attachment tree."""
+    monkeypatch.setenv("J2_ATTACHMENT_ROOT", str(tmp_path / "att"))
+    monkeypatch.setattr(notes_export, "datetime", _FrozenDatetime)
+    d = tmp_path / "att" / USER / "notes" / "w" / "inline"
+    d.mkdir(parents=True)
+    sources = {}
+    for i in range(4):
+        sources[f"p{i}.webp"] = _noise_webp(600, 600, seed=i)
+        (d / f"p{i}.webp").write_bytes(sources[f"p{i}.webp"])
+    body = _doc(*[{"type": "image", "attrs": {"src": _att("w", "inline", n), "alt": n}} for n in sources])
+    c = _conn()
+    c.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, created_at, updated_at)"
+              " VALUES ('w', ?, 'WebP gallery', ?, '', '[]', ?, ?)", (USER, json.dumps(body), STAMP, STAMP))
+    c.commit()
+    yield c, sources
+    c.close()
+
+
+def _media(parts: dict[str, bytes]) -> dict[str, bytes]:
+    return {n: b for n, b in parts.items() if n.startswith("word/media/")}
+
+
+def test_I2_a_note_of_webps_under_the_source_cap_embeds_within_the_cap_and_lists_the_rest(webp_note, monkeypatch):
+    conn, sources = webp_note
+    converted = [F._prepare_image(b)[1] for b in sources.values()]
+    cap = len(converted[0]) + len(converted[1])                          # room for TWO converted
+    assert sum(len(b) for b in sources.values()) <= cap, "precondition: every SOURCE fits the cap"
+    assert sum(len(b) for b in converted) > cap, "precondition: the converted PNGs pass it"
+    monkeypatch.setenv("NOTE_EXPORT_MAX_ATTACHMENT_BYTES", str(cap))
+    blob, name, _media_type = notes_export.build_single_note_export(USER, "w", conn=conn, fmt="docx")
+    assert name.endswith(".docx")
+    parts = validate_docx(blob)
+    media = _media(parts)
+    assert sum(len(b) for b in media.values()) <= cap, "the embedded bytes passed the export cap"
+    assert len(media) == 2 and parts["word/document.xml"].decode("utf-8").count("<w:drawing>") == 2
+    text = _docx_text(blob)
+    left_out = [n for n in sources if f"{n} -- {CAP_SENTENCE}" in text]
+    assert left_out == ["p2.webp", "p3.webp"], text
+
+
+def test_I2_the_whole_notebook_word_export_charges_the_embedded_size_too(webp_note, monkeypatch):
+    conn, sources = webp_note
+    converted = [F._prepare_image(b)[1] for b in sources.values()]
+    cap = len(converted[0]) + len(converted[1])
+    monkeypatch.setenv("NOTE_EXPORT_MAX_ATTACHMENT_BYTES", str(cap))
+    files, _ = _archive(conn, "docx")
+    media = _media(validate_docx(files["WebP gallery.docx"]))
+    assert sum(len(b) for b in media.values()) <= cap and len(media) == 2
+    assert files["EXPORT_ISSUES.txt"].decode("utf-8").count(CAP_SENTENCE) == 2
+
+
+def test_I2_a_converted_image_is_downscaled_before_it_is_encoded_and_placed_as_before():
+    wide = _noise_webp(3000, 200, seed=9)
+    ext, blob, w, h = F._prepare_image(wide)
+    assert ext == "png" and (w, h) == (F._CONVERT_MAX_WIDTH_PX, round(200 * F._CONVERT_MAX_WIDTH_PX / 3000))
+    from PIL import Image
+    with Image.open(io.BytesIO(blob)) as im:
+        assert im.size == (w, h), "the PNG embedded is the downscaled one"
+    assert F._CONVERT_MAX_WIDTH_PX == 6 * F._CONVERT_DPI                    # six inches at the DPI
+    # Placement is unchanged: six inches wide, the source's aspect ratio.
+    dx = F._Docx(load_image=lambda url, prepare: prepare(wide), resolver=None)
+    _rid, cx, cy = dx.image("u")
+    assert cx == F._MAX_IMAGE_EMU and abs(cy / cx - 200 / 3000) < 0.01, (cx, cy)
+    # A PNG / JPEG is embedded as stored: never decoded, never resized.
+    assert F._prepare_image(PNG_4x2) == ("png", PNG_4x2, 4, 2)
+
+
+def test_I2_the_conversion_decode_is_bounded_and_an_over_budget_image_is_listed(webp_note, monkeypatch):
+    # 16 Mpx is <= 64 MiB as RGBA (it was 40 Mpx, 160 MiB plus a second full-size copy).
+    assert F._CONVERT_PIXEL_BUDGET * 4 <= 64 * 1024 * 1024
+    conn, _sources = webp_note
+    monkeypatch.setattr(F, "_CONVERT_PIXEL_BUDGET", 600 * 600 - 1)          # every one is over
+    blob, _name, _t = notes_export.build_single_note_export(USER, "w", conn=conn, fmt="docx")
+    assert not _media(validate_docx(blob))
+    text = _docx_text(blob)
+    assert text.count("left out: not an image this document can hold, or too large to convert") == 4, text
+
+
 # ── the archive seam ─────────────────────────────────────────────────────────
 
 def test_a_web_page_archive_links_its_notes_to_each_other_as_web_pages(library):

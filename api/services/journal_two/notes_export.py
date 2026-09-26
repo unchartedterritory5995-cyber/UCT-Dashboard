@@ -203,6 +203,10 @@ def _relative_link(note_folder: str, zip_rel: str) -> str:
     return "/".join(quote(seg, safe="") for seg in rel.split("/"))
 
 
+_CAP_REACHED = "left out: export attachment size cap reached"
+_NOT_EMBEDDABLE = "left out: not an image this document can hold, or too large to convert"
+
+
 def _attachment_ref(url: str | None, user_id: str, note_title: str, state: dict):
     """`(zip_rel, (user_id, note_id, sub, filename))` for one of OUR attachment addresses
     that belongs to this member, else None -- a foreign-tenant address is recorded as an
@@ -243,7 +247,7 @@ def _read_attachment_within_cap(url: str, zip_rel: str, parts, note_title: str, 
             state["failed"].add(zip_rel)
             state["issues"].setdefault(
                 url, (note_title,
-                      "left out: export attachment size cap reached"))
+                      _CAP_REACHED))
             return None
         data = path.read_bytes()
     except OSError:
@@ -255,13 +259,21 @@ def _read_attachment_within_cap(url: str, zip_rel: str, parts, note_title: str, 
 
 
 def _make_attachment_bytes_loader(user_id: str, note_title: str, state: dict):
-    """`load(url) -> (bytes, filename) | None` for the Word export (wave 8 lane 8C): an
-    image is EMBEDDED in the .docx rather than written beside it, so its bytes come back
-    to the caller -- read through the same tenancy check, path containment and byte cap as
-    every other export (`_attachment_ref`, `_read_attachment_within_cap`), and counted
-    against that cap every time it is embedded."""
+    """`load(url, prepare) -> prepare(bytes) | None` for the Word export (wave 8 lane 8C): an
+    image is EMBEDDED in the .docx rather than written beside it -- read through the same
+    tenancy check, path containment and byte cap as every other export (`_attachment_ref`,
+    `_read_attachment_within_cap`), then handed to `prepare`
+    (`notes_export_formats._prepare_image`, which returns `(ext, blob, w, h)`).
 
-    def load(url: str | None):
+    ⛔ WHAT IS CHARGED IS WHAT IS EMBEDDED: `len(blob)`, never the stored file's size (wave-8
+    final review I-2). A WebP converts to a PNG that can be many times its stored size, so a
+    note of stored images comfortably under the cap could ask for gigabytes, every converted
+    blob held until the document is zipped. An image whose embedded size would pass the cap
+    is left out and listed with the cap sentence, exactly like an oversized file elsewhere;
+    one `prepare` cannot turn into an image is left out and listed too. Every embed is
+    charged (the document caches a URL it has already embedded)."""
+
+    def load(url: str | None, prepare):
         ref = _attachment_ref(url, user_id, note_title, state)
         if ref is None:
             return None
@@ -271,9 +283,19 @@ def _make_attachment_bytes_loader(user_id: str, note_title: str, state: dict):
         read = _read_attachment_within_cap(url, zip_rel, parts, note_title, state)
         if read is None:
             return None
-        size, data = read
-        state["used_bytes"] += size
-        return data, parts[3]
+        _size, data = read
+        prepared = prepare(data)
+        if not prepared:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(url, (note_title, _NOT_EMBEDDABLE))
+            return None
+        embedded = len(prepared[1])
+        if state["used_bytes"] + embedded > state["cap_bytes"]:
+            state["failed"].add(zip_rel)
+            state["issues"].setdefault(url, (note_title, _CAP_REACHED))
+            return None
+        state["used_bytes"] += embedded
+        return prepared
 
     return load
 
