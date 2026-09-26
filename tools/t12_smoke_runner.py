@@ -23,6 +23,23 @@ USAGE
   python tools/t12_smoke_runner.py --identity member-smoke
   python tools/t12_smoke_runner.py --identity owner-rig     # needs a clear rig window
   python tools/t12_smoke_runner.py --self-check             # prove the runner can FAIL
+
+⭐ SANDBOX MODE (wave 10, lane 10C). The same steps against a LOCAL sandbox, never
+production, with the network TRACED (every note request's body keys, its
+`baseUpdatedAt`, and the revision each answer carries) and a TYPING-BURST verdict
+on step 3 — the F-5 409 question, answered from a trace instead of a guess:
+
+  # 1. boot the sandbox from PowerShell (never C:\\data, never 8077/8094):
+  #    python scripts\\hub_sandbox_boot.py --data-dir 'C:\\data-w10c' --port 8213
+  # 2. run the steps against it, proving it IS that sandbox by its nonce:
+  python tools/t12_smoke_runner.py --identity sandbox-member \\
+      --base http://127.0.0.1:8213 --integrity-log <the path the launcher printed> \\
+      --only 0,1,2,3 --trace-out docs/notebook/evidence/<run>/t12-trace.json
+
+The sandbox member (`w10c-t12@local.dev`) is provisioned through the app's own
+admin door (comp + verify) by the sandbox's `ADMIN_EMAILS` admin. Its password is a
+LOCAL-ONLY constant that exists on no production account. A sandbox run is NOT
+certification evidence: its results file says `certifying: false`.
 """
 from __future__ import annotations
 
@@ -42,12 +59,27 @@ except (AttributeError, ValueError):
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 PROD = "https://uctintelligence.com"
+# ⛔ The origin every step drives. PROD unless `--base` names a SANDBOX (wave 10, 10C).
+# Read at CALL time by every step (never bound as a default argument), so `main()`
+# setting it reaches them all.
+BASE = PROD
 SHOTS = pathlib.Path(r"C:\Users\Patrick\uct-q1-observe\t12")
 TAG = "t12-smoke"
 SENTENCE = "The pre-launch smoke run typed this sentence and it must survive a reload."
 FIXTURE_PDF = REPO / "tools" / "wave_p_cert_corpus" / "native_text.pdf"
+# The sandbox identity: a LOCAL-ONLY account on a sandbox data dir. The admin is the
+# launcher's ADMIN_EMAILS default (scripts/hub_sandbox_boot.py --test-email).
+SANDBOX_MEMBER = ("w10c-t12@local.dev", "LocalTest2026!", "w10c t12")
+SANDBOX_ADMIN = ("hubtest@local.dev", "LocalTest2026!")
 
 PASS, FAIL, INCONCL, OPEN = "PASS", "FAIL", "INCONCLUSIVE", "OPEN"
+
+
+def _path_of(url: str) -> str:
+    """Path + query of `url`, whatever the origin (production or a sandbox)."""
+    from urllib.parse import urlsplit
+    p = urlsplit(url)
+    return (p.path + ("?" + p.query if p.query else ""))[:70]
 
 
 def load_rig():
@@ -70,20 +102,37 @@ class Run:
     INCOMPLETE placeholder before opening a session.
     """
 
-    def __init__(self, identity: str, stamp: str):
+    def __init__(self, identity: str, stamp: str, *, trace: bool = False):
         self.identity = identity
         self.stamp = stamp
         self.steps: list[dict] = []
         self.calls: list[dict] = []
         self.console: list[str] = []
         self.note_id: str | None = None
+        self.trace = trace
+        self.burst: dict | None = None
         SHOTS.mkdir(parents=True, exist_ok=True)
 
     def watch(self, page):
-        page.on("request", lambda r: self.calls.append(
-            {"m": r.method, "u": r.url.split("uctintelligence.com")[-1][:70],
-             "status": None, "_req": r, "t": time.time()})
-            if "/api/" in r.url else None)
+        def on_req(r):
+            if "/api/" not in r.url:
+                return
+            c = {"m": r.method, "u": _path_of(r.url), "status": None, "_req": r, "t": time.time()}
+            # ⭐ TRACE MODE (sandbox only): what every NOTE write actually SENT — its
+            # keys and its compare-and-set baseline — because "PUT -> 409" alone
+            # cannot say whose revision the baseline was. Keys and the baseline
+            # only, never the body text.
+            if self.trace and "/api/j2/notes" in r.url and r.method in ("PUT", "POST", "PATCH"):
+                try:
+                    import json as _json
+                    body = _json.loads(r.post_data or "{}")
+                    c["sent_keys"] = sorted(body.keys()) if isinstance(body, dict) else ["<non-object>"]
+                    c["sent_base"] = body.get("baseUpdatedAt") if isinstance(body, dict) else None
+                    c["sent_title"] = (body.get("title") if isinstance(body, dict) else None)
+                except Exception:  # noqa: BLE001 -- multipart/binary bodies (uploads)
+                    c["sent_keys"] = ["<not json>"]
+            self.calls.append(c)
+        page.on("request", on_req)
 
         def on_resp(resp):
             try:
@@ -99,6 +148,17 @@ class Run:
                                 c["body"] = (resp.text() or "")[:300]
                             except Exception:  # noqa: BLE001
                                 c["body"] = "<unreadable>"
+                        elif self.trace and "/api/j2/notes" in c["u"]:
+                            # The revision the answer carries -- what a settle records.
+                            try:
+                                j = resp.json()
+                                n = j.get("note") if isinstance(j, dict) else None
+                                if isinstance(n, dict):
+                                    c["got_updated_at"] = n.get("updatedAt")
+                                    c["got_id"] = n.get("id")
+                                    c["got_title"] = n.get("title")
+                            except Exception:  # noqa: BLE001
+                                pass
                         return
             except Exception:  # noqa: BLE001
                 pass
@@ -151,7 +211,7 @@ def step0_sign_in(page, run, creds) -> tuple[str, str]:
         return FAIL, f"the rig profile is not signed in (/api/auth/me {me.get('status')})"
 
     email, password = creds
-    page.goto(PROD + "/login", wait_until="domcontentloaded")
+    page.goto(BASE + "/login", wait_until="domcontentloaded")
     page.wait_for_timeout(4000)
     boxes = page.query_selector_all("input")
     email_box = pw_box = None
@@ -194,7 +254,7 @@ def step1_reach_notebook(page, run) -> tuple[str, str]:
     """⛔ BY CLICKING, NOT BY TYPING A URL. The charter is explicit: *"'I had to
     type the URL' is a FAIL of this step even if the page then loads — a member
     does not know the URL."*"""
-    page.goto(PROD + "/dashboard", wait_until="domcontentloaded")
+    page.goto(BASE + "/dashboard", wait_until="domcontentloaded")
     page.wait_for_timeout(6000)
     clicked = page.evaluate("""async () => {
       const links = [...document.querySelectorAll('a,[role=link],button')];
@@ -288,7 +348,11 @@ def step2_create_note(page, run, today) -> tuple[str, str]:
     tbox.click()
     page.keyboard.type(title)
     page.wait_for_timeout(1500)
-    tagbox = page.query_selector('input[placeholder*="Tags" i]')
+    # ⛔ THE PRODUCT'S WORDS, AGAIN (see the new-note control above). The tag input
+    # read "Tags" on 2026-09-13; it reads "Add a tag" since the wave-6 tag UI, and
+    # `*="Tags"` stopped matching -- the 2026-09-26 sandbox run skipped the tag write
+    # and with it the very revision step 3's 409 is about. "tag" matches both.
+    tagbox = page.query_selector('input[placeholder*="tag" i]')
     tagged = False
     if tagbox is not None:
         tagbox.click()
@@ -301,6 +365,63 @@ def step2_create_note(page, run, today) -> tuple[str, str]:
     if not tagged:
         return FAIL, f"the note was created and titled but the tag could not be applied (no Tags input on the surface); note `{run.note_id}`"
     return PASS, f"note `{run.note_id}` created from the Notebook's own control, titled **{title}**, tagged `{TAG}`, editor present: **{focus_ok}**"
+
+
+CONFLICTED_MARK = "conflicted copy"
+
+
+def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str],
+                  sentence_present: bool) -> dict:
+    """⛔⛔ THE TYPING-BURST RAIL (wave 10, lane 10C) — T-12 step 3's shape, judged
+    from the NETWORK TRACE, not from how the page looked.
+
+    PASS only when ALL hold:
+      * the sentence is in the note after a reload (no LOSS);
+      * no note titled "(conflicted copy)" exists afterwards (no FORK);
+      * every 409 on this note's PUT is followed by a 2xx PUT on the same note
+        (a 409 that nothing settles is a write the member thinks landed).
+    A 409 that IS settled is reported, never hidden: "zero 409s" and "each 409
+    settled" are different, and the difference is the F-5 question.
+
+    Pure, so `--self-check` can plant each failure and watch it turn.
+    """
+    path = f"/api/j2/notes/{note_id}" if note_id else None
+    puts = [c for c in calls if path and c.get("m") == "PUT" and c.get("u") == path]
+    unsettled = []
+    for i, c in enumerate(puts):
+        if c.get("status") == 409:
+            if not any(200 <= (d.get("status") or 0) < 300 for d in puts[i + 1:]):
+                unsettled.append(i)
+    n409 = sum(1 for c in puts if c.get("status") == 409)
+    forks = [t for t in titles_after if CONFLICTED_MARK in (t or "").lower()]
+    problems = []
+    if not sentence_present:
+        problems.append("LOSS: the sentence is not in the note after a reload")
+    if forks:
+        problems.append(f"FORK: {len(forks)} conflicted cop{'y' if len(forks) == 1 else 'ies'} exist: {forks[:3]}")
+    if unsettled:
+        problems.append(f"{len(unsettled)} 409(s) on this note were never followed by a landed PUT")
+    if not puts and note_id:
+        problems.append("no PUT to the note was observed -- the burst was never sent, nothing was measured")
+    return {
+        "verdict": FAIL if problems else PASS,
+        "puts": len(puts), "conflicts_409": n409, "unsettled_409": len(unsettled),
+        "forks": forks, "sentence_present": sentence_present, "problems": problems,
+        "put_sequence": [{"status": c.get("status"), "sent_keys": c.get("sent_keys"),
+                          "sent_base": c.get("sent_base"), "got_updated_at": c.get("got_updated_at"),
+                          "detail": c.get("body")} for c in puts],
+    }
+
+
+def _titles_after(page) -> list[str]:
+    """INSTRUMENT READ (not a step): every live note title, to look for a fork."""
+    got = page.evaluate("""async () => {
+      const r = await fetch('/api/j2/notes?limit=200', {credentials:'include'});
+      if (!r.ok) return {err: r.status};
+      const j = await r.json().catch(() => ({notes:[]}));
+      return {titles: (j.notes||[]).map(n => n.title || '')};
+    }""")
+    return got.get("titles") or []
 
 
 def step3_type_and_reload(page, run) -> tuple[str, str]:
@@ -320,10 +441,18 @@ def step3_type_and_reload(page, run) -> tuple[str, str]:
     page.reload(wait_until="domcontentloaded")
     page.wait_for_timeout(9000)
     body1 = page.evaluate("() => (document.querySelector('.ProseMirror')||{}).innerText || ''")
+    if run.trace:
+        run.burst = burst_verdict(run.calls, run.note_id, _titles_after(page), SENTENCE in body1)
+        if run.burst["verdict"] != PASS:
+            return FAIL, "typing-burst rail: " + "; ".join(run.burst["problems"])
     if SENTENCE in body1:
+        extra = ""
+        if run.burst is not None:
+            extra = (f"; typing-burst rail PASS — {run.burst['puts']} PUT(s), "
+                     f"**{run.burst['conflicts_409']} 409(s), all settled**, no conflicted copy")
         return PASS, (f"the sentence is present after a hard reload, character for character; "
                       f"`Save failed` seen: **{status.get('saveFailed')}**, "
-                      f"`Reconnecting…` seen: **{status.get('reconnecting')}**")
+                      f"`Reconnecting…` seen: **{status.get('reconnecting')}**{extra}")
     page.reload(wait_until="domcontentloaded")
     page.wait_for_timeout(10000)
     body2 = page.evaluate("() => (document.querySelector('.ProseMirror')||{}).innerText || ''")
@@ -335,7 +464,7 @@ def step3_type_and_reload(page, run) -> tuple[str, str]:
 
 
 def step4_widget_embed(page, run) -> tuple[str, str]:
-    page.goto(PROD + "/charts", wait_until="domcontentloaded")
+    page.goto(BASE + "/charts", wait_until="domcontentloaded")
     page.wait_for_timeout(10000)
     fired = page.evaluate("""async () => {
       const chooser = document.querySelector('[aria-label="Send to Journal — choose where"]');
@@ -358,7 +487,7 @@ def step4_widget_embed(page, run) -> tuple[str, str]:
     }""")
     if not fired.get("ok"):
         return FAIL, f"the capture door could not be used: {fired}"
-    page.goto(f"{PROD}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
+    page.goto(f"{BASE}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
     page.wait_for_timeout(9000)
     present = page.evaluate("""() => {
       const b = document.querySelector('.ProseMirror');
@@ -394,7 +523,7 @@ def step5_search(page, run) -> tuple[str, str]:
     """
     page.keyboard.press("Escape")
     page.wait_for_timeout(600)
-    page.goto(f"{PROD}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
+    page.goto(f"{BASE}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
     page.wait_for_timeout(7000)
 
     on_surface = page.evaluate("""() => ({
@@ -618,7 +747,7 @@ def step8_trash_restore(page, run) -> tuple[str, str]:
     if not restored.get("ok"):
         return FAIL, f"the note is in Trash but {restored.get('why')}"
 
-    page.goto(f"{PROD}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
+    page.goto(f"{BASE}/journal/notebook?note={run.note_id}", wait_until="domcontentloaded")
     page.wait_for_timeout(8000)
     after = page.evaluate("""() => {
       const b = document.querySelector('.ProseMirror');
@@ -664,8 +793,15 @@ def render(runs: list[Run], stamp: str) -> str:
         "stands in for any step.** Where a control could not be driven, the step is "
         "**INCONCLUSIVE with the limitation named**, never a pass.",
         "",
-        f"Run {stamp} · origin `{PROD}`",
+        f"Run {stamp} · origin `{BASE}`",
         "",
+    ]
+    if BASE != PROD:
+        L += ["> ⛔ **SANDBOX RUN — `certifying: false`.** A local sandbox, not production. "
+              "It answers questions about the code (the F-5 409 trace, the typing-burst "
+              "rail); it is not T-12 evidence and must never be filed as a pass of C-7.",
+              ""]
+    L += [
         "## Identities",
         "",
         "| identity | what it is |",
@@ -674,6 +810,9 @@ def render(runs: list[Run], stamp: str) -> str:
     for r in runs:
         what = ("the rig profile, signed in as the owner account (a 30-day session)"
                 if r.identity == "owner-rig" else
+                f"`{SANDBOX_MEMBER[0]}` on a LOCAL sandbox, comped and verified through the "
+                "app's own admin door, in a FRESH browser context"
+                if r.identity == "sandbox-member" else
                 "`member-smoke@uctintelligence.internal` in a FRESH browser context — "
                 "the independent-member view this window has never had")
         L.append(f"| `{r.identity}` | {what} |")
@@ -688,6 +827,20 @@ def render(runs: list[Run], stamp: str) -> str:
                      f"<br>screenshots: {shots}<br>calls: {calls} |")
         errs = r.console or ["none"]
         L += ["", f"**Console errors:** {len(r.console)} — " + "; ".join(e[:120] for e in errs[:5]), ""]
+        if r.burst is not None:
+            b = r.burst
+            L += [f"#### Typing-burst rail (step 3): **{b['verdict']}**", "",
+                  f"- PUTs to the note: {b['puts']} · 409s: **{b['conflicts_409']}** · "
+                  f"unsettled 409s: **{b['unsettled_409']}** · conflicted copies: "
+                  f"**{len(b['forks'])}** · sentence after reload: **{b['sentence_present']}**",
+                  "", "| # | status | sent keys | sent baseUpdatedAt | answer's updatedAt | detail |",
+                  "|---|---|---|---|---|---|"]
+            for i, p in enumerate(b["put_sequence"]):
+                L.append(f"| {i} | {p['status']} | `{', '.join(p['sent_keys'] or [])}` | "
+                         f"`{p['sent_base']}` | `{p['got_updated_at']}` | {p['detail'] or ''} |")
+            if b["problems"]:
+                L += [""] + [f"- ⛔ {x}" for x in b["problems"]]
+            L.append("")
     L += ["## Verdict", ""]
     for r in runs:
         bad = [s for s in r.steps if s["verdict"] == FAIL]
@@ -704,8 +857,9 @@ def render(runs: list[Run], stamp: str) -> str:
     return "\n".join(L) + "\n"
 
 
-def run_identity(pw, identity: str, creds, stamp: str, rig=None) -> Run:
-    run = Run(identity, stamp)
+def run_identity(pw, identity: str, creds, stamp: str, rig=None, *, only: set[str] | None = None,
+                 trace: bool = False) -> Run:
+    run = Run(identity, stamp, trace=trace)
     today = datetime.date.today().isoformat()
     if identity == "owner-rig":
         proc, ep, ver = rig.spawn_rig()
@@ -729,7 +883,7 @@ def run_identity(pw, identity: str, creds, stamp: str, rig=None) -> Run:
         # form" for a pod that was simply not there. Five separate measurements
         # were interrupted by another session's deploys today; the instrument has
         # to name that rather than absorb it.
-        page.goto(PROD + "/api/health", wait_until="domcontentloaded")
+        page.goto(BASE + "/api/health", wait_until="domcontentloaded")
         page.wait_for_timeout(1500)
         health = page.evaluate("""async () => {
           try { const r = await fetch('/api/health', {cache:'no-store'});
@@ -751,6 +905,8 @@ def run_identity(pw, identity: str, creds, stamp: str, rig=None) -> Run:
         if v != PASS:
             return run
         for num, title, fn in STEPS:
+            if only is not None and num not in only:
+                continue
             mark = len(run.calls)
             before = run.shot(page, num, "before")
             try:
@@ -833,13 +989,67 @@ def self_check() -> int:
     o3 = render([r3], "0000")
     case("an INCONCLUSIVE step is counted apart from PASS and FAIL",
          "1 INCONCLUSIVE/OPEN" in o3 and "0 PASS" in o3)
+
+    # ⛔⛔ THE TYPING-BURST RAIL MUST BE ABLE TO FAIL — one planted failure per clause.
+    nid = "n1"
+    path = f"/api/j2/notes/{nid}"
+    ok_put = {"m": "PUT", "u": path, "status": 200}
+    c409 = {"m": "PUT", "u": path, "status": 409, "body": '{"detail":"note changed"}'}
+    case("burst: clean PUTs, sentence present, no fork -> PASS",
+         burst_verdict([ok_put, ok_put], nid, ["T-12 smoke"], True)["verdict"] == PASS)
+    settled = burst_verdict([ok_put, c409, {"m": "GET", "u": path, "status": 200}, ok_put], nid,
+                            ["T-12 smoke"], True)
+    case("burst: a 409 followed by a landed PUT -> PASS, and the 409 is COUNTED",
+         settled["verdict"] == PASS and settled["conflicts_409"] == 1 and settled["unsettled_409"] == 0)
+    case("burst: a 409 nothing settles -> FAIL",
+         burst_verdict([ok_put, c409], nid, ["T-12 smoke"], True)["verdict"] == FAIL)
+    case("burst: a conflicted copy -> FAIL (fork)",
+         burst_verdict([ok_put], nid, ["T-12 smoke", "T-12 smoke (conflicted copy)"], True)["verdict"] == FAIL)
+    case("burst: the sentence missing after reload -> FAIL (loss)",
+         burst_verdict([ok_put], nid, ["T-12 smoke"], False)["verdict"] == FAIL)
+    case("burst: no PUT observed at all -> FAIL (nothing measured is not a pass)",
+         burst_verdict([], nid, ["T-12 smoke"], True)["verdict"] == FAIL)
+    case("burst: another note's 409 is not this note's",
+         burst_verdict([ok_put, {**c409, "u": "/api/j2/notes/other"}], nid, ["x"], True)["verdict"] == PASS)
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
 
+def provision_sandbox_member(pw, base: str) -> str | None:
+    """Create + comp + verify the LOCAL sandbox member through the app's own admin
+    door (the wave-6 walk's recipe, shared via tools/notebook_perf_harness.py).
+    Returns None on success, else why it failed. ⛔ Sandbox only: `main()` refuses
+    to reach this against production."""
+    spec = importlib.util.spec_from_file_location("nb_perf", REPO / "tools" / "notebook_perf_harness.py")
+    perf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(perf)
+    admin = pw.request.new_context(base_url=base)
+    member = pw.request.new_context(base_url=base)
+    try:
+        perf._provision(admin, member, base, member=SANDBOX_MEMBER)
+        return None
+    except Exception as e:  # noqa: BLE001 -- SetupFailed or a transport error
+        return f"{type(e).__name__}: {e}"
+    finally:
+        admin.dispose()
+        member.dispose()
+
+
 def main() -> int:
+    global BASE, SHOTS
     ap = argparse.ArgumentParser()
-    ap.add_argument("--identity", choices=["member-smoke", "owner-rig"], action="append")
+    ap.add_argument("--identity", choices=["member-smoke", "owner-rig", "sandbox-member"], action="append")
+    ap.add_argument("--base", default=PROD,
+                    help="the origin to drive. Anything but production is a SANDBOX run: it needs "
+                         "--integrity-log, uses --identity sandbox-member only, and is never certifying.")
+    ap.add_argument("--integrity-log", default=None,
+                    help="the sandbox launcher's integrity log (the path it printed at boot). The "
+                         "server at --base must answer that log's identity nonce or nothing runs.")
+    ap.add_argument("--only", default=None, help="comma-separated step numbers to run after step 0")
+    ap.add_argument("--trace-out", default=None,
+                    help="write the raw network trace (+ the typing-burst verdict) here as JSON; "
+                         "turns trace mode on")
+    ap.add_argument("--shots", default=None, help="screenshot directory (default: outside the repo)")
     # ⛔⛔ THE SHARED ERROR MESSAGE PROMISED A FLAG THIS TOOL DID NOT HAVE.
     # `window_check.resolve_profile` refuses a missing profile with "Point the tool at
     # the canonical rig profile (--profile <path>, or UCT_Q1_RIG_PROFILE=<path>)" - and
@@ -860,15 +1070,55 @@ def main() -> int:
         print("name at least one --identity")
         return 2
 
+    BASE = args.base.rstrip("/")
+    sandbox = BASE != PROD
+    if args.shots:
+        SHOTS = pathlib.Path(args.shots)
+    # ⛔⛔ TWO REFUSALS, BOTH DIRECTIONS. The sandbox identity's password is a LOCAL
+    # constant: it must never be typed at production. And a production identity has
+    # no business on a sandbox (its credentials exist only there).
+    if "sandbox-member" in args.identity and not sandbox:
+        print("REFUSED: --identity sandbox-member runs against a SANDBOX only (--base), never production.")
+        return 2
+    if sandbox and set(args.identity) != {"sandbox-member"}:
+        print("REFUSED: a sandbox --base runs --identity sandbox-member only.")
+        return 2
+    if sandbox:
+        # ⛔ A PORT IS NOT AN IDENTITY (CLAUDE.md). Prove the server at --base is the
+        # sandbox that writes this integrity log, or write nothing through it.
+        if not args.integrity_log:
+            print("REFUSED: a sandbox run needs --integrity-log (the path the launcher printed).")
+            return 2
+        sys.path.insert(0, str(REPO / "scripts"))
+        import sandbox_identity as sid
+        ver = sid.verify(BASE, args.integrity_log)
+        print(f"sandbox identity: {'PROVEN' if ver.ok else 'NOT PROVEN'} -- {ver.sentence}")
+        if not ver.ok:
+            return 3
+    only = set(args.only.split(",")) if args.only else None
+    trace = bool(args.trace_out)
+
     stamp = time.strftime("%Y-%m-%dT%H-%M-%SZ", time.gmtime())
     out = pathlib.Path(args.out or (REPO / "docs" / "notebook" /
                                     f"t12-smoke-{datetime.date.today().isoformat()}.md"))
-    rig = load_rig()
+    rig = None if sandbox else load_rig()
     runs: list[Run] = []
     from playwright.sync_api import sync_playwright
 
     for identity in args.identity:
         creds = None
+        if identity == "sandbox-member":
+            with sync_playwright() as pw:
+                why = provision_sandbox_member(pw, BASE)
+            if why:
+                print(f"INCONCLUSIVE: the sandbox member could not be provisioned: {why}")
+                return 3
+            creds = (SANDBOX_MEMBER[0], SANDBOX_MEMBER[1])
+            print(f"\n═══ {identity} ═══")
+            with sync_playwright() as pw:
+                runs.append(run_identity(pw, identity, creds, stamp, rig, only=only, trace=trace))
+            out.write_text(render(runs, stamp), encoding="utf-8")
+            continue
         if identity == "member-smoke":
             email = os.environ.get("MEMBER_SMOKE_EMAIL")
             pwd = os.environ.get("MEMBER_SMOKE_PASSWORD")
@@ -886,8 +1136,27 @@ def main() -> int:
         out.write_text(render(runs, stamp), encoding="utf-8")
 
     out.write_text(render(runs, stamp), encoding="utf-8")
+    if trace:
+        # ⛔ R-RAW: the raw trace is written BEFORE anyone interprets it, beside the
+        # verdict it produced. Keys, baselines, revisions and statuses -- no note text.
+        import json as _json
+        raw = [{"identity": r.identity, "note_id": r.note_id, "burst": r.burst,
+                "calls": [{k: v for k, v in c.items() if k != "_req"} for c in r.calls
+                          if "/api/j2/notes" in c.get("u", "")]} for r in runs]
+        tp = pathlib.Path(args.trace_out)
+        tp.parent.mkdir(parents=True, exist_ok=True)
+        tp.write_text(_json.dumps({"base": BASE, "certifying": not sandbox, "stamp": stamp,
+                                   "runs": raw}, indent=2, default=str), encoding="utf-8")
+        print(f"trace → {tp}")
     print(f"\nresults → {out}")
     print(f"screenshots → {SHOTS}")
+    bursts = [r.burst for r in runs if r.burst is not None]
+    if bursts:
+        print("TYPING-BURST: " + ", ".join(f"{b['verdict']} ({b['conflicts_409']} 409, "
+                                           f"{b['unsettled_409']} unsettled, {len(b['forks'])} forks)"
+                                           for b in bursts))
+        if any(b["verdict"] != PASS for b in bursts):
+            return 1
     return 0
 
 
