@@ -1,0 +1,51 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 0,
+    "fixed": 2,
+    "unchanged": 176,
+    "missing": 0,
+    "baseline": 178,
+    "current": 179,
+    "current_ran": 55306,
+    "new_flaky": 3,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 178 = unchanged 176 + fixed 2 + missing 0  |  current 179 = unchanged 176 + new 0 + new-but-flaky 3",
+  "invalid_because": [
+    "current: shards_success 17 of 18"
+  ],
+  "baseline_run_id": "36211641580",
+  "current_run_id": "36214749706",
+  "baseline_sha": "2c3ed30930141d4682718e9bc73a8d8b76878a2f",
+  "current_sha": "eea9818e49387ee0241214ad144de7c03ffe60ee",
+  "commit_range": "2c3ed30930141d4682718e9bc73a8d8b76878a2f..eea9818e49387ee0241214ad144de7c03ffe60ee",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "vitest|src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx|AskPanel \u2014 the notice is brought into view on touch > on TOUCH, setting a notice scrolls THAT region into view, nearest"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
