@@ -273,3 +273,80 @@ def test_the_bounds_are_DARK_too(monkeypatch):
     monkeypatch.setattr(ns, "_query_vector", lambda *a, **k: touched.append(a))
     rows = [{"id": "x"}]
     assert _append(U, rows) is rows and touched == []
+
+
+# ── backend re-review N5: a refused query builds no matrix ───────────────────
+
+def _candidate_reads(monkeypatch):
+    reads: list[str] = []
+    real = ns._read_candidates
+
+    def spy(conn, user_id, exclude_note_ids):
+        reads.append(user_id)
+        return real(conn, user_id, exclude_note_ids)
+
+    monkeypatch.setattr(ns, "_read_candidates", spy)
+    return reads
+
+
+@pytest.mark.parametrize("refusal", ["one_in_flight", "daily_count"])
+def test_a_REFUSED_query_reads_no_candidates(db_path, monkeypatch, refusal):
+    """⚰️ The bounds were consulted AFTER the candidate read: a refused query
+    still read up to MAX_SEARCH_BLOCKS vectors into a preallocated float32
+    matrix (~12 MB at 1,536 dims) on a pool worker, only to return nothing.
+    The bounds were meant to bound that worker's cost too."""
+    from api.services import daily_counters as dc
+    rows, _ = _library()
+    provider = Counting()
+    monkeypatch.setattr(ns, "get_provider", lambda: provider)
+    reads = _candidate_reads(monkeypatch)
+    if refusal == "daily_count":
+        dc.take(DAY, [dc.Charge(ns.SCOPE_QUERY_EMBED, U, ns.QUERY_EMBEDS_PER_MEMBER_PER_DAY)])
+    else:
+        with ns._bounds_lock:
+            ns._embedding_now.add(U)                 # another request's embed in flight
+    try:
+        assert _append(U, rows) is rows
+    finally:
+        with ns._bounds_lock:
+            ns._embedding_now.discard(U)
+    assert provider.calls == []
+    assert reads == [], f"a refused query read the candidates ({refusal})"
+
+
+def test_CONTROL_an_admitted_query_reads_its_candidates_once_and_embeds(db_path, monkeypatch):
+    rows, meaning = _library()
+    provider = Counting()
+    monkeypatch.setattr(ns, "get_provider", lambda: provider)
+    reads = _candidate_reads(monkeypatch)
+    out = _append(U, rows)
+    assert reads == [U] and len(provider.calls) == 1
+    assert [r["id"] for r in out][-1] == meaning["id"]
+
+
+def test_a_CACHED_query_answers_while_the_members_slot_is_held_and_spends_no_count(db_path, monkeypatch):
+    """The cache is consulted first: a vector already in hand needs no slot, no
+    count and no embed -- only the candidates it is scored against."""
+    from api.services import daily_counters as dc
+    rows, meaning = _library()
+    provider = Counting()
+    monkeypatch.setattr(ns, "get_provider", lambda: provider)
+    _append(U, rows)                                   # fills the cache
+    counted = dc.value(DAY, ns.SCOPE_QUERY_EMBED, U)
+    with ns._bounds_lock:
+        ns._embedding_now.add(U)
+    try:
+        out = _append(U, rows)
+    finally:
+        with ns._bounds_lock:
+            ns._embedding_now.discard(U)
+    assert [r["id"] for r in out][-1] == meaning["id"]
+    assert len(provider.calls) == 1 and dc.value(DAY, ns.SCOPE_QUERY_EMBED, U) == counted
+
+
+def test_a_member_with_NO_candidates_spends_no_embed_and_no_count(db_path, monkeypatch):
+    from api.services import daily_counters as dc
+    provider = Counting()
+    monkeypatch.setattr(ns, "get_provider", lambda: provider)
+    assert ns.search(U, NL) == []
+    assert provider.calls == [] and dc.value(DAY, ns.SCOPE_QUERY_EMBED, U) == 0

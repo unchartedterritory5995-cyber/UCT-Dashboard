@@ -562,14 +562,16 @@ def search(user_id: str, query: str, k: int = 10, *, conn: sqlite3.Connection | 
     try:
         conn.row_factory = sqlite3.Row
         ensure_semantic_schema(conn)
-        note_ids, mat = _read_candidates(conn, user_id, exclude_note_ids)
-        if not note_ids:
+        # ⛔ The bounds FIRST, the candidates only for a query they admit
+        # (backend re-review N5): `_query_vector` calls the reader once every
+        # refusal has been checked, so a refused query builds no matrix.
+        found = _query_vector(user_id, provider, q, read_candidates=lambda: _read_candidates(
+            conn, user_id, exclude_note_ids))
+        if not found:
+            # A bound refused the embed (ruling D-H6), or there is nothing to
+            # score: no meaning hits, and the caller serves the lexical page.
             return []
-        qv = _query_vector(user_id, provider, q)
-        if qv is None:
-            # A bound refused the embed (ruling D-H6): no meaning hits, and the
-            # caller serves the lexical page it already has.
-            return []
+        qv, (note_ids, mat) = found
         best = _score(qv, note_ids, mat)
         ranked = sorted((item for item in best.items() if item[1] >= provider.min_score),
                         key=lambda kv: (-kv[1], kv[0]))
@@ -685,6 +687,8 @@ def _fail_open(err: BaseException) -> None:
 #       cannot be read or written admits the embed -- the counter's own rule
 #       (a cap that fails closed refuses every member on a busy database), and
 #       (a), (b) and the 2 s timeout still hold.
+# All three are consulted BEFORE the candidate read (backend re-review N5), so a
+# refused query costs its pool worker no vector read and no matrix.
 # ⚠️ (a) and (b) are PER-PROCESS: a second web process would double (a) and keep
 # its own cache -- listed for the CLAUDE.md single-process roster.
 
@@ -731,27 +735,44 @@ def clear_query_cache() -> None:
         _query_cache.clear()
 
 
-def _query_vector(user_id: str, provider: EmbeddingProvider, q: str) -> list[float] | None:
-    """The query's vector under ruling D-H6's three bounds, or None when a bound
-    refused it (the caller then serves the lexical page). RAISES a provider
-    failure, like the embed it wraps: `append_meaning_hits` decides failing
-    open, and the member's in-flight slot is released either way."""
+def _query_vector(user_id: str, provider: EmbeddingProvider, q: str,
+                  read_candidates) -> tuple[list[float], tuple[list[str], Any]] | None:
+    """`(vector, candidates)` for the query under ruling D-H6's three bounds, or
+    None when a bound refused it or there is nothing to score (the caller then
+    serves the lexical page). RAISES a provider failure, like the embed it
+    wraps: `append_meaning_hits` decides failing open, and the member's
+    in-flight slot is released either way.
+
+    ⛔ `read_candidates` (no arguments -> `(note_ids, matrix)`) runs only once
+    every refusal has been checked (backend re-review N5) -- the cache, the
+    one-in-flight slot and the day's count, the count first as a READ -- so a
+    refused query reads no vector and builds no matrix, and a member with
+    nothing to score spends neither an embed nor a count. ⚰️ The candidates
+    were read first: up to MAX_SEARCH_BLOCKS vectors into a ~12 MB matrix on a
+    pool worker, for a query a bound then refused."""
     key = (str(user_id), provider.name, _normalise_query(q))
-    hit = _cached_vector(key)
+    hit = _cached_vector(key)                                  # (b)
     if hit is not None:
-        return hit
+        candidates = read_candidates()
+        return (hit, candidates) if candidates[0] else None
     with _bounds_lock:
         if key[0] in _embedding_now:                          # (a)
             return None
         _embedding_now.add(key[0])
     try:
-        refused = daily_counters.take(_et_day(), [daily_counters.Charge(      # (c)
+        day = _et_day()
+        if daily_counters.value(day, SCOPE_QUERY_EMBED, key[0]) >= QUERY_EMBEDS_PER_MEMBER_PER_DAY:
+            return None                                        # (c), read before the candidates
+        candidates = read_candidates()
+        if not candidates[0]:
+            return None
+        refused = daily_counters.take(day, [daily_counters.Charge(      # (c), the atomic charge
             SCOPE_QUERY_EMBED, key[0], 1, QUERY_EMBEDS_PER_MEMBER_PER_DAY)])
         if refused is not None:
             return None
         vector = provider.embed([q], timeout=query_embed_timeout())[0]
         _remember_vector(key, vector)                          # (b)
-        return vector
+        return vector, candidates
     finally:
         with _bounds_lock:
             _embedding_now.discard(key[0])
