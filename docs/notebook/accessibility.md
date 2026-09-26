@@ -31,8 +31,10 @@ and green once -- ruling D-A2).
 **Aria census, before and after** (method: a population file with neither an `aria-` nor
 a `role=` token): 25 of 86 at the plan's commit `a5668a8a8`; **26 of 88** at the lane's
 start `09220eedf`; **4 of 88** after A2 (`754040ffd`), all four classified with a reason
-(`NotebookFlagGate`, `CaptureHost`, `NoteStats`, and lane 8C's `NoteExportControls`),
-0 unclassified. A token proves a file says something, not that it says the right thing --
+(`NotebookFlagGate`, `CaptureHost`, `NoteStats`, and lane 8C's `NoteExportControls`);
+**3 of 88** once lane 8C rebuilt `NoteExportControls` into the Export menu with its own
+roles and names -- the three exempt, 0 unclassified, and no other lane's exemption left.
+A token proves a file says something, not that it says the right thing --
 the axe rails and the screen-reader pass judge the words.
 
 ## What jsdom cannot see, and what covers it
@@ -53,10 +55,6 @@ the axe rails and the screen-reader pass judge the words.
   on its tint in light (4.42:1); **D-A4-3** input edges drawn in `--border` (1.18:1 dark,
   WCAG 1.4.11). Each needs a `tokens.css` decision; no Notebook-CSS token switch fixes
   them in all three themes.
-- **Five focus rings in lane 8C's files** use the translucent `--focus-ring` (1.72:1 on the
-  light theme): `NoteExportControls` `.item:focus-visible`, `ExportDialog`
-  `.option:focus-within`, the Research home sample strip's two buttons, and the tour's
-  title and Skip. The fix is `box-shadow: 0 0 0 2px var(--ut-gold)`.
 - **The graph canvas draws its nodes, edges and hub labels in fixed colours** chosen for a
   dark canvas (`NoteGraphView.jsx` draw()). The selection ring follows the theme and is
   measured; the rest is measured nowhere, and on the light theme the hub labels are
@@ -70,9 +68,6 @@ the axe rails and the screen-reader pass judge the words.
   (opening a note drops the `view` parameter; closing does not restore it). Focus goes to
   the pane heading, which is correct for what is shown; whether the pane should return to
   All notes is a product question, not an accessibility one.
-- **Lane 8C's first-run tour and sample strip** use the translucent `--focus-ring`
-  (1.72:1 on light) and the tour title drops its outline in a rule with no replacement --
-  recorded for 8C in both CSS rails; the tour's own behaviour is covered by 8C's rail.
 - **The Support page's stylesheet** has four inputs whose focus ring is replaced only by
   an unchanged background (`app/src/pages/Support.module.css`); it is not Notebook CSS
   and is reported to the controller.

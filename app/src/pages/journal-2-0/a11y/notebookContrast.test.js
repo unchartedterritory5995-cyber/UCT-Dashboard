@@ -153,9 +153,13 @@ describe('Notebook colour contrast, all three themes', () => {
     out.push('')
     out.push('## Another lane\'s to fix')
     out.push('')
-    out.push('| pair | theme | measured | lane | fix |')
-    out.push('|---|---|---|---|---|')
-    for (const e of OTHER_LANES) out.push(`| \`${e.pair.replace(/\|/g, '\\|')}\` | ${e.theme} | ${Number(e.measured).toFixed(2)}:1 | ${e.lane} | ${e.fix} |`)
+    if (!OTHER_LANES.length) {
+      out.push('None. Every pair in another lane\'s stylesheet meets its bar, or is one of the token-level rows above.')
+    } else {
+      out.push('| pair | theme | measured | lane | fix |')
+      out.push('|---|---|---|---|---|')
+      for (const e of OTHER_LANES) out.push(`| \`${e.pair.replace(/\|/g, '\\|')}\` | ${e.theme} | ${Number(e.measured).toFixed(2)}:1 | ${e.lane} | ${e.fix} |`)
+    }
     out.push('')
     out.push('## Measured over a picture, not the page')
     out.push('')

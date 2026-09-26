@@ -156,11 +156,11 @@ export const EXPECTED_FAILURES = Object.freeze([
   { pair: "tabs/NotebookTab.module.css .sortSelect [ui-input-border border]", theme: 'light', measured: 1.16, rulingId: 'D-A4-3' },
 ])
 
-/** Fixable, but in another lane's stylesheet this wave -- that lane's to make. */
-export const OTHER_LANES = Object.freeze([
-  { pair: "components/notebook/ResearchHome.module.css .sampleStripAction:focus-visible, .sampleStripDismiss:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
-  { pair: "components/notebook/onboarding/NotebookTour.module.css .title:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
-  { pair: "components/notebook/onboarding/NotebookTour.module.css .skip:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
-  { pair: "components/notebook/NoteExportControls.module.css .item:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
-  { pair: "components/notebook/export/ExportDialog.module.css .option:focus-within [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
-])
+/**
+ * Fixable, but in another lane's stylesheet this wave -- that lane's to make.
+ * Empty: lane 8C applied all five of its rows (the export menu, the export
+ * dialog, the sample strip, the tour's title and Skip) in 6775e2968, so those
+ * rules are held to the bar like every other. Add a row only for a failure in a
+ * file LANE_OWNED names, with the fix.
+ */
+export const OTHER_LANES = Object.freeze([])

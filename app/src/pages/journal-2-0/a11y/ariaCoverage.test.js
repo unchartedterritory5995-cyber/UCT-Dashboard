@@ -35,11 +35,10 @@ export const EXEMPT = Object.freeze({
 })
 
 /** Another lane's file in the population. Classified, but its staleness is the
- *  owner's: when 8C adds aria to it, this entry simply stops applying. */
-export const OTHER_LANE_EXEMPT = Object.freeze({
-  'components/notebook/NoteExportControls.jsx':
-    'lane 8C (seam S8-3): three buttons whose visible text is their name; axe-clean inside the editor (recipe "editor"); 8C rebuilds it into an Export menu and owns its aria',
-})
+ *  owner's: when that lane adds aria to it, the entry stops applying and is
+ *  deleted. Empty: 8C's NoteExportControls.jsx became the Export menu, with
+ *  its own roles and names, so it is held to the census like every other file. */
+export const OTHER_LANE_EXEMPT = Object.freeze({})
 
 export function deriveNoAriaFiles() {
   return derivePopulation().filter((f) => !TOKEN.test(readFileSync(join(J2_DIR, f), 'utf8')))

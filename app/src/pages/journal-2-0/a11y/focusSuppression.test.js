@@ -44,15 +44,12 @@ const BAR = 3
  * ⭐ SharedNotePage.module.css:17 (8B) was the plan's named case; lane 8B
  * fixed it in 2361ebffa (a :focus-visible ring on the read-only document), so
  * it is audited here like every other file and needs no entry.
+ * ⭐ Empty again: lane 8C's three entries (NoteExportControls, the Research home
+ * sample strip, the tour's title and Skip) were fixed by 8C in 6775e2968, so
+ * those files are audited like the rest -- a return to var(--focus-ring) now
+ * fails here instead of being skipped.
  */
-export const OTHER_LANES = Object.freeze({
-  'components/notebook/NoteExportControls.module.css':
-    { lane: '8C', why: '.item:focus-visible uses var(--focus-ring), 1.7:1 on the light theme; 8C owns the file (seam S8-3)' },
-  'components/notebook/ResearchHome.module.css':
-    { lane: '8C', why: '.sampleStripAction / .sampleStripDismiss :focus-visible use var(--focus-ring), 1.7:1 on the light theme (C3 sample strip)' },
-  'components/notebook/onboarding/NotebookTour.module.css':
-    { lane: '8C', why: '.title:focus drops the outline with nothing in the same rule; .skip:focus-visible uses var(--focus-ring), 1.7:1 on the light theme (C2 tour)' },
-})
+export const OTHER_LANES = Object.freeze({})
 
 const scopedToMouse = (selector) => selector.split(',').every((p) => /:focus:not\(:focus-visible\)/.test(p))
 
