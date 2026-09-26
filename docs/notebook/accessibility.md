@@ -68,9 +68,11 @@ the axe rails and the screen-reader pass judge the words.
   (opening a note drops the `view` parameter; closing does not restore it). Focus goes to
   the pane heading, which is correct for what is shown; whether the pane should return to
   All notes is a product question, not an accessibility one.
-- **The Support page's stylesheet** has four inputs whose focus ring is replaced only by
-  an unchanged background (`app/src/pages/Support.module.css`); it is not Notebook CSS
-  and is reported to the controller.
+- **The Support page's stylesheet** removes the outline on four inputs (`.searchInput`,
+  `.formSelect` / `.formInput`, `.attachDrop`, `.replyInput`) and shows focus only by a
+  border change to `--ut-gold-glow`, a translucent gold that measures 1.33-1.58:1 against
+  the page in the three themes (the Notebook rail's own helpers; 3:1 is the bar). It is
+  not Notebook CSS, so no Notebook rail holds it; reported to the controller.
 - **Nothing has been run on a real screen reader or a real device yet** -- the script is
   written, the runs are the owner's. Whether BrowserStack Live exposes VoiceOver is not
   verified.
