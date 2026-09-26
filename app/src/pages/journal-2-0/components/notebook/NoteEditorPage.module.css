@@ -330,7 +330,25 @@
   border: 1px solid var(--border);
   padding: 6px 10px;
   text-align: left;
+  /* Wave 10 (G-134): the column-resize handle is drawn inside the cell. */
+  position: relative;
 }
+/* Wave 10 (G-134): the edge a member drags to resize a column (prosemirror-
+   tables' decoration; it appears on hover, mouse only -- the table toolbar's
+   Wider / Narrower is the touch and keyboard door to the same width). */
+.proseEditor :global(.column-resize-handle) {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--ut-gold);
+  pointer-events: none;
+  z-index: 1;
+}
+/* `.proseEditor` IS the ProseMirror element; the plugin adds `resize-cursor`
+   to that same element while a handle is active. */
+.proseEditor:global(.resize-cursor) { cursor: col-resize; }
 .proseEditor th:not(:where([data-widget-embed-view] *)) { background: var(--bg-surface); font-weight: 600; }
 .proseEditor hr:not(:where([data-widget-embed-view] *)) {
   border: none;
