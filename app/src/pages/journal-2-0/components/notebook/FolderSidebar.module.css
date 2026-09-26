@@ -167,6 +167,20 @@
   padding: 2px 4px 4px;
 }
 .searchResults { display: flex; flex-direction: column; gap: 2px; }
+/* Wave 10 (R-5): the fused "Best matches" list sits above the sections and is
+   set off from them; each row's first line says what kind of hit it is. */
+.bestMatches {
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.bestKind {
+  font-size: 9px;
+  line-height: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 .searchLoadMoreBtn {
   display: inline-flex;
   align-items: center;
