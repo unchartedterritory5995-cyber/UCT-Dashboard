@@ -604,8 +604,17 @@ authenticate first or declare that it did not.
 
 ## GAPS — what this document could not reach
 
-- ⛔ **No authenticated production read.** The whole of §1's re-run is therefore *named* rather than
-  *done*, and the flow endpoint's 200-status headers are inferred from source.
+- ⚰️⚰️ **THIS BULLET SAID "No authenticated production read" AND CONTRADICTED §1.3 OF ITS OWN
+  DOCUMENT.** The read WAS taken, on the owner's grant, and §1.3 carries the result. The frontmatter
+  was corrected and this bullet was not, so for a few hours the document asserted both. ⭐ **Caught
+  not by review but by gate item 16's author, who read §1.3 and the GAPS section and noticed they
+  disagreed** — which is exactly the second-authority-over-one-value defect this programme records
+  against everyone else, committed here, inside a document whose §1 is about being wrong twice.
+  ⭐ The lesson is narrow and worth keeping: **when a finding changes, the frontmatter is not the
+  only place that claims it.** Grep the document for its own old conclusion.
+- ⚠️ **What IS still unread, precisely:** not the header but the **reason** the anonymous case is
+  refused. That is measured behaviour, not a read of the zone's cache-key configuration, so it is
+  correct for a reason nobody has established and a rule edit could change it silently.
 - ✅ **Protocols C and H ARE NOW TAKEN**, in a real foreground browser on 2026-09-26 with
   `document.visibilityState` read as `visible` before every measurement — see §2.6 and Q1.
   ⚠️ What remains untaken: a **true cold pass** with caching disabled (45 of 107 resources came from
