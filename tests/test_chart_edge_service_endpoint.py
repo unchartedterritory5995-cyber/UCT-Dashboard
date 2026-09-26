@@ -78,3 +78,9 @@ def test_the_SERVED_app_mounts_it():
     from api.main import app
     posts = {(r.path, m) for r in app.routes for m in (getattr(r, "methods", None) or ())}
     assert (PATH, "POST") in posts
+
+
+
+def test_non_ascii_authorization_is_401_not_500(client):
+    r = client.post(PATH, headers={"Authorization": "Bearer café".encode("latin-1")})
+    assert r.status_code == 401
