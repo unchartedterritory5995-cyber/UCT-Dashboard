@@ -365,6 +365,49 @@ warming problem, the second is already solved by the push queue and the pre-push
 ⚠️ Protocol E's honest remainder, unchanged: **SSE-pool reconnection without user action, and
 warm-ratio recovery time, are unmeasured.** Both need a browser session held open across a swap.
 
+### 2.6 ⭐⭐ A COLD MEMBER PAGE COSTS 31 MB AND BLOCKS THE PROCESS FOR TEN SECONDS
+
+Protocol C was executed in a real foreground browser tonight and it **answers the `/options-flow`
+question that two earlier explanations failed to answer.** Both prior narrowings stay refuted: it
+is not pod age and it is not new code chunks.
+
+**The document is not the problem** — TTFB 63 ms, DOMContentLoaded 100 ms, first contentful paint
+140 ms, load 221 ms.
+
+**The payloads are.** A cold visit pulls **31.1 MB**: `barspack/<date>/hot` at 1.37 MB, sixteen
+`intradaypack/<date>/<n>` shards at 1.67–1.97 MB each, and `flow/data?days=1` at 1.18 MB.
+
+| request | client stall | **server time** | size |
+|---|---|---|---|
+| `schwab/market-narrative` | **2 ms** | **20,768 ms** | 1 KB |
+| `barspack/<date>/hot` | 1 ms | **10,896 ms** | 1,402 KB |
+| `intradaypack/<date>/0` and `/1` | — | **8,575 / 8,650 ms** | ~1.9 MB each |
+| `intradaypack/<date>/2…15` | — | **296–628 ms each** | ~1.8 MB each |
+| six 0–1 KB calls (`j2/accounts`, `voice/settings`, `watchlist-alerts`, `ticker-tags`, …) | 1–3 ms | **~10,500 ms each** | 0–1 KB |
+
+⛔⛔ **`stall` is 1–3 ms on every single call, so this is the SERVER, not the browser.** Not
+client queueing, not a connection limit, and it could not be: the protocol is **HTTP/3**
+throughout, which multiplexes. ⭐ **Ten small calls sent within 600 ms all receiving a first byte
+at ~10.5 s is one shared bottleneck clearing at once** — and on this architecture that is the
+single uvicorn event loop with its one 64-thread pool.
+
+⭐ **Shards 0 and 1 cost 8.6 s each and shards 2–15 cost under 630 ms.** That is a server-side
+cache being built by the first requests and hit by the rest, so **the cold cost is concentrated in
+two requests rather than spread over sixteen** — which makes it fixable without touching the
+sharding.
+
+⛔ **Two wrong readings died on controls, and the document records both** because each was
+publishable-looking. *"A permanent defect"* died on a second load, where the same calls all
+returned under 550 ms and the packs came from browser cache. *"My own preceding grid run
+contaminated it"* died on resolving the >900 KB payloads to full paths, which showed them to be the
+page's own packs and not the grid's per-ticker bars.
+
+⛔⛔ **ONE DEFECT REPRODUCES ON BOTH RUNS AND IS THE SLOWEST CALL EACH TIME.**
+`/api/schwab/market-narrative`: **20,768 ms cold, 7,531 ms warm, for a 1 KB response**, stall 2 ms
+both times, on a member page's load path — and the control had no packs, so the packs do not
+explain it. `/api/calendar` at **4,519 ms** warm is a smaller instance of the same shape. ⭐ **That
+is the most actionable single item this document contains and it needs no further research.**
+
 ### 2.5 The measurement environment is itself a finding
 
 **Fourteen deploys in six and a half hours; median pod life 26 minutes; roughly half of them this
@@ -379,7 +422,39 @@ scheduling detail** — it is the difference between a 104-minute sample and no 
 Each is labelled **ANSWERED**, **NARROWED** or **OPEN**, with what would close it. Nothing here
 invents a number that was not measured.
 
-**Q1 — How many panels, and what does each hold? → OPEN, and it is the binding one.**
+**Q1 — How many panels, and what does each hold? → ⭐ NARROWED HARD, on a measurement taken
+tonight in a real foreground browser.** The 16-cell harness was run on production
+(`10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md`) and it **supersedes the
+figure every prior document quotes**:
+
+| | quoted in D-05, C7-01 and this document's own first draft | measured 2026-09-26 |
+|---|---|---|
+| 16 cells framed | ~900 ms | **2,582 ms** |
+| heap | +63 MB | **+218 MB settled**, **+45 MB retained after idle** |
+| per-cell framing | — | median **28 ms**, p95 **82 ms** |
+| idle long tasks over 60 s | — | **2, worst 85 ms** |
+
+⛔⛔ **"+63 MB" was ambiguous between two numbers that differ by 4.8×, and a capacity budget has to
+say which.** Settled peak is +218 MB; the heap then fell from 262 MB back to 78 MB over a 33 MB
+base, so durable cost is **+45 MB** — *lower* than the recorded figure while the transient is 3.5×
+*higher*. Neither reading makes the old number right, and a per-panel budget built on it would have
+been wrong in whichever direction it was used.
+
+⭐ **The 2,582 ms is NOT framing.** At a 28 ms median and ≤3 concurrent mounts, sixteen cells is
+~450 ms of drawing. **The rest is data, so the mount queue is working and the cost is upstream of
+it** — which points the panel-count question at bytes and server time, not at render.
+
+⭐ **And a 16-panel board is QUIET once settled**: 2 long tasks, worst 85 ms, across a 60-second
+window. That is the first measurement of the 2026-09-10 render-loop class on a whole board rather
+than one surface, and it is the reassuring half of tonight's result.
+
+⚠️ **Still open, and still a person's call:** the target panel count. `PANEL_MOUNT_CAP = 3` caps
+concurrent MOUNTS and **there is no `MAX_WIDGETS`**, so nothing in the product bounds how much a
+board may hold. ⛔ The hover-sweep half is **INCONCLUSIVE, not zero** — the harness reported
+`sweep.invalid: true, reason: "no crosshair events delivered"` because no pointer moved, which is
+the harness refusing to score what it could not observe.
+
+**The original framing of this question, retained:**
 Every capacity statement inherited from D-05 reasons from "~200 users", none from "N panels per
 user". The closest existing measurements: `GRID_MAX_CELLS = 16` with **16 cells framed in ~900 ms
 and +63 MB heap**, and `PANEL_MOUNT_CAP = 3`. ⛔ **`PANEL_MOUNT_CAP` caps concurrent MOUNTS, not
@@ -479,7 +554,7 @@ Where a measurement settles a row, it is settled. Where it does not, the row say
 | D7 | Tier / entitlement | **Tier belongs in the handshake, not per-panel.** Deferred to item 23, which measured the current shape | Gate item 23 (ARCH-06) owns it; its finding that the auth-surface auditor inspects mutating methods only is the relevant constraint |
 | D8 | Degradation UI | **One shell-level freshness authority.** Per-chart hysteresis is right for one chart and wrong for twelve | Q3 |
 | D9 | Deploy resilience | ⭐ **Re-scored. The window is a cold cache, not an outage — and the leak means frequent recycling is partly load-bearing** | §2.2 + §2.4 |
-| D10 | Per-user live budget | **OPEN, and blocked on Q1.** A budget without a target panel count is meaningless | Unchanged from C7-01 |
+| D10 | Per-user live budget | ⭐ **RE-SCORED: a budget is now arguable, and the unit is BYTES AND SERVER TIME rather than connections.** Measured tonight: one cold member page pulls **31.1 MB** of packs and its first two shard requests cost **8.6–10.9 s of SERVER time each**, during which ten unrelated 0–1 KB API calls all wait and land together at ~10.5 s. **So the scarce resource is not the connection count — the pools already collapse 16 cells to one SSE — it is the single process's time.** A budget expressed in concurrent streams would not have caught this; one expressed in cold bytes per board would | §2.6 and the Protocol C evidence file |
 
 ⭐ **The row that moved most is D9, and it moved for a reason nobody had on the table.** Every prior
 document treats deploy frequency as pure cost. Against +7.9 MB/min, a 26-minute median pod life is
@@ -531,7 +606,15 @@ authenticate first or declare that it did not.
 
 - ⛔ **No authenticated production read.** The whole of §1's re-run is therefore *named* rather than
   *done*, and the flow endpoint's 200-status headers are inferred from source.
-- **No browser measurement.** Protocols C (waterfall per surface, with a HAR) and H are untaken and
+- ✅ **Protocols C and H ARE NOW TAKEN**, in a real foreground browser on 2026-09-26 with
+  `document.visibilityState` read as `visible` before every measurement — see §2.6 and Q1.
+  ⚠️ What remains untaken: a **true cold pass** with caching disabled (45 of 107 resources came from
+  cache even on the "first" load, so that run understates a genuine first visit), a **HAR export**,
+  **four of the five surfaces**, and the **hover sweep**, which the harness refused to score because
+  no pointer moved. ⛔ And all of it was after the close, so the mechanism in §2.6 is established
+  while its magnitude during market hours is not — which is exactly where the original 45-second
+  failures were seen.
+- ⚰️ **The original wording of this gap, retained:** "Protocols C and H are untaken and
   need a foreground tab. The unresolved `/options-flow` cold-load question rides on them: it was
   twice measured missing a 45-second budget on a fresh pod during market hours, and **both
   explanations offered for it failed their own falsifiers** — it is not pod age (3.11 s at 34 s old)
