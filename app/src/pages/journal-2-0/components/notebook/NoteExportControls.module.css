@@ -1,0 +1,65 @@
+/* The editor's Export menu (wave 8 lane 8C, C4). The trigger borrows the editor's
+   `.chromeBtn`; this file adds only what a menu needs: an anchor, a popover, and rows. */
+.menuWrap {
+  position: relative;
+  display: inline-flex;
+}
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-bright);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.item:hover,
+.item:focus-visible {
+  background: var(--bg-hover);
+}
+.item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.itemLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+.itemKeeps {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+/* The touch tier: every row is a finger target, phone AND tablet. */
+@media (max-width: 1024px) {
+  .trigger { min-height: var(--tap-min); }
+  .item { min-height: var(--tap-min); }
+}

@@ -9,10 +9,83 @@
   line-height: 1.55;
   color: var(--text-bright);
 }
+
+/* The format choice: a real radio group (wave 8 lane 8C). The whole row is the label, so
+   the target is the row, never the 16px circle. */
+.formats {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  background: var(--bg-surface);
+}
+.option:hover {
+  background: var(--bg-hover);
+}
+.option:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.optionOn {
+  border-color: var(--ut-gold);
+  background: var(--ut-gold-dim);
+}
+.radio {
+  margin: 3px 0 0;
+  accent-color: var(--ut-gold);
+  flex: none;
+}
+.optionText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.optionLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.optionKeeps {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .statusWrap {
@@ -32,8 +105,17 @@
   animation: uctExportSpin 0.9s linear infinite;
 }
 @keyframes uctExportSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}
 .successIcon { color: var(--gain); }
 .errorIcon { color: var(--loss); }
+
+/* The touch tier: every control is a finger target, phone AND tablet. */
+@media (max-width: 1024px) {
+  .option { min-height: var(--tap-min); }
+  .action { min-height: var(--tap-min); }
+}
 
 @media (max-width: 640px) {
   .actions { flex-direction: column-reverse; align-items: stretch; }
