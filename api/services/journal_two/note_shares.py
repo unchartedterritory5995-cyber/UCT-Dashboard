@@ -230,8 +230,10 @@ def resolve_share(token: str, conn: sqlite3.Connection | None = None) -> dict[st
         row = _live_share_row(conn, token)
         if not row:
             return None
-        note = notes_service.get_note(row["user_id"], row["note_id"], conn=conn)
-        if not note or note.get("archivedAt"):
+        # ⛔ Never notes.get_note here: its lazy first_image_url backfill would make a
+        # stranger's GET write the owner's row (F-READ-WRITES).
+        note = public.read_public_note(conn, row["user_id"], row["note_id"])
+        if not note:
             return None
         return public.public_note(
             note, mode="share", owner_id=row["user_id"], note_id=row["note_id"],

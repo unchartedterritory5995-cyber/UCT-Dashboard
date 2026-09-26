@@ -26,6 +26,10 @@ Each property is its own test, parametrized over the matrix rows it applies to:
    3 expiry (ruling D-B2)          8 the gate is off -> 404, nothing called, nothing written
    4 revocation is immediate       9 Referrer-Policy: no-referrer on every public response
    5 no data beyond the note      10 plan (ruling D-B3), both directions
+                                  11 a public read writes nothing (F-READ-WRITES)
+
+Share links (`notebook_shares.py`) and publish-to-web (`notebook_publish.py`, B4) are both
+rows of the one matrix; every property runs over both where it applies.
 """
 from __future__ import annotations
 
@@ -68,6 +72,29 @@ PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
         {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-public", "plan": None},
     ("GET", "/api/j2/shared/{token}/att/{sub}/{filename}"):
         {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-images", "plan": None},
+    ("GET", "/api/j2/share/links"):
+        {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session"},
+    # ── publish-to-web (B4) ──
+    ("GET", "/api/j2/publish"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session"},
+    ("POST", "/api/j2/publish/notes/{note_id}"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+    ("POST", "/api/j2/publish/folders/{folder_id}"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+    ("POST", "/api/j2/publish/{slug}/refresh"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": "notebook-publish-mint", "plan": "paid"},
+    ("PATCH", "/api/j2/publish/{slug}"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "paid"},
+    ("DELETE", "/api/j2/publish/{slug}"):
+        {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session"},
+    ("GET", "/api/j2/published/{slug}"):
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None},
+    ("GET", "/api/j2/published/{slug}/n/{pid}"):
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-public", "plan": None},
+    ("GET", "/api/j2/published/{slug}/att/{sub}/{filename}"):
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None},
+    ("GET", "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}"):
+        {"auth": "public", "gate": G_PUBLISH, "bucket": "notebook-publish-images", "plan": None},
 }
 
 #: Ruling D-B10, verbatim numbers: (requests allowed, per) for each bucket.
@@ -75,6 +102,9 @@ BUCKET_LIMITS: dict[str, tuple[int, str]] = {
     "notebook-share-public": (60, "minute"),
     "notebook-share-images": (240, "minute"),
     "notebook-share-mint": (30, "hour"),
+    "notebook-publish-public": (60, "minute"),
+    "notebook-publish-images": (240, "minute"),
+    "notebook-publish-mint": (30, "hour"),
 }
 
 PUBLIC_HEADERS = {
@@ -109,6 +139,7 @@ def test_the_derivation_finds_the_public_read_route():
     """Non-vacuity: a derivation that returned nothing would pass both matrix checks."""
     derived = set(_real_app_routes())
     assert ("GET", "/api/j2/shared/{token}") in derived, sorted(derived)
+    assert ("GET", "/api/j2/published/{slug}") in derived, sorted(derived)
 
 
 def test_the_selection_rule_can_tell_a_share_route_from_a_neighbour():
@@ -306,18 +337,33 @@ def _png(att_root, user_id: str, note_id: str, sub: str = "inline", name: str = 
 
 @pytest.fixture
 def world(db_path, att_root, gates_on):
-    """Member A: a shared note with an image on disk. Member B: a note of their own.
+    """Member A: a shared AND published note with an image on disk, and a published folder
+    holding one note with an image. Member B: a note and a published folder of their own.
     Returned ids are what the row builders below turn into concrete requests."""
-    from api.services.journal_two import note_shares
+    from api.services.journal_two import note_publish, note_shares, notes
     na = _note(A, "Alpha shared note")
     _png(att_root, A, na["id"])
     tok = note_shares.create_share(A, na["id"])["token"]
+    a_pub = note_publish.publish_note(A, na["id"])["slug"]
+    fa = notes.create_folder(A, "Alpha published folder")
+    member = _note(A, "Alpha folder member", folderId=fa["id"])
+    _png(att_root, A, member["id"])
+    a_folder_pub = note_publish.publish_folder(A, fa["id"])["slug"]
     nb = _note(B, "Bravo own note")
-    return {"A_note": na["id"], "A_token": tok, "B_note": nb["id"]}
+    fb = notes.create_folder(B, "Bravo folder")
+    _note(B, "Bravo folder member", folderId=fb["id"])
+    b_folder_pub = note_publish.publish_folder(B, fb["id"])["slug"]
+    return {"A_note": na["id"], "A_token": tok, "B_note": nb["id"],
+            "A_pub": a_pub, "A_folder": fa["id"], "A_folder_pub": a_folder_pub,
+            "A_member": member["id"], "A_pid": note_publish.pid_for(a_folder_pub, member["id"]),
+            "B_folder": fb["id"], "B_folder_pub": b_folder_pub}
 
 
 MISSING_NOTE = "note-that-does-not-exist-0000"
 MISSING_TOKEN = "tok-that-does-not-exist-0000000000000000000"
+MISSING_FOLDER = "folder-that-does-not-exist-00"
+MISSING_SLUG = "slug-that-does-not-exist-0"
+MISSING_PID = "pid-that-does-not-exist-0"
 
 #: row -> build(world, target) -> (method, url). `target` is 'A' (member A's real thing),
 #: 'missing' (an id that exists nowhere) or 'own' (the caller B's own thing).
@@ -332,7 +378,45 @@ def _token_for(w: dict, target: str) -> str:
     return {"A": w["A_token"], "missing": MISSING_TOKEN, "own": w["A_token"]}[target]
 
 
+def _folder_for(w: dict, target: str) -> str:
+    return {"A": w["A_folder"], "missing": MISSING_FOLDER, "own": w["B_folder"]}[target]
+
+
+def _note_slug(w: dict, target: str) -> str:
+    return {"A": w["A_pub"], "missing": MISSING_SLUG, "own": w["A_pub"]}[target]
+
+
+def _folder_slug(w: dict, target: str) -> str:
+    return {"A": w["A_folder_pub"], "missing": MISSING_SLUG, "own": w["B_folder_pub"]}[target]
+
+
+def _pid(w: dict, target: str) -> str:
+    return {"A": w["A_pid"], "missing": MISSING_PID, "own": w["A_pid"]}[target]
+
+
 BUILDERS: dict[tuple[str, str], RequestBuilder] = {
+    ("GET", "/api/j2/share/links"):
+        lambda w, t: ("GET", "/api/j2/share/links"),
+    ("GET", "/api/j2/publish"):
+        lambda w, t: ("GET", "/api/j2/publish"),
+    ("POST", "/api/j2/publish/notes/{note_id}"):
+        lambda w, t: ("POST", f"/api/j2/publish/notes/{_note_for(w, t)}"),
+    ("POST", "/api/j2/publish/folders/{folder_id}"):
+        lambda w, t: ("POST", f"/api/j2/publish/folders/{_folder_for(w, t)}"),
+    ("POST", "/api/j2/publish/{slug}/refresh"):
+        lambda w, t: ("POST", f"/api/j2/publish/{_folder_slug(w, t)}/refresh"),
+    ("PATCH", "/api/j2/publish/{slug}"):
+        lambda w, t: ("PATCH", f"/api/j2/publish/{_folder_slug(w, t)}"),
+    ("DELETE", "/api/j2/publish/{slug}"):
+        lambda w, t: ("DELETE", f"/api/j2/publish/{_note_slug(w, t)}"),
+    ("GET", "/api/j2/published/{slug}"):
+        lambda w, t: ("GET", f"/api/j2/published/{_note_slug(w, t)}"),
+    ("GET", "/api/j2/published/{slug}/n/{pid}"):
+        lambda w, t: ("GET", f"/api/j2/published/{_folder_slug(w, t)}/n/{_pid(w, t)}"),
+    ("GET", "/api/j2/published/{slug}/att/{sub}/{filename}"):
+        lambda w, t: ("GET", f"/api/j2/published/{_note_slug(w, t)}/att/inline/pic.png"),
+    ("GET", "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}"):
+        lambda w, t: ("GET", f"/api/j2/published/{_folder_slug(w, t)}/n/{_pid(w, t)}/att/inline/pic.png"),
     ("GET", "/api/j2/notes/{note_id}/share"):
         lambda w, t: ("GET", f"/api/j2/notes/{_note_for(w, t)}/share"),
     ("POST", "/api/j2/notes/{note_id}/share"):
@@ -378,9 +462,11 @@ def test_1_member_B_cannot_touch_A_and_the_answer_equals_a_missing_id(row, app, 
     assert _sig(on_a) == _sig(on_missing), (
         f"{row}: B acting on A's thing answered differently from a missing id -- an oracle")
     assert snapshot() == before, f"{row}: B's attempt on A's thing WROTE something"
-    # ...and A's link still serves (B's revoke did not reach it).
+    # ...and A's link and pages still serve (B's revoke did not reach them).
     signed_out(app)
     assert client.get(f"/api/j2/shared/{world['A_token']}").status_code == 200
+    assert client.get(f"/api/j2/published/{world['A_pub']}").status_code == 200
+    assert client.get(f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}").status_code == 200
 
 
 def test_1_control_A_can_do_what_B_cannot(app, client, world):
@@ -389,6 +475,34 @@ def test_1_control_A_can_do_what_B_cannot(app, client, world):
     as_member(app, A)
     assert client.get(f"/api/j2/notes/{world['A_note']}/share").json()["share"]["token"] == world["A_token"]
     assert client.delete(f"/api/j2/notes/{world['A_note']}/share").json() == {"revoked": True}
+
+
+def test_1_control_A_can_publish_refresh_extend_and_unpublish(app, client, world):
+    """CONTROL for the publish rows: the owner's own requests reach the thing."""
+    as_member(app, A)
+    assert client.post(f"/api/j2/publish/notes/{world['A_note']}").json()["publication"]["slug"] == world["A_pub"]
+    assert client.post(f"/api/j2/publish/{world['A_folder_pub']}/refresh").status_code == 200
+    r = client.patch(f"/api/j2/publish/{world['A_folder_pub']}", json={"expiresInDays": 7})
+    assert r.status_code == 200 and r.json()["publication"]["expiresAt"]
+    assert client.delete(f"/api/j2/publish/{world['A_pub']}").json() == {"revoked": True}
+
+
+def test_1_the_owner_list_holds_only_the_callers_things(app, client, world):
+    as_member(app, B)
+    mine = client.get("/api/j2/publish").json()
+    assert {p["slug"] for p in mine["publications"]} == {world["B_folder_pub"]}
+    assert mine["shares"] == []
+    assert client.get("/api/j2/share/links").json() == {"shares": []}
+    as_member(app, A)
+    links = client.get("/api/j2/share/links").json()["shares"]
+    assert [s["token"] for s in links] == [world["A_token"]] and links[0]["title"] == "Alpha shared note"
+    as_member(app, A)
+    mine = client.get("/api/j2/publish").json()
+    assert {p["slug"] for p in mine["publications"]} == {world["A_pub"], world["A_folder_pub"]}
+    assert [s["token"] for s in mine["shares"]] == [world["A_token"]]
+    # The editor's context read: A asking about B's note learns nothing about it.
+    ctx = client.get(f"/api/j2/publish?note_id={world['B_note']}").json()["note"]
+    assert ctx == {"noteId": world["B_note"], "exists": False, "folderId": None, "folderName": None}
 
 
 def test_1_the_service_scopes_revoke_by_the_caller(db_path):
@@ -429,6 +543,38 @@ def test_2_share_tokens_are_at_least_128_bits_and_all_distinct():
     assert len(set(toks)) == 1000
     assert all(URLSAFE.match(t) for t in toks)
     assert min(len(t) for t in toks) >= MIN_TOKEN_CHARS, min(len(t) for t in toks)
+
+
+def test_2_publication_slugs_are_at_least_128_bits_and_all_distinct():
+    from api.services.journal_two import note_publish
+    from api.services.journal_two.db import ensure_schema
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    ensure_schema(c)
+    now = "2026-09-25T00:00:00+00:00"
+    c.executemany(
+        "INSERT INTO j2_notes (id, user_id, title, body_json, created_at, updated_at)"
+        " VALUES (?, ?, ?, '{}', ?, ?)",
+        [(f"n{i}", A, f"t{i}", now, now) for i in range(1000)])
+    c.commit()
+    try:
+        slugs = [note_publish.publish_note(A, f"n{i}", conn=c)["slug"] for i in range(1000)]
+    finally:
+        c.close()
+    assert len(set(slugs)) == 1000
+    assert all(URLSAFE.match(s) for s in slugs)
+    assert min(len(s) for s in slugs) >= MIN_TOKEN_CHARS
+    src = open(note_publish.__file__, encoding="utf-8").read()
+    assert "secrets.token_urlsafe(SLUG_BYTES)" in src and note_publish.SLUG_BYTES >= 16
+
+
+def test_2_a_pid_is_never_the_note_id_and_is_publication_scoped():
+    from api.services.journal_two import note_publish
+    pid = note_publish.pid_for("slug-one", "note-abc")
+    assert len(pid) == note_publish.PID_CHARS == 22 and URLSAFE.match(pid)
+    assert "note-abc" not in pid
+    assert pid != note_publish.pid_for("slug-two", "note-abc")      # another publication, another pid
+    assert pid == note_publish.pid_for("slug-one", "note-abc")      # stable within one
 
 
 def test_2_the_token_is_minted_by_the_secrets_module_with_at_least_16_bytes():
@@ -472,6 +618,54 @@ def test_3_mint_takes_an_expiry_and_refuses_anything_else(app, client, world):
     assert client.post(f"/api/j2/notes/{world['A_note']}/share").status_code == 200  # no body: never
 
 
+def _expire_publication(slug: str) -> None:
+    _run("UPDATE j2_note_publications SET expires_at = ? WHERE slug = ?",
+         ("2000-01-01T00:00:00.000000+00:00", slug))
+
+
+def test_3_an_expired_publication_answers_the_unknown_404_everywhere(app, client, world):
+    signed_out(app)
+    urls = [f"/api/j2/published/{world['A_pub']}",
+            f"/api/j2/published/{world['A_pub']}/att/inline/pic.png",
+            f"/api/j2/published/{world['A_folder_pub']}",
+            f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}",
+            f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}/att/inline/pic.png"]
+    for url in urls:
+        assert client.get(url).status_code == 200, url
+    _expire_publication(world["A_pub"])
+    _expire_publication(world["A_folder_pub"])
+    for url in urls:
+        expired = client.get(url)
+        unknown = client.get(url.replace(world["A_pub"], MISSING_SLUG).replace(world["A_folder_pub"], MISSING_SLUG))
+        assert expired.status_code == 404, url
+        assert _sig(expired) == _sig(unknown), url
+
+
+def test_3_publish_and_patch_take_an_expiry_and_refuse_anything_else(app, client, world):
+    as_member(app, A)
+    sentence = "Choose when the link stops working: never, or after 7, 30 or 90 days."
+    for bad in (5, "7", 7.0, True, -30, 365, [7]):
+        for method, url in (("POST", f"/api/j2/publish/notes/{world['A_note']}"),
+                            ("POST", f"/api/j2/publish/folders/{world['A_folder']}"),
+                            ("PATCH", f"/api/j2/publish/{world['A_pub']}")):
+            r = client.request(method, url, json={"expiresInDays": bad})
+            assert r.status_code == 422 and r.json()["detail"] == sentence, (method, url, bad)
+    r = client.patch(f"/api/j2/publish/{world['A_pub']}", json={"expiresInDays": 90})
+    assert r.status_code == 200 and r.json()["publication"]["expiresAt"]
+    r = client.patch(f"/api/j2/publish/{world['A_pub']}", json={"expiresInDays": None})
+    assert r.status_code == 200 and r.json()["publication"]["expiresAt"] is None
+
+
+def test_3_republishing_after_expiry_mints_a_new_page_and_the_old_address_stays_dead(app, client, world):
+    as_member(app, A)
+    _expire_publication(world["A_pub"])
+    fresh = client.post(f"/api/j2/publish/notes/{world['A_note']}").json()["publication"]["slug"]
+    assert fresh != world["A_pub"]
+    signed_out(app)
+    assert client.get(f"/api/j2/published/{fresh}").status_code == 200
+    assert client.get(f"/api/j2/published/{world['A_pub']}").status_code == 404
+
+
 def test_3_a_link_that_expires_in_the_future_serves(app, client, world):
     as_member(app, A)
     _run("UPDATE j2_note_shares SET expires_at = ? WHERE token = ?",
@@ -495,6 +689,22 @@ def test_4_after_revoke_resolve_and_image_answer_404_in_the_same_process(app, cl
     assert client.get(img).status_code == 404
 
 
+def test_4_after_unpublish_every_public_door_answers_404_in_the_same_process(app, client, world):
+    signed_out(app)
+    note_urls = [f"/api/j2/published/{world['A_pub']}", f"/api/j2/published/{world['A_pub']}/att/inline/pic.png"]
+    folder_urls = [f"/api/j2/published/{world['A_folder_pub']}",
+                   f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}",
+                   f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}/att/inline/pic.png"]
+    for url in note_urls + folder_urls:
+        assert client.get(url).status_code == 200, url
+    as_member(app, A)
+    assert client.delete(f"/api/j2/publish/{world['A_pub']}").json() == {"revoked": True}
+    assert client.delete(f"/api/j2/publish/{world['A_folder_pub']}").json() == {"revoked": True}
+    signed_out(app)
+    for url in note_urls + folder_urls:
+        assert client.get(url).status_code == 404, url
+
+
 @pytest.mark.parametrize("row", PUBLIC_ROWS, ids=_ids)
 def test_4_every_public_response_carries_no_store_private(row, app, client, world):
     signed_out(app)
@@ -506,10 +716,13 @@ def test_4_every_public_response_carries_no_store_private(row, app, client, worl
 
 def test_4_the_image_file_response_carries_the_public_headers(app, client, world):
     signed_out(app)
-    r = client.get(f"/api/j2/shared/{world['A_token']}/att/inline/pic.png")
-    assert r.status_code == 200 and r.content.startswith(b"\x89PNG")
-    for k, v in PUBLIC_HEADERS.items():
-        assert r.headers.get(k) == v, k
+    for url in (f"/api/j2/shared/{world['A_token']}/att/inline/pic.png",
+                f"/api/j2/published/{world['A_pub']}/att/inline/pic.png",
+                f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}/att/inline/pic.png"):
+        r = client.get(url)
+        assert r.status_code == 200 and r.content.startswith(b"\x89PNG"), url
+        for k, v in PUBLIC_HEADERS.items():
+            assert r.headers.get(k) == v, (url, k)
 
 
 # ── 5. no data beyond the note ──────────────────────────────────────────────────────────
@@ -626,6 +839,100 @@ def test_5_the_body_carries_nothing_of_the_account(app, client, rich):
     assert f"/api/j2/shared/{rich['token']}/att/inline/pic.png" in blob
 
 
+@pytest.fixture
+def rich_pub(rich):
+    from api.services.journal_two import note_publish
+    pub = note_publish.publish_note(A, rich["note"])["slug"]
+    folder_pub = note_publish.publish_folder(A, rich["folder"])["slug"]
+    return {**rich, "pub": pub, "folder_pub": folder_pub,
+            "pid": note_publish.pid_for(folder_pub, rich["note"])}
+
+
+def _publish_forbidden(r: dict) -> dict[str, str]:
+    return {
+        "another note's id": r["other"],
+        "another note's title": SECRETS["other_title"],
+        "the note's own id": r["note"],
+        "the user id": A,
+        "a tag": SECRETS["tag"],
+        "the folder id": r["folder"],
+        "the ticker": SECRETS["ticker"],
+        "a property value": SECRETS["property"],
+        "a tradeRef": SECRETS["trade_ref"],
+        "a widget searchText": SECRETS["search_text"],
+        "a fact id": SECRETS["fact_id"],
+        "an excerpt id": SECRETS["excerpt_id"],
+        "the owner-only attachment route": "/api/j2/notes/attachments/",
+        "an Ask question": "my question",
+        "an Ask answer": "Answer ",
+        "an askCitation chip": "askCitation",
+        "a file attachment": "report.pdf",
+    }
+
+
+def _scan(payload: Any, forbidden: dict[str, str]) -> None:
+    blob, dumped = "\n".join(_strings(payload)), json.dumps(payload)
+    for what, needle in forbidden.items():
+        assert needle not in blob and needle not in dumped, f"the published copy carries {what}: {needle!r}"
+
+
+def test_5_a_published_note_carries_the_note_and_nothing_else(app, client, rich_pub):
+    signed_out(app)
+    body = client.get(f"/api/j2/published/{rich_pub['pub']}").json()
+    assert set(body) == {"kind", "note"} and body["kind"] == "note"
+    assert set(body["note"]) == {"title", "subtitle", "bodyJson", "heroImageUrl", "updatedAt"}
+    _scan(body, {**_publish_forbidden(rich_pub), "the folder's name": "Private folder name"})
+    blob = "\n".join(_strings(body))
+    assert "linked note" in blob and "Rich note" in blob                       # control
+    assert f"/api/j2/published/{rich_pub['pub']}/att/inline/pic.png" in blob   # control
+
+
+def test_5_a_folder_index_carries_its_name_and_its_notes_by_pid_only(app, client, rich_pub):
+    signed_out(app)
+    body = client.get(f"/api/j2/published/{rich_pub['folder_pub']}").json()
+    assert set(body) == {"kind", "title", "notes"} and body["kind"] == "folder"
+    assert body["title"] == "Private folder name"
+    assert body["notes"] and all(set(n) == {"pid", "title", "updatedAt"} for n in body["notes"])
+    assert [n["pid"] for n in body["notes"]] == [rich_pub["pid"]]
+    _scan(body, {k: v for k, v in _publish_forbidden(rich_pub).items() if k != "an Ask answer"})
+
+
+def test_5_a_folder_member_carries_the_note_and_its_folder_name_only(app, client, rich_pub):
+    signed_out(app)
+    body = client.get(f"/api/j2/published/{rich_pub['folder_pub']}/n/{rich_pub['pid']}").json()
+    assert set(body) == {"kind", "note", "folder"}
+    assert set(body["note"]) == {"title", "subtitle", "bodyJson", "heroImageUrl", "updatedAt"}
+    assert body["folder"] == {"title": "Private folder name", "path": f"/p/{rich_pub['folder_pub']}"}
+    _scan(body, _publish_forbidden(rich_pub))
+    blob = "\n".join(_strings(body))
+    assert f"/api/j2/published/{rich_pub['folder_pub']}/n/{rich_pub['pid']}/att/inline/pic.png" in blob
+
+
+@pytest.mark.parametrize("path", [
+    "file/report.pdf",
+    "inline/..",
+    "inline/..%2Fsecret.png",
+    "inline/..%5Csecret.png",
+    "hero/%2e%2e",
+    "other/pic.png",
+])
+def test_5_the_published_image_proxies_serve_only_their_notes_images(app, client, rich_pub, path):
+    signed_out(app)
+    for base in (f"/api/j2/published/{rich_pub['pub']}/att",
+                 f"/api/j2/published/{rich_pub['folder_pub']}/n/{rich_pub['pid']}/att"):
+        r = client.get(f"{base}/{path}")
+        assert r.status_code == 404, (base, path, r.status_code)
+
+
+def test_5_a_note_slug_never_serves_folder_doors_and_a_folder_slug_never_serves_note_doors(app, client, rich_pub):
+    signed_out(app)
+    assert client.get(f"/api/j2/published/{rich_pub['pub']}/n/{rich_pub['pid']}").status_code == 404
+    assert client.get(f"/api/j2/published/{rich_pub['folder_pub']}/att/inline/pic.png").status_code == 404
+    # CONTROL: the right door on each serves.
+    assert client.get(f"/api/j2/published/{rich_pub['pub']}/att/inline/pic.png").status_code == 200
+    assert client.get(f"/api/j2/published/{rich_pub['folder_pub']}/n/{rich_pub['pid']}/att/inline/pic.png").status_code == 200
+
+
 @pytest.mark.parametrize("path", [
     "file/report.pdf",          # a 'file' attachment is never served
     "inline/..",                # traversal
@@ -715,12 +1022,64 @@ def test_7_every_dead_token_answers_byte_identically(app, client, states, monkey
     assert client.get(f"/api/j2/shared/{states['live'][1]}{suffix}").status_code == 200
 
 
+@pytest.fixture
+def pub_states(db_path, att_root, gates_on):
+    """One note publication per state a public read can meet, each with an image on disk."""
+    from api.services.journal_two import note_publish, notes
+    out = {}
+    for name in ("live", "revoked", "expired", "trashed", "archived"):
+        n = _note(A, f"pub state {name}")
+        _png(att_root, A, n["id"])
+        out[name] = (n["id"], note_publish.publish_note(A, n["id"])["slug"])
+    note_publish.revoke(A, out["revoked"][1])
+    _expire_publication(out["expired"][1])
+    notes.delete_note(A, out["trashed"][0])
+    notes.set_note_archived(A, out["archived"][0], True)
+    return out
+
+
+@pytest.mark.parametrize("suffix", ["", "/att/inline/pic.png"], ids=["page", "image"])
+def test_7_every_dead_publication_answers_byte_identically(app, client, pub_states, monkeypatch, suffix):
+    signed_out(app)
+    answers = {"unknown": client.get(f"/api/j2/published/{MISSING_SLUG}{suffix}")}
+    for name in ("revoked", "expired", "trashed", "archived"):
+        answers[name] = client.get(f"/api/j2/published/{pub_states[name][1]}{suffix}")
+    monkeypatch.setenv(G_PUBLISH, "0")
+    answers["flag-off"] = client.get(f"/api/j2/published/{pub_states['live'][1]}{suffix}")
+    monkeypatch.setenv(G_PUBLISH, "1")
+    base = _sig(answers["unknown"])
+    assert base[0] == 404
+    for name, r in answers.items():
+        assert _sig(r) == base, f"a {name} publication answers differently from an unknown one"
+    assert client.get(f"/api/j2/published/{pub_states['live'][1]}{suffix}").status_code == 200  # control
+
+
+@pytest.mark.parametrize("suffix", ["", "/att/inline/pic.png"], ids=["page", "image"])
+def test_7_a_folder_note_that_left_the_set_answers_like_an_unknown_pid(app, client, world, suffix):
+    """Moved out of the folder, trashed or archived: the pid stops serving at once (D-B6), and
+    the answer cannot be told from a pid that never existed."""
+    from api.services.journal_two import notes
+    signed_out(app)
+    live = f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}{suffix}"
+    unknown = client.get(f"/api/j2/published/{world['A_folder_pub']}/n/{MISSING_PID}{suffix}")
+    assert client.get(live).status_code == 200                                       # control
+    notes.set_note_archived(A, world["A_member"], True)
+    assert _sig(client.get(live)) == _sig(unknown)
+    notes.set_note_archived(A, world["A_member"], False)
+    assert client.get(live).status_code == 200
+    notes.update_note(A, world["A_member"], {"folderId": None})
+    assert _sig(client.get(live)) == _sig(unknown)
+
+
 # ── 8. the gate is off ──────────────────────────────────────────────────────────────────
 
 WRITE_SPIES = {
     "api.services.journal_two.note_shares": (
         "create_share", "revoke_share", "get_share", "resolve_share", "resolve_share_attachment",
         "list_shares"),
+    "api.services.journal_two.note_publish": (
+        "publish_note", "publish_folder", "refresh", "set_expiry", "revoke", "list_mine",
+        "resolve", "resolve_member", "resolve_attachment"),
 }
 
 
@@ -762,6 +1121,10 @@ def test_8_control_the_spies_can_see_a_call(app, client, world, spies, monkeypat
     with pytest.raises(AssertionError):
         client.get(f"/api/j2/shared/{world['A_token']}")
     assert spies, "the spy saw nothing even with the gate on"
+    monkeypatch.setenv(G_PUBLISH, "1")
+    with pytest.raises(AssertionError):
+        client.get(f"/api/j2/published/{world['A_pub']}")
+    assert "api.services.journal_two.note_publish.resolve" in spies, spies
 
 
 # ── 9. referrer ─────────────────────────────────────────────────────────────────────────
@@ -808,3 +1171,36 @@ def test_10_a_lapsed_member_can_still_revoke_their_link(app, client, world):
     assert client.delete(f"/api/j2/notes/{world['A_note']}/share").json() == {"revoked": True}
     signed_out(app)
     assert client.get(f"/api/j2/shared/{world['A_token']}").status_code == 404
+
+
+def test_10_a_lapsed_member_can_still_see_and_take_down_their_pages(app, client, world):
+    as_member(app, A, FREE)
+    assert {p["slug"] for p in client.get("/api/j2/publish").json()["publications"]} == {
+        world["A_pub"], world["A_folder_pub"]}
+    assert client.delete(f"/api/j2/publish/{world['A_folder_pub']}").json() == {"revoked": True}
+    signed_out(app)
+    assert client.get(f"/api/j2/published/{world['A_folder_pub']}").status_code == 404
+
+
+# ── 11. a public read writes nothing (F-READ-WRITES) ────────────────────────────────────
+
+def test_11_a_public_read_writes_nothing(app, client, world, att_root):
+    """`notes.get_note` backfills first_image_url on first read; a public GET must not reach
+    it. The fixture makes that backfill due (an image in the body, the column NULL) on every
+    note a public door reads, then asserts every row is byte-identical after the reads."""
+    img = {"type": "doc", "content": [{"type": "image", "attrs": {
+        "src": "/api/j2/notes/attachments/x/y/inline/pic.png"}}]}
+    _run("UPDATE j2_notes SET body_json = ?, first_image_url = NULL WHERE user_id = ?", (json.dumps(img), A))
+    signed_out(app)
+    before = snapshot()
+    for url in (f"/api/j2/shared/{world['A_token']}",
+                f"/api/j2/published/{world['A_pub']}",
+                f"/api/j2/published/{world['A_folder_pub']}",
+                f"/api/j2/published/{world['A_folder_pub']}/n/{world['A_pid']}"):
+        assert client.get(url).status_code == 200, url
+    assert snapshot() == before, "a public read wrote a row"
+    # CONTROL: the owner's own read (notes.get_note) DOES write that column, so the equality
+    # above is not a snapshot that cannot see the write.
+    from api.services.journal_two import notes
+    notes.get_note(A, world["A_note"])
+    assert snapshot() != before, "the snapshot cannot see a first_image_url backfill"

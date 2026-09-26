@@ -1,5 +1,6 @@
 """Note share links -- the five routes (moved here from journal_two.py by wave 8 seam S8-2,
-hardened by lane 8B).
+hardened by lane 8B), plus the owner's list of their own links (`GET /api/j2/share/links`,
+lane 8B, for Settings → Sharing & publishing).
 
 Why a separate router: lane 8B (sharing + publish-to-web) works on these routes this
 wave, and lane 8C adds export formats in the same neighbourhood. `journal_two.py` is
@@ -101,6 +102,15 @@ def create_note_share_endpoint(
 def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
     """Revoke. Never paid-gated, never rate-limited: killing a link must always work."""
     return {"revoked": note_shares.revoke_share(user["id"], note_id)}
+
+
+@router.get("/share/links")
+def list_share_links_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    """The member's own share links (not revoked), each with its note's title, dates and
+    state -- Settings → Sharing & publishing reads it when only share links are on (with
+    publishing on it reads `GET /api/j2/publish`, which carries these too). Never plan-gated:
+    a member whose plan lapsed can always see, and revoke, a public link."""
+    return {"shares": note_shares.list_shares(user["id"])}
 
 
 @router.get("/shared/{token}")

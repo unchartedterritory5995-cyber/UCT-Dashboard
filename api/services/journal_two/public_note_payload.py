@@ -489,6 +489,35 @@ def public_note(note: Mapping[str, Any], *, mode: str, owner_id: str, note_id: s
     }
 
 
+def read_public_note(conn: Any, owner_id: str, note_id: str) -> dict[str, Any] | None:
+    """The columns a public copy is built from, when the note may be served at all: owned
+    by `owner_id`, neither trashed nor archived. None otherwise, and None for a body that
+    does not parse (fail closed: a stranger never gets a half-read document).
+
+    ⛔ A PLAIN SELECT, NEVER `notes.get_note`. `get_note` lazily backfills
+    `first_image_url` with an UPDATE on first read, so a stranger opening a public link
+    could write a column of the owner's row (finding F-READ-WRITES). A public GET writes
+    nothing (rail: tests/test_share_publish_authorization.py, test_11)."""
+    row = conn.execute(
+        "SELECT title, subtitle, body_json, hero_image_url, updated_at FROM j2_notes"
+        " WHERE id = ? AND user_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+        (note_id, owner_id),
+    ).fetchone()
+    if row is None:
+        return None
+    try:
+        body = json.loads(row["body_json"] or '{"type": "doc", "content": []}')
+    except (TypeError, ValueError):
+        return None
+    return {
+        "title": row["title"] or "",
+        "subtitle": row["subtitle"],
+        "bodyJson": body,
+        "heroImageUrl": row["hero_image_url"],
+        "updatedAt": row["updated_at"],
+    }
+
+
 def public_facts(conn: Any, owner_id: str, note_id: str) -> dict[str, dict[str, Any]]:
     """This note's facts, by id -- ONLY rows the note's owner captured into this note, so a
     fact id pasted in from elsewhere resolves to nothing."""
@@ -521,5 +550,5 @@ __all__ = [
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
-    "walk_types",
+    "read_public_note", "walk_types",
 ]
