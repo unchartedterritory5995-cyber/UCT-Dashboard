@@ -245,7 +245,7 @@ defaultable ruling exists to make cheap to correct, and it cost one sentence.
 
 ⭐ **So the owner did not overturn a defensible default; he restored a fact the programme had drifted off.** The distinction matters for how the next default is taken: *"no evidence speaks to this, so I will decide and label it"* is sound method, and it is only sound if the search for evidence actually covered the documents in hand. **The seed-facts file is the FIRST place an owner-only question is answered, and it is the one I did not search.** ⛔ Any future defaultable ruling states which owner-input documents were searched before it defaults — a default over an unread answer is not a default, it is an overwrite.
 
-⚠️ **And that line carries a SECOND fact, which reopens point 4 below in a sharper form:** a **$7 weekly promo**. That is a different unit from the `$200/mo or $2,000/yr` in `app/src/pages/Pricing.jsx:6`. **Two price artifacts exist, they disagree in kind as well as magnitude, and neither is owner-ratified** — so the accurate open question is not "what is the price" but "which of two recorded prices is real, and is either current?" ⛔ Not resolved here: picking one would put a third authority on a number two artifacts already claim.
+⚰️⚰️ **AND THE SECOND HALF OF THAT LINE SENT ME DOWN A FALSE TRAIL, WHICH — SEE CARD 23 — THE OWNER CLOSED IN ONE SENTENCE.** I read the line's **$7 weekly promo** as a rival price for THIS product and published "two price artifacts disagree in kind, neither owner-ratified" in four places. ✅ **It is a different PRODUCT's promo** — the Whop live-trading Discord, one week for $7, per `morning-wire/substack/promo.py`. UCT Intelligence is **$200/month or $2,000/year**, owner-ratified 2026-09-26. **The seed-fact line spliced a tier statement and another product's promo into one sentence; I inherited the splice and called it a contradiction.** ⛔ And `cost-model-data.md:290` had already recorded the promo correctly, with its period and its source, before I generalised. **CARD 23 is the ruling; this card's error was reading one sentence as being about one product.**
 
 ⛔⛔ **WHAT THIS FORECLOSES, and every downstream document must respect it:**
 
@@ -620,3 +620,50 @@ behaves as a FLOOR rather than an override: the hashed static assets still carry
 | **the CDN "why"** | ✅ **DONE, on your grant.** The edge IS caching (MISS→HIT). No anonymous exposure (401 on a cookie-free retry). What is LEFT is a ruling, not a measurement: **a Cloudflare rule is overriding the origin's `max-age=0` to a FOUR-HOUR browser TTL on a live tape** | ⛔ **NO — this half is genuinely yours:** it is a Cloudflare dashboard edit and a freshness decision |
 | **D5 CP6** | no vendor signal exists | ❌ no |
 | **CP-09 Bloomberg ceiling** | needs a seat or a practitioner | ❌ no |
+
+## CARD 23 — the price, and the product boundary underneath it ✅ RULED BY THE OWNER
+
+✅✅ **SETTLED BY THE OWNER, 2026-09-26. THERE WAS NEVER A PRICE CONTRADICTION — THERE ARE TWO PRODUCTS.**
+
+* **UCT Intelligence — $200/month or $2,000/year.** Owner-ratified. Corroborated by `app/src/pages/Pricing.jsx`, whose docstring records it as the *"owner-approved strategy"* of a dated **2026-07-11 premium reposition**: one plan, everything unmetered, **two months free** on the annual, a **7-day free trial with card required**, one-click cancel, no free tier on the marketing pages.
+* **The $7/week is the Whop plan — a SEPARATE PRODUCT** (a live-trading Discord), merely *promoted* through the wire's Substack. First-hand from the code that renders it, `morning-wire/substack/promo.py`: *"The Whop plan is one WEEK for $7 — 'month' shipped in the copy for a while and was false."*
+
+⭐ **The monthly figure needed no guess.** The owner's message typed the annual unambiguously as $2,000/year and mistyped the monthly as "$00". `$2,000 / (12 − 2 months free) = $200`, which is exactly what the code says — so the monthly is **derivable from the owner's own annual figure plus the code's two-months-free term**, not inferred from a typo. No residual ambiguity, and no confirmation needed.
+
+⛔⛔ **THE ROOT DEFECT, and it is a conflation rather than a contradiction.** `charter/OWNER_SEED_FACTS.md:61` put a UCT Intelligence *tier* statement and a different product's *promo* price in ONE SENTENCE: *"one paid tier whose paywalled item is the Morning Wire, with a $7 weekly promo."* Every downstream reading of that line inherited the splice. ⭐ **The tier half was right and I ignored it** (CARD 17); **the price half was never about this product and I treated it as contested.**
+
+⭐ **One document in the programme had it RIGHT the whole time**, which is the part worth learning from: `09-security-licensing-cost/cost-model-data.md:290` already recorded that *"the wire promo is $7 for one week (`morning-wire/substack/promo.py:68`)"* — i.e. a promo, with a period, cited to its source. ⛔ **So "the programme has two contested prices" was my generalisation from the seed-fact line, not a fact about the programme.** I published it in four places (CARD 17, MASTER_CHECKLIST row 13, OWNER-ACTIONS §4, and a brief to two agents) before checking whether any document had already resolved it. One had.
+
+✅ **AND THE COST MODEL DID NOT ERR — checked before reporting it as a defect.** `cost-model-ai-infra.md:36` ran BOTH branches explicitly: against *"the OI-12 default ARPU of $200/month list"* the six proposed AI features are **1.4–3.6% of revenue**, and against a *"comparable-floor ARPU of ~$30/month"* the base case is **9–24%**. It never asserted $30 as UCT's price. ⚠️ **What this ruling does to it is narrow, not corrective:** the $30 floor loses one of its three supports (the $7 promo was never this product's ARPU) and keeps the two that are genuine competitor comparables — Benzinga Basic $30.58 and Unusual Whales Basic $34 annual-effective. **So the $30 branch survives as a COMPETITOR floor and must never again be labelled as UCT's own.**
+
+⚠️ **Still open, and still the owner's:** the **seat model**. One plan with everything unmetered says nothing about how many people may sit on one subscription, and no artifact answers it. The trial is answered by the same code docstring (7 days, card required).
+
+⛔ **SCOPE CONSEQUENCE, which reaches further than pricing.** The Whop live-trading Discord is a **separate product and is out of this programme's boundary.** Any document that counts Whop members, Whop revenue or Whop content as UCT Intelligence's has crossed a product line. ⚠️ **NOT AUDITED HERE:** whether the ~750-member community-server figure and the paid-Substack-audience reasoning in the licensing register describe the Whop audience, the UCT Intelligence audience, or a union of both. That is a real open question this ruling creates and does not close.
+
+**Reversal condition:** none. This is an owner ruling on his own product's price, not a delegated determination. A change needs a new owner instruction.
+
+## CARD 24 — item 27's chosen displacement HAS ALREADY HAPPENED — measured, and the MVP's build half is void
+
+⭐⭐ **Item 27 named the settling measurement itself, in its own §8.2, and predicted this outcome as "the good failure": one grep for `ChartPane` in the breadth drill component. I ran it. The signal fired, and harder than §8.2 anticipated.**
+
+**Measured on `origin/master` (this worktree is an older docs branch, so every read was `git show origin/master:` / `git grep origin/master`):**
+
+| measurement | result |
+|---|---|
+| `git grep -nE "chart\.ashx" origin/master -- app/src` | **ZERO occurrences.** The Finviz static chart PNG does not exist anywhere in the frontend. |
+| `app/src/pages/Breadth.jsx:49` | `const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))` |
+| `app/src/pages/Breadth.jsx:343` | records that the old `DrillModal` (**~320 lines**) was **DELETED**, superseded by `pages/breadth/drill/BreadthDrillModal.jsx` (`:347`) |
+| `app/src/pages/ThemeTrackerPage.jsx:7,39,1505,1537` | mounts `StockChart` **and** `ChartPane` — native on both surfaces |
+| Finviz / TradingView / `chartPeriod` in `Breadth.jsx` | **no hits** |
+
+⛔⛔ **SO THE INCUMBENT IS NOT MERELY MATCHED — IT IS ABSENT.** §8.2 anticipated "our chart also exists, so the trial measures a change nobody made." The stronger truth is that **there is no Finviz chart tab on those surfaces to prefer over**, because the component that held it was deleted. A trial asking *"did the subject stop using the in-app Finviz chart tab"* cannot be failed, cannot be passed, and cannot be run.
+
+✅ **WHAT THIS DOES NOT KILL, and the distinction is the whole remaining value of item 27.** Its §6 defines the incumbent as *"the `chart.ashx?…&p=d|w` tabs **plus finviz.com for the same purpose**."* The first half is void. **The second half — does the owner open finviz.com BY HAND to inspect a chart — is untouched by any of this**, because it is a question about desk behaviour and no amount of code reading can answer it. ⚠️ And CP-06 records that the owner declined to itemise per-tool workflows, so it is *still* unmeasured.
+
+**Consequences, in order of how much they change:**
+
+1. **The MVP has ZERO builds, not one.** B-1 (mount `ChartPane` in the drill) is already shipped. The conditional second build (`FB-S12-01`'s flag half) was already contingent on whether the named subject holds admin. ⭐ So **item 27's deliverable is now a pure measurement protocol with no engineering in it at all** — which its own §8.2 argued is the best available outcome, not an embarrassment, and I agree.
+2. ⛔⛔ **ITEM 13's ABSORB-OUTRIGHT VERDICT RESTS ON A PRODUCT STATE THAT NO LONGER HOLDS, and it is the row the whole MVP was selected from.** Item 13 verdicted exactly one of five tools "absorb outright" and item 27 called it *"the one absorb-outright row in the programme"*. If that row is the in-app Finviz chart embed, the absorption is **already complete** and the row should read *done*, not *do*. ⚠️ **NOT RE-VERDICTED HERE** — item 13's file is 783 lines and its author derived those verdicts from evidence I have not re-read; re-cutting its headline from one grep would be the same shortcut this programme keeps paying for. **It is flagged for a re-read against master, as the highest-value correction outstanding.**
+3. ⚠️ **`CLAUDE.md` (master) still documents the deleted component as live** — its DrillModal section describes *"Three chart tabs: Daily / Weekly (Finviz static PNG) / TradingView (iframe). Default: `'tv'`"* and a `chartPeriod` state initialised to `'tv'`. **None of that exists.** That is the same stale-documentation class the file's own ⚰️ markers record against everyone else. Not fixed here — it is a different worktree and a member-facing onboarding doc — but it is why item 27's author reasonably believed the tabs were live: **the repo's own guidance told them so.**
+
+⭐ **The general lesson, which is this programme's kind-1 instrument failure wearing new clothes: a COMPETITIVE dependency can be retired by ordinary refactoring while the research describing it stays perfectly intact.** Item 13 read the dependency correctly as of whenever its source was written; the product moved underneath it. **Any "tool X is still load-bearing" claim needs a date and a re-grep, exactly like a flag state.**

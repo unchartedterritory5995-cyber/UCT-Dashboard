@@ -7,14 +7,13 @@ role: the owner's own action list. Every open item an agent cannot close, why, a
 
 # What needs you — 2026-09-26
 
-✅✅ **FOUR THINGS. None urgent, and one is new.**
+✅✅ **THREE THINGS. None urgent.** (Price was the fourth — ✅ **you closed it 2026-09-26**; see the closed list.)
 
 | # | item | why it is yours | cost |
 |---|---|---|---|
 | 1 | **Name a non-builder who will actually use the terminal** | ⭐ NEW, from CARD 22's panel. You cannot supply the verdict on your own definition of done | one name, or the honest answer that there isn't one |
 | 2 | **The OI-04 contract answer** | it comes from outside the company | one email |
 | 3 | **Watch yourself work one trading morning** | an observation, not a decision | one morning, nothing waits on it |
-| 4 | **Price, trial, seat model** | revenue decisions with no engineering dependency | whenever |
 
 **Everything else that was on this list is closed.** The quiet window is scheduled and your partner
 is notified. The CDN question is answered, fixed and verified. The browser measurements are taken.
@@ -62,22 +61,27 @@ The only remaining signal that could overturn the hybrid workspace lock. ⛔ **D
 for this** — every commitment in that document is true under both shapes, so building continues
 either way. The tell is whether you ever want a market-wide page to *stop* being arrangeable.
 
-## 4 · Price, trial, seat model
+## ✅ 4 · PRICE — CLOSED BY YOU, and the "contradiction" was my misreading
 
-⭐ A correction to something I told my own agents: **a price does exist in your code**, $200/mo or
-$2,000/yr. So the accurate statement is not *"there is no price"* but **"there is no owner-ratified
-price and no cost ceiling"**, and that is what leaves this open. No engineering work depends on it.
+**UCT Intelligence: $200/month or $2,000/year.** Recorded, ratified, and now quoted as fact
+across the programme (CARD 23).
 
-⭐⭐ **AND A SECOND PRICE TURNED UP TODAY, WHICH CHANGES WHAT I AM ASKING YOU.** Your seed facts
-(`charter/OWNER_SEED_FACTS.md:61`, 2026-09-01) record a **$7 weekly promo**. Your code records
-**$200/mo or $2,000/yr**. Those are different units, not just different numbers, so they cannot
-both be describing the same offer.
+⭐ **I did not have to ask you about the "$00" typo, because your annual figure settles it.**
+$2,000/year with the **two months free** your code's pricing docstring records is exactly
+$200/month. Derived from what you typed plus the artifact, not guessed.
 
-⛔ **I am deliberately not picking one, and that is the whole ask:** two artifacts already claim
-this number and choosing between them from the outside would make me a third. **Which is live —
-the weekly promo, the monthly/annual, or neither any more?** One sentence settles it, and until
-it does, every document in this programme says "contested between two named artifacts" rather
-than quoting either.
+⚰️ **And you were right that there was nothing to reconcile: the $7 is the Whop plan, a
+different product.** The code that renders the promo says so in its own comment — *"The Whop
+plan is one WEEK for $7"*. Your seed-facts line put a UCT Intelligence tier statement and that
+other product's promo in one sentence, I inherited the splice, and I called it a contradiction in
+four documents before checking whether anything had already resolved it. **One had:** the data
+cost model recorded the promo correctly, with its period and its source, weeks ago.
+
+⚠️ **Two small things this leaves, neither blocking:** the **seat model** (one plan,
+everything unmetered — but nothing says how many people may sit on one subscription), and
+whether the **~750-member** community figure this programme quotes counts the Whop audience,
+the UCT Intelligence audience, or both. The trial is already answered in code: 7 days, card
+required.
 
 ---
 
