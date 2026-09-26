@@ -93,7 +93,7 @@ F-BODIES; the admin gate = F-ADMIN-GATE. The rest were found while reading for t
 *Filled in by the commit that closes each finding. The rail named is the one that goes red
 if the fix is undone; the mutation row in `wave8-8B-report.md` shows it doing so.*
 
-### 2.1 Closed by the B1 + B2 commit (the authorization rail and the hardening)
+### 2.1 Closed by the B1 + B2 commit `2bdd328b5` (the authorization rail and the hardening)
 
 | Finding | Closed how | Rail (red if undone) |
 |---|---|---|
@@ -117,10 +117,31 @@ if the fix is undone; the mutation row in `wave8-8B-report.md` shows it doing so
 | F-PLAN | Mint takes this router's own `require_paid` ("Share links require a paid plan"). Status and revoke do not: a member whose plan lapsed can always see and kill a link. | `test_the_plan_column_is_the_dependency_tree`, `test_10_*` (M9, M10) |
 | F-API-HEADERS | `X-Robots-Tag: noindex, nofollow` and `Referrer-Policy: no-referrer` on every public API response, hit or miss. | `test_9_every_public_response_carries_no_referrer_and_noindex` |
 
-### 2.2 Still open after B1 + B2
+### 2.2 Closed by the later lane-8B commits
 
-| Finding | Why | Closed by |
-|---|---|---|
-| F-IN-PAGE-META | the page's own `<meta>` tags are the B3 page change | B3 |
-| F-ADMIN-GATE | the editor's controls are the B3 page change | B3 |
-| F-READ-WRITES | `notes.get_note` is not lane 8B's file; the write is the owner's own derived column. Recorded, not changed. | open (minor, accepted) |
+| Finding | Closed how | Commit | Rail (red if undone) |
+|---|---|---|---|
+| F-IN-PAGE-META | `public/PublicPageMeta.jsx` renders `<meta name="robots" content="noindex, nofollow">` and `<meta name="referrer" content="no-referrer">` (hoisted into `<head>` by React 19) in EVERY state of the share page and the published page: loading, gone, the note. | `2361ebffa` (share page), `4d555c484` (published page) | `SharedNotePage.publicRequests.test.jsx` (three states), `publishedNote.route.test.jsx` (note and dead page) |
+| F-ADMIN-GATE | `NoteShareControls.jsx` renders for a PAID member while a gate is on (`j2_share_links_enabled` shows the share section, `notebook_publish_enabled` the publish section); the `isAdmin` special case is gone. | `4d555c484` | `NoteShareControls.test.jsx` "who sees the door" (a free member and an admin with the gates off both see nothing) |
+| F-READ-WRITES | Every public read goes through `public_note_payload.read_public_note` (a plain SELECT), never `notes.get_note` and its lazy `first_image_url` backfill. | `25416d0fe` | `test_11_a_public_read_writes_nothing` (share + publish doors, with a control proving the snapshot sees the owner-side backfill) |
+| F-VENDOR (page half) | The page keeps `shareView` in `onBeforeCreate` (the second line behind the server's reducer); a Massive chart never reaches a public page from the server, and an FMP fundamentals embed renders its archived image. | `2361ebffa` | `sharedNote.route.test.jsx` (chart archived-image defence kept; fundamentals + neutral line added) |
+| F-BODY-LEAKS (a), page half | With the noteLink reduced to text, the public page makes no request but its payload. | `2361ebffa` | `SharedNotePage.publicRequests.test.jsx` (with a raw-noteLink control that sees `/api/j2/notes/link-targets`) |
+
+### 2.3 Still open
+
+None of the B0 findings. What lane 8B could not do is listed in `wave8-8B-report.md`
+(concerns): no axe run (8A's `a11y/axeHarness.js` and `axe-core` are not in this worktree), and
+the owner's L4 Privacy sentence says published pages do not show "financial figures" while the
+L3 correction renders FMP and Finnhub figures (`share-publish-flip-packet.md` §1.4).
+
+### 2.4 Publish-to-web (B4) under the same proof
+
+The publish routes are rows of the same `PROOF_MATRIX` (`tests/test_share_publish_authorization.py`)
+and every property runs over them: owner-only (B's attempt on A's page equals a missing slug and
+writes nothing), slug entropy (1,000 slugs, ≥128 bits) and pid scoping, expiry (the unknown 404
+on the page, the index, the member and both image doors), immediate unpublish, no-store, exact
+keys for all three payload shapes plus a forbidden-string scan (Ask answers, citation chips,
+properties, tags, ticker, the folder's name on a NOTE page, other notes' titles and ids, file
+attachments, the author), per-bucket rate limits, byte-identical dead slugs (unknown, revoked,
+expired, trashed, archived, flag off) and dead pids (moved out, archived), the gate-off 404 with
+spies and a snapshot, referrer + noindex, and the plan both ways. Commit: `25416d0fe`.
