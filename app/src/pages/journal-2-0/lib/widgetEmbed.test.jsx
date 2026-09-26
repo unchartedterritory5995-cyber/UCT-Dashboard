@@ -378,6 +378,28 @@ describe('WidgetEmbedView fallback rendering', () => {
     expect(screen.getByText('[mystery]')).toBeTruthy()
     expect(screen.getByText(/widget type unavailable/i)).toBeTruthy()
   })
+  // ⛔ Wave 8 final review, M-10: a stranger on a share link or a published page never reads
+  // the author's "snapshot image not captured yet"; the widget's own caption stands in. The
+  // attrs are shaped the way the share reducer hands them over (no searchText, no params).
+  it('on a public page, a widget with no archived image shows its own caption, never the author note', () => {
+    const attrs = buildWidgetEmbedAttrs('breadth', {}, { capturedAt: '2026-09-18T15:45:00Z' })
+    delete attrs.searchText
+    delete attrs.params
+    delete attrs.fallback
+    const caption = embedAutoCaption(attrs)
+    expect(caption.length).toBeGreaterThan(0) // non-vacuity: there IS a caption to show
+    const editor = { storage: { uctJournalWidgets: { shareView: true } }, isEditable: false }
+    const { container } = render(<WidgetEmbedView node={{ attrs }} selected={false} editor={editor} />)
+    expect(container).toHaveTextContent(caption)
+    expect(container).not.toHaveTextContent(/snapshot image not captured yet/i)
+    expect(container).not.toHaveTextContent('[widget]')
+  })
+  it("CONTROL: the same embed in the author's own editor still says the snapshot is not captured yet", () => {
+    const attrs = buildWidgetEmbedAttrs('breadth', {}, { capturedAt: '2026-09-18T15:45:00Z' })
+    delete attrs.fallback
+    render(<WidgetEmbedView node={{ attrs }} selected={false} />)
+    expect(screen.getByText(/snapshot image not captured yet/i)).toBeTruthy()
+  })
   it('derives the auto-caption from params, never from stored text', () => {
     const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' }, { capturedAt: '2026-03-13T15:45:00Z' })
     expect(embedAutoCaption(attrs)).toBe('Chart — AMD 5m · captured Mar 13, 2026')

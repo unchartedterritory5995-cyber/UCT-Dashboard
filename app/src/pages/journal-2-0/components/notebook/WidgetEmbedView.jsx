@@ -112,7 +112,19 @@ function ArchivedImage({ attrs }) {
   )
 }
 
-function PlaceholderChip({ attrs, reason }) {
+function PlaceholderChip({ attrs, reason, shareView = false }) {
+  // ⛔ Wave 8 final review, M-10: on a PUBLIC page (a share link or a published page) a widget
+  // with no archived image is described by its own caption -- the words its image would carry
+  // (`embedAutoCaption`). "snapshot image not captured yet" is a note to the author about a
+  // capture that has not happened; a stranger can do nothing with it, and the share reducer has
+  // already removed the author's `searchText` the line above it would have shown.
+  if (shareView) {
+    return (
+      <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
+        <span className={styles.placeholderLine}>{embedAutoCaption(attrs)}</span>
+      </div>
+    )
+  }
   return (
     <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
       <span className={styles.placeholderLine}>{attrs.searchText || '[widget]'}</span>
@@ -471,7 +483,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
 
   const archived = attrs.fallback?.url
     ? <ArchivedImage attrs={attrs} />
-    : <PlaceholderChip attrs={attrs} reason={decision.reason} />
+    : <PlaceholderChip attrs={attrs} reason={decision.reason} shareView={shareView} />
 
   // ── Per-embed annotations (drawings + text saved ON the snapshot) ────────
   // Draw mode mounts StockChart's controlled annotation toolbar inside the

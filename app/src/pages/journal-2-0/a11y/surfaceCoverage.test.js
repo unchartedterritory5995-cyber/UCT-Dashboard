@@ -12,9 +12,22 @@
 //   · every recipe or coveredBy id is registered by an axe rail in this
 //     directory (`axeSurface('<id>'` …), so a manifest line cannot point at a
 //     rail that does not exist.
+//
+// ⛔ Wave 8 final review M-12: "registered" means the FIRST ARGUMENT of an
+// `axeSurface(` call, read from the parse tree (acorn + acorn-jsx, the tree's
+// parser). It used to accept the id as ANY quoted literal anywhere in a rail file
+// that called `axeSurface(` -- so a generic id such as `editor` could be
+// "registered" by an unrelated string (a label, a test name). The first argument
+// is resolved in three forms: a string literal; a template whose head is the id
+// (`editor${flagsOn ? '' : ':flags-off'}` registers `editor`); and a loop
+// variable bound by `for (const [id, …] of TABLE)` over a module-level array of
+// arrays, or `for (const id of IDS)` over an array of strings. Anything else is
+// UNRESOLVED and fails by name -- it is never quietly accepted.
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { Parser } from 'acorn'
+import jsx from 'acorn-jsx'
 import { SURFACES, OTHER_LANES_OUTSIDE_POPULATION } from './notebookSurfaces'
 import { derivePopulation, J2_DIR } from './population'
 
@@ -22,19 +35,79 @@ const J2 = J2_DIR
 const A11Y = join(J2, 'a11y')
 const KINDS = ['recipe', 'coveredBy', 'OTHER_LANES', 'exempt']
 
-/** Every surface id an axe rail in this directory registers: a string literal
- *  (quoted or the head of a template) that is a registered `axeSurface` id or
- *  sits in a table an `axeSurface(id, …)` loop reads. The id must be followed by
- *  its closing quote, or by `${` for a flag-variant template. */
 function railSources() {
   return readdirSync(A11Y)
     .filter((f) => f.endsWith('.a11y.test.jsx'))
     .map((f) => ({ file: f, text: readFileSync(join(A11Y, f), 'utf8') }))
 }
-const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const JsxParser = Parser.extend(jsx())
+const isStr = (n) => n?.type === 'Literal' && typeof n.value === 'string'
+
+/** The ids `text` registers: the first argument of every `axeSurface(` call, and
+ *  the calls whose first argument could not be resolved (`file:line`). */
+export function registeredIds(text, file = '<source>') {
+  const tree = JsxParser.parse(text, { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+  // module-level `const NAME = [ ... ]`
+  const arrays = new Map()
+  for (const n of tree.body) {
+    if (n.type !== 'VariableDeclaration') continue
+    for (const d of n.declarations) {
+      if (d.id?.type === 'Identifier' && d.init?.type === 'ArrayExpression') arrays.set(d.id.name, d.init)
+    }
+  }
+  const ids = new Set()
+  const unresolved = []
+  const fromLoop = (name, stack) => {
+    for (let i = stack.length - 1; i >= 0; i -= 1) {
+      const loop = stack[i]
+      if (loop.type !== 'ForOfStatement' || loop.left?.type !== 'VariableDeclaration') continue
+      const bind = loop.left.declarations[0]?.id
+      const table = loop.right?.type === 'Identifier' ? arrays.get(loop.right.name) : null
+      if (bind?.type === 'Identifier' && bind.name === name) {
+        if (!table || !table.elements.every(isStr)) return null
+        return table.elements.map((e) => e.value)
+      }
+      if (bind?.type === 'ArrayPattern' && bind.elements[0]?.type === 'Identifier' && bind.elements[0].name === name) {
+        if (!table || !table.elements.every((e) => e?.type === 'ArrayExpression' && isStr(e.elements[0]))) return null
+        return table.elements.map((e) => e.elements[0].value)
+      }
+    }
+    return null
+  }
+  const walk = (n, stack) => {
+    if (!n || typeof n.type !== 'string') return
+    if (n.type === 'CallExpression' && n.callee?.type === 'Identifier' && n.callee.name === 'axeSurface') {
+      const a = n.arguments[0]
+      let got = null
+      if (isStr(a)) got = [a.value]
+      else if (a?.type === 'TemplateLiteral' && a.quasis[0]?.value.cooked) got = [a.quasis[0].value.cooked]
+      else if (a?.type === 'Identifier') got = fromLoop(a.name, stack)
+      if (got) got.forEach((id) => ids.add(id))
+      else unresolved.push(`${file}:${n.loc.start.line}`)
+    }
+    const next = n.type === 'ForOfStatement' ? [...stack, n] : stack
+    for (const v of Object.values(n)) {
+      if (Array.isArray(v)) v.forEach((c) => walk(c, next))
+      else if (v && typeof v.type === 'string') walk(v, next)
+    }
+  }
+  walk(tree, [])
+  return { ids, unresolved }
+}
+
+function registry(sources) {
+  const ids = new Set()
+  const unresolved = []
+  for (const { file, text } of sources) {
+    const r = registeredIds(text, file)
+    r.ids.forEach((id) => ids.add(id))
+    unresolved.push(...r.unresolved)
+  }
+  return { ids, unresolved }
+}
 function registered(id, sources) {
-  const re = new RegExp(`['\`]${esc(id)}(?:['\`]|\\$\\{)`)
-  return sources.some(({ text }) => re.test(text) && /axeSurface\(/.test(text))
+  return registry(sources).ids.has(id)
 }
 
 describe('the population is derived, and non-vacuous', () => {
@@ -96,6 +169,35 @@ describe('each entry points at something real', () => {
   it('the registration check can fail (control: an id no rail registers)', () => {
     expect(registered('no-such-surface-xyz', sources)).toBe(false)
     expect(registered('tab-list', sources)).toBe(true)
+  })
+
+  it('every axeSurface call in a11y/ names its id in a form the parser resolves (M-12)', () => {
+    const { ids, unresolved } = registry(sources)
+    expect(unresolved, 'an axeSurface id the rail cannot read is never quietly accepted').toEqual([])
+    // non-vacuity: all three forms are in use and were read
+    expect(ids.has('editor-slash')).toBe(true)          // a string literal
+    expect(ids.has('editor')).toBe(true)                // the head of a flag-variant template
+    expect(ids.has('embed-chart')).toBe(true)           // a loop over a table of rows
+  })
+
+  it('CONTROLS (M-12): only the FIRST argument of axeSurface( registers an id', () => {
+    const src = [
+      "const ROWS = [['row-a', 1], ['row-b', 2]]",
+      "const NAMES = ['name-a']",
+      "axeSurface('lit-a', async () => { expect(x).toBe('stray-in-body') })",
+      'axeSurface(`tpl-a${on ? "" : ":off"}`, f)',
+      'for (const [id] of ROWS) axeSurface(id, f)',
+      'for (const n of NAMES) axeSurface(n, f)',
+      "it('stray-in-a-test-name', () => {})",
+      "const label = 'stray-const'",
+    ].join('\n')
+    const { ids, unresolved } = registeredIds(src)
+    expect([...ids].sort()).toEqual(['lit-a', 'name-a', 'row-a', 'row-b', 'tpl-a'])
+    expect(unresolved).toEqual([])
+    // the old matcher's false positives: a literal elsewhere in a file that calls axeSurface(
+    for (const stray of ['stray-in-body', 'stray-in-a-test-name', 'stray-const']) expect(ids.has(stray)).toBe(false)
+    // an id the parser cannot resolve is reported, not accepted
+    expect(registeredIds('axeSurface(makeId(), f)', 'x.jsx').unresolved).toEqual(['x.jsx:1'])
   })
 
   it('an exemption carries a real reason', () => {
