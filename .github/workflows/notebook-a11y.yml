@@ -1,0 +1,64 @@
+# promotion-gate: no — ADVISORY until it has been SEEN RED ONCE AND SEEN GREEN ONCE in CI
+#   (ruling D-A2). Only then may it be promoted to `yes`. There is no local proof that
+#   this workflow runs -- a GitHub runner cannot be exercised from this box -- so its
+#   FIRST CI RUN is the proof, and that run's URL belongs in the promotion commit.
+#   Added 2026-09-26, wave 8 lane 8A (A7).
+# ─── NOTEBOOK ACCESSIBILITY, IN CI ───────────────────────────────────────────
+#
+# Runs every Notebook accessibility rail in app/src/pages/journal-2-0/a11y/: axe-core
+# over every Notebook surface (the derived manifest and its coverage rail), the aria
+# census, the focus-suppression and focus-flow rails, the graph's list and keyboard
+# rails, and the three-theme colour-contrast rail. docs/notebook/accessibility.md says
+# what each covers and what jsdom cannot see.
+#
+# Scope is deliberately the a11y directory alone (the precedent is
+# optionsflow-guard.yml): a narrow job that cannot cry wolf over an unrelated flaky
+# spec elsewhere in the suite.
+name: Notebook accessibility
+
+on:
+  push:
+    paths:
+      - 'app/src/pages/journal-2-0/**'
+      - 'app/src/styles/tokens.css'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - '.github/workflows/notebook-a11y.yml'
+  pull_request:
+    paths:
+      - 'app/src/pages/journal-2-0/**'
+      - 'app/src/styles/tokens.css'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - '.github/workflows/notebook-a11y.yml'
+
+jobs:
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Notebook accessibility rails
+        working-directory: app
+        run: npx vitest run src/pages/journal-2-0/a11y/
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A Notebook accessibility rail failed."
+          echo ""
+          echo "  - axe: the failing surface id and rule are in the log (a11y/*.a11y.test.jsx)."
+          echo "  - contrast: fix with an EXISTING token; a tokens.css-only failure goes in"
+          echo "    a11y/contrastExpectedFailures.js with a D-A4 ruling id."
+          echo "  - focus: a11y/focusSuppression.test.js / a11y/focusFlows.test.jsx name the file:line."
+          echo "  - what each rail covers: docs/notebook/accessibility.md"
