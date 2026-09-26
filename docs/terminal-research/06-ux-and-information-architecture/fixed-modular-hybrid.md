@@ -32,14 +32,18 @@ So the three real commitments below are not "fixed vs modular". They are:
 1. **Promotion is generic, or the board inherits an 18-entry ceiling** (§4).
 2. **The workspace is one versioned document, and `user_preferences` is not where it
    lives** (§5) — this resolves a direct contradiction between two accepted inputs.
-3. **Per-panel error isolation is a precondition of choosing hybrid at all** (§6), because
-   hybrid is the option that multiplies the blast radius of one bad widget, and today
-   there are **zero** per-widget error boundaries [D-06 §1.7].
+3. ✅ **Per-panel error isolation, the close control outside it, and a mount cap — all
+   three ALREADY SHIP** (§6, corrected 2026-09-25; `424bf3355`, live on production). This
+   was drafted as an unmet precondition on D-06 §1.7's *"no matches. CONFIRMED"*; that
+   finding is stale. It becomes a **standing invariant any new shell must preserve**, and
+   it *strengthens* the hybrid lock, because the blast-radius objection to composition is
+   already mitigated in shipped code.
 
 **CONFIDENCE.** 🟢 on the reframe and on commitments 2 and 3 — both rest on measured code
 facts and on this program's own accepted inputs. 🟡 on the hybrid lock itself, because the
-strongest evidence for it is a 29-account internal cohort (§3) and an owner input (OI-06)
-that has not landed. **Lock provisionally; re-read §7 before ARCH-02 is authored.**
+strongest evidence for it is a 29-account internal cohort of staff (§3). ⚠️ OI-06 HAS landed
+(owner, 2026-09-19) and supports hybrid without separating it from modular; the open input is
+a desk-observed morning (§7). **Lock provisionally; re-read §7 before ARCH-02 is authored.**
 
 ---
 
@@ -81,12 +85,13 @@ graduation path in either direction, and a versioned workspace document [C5-01 �
 | Shell | designer-set pages, no member arrangement | fixed pages **+ one** composable board | everything is a panel in a dock |
 | Member act | navigate | navigate, and compose where composition pays | compose |
 | Saved object | none (or a filter set) | one workspace document per board | one workspace document, unavoidable |
-| Failure surface | a page breaks | a page breaks, **or** a panel breaks the board | a panel breaks the dock |
+| Failure surface | a page breaks | a page breaks; a panel's failure is **contained** (§6) | a panel's failure is contained, but the dock is the only surface |
 | First-run | always correct by construction | correct by construction, board starts seeded or empty | blank canvas — the known-hard problem [C5-01 §4] |
 
 ⛔ **Option A is not "do nothing", and option C is not "what UCT has".** UCT today is
-already B-shaped in content and C-shaped in mechanism: the board has no cap, no seeded
-first-run, and a hand-curated registry. Choosing B is therefore a *constraint* on an
+already B-shaped in content and C-shaped in mechanism: no seeded first-run, a hand-curated
+registry, and no cap on how many panels a board may hold (⚠️ distinct from concurrent MOUNTS,
+which are capped at three — see §6). Choosing B is therefore a *constraint* on an
 existing system, not a greenfield pick.
 
 ---
@@ -252,23 +257,45 @@ data-loss surprise."* [D-11 §1.3]
 
 ---
 
-## 6. Commitment 3 — per-panel error isolation is a precondition, not a follow-up
+## 6. Commitment 3 — per-panel error isolation: ✅ ALREADY SHIPPED, verified in code
 
-> "grep of `ChartsWorkspace.jsx` + `WidgetHost.jsx` → **no matches. CONFIRMED.**… This is
-> the highest-severity structural gap I found for a terminal… one bad payload from one
-> provider blanks the whole screen. It is also the cheapest fix in this report." [D-06 §1.7]
+⚰️⚰️ **CORRECTED 2026-09-25, HOURS AFTER THIS DOCUMENT FIRST SHIPPED. The first version of
+this section called per-panel error isolation an unmet precondition of the hybrid choice,
+quoting D-06 §1.7's** *"grep of `ChartsWorkspace.jsx` + `WidgetHost.jsx` → no matches.
+CONFIRMED"* **and its** *"a widget that throws on every mount currently cannot be closed,
+because its header is inside the subtree that fails."* **Both are now false.** Measured
+directly, not inferred:
 
-And the trap inside the trap: a widget that throws on every mount *"currently cannot be
-closed, because its header is inside the subtree that fails"* [D-06 §1.7].
+| D-06 §1.7 / §1.7-GAPS claim | Reality, `WidgetHost.jsx`, live on production |
+|---|---|
+| no per-widget error boundary | **`ErrorBoundary` wraps `WidgetBody` at `:107-111`**, with a `WidgetErrorFallback` naming the widget type and `key={groupId}` so a tab swap resets a tripped boundary. Its own comment cites the defect it closed: *"a widget that throws during render used to take the whole /charts board down to App.jsx's RouteErrorBoundary"* |
+| the throwing widget cannot be closed | **The header renders OUTSIDE and BEFORE the boundary** — `WidgetHeader` at `:227` and `:254`, `WidgetBody` at `:270`. The close control survives its widget's failure |
+| no mount queue (weakness #8, first half) | **`PANEL_MOUNT_CAP = 3`** (`ChartsWorkspace.jsx:84`) with a staggered-mount queue, and `WidgetHost`'s `mounted` prop defaulting true so only the main board's call site throttles |
+| no board cap (weakness #8, second half) | ⚠️ **STILL TRUE, and this correction does not close it.** There is no `MAX_WIDGETS`: the bound on panels per board remains geometric (`FIXED_ROWS = 20`). Concurrent mounts are capped; board SIZE is not. §3 measured the largest live board at five panels, so nothing presses on it today |
 
-⛔ **This is what makes it a precondition of the decision rather than a task under it.**
-Fixed pages fail one page at a time. A composable board fails *the whole board* at whatever
-the worst panel on it does — so choosing hybrid is choosing to multiply that blast radius
-across however many panels a member composes, and §3 measured the modal board at **five**.
-Option B is only cheaper than option A if a panel's failure is contained. Today it is not.
+All three landed in **one** commit on **2026-09-21** — `424bf3355`, *"S1 CP3: panel registry
+formalization — registerPanel, TD-02 boundary, mount cap"* — and it is an ancestor of
+`origin/production`. D-06 was accurate when written and is stale now.
 
-**Order of work implied:** per-panel boundary (with the close control *outside* the failing
-subtree) lands before Terminal-Next composes anything.
+### 6.1 What that does to the decision — it STRENGTHENS the lock
+
+The argument this section originally made against hybrid was blast radius: fixed pages fail
+one page at a time, a composable board fails at whatever its worst panel does, and §3
+measures the modal board at **five** panels. **That objection is already mitigated in shipped
+code.** Containment exists, the close control survives, and concurrent mounts are capped at
+three — which is also the herd-protection the 2026-05-24 fetch-herd incident demanded.
+
+So commitment 3 is not work to schedule. It is a **standing invariant to protect**: any
+Terminal-Next shell that composes panels must keep (a) a boundary per panel, (b) the close
+control outside it, and (c) a mount cap. ⛔ Losing any one of the three re-opens the
+objection, and the third is the one most likely to be dropped by a new shell that "just
+renders the list".
+
+⚠️ **And the lesson, since this is the second correction of the same shape in one hour**
+(see §7 on OI-06): **an accepted input is a claim about its own date.** Both errors came from
+quoting a dated document as a live fact. The tell in both cases was cheap — one grep, one
+table lookup — and in both cases the correction moved the decision toward *more* confidence,
+not less, which is precisely why nobody would have gone looking.
 
 ---
 
