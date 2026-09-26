@@ -9,6 +9,8 @@
 // change can fix is recorded in EXPECTED_FAILURES with the ruling id the
 // controller assigns (D-A4-…); the rail fails on an entry without one, on an
 // entry that no longer fails (stale), and on any failure not in the table.
+// Another lane's fixable failure goes in OTHER_LANES; staleness there is
+// reported, not failed (that lane's fix must not red this rail in its gate).
 //
 // Regenerate the measured table (docs/notebook/accessibility-contrast.md):
 //   NOTEBOOK_CONTRAST_DOC=1 npx vitest run src/pages/journal-2-0/a11y/notebookContrast.test.js
@@ -90,13 +92,15 @@ describe('Notebook colour contrast, all three themes', () => {
     expect(() => expect(bad.rulingId).toMatch(/^D-A4-\S+/)).toThrow()
   })
 
-  it('every OTHER_LANES entry is in a stylesheet that lane owns, and still fails', () => {
+  // ⚠️ An OTHER_LANES entry that passes now (or whose rule moved) is REPORTED,
+  // never failed: the other lane's fix must not turn this rail red in that
+  // lane's own gate. EXPECTED_FAILURES above stays strict -- those are 8A's.
+  it('every OTHER_LANES entry is in a stylesheet that lane owns', () => {
     for (const e of OTHER_LANES) {
       const file = e.pair.split(' ')[0]
       expect(LANE_OWNED[file], `${file} is not another lane's stylesheet -- fix it here`).toBe(e.lane)
       const row = measured.find((r) => pairKey(r) === e.pair)
-      expect(row, `no such pair any more: ${e.pair}`).toBeTruthy()
-      expect(failing(row, e.theme), `${e.pair} @${e.theme} passes now -- remove the entry`).toBe(true)
+      if (!row || !failing(row, e.theme)) console.info(`notebookContrast: OTHER_LANES ${e.pair} @${e.theme} no longer fails (inert; delete it)`)
     }
   })
 

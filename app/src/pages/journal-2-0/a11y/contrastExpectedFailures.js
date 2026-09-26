@@ -39,6 +39,7 @@ export const EXPECTED_FAILURES = Object.freeze([
   { pair: "components/notebook/NoteTasksView.module.css .groupOverdue [text color]", theme: 'dark', measured: 4.01, rulingId: 'D-A4-1' },
   { pair: "components/notebook/PropertiesSection.module.css .error [text color]", theme: 'dark', measured: 4.01, rulingId: 'D-A4-1' },
   { pair: "components/notebook/RelationPropertyValue.module.css .hint [text color]", theme: 'dark', measured: 4.01, rulingId: 'D-A4-1' },
+  { pair: "components/notebook/ResearchHome.module.css .sampleError [text color]", theme: 'dark', measured: 4.01, rulingId: 'D-A4-1' },
   { pair: "components/notebook/ResearchHome.module.css .status_invalidated [text color]", theme: 'dark', measured: 3.73, rulingId: 'D-A4-1' },
   { pair: "components/notebook/ResearchHome.module.css .status_invalidated [text color]", theme: 'oled', measured: 4.30, rulingId: 'D-A4-1' },
   { pair: "components/notebook/SavedViewEditor.module.css .error [text color]", theme: 'dark', measured: 4.01, rulingId: 'D-A4-1' },
@@ -157,6 +158,9 @@ export const EXPECTED_FAILURES = Object.freeze([
 
 /** Fixable, but in another lane's stylesheet this wave -- that lane's to make. */
 export const OTHER_LANES = Object.freeze([
+  { pair: "components/notebook/ResearchHome.module.css .sampleStripAction:focus-visible, .sampleStripDismiss:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
+  { pair: "components/notebook/onboarding/NotebookTour.module.css .title:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
+  { pair: "components/notebook/onboarding/NotebookTour.module.css .skip:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
   { pair: "components/notebook/NoteExportControls.module.css .item:focus-visible [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
   { pair: "components/notebook/export/ExportDialog.module.css .option:focus-within [ui-focus box-shadow]", theme: 'light', measured: 1.72, lane: '8C', fix: "box-shadow: 0 0 0 2px var(--ut-gold) -- the translucent --focus-ring is 1.72:1 on the light theme" },
 ])

@@ -56,6 +56,7 @@ export const LANE_OWNED = Object.freeze({
   'components/notebook/NoteExportControls.module.css': '8C',
   'components/notebook/export/ExportDialog.module.css': '8C',
   'components/notebook/ResearchHome.module.css': '8C',
+  'components/notebook/onboarding/NotebookTour.module.css': '8C',
   'components/notebook/NoteShareControls.module.css': '8B',
   'components/SharingCard.module.css': '8B',
   'SharedNotePage.module.css': '8B',

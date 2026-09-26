@@ -37,8 +37,10 @@ const BAR = 3
 
 /**
  * Another lane's stylesheet that fails today, classified rather than fixed
- * here. Each entry names the lane and the line. Empty is the goal; a stale
- * entry (the file now passes) fails, so the table cannot outlive the fix.
+ * here. Each entry names the lane and the rule. Empty is the goal; a stale
+ * entry (the file now passes) is REPORTED by the rail, never failed, so that
+ * lane's own fix cannot turn this rail red in its gate -- whoever sees the
+ * report deletes the entry.
  * ⭐ SharedNotePage.module.css:17 (8B) was the plan's named case; lane 8B
  * fixed it in 2361ebffa (a :focus-visible ring on the read-only document), so
  * it is audited here like every other file and needs no entry.
@@ -46,6 +48,10 @@ const BAR = 3
 export const OTHER_LANES = Object.freeze({
   'components/notebook/NoteExportControls.module.css':
     { lane: '8C', why: '.item:focus-visible uses var(--focus-ring), 1.7:1 on the light theme; 8C owns the file (seam S8-3)' },
+  'components/notebook/ResearchHome.module.css':
+    { lane: '8C', why: '.sampleStripAction / .sampleStripDismiss :focus-visible use var(--focus-ring), 1.7:1 on the light theme (C3 sample strip)' },
+  'components/notebook/onboarding/NotebookTour.module.css':
+    { lane: '8C', why: '.title:focus drops the outline with nothing in the same rule; .skip:focus-visible uses var(--focus-ring), 1.7:1 on the light theme (C2 tour)' },
 })
 
 const scopedToMouse = (selector) => selector.split(',').every((p) => /:focus:not\(:focus-visible\)/.test(p))
@@ -143,12 +149,15 @@ describe('Notebook stylesheets never hide focus without a visible replacement', 
     expect(failures, failures.join('\n')).toEqual([])
   })
 
-  it('every OTHER_LANES entry still fails today (a fixed file leaves the table)', () => {
+  // ⚠️ An OTHER_LANES entry that passes now is REPORTED, never failed: the other
+  // lane's fix must not turn this rail red in that lane's own gate. It is
+  // inert until someone deletes it; the lane's report lists which are.
+  it('every OTHER_LANES entry names a lane, a reason and a real Notebook stylesheet', () => {
     for (const [f, { lane, why }] of Object.entries(OTHER_LANES)) {
       expect(['8B', '8C']).toContain(lane)
       expect(why.length).toBeGreaterThan(20)
       expect(files, `${f} is not a Notebook stylesheet any more`).toContain(f)
-      expect(audit(f).some((x) => !x.ok), `${f} passes now -- remove it from OTHER_LANES`).toBe(true)
+      if (!audit(f).some((x) => !x.ok)) console.info(`focusSuppression: OTHER_LANES ${f} passes now (inert; delete it)`)
     }
   })
 

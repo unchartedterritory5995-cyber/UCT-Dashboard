@@ -556,7 +556,7 @@ function TagNode({
         onCancelRename={onCancelRename}
       />
       {hasChildren && expanded && (
-        <div className={styles.childrenList} style={{ '--guide-x': `${node.depth * 14 + 7}px` }}>
+        <div className={styles.childrenList} style={{ '--guide-x': `${node.depth * 14 + 10}px` }}>
           {node.children.map((child) => (
             <TagNode
               key={child.key}
@@ -727,7 +727,7 @@ function FolderNode({
         </>)}
       </div>
       {isExpanded && (
-        <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 7}px` }}>
+        <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 10}px` }}>
           {node.children.map((child) => (
             <FolderNode
               key={child.id}

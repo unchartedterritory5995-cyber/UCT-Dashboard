@@ -303,11 +303,16 @@
 .folderItem { display: flex; flex-direction: column; }
 .rowWrap { display: flex; align-items: center; gap: 2px; }
 .rowWrap .row { flex: 1; min-width: 0; }
+/* Wave 8 (8A, browser check): 24px, not 18 -- WCAG 2.2 target size (2.5.8).
+   axe in a real browser measured the 18px chevron with 22px of safe space to
+   its neighbours; jsdom has no boxes and could not. The spacer follows the
+   control so leaf rows stay aligned (see the touch-tier note below), and the
+   indent guide's offset in FolderSidebar.jsx moved by the same 3px. */
 .disclosureBtn,
 .disclosureSpacer {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -329,7 +334,7 @@
 .childrenList::before {
   content: '';
   position: absolute;
-  left: var(--guide-x, 7px);
+  left: var(--guide-x, 10px);
   top: 0;
   bottom: 2px;
   width: 1px;
