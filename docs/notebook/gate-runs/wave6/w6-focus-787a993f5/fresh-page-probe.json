@@ -1,0 +1,121 @@
+{
+ "events": [
+  {
+   "t_ms": 167,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/auth/track"
+  },
+  {
+   "t_ms": 294,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/auth/track"
+  },
+  {
+   "t_ms": 488,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/j2/telemetry"
+  },
+  {
+   "t_ms": 488,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/j2/telemetry"
+  },
+  {
+   "t_ms": 488,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/j2/broker/sync?background=1"
+  },
+  {
+   "t_ms": 488,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/j2/broker/fills/check"
+  },
+  {
+   "t_ms": 489,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/watchlists/flagged/sync"
+  },
+  {
+   "t_ms": 680,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/j2/broker/fills/check"
+  },
+  {
+   "t_ms": 683,
+   "kind": "response",
+   "status": 503,
+   "method": "POST",
+   "url": "/api/j2/broker/sync?background=1"
+  },
+  {
+   "t_ms": 684,
+   "kind": "console",
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "t_ms": 684,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/j2/telemetry"
+  },
+  {
+   "t_ms": 699,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/j2/telemetry"
+  },
+  {
+   "t_ms": 736,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/watchlists/flagged/sync"
+  },
+  {
+   "t_ms": 1450,
+   "kind": "clicked-save"
+  },
+  {
+   "t_ms": 1460,
+   "kind": "filled"
+  },
+  {
+   "t_ms": 1549,
+   "kind": "request",
+   "method": "POST",
+   "url": "/api/j2/saved-views"
+  },
+  {
+   "t_ms": 1549,
+   "kind": "pressed-enter"
+  },
+  {
+   "t_ms": 1561,
+   "kind": "response",
+   "status": 200,
+   "method": "POST",
+   "url": "/api/j2/saved-views"
+  }
+ ],
+ "timeline_pressed": "true",
+ "save_btn_count": 1,
+ "active_element_before_enter": {
+  "tag": "INPUT",
+  "id": "save-view-name"
+ },
+ "field_still_visible": false,
+ "dialog_text": null
+}

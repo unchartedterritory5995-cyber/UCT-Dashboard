@@ -1032,6 +1032,7 @@ with sync_playwright() as p:
         save_btn = page.get_by_role("button", name="Save view", exact=True)
         view_name = f"Walk timeline {RUN}"
         saved_ok = False
+        focus_on_open = None   # measured below; see the focus note at the fill
         if save_btn.count():
             save_btn.click()
             # ⛔ `get_by_label("Name")` is ambiguous page-wide (folder-rename
@@ -1039,6 +1040,19 @@ with sync_playwright() as p:
             # which CONTAIN "Name") -- the id is unambiguous (SavedViewEditor.jsx).
             name_field = page.locator("#save-view-name")
             name_field.wait_for(state="visible", timeout=5000)
+            # ⛔⛔ FOCUS IS NOT IN THE FIELD WHEN THE DIALOG OPENS -- a product defect,
+            # measured 2026-09-26 and routed to wave 8 lane 8A (focus), NOT this walk's
+            # to hide. `Sheet.jsx` focuses its panel in a requestAnimationFrame after
+            # open, which takes focus back from the field's `autoFocus`. `fill()` alone
+            # raced that frame: on a quiet box the frame fired first and fill() put focus
+            # back (PASS); on a loaded box the frame fired AFTER fill(), Enter landed on
+            # the panel <div>, no POST was sent, and W6 timed out 3/3 on 787a993f5. A
+            # member has to click the field before typing, so the walk does the same --
+            # and records where focus WAS, so the defect stays visible in the evidence.
+            page.wait_for_timeout(150)
+            focus_on_open = page.evaluate(
+                "() => ({tag: document.activeElement?.tagName, isField: document.activeElement?.id === 'save-view-name'})")
+            name_field.click()
             name_field.fill(view_name)
             with page.expect_response(lambda r: r.url.endswith("/api/j2/saved-views") and r.request.method == "POST") as si:
                 page.keyboard.press("Enter")
@@ -1103,6 +1117,7 @@ with sync_playwright() as p:
             saved_ok=saved_ok, saved_view_type=saved_type,
             restored_as_timeline=restored_as_timeline,
             saved_view_row_count=saved_view_row_count,
+            focus_on_open_150ms=focus_on_open,
         )
 
     check_w6()
