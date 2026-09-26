@@ -1,0 +1,114 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 2,
+    "unchanged": 177,
+    "missing": 0,
+    "baseline": 179,
+    "current": 181,
+    "current_ran": 56482,
+    "new_flaky": 0,
+    "flaky_size": 6,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 3,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 179 = unchanged 177 + fixed 2 + missing 0  |  current 181 = unchanged 177 + new 4 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36217215194",
+  "current_run_id": "36223010516",
+  "baseline_sha": "8ecf428bc27917ce3eb46072917c5663b33d1e7e",
+  "current_sha": "271a078b6023ede05cfa157de8e27af6315bd6f8",
+  "commit_range": "8ecf428bc27917ce3eb46072917c5663b33d1e7e..271a078b6023ede05cfa157de8e27af6315bd6f8",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_preference_key_validation|test_every_key_the_client_writes_is_still_accepted",
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing",
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_preference_key_validation|test_every_key_the_client_writes_is_still_accepted": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8ecf428bc..271a078b6 touched tests/test_preference_key_validation.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_logos|test_existing_three_call_sites_unpack_tuple_return": {
+      "class": "imported-file-change",
+      "commits": [
+        "271a078b6"
+      ],
+      "workstreams": [
+        {
+          "commit": "271a078b6",
+          "workstream": "Notebook wave 6",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_recaches_existing": {
+      "class": "imported-file-change",
+      "commits": [
+        "271a078b6"
+      ],
+      "workstreams": [
+        {
+          "commit": "271a078b6",
+          "workstream": "Notebook wave 6",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_logos|test_run_hires_upgrade_writes_source_sidecar": {
+      "class": "imported-file-change",
+      "commits": [
+        "271a078b6"
+      ],
+      "workstreams": [
+        {
+          "commit": "271a078b6",
+          "workstream": "Notebook wave 6",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_massive_ws_stop|test_stop_idempotency_and_stop_before_start": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8ecf428bc..271a078b6 touched tests/test_massive_ws_stop.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 8ecf428bc..271a078b6 touched tests/test_mutation_check.py or anything it imports"
+    }
+  }
+}
