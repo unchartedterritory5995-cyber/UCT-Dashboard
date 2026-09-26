@@ -13,7 +13,8 @@ import { describe, beforeEach, afterEach, vi, expect } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers } from './fixtures'
 import { axeSurface } from './surface'
-import NoteGraphView, { GRAPH_VIEW_KEY } from '../components/notebook/NoteGraphView'
+import NoteGraphView from '../components/notebook/NoteGraphView'
+import { GRAPH_VIEW_KEY } from '../lib/graphNavigation'
 
 const noopContext = () => new Proxy({}, {
   get: (t, k) => (k in t ? t[k] : () => {}),

@@ -20,7 +20,8 @@ vi.mock('swr', () => ({
   default: (key) => { swrKeys.push(key); return swrResult },
 }))
 
-import NoteGraphView, { GRAPH_VIEW_KEY, nearestInDirection } from './NoteGraphView'
+import NoteGraphView from './NoteGraphView'
+import { GRAPH_VIEW_KEY, nearestInDirection } from '../../lib/graphNavigation'
 
 // ── a recording 2d context, because jsdom has no canvas ────────────────────
 // ⛔ THE LOG IS RESET IN beforeEach, NEVER IN makeCtx. A re-running layout effect

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { SkeletonBlock } from '../../../../components/Skeleton'
 import styles from './NoteGraphView.module.css'
+import {
+  ARROWS, byTitle, nearestInDirection, readGraphView, titleOf, writeGraphView,
+} from '../../lib/graphNavigation'
 
 /**
  * The note-link graph, drawn.
@@ -99,71 +102,7 @@ const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 /** Radius from degree — sqrt so a hub with 40 links is not 10x a node with 4. */
 const radiusFor = (degree) => Math.min(MAX_R, MIN_R + Math.sqrt(degree || 0) * 2.4)
 
-// ── the two accessible doors (wave 8, lane 8A) ──────────────────────────────
-
-/** Where the "Show as list" choice is remembered, per browser. */
-export const GRAPH_VIEW_KEY = 'uct.notebook.graph.view'
-
-/** ⛔ A storage that throws (private window, blocked site data) means CANVAS —
- *  the view the page has always opened on, never a crash and never a guess. */
-function readView() {
-  try {
-    return window.localStorage.getItem(GRAPH_VIEW_KEY) === 'list' ? 'list' : 'canvas'
-  } catch {
-    return 'canvas'
-  }
-}
-
-function writeView(view) {
-  try {
-    window.localStorage.setItem(GRAPH_VIEW_KEY, view)
-  } catch {
-    // Not remembered, and that is all: the toggle still switches this page.
-  }
-}
-
-const titleOf = (n) => n?.title || 'Untitled'
-
-/** ONE ordering for "by title": the list's rows AND the canvas's Home/End, so
- *  the first row of the table is the note Home selects. */
-export const byTitle = (a, b) => titleOf(a).localeCompare(titleOf(b))
-
-/** Arrow key -> unit vector in canvas space (y grows downward). */
-const ARROWS = {
-  ArrowRight: [1, 0],
-  ArrowLeft: [-1, 0],
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1],
-}
-
-// How much a note off to the side costs against one straight ahead. At 2, a
-// note 45 degrees off-axis must be ~2.6x closer to win, so "right" means
-// right rather than "whatever is nearest and not behind me".
-const ANGLE_WEIGHT = 2
-
-/**
- * The note an arrow key moves to: among the notes strictly AHEAD of `from` in
- * that direction, the one with the smallest angle-weighted distance. None
- * ahead -> null, and the selection stays where it is.
- */
-export function nearestInDirection(nodes, from, [ux, uy]) {
-  let best = null
-  let bestScore = Infinity
-  for (const n of nodes) {
-    if (n.id === from.id) continue
-    const dx = n.x - from.x
-    const dy = n.y - from.y
-    const along = dx * ux + dy * uy
-    if (along <= 0) continue // level with or behind the selection
-    const off = Math.abs(dx * uy - dy * ux)
-    const score = Math.hypot(dx, dy) * (1 + ANGLE_WEIGHT * Math.atan2(off, along))
-    if (score < bestScore) {
-      best = n
-      bestScore = score
-    }
-  }
-  return best
-}
+// ── the two accessible doors (wave 8, lane 8A) ─ see lib/graphNavigation.js ──────────
 
 // The selection ring sits OUTSIDE the node (gap), thick enough to read as a
 // ring rather than an outline. Its colour is the canvas element's own CSS
@@ -188,7 +127,7 @@ export default function NoteGraphView({ onOpenNote }) {
   const rafRef = useRef(0)
   const [hover, setHover] = useState(null)
   const [selected, setSelected] = useState(null)
-  const [view, setView] = useState(readView)
+  const [view, setView] = useState(readGraphView)
   const [size, setSize] = useState({ w: 820, h: 560 })
   const keysId = useId()
 
@@ -216,7 +155,7 @@ export default function NoteGraphView({ onOpenNote }) {
 
   const toggleView = () => {
     const next = view === 'list' ? 'canvas' : 'list'
-    writeView(next)
+    writeGraphView(next)
     setView(next)
   }
 
