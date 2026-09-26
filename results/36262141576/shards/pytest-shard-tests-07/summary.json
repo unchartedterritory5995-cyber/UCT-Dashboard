@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 1587,
+  "passed": 1564,
+  "failed": 22,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 401.69,
+  "failed_files": [
+    "tests/test_launch_hardening.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py",
+    "tests/test_nb_foreign_commits.py",
+    "tests/test_no_cr_in_tracked_text_blobs.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "22 failed, 1564 passed, 1 skipped, 21 warnings in 401.69s (0:06:41)",
+  "ok": true
+}
