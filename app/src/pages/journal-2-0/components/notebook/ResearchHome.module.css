@@ -96,9 +96,9 @@
   padding: 2px 7px;
   border-radius: 999px;
 }
-.status_active { color: var(--gain); background: var(--gain-bg); }
+.status_active { color: var(--success-ink); background: var(--gain-bg); }
 .status_watching { color: var(--text-muted); background: rgba(152, 160, 170, 0.14); }
-.status_invalidated { color: var(--loss); background: var(--loss-bg); }
+.status_invalidated { color: var(--danger-ink); background: var(--loss-bg); }
 .status_closed { color: var(--text-muted); background: rgba(152, 160, 170, 0.1); }
 .chipMuted {
   font-size: 11px;
@@ -230,7 +230,7 @@
 .sampleError {
   margin: 12px 0 0;
   font-size: 13px;
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 @media (max-width: 1024px) {
   .sampleStripAction,

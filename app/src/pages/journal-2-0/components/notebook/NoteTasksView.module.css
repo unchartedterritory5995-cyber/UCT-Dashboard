@@ -81,7 +81,7 @@
   color: var(--text-muted);
 }
 .groupOverdue {
-  color: var(--color-danger);
+  color: var(--danger-ink);
 }
 .count {
   font-weight: 400;

@@ -43,7 +43,7 @@
 .fine { margin: 14px 0 0; font-size: 12px; line-height: 1.5; opacity: 0.72; }
 .error {
   margin: 12px 0 0; font-size: 13px; line-height: 1.5;
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .actions { display: flex; gap: 10px; margin-top: 18px; }

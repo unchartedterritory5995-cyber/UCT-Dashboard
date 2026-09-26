@@ -85,4 +85,4 @@
   font-weight: 600;
   pointer-events: none;
 }
-.error { color: var(--loss); font-size: 12px; margin-top: 6px; }
+.error { color: var(--danger-ink); font-size: 12px; margin-top: 6px; }

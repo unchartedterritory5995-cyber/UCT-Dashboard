@@ -209,7 +209,7 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 .toolSelect {
   padding: 2px 4px;
   border-radius: 5px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans, 'Instrument Sans', sans-serif);

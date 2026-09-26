@@ -75,8 +75,12 @@ describe('Notebook colour contrast, all three themes', () => {
     expect(unexplained, unexplained.join('\n')).toEqual([])
   })
 
+  // ⚰️ D-A4 closed every row this table held (wave 8, controller ruling
+  // 2026-09-26): EXPECTED_FAILURES is legitimately EMPTY now, not vacuous --
+  // the audit's own non-vacuity control above (files/measured/kind counts)
+  // is what proves the audit itself still runs; this loop is a no-op over an
+  // empty array until the next contrast regression adds a row.
   it('every EXPECTED_FAILURES entry carries a D-A4 ruling id and still fails as recorded', () => {
-    expect(EXPECTED_FAILURES.length).toBeGreaterThan(0)
     for (const e of EXPECTED_FAILURES) {
       expect(e.rulingId, JSON.stringify(e)).toMatch(/^D-A4-\S+/)
       expect(Object.keys(RULINGS), `${e.rulingId} is not described in RULINGS`).toContain(e.rulingId)

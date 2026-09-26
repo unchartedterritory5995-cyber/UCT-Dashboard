@@ -54,7 +54,7 @@
   border: 1px solid var(--border);
 }
 .supports { color: var(--gain); border-color: var(--gain-border); }
-.opposes { color: var(--loss); border-color: var(--loss-border); }
+.opposes { color: var(--danger-ink); border-color: var(--loss-border); }
 
 /* ⛔ UCT's OBSERVATION, visually distinct from both the sources above it and
    the member's own writing below it — the three must never blur together. */
@@ -93,7 +93,7 @@
   width: 100%;
   box-sizing: border-box;
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 6px;
   color: var(--text-bright);
   font: inherit;
@@ -131,7 +131,7 @@
 
 .dateInput {
   background: var(--color-surface-2, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 6px;
   color: var(--text-bright);
   font: inherit;
@@ -149,7 +149,7 @@
 }
 .error {
   font-size: 12px;
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .actions {

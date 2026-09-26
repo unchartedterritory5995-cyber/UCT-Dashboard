@@ -77,7 +77,7 @@
   width: 100%;
   padding: 8px 28px 8px 30px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 7px;
   color: var(--text-bright);
   font-size: 13px;
@@ -138,7 +138,7 @@
 }
 .searchFilterField input, .searchFilterField select {
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 6px;
   color: var(--text-bright);
   font-size: 12px;
@@ -408,7 +408,7 @@
   background: transparent;
   font: inherit;
 }
-.iconBtn:hover { color: var(--loss); }
+.iconBtn:hover { color: var(--danger-ink); }
 .iconBtnAdd:hover { color: var(--accent); }
 .addForm { display: flex; padding: 0 6px; }
 .tagFilterInput {
@@ -416,7 +416,7 @@
   margin: 0 0 4px;
   padding: 6px 10px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 7px;
   color: var(--text-bright);
   font-size: 12px;

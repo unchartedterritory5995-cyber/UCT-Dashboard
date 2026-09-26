@@ -109,7 +109,7 @@
   .spinner { animation: none; }
 }
 .successIcon { color: var(--gain); }
-.errorIcon { color: var(--loss); }
+.errorIcon { color: var(--danger-ink); }
 
 /* The touch tier: every control is a finger target, phone AND tablet. */
 @media (max-width: 1024px) {

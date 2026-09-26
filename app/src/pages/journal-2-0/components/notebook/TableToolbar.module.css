@@ -34,7 +34,7 @@
 .btn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btnOn { border-color: var(--ut-gold); color: var(--accent); }
-.danger { color: var(--loss); }
+.danger { color: var(--danger-ink); }
 .label { line-height: 1.2; }
 .divider {
   display: inline-block;

@@ -69,6 +69,8 @@
   --bg-surface: #17181b;
   --border: #2a2c31;
   --border-accent: #383b41;
+  --danger-ink: #e67070;
+  --field-edge: #6a6f7c;
   --gain: #2faf68;
   --gain-bg: #2faf6815;
   --gain-border: #2faf6835;
@@ -95,6 +97,7 @@
   --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --success-ink: var(--gain);
   --text: #f0efea;
   --text-bright: #f8f7f3;
   --text-heading: #ffffff;

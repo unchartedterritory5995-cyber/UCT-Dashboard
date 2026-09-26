@@ -130,7 +130,7 @@
 .numberInputInner {
   padding: 9px 12px;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-lg);
   color: var(--text-bright);
   font-family: inherit;
@@ -160,7 +160,7 @@
   display: flex;
   align-items: center;
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-lg);
   overflow: hidden;
 }
@@ -277,7 +277,7 @@
   background: var(--loss-bg);
   border: 1px solid var(--loss-border);
   border-radius: var(--radius-lg);
-  color: var(--loss);
+  color: var(--danger-ink);
   font-size: 12px;
 }
 
