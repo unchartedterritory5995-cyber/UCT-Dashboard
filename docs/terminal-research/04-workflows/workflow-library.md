@@ -725,7 +725,7 @@ below names a tool the owner **stated on 2026-09-26** that he personally uses, a
   five minutes"*).
 - **Fails when.** The warmer has not run for this week, or the `_ENRICH_TTL` window just expired and
   this reader is first through.
-- **Break-out.** ADDRESSABLE — **Market Chameleon, for the trailing calibration of the market's own
+- **Break-out.** NONE ⚰️ **RECLASSED FROM ADDRESSABLE 2026-09-26 — completing a correction the integrator left HALF-APPLIED, caught by the gate-item-30 author.** §5.1's withdrawal removed this row from the ADDRESSABLE table but NOT from this per-workflow field, so `grep -c '^- \*\*Break-out.\*\* ADDRESSABLE'` returned **7** against a table of **5**, and the class sum closed at 38 only because the withdrawal had not been applied here. ⛔ **A partial correction is worse than none: it leaves two numbers in one file disagreeing, which is the defect this programme records most often.** The capability is NOT absent — `ImpliedVsRealized` is the hero of `SetupSection.jsx:241` — so the flow does not leave our site for it. Original text kept below for the record. ~~ADDRESSABLE — **Market Chameleon, for the trailing calibration of the market's own
   pricing.** Tool: owner-stated 2026-09-26. Step: inference, on item 13 `JTBD-W04` — UCT computes the
   **forward** implied move and, per the reachable internal docs, does **not** keep the trailing
   calibration, while Market Chameleon states it per symbol in words. ⚠️ Item 13 grades the UCT-side
@@ -784,7 +784,7 @@ below names a tool the owner **stated on 2026-09-26** that he personally uses, a
 - **Hand-off.** Product → a calendar app, by file.
 - **Waiting.** None recorded.
 - **Fails when.** Not measured.
-- **Break-out.** ADDRESSABLE — **Market Chameleon, for the per-print IV-crush table at −5 to +5
+- **Break-out.** NONE ⚰️ **RECLASSED FROM ADDRESSABLE 2026-09-26 — completing a correction the integrator left HALF-APPLIED, caught by the gate-item-30 author.** §5.1's withdrawal removed this row from the ADDRESSABLE table but NOT from this per-workflow field, so `grep -c '^- \*\*Break-out.\*\* ADDRESSABLE'` returned **7** against a table of **5**, and the class sum closed at 38 only because the withdrawal had not been applied here. ⛔ **A partial correction is worse than none: it leaves two numbers in one file disagreeing, which is the defect this programme records most often.** The capability is NOT absent — `ImpliedVsRealized` is the hero of `SetupSection.jsx:241` — so the flow does not leave our site for it. Original text kept below for the record. ~~ADDRESSABLE — **Market Chameleon, for the per-print IV-crush table at −5 to +5
   trading days.** Tool: owner-stated 2026-09-26. Step: inference, on item 13 `JTBD-W04`, which records
   that mechanism verbatim and records UCT holding the inputs (`earnings_analytics`) without computing
   it. ⚠️ Same staleness caveat as WF-C03.
