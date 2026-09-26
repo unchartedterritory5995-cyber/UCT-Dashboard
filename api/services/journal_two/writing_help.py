@@ -34,12 +34,12 @@ says "ignore previous instructions" is words to rewrite, not a request.
 from __future__ import annotations
 
 import math
-import os
 import time
 from typing import Any
 
+from api.services.notebook_flags import flag_on
+
 WRITING_HELP_GATE = "NOTEBOOK_WRITING_HELP_ENABLED"
-_GATE_ON_VALUES = {"1", "true", "yes", "on"}
 
 SUMMARIZE = "summarize"
 REWRITE = "rewrite"
@@ -91,9 +91,11 @@ class WritingHelpRequestError(ValueError):
 
 
 def writing_help_enabled() -> bool:
-    """The gate, read PER CALL. Unset, or anything but an on-value, is OFF."""
-    raw = os.environ.get(WRITING_HELP_GATE)
-    return raw is not None and raw.strip().lower() in _GATE_ON_VALUES
+    """The gate, read PER CALL through the one Notebook flag parse (wave 8,
+    S8-1): unset, an off-value, or an unrecognised value is OFF. It rides the
+    auth payload as `notebook_writing_help_enabled`, and
+    `tests/test_notebook_flag_parse.py` pins the two answers together."""
+    return flag_on(WRITING_HELP_GATE, False)
 
 
 def model_name() -> str:

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import BreadthWidget from '../../../charts/widgets/BreadthWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The breadth journal renderer: the REAL BreadthWidget under the frozen
@@ -25,7 +26,9 @@ export default function BreadthEmbed({ attrs, height = 320 }) {
     [params.hiddenMetrics],
   )
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <BreadthWidget
           opts={opts}

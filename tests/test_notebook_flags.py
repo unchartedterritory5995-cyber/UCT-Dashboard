@@ -26,6 +26,11 @@ NOTEBOOK_KEYS = [
     "notebook_ask_insert_on",
     # Wave 7 lane H (H2): editor writing help — an enablement gate.
     "notebook_writing_help_enabled",
+    # Wave 8 seam S8-1: sharing (8B) and onboarding (8C) — three enablement gates.
+    # ⛔ Ruling D-B9: both sharing gates default OFF (asserted below with the rest).
+    "j2_share_links_enabled",
+    "notebook_publish_enabled",
+    "notebook_onboarding_enabled",
 ]
 
 

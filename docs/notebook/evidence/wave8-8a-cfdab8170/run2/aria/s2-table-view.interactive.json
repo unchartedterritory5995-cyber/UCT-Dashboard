@@ -1,0 +1,394 @@
+[
+ {
+  "role": "button",
+  "name": "?"
+ },
+ {
+  "role": "link",
+  "name": "UCT Intelligence \u2014 go to landing page"
+ },
+ {
+  "role": "button",
+  "name": "Search \u2014 Ctrl+K"
+ },
+ {
+  "role": "link",
+  "name": "UCT Terminal"
+ },
+ {
+  "role": "link",
+  "name": "Charts"
+ },
+ {
+  "role": "link",
+  "name": "Morning Wire"
+ },
+ {
+  "role": "link",
+  "name": "Dashboard"
+ },
+ {
+  "role": "link",
+  "name": "AI Search"
+ },
+ {
+  "role": "link",
+  "name": "UCT 20"
+ },
+ {
+  "role": "link",
+  "name": "Breadth"
+ },
+ {
+  "role": "link",
+  "name": "Screener"
+ },
+ {
+  "role": "link",
+  "name": "Options Flow"
+ },
+ {
+  "role": "link",
+  "name": "Flow Record"
+ },
+ {
+  "role": "link",
+  "name": "Live Flow"
+ },
+ {
+  "role": "link",
+  "name": "Catalysts History"
+ },
+ {
+  "role": "link",
+  "name": "Model Book"
+ },
+ {
+  "role": "link",
+  "name": "Formula Reference"
+ },
+ {
+  "role": "link",
+  "name": "The Desk"
+ },
+ {
+  "role": "link",
+  "name": "Journal"
+ },
+ {
+  "role": "link",
+  "name": "Portfolio Risk"
+ },
+ {
+  "role": "link",
+  "name": "Community"
+ },
+ {
+  "role": "link",
+  "name": "Account: A11y Eighta, Admin"
+ },
+ {
+  "role": "link",
+  "name": "Admin"
+ },
+ {
+  "role": "link",
+  "name": "Settings"
+ },
+ {
+  "role": "link",
+  "name": "Support"
+ },
+ {
+  "role": "link",
+  "name": "UCT Website"
+ },
+ {
+  "role": "button",
+  "name": "Show keyboard shortcuts"
+ },
+ {
+  "role": "button",
+  "name": "Generate report"
+ },
+ {
+  "role": "button",
+  "name": "Open Portfolio Settings"
+ },
+ {
+  "role": "button",
+  "name": "Tap to start a conversation"
+ },
+ {
+  "role": "button",
+  "name": "Train Me \u2014 teach the assistant a preference"
+ },
+ {
+  "role": "link",
+  "name": "Today"
+ },
+ {
+  "role": "link",
+  "name": "Trades"
+ },
+ {
+  "role": "link",
+  "name": "Calendar"
+ },
+ {
+  "role": "link",
+  "name": "Notebook"
+ },
+ {
+  "role": "link",
+  "name": "Insights"
+ },
+ {
+  "role": "link",
+  "name": "Compass"
+ },
+ {
+  "role": "button",
+  "name": "Log Trade"
+ },
+ {
+  "role": "button",
+  "name": "Default $100,000.00"
+ },
+ {
+  "role": "button",
+  "name": "More"
+ },
+ {
+  "role": "link",
+  "name": "Skip to notes list"
+ },
+ {
+  "role": "button",
+  "name": "Attach a chart screenshot for vision analysis (or paste from clipboard)"
+ },
+ {
+  "role": "button",
+  "name": "Choose a specialist agent"
+ },
+ {
+  "role": "button",
+  "name": "Got it"
+ },
+ {
+  "role": "button",
+  "name": "Hide folders panel"
+ },
+ {
+  "role": "button",
+  "name": "Collapse Recents"
+ },
+ {
+  "role": "button",
+  "name": "SR pass 8A"
+ },
+ {
+  "role": "button",
+  "name": "Weekly plan 8A"
+ },
+ {
+  "role": "button",
+  "name": "Add thesis starter views"
+ },
+ {
+  "role": "button",
+  "name": "All notes 10"
+ },
+ {
+  "role": "button",
+  "name": "Unfiled 5"
+ },
+ {
+  "role": "button",
+  "name": "Archived 0"
+ },
+ {
+  "role": "button",
+  "name": "Trash 2"
+ },
+ {
+  "role": "button",
+  "name": "Expand Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Rename Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Add subfolder to Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Delete Theses 8A"
+ },
+ {
+  "role": "button",
+  "name": "Expand Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Rename Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Add subfolder to Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "Delete Theses 8A 020910"
+ },
+ {
+  "role": "button",
+  "name": "+ New folder"
+ },
+ {
+  "role": "button",
+  "name": "#semis-8a 4"
+ },
+ {
+  "role": "button",
+  "name": "Rename semis-8a"
+ },
+ {
+  "role": "combobox",
+  "name": "Sort notes"
+ },
+ {
+  "role": "button",
+  "name": "List view"
+ },
+ {
+  "role": "button",
+  "name": "Table view"
+ },
+ {
+  "role": "button",
+  "name": "Board view"
+ },
+ {
+  "role": "button",
+  "name": "Calendar view"
+ },
+ {
+  "role": "button",
+  "name": "Graph view"
+ },
+ {
+  "role": "button",
+  "name": "Timeline view"
+ },
+ {
+  "role": "button",
+  "name": "Tasks view"
+ },
+ {
+  "role": "button",
+  "name": "Save view"
+ },
+ {
+  "role": "button",
+  "name": "Import"
+ },
+ {
+  "role": "button",
+  "name": "Export"
+ },
+ {
+  "role": "button",
+  "name": "Today"
+ },
+ {
+  "role": "button",
+  "name": "Templates"
+ },
+ {
+  "role": "button",
+  "name": "+ New note"
+ },
+ {
+  "role": "tab",
+  "name": "Show folders"
+ },
+ {
+  "role": "tab",
+  "name": "Search notes"
+ },
+ {
+  "role": "option",
+  "name": "Recently updated"
+ },
+ {
+  "role": "option",
+  "name": "Recently created"
+ },
+ {
+  "role": "option",
+  "name": "Title"
+ },
+ {
+  "role": "button",
+  "name": "TITLE"
+ },
+ {
+  "role": "button",
+  "name": "UPDATED"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Delete me too 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Delete me 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Lonely note 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select SR pass 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select AMD thesis 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Weekly plan 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select SR pass 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Lonely note 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select AMD thesis 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select Weekly plan 8A"
+ },
+ {
+  "role": "checkbox",
+  "name": "Select all notes in view"
+ }
+]

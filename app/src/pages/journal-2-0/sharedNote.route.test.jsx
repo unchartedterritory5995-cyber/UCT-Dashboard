@@ -84,6 +84,30 @@ describe('🔴 a note share link opens the note it points at', () => {
     expect(H.calls.filter((u) => u.includes('/api/bars/'))).toEqual([])
   }, 40000)
 
+  // Wave 8 lane 8B, owner legal sign-off L3 + correction (2026-09-25): the SERVER now
+  // replaces a Massive-sourced chart with the neutral line before it leaves (the test above
+  // stays, deliberately: it is the PAGE's own defence if an embed ever arrives). An FMP
+  // widget (fundamentals) is still sent, and renders as its archived image; the neutral
+  // line renders as the plain sentence it is.
+  it('an FMP fundamentals embed renders its archived image, and the neutral line reads as text', async () => {
+    const FUND = {
+      v: 1, widgetId: 'fundamentals', mode: 'snapshot', capturedAt: '2026-09-01T12:00:00Z',
+      params: { symbol: 'AAPL', view: 'quarterly' },
+      fallback: { url: `/api/j2/shared/${TOKEN}/att/inline/fund.png`, w: 900, h: 300 },
+      caption: null, layout: { width: 'full', height: null },
+    }
+    H.note = { ...NOTE, bodyJson: { type: 'doc', content: [
+      { type: 'widgetEmbed', attrs: FUND },
+      { type: 'paragraph', content: [{ type: 'text', text: 'A market-data item is not shown on public pages.' }] },
+    ] } }
+    open(sharedNotePath(TOKEN))
+    const page = await screen.findByTestId('shared-note', {}, { timeout: 15000 })
+    const img = await screen.findByRole('img', { name: /Fundamentals — AAPL/i }, { timeout: 15000 })
+    expect(img.getAttribute('src')).toBe(FUND.fallback.url)
+    expect(page).toHaveTextContent('A market-data item is not shown on public pages.')
+    expect(H.calls.filter((u) => u.includes('/api/fundamentals') || u.includes('/api/bars/'))).toEqual([])
+  }, 40000)
+
   it('a dead token says so instead of erroring', async () => {
     H.note = null
     open(sharedNotePath('revoked-token'))

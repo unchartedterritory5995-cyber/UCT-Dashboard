@@ -1,0 +1,12 @@
+PASS sandbox identity answers (the server IS the 8A sandbox)
+PASS signup (sandbox-only account)
+PASS login
+PASS account is the sandbox admin (ADMIN_EMAILS)
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8A\browser_check.py", line 534, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w8A\browser_check.py", line 218, in main
+    f1 = api(req, "post", "/api/j2/note-folders", {"name": "Theses 8A"}).json()["folder"]
+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+KeyError: 'folder'

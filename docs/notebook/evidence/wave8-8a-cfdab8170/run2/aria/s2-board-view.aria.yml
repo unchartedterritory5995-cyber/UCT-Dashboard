@@ -1,0 +1,128 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view" [pressed]
+- button "Calendar view"
+- button "Graph view"
+- button "Timeline view"
+- button "Tasks view"
+- button "Save view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- text: Group by
+- combobox "Group by":
+  - option "Thesis Status" [selected]
+  - option "Confidence"
+  - option "Research Type"
+- region "Watching":
+  - text: Watching 0
+  - paragraph: Nothing here
+- region "Active":
+  - text: Active 0
+  - paragraph: Nothing here
+- region "Invalidated":
+  - text: Invalidated 0
+  - paragraph: Nothing here
+- region "Closed":
+  - text: Closed 0
+  - paragraph: Nothing here
+- region "No value":
+  - text: No value 10
+  - article:
+    - button "Delete me too 8A"
+    - text: Move Delete me too 8A to
+    - combobox "Move Delete me too 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "Delete me 8A"
+    - text: Move Delete me 8A to
+    - combobox "Move Delete me 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "Lonely note 8A"
+    - text: Move Lonely note 8A to
+    - combobox "Move Lonely note 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "SR pass 8A"
+    - text: Move SR pass 8A to
+    - combobox "Move SR pass 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "AMD thesis 8A"
+    - text: Move AMD thesis 8A to
+    - combobox "Move AMD thesis 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "Weekly plan 8A"
+    - text: Move Weekly plan 8A to
+    - combobox "Move Weekly plan 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "SR pass 8A"
+    - text: Move SR pass 8A to
+    - combobox "Move SR pass 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "Lonely note 8A"
+    - text: Move Lonely note 8A to
+    - combobox "Move Lonely note 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "AMD thesis 8A"
+    - text: Move AMD thesis 8A to
+    - combobox "Move AMD thesis 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+  - article:
+    - button "Weekly plan 8A"
+    - text: Move Weekly plan 8A to
+    - combobox "Move Weekly plan 8A to":
+      - option "Watching"
+      - option "Active"
+      - option "Invalidated"
+      - option "Closed"
+      - option "No value" [selected]
+- text: Showing 10 of 10 notes

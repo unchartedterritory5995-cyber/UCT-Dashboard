@@ -3,6 +3,7 @@
 // state. Families come from the catalog; "Blank note" is always first, and
 // the last card points setup-documentation work at My Playbook (which owns
 // that artifact — see the templates plan §3).
+import { useId } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FAMILIES, templatesByFamily } from '../../lib/notebookTemplates'
 import MemberTemplates from './MemberTemplates'
@@ -13,6 +14,9 @@ import styles from './TemplatePicker.module.css'
 // they reach for first. Absent, the picker is exactly the built-in catalog.
 export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
   const navigate = useNavigate()
+  // A picker can be on screen twice (the empty notebook and the New-note sheet),
+  // so the label ids are per instance.
+  const uid = useId()
   return (
     <div className={styles.wrap}>
       <button
@@ -29,8 +33,9 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
 
       {FAMILIES.map((fam) => (
         <section key={fam.key} className={styles.family}>
-          <div className={styles.famLabel}>{fam.label}</div>
-          <div className={styles.grid}>
+          {/* Wave 8 (8A): each family's cards are a group named by its label. */}
+          <div className={styles.famLabel} id={`${uid}-family-${fam.key}`}>{fam.label}</div>
+          <div className={styles.grid} role="group" aria-labelledby={`${uid}-family-${fam.key}`}>
             {templatesByFamily(fam.key).map((tpl) => (
               <button
                 key={tpl.key}

@@ -63,7 +63,8 @@ REPO = Path(__file__).resolve().parents[1]
 TOOLS = REPO / "tools"
 
 #: Named members, never a count: the walk must SEE these three or it is walking nothing.
-KNOWN_BRIDGES = ("md_export_bridge.py", "note_tasks_bridge.py", "selection_export_bridge.py")
+KNOWN_BRIDGES = ("format_export_bridge.py", "md_export_bridge.py", "note_tasks_bridge.py",
+                 "selection_export_bridge.py")
 
 
 def _bridges() -> list[Path]:
@@ -423,5 +424,37 @@ def test_a_bridge_run_as_a_script_leaves_no_census_sandbox_behind(tmp_path):
     # Non-vacuity: two directories, both made in THIS child's temp, both gone now.
     assert len(released) == 2, released
     assert all(os.path.normcase(os.path.dirname(p)) == os.path.normcase(str(tmp)) for p in released), released
+    left = sorted(p.name for p in tmp.iterdir() if p.name.startswith("uct_tests_"))
+    assert left == [], left
+
+
+def test_the_format_bridge_answers_a_list_and_leaves_no_census_sandbox_behind(tmp_path):
+    """Wave 8 lane 8C: `format_export_bridge.py` (the HTML/JSON/Word exporter a JS rail
+    spawns) writes attachment files and the schema's migration flags into its census
+    sandbox for an archive job -- and must take them away again, or the sandbox is never
+    released (`tools/bridge_sandbox.py`). Same shape as the md bridge's check above, run on
+    the job that writes the most."""
+    tmp = tmp_path / "temp"
+    tmp.mkdir()
+    env = _clean_env()
+    env.pop("UCT_TEST_SHARED_ROOT_GUARD", None)            # the default, enforce
+    env.update(TMP=str(tmp), TEMP=str(tmp), TMPDIR=str(tmp))
+    jobs = [{"kind": "archive", "fmt": "json",
+             "notes": [{"id": "a", "title": "A", "doc": {"type": "doc", "content": [
+                 {"type": "image", "attrs": {"src": "/api/j2/notes/attachments/u1/a/inline/x.png"}}]}}],
+             "attachments": [{"note": "a", "sub": "inline", "name": "x.png", "b64": "AAAA"}]},
+            {"kind": "html", "doc": {"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": "alpha"}]}]}}]
+    r = subprocess.run([sys.executable, str(TOOLS / "format_export_bridge.py")], input=json.dumps(jobs),
+                       capture_output=True, text=True, encoding="utf-8", env=env, cwd=str(tmp_path),
+                       timeout=180)
+    assert r.returncode == 0, r.stderr
+    answers = json.loads(r.stdout.strip().splitlines()[-1])["answers"]
+    assert "attachments/u1/a/inline/x.png" in answers[0]["files"]      # the attachment travelled
+    assert "alpha" in answers[1]["html"]
+    said = [ln for ln in r.stderr.splitlines() if ln.startswith("bridge: released census sandboxes ")]
+    assert said, f"the bridge did not say what it released: {r.stderr}"
+    released = json.loads(said[-1].split(" sandboxes ", 1)[1])
+    assert len(released) == 2, released
     left = sorted(p.name for p in tmp.iterdir() if p.name.startswith("uct_tests_"))
     assert left == [], left

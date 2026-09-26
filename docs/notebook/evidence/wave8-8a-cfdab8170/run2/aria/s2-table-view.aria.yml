@@ -1,0 +1,90 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view" [pressed]
+- button "Board view"
+- button "Calendar view"
+- button "Graph view"
+- button "Timeline view"
+- button "Tasks view"
+- button "Save view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- table:
+  - rowgroup:
+    - row "Select all notes in view Title Ticker Updated":
+      - columnheader "Select all notes in view":
+        - checkbox "Select all notes in view"
+      - columnheader "Title":
+        - button "Title"
+      - columnheader "Ticker"
+      - columnheader "Updated":
+        - button "Updated"
+  - rowgroup:
+    - row "Select Delete me too 8A Delete me too 8A — Today":
+      - cell "Select Delete me too 8A":
+        - checkbox "Select Delete me too 8A"
+      - cell "Delete me too 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select Delete me 8A Delete me 8A — Today":
+      - cell "Select Delete me 8A":
+        - checkbox "Select Delete me 8A"
+      - cell "Delete me 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select Lonely note 8A Lonely note 8A — Today":
+      - cell "Select Lonely note 8A":
+        - checkbox "Select Lonely note 8A"
+      - cell "Lonely note 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select SR pass 8A SR pass 8A — Today":
+      - cell "Select SR pass 8A":
+        - checkbox "Select SR pass 8A"
+      - cell "SR pass 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select AMD thesis 8A AMD thesis 8A — Today":
+      - cell "Select AMD thesis 8A":
+        - checkbox "Select AMD thesis 8A"
+      - cell "AMD thesis 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select Weekly plan 8A Weekly plan 8A — Today":
+      - cell "Select Weekly plan 8A":
+        - checkbox "Select Weekly plan 8A"
+      - cell "Weekly plan 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select SR pass 8A SR pass 8A — Today":
+      - cell "Select SR pass 8A":
+        - checkbox "Select SR pass 8A"
+      - cell "SR pass 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select Lonely note 8A Lonely note 8A — Today":
+      - cell "Select Lonely note 8A":
+        - checkbox "Select Lonely note 8A"
+      - cell "Lonely note 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select AMD thesis 8A AMD thesis 8A — Today":
+      - cell "Select AMD thesis 8A":
+        - checkbox "Select AMD thesis 8A"
+      - cell "AMD thesis 8A"
+      - cell "—"
+      - cell "Today"
+    - row "Select Weekly plan 8A Weekly plan 8A — Today":
+      - cell "Select Weekly plan 8A":
+        - checkbox "Select Weekly plan 8A"
+      - cell "Weekly plan 8A"
+      - cell "—"
+      - cell "Today"
+- text: Showing 10 of 10 notes

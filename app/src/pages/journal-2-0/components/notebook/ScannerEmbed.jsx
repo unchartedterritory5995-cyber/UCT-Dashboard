@@ -1,4 +1,5 @@
 import FrozenList from './FrozenList'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * Scanner journal renderer: the captured RESULT LIST (owner-approved payload
@@ -21,7 +22,9 @@ export default function ScannerEmbed({ attrs, height = 320 }) {
     }
   }
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <FrozenList
         title={params.scanName || params.scanKey || 'Scan'}
         subtitle={`${Array.isArray(params.rows) ? params.rows.length : 0} stocks`}

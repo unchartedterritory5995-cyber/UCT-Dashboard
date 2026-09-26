@@ -2952,66 +2952,9 @@ def get_ticker_research_summary_endpoint(
     return ticker_research.get_ticker_research_summary(user["id"], symbol)
 
 
-# ── Note share links (post-v1; screener-share idiom: token IS the credential).
-# ⛔ ALL FIVE endpoints are flag-gated (J2_SHARE_LINKS_ENABLED, default OFF →
-# 404, nothing reachable) — owner-side (mint/status/revoke) AND the public
-# read pair alike. Until 2026-09-22 only the public pair checked the flag;
-# the owner-side three relied entirely on the frontend's separate `isAdmin`
-# gate (NoteEditorPage.jsx) to keep the Share button from ever being clicked
-# while the mechanism is off. That was inert (an admin-minted token still
-# 404s on public resolution while the flag is off) but was the one place this
-# design leaned on a second gate doing work the backend could do on its own —
-# competitive audit finding Collaboration F2, 2026-09-22.
-from api.services.journal_two import note_shares
-
-
-@router.get("/notes/{note_id}/share")
-def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"share": note_shares.get_share(user["id"], note_id)}
-
-
-@router.post("/notes/{note_id}/share")
-def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    share = note_shares.create_share(user["id"], note_id)
-    if share is None:
-        raise HTTPException(status_code=404, detail="note not found")
-    return {"share": share}
-
-
-@router.delete("/notes/{note_id}/share")
-def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"revoked": note_shares.revoke_share(user["id"], note_id)}
-
-
-@router.get("/shared/{token}")
-def resolve_shared_note_endpoint(token: str) -> dict[str, Any]:
-    """PUBLIC — no auth by design (a link that only opens for people with an
-    account is not sharing). The token is the credential; the payload is
-    sanitized; the flag is the master switch."""
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    payload = note_shares.resolve_share(token)
-    if payload is None:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"note": payload}
-
-
-@router.get("/shared/{token}/att/{sub}/{filename}")
-def serve_shared_attachment_endpoint(token: str, sub: str, filename: str) -> Any:
-    """PUBLIC image proxy for a shared note — images only, token-scoped to
-    exactly that note's directory, path-traversal guarded downstream."""
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    path = note_shares.resolve_share_attachment(token, sub, filename)
-    if path is None:
-        raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(str(path))
+# ── Note share links: MOVED to api/routers/notebook_shares.py (wave 8, seam S8-2).
+# Same paths, same handlers, same flag checks; that router is mounted BEFORE this one
+# in api/main.py. tests/test_notebook_share_routes.py fails if a share route comes back here.
 
 
 @router.get("/inbox")

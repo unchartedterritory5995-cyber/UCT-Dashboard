@@ -73,7 +73,7 @@
 }
 .hint {
   font-size: 11px;
-  color: var(--color-danger);
+  color: var(--danger-ink);
 }
 @media (max-width: 1024px) {
   .chipOpen,

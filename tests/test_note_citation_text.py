@@ -780,7 +780,13 @@ class TestEmbedIdLeavesShareAndExportUnchanged:
     The public share payload is NOT byte-identical -- a shared note now
     carries embedId, which is harmless (a random id, no member data); what the
     share rail below proves is that the share sanitiser passes the node
-    through UNTOUCHED (review M3)."""
+    through UNTOUCHED (review M3).
+
+    ⚰️ Wave 8 lane 8B changed the share half: every public copy now goes through
+    `public_note_payload.reduce`, and a chart widget is the neutral market-data line
+    there (owner legal sign-off L3), so embedId no longer reaches a share at all.
+    The share rail below now proves the stricter thing: both shapes reduce to the
+    IDENTICAL public body, and no embedId is in it."""
 
     @staticmethod
     def _pair():
@@ -803,11 +809,17 @@ class TestEmbedIdLeavesShareAndExportUnchanged:
         assert extract_plain_text(new) == extract_plain_text(old)
         assert "e-mtf" not in extract_plain_text(new)
 
-    def test_the_share_payload_passes_the_node_through_untouched(self):
+    def test_the_share_payload_is_identical_for_both_shapes_and_carries_no_embedId(self):
         import copy
-        from api.services.journal_two.note_shares import _reduce_ask_citations
-        new, _old = self._pair()
-        assert _reduce_ask_citations(copy.deepcopy(new)) == new
+        from api.services.journal_two import public_note_payload as public
+        new, old = self._pair()
+
+        def share(body):
+            return public.reduce(copy.deepcopy(body), mode="share", owner_id="u",
+                                 note_id="n", attachment_base="/x/")
+        assert share(new) == share(old)
+        assert '"embedId"' not in json.dumps(share(new))
+        assert public.NEUTRAL_LINE in json.dumps(share(new))   # control: the reducer ran
 
 
 class TestTheMirrorTakesTheClientsAtomShape:

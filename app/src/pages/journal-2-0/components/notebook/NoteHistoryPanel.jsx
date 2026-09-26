@@ -103,13 +103,18 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
         )}
         {!isLoading && !error && versions.length > 0 && (
           <div className={styles.split}>
-            <ul className={styles.list} role="listbox" aria-label="Earlier versions">
+            {/* Wave 8 (8A): a named LIST of buttons, the chosen one marked
+                `aria-current`. It was role="listbox" with each option a <button>
+                inside an <li>: the <li> broke the listbox -> option parentage
+                (axe aria-required-children/-parent, listitem) and a listbox
+                promises arrow-key selection this list never had. Tab reaches
+                every version; Enter/Space opens it. */}
+            <ul className={styles.list} aria-label="Earlier versions">
               {versions.map((v) => (
                 <li key={v.id}>
                   <button
                     type="button"
-                    role="option"
-                    aria-selected={v.id === selectedId}
+                    aria-current={v.id === selectedId ? 'true' : undefined}
                     className={`${styles.listItem} ${v.id === selectedId ? styles.listItemActive : ''}`}
                     onClick={() => { setSelectedId(v.id); setRestoreStatus('idle'); setRestoreErrorMsg('') }}
                   >
@@ -131,10 +136,11 @@ export default function NoteHistoryPanel({ open, onClose, noteId, currentNote, o
                 <>
                   <div className={styles.detailHeader}>
                     <div className={styles.tabs}>
-                      <button type="button" className={mode === 'preview' ? styles.tabActive : styles.tab} onClick={() => setMode('preview')}>
+                      {/* The chosen mode was a CSS class only; `aria-pressed` says it. */}
+                      <button type="button" className={mode === 'preview' ? styles.tabActive : styles.tab} onClick={() => setMode('preview')} aria-pressed={mode === 'preview'}>
                         Preview
                       </button>
-                      <button type="button" className={mode === 'diff' ? styles.tabActive : styles.tab} onClick={() => setMode('diff')}>
+                      <button type="button" className={mode === 'diff' ? styles.tabActive : styles.tab} onClick={() => setMode('diff')} aria-pressed={mode === 'diff'}>
                         What changed
                       </button>
                     </div>

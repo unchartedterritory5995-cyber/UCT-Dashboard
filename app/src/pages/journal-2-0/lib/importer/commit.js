@@ -24,6 +24,7 @@ const CONFIRM_BATCH_SIZE = 200 // server caps a single batch at 500; we stay wel
 
 import { settleNoteWrite, settleNoteWrites } from '../offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../notebookSchema'
+import { noteKeyFor } from './uctJson'
 
 /**
  * @param {Array<{importKey: string}>} docs
@@ -115,6 +116,26 @@ export function rewriteBody(bodyJson, { mediaUrls = {}, idByKey = {} } = {}) {
         return null
       }
       return { ...node, attrs: { ...node.attrs, href: url } }
+    }
+
+    // Wave 8 lane 8C — two shapes only our own JSON export carries (`uctJson.js`):
+    //  · a chart/widget's ARCHIVED image (`attrs.fallback.url`). Unresolved, the widget
+    //    stays and only its archived picture is let go — the widget is still the widget.
+    //  · a note link whose target came in with this same import: re-pointed from the
+    //    note's ORIGINAL id (its import key is `uct:<id>`) to its new one. A target that
+    //    did not come in is left exactly as it is.
+    if (node.type === 'widgetEmbed' && node.attrs?.fallback && typeof node.attrs.fallback === 'object') {
+      const ref = refFromPlaceholder(node.attrs.fallback.url)
+      if (ref !== null) {
+        const url = mediaUrls[ref]
+        if (url == null) droppedMedia.push(ref)
+        return { ...node, attrs: { ...node.attrs, fallback: url == null ? null : { ...node.attrs.fallback, url } } }
+      }
+    }
+    if (node.type === 'noteLink' && typeof node.attrs?.noteId === 'string') {
+      const newId = idByKey[noteKeyFor(node.attrs.noteId)]
+      if (newId) return { ...node, attrs: { ...node.attrs, noteId: newId } }
+      return node
     }
 
     const next = { ...node }

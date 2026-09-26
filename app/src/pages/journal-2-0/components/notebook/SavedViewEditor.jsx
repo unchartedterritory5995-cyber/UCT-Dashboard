@@ -31,7 +31,9 @@ export default function SavedViewEditor({ open, onClose, onSave }) {
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="Save view" variant="auto" maxWidth={420}>
+    // Wave 8 (8A): a Sheet title is a heading, not a name -- the dialog is named
+    // explicitly, and a save that fails is announced.
+    <Sheet open={open} onClose={onClose} title="Save view" ariaLabel="Save view" variant="auto" maxWidth={420}>
       <div className={styles.wrap}>
         <label className={styles.label} htmlFor="save-view-name">Name</label>
         <input
@@ -44,7 +46,7 @@ export default function SavedViewEditor({ open, onClose, onSave }) {
           autoFocus
           onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
         />
-        {error && <div className={styles.error}>{error}</div>}
+        {error && <div className={styles.error} role="alert">{error}</div>}
         <div className={styles.actions}>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
           <button type="button" className="btn btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>

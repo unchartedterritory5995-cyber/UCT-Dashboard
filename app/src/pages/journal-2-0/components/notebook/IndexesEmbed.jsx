@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import IndexesWidget from '../../../charts/widgets/IndexesWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The indexes journal renderer: the REAL IndexesWidget under the frozen
@@ -20,7 +21,9 @@ export default function IndexesEmbed({ attrs, height = 320 }) {
     updated: params.updated || null,
   }), [params.rows, params.updated])
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <IndexesWidget
           opts={null}

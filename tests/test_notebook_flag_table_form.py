@@ -77,6 +77,12 @@ def test_the_scan_would_MISS_it_without_the_table_form(tmp_path):
     (True, "NOTEBOOK_ATTACHMENTS_ON"),
     # G-064: the Ask-insert enablement gate rides the same NOTEBOOK_FLAGS table.
     (True, "NOTEBOOK_ASK_INSERT_ON"),
+    # Wave 8 seam S8-1: the three gates it put on the table. ⭐ The share gate's route
+    # read now goes through `flag_on`, so the TABLE is its one visible site -- which is
+    # exactly why `tests/test_notebook_flag_parse.py` requires every flag_on name here.
+    (True, "J2_SHARE_LINKS_ENABLED"),
+    (True, "NOTEBOOK_PUBLISH_ENABLED"),
+    (True, "NOTEBOOK_ONBOARDING_ENABLED"),
 ])
 def test_every_notebook_capability_is_visible_to_the_index(expect_declared, name):
     """The real thing, on the real repo — not a fixture. Wave K's keys and

@@ -1,0 +1,9 @@
+- dialog "Save view":
+  - text: Save view
+  - button "Close": ×
+  - text: Name
+  - textbox "Name":
+    - /placeholder: e.g. Active Theses
+    - text: Typed at once
+  - button "Cancel"
+  - button "Save view"

@@ -28,12 +28,15 @@ export default function FrozenList({ title, subtitle, asOf, rows, extraLabel }) 
       {list.length === 0 ? (
         <div className={styles.empty}>Empty at capture.</div>
       ) : (
-        <div className={styles.list}>
+        // Wave 8 (8A): a named list -- the frozen rows ARE a ranked list, and a
+        // screen reader should hear how many and what they are. The figure
+        // around it is the embed's (ScannerEmbed/WatchlistEmbed/ThemesEmbed).
+        <div className={styles.list} role="list" aria-label={title}>
           {list.map((r, i) => {
             const chg = fmtChg(r.chgPct)
             const price = fmtPrice(r.price)
             return (
-              <div key={`${r.sym || r.label || i}`} className={styles.row}>
+              <div key={`${r.sym || r.label || i}`} className={styles.row} role="listitem">
                 <span className={styles.sym}>{r.sym || r.label}</span>
                 {r.note ? <span className={styles.note} title={r.note}>{r.note}</span> : <span className={styles.note} />}
                 {r.extraValue != null && (
