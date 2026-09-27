@@ -1,0 +1,5 @@
+RED   rc=1 RESTORED tests/test_notebook_proof_walk.py::test_a_telemetry_post_alone_is_never_evidence :: 3 failed in 1.19s
+RED   rc=1 RESTORED tests/test_notebook_proof_walk.py::test_a_wait_pumps_the_page_rather_than_sleeping :: 1 failed in 1.27s
+RED   rc=1 RESTORED tests/test_notebook_proof_walk.py::test_findings_are_counted_per_sweep_and_an_unmeasured_cell_is_not_one :: 1 failed in 1.16s
+RED   rc=1 RESTORED tests/test_notebook_feature_rail_census.py::test_a_planted_unrailed_row_fails_the_check :: 1 failed in 21.50s
+RED   rc=1 RESTORED tests/test_notebook_search_recall.py::test_a_planted_ranker_regression_falls_below_the_baseline :: 1 failed in 5.10s
