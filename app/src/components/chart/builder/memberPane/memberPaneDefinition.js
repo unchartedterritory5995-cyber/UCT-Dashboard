@@ -140,6 +140,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
           requirementTags: rt.requirementTags,
           lane: 'runtime',
           hostRefusal: { guard: gate.guard, reason: gate.reason },
+          // the translation whose rows carry `_drawPresentation` — what a reader
+          // pairing drawn rows with the script's own outputs needs
+          presentationTranslation: rt.presentationTranslation,
         }
       }
       // ⭐ BOTH ENGINES SAID NO, AND THE MEMBER IS TOLD BOTH. The host sentence

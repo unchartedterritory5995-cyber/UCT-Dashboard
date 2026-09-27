@@ -193,11 +193,14 @@ export function runOurSide(capture, opts = {}) {
   // so a script the host lane also serves can be graded through both engines.
   // ⛔ The caller arms `VITE_PINE_RUNTIME_LANE_ENABLED`; with it off the install
   // door refuses the document by name, which is the correct answer for that build.
-  const runtime = opts.lane === 'runtime'
-  const built = runtime
+  const forced = opts.lane === 'runtime'
+  const built = forced
     ? runtimeLaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness',
       carryMax: 12, docCarryMax: 36, paneHeight: 0.25 })
     : memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  // ⭐ …and a script the DOOR sent to the runtime lane (flag on, host refused) is
+  // read the same way, so the harness grades what a member actually reached.
+  const runtime = forced || built.lane === 'runtime'
   if (!built.ok) {
     return { ok: false, refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}`, plots: [], notes }
   }
