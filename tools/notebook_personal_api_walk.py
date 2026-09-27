@@ -53,6 +53,10 @@ for _s in (sys.stdout, sys.stderr):
 _REPO = pathlib.Path(__file__).resolve().parent.parent
 if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
+# ⛔ The census and the tripwire BEFORE any api.* import (tests/test_notebook_bridges_pin_the_root.py):
+# run as a script this tool is outside pytest, and an api module that captures a path at import
+# would otherwise resolve it against the live C:\data.
+import conftest  # noqa: E402,F401
 # One authority: the folder the daily door makes and the title it gives today's
 # note are note_daily's. (Importing it opens no database: auth_db connects lazily.)
 from api.services.journal_two.note_daily import DAILY_FOLDER_NAME, daily_title  # noqa: E402
