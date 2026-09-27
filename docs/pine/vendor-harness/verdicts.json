@@ -1,0 +1,2080 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "dirs": [
+  "tests/fixtures/vendor"
+ ],
+ "results": [
+  {
+   "file": "tests/fixtures/vendor/observations/adx-14-2026-09-06.json",
+   "format": "observation",
+   "id": "adx-14-2026-09-06",
+   "script": "uct-dmi-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "adx",
+     "ours": "out3",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "41 steady-state bars disagree; first at bar 220 (value: vendor 26.598480129458775 vs ours 26.598489308308835) — scattered, last at bar 260",
+     "warmupBars": 220,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 28,
+     "color": "not captured",
+     "stats": {
+      "bars": 300,
+      "compared": 273,
+      "matching": 39,
+      "vendorRowsMissing": 27,
+      "naMismatches": 0,
+      "valueMismatches": 234,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 5.085540785843499,
+      "maxRel": 0.193026843685778,
+      "firstDivergence": {
+       "bar": 27,
+       "time": 1754487000,
+       "kind": "value",
+       "vendor": 26.346287846482547,
+       "ours": 31.431828632326045
+      },
+      "warmup": {
+       "bars": 220,
+       "compared": 193,
+       "divergent": 193,
+       "first": {
+        "bar": 27,
+        "time": 1754487000,
+        "kind": "value",
+        "vendor": 26.346287846482547,
+        "ours": 31.431828632326045
+       }
+      },
+      "steady": {
+       "bars": 80,
+       "compared": 80,
+       "divergent": 41,
+       "first": {
+        "bar": 220,
+        "time": 1778679000,
+        "kind": "value",
+        "vendor": 26.598480129458775,
+        "ours": 26.598489308308835
+       },
+       "last": {
+        "bar": 260,
+        "time": 1783949400,
+        "kind": "value",
+        "vendor": 20.251512181606806,
+        "ours": 20.251512707130633
+       },
+       "pattern": {
+        "kind": "scattered",
+        "lastDivergentBar": 260
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "plusDI",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out2",
+     "title": "minusDI",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/atr-14-2026-09-06.json",
+   "format": "observation",
+   "id": "atr-14-2026-09-06",
+   "script": "uct-rsi-atr-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "atr14",
+     "ours": "out2",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "28 steady-state bars disagree; first at bar 180 (value: vendor 8.77494009272306 vs ours 8.774936243175715) — a CONVERGING PREFIX: bars 180..207 differ with |err| falling 3.85e-6 → 5.21e-7, then all 1120 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 180,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 1328,
+      "compared": 1314,
+      "matching": 1120,
+      "vendorRowsMissing": 14,
+      "naMismatches": 0,
+      "valueMismatches": 194,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.8473583327541294,
+      "maxRel": 0.25002186595305803,
+      "firstDivergence": {
+       "bar": 14,
+       "time": 1623677400,
+       "kind": "value",
+       "vendor": 3.3891369041827013,
+       "ours": 2.541778571428572
+      },
+      "warmup": {
+       "bars": 180,
+       "compared": 166,
+       "divergent": 166,
+       "first": {
+        "bar": 14,
+        "time": 1623677400,
+        "kind": "value",
+        "vendor": 3.3891369041827013,
+        "ours": 2.541778571428572
+       }
+      },
+      "steady": {
+       "bars": 1148,
+       "compared": 1148,
+       "divergent": 28,
+       "first": {
+        "bar": 180,
+        "time": 1644330600,
+        "kind": "value",
+        "vendor": 8.77494009272306,
+        "ours": 8.774936243175715
+       },
+       "last": {
+        "bar": 207,
+        "time": 1647610200,
+        "kind": "value",
+        "vendor": 9.445910815571466,
+        "ours": 9.445910295068488
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 207,
+        "agreeingAfter": 1120,
+        "contiguous": true,
+        "absErrFirst": 0.0000038495473457800244,
+        "absErrLast": 5.205029776078618e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "rsi14",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ema-close20-2026-09-06.json",
+   "format": "observation",
+   "id": "ema-close20-2026-09-06",
+   "script": "uct-sma-ema-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ema20",
+     "ours": "out2",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "55 steady-state bars disagree; first at bar 100 (value: vendor 254.9096484133421 vs ours 254.90952665266488) — a CONVERGING PREFIX: bars 100..154 differ with |err| falling 1.22e-4 → 5.47e-7, then all 1876 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 100,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 20,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2012,
+      "matching": 1876,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 136,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.40385759151973843,
+      "maxRel": 0.0014078248662912473,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1536067800,
+       "kind": "value",
+       "vendor": 286.8663575915198,
+       "ours": 286.46250000000003
+      },
+      "warmup": {
+       "bars": 100,
+       "compared": 81,
+       "divergent": 81,
+       "first": {
+        "bar": 19,
+        "time": 1536067800,
+        "kind": "value",
+        "vendor": 286.8663575915198,
+        "ours": 286.46250000000003
+       }
+      },
+      "steady": {
+       "bars": 1931,
+       "compared": 1931,
+       "divergent": 55,
+       "first": {
+        "bar": 100,
+        "time": 1546266600,
+        "kind": "value",
+        "vendor": 254.9096484133421,
+        "ours": 254.90952665266488
+       },
+       "last": {
+        "bar": 154,
+        "time": 1553088600,
+        "kind": "value",
+        "vendor": 278.79470128722573,
+        "ours": 278.7947007397567
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 154,
+        "agreeingAfter": 1876,
+        "contiguous": true,
+        "absErrFirst": 0.00012176067721725303,
+        "absErrLast": 5.474690283335804e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "sma20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/hma-close20-2026-09-06.json",
+   "format": "observation",
+   "id": "hma-close20-2026-09-06",
+   "script": "uct-hma-macd-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "hma20",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "2009 steady-state bars agree",
+     "warmupBars": 22,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 40,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2009,
+      "matching": 2009,
+      "vendorRowsMissing": 22,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 22,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 2009,
+       "compared": 2009,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "out2",
+     "title": "macdLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "signalLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out4",
+     "title": "histLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/macd-hist-12-26-9-2026-09-06.json",
+   "format": "observation",
+   "id": "macd-hist-12-26-9-2026-09-06",
+   "script": "uct-hma-macd-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "histLine",
+     "ours": "out4",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "1821 steady-state bars agree (137 warm-up bars differ, reported separately)",
+     "warmupBars": 210,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 35,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 1998,
+      "matching": 1861,
+      "vendorRowsMissing": 33,
+      "naMismatches": 0,
+      "valueMismatches": 137,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.07717594801302918,
+      "maxRel": 2.0167750575964023,
+      "firstDivergence": {
+       "bar": 33,
+       "time": 1537795800,
+       "kind": "value",
+       "vendor": -0.038267008371775324,
+       "ours": 0.03890893964125386
+      },
+      "warmup": {
+       "bars": 210,
+       "compared": 177,
+       "divergent": 137,
+       "first": {
+        "bar": 33,
+        "time": 1537795800,
+        "kind": "value",
+        "vendor": -0.038267008371775324,
+        "ours": 0.03890893964125386
+       }
+      },
+      "steady": {
+       "bars": 1821,
+       "compared": 1821,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "hma20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out2",
+     "title": "macdLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "signalLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/macd-line-12-26-2026-09-06.json",
+   "format": "observation",
+   "id": "macd-line-12-26-2026-09-06",
+   "script": "uct-hma-macd-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "macdLine",
+     "ours": "out2",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "1821 steady-state bars agree (155 warm-up bars differ, reported separately)",
+     "warmupBars": 210,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 26,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2006,
+      "matching": 1851,
+      "vendorRowsMissing": 25,
+      "naMismatches": 0,
+      "valueMismatches": 155,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.06485908756991421,
+      "maxRel": 0.08361383845228455,
+      "firstDivergence": {
+       "bar": 25,
+       "time": 1536759000,
+       "kind": "value",
+       "vendor": 1.6340475991661947,
+       "ours": 1.5691885115962805
+      },
+      "warmup": {
+       "bars": 210,
+       "compared": 185,
+       "divergent": 155,
+       "first": {
+        "bar": 25,
+        "time": 1536759000,
+        "kind": "value",
+        "vendor": 1.6340475991661947,
+        "ours": 1.5691885115962805
+       }
+      },
+      "steady": {
+       "bars": 1821,
+       "compared": 1821,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "hma20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "signalLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out4",
+     "title": "histLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/macd-signal-12-26-9-2026-09-06.json",
+   "format": "observation",
+   "id": "macd-signal-12-26-9-2026-09-06",
+   "script": "uct-hma-macd-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "signalLine",
+     "ours": "out3",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "1821 steady-state bars agree (152 warm-up bars differ, reported separately)",
+     "warmupBars": 210,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 35,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 1998,
+      "matching": 1846,
+      "vendorRowsMissing": 33,
+      "naMismatches": 0,
+      "valueMismatches": 152,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.11369687143078333,
+      "maxRel": 0.4438874844292995,
+      "firstDivergence": {
+       "bar": 33,
+       "time": 1537795800,
+       "kind": "value",
+       "vendor": 1.7743718597227198,
+       "ours": 1.6606749882919365
+      },
+      "warmup": {
+       "bars": 210,
+       "compared": 177,
+       "divergent": 152,
+       "first": {
+        "bar": 33,
+        "time": 1537795800,
+        "kind": "value",
+        "vendor": 1.7743718597227198,
+        "ours": 1.6606749882919365
+       }
+      },
+      "steady": {
+       "bars": 1821,
+       "compared": 1821,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "hma20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out2",
+     "title": "macdLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out4",
+     "title": "histLine",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/minus-di-14-2026-09-06.json",
+   "format": "observation",
+   "id": "minus-di-14-2026-09-06",
+   "script": "uct-dmi-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "minusDI",
+     "ours": "out2",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "31 steady-state bars disagree; first at bar 170 (value: vendor 29.111226293280946 vs ours 29.111234826270927) — a CONVERGING PREFIX: bars 170..200 differ with |err| falling 8.53e-6 → 5.44e-7, then all 99 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 170,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 300,
+      "compared": 286,
+      "matching": 99,
+      "vendorRowsMissing": 14,
+      "naMismatches": 0,
+      "valueMismatches": 187,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0.6471478574405474,
+      "maxRel": 0.037281496761277844,
+      "firstDivergence": {
+       "bar": 14,
+       "time": 1752845400,
+       "kind": "value",
+       "vendor": 16.406562081666088,
+       "ours": 15.954128309290851
+      },
+      "warmup": {
+       "bars": 170,
+       "compared": 156,
+       "divergent": 156,
+       "first": {
+        "bar": 14,
+        "time": 1752845400,
+        "kind": "value",
+        "vendor": 16.406562081666088,
+        "ours": 15.954128309290851
+       }
+      },
+      "steady": {
+       "bars": 130,
+       "compared": 130,
+       "divergent": 31,
+       "first": {
+        "bar": 170,
+        "time": 1772548200,
+        "kind": "value",
+        "vendor": 29.111226293280946,
+        "ours": 29.111234826270927
+       },
+       "last": {
+        "bar": 200,
+        "time": 1776259800,
+        "kind": "value",
+        "vendor": 25.458438289376502,
+        "ours": 25.45843883312429
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 200,
+        "agreeingAfter": 99,
+        "contiguous": true,
+        "absErrFirst": 0.00000853298998038099,
+        "absErrLast": 5.437477881287123e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "plusDI",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "adx",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/plus-di-14-2026-09-06.json",
+   "format": "observation",
+   "id": "plus-di-14-2026-09-06",
+   "script": "uct-dmi-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "plusDI",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "47 steady-state bars disagree; first at bar 170 (value: vendor 13.874091248158093 vs ours 13.874088643084825) — a CONVERGING PREFIX: bars 170..221 (with agreeing bars inside the run) differ with |err| falling 2.61e-6 → 5.54e-7, then all 78 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 170,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 300,
+      "compared": 286,
+      "matching": 85,
+      "vendorRowsMissing": 14,
+      "naMismatches": 0,
+      "valueMismatches": 201,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 2.86334351786995,
+      "maxRel": 0.08520632510069119,
+      "firstDivergence": {
+       "bar": 14,
+       "time": 1752845400,
+       "kind": "value",
+       "vendor": 33.32347844414072,
+       "ours": 36.16284958193805
+      },
+      "warmup": {
+       "bars": 170,
+       "compared": 156,
+       "divergent": 154,
+       "first": {
+        "bar": 14,
+        "time": 1752845400,
+        "kind": "value",
+        "vendor": 33.32347844414072,
+        "ours": 36.16284958193805
+       }
+      },
+      "steady": {
+       "bars": 130,
+       "compared": 130,
+       "divergent": 47,
+       "first": {
+        "bar": 170,
+        "time": 1772548200,
+        "kind": "value",
+        "vendor": 13.874091248158093,
+        "ours": 13.874088643084825
+       },
+       "last": {
+        "bar": 221,
+        "time": 1778765400,
+        "kind": "value",
+        "vendor": 41.46060211187468,
+        "ours": 41.46060266540491
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 221,
+        "agreeingAfter": 78,
+        "contiguous": false,
+        "absErrFirst": 0.0000026050732682136868,
+        "absErrLast": 5.53530234981281e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "out2",
+     "title": "minusDI",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "adx",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/rma-close14-2026-09-06.json",
+   "format": "observation",
+   "id": "rma-close14-2026-09-06",
+   "script": "uct-rma-wma-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "rma14",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "66 steady-state bars disagree; first at bar 150 (value: vendor 275.89513466191005 vs ours 275.89519869793804) — a CONVERGING PREFIX: bars 150..215 differ with |err| falling 6.40e-5 → 5.18e-7, then all 1815 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 150,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2018,
+      "matching": 1815,
+      "vendorRowsMissing": 13,
+      "naMismatches": 0,
+      "valueMismatches": 203,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.6433346281248191,
+      "maxRel": 0.0058029645959590155,
+      "firstDivergence": {
+       "bar": 13,
+       "time": 1535117400,
+       "kind": "value",
+       "vendor": 283.1888082290181,
+       "ours": 284.8321428571429
+      },
+      "warmup": {
+       "bars": 150,
+       "compared": 137,
+       "divergent": 137,
+       "first": {
+        "bar": 13,
+        "time": 1535117400,
+        "kind": "value",
+        "vendor": 283.1888082290181,
+        "ours": 284.8321428571429
+       }
+      },
+      "steady": {
+       "bars": 1881,
+       "compared": 1881,
+       "divergent": 66,
+       "first": {
+        "bar": 150,
+        "time": 1552570200,
+        "kind": "value",
+        "vendor": 275.89513466191005,
+        "ours": 275.89519869793804
+       },
+       "last": {
+        "bar": 215,
+        "time": 1560778200,
+        "kind": "value",
+        "vendor": 285.70363216933146,
+        "ours": 285.7036326874392
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 215,
+        "agreeingAfter": 1815,
+        "contiguous": true,
+        "absErrFirst": 0.00006403602799309738,
+        "absErrLast": 5.18107754032826e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "out2",
+     "title": "wma20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/rsi-close14-2026-09-06.json",
+   "format": "observation",
+   "id": "rsi-close14-2026-09-06",
+   "script": "uct-rsi-atr-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "explains": "recursive-smoother-cold-start-in-a-finite-capture",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "rsi14",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "DIVERGE",
+     "reason": "25 steady-state bars disagree; first at bar 180 (value: vendor 48.27241930297317 vs ours 48.27241475045275) — a CONVERGING PREFIX: bars 180..214 (with agreeing bars inside the run) differ with |err| falling 4.55e-6 → 5.70e-7, then all 1113 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 180,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 1328,
+      "compared": 1314,
+      "matching": 1123,
+      "vendorRowsMissing": 14,
+      "naMismatches": 0,
+      "valueMismatches": 191,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 7.562468772126408,
+      "maxRel": 0.11750302863020165,
+      "firstDivergence": {
+       "bar": 14,
+       "time": 1623677400,
+       "kind": "value",
+       "vendor": 64.3597774481758,
+       "ours": 71.92224622030221
+      },
+      "warmup": {
+       "bars": 180,
+       "compared": 166,
+       "divergent": 166,
+       "first": {
+        "bar": 14,
+        "time": 1623677400,
+        "kind": "value",
+        "vendor": 64.3597774481758,
+        "ours": 71.92224622030221
+       }
+      },
+      "steady": {
+       "bars": 1148,
+       "compared": 1148,
+       "divergent": 25,
+       "first": {
+        "bar": 180,
+        "time": 1644330600,
+        "kind": "value",
+        "vendor": 48.27241930297317,
+        "ours": 48.27241475045275
+       },
+       "last": {
+        "bar": 214,
+        "time": 1648560600,
+        "kind": "value",
+        "vendor": 64.99275138082233,
+        "ours": 64.99275195131713
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 214,
+        "agreeingAfter": 1113,
+        "contiguous": false,
+        "absErrFirst": 0.000004552520422862472,
+        "absErrLast": 5.704948051743486e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "out2",
+     "title": "atr14",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/sma-close20-2026-09-06.json",
+   "format": "observation",
+   "id": "sma-close20-2026-09-06",
+   "script": "uct-sma-ema-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "sma20",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "2012 steady-state bars agree",
+     "warmupBars": 19,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 20,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2012,
+      "matching": 2012,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.4779288903810084e-12,
+      "maxRel": 2.318099835828922e-15,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 19,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 2012,
+       "compared": 2012,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "out2",
+     "title": "ema20",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/stoch-k-14-2026-09-06.json",
+   "format": "observation",
+   "id": "stoch-k-14-2026-09-06",
+   "script": "uct-stoch-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "stochK",
+     "ours": "value",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "287 steady-state bars agree",
+     "warmupBars": 13,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 14,
+     "color": "not captured",
+     "stats": {
+      "bars": 300,
+      "compared": 287,
+      "matching": 287,
+      "vendorRowsMissing": 13,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.4210854715202004e-14,
+      "maxRel": 2.1770660652668168e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 13,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 287,
+       "compared": 287,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/wma-close20-2026-09-06.json",
+   "format": "observation",
+   "id": "wma-close20-2026-09-06",
+   "script": "uct-rma-wma-parity-v1",
+   "symbol": "AMEX:SPY",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "wma20",
+     "ours": "out2",
+     "rule": "M0-selector",
+     "verdict": "MATCH",
+     "reason": "2012 steady-state bars agree",
+     "warmupBars": 19,
+     "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
+     "derivedLookback": 20,
+     "color": "not captured",
+     "stats": {
+      "bars": 2031,
+      "compared": 2012,
+      "matching": 2012,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 19,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 2012,
+       "compared": 2012,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "rma14",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 5e-7,
+    "absReason": "half a unit in the 6th decimal — the capture's declared readDecimals (legacy)"
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json",
+   "format": "probe-rows",
+   "id": "seed-warmup-spy-12m-2026-09-21",
+   "script": "UCTPROBE_P1_TOP_UNMEASURED",
+   "symbol": "SPY",
+   "timeframe": "12M",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "N08_ema5_SEED_QUESTION_compare_to_N09_at_bar4",
+     "ours": "out8",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 4.3128272517031574e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "N09_sma5_THE_DISCRIMINATOR_FOR_N08",
+     "ours": "out9",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 2.3097315367902506e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "N10_atr5",
+     "ours": "out10",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "30 steady-state bars disagree; first at bar 4 (na: vendor 13.96875 vs ours na) — persistent, last at bar 33",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 4,
+      "vendorRowsMissing": 0,
+      "naMismatches": 1,
+      "valueMismatches": 29,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 1.9249999999999972,
+      "maxRel": 0.10727969348658987,
+      "firstDivergence": {
+       "bar": 4,
+       "time": "1997-01-01",
+       "kind": "na",
+       "vendor": 13.96875,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 30,
+       "first": {
+        "bar": 4,
+        "time": "1997-01-01",
+        "kind": "na",
+        "vendor": 13.96875,
+        "ours": null
+       },
+       "last": {
+        "bar": 33,
+        "time": "2026-01-02",
+        "kind": "value",
+        "vendor": 129.2519199775657,
+        "ours": 129.25564346909013
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 33
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "N11_rma_of_tr5_MUST_EQUAL_N10",
+     "ours": "out11",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 6,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 5.684341886080802e-14,
+      "maxRel": 4.3978781027526975e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "N12_sma_of_tr5_SEED_DISCRIMINATOR",
+     "ours": "out12",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 6,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 2.842170943040401e-14,
+      "maxRel": 2.600053921838774e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "N13_stdev5_POPULATION_OR_SAMPLE",
+     "ours": "out13",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 2.2026824808563106e-13,
+      "maxRel": 9.912641736673036e-15,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "N15_sum5_PRE_WINDOW_na_or_partial",
+     "ours": "out14",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 4.547473508864641e-13,
+      "maxRel": 2.0330628186247757e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "N06_change_close_bar0_is_the_reading",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 1,
+     "color": "not captured",
+     "stats": {
+      "bars": 34,
+      "compared": 34,
+      "matching": 34,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 34,
+       "compared": 34,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "ours": "value",
+     "title": "N01_nz_of_na_expect_0",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out2",
+     "title": "N02_nz_na_with_replacement_expect_42",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out3",
+     "title": "N03_nz_PRESENT_with_replacement_expect_7_NOT_42",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out4",
+     "title": "N04_abs_neg2p5_CONTROL_expect_2p5",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out5",
+     "title": "N05_abs_of_na_THE_QUESTION_na_or_0",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    },
+    {
+     "ours": "out7",
+     "title": "N07_bar_index_SO_BAR_0_IS_IDENTIFIABLE",
+     "why": "our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)"
+    }
+   ],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-12,
+    "absReason": "pricescale unknown — double-noise floor 1e-12"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 8 compared items diverge",
+   "ourNotes": [
+    "timeframe \"12M\" has no chart code — the bind-time fold folds nothing"
+   ]
+  },
+  {
+   "file": "tests/fixtures/vendor/w2-warmup-spy-12m-2026-09-22.json",
+   "format": "probe-rows",
+   "id": "w2-warmup-spy-12m-2026-09-22",
+   "script": "UCTPROBE_W2_WARMUP",
+   "symbol": "SPY",
+   "timeframe": "12M",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [],
+   "verdict": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:role-order): this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `ta.cci` takes a SOURCE and this table reads the typical price from cci(series, series, series, int). Those are the same column when the source is `hlc3` and a DIFFERENT indicator otherwise, so only that source is taken — TO UNBLOCK: write `ta.cci(hlc3, …)`",
+   "ourNotes": []
+  }
+ ],
+ "inventory": [
+  {
+   "file": "tests/fixtures/vendor/agen-1d-bars-2000-2026-09-13.json",
+   "format": "unsupported",
+   "reason": "these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "vendor built-in study — no Pine source exists to run on our side"
+  },
+  {
+   "file": "tests/fixtures/vendor/barstate-daily-timeline.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/barstate-full-spy-1d-closed-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars"
+  },
+  {
+   "file": "tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/divergences.json",
+   "format": "unsupported",
+   "reason": "not a capture (schema / divergence register)"
+  },
+  {
+   "file": "tests/fixtures/vendor/divergences.schema.json",
+   "format": "unsupported",
+   "reason": "not a capture (schema / divergence register)"
+  },
+  {
+   "file": "tests/fixtures/vendor/exchange-spelling-seven-witnesses-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/fold-numeric-spy-1d-1w-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars"
+  },
+  {
+   "file": "tests/fixtures/vendor/groupb-barssince-arity-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars"
+  },
+  {
+   "file": "tests/fixtures/vendor/groupb-hilo-default-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/groupb-pivot-default-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/groupb-readings-spy-1d-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/groupb-round-max-vwap-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-accdist-delta5-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-bbw-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-falling-close3-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-kcw-close20-2-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-median_even_length-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-percentrank-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "the observation names no plot (`engine.formula` is empty), so its values cannot be mapped to one of our plots"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare"
+  },
+  {
+   "file": "tests/fixtures/vendor/observations/ta-rising-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "vendor.values holds 1 readings that are not one plotted number (named candidate readings) — no single plot to compare"
+  },
+  {
+   "file": "tests/fixtures/vendor/p1-top-unmeasured-spy-1d-2026-09-21.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/adx-14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/atr-14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/ema-close20-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/hma-close20-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/macd-hist-12-26-9-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/macd-line-12-26-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/macd-signal-12-26-9-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/minus-di-14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/plus-di-14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/rma-close14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/rsi-close14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/sma-close20-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/stoch-k-14-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/ta-bbw-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/ta-median_even_length-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/ta-percentrank-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/ta-rising-oracle-ambiguity-v3-1-2026-09-05.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/parity/wma-close20-2026-09-06.json",
+   "format": "unsupported",
+   "reason": "a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-alma-spy-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-barssince-spy-1d-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-corr-pct-spy-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-nine-safe-spy-1d-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-nvi-spy-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-time-session-spy-5m-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-time-tf-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-time-tf-spy-1d-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-tr-true-spy-1d-2026-09-12.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-valuewhen-spy-1d-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/r11-valuewhen-spy-2026-09-11.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/A/clouds-volume-spy-1d-250.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/A/volume-spy-1d-250.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/B/clouds-volume-nvda-1d-250.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/B/volume-nvda-1d-250.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/C/clouds-volume-spy-1w-150.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/C/volume-spy-1w-150.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/D/clouds-volume-spy-4h-300.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/reference/D/volume-spy-4h-300.meta.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/callsite-state-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/finite-window-na-policy-by-member-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/mutable-history-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/recurrent-callsite-identity-and-event-history-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "market.bars does not carry the vendor's OHLCV with a unix time (bar_index or nulls in `t`/OHLC) — the series cannot be recomputed"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/recurrent-composites-and-window-closure-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/recurrent-na-and-skipped-callsite-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "vendor readings are not a per-bar `values` series (split rows or named samples) — nothing contiguous to compare bar by bar"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/skipped-callsite-history-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/runtime/ta-cum-and-context-namespaces-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/saved-probe-integrity-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json",
+   "format": "unsupported",
+   "reason": "these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture"
+  },
+  {
+   "file": "tests/fixtures/vendor/tuple-security-spy-1d-closed-2026-09-10.json",
+   "format": "unsupported",
+   "reason": "the capture holds a short tail of study values but NOT the vendor's OHLCV — our side cannot be run on the vendor's bars"
+  },
+  {
+   "file": "tests/fixtures/vendor/uncharted-volume-v2-agen-1d-hve-2026-09-12.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/uncharted-volume-v2-spy-1d-2026-09-12.json",
+   "format": "unsupported",
+   "reason": "only 4 hand-read rows and no vendor OHLCV series"
+  },
+  {
+   "file": "tests/fixtures/vendor/uncharted-volume-v2-spy-1d-forced-depth-2026-09-13.json",
+   "format": "unsupported",
+   "reason": "only 4 hand-read rows and no vendor OHLCV series"
+  },
+  {
+   "file": "tests/fixtures/vendor/visual/five-indicators-spy-1d-2026-09-23.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/visual/fvg-boxes-spy-1d-2026-09-22.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json",
+   "format": "unsupported",
+   "reason": "vendor readings are not a per-bar `values` series (split rows or named samples) — nothing contiguous to compare bar by bar"
+  },
+  {
+   "file": "tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/w3-format-spy-1d-2026-09-22.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  }
+ ]
+}

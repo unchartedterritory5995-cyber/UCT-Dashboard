@@ -891,6 +891,14 @@ them constants.
 both carry `#2962ff`; `#2196F3` (Material Blue 500) appears only in `[UM]`'s prose table. Note the
 payload's lowercase hex for this one constant — a renderer must compare case-insensitively.
 
+⚠ **VERSION-SCOPED — this table is the v6 palette (and, but for red/teal/yellow, v5's). Measured
+2026-09-27** (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`, TradingView's own
+resolved hex per version): the "resolved conflict" above holds for **v5 and v6 only**. Under **v4**
+`color.blue` draws **`#2196F3`** — the Material Blue the prose shows — and under **v3** the bare names
+(`red`, `blue`, …) draw plain web colours (`#FF0000`, `#0000FF`, …; 15 of 17 differ). The engine's one
+authority is `app/src/components/chart/engine/pinePalette.js`, pinned by
+`engine/__tests__/pinePaletteVendor.test.js`.
+
 #### 4.2.6 Renderer must reproduce
 
 - **C29.** `fill()` resolves three overloads by shape: `(plot, plot, num, num, color, color, …)` gradient,
@@ -2400,10 +2408,17 @@ Each of these is a differential test: the **same source text** under two `//@ver
 differently.
 
 - **C202.** `//@version=` accepts 1 through 6, and an **absent** annotation means **version 1**. **[UM]**
+  ⚠ UNMEASURED for colour: neither an absent annotation nor v1/v2 has been probed, so the engine keeps
+  its pre-existing (v5) palette for them rather than guessing (`pinePalette.UNMEASURED_FALLBACK`).
 - **C203.** `color.red` renders `#F23645` under v6 and `#FF5252` under v5. **[UM]**/`[RN]`
 - **C204.** `color.teal` renders `#089981` under v6 and `#00897B` under v5. **[UM]**/`[RN]`
 - **C205.** `color.yellow` renders `#FDD835` under v6 and `#FFEB3B` under v5. **[UM]**/`[RN]`
-- **C206.** `color.blue` renders `#2962ff` (compared case-insensitively), **not** `#2196F3`.
+- **C206.** `color.blue` renders `#2962ff` (compared case-insensitively), **not** `#2196F3` — **under v5
+  and v6**. Under **v4** it renders **`#2196F3`** (measured 2026-09-27,
+  `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`).
+- **C206b.** A v3 script's bare colour names render plain web colours, not the modern palette
+  (`red` `#FF0000`, `blue` `#0000FF`, `orange` `#FF7F00`, …; only `olive` and `white` coincide).
+  Measured, same fixture. C203–C205's "under v5" values are also v4's.
 - **C207.** `label.new()` with no `textcolor` renders **white** text under v6 and **black** under v5.
   `[RN]`
 - **C208.** `bgcolor()`/`fill()` apply an implicit transparency of **90** under v4 and **none** from v5
@@ -2554,7 +2569,7 @@ implement the wrong thing. Each row states the defect and the resolution this sp
 |---|---|---|---|---|
 | **PRES-D1** *(was `D1` — renamed to end the collision with engine ruling D1)* | `label.style_*` | **21** members | *"These are the available style arguments:"* then a **20-row** table — omits **`label.style_text_outline`** (added Aug 2022 `[RN]`), which appears on **zero** of 49 manual pages | **21.** Implement `label.style_text_outline`: outlined text, no balloon |
 | **PRES-D2** *(was `D2` — renamed to end the collision with engine ruling D2)* | `plot.style_*` | **11** members, enumerated in `plot(style=)`'s own description | *"The available arguments are:"* then names **9** — omits **`plot.style_stepline_diamond`** (named elsewhere on the same page) **and `plot.style_steplinebr`**, which appears on **zero** manual pages | **11.** Both styles are real; their detailed semantics are U8 |
-| **D3** | `color.blue` | **`#2962ff`** (v6 **and** v5 payloads agree) | `#2196F3` (Material Blue 500) in the prose colour table | **`#2962ff`.** Note the payload's lowercase hex for this one constant — compare case-insensitively |
+| **D3** | `color.blue` | **`#2962ff`** (v6 **and** v5 payloads agree) | `#2196F3` (Material Blue 500) in the prose colour table | **Version-scoped: `#2962ff` at v5/v6, `#2196F3` at v4** (measured 2026-09-27, `palette-by-version-rddt-1d-2026-09-27.json` — the prose was right about v4). Note the payload's lowercase hex at v5/v6 — compare case-insensitively |
 | **D4** | `plotcandle()` signature | **14** parameters | `/visuals/bar-plotting/` publishes **11** — `plotcandle(open, high, low, close, title, color, wickcolor, editable, show_last, bordercolor, display)`, missing `format`, `precision`, `force_overlay` | **14.** The published signature is stale |
 | **D5** | `location.*` | **5** members, all 5 listed for both `plotshape` and `plotchar` | `/visuals/text-and-shapes/` lists only `abovebar`/`belowbar`/`top` — omits **`location.bottom` and `location.absolute`**, and `location.absolute` is the one with different y semantics | **5.** The omitted constant is the behaviourally distinctive one |
 | **D6** | `fill()` / `bgcolor()` signatures | `fill()` has **3** overloads and a `display` parameter; `bgcolor()` has `display` | `[UM]` shows **2** `fill()` overloads (no gradient) and omits `display` from both signatures | Reference. `[UM]`'s signatures are stale |

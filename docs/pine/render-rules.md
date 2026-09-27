@@ -13,7 +13,7 @@ R2 will touch every one of these. If a change here goes red, that is the rule wo
 | # | Rule | Fixture | Enforced by |
 |---|---|---|---|
 | 1 | `size.*` → px is **per consumer** | `docs/pine/pine-presentation-spec.md` §4.2.5 / §4.3.1 | `engine/__tests__/textLayout.test.js` |
-| 2 | Three colour constants **changed value at v6** | the spec's palette table + `reference/A/*.meta.json` | `engine/__tests__/versionRender.test.js` |
+| 2 | A named colour's hex **depends on the script's `//@version=`** — v3, v4, v5 and v6 each differ | `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json` (the spec's palette table + `reference/A/*.meta.json` corroborate v6) | `engine/__tests__/pinePaletteVendor.test.js` (+ `versionRender.test.js` for the v5→v6 boundary) |
 | 3 | A colorer int is **`0xTTBBGGRR`** | `reference/A/clouds-volume-spy-1d-250.csv` | `engine/__tests__/colorInt.test.js` |
 
 ---
@@ -44,23 +44,48 @@ warns the two "must not be crossed", with a control asserting six numbers were f
 and a further assertion that the two tables genuinely *disagree* — so a refactor into one
 shared map fails loudly instead of silently.
 
-## Rule 2 — three colour constants changed value at v6
+## Rule 2 — a named colour's hex depends on the script's `//@version=`
 
-| Constant | v1–v5 | v6 |
+**Measured, not documented** — TradingView's own resolved hex for all 17 constants under
+v3, v4, v5 and v6, read from the study's style state after it compiled and drew one probe per
+version: `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`.
+
+| Version | What it draws |
+|---|---|
+| v3 (bare names, `color=red`) | **plain web colours** — 15 of the 17 differ from the modern palette (`olive` and `white` coincide); e.g. `red` `#FF0000`, `blue` `#0000FF`, `orange` `#FF7F00` |
+| v4 | the v5 palette **except `blue` = `#2196F3`** |
+| v5 | the modern palette (`red` `#FF5252`, `teal` `#00897B`, `yellow` `#FFEB3B`, `blue` `#2962ff`) |
+| v6 | v5 **except** the three below |
+
+| Constant | v5 | v6 |
 |---|---|---|
 | `color.red` | `#FF5252` | `#F23645` |
 | `color.teal` | `#00897B` | `#089981` |
 | `color.yellow` | `#FFEB3B` | `#FDD835` |
 
-**Every other one of the 17 is stable across every version that had `color.*` at all.**
+⚰️ **This rule used to read "three constants changed at v6, v1–v5 share the pre-v6 values, and every
+other one of the 17 is stable across every version".** Only the v5→v6 half of that survived
+measurement. The engine carried it as one version-blind table (right for v5 only), so a v4
+`color.blue` drew `#2962FF` where TradingView draws `#2196F3` — the first live harness capture
+(Keltner, v4) graded DIVERGE on colour on every bar — and every v6 script drew v5's red and teal.
+
+**The one authority is `engine/pinePalette.js`**; `pine.js` (both lanes' translator),
+`pineRuntimeFrontend.js` (via `colourHexByName(name, version)`, which requires the version) and
+`versionRender.js` all derive from it.
+
+⚠️ **Unmeasured, and kept at the engine's pre-existing behaviour (the v5 table):** a script with
+no `//@version=` (the spec's C202 says that means v1 — v1 itself was never probed), v1 and v2. The
+version, not the spelling, picks the palette: a v3 script's `color.red` gets the v3 red and a v5
+script's bare `red` the v5 red — what TradingView does with either (probably a compile error) is
+unmeasured. `grey` was not probed and is resolved as `gray`.
 
 ⛔ A renderer that ignores the script's `//@version=` tag tints these wrong on every script
 that uses them — and `color.teal` / `color.red` are the two most common colours in the corpus,
 because they are the up/down pair.
 
-⚠️ `color.blue` is `#2962ff` — **lowercase in the payload, and not `#2196F3`.** The Material
-Blue value appears only in the user manual's prose; both the v5 and v6 payloads carry
-`#2962ff`. Compare case-insensitively.
+⚠️ `color.blue` is `#2962ff` **at v5 and v6** — lowercase in the payload — and **`#2196F3` at
+v4** (measured), which is the Material Blue the user manual's prose table shows. Compare
+case-insensitively.
 
 Three independent routes agree on the v6 values, which is why this is a rule and not a note:
 1. the spec's own §4.2.5 palette table,
