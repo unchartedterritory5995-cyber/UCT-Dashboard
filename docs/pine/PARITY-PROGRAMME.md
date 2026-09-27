@@ -20,6 +20,145 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
+
+> `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on
+> master `9310ae0b0`), merged as `bb30a149e`. Every number is `memberPaneDefinition`
+> over the 266 committed scripts, objects-only flag off/on, measured with
+> `partialDrawing.census.measure.test.js` (`PARTIAL_CENSUS=1`) on all three trees the
+> same day. The object-pass tree has no loss classification, so its row is attach
+> counts only.
+
+**What had to change.** Nothing about what the object pass DROPS: the drop ledger
+(`dropReasons`, `droppedOps`) of every committed script is identical to object-pass
+alone, flag off and on (census diff: 0 scripts). The partial rule's counters did not
+cover the new pass, in two ways:
+
+1. **`fn:<why>` was a drop without an attempt.** A refused call to a drawing function
+   was counted in `droppedOps` and not in `attemptedOps`, so 27 corpus scripts read
+   "N of M" with N > M (`mgi-levels-suite` "304 of 0"). A refused call is now one
+   attempt and one drop.
+2. **A refused call's body was invisible to the removal rule.** It is never walked, so
+   a `line.delete` inside a refused helper reached no counter and the door drew around
+   it. `refuseCall` now records what the body would have removed
+   (`objectFnInline.bodyEffects`: token-level, transitive through the user functions
+   and methods it calls; a method-form `x.delete()` names no family and therefore
+   always reaches — fail closed), and the pass feeds it into `lostRemovals` (via
+   `fn:<why>`) and `unconvertedFnOps`.
+
+**New keys and their classes** (`objectLoss.js`; the rail derives every `why` from
+`pineObjects.js` / `objectFnInline.js` source and fails by name on an unclassified or
+dead one):
+
+| key | class | why |
+|---|---|---|
+| `fn:method` `fn:var-init` `fn:in-expression` `fn:unknown` `fn:loop` `fn:depth` `fn:arity` `fn:conditional-history` `fn:receiver` | **BODY** (new) | the body never ran; classified by what it held — REMOVES if it deletes/clears something drawn, LIST if it only changes an object list, else PARTIAL |
+| `fn:return-type` | LIST | refused AFTER the body was inlined; only the returned handle is lost |
+| `copy:source`, `guard:copy` | LIST | the caller's variable keeps the previous handle, so a later delete removes the old object |
+| any other `fn:*` | REMOVES | unclassified fails closed |
+
+The history delete (`line.delete(sup[1])`) and the `int(x)` fold add no key: they
+REMOVE drops (`delete:target`, `create:*`), which is why several scripts get better.
+
+Measured in the corpus (flag on, drops / scripts): `fn:in-expression` 367/11,
+`fn:method` 335/9, `fn:conditional-history` 123/14, `fn:loop` 27/6, `fn:receiver` 3/3,
+`guard:copy` 10/2. `copy:source`, `fn:return-type`, `fn:var-init`, `fn:unknown`,
+`fn:depth`, `fn:arity`: 0 in the corpus (classified from source, not observed).
+
+**The door, three trees** (attached = `ok`; categories are the census's):
+
+| flag | tree | attached | clean objects | disclosed | withheld | plot-only | refused for removal |
+|---|---|---|---|---|---|---|---|
+| off | partial-rule | 33 | 3 | 17 | 1 | 12 | 0 |
+| off | object-pass | 33 | — | — | — | — | — |
+| off | **integrated** | **34** | 5 | 16 | 1 | 12 | 0 |
+| on | partial-rule | 47 | 4 | 30 | 1 | 12 | 11 |
+| on | object-pass | 62 | — | — | — | — | — |
+| on | **integrated** | **54** | 8 | 33 | 1 | 12 | 9 |
+
+Integrated vs object-pass, flag on: 9 scripts object-pass attaches are refused for a
+lost removal (the ruling, working as intended) — `fair-value-gap`, `fib-retracement`,
+`fibonacci-retracement-statistics-by-volprofex`, `ict-institutional-order-flow-fadi`,
+`market-profile-with-tpo`, `options-max-pain-calculator-backquant`,
+`rsi-horizontal-resistance-levels`, `sonarlab-order-blocks`, `strong-start-rvol-dashboard`;
+and `trend-lines-supports-and-resistances` attaches (plots, drawings withheld), which
+object-pass's older base refused. 62 − 9 + 1 = 54.
+
+**Every verdict that changed vs partial-rule alone**
+
+Flag off (4):
+- `fibonacci-pivot-points-cc` withheld → clean — its 7 `delete:target` were
+  `line.delete(sup[1])`; the history delete carries them (7/14 → 0/14).
+- `heat-map-seasons` refused (`pine:roundtrip`) → disclosed — object-pass's
+  `memberInputTranslation` fallback translates it on the author's defaults; it uses
+  `table.cell` in a shape the reader does not carry.
+- `position-size-calculator` disclosed → clean — its 4 `create:label` drops were a
+  helper body read at the top level; inlined at the call site they convert (4/4 → 0/4).
+- `trend-lines-supports-and-resistances` disclosed → withheld — its drawing is 7
+  calls to its own helpers, all refused (`fn:loop` 4, `fn:method` 2,
+  `fn:conditional-history` 1) and their bodies delete. Before the inliner the helper
+  bodies were walked as top-level code (15/15 dropped anyway).
+
+Flag on (16) — the four above behave the same, plus:
+- `ict-ipda-look-back` refused-for-removal → clean (9 `delete:target` carried by the
+  history delete); `linear-regression-channel-tradingfinder…` and
+  `swing-highlow-zigzag-chartprime` refused-for-removal → disclosed (same: their
+  `delete:target`s were `x[1]` deletes; what remains is lost creates).
+- `contraction-box-doji-lines` refused (`pine:no-output`) → clean — the `int()` fold.
+- `rsi-swing-indicator` refused (`pine:no-output`) → disclosed (2 of 36).
+- `average-day-range-adr-pivots` refused (`pine:request`) → disclosed (71 of 74);
+  `high-low-open-mid-ranges` refused (`pine:function`) → disclosed (20 of 22);
+  `ict-killzones-pivots-tfo` refused (`pine:function`) → disclosed (72 of 77) — each
+  previously refused on a value its helper bodies read at the top level; inlined, the
+  refusals move to counted `fn:*` drops that remove nothing drawn.
+- `fair-value-gap` refused (`pine:no-output`) → refused for removal — object-pass
+  gives it a program; that program loses list pushes the script deletes through.
+- `fib-retracement` disclosed → refused for removal — 4 `fn:in-expression` refusals
+  whose bodies `label.delete` a label the program draws.
+- `ict-killzone-index-version` disclosed → refused (`pine:no-output`) and
+  `volumized-order-blocks-flux-charts` refused-for-removal → refused (`pine:no-output`)
+  — object-pass's own finding: each drew only through an every-bar create lifted out
+  of a helper body, i.e. the mistranslation this wave removes.
+
+**Resolved in the merge**
+- `withObjectInputs` (object-pass) added the inputs an object tree reads even when the
+  partial rule withheld the drawing — a knob that moves nothing. It now runs only when
+  the objects are in the document (railed, with a drawn control).
+- Test expectations moved to measurement: Volume v2 "5 of 14" → "8 of 17" (its label
+  helper is inlined at two call sites); `htf-liquidity-dashboard` 7 of 21 → 138 of
+  152; `fibonacci-pivot-points-cc` leaves the withheld row for a clean one.
+- ⚠️ No committed corpus script now has "plots + a removal lost + a non-empty
+  program" (the one withheld script's program is empty), so the corpus row can no
+  longer tell withheld from drawn. A synthetic case with a real program is added.
+
+**Mutation proofs:** 12, each red, restored from captured bytes and sha256-verified;
+unmutated control green (see the merge commit).
+
+**Open, for the owner**
+1. **A refused call is ONE step of M however much its body draws.** It keeps N ≤ M
+   honest but under-states both when a helper draws many objects.
+2. **Mostly-dropped programs still attach, disclosed** — `htf-liquidity-dashboard`
+   138 of 152, `average-day-range` 71 of 74, `ict-killzones-pivots` 72 of 77. Option
+   (b) as ruled draws them; whether a floor applies is a ruling, not a measurement.
+3. **Fail-closed over-reach, not measured to decide any verdict:** a method-form
+   `.clear()` on a numeric array reads as a table clear, and a method-form `.delete()`
+   always reaches. In the 6 scripts where an `fn:*` key alone decides "removes", each
+   has at least one real drawing delete (checked by reading the source for
+   `candelacharts-equal-highslows` and `stop-loss-clustering-breakouts`; the others
+   name a drawn family or have an empty program).
+4. **Empty program, unnamed-family removal:** `trend-lines-supports-and-resistances`
+   draws nothing and is labelled "withheld" rather than "N of M"; both sentences are
+   true, the withheld one is the louder.
+
+**Regression** (engine suite + `src/components/chart/builder/`, this branch vs
+`origin/pine/partial-drawing-rule`, by test-name set difference): full runs 26 vs 29
+failed; the two names red only here (`graphSize` C2C.10 `mid_engagement__22`,
+`paramSingleTranslation` C2D.1) pass alone on this branch, so **no new failures**.
+Also red on BOTH trees and not in the brief's known list: `pineStrictCensus` "strict
+census", `objectLaneCensus` x2, `objectLaneCallSites`, `objectLaneDrawerCensus`.
+
+---
+
 ## ⭐⭐ 2026-09-27 — PARTIAL DRAWINGS AT THE MEMBER DOOR: a lost removal refuses, every other loss is disclosed
 
 > Branch `pine/partial-drawing-rule` (base `pine/plot-offset-bound` @ `cf009d3ea`).
