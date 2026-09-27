@@ -635,7 +635,28 @@ export function memberInputTranslation(translate, source, opts = {}) {
 
   const first = translate(source, { ...opts, declareInputs: 'all' })
   const probed = usable(first)
-  if (!probed.length) return { ...first, declared: [] }
+  // ⭐⭐ NOTHING TO DECLARE MEANS DECLARE NOTHING — AND THE TRANSLATION MUST SAY
+  // SO IN ITS TREES, NOT ONLY IN `declared`.
+  //
+  // ⚰️ THIS RETURNED `first`, the `declareInputs: 'all'` probe, with
+  // `declared: []` stamped on it. The two disagreed: every OBJECT tree in that
+  // probe reads each input by NAME (the object pass honours `declareInputs` —
+  // `objectParams.test.js`), while the document built from it declares no
+  // input at all. So `objectReaderFor` met `boxLength` as an unknown name, the
+  // tree refused, and every box an objects-only script drew landed at NaN —
+  // measured 2026-09-26 on `makuchaku039s-trade-tools-fair-value-gaps`: a CLEAN
+  // program, 50 live boxes, ZERO painted.
+  //
+  // ⭐ The honest answer for a script with no plot to carry a knob is the one
+  // the rest of this function falls back to: fold every input to the author's
+  // default, which is what TradingView draws until the member moves it.
+  // Editable object inputs are ruling R-H's wave-2 item, not this fallback's.
+  if (!probed.length) {
+    // ⛔ ANNOTATED LIKE EVERY OTHER RETURN — `pineMemberInputs` reads
+    // `memberInputs` off the row, and an unannotated row reads as `undefined`.
+    const plain = translate(source, opts)
+    return { ...plain, outputs: annotate(plain, new Set()), declared: [] }
+  }
 
   // ⛔ THE WINDOW VERDICT IS COLLECTED ACROSS *EVERY* OUTPUT, not just the
   // selected one. A script can plot a length-driven average and a threshold
