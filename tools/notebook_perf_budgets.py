@@ -30,8 +30,17 @@ and in the commit.
    reps in the same pass would mostly sample more of the same burst. A second pass, taken after
    every other op has been timed, is what a burst on a shared runner usually does not reach.
 
+3. **Wave 10 (lane 10A).** `check_ratio` (ruling R-10: each CI read as a median ratio to an
+   in-run calibration op, re-measured before it can breach; `ratio_line` is the budget's
+   `line_ms` at the reference box's calibration speed), `check_curve` (clause 14d: the log-log
+   slope of every op's p50 across the curve tiers, fitted and on its last segment; a hole is a
+   breach), and a budget's `attachments` count (clause 14b), which `check_search` requires of the
+   tier it reads.
+
 Usage:
     python tools/notebook_perf_budgets.py --dist app/dist            # bytes only
+    python tools/notebook_perf_budgets.py --bench report.json --ratio ratio_ci
+    python tools/notebook_perf_budgets.py --bench curve.json --curve
     python tools/notebook_perf_budgets.py --bench report.json --budget search_ci
     python tools/notebook_perf_budgets.py --bench report.json --budget search --budget reads --budget tasks
     python tools/notebook_perf_budgets.py --dist app/dist --bench report.json --json out.json
@@ -153,6 +162,13 @@ def check_search(report: dict, spec: dict) -> list[str]:
     by_n = {t["n"]: t for t in report.get("tiers", [])}
     if tier not in by_n:
         return [f"budget tier {tier:,} was not run (ran: {sorted(by_n)}) -- nothing was checked"]
+    # Wave 10 (lane 10A, clause 14b): a budget that names an attachment count holds only on a
+    # tier that carried at least that many -- a 50k tier with no documents did not check it.
+    need = int(spec.get("attachments", 0) or 0)
+    have = int(by_n[tier].get("attachments", 0) or 0)
+    if need and have < need:
+        return [f"budget needs {need:,} attachments at {tier:,} notes; this run seeded {have:,} "
+                f"-- nothing was checked"]
     measured = by_n[tier]["ops"]
     breaches: list[str] = []
     for op in ops:
@@ -224,6 +240,152 @@ def informational_notes(report: dict, spec: dict) -> list[str]:
     return notes
 
 
+def ratio_line(spec: dict, op: str | None = None) -> float:
+    """The R-10 line for one op of a ratio budget: `line_ms / calibration_ref_ms`, where
+    `line_ms` is the op's own entry in `op_line_ms` when the budget gives one (the tasks read
+    keeps its 150 ms line), else the budget's `line_ms`.
+
+    ⭐ What it means: `calibration_ref_ms` is the calibration op's p50 on the REFERENCE box (a
+    property of that machine, recorded by hand with its date and commit, never a budget), so an
+    op whose ratio sits under this line would read under `line_ms` on the reference box, whatever
+    the runner's own speed. A runner twice as slow makes both halves twice as slow and the ratio
+    does not move -- that is the whole reason a ratio replaces a millisecond line in CI."""
+    try:
+        line_ms = float((spec.get("op_line_ms") or {}).get(op, spec["line_ms"]))
+        ref = float(spec["calibration_ref_ms"])
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
+        raise Unevaluable(f"ratio budget needs line_ms and calibration_ref_ms: {e!r}")
+    if line_ms <= 0 or ref <= 0:
+        raise Unevaluable(f"ratio budget line {line_ms} / reference {ref} -- both must be positive")
+    return line_ms / ref
+
+
+def _ratio_tier(report: dict, spec: dict) -> tuple[int, dict | None, str | None]:
+    tier = int(spec["tier"])
+    by_n = {t["n"]: t for t in report.get("tiers", [])}
+    if tier not in by_n:
+        return tier, None, f"ratio tier {tier:,} was not run (ran: {sorted(by_n)}) -- nothing was checked"
+    ratio = by_n[tier].get("ratio")
+    if not isinstance(ratio, dict) or not isinstance(ratio.get("ops"), dict):
+        return tier, None, f"no ratio reading at {tier:,} notes -- nothing was checked"
+    return tier, ratio, None
+
+
+def check_ratio(report: dict, spec: dict) -> list[str]:
+    """Every breach of one ratio budget (ruling R-10), as sentences. An op breaches when its
+    MEDIAN ratio is at or over the line AND its independent re-measure's median is too; one that
+    did not reproduce is a note (`ratio_unreproduced_notes`). An op the run did not measure is a
+    breach, never a pass."""
+    ops = list(spec.get("ops") or [])
+    if not ops:
+        raise Unevaluable("the ratio budget names no ops -- it would pass by checking nothing")
+    unknown = sorted(set(spec.get("op_line_ms") or {}) - set(ops) - set(spec.get("informational") or []))
+    if unknown:
+        raise Unevaluable(f"op_line_ms names {unknown}, which the ratio budget does not measure")
+    tier, ratio, why = _ratio_tier(report, spec)
+    if why:
+        return [why]
+    breaches: list[str] = []
+    for op in ops:
+        line = ratio_line(spec, op)
+        r = ratio["ops"].get(op)
+        if not isinstance(r, dict) or "median" not in r:
+            breaches.append(f"{op!r} at {tier:,} notes: no ratio measured by this run")
+            continue
+        if r["median"] < line:
+            continue
+        again = (r.get("remeasure") or {}).get("median")
+        if again is not None and again < line:
+            continue                                   # did not reproduce: a note, never a breach
+        tail = f"; re-measured {again:.3f}" if again is not None else ""
+        line_ms = float((spec.get("op_line_ms") or {}).get(op, spec["line_ms"]))
+        breaches.append(f"{op!r} at {tier:,} notes: median ratio {r['median']:.3f} >= line {line:.3f} "
+                        f"(= {line_ms:g} ms at the reference box's speed){tail}")
+    return breaches
+
+
+def ratio_lines(spec: dict) -> dict[str, float]:
+    """`{op: line}` for every op a ratio budget measures (enforced and informational)."""
+    return {op: ratio_line(spec, op)
+            for op in list(spec.get("ops") or []) + list(spec.get("informational") or [])}
+
+
+def ratio_unreproduced_notes(report: dict, spec: dict) -> list[str]:
+    """Ops whose median ratio read over the line once and under it on the re-measure."""
+    tier, ratio, why = _ratio_tier(report, spec)
+    if why:
+        return []
+    notes = []
+    for op in list(spec.get("ops") or []):
+        line = ratio_line(spec, op)
+        r = ratio["ops"].get(op) or {}
+        again = (r.get("remeasure") or {}).get("median")
+        if r.get("median", 0) >= line and again is not None and again < line:
+            notes.append(f"{op!r} at {tier:,} notes: median ratio {r['median']:.3f}, then {again:.3f} "
+                         f"on an independent re-measure -- did not reproduce, not a breach "
+                         f"(the line {line:.3f} is unchanged)")
+    return notes
+
+
+def _slope(points: list[tuple[float, float]]) -> float:
+    """Least-squares slope of ln(t) on ln(n)."""
+    import math
+    xs = [math.log(n) for n, _ in points]
+    ys = [math.log(t) for _, t in points]
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    sxx = sum((x - mx) ** 2 for x in xs)
+    if sxx == 0:
+        raise Unevaluable("a curve needs at least two distinct tiers")
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / sxx
+
+
+def check_curve(report: dict, spec: dict, required_ops: list[str]) -> tuple[list[str], dict]:
+    """Clause 14d, "no super-linear curve": for every op in `required_ops`, the log-log slope of
+    its p50 across the curve tiers, fitted over every tier, and the slope of the LAST segment
+    alone (a curve that bends up at the top is the super-linear symptom, and a fit over five
+    tiers can dilute it). Returns (breaches, per-op table).
+
+    ⛔ An op missing at ANY curve tier is a breach, never skipped: a curve with a hole in it is
+    not a curve that passed. So is a run that did not run every tier the budget names."""
+    import math
+    tiers_needed = [int(t) for t in spec["tiers"]]
+    max_slope = float(spec["max_slope"])
+    max_seg = float(spec["max_last_segment_slope"])
+    stat = spec.get("stat", "p50_ms")
+    if not required_ops:
+        raise Unevaluable("the curve names no ops -- it would pass by checking nothing")
+    by_n = {int(t["n"]): t for t in report.get("tiers", [])}
+    missing_tiers = [t for t in tiers_needed if t not in by_n]
+    if missing_tiers:
+        return [f"curve tier(s) {missing_tiers} were not run (ran: {sorted(by_n)}) -- nothing was checked"], {}
+    breaches: list[str] = []
+    table: dict[str, dict] = {}
+    for op in required_ops:
+        pts, missing = [], []
+        for n in tiers_needed:
+            st = by_n[n]["ops"].get(op)
+            if not isinstance(st, dict) or not (st.get(stat) or 0) > 0:
+                missing.append(n)
+            else:
+                pts.append((n, float(st[stat])))
+        if missing:
+            table[op] = {"slope": None, "missing": missing}
+            breaches.append(f"{op!r}: not measured at {missing} -- a curve with a hole in it did not pass")
+            continue
+        slope = _slope(pts)
+        (n1, t1), (n2, t2) = pts[-2], pts[-1]
+        seg = (math.log(t2) - math.log(t1)) / (math.log(n2) - math.log(n1))
+        table[op] = {"slope": round(slope, 4), "last_segment": round(seg, 4),
+                     stat: [round(t, 3) for _, t in pts], "tiers": tiers_needed}
+        if slope > max_slope:
+            breaches.append(f"{op!r}: log-log slope {slope:.3f} > {max_slope:g} (super-linear); "
+                            f"{stat} {[round(t, 2) for _, t in pts]} over {tiers_needed}")
+        if seg > max_seg:
+            breaches.append(f"{op!r}: last segment {n1:,}->{n2:,} slope {seg:.3f} > {max_seg:g} "
+                            f"({t1:.2f} -> {t2:.2f} ms)")
+    return breaches, table
+
+
 def load_budgets(path: Path) -> dict:
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
@@ -238,10 +400,17 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--bench", default=None, help="a notebook_scale_benchmark.py --json report")
     ap.add_argument("--budget", action="append", default=None,
                     help="latency budget key(s) to apply to --bench (repeatable; default: search)")
+    ap.add_argument("--ratio", action="append", default=None,
+                    help="ratio budget key(s) to apply to --bench (ruling R-10; repeatable)")
+    ap.add_argument("--curve", action="store_true",
+                    help="apply the `curve` budget to --bench (clause 14d)")
     ap.add_argument("--json", dest="json_path", default=None)
     args = ap.parse_args(argv)
     if not args.dist and not args.bench:
         print("nothing to check: pass --dist and/or --bench")
+        return 3
+    if (args.ratio or args.curve) and not args.bench:
+        print("--ratio and --curve read a benchmark report: pass --bench")
         return 3
     out: dict = {"budgets": args.budgets, "breaches": []}
     try:
@@ -256,7 +425,29 @@ def main(argv: list[str] | None = None) -> int:
         if args.bench:
             report = json.loads(Path(args.bench).read_text(encoding="utf-8"))
             out["latency"] = {}
-            for key in args.budget or ["search"]:
+            for key in args.ratio or []:
+                spec = budgets.get(key)
+                if not spec:
+                    raise Unevaluable(f"no {key!r} ratio budget in {args.budgets}")
+                s = check_ratio(report, spec)
+                once = ratio_unreproduced_notes(report, spec)
+                out["breaches"] += [f"[{key}] {b}" for b in s]
+                out["latency"][key] = {"tier": spec["tier"], "line": ratio_line(spec),
+                                       "ops": len(spec["ops"]), "breaches": len(s), "unreproduced": once}
+                print(f"{key}: {len(spec['ops'])} ops at {int(spec['tier']):,} notes, median ratio "
+                      f"< {ratio_line(spec):.3f} -- {len(s)} breach(es)")
+                for note in once:
+                    print(f"  note [{key}] {note}")
+            if args.curve:
+                spec = budgets.get("curve")
+                if not spec:
+                    raise Unevaluable(f"no `curve` budget in {args.budgets}")
+                required = list((report.get("meta") or {}).get("timed_ops") or [])
+                s, table = check_curve(report, spec, required)
+                out["breaches"] += [f"[curve] {b}" for b in s]
+                out["curve"] = table
+                print(f"curve: {len(required)} ops over {spec['tiers']} -- {len(s)} breach(es)")
+            for key in ([] if (args.ratio or args.curve) and not args.budget else (args.budget or ["search"])):
                 spec = budgets.get(key)
                 if not spec:
                     raise Unevaluable(f"no {key!r} budget in {args.budgets}")

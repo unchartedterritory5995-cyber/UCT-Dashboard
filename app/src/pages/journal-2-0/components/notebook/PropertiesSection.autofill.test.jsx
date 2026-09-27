@@ -168,3 +168,31 @@ describe('PropertiesSection — Suggest values (wave 10, G-165)', () => {
     expect(src).not.toMatch(/method:\s*'(PUT|PATCH|DELETE)'/)
   })
 })
+
+// ⭐ Wave 10 (10D, R-16): an ACCEPTED suggestion is writing help that reached the note —
+// counted as `writing_help_used {action: autofill}`, with no property, value or evidence.
+// A dismissal and a failed save count nothing.
+describe('writing_help_used — an accepted autofill counts itself, and nothing it filled in', () => {
+  const telemetry = () => fetchMock.mock.calls
+    .filter(([u]) => u === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('Accept sends ONE writing_help_used {autofill, property}', async () => {
+    const panel = await openSuggestions()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Accept Thesis Status: Active' }))
+    await waitFor(() => expect(telemetry()).toHaveLength(1))
+    expect(telemetry()).toEqual([
+      { event: 'writing_help_used', props: { action: 'autofill', scope: 'property', replaced: false } },
+    ])
+    expect(JSON.stringify(telemetry())).not.toMatch(/Thesis|active|NVDA|thesis_status/)
+  })
+
+  it('Dismiss and a failed save send nothing', async () => {
+    updateNoteSpy.mockImplementationOnce(() => Promise.reject(new Error('note changed - refresh and retry')))
+    const panel = await openSuggestions()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Accept Review Date: 2026-10-14' }))
+    expect(await screen.findByText('note changed - refresh and retry')).toBeTruthy()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Dismiss Thesis Status' }))
+    expect(telemetry()).toEqual([])
+  })
+})

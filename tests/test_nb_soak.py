@@ -112,12 +112,13 @@ def _sundays(overrides=None):
     return out
 
 
-def _drills(skip_weeks=(), fail_weeks=()):
+def _drills(skip_weeks=(), fail_weeks=(), inconclusive_weeks=()):
     out = []
     for k in range(6):
         if k + 1 in skip_weeks:
             continue
-        word = "FAIL" if k + 1 in fail_weeks else "PASS"
+        word = ("FAIL" if k + 1 in fail_weeks
+                else "INCONCLUSIVE" if k + 1 in inconclusive_weeks else "PASS")
         at = START + dt.timedelta(days=7 * k + 3)
         out.append(f"# auth.db restore drill - {word}\n\n- run at: {at.isoformat(timespec='seconds')}\n")
     return out
@@ -304,13 +305,44 @@ def test_a_rise_in_the_rigs_sync_conflict_count_is_a_fork_too():
     assert f["signals"]["fork_days"] == {t.astimezone(soak.ET).date().isoformat(): 1}
 
 
-@pytest.mark.parametrize("skip,fail_,needle", [
-    ((2,), (), "restore drill week 2: no drill report"),
-    ((), (3,), "restore drill week 3: FAILED and no passing run"),
+@pytest.mark.parametrize("skip,fail_,inconc,needle", [
+    ((2,), (), (), "restore drill week 2: no drill report"),
+    ((), (3,), (), "restore drill week 3: FAILED and no passing run"),
+    ((), (), (4,), "restore drill week 4: INCONCLUSIVE and no passing run"),
 ])
-def test_every_week_needs_a_passing_restore_drill(skip, fail_, needle):
-    word, _, inc = soak.verdict(facts(drill_texts=_drills(skip_weeks=skip, fail_weeks=fail_)))
+def test_every_week_needs_a_passing_restore_drill(skip, fail_, inconc, needle):
+    drills = _drills(skip_weeks=skip, fail_weeks=fail_, inconclusive_weeks=inconc)
+    word, _, inc = soak.verdict(facts(drill_texts=drills))
     assert word == "INCONCLUSIVE" and inc == [needle]
+
+
+def test_an_inconclusive_drill_beside_a_passing_one_leaves_the_week_passed():
+    """A re-run that PASSES after an INCONCLUSIVE one (the unknown resolved) clears the week."""
+    extra = START + dt.timedelta(days=7 * 3 + 5)
+    drills = _drills(inconclusive_weeks=(4,)) + [
+        f"# auth.db restore drill - PASS\n\n- run at: {extra.isoformat(timespec='seconds')}\n"]
+    word, _, inc = soak.verdict(facts(drill_texts=drills))
+    assert not any(r.startswith("restore drill week 4") for r in inc)
+
+
+def test_the_reader_parses_every_headline_word_the_drill_can_write():
+    """⛔ One authority: the words come from the drill's own report map, read from its source.
+
+    `authdb_restore_drill.py` writes `# auth.db restore drill - {word}` from a dict literal keyed by
+    its exit codes. A word added there that `parse_drill` cannot read would make that week's report
+    look ABSENT -- the defect this rail was written for (INCONCLUSIVE, wave 10)."""
+    import ast
+    src = (TOOLS / "authdb_restore_drill.py").read_text(encoding="utf-8")
+    words = set()
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Dict) and node.keys and all(
+                isinstance(k, ast.Name) and k.id in {"PASS", "FAIL", "INCONCLUSIVE"} for k in node.keys):
+            words |= {v.value for v in node.values if isinstance(v, ast.Constant)}
+    assert words >= {"PASS", "FAIL", "INCONCLUSIVE"}, words   # the map was found, not an empty set
+    assert "restore drill - {word}" in src                    # and it is the one the headline uses
+    for w in sorted(words):
+        got = soak.parse_drill(f"# auth.db restore drill - {w}\n\n- run at: 2026-10-04T14:00:23+00:00\n")
+        assert got is not None and got["result"] == w, w
 
 
 def test_an_open_window_is_INCONCLUSIVE_and_says_how_long_is_left():

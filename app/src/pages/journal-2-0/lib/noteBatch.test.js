@@ -566,3 +566,40 @@ describe('R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it fin
     expect(describeBatch(outcome, { earlier: 1 }).message).toBe('Moved 2 notes to the Trash.')
   })
 })
+
+// ⭐ Wave 10 (10D, R-16, study task T5 and export): the bulk door and the selection export
+// door each count themselves ONCE, on success, with an op/format word and counts — never
+// an id, a folder, a tag or a title.
+describe('bulk_used and export_used — the bulk doors count themselves, and nothing else', () => {
+  const telemetry = (fn) => fn.mock.calls
+    .filter(([u]) => u === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('a bulk tag sends ONE bulk_used with the op and two counts', async () => {
+    const fetchFn = answering({ op: 'addTag', results: [
+      { id: 'n1', status: 'changed', updatedAt: T1 }, { id: 'n2', status: 'in_trash' },
+    ] })
+    await runNoteBatch({ ids: ['n1', 'n2'], op: 'addTag', args: { tag: 'my-secret-tag' } })
+    expect(telemetry(fetchFn)).toEqual([{ event: 'bulk_used', props: { op: 'addTag', changed: 1, failed: 1 } }])
+    expect(JSON.stringify(telemetry(fetchFn))).not.toMatch(/secret|n1|n2/)
+  })
+
+  it('a refused batch (the request itself failed) sends nothing', async () => {
+    const fetchFn = answering({ detail: 'nope' }, { ok: false, status: 400 })
+    await expect(runNoteBatch({ ids: ['n1'], op: 'move', args: { folderId: 'f1' } })).rejects.toThrow()
+    expect(telemetry(fetchFn)).toEqual([])
+  })
+
+  it('a selection export sends ONE export_used with the format, the scope and the count', async () => {
+    global.URL.createObjectURL = vi.fn(() => 'blob:mock')
+    global.URL.revokeObjectURL = vi.fn()
+    const fetchFn = vi.fn(async () => ({
+      ok: true, status: 200, blob: async () => new Blob(['zip']),
+      headers: { get: (n) => ({ 'x-export-count': '3', 'content-disposition': 'attachment; filename="s.zip"' })[n.toLowerCase()] ?? null },
+      json: async () => ({ ok: true }),
+    }))
+    vi.stubGlobal('fetch', fetchFn)
+    await exportSelectedNotes(['n1', 'n2', 'n3'], 'json')
+    expect(telemetry(fetchFn)).toEqual([{ event: 'export_used', props: { format: 'json', scope: 'selection', count: 3 } }])
+  })
+})
