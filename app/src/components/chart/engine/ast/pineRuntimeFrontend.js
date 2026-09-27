@@ -637,7 +637,11 @@ const MAX_HISTORY_SLOTS = 512
  *  and fold it, which is the silent-wrong-result shape this whole program exists
  *  to prevent. */
 export function scanMutability(stmts, out) {
-  const acc = out || { mutated: new Set(), persistent: new Set() }
+  // ⭐ `reassigned` is the narrower set: names a `:=` or compound operator WRITES.
+  // `mutated` also holds every `var` name, which is right for the slot decision
+  // (a `var` persists) and wrong for "does its value ever change" — a `var` with a
+  // literal initialiser that nothing reassigns holds that literal on every bar.
+  const acc = out || { mutated: new Set(), persistent: new Set(), reassigned: new Set() }
   for (const st of stmts) {
     const toks = st.header || []
     const first = toks[0]
@@ -649,6 +653,7 @@ export function scanMutability(stmts, out) {
     const walrus = findTop(toks, (t) => isPunct(t, ':='))
     if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
       acc.mutated.add(toks[walrus - 1].value)
+      acc.reassigned.add(toks[walrus - 1].value)
     }
     // ⭐ 2026-09-27 — A COMPOUND ASSIGNMENT IS A REASSIGNMENT. `num += w * v` is
     // desugared to `num := num + (w * v)` at lowering (the `compoundAt` arm), so it
@@ -661,6 +666,7 @@ export function scanMutability(stmts, out) {
     const compound = findTop(toks, isCompoundAssign)
     if (compound > 0 && toks[compound - 1] && toks[compound - 1].kind === 'ident') {
       acc.mutated.add(toks[compound - 1].value)
+      acc.reassigned.add(toks[compound - 1].value)
     }
     if (st.sub && st.sub.length) scanMutability(st.sub, acc)
   }
@@ -2141,7 +2147,11 @@ export function buildRuntimeIr(source, opts = {}) {
     // result to be a compile-time string keeps the honest half of that check
     // (an input default that is only known while the bar runs is not a
     // default) without failing the ordinary case.
-    const loweredDefault = lowerExpr(first, scope)
+    // ⭐ A READ OF A FIXED `var` TEXT (see the `var` branch) is that text.
+    const fixedTextOf = (e) => (e && e.kind === EXPR.READ && slots[e.slot]
+      && typeof slots[e.slot].fixedText === 'string' ? slots[e.slot].fixedText : null)
+    let loweredDefault = lowerExpr(first, scope)
+    if (fixedTextOf(loweredDefault) !== null) loweredDefault = { kind: EXPR.STR, value: fixedTextOf(loweredDefault) }
     if (!loweredDefault || loweredDefault.kind !== EXPR.STR) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${node.name}\` needs a text default that is fixed when the script is `
@@ -2160,7 +2170,16 @@ export function buildRuntimeIr(source, opts = {}) {
       // than silently treated as an empty one, which would refuse every value.
       const v = optArg.value
       if (v && v.type === 'collection' && Array.isArray(v.elements)) {
-        const strs = v.elements.filter((x) => x && x.type === 'string').map((x) => x.value)
+        // ⭐ An element may name a fixed `var` text, read the same way the default is.
+        const textOf = (x) => {
+          if (x && x.type === 'string') return x.value
+          if (x && x.type === 'name') {
+            const s = scope.lookup(x.name)
+            return s !== null && slots[s] && typeof slots[s].fixedText === 'string' ? slots[s].fixedText : null
+          }
+          return null
+        }
+        const strs = v.elements.map(textOf).filter((x) => typeof x === 'string')
         if (strs.length === v.elements.length && strs.length) options = strs
       }
     }
@@ -5452,6 +5471,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
         // which is what makes `s := "cd"` route out of the columnar lane too.
         if (holdsText(value, scope)) slots[slot].text = true
+        // ⭐ A `var` TEXT LITERAL THAT NOTHING REASSIGNS IS A FIXED TEXT. Its
+        // initialiser runs once and no `:=`/compound write names it, so it holds
+        // that literal on every bar — which is what lets it be an input's default
+        // (bollinger-band-width-percentile: `var string txt5point = '…'`, then
+        // `input.string(txt5point, …, [txt2point, txt3point, txt5point])`).
+        // ⛔ Only a literal, only unreassigned — a `var` that any branch writes is
+        // not fixed, and one whose initialiser is an expression is not read here.
+        if (value && value.type === 'string' && typeof value.value === 'string'
+            && !mut.reassigned.has(nameTok.value)) {
+          slots[slot].fixedText = value.value
+        }
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
