@@ -118,7 +118,7 @@ import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -12060,6 +12060,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     if (!v) return null
     if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
+    // ⭐⭐ `l[n]` ON A DRAWING VARIABLE — the handle it held n bars ago. The
+    // corpus writes `sup = line.new(…)` then `line.delete(sup[1])`: one fresh
+    // object per bar, yesterday's removed. See `MAX_HANDLE_BACK`.
+    // ⛔ THE OFFSET MUST BE A WHOLE NUMBER THE TRANSLATION CAN STATE. A literal
+    // is; an expression is resolved and accepted only if it folds to one. An
+    // offset that depends on a live value (an input the member can move) is not
+    // a fixed ring depth, and is dropped and counted rather than guessed.
+    if (v.type === 'offset' && v.arg && v.arg.type === 'name' && regId.has(v.arg.name)) {
+      let n = typeof v.n === 'number' ? v.n : null
+      if (n === null && v.n && typeof v.n === 'object' && v.n.expr) {
+        const folded = canonicalOf(v.n.expr)
+        if (folded && folded.type === 'num') n = folded.value
+      }
+      if (!Number.isInteger(n) || n < 0 || n > MAX_HANDLE_BACK) return null
+      return n === 0
+        ? { r: 'reg', id: regId.get(v.arg.name) }
+        : { r: 'reg', id: regId.get(v.arg.name), back: n }
+    }
     if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
       const cn = v.args[0] && v.args[0].value
       if (cn && cn.type === 'name' && collId.has(cn.name)) {
