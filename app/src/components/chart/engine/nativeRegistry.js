@@ -141,6 +141,12 @@ import {
   AVWAP_ANCHORS,
 } from '../indicators'
 import { serverColumnsFor } from './serverCompute'
+// ⭐⭐ 2026-09-27 — THE RUNTIME LANE'S COMPUTE, for a `compute.kind: 'pine'`
+// document (a member's script the host lane refused and the runtime lane built,
+// behind `VITE_PINE_RUNTIME_LANE_ENABLED`). `pineRuntimeLane.js` is the only
+// live module that imports the lane; this is one of its two callers.
+import { runtimeLaneColumns, RUNTIME_LANE_KIND } from './pineRuntimeLane'
+import { pineRuntimeLaneEnabled } from './pineRuntimeLaneGate'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -1803,6 +1809,18 @@ export function computeFor(def, bars, inputs, ctx) {
   if (def?.compute?.kind === 'ast') {
     return astColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
+  // ⭐⭐ THE RUNTIME LANE (2026-09-27), dispatched on the kind before the native
+  // lookup for the same reason the two lanes above are: its `compute.fn` is a
+  // handle (`pine:<fnv>`), never a native. The script is REBUILT for these bars
+  // and these inputs (`pineRuntimeLane.js` says why a runtime document stores
+  // its source rather than a program), and every failure comes back as a named
+  // column error — never a throw that would take the instance's other plots with
+  // it, and never a blank that reads as data.
+  if (def?.compute?.kind === RUNTIME_LANE_KIND) {
+    const { columns, errors } = runtimeLaneColumns(
+      def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
+    return withColumnErrors(columns, errors)
+  }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
     throw new Error(
@@ -2374,7 +2392,14 @@ export function validateUserDefinitions(rawDefs) {
 
   for (const def of base.defs) {
     const kind = def.compute.kind
-    if (!SUPPORTED_KINDS.includes(kind)) {
+    // ⭐ 2026-09-27 — the runtime lane is supported by THIS BUILD or not at all:
+    // `pine` is admitted only when `VITE_PINE_RUNTIME_LANE_ENABLED` is on, and
+    // otherwise gets exactly the "cannot run it" sentence below — listable,
+    // describable, never rendered. A document minted on an armed build can
+    // therefore never compute on an unarmed one.
+    const supported = SUPPORTED_KINDS.includes(kind)
+      || (kind === RUNTIME_LANE_KIND && pineRuntimeLaneEnabled())
+    if (!supported) {
       errors.push(
         `${def.id}: compute.kind ${JSON.stringify(kind)} is declared but this client cannot run it ` +
         `— it is a DECLARED kind (defSchema.COMPUTE_KINDS) and an UNSUPPORTED one ` +

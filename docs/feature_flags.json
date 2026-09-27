@@ -1536,6 +1536,17 @@
       "last_changed": "2026-09-23T00:00:00Z",
       "note": "May a pane draw a script that has OBJECTS and no screenable column — a fib retracement, an ICT killzone, an HTF footprint. Read in ONE place, app/src/components/chart/engine/objectsOnlyPaneGate.js::objectsOnlyPaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. ⛔ IT IS STILL OFF. Declaring the ARG only makes it POSSIBLE to set; turning it on is a Railway variable plus a rebuild (it is a build constant, so it is a DEPLOY, not a variable change) and an owner decision. ⭐ MEASURED COST OF LEAVING IT OFF: at the member door (memberPaneDefinition, the call MemberPane makes) 29 of 266 committed corpus scripts attach with it off and 52 with it on — 23 scripts, all of them drawing-only indicators, +79%. ⚰️ The reason the rail never caught it: objectsOnlyPaneGate.js late-binds its env source for testability, so the literal `import.meta.env.VITE_...` stopped appearing and tools/vite_flag_index's direct pattern went blind. The index now also reads any VITE_* in a file that mentions import.meta.env."
     },
+    "VITE_PINE_RUNTIME_LANE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken — declared 2026-09-27 on branch pine/runtime-lane-door so it CAN be set; arming it is a Railway variable, a rebuild and an owner decision",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined — the ARG was declared in the same commit that added the read, so there has never been a build in which it could be anything else",
+      "baked_measured_on": "2026-09-27, from Dockerfile.web's ARG list on pine/runtime-lane-door (no deploy has carried it)",
+      "last_changed": "2026-09-27T00:00:00Z",
+      "note": "The runtime lane as a FALLBACK at the member door. When the host lane refuses a script only for limits of its own single-expression value model (pine:state, reassign, block, collection, type, function-def — engine/pineRuntimeLane.js::RUNTIME_FALLBACK_GUARDS, every one proved by a fixture the host refuses and the runtime lane builds), memberPaneDefinition tries the runtime lane and builds a compute.kind 'pine' document that carries the member's SOURCE and is rebuilt per chart. Read through ONE gate, app/src/components/chart/engine/pineRuntimeLaneGate.js::pineRuntimeLaneEnabled, as `=== '1'` (a build with no import.meta.env fails CLOSED), by two callers: the door and nativeRegistry.validateUserDefinitions — so a 'pine' document minted on an armed build cannot compute on an unarmed one. ⛔ The user-definitions store accepts only compute.kind 'ast' (api/services/user_definitions.py::save): with the flag on a runtime-lane pane previews and draws in the builder, and 'Add this script to my chart' is refused by the store's own sentence until the store is widened, which is a separate owner decision. ⭐ Measured cost of leaving it off: 6 committed corpus scripts attach with it on that do not with it off (the census in docs/pine/PARITY-PROGRAMME.md, 2026-09-27)."
+    },
     "VITE_REALTIME_BARS": {
       "status": "dark",
       "where": [

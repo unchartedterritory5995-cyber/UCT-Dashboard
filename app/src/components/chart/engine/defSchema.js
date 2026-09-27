@@ -242,7 +242,13 @@ export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor'
  *  Measured 2026-08-06 (Task 3: repo-wide, zero identifiers, this comment plus
  *  spec §3.1); made real 2026-08-07 by the constant below and its one consumer,
  *  `nativeRegistry.validateUserDefinitions`. */
-export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script'])
+//
+//  ⭐ 2026-09-27 — `pine`: a member's own Pine script, run by the runtime lane
+//  (`engine/pineRuntimeLane.js`). DECLARED here and deliberately NOT in
+//  `SUPPORTED_KINDS`: whether a client runs it is a property of the BUILD
+//  (`VITE_PINE_RUNTIME_LANE_ENABLED`), so `validateUserDefinitions` admits it
+//  only when that flag is on — a static list cannot say "sometimes".
+export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script', 'pine'])
 
 /**
  * The lanes THIS CLIENT CAN EXECUTE — the `supportedKinds` filter, as an
@@ -711,6 +717,7 @@ function validateCompute(compute, errors, inputScope) {
   if (compute.kind === 'ast') {
     validateAstCompute(compute, errors, inputScope)
   } else {
+    if (compute.kind === 'pine') validatePineCompute(compute, errors, inputScope)
     // ⛔ THE MULTI-TREE KEYS BELONG TO THE `ast` LANE ALONE. On any other kind
     // they would be preserved by the unknown-key policy and read by nothing —
     // the accepted-and-ignored shape `plots[].repaint` was refused for.
@@ -720,6 +727,84 @@ function validateCompute(compute, errors, inputScope) {
         `compute.${k}: only an "ast" definition carries it — the tree is the implementation on that ` +
         `lane alone, and kind ${fmt(compute.kind)} names a compute handle, not a tree. Got ${fmt(compute[k])}.`,
       )
+    }
+  }
+}
+
+/**
+ * ⭐⭐ THE `pine` LANE (2026-09-27) — a member's own Pine, recompiled by the
+ * runtime lane (`engine/pineRuntimeLane.js`) for every chart that draws it.
+ *
+ * The document stores the SCRIPT, not a tree: the runtime program is compiled
+ * against the bars and the member's values, so there is no stored artifact that
+ * could be "the maths" the way `compute.ast` is on the `ast` lane. What is stored
+ * is which runtime OUTPUT each plot key reads, and that map is checked here for
+ * shape and against the declared inputs; `validatePineColumnsAgainstPlots`
+ * checks it against the plots, and `runtimeLaneColumns` checks it against the
+ * rebuilt program on every compute (`runtime-door:shape`).
+ *
+ * ⛔ THE FLAG IS NOT THIS VALIDATOR'S. A `pine` document is WELL-FORMED on every
+ * build; whether THIS build may run it is `nativeRegistry.validateUserDefinitions`'
+ * question, answered from `VITE_PINE_RUNTIME_LANE_ENABLED` — "cannot run", never
+ * "malformed", exactly the `script` kind's split.
+ */
+function validatePineCompute(compute, errors, inputScope) {
+  if (!isNonEmptyString(compute.source)) {
+    errors.push(`compute.source: a "pine" definition carries the member's script, got ${fmt(compute.source)}`)
+  }
+  if (!isPlainObject(compute.columns) || !Object.keys(compute.columns).length) {
+    errors.push(`compute.columns: a "pine" definition maps each plot key to a runtime output, got ${fmt(compute.columns)}`)
+  } else {
+    for (const [key, spec] of Object.entries(compute.columns)) {
+      const path = `compute.columns.${key}`
+      if (!isPlainObject(spec) || !Number.isInteger(spec.output) || spec.output < 0
+          || !isNonEmptyString(spec.call)) {
+        errors.push(`${path}: expected {output: integer >= 0, call: string}, got ${fmt(spec)}`)
+        continue
+      }
+      if (spec.line !== undefined && spec.line !== null && !Number.isInteger(spec.line)) {
+        errors.push(`${path}.line: expected an integer line or null, got ${fmt(spec.line)}`)
+      }
+      if (spec.shift !== undefined && (!Number.isInteger(spec.shift) || spec.shift < 0)) {
+        errors.push(`${path}.shift: a rightward displacement is a whole number of bars >= 0, got ${fmt(spec.shift)}`)
+      }
+    }
+  }
+  if (compute.inputs !== undefined) {
+    if (!isPlainObject(compute.inputs)) {
+      errors.push(`compute.inputs: expected an object of input key → Pine name, got ${fmt(compute.inputs)}`)
+    } else {
+      for (const [key, name] of Object.entries(compute.inputs)) {
+        if (!isNonEmptyString(name)) {
+          errors.push(`compute.inputs.${key}: expected the Pine name it sets, got ${fmt(name)}`)
+        } else if (!inputScope || !inputScope[key]) {
+          errors.push(
+            `compute.inputs.${key}: names no declared input — a value the runtime reads that no ` +
+            `control can set is a knob that moves nothing`,
+          )
+        }
+      }
+    }
+  }
+}
+
+/** A `pine` definition's plots and `compute.columns` are ONE key set, in both
+ *  directions — the same rule `validateTreesAgainstPlots` holds for trees. */
+function validatePineColumnsAgainstPlots(compute, plots, errors) {
+  if (!isPlainObject(compute) || compute.kind !== 'pine' || !isPlainObject(compute.columns)) return
+  const dataKeys = plots
+    .filter((p) => isPlainObject(p) && isNonEmptyString(p.key) && p.style !== 'hlines')
+    .map((p) => p.key)
+  const colKeys = Object.keys(compute.columns)
+  for (const k of dataKeys) {
+    if (!colKeys.includes(k)) {
+      errors.push(`plots: data-bearing plot ${fmt(k)} has no entry in compute.columns (${list(colKeys)}) — ` +
+        'a plot no runtime output fills')
+    }
+  }
+  for (const k of colKeys) {
+    if (!dataKeys.includes(k)) {
+      errors.push(`compute.columns.${k}: names no data-bearing plot (plots: ${list(dataKeys) || 'none'})`)
     }
   }
 }
@@ -1708,6 +1793,20 @@ function validateColorModes(plots, columnKeys, errors) {
       return
     }
     if (COLOR_MODES.includes(mode)) return
+    // ⭐⭐ 2026-09-27 — `rgba:<key>`: EACH POINT'S OWN COLOUR, read from a column
+    // of packed Pine colours (`colorInt.js`, `0xTTBBGGRR`) that the runtime lane
+    // computed where the plot stands. It needs no `colorUp`/`colorDown` — the
+    // column IS the colour — only a column to read.
+    if (mode.startsWith('rgba:')) {
+      const col = mode.slice('rgba:'.length)
+      if (!columnKeys.has(col)) {
+        errors.push(
+          `${path}: ${fmt(mode)} references column ${fmt(col)}, which no plot or event declares ` +
+          `(available columns: ${list([...columnKeys]) || 'none'})`,
+        )
+      }
+      return
+    }
     if (!mode.startsWith('column:')) {
       errors.push(
         `${path}: unknown colour mode ${fmt(mode)} — expected one of: ${list(COLOR_MODES)}, ` +
@@ -2233,6 +2332,7 @@ export function validateDefinition(def) {
     validateBandEdges(plots, errors)
     validateFills(plots, errors)
     validateTreesAgainstPlots(out.compute, plots, errors)
+    validatePineColumnsAgainstPlots(out.compute, plots, errors)
     validateObjectProgramField(out, errors)
 
     // A definition with no plots and no events returns no columns: it computes

@@ -32,6 +32,9 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
+import { pineRuntimeLaneEnabled } from '../../engine/pineRuntimeLaneGate'
+import { isRuntimeFallbackGuard } from '../../engine/pineRuntimeLane'
+import { runtimeLaneDefinition } from './runtimeLaneDefinition'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../builderInputs'
@@ -105,7 +108,52 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // the UI layer is what knows how this build was configured.
   const allowObjectsOnly = objectsOnlyPaneEnabled()
   const gate = paneGate(t, { allowObjectsOnly })
-  if (!gate.ok) return no(gate.reason, gate.guard, t)
+  if (!gate.ok) {
+    // ⭐⭐ 2026-09-27 — THE RUNTIME-LANE FALLBACK, and ONLY here: after the host
+    // lane has REFUSED. A script the host lane draws never reaches this line, so a
+    // working host translation can never be swapped for a runtime one.
+    //
+    // ⛔ EVERY host refusal must be one the runtime lane is built to serve, not
+    // just the first — a vocabulary or ruling refusal anywhere in the script
+    // (`pine:function`, `pine:role-order`, …) records that nobody has ruled what a
+    // name means, and a second engine must not route around it.
+    // ⛔ AND THE FLAG IS READ HERE, BEFORE ANY RUNTIME WORK: off, this is exactly
+    // the refusal it always was.
+    if (pineRuntimeLaneEnabled() && runtimeFallbackAdmissible(t, gate)) {
+      const rt = runtimeLaneDefinition({
+        source,
+        id: id || MEMBER_PANE_DEF_PREFIX,
+        name,
+        carryMax: CARRY_MAX,
+        docCarryMax: DOC_CARRY_MAX,
+        paneHeight: MEMBER_PANE_HEIGHT,
+      })
+      if (rt.ok) {
+        return {
+          ok: true,
+          definition: rt.definition,
+          reason: null,
+          guard: null,
+          translation: t,
+          rows: rt.rows,
+          notes: rt.notes,
+          requirementTags: rt.requirementTags,
+          lane: 'runtime',
+          hostRefusal: { guard: gate.guard, reason: gate.reason },
+        }
+      }
+      // ⭐ BOTH ENGINES SAID NO, AND THE MEMBER IS TOLD BOTH. The host sentence
+      // alone would describe a limit the runtime lane does not have; the
+      // runtime's alone would hide why the first engine declined.
+      return {
+        ...no(`${gate.reason} — and this chart's second engine, which does handle that, `
+          + `stopped too${Number.isInteger(rt.line) ? ` at line ${rt.line}` : ''}: ${rt.reason}`,
+        gate.guard, t),
+        runtimeRefusal: { guard: rt.guard, reason: rt.reason, line: rt.line ?? null },
+      }
+    }
+    return no(gate.reason, gate.guard, t)
+  }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
   // script that ALSO plots reaches here with the same loss, and its plots are
@@ -627,6 +675,19 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
  *  to `BUILDER_INPUTS` for a falsy list, so passing `[]` and passing nothing are
  *  the same thing — said out loud here so the next reader does not "fix" it.
  */
+/** May the runtime lane answer for a script the host lane refused?
+ *
+ *  ⭐ Only when the pane's refusal AND every refusal the host translation
+ *  carries are guards the runtime lane is built to serve. A script the host
+ *  refused for a lost drawing removal (`pine:object-removal-lost`) is not one:
+ *  that is the partial-drawing rule, not a value-model limit. */
+function runtimeFallbackAdmissible(t, gate) {
+  if (!isRuntimeFallbackGuard(gate.guard)) return false
+  const guards = [(t && t.refusal) || null, ...((t && t.refusals) || [])]
+    .filter(Boolean).map((r) => r.guard)
+  return guards.length > 0 && guards.every(isRuntimeFallbackGuard)
+}
+
 /** ⭐⭐ THE KNOBS THE OBJECT PROGRAM READS, ADDED TO THE ROWS' KNOBS.
  *
  *  ⚰️ `memberInputSpecs` takes the specs off the DRAWN rows only — right for a
