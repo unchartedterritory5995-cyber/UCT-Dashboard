@@ -808,7 +808,12 @@ def _table(node: dict[str, Any], resolver=None) -> str:
         row is not header cells gets a BLANK header row instead of silently
         promoting its first data row to one;
       - a column's alignment (the cell `align` attr the table extension stores)
-        becomes the delimiter row's `:---` / `:---:` / `---:`.
+        becomes the delimiter row's `:---` / `:---:` / `---:`;
+      - column widths (the cells' `colwidth`, set by resizing a column in the
+        editor, wave 10) are DROPPED, deliberately: GFM has no way to say how
+        wide a column is, so the table exports exactly as it would unsized.
+        The words are all kept; only the layout hint is lost
+        (`tests/test_notebook_table_colwidth.py`).
     """
     rows: list[list[str]] = []
     aligns: list[str | None] = []

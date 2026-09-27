@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import TextPagesViewer from './TextPagesViewer'
 import {
-  DOCUMENT_KIND_DOCX, DOCUMENT_KIND_IMAGE, DOCUMENT_KIND_PDF,
+  DOCUMENT_KIND_DOCX, DOCUMENT_KIND_IMAGE, DOCUMENT_KIND_PDF, DOCUMENT_KIND_XLSX,
   documentKindFromHref, parseAttachmentHref,
 } from './documentKind'
 
@@ -19,6 +19,7 @@ import {
 const PDF = '/api/j2/notes/attachments/u1/n1/file/abc123.pdf'
 const IMG = '/api/j2/notes/attachments/u1/n1/inline/0123456789abcdef0123456789abcdef.png'
 const DOCX = '/api/j2/notes/attachments/u1/n1/file/fedcba9876543210.docx'
+const XLSX = '/api/j2/notes/attachments/u1/n1/file/fedcba9876543210_trades.xlsx'
 
 vi.mock('./PdfDocumentViewer', () => ({
   default: () => <div data-testid="pdf-viewer-stub" />,
@@ -162,5 +163,43 @@ describe('DocumentPreviewSheet — a .docx document', () => {
     render(<DocumentPreviewSheet open href={DOCX} documentId="dx" onClose={vi.fn()} />)
     expect(await screen.findByText('This document couldn’t be read, so its text isn’t searchable.'))
       .toBeInTheDocument()
+  })
+})
+
+// Wave 10 lane 10B — G-160: a spreadsheet opens as its cell text, like a docx,
+// and says what that text is (cell values; a formula is its last value).
+describe('DocumentPreviewSheet — an .xlsx document (wave 10, G-160)', () => {
+  const xlsxRow = row({ id: 'dxl', attachmentUrl: XLSX, name: 'trades.xlsx', pageCount: 2,
+                        pagesTotal: 2, pagesWithText: 2, pagesFromOcr: 0 })
+  const pages = { 1: 'Sheet: Trades\nSym\tPrice\nNVDA\t120.5', 2: 'Sheet: Notes\nThe thesis' }
+
+  it('the URL names the kind: .xlsx under file/ is a spreadsheet, not a PDF', () => {
+    expect(documentKindFromHref(XLSX)).toBe(DOCUMENT_KIND_XLSX)
+    expect(documentKindFromHref(XLSX.replace('.xlsx', '.XLSX'))).toBe(DOCUMENT_KIND_XLSX)
+    // an .xlsx name under inline/ is not a document the server ever made
+    expect(documentKindFromHref(XLSX.replace('/file/', '/inline/'))).toBe(DOCUMENT_KIND_PDF)
+  })
+
+  it('opens as page-numbered cell text on the page the hit named — never the PDF viewer', async () => {
+    serve({ docs: [xlsxRow], pages })
+    render(<DocumentPreviewSheet open href={XLSX} name="trades.xlsx" page={2} documentId="dxl" onClose={vi.fn()} />)
+    expect(await screen.findByText('Page 2 of 2')).toBeInTheDocument()
+    expect(await screen.findByTestId('text-page-body')).toHaveTextContent('Sheet: Notes')
+    expect(screen.queryByTestId('pdf-viewer-stub')).not.toBeInTheDocument()
+  })
+
+  it('says the page is cell values and a formula is the value it last calculated', async () => {
+    serve({ docs: [xlsxRow], pages })
+    render(<DocumentPreviewSheet open href={XLSX} name="trades.xlsx" page={1} documentId="dxl" onClose={vi.fn()} />)
+    expect(await screen.findByText(/cell values, sheet by sheet/)).toBeInTheDocument()
+    expect(screen.getByText(/A formula shows the value it last calculated\./)).toBeInTheDocument()
+  })
+
+  it('CONTROL: a docx still reads as a document, not a spreadsheet', async () => {
+    serve({ docs: [row({ id: 'dx', attachmentUrl: DOCX, name: 'memo.docx', pagesTotal: 1, pagesFromOcr: 0 })],
+      pages: { 1: 'memo words' } })
+    render(<DocumentPreviewSheet open href={DOCX} name="memo.docx" page={1} documentId="dx" onClose={vi.fn()} />)
+    expect(await screen.findByText(/The document’s text, without its formatting/)).toBeInTheDocument()
+    expect(screen.queryByText(/cell values/)).not.toBeInTheDocument()
   })
 })

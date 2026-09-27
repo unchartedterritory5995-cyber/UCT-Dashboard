@@ -3,10 +3,13 @@
 // any of the auto-detect/preview/re-import machinery can help them, and
 // nothing else in the product says how. This is that "how".
 //
-// Every click-path, format choice and gotcha below was checked against each
-// vendor's OWN current help docs (not written from memory) — see the sources
-// named in .superpowers/sdd/2026-09-02-transfer-gap/task-1-report.md, since a
-// vendor UI can move and this file won't notice.
+// Every click-path, format choice and gotcha for Notion / Obsidian / Evernote
+// was checked against each vendor's OWN current help docs (not written from
+// memory) — see the sources named in
+// .superpowers/sdd/2026-09-02-transfer-gap/task-1-report.md, since a vendor UI
+// can move and this file won't notice. ⚠️ The seven tools wave 10 added
+// (R-18) name their sources in `lib/importer/census.js`, and NOT all of those
+// are the vendor's own pages — that file says which are third-party.
 //
 // ⛔⛔ The "one-time import, not an ongoing connection" line on Evernote is a
 // DECISION, re-verified 2026-09-04 against Evernote's live developer docs
@@ -45,43 +48,13 @@
 import { useState } from 'react'
 import UIcon from '../../../../../components/ui/UIcon'
 import styles from './ExportGuide.module.css'
+import { IMPORT_CENSUS } from '../../../lib/importer/census'
 
-const PLATFORMS = [
-  {
-    id: 'notion',
-    label: 'Notion',
-    icon: 'document',
-    where: [
-      'Whole workspace: Settings → General (under Workspace) → Export all workspace content.',
-      'Just one page: open it, then the ••• menu at the top → Export.',
-    ],
-    format: 'Choose "Markdown & CSV" — it converts the cleanest here. Skip "HTML".',
-    watch:
-      "Notion emails you a download link instead of starting the download right away — for a big workspace that can take a while, and it may split into several zip files. Grab every part before you import, or you'll be missing notes with no warning that anything's gone. Also: any database/table over 50 rows won't come across — split it or trim it first.",
-  },
-  {
-    id: 'obsidian',
-    label: 'Obsidian',
-    icon: 'library',
-    where: [
-      "Good news: there's no export step. Your vault is already a plain folder of Markdown files sitting on your computer.",
-    ],
-    format: "Nothing to pick — it's already Markdown.",
-    watch:
-      'Use "Choose a folder" below and point it at the top of the vault, not a subfolder, so nothing gets left out. A hidden ".obsidian" folder comes along for the ride — that\'s fine, we skip it automatically.',
-  },
-  {
-    id: 'evernote',
-    label: 'Evernote',
-    icon: 'book',
-    where: [
-      'Open the Evernote app on a Mac or PC (not evernote.com in a browser) — right-click a notebook (or select up to 100 notes) → Export…',
-    ],
-    format: 'Choose ENEX (.enex) — the only format we read, and it\'s Evernote\'s own native one, so nothing is lost.',
-    watch:
-      "Evernote exports one notebook at a time, so several notebooks means several .enex files — that's fine, drop them all in together and we treat it as one import. Exporting only works from the desktop app, not the web version. And this is a one-time import, not an ongoing connection: Evernote has no \"keep syncing automatically\" option here (unlike Notion or Obsidian above) because its platform doesn't yet offer a reliable way to do that — when you add or change notes in Evernote later, just export and drop the file in again.",
-  },
-]
+// Wave 10 (R-18): the platforms are the import census -- one list, read by
+// this guide AND by `lib/importer/census.test.js`, which imports each tool's
+// fixture through the real pipeline. The copy for the seven wave-10 tools and
+// its sources live beside the list in `census.js`.
+const PLATFORMS = IMPORT_CENSUS
 
 export default function ExportGuide() {
   const [openId, setOpenId] = useState(null)

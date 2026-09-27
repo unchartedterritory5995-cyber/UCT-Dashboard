@@ -62,6 +62,20 @@
   color: var(--ut-gold);
 }
 
+/* Wave 10 (9b): every colour the canvas paints, as a theme token. NoteGraphView
+   reads each `.ink*` element's computed `color` (never shown), so the graph
+   follows dark, oled and light, and a11y/contrastAudit.js `graphInkRows`
+   measures each one against `.canvasWrap`'s background: 3:1 for the marks,
+   4.5:1 for the hub labels (small text). */
+.inks { display: none; }
+.inkNode { color: var(--info); }
+.inkOrphan { color: var(--text-muted); }
+.inkHover { color: var(--ut-gold); }
+.inkLabel { color: var(--text-muted); }
+.inkLabelHover { color: var(--text-bright); }
+.inkEdge { color: var(--text-muted); }
+.inkEdgeLit { color: var(--ut-gold); }
+
 /* The wrapper clips (overflow: hidden) and the canvas fills it, so the global
    :focus-visible outline -- drawn 2px OUTSIDE the element -- would be cut off.
    Draw it inside instead. */

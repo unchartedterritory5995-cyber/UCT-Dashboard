@@ -1,0 +1,2 @@
+- Volume at least 1.5x average
+- Close in the top third of the range

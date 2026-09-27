@@ -111,7 +111,13 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // G-035: NotebookPlaceholder, not the stock @tiptap/extension-placeholder --
     // see the header comment on notebookPlaceholder.js for the measured reason.
     NotebookPlaceholder.configure({ placeholder }),
-    Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
+    // Wave 10 (G-134): columns resize by dragging their edge (prosemirror-tables'
+    // column resizing -- mouse only; the table toolbar's Wider / Narrower is the
+    // keyboard and touch door to the same width). The width is the cells'
+    // `colwidth` attribute, which this extension has always declared and every
+    // stored cell already carries (as null) -- a value change, not a new schema
+    // type (lib/tableTools.js says why). A read-only editor gets no handles.
+    Table.configure({ resizable: true }), TableRow, TableHeader, TableCell,
     TaskList, TaskItem.configure({ nested: true }),
     AttachmentChip,
     SlashMenuExtension,

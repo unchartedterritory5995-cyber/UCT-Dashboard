@@ -16,11 +16,16 @@
 export const DOCUMENT_KIND_PDF = 'pdf'
 export const DOCUMENT_KIND_IMAGE = 'image'
 export const DOCUMENT_KIND_DOCX = 'docx'
+// Wave 10 (G-160): a spreadsheet opens as its cell text, page by page -- the
+// docx viewer's shape. The server creates an xlsx row only for a URL that
+// really ends in `.xlsx` (`document_extraction.on_attachment_saved`).
+export const DOCUMENT_KIND_XLSX = 'xlsx'
 
 // Byte-identical in shape to the server's `notes_export._ATTACHMENT_URL_RE`.
 const ATTACHMENT_HREF_RE = /^\/api\/j2\/notes\/attachments\/([^/]+)\/([^/]+)\/(hero|inline|file)\/([^/?#]+)$/
 const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp)$/i
 const DOCX_EXT_RE = /\.docx$/i
+const XLSX_EXT_RE = /\.xlsx$/i
 
 /** `{userId, noteId, sub, filename}` for an authenticated attachment URL, or null. */
 export function parseAttachmentHref(href) {
@@ -36,6 +41,7 @@ export function documentKindFromHref(href) {
   if (!p) return DOCUMENT_KIND_PDF
   if (p.sub === 'inline' && IMAGE_EXT_RE.test(p.filename)) return DOCUMENT_KIND_IMAGE
   if (p.sub === 'file' && DOCX_EXT_RE.test(p.filename)) return DOCUMENT_KIND_DOCX
+  if (p.sub === 'file' && XLSX_EXT_RE.test(p.filename)) return DOCUMENT_KIND_XLSX
   return DOCUMENT_KIND_PDF
 }
 

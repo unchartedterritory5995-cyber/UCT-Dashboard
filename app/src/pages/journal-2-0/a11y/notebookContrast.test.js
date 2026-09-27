@@ -37,7 +37,7 @@ describe('Notebook colour contrast, all three themes', () => {
   it('non-vacuity: the audit reads the stylesheets and finds pairs of every kind', () => {
     expect(files.length).toBeGreaterThan(40)
     expect(measured.length).toBeGreaterThan(300)
-    for (const kind of ['text', 'ui-focus', 'ui-input-border', 'ui-graph-ring']) {
+    for (const kind of ['text', 'ui-focus', 'ui-input-border', 'ui-graph-ring', 'ui-graph-ink', 'text-graph-label']) {
       expect(measured.some((r) => r.kind === kind), kind).toBe(true)
     }
     expect(rows.some((r) => r.kind === 'keyword'), 'keyword colours are counted, not dropped').toBe(true)
@@ -53,6 +53,24 @@ describe('Notebook colour contrast, all three themes', () => {
     // a chain resolves; an unknown token throws BY NAME
     expect(resolveVars('var(--color-danger)', vars.dark)).toBe(resolveVars('var(--loss)', vars.dark))
     expect(() => resolveVars('var(--no-such-token-8a)', vars.dark)).toThrow('--no-such-token-8a')
+  })
+
+  // Wave 10 (9b): every colour the graph canvas paints is a stylesheet ink,
+  // measured against the canvas surface in all three themes -- one row per ink
+  // the COMPONENT reads (GRAPH_INKS), none missing, none extra.
+  it('every graph ink the canvas reads is measured, in every theme', async () => {
+    const { GRAPH_INKS } = await import('../components/notebook/NoteGraphView')
+    const inkRows = measured.filter((r) => r.kind === 'ui-graph-ink' || r.kind === 'text-graph-label')
+    const measuredInks = inkRows.map((r) => r.selector.split(' ')[0]).sort()
+    const expected = GRAPH_INKS.map((n) => `.ink${n[0].toUpperCase()}${n.slice(1)}`).sort()
+    expect(measuredInks).toEqual(expected)
+    for (const r of inkRows) {
+      for (const theme of THEMES) {
+        expect(r.themes[theme]?.ratio, `${r.selector} @${theme}`).toBeGreaterThanOrEqual(r.themes[theme].bar)
+      }
+    }
+    // the hub labels are TEXT and held to the text bar
+    expect(inkRows.find((r) => r.selector.startsWith('.inkLabel '))?.themes.light.bar).toBe(4.5)
   })
 
   it('no literal colour on `color:` in Notebook CSS (G-104: zero remain -- proved here)', () => {

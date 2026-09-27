@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ExportGuide from './ExportGuide'
+import { R18_TOOLS } from '../../../lib/importer/census'
 
 describe('ExportGuide', () => {
   it('gives a real click-path for Notion, not a vague pointer', () => {
@@ -38,11 +39,25 @@ describe('ExportGuide', () => {
     expect(screen.getAllByText(/folder/i).length).toBeGreaterThan(0)
   })
 
-  it('covers all three platforms we name on the empty state', () => {
+  // Wave 10 (R-18): the guide renders the import census, so every tool on the
+  // ruling's list has a tab a member can open -- named, not counted.
+  it('offers a tab for every tool on the R-18 list, in its order', () => {
     render(<ExportGuide />)
-    for (const p of [/notion/i, /obsidian/i, /evernote/i]) {
-      expect(screen.getByRole('button', { name: p })).toBeInTheDocument()
-    }
+    expect(screen.getAllByRole('button').map((b) => b.textContent.trim())).toEqual(R18_TOOLS)
+  })
+
+  it('gives Google Keep its Takeout path and says the trash is skipped', () => {
+    render(<ExportGuide />)
+    fireEvent.click(screen.getByRole('button', { name: 'Google Keep' }))
+    expect(screen.getByText(/takeout\.google\.com/)).toBeInTheDocument()
+    expect(screen.getByText(/trash — we skip those and tell you how many/)).toBeInTheDocument()
+  })
+
+  it('names the exact Word export for OneNote, and what Word does not carry', () => {
+    render(<ExportGuide />)
+    fireEvent.click(screen.getByRole('button', { name: 'OneNote' }))
+    expect(screen.getByText(/File → Export → choose Page or Section → Word Document \(\*\.docx\)/)).toBeInTheDocument()
+    expect(screen.getByText(/attached files and links between OneNote pages don't survive/)).toBeInTheDocument()
   })
 
   it('is collapsed by default — no platform detail shown until one is picked', () => {

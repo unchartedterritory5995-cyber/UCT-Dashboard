@@ -151,6 +151,84 @@
   margin-top: 4px;
 }
 
+/* Wave 10 (G-165): Compass's suggested values. Set apart from the rows above
+   (these are NOT the note's values yet), each labelled as a suggestion. */
+.suggestPanel {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-accent);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+}
+.suggestHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.suggestSource {
+  font-size: 11px;
+  color: var(--ut-gold);
+}
+.suggestNote {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.suggestList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.suggestRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.suggestName {
+  flex: 0 0 140px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.suggestValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.suggestEvidence {
+  flex: 1 1 100%;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+}
+.suggestActions {
+  display: inline-flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.suggestBtn {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 12px;
+  background: none;
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.suggestBtn:hover:not(:disabled) {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+.suggestBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ⛔⛔ WAVE P5 — THE TOUCH FLOOR, AND IT IS ≤1024 NOT ≤640.
    Measured on the P5 mobile flagship at 390x844: setting Research Type is a
    REQUIRED step of the thesis journey (it is what grows the evidence section
@@ -175,6 +253,11 @@
   .addLink,
   .multiSelectOption {
     min-height: var(--tap-min, 44px);
+  }
+  /* Wave 10 (G-165): Accept / Dismiss / Close are finger targets on BOTH axes. */
+  .suggestBtn {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
   }
   /* A native checkbox draws its glyph in the CONTENT box, so padding buys a
      real 44px hit area without a 44px-wide tick. `content-box` is what keeps
