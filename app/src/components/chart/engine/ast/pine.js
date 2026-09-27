@@ -4463,6 +4463,39 @@ function declaredInputNames(node, out = new Set()) {
   return out
 }
 
+/** ⭐⭐ IS EVERY VALUE THIS CANONICAL TREE CAN TAKE A WHOLE NUMBER OR `na`?
+ *
+ *  The question `int(x)` needs answered, and it is a TYPE question, not a
+ *  value one: Pine's `int()` of an int-typed series is the identity, and of
+ *  `na` is `na`, on every bar. So `int(cond ? bar_index - 5 : na)` — how
+ *  `contraction-box-doji-lines` writes a box's left edge — is exactly its
+ *  argument, with no rounding rule to rule on (see the `int` fold for why the
+ *  FRACTIONAL case still refuses).
+ *
+ *  ⛔ AN ALLOWLIST OF SHAPES THAT ARE WHOLE BY CONSTRUCTION: integer literals,
+ *  `na` (`0/0`), the bar-index clocks, `+ - *` of wholes, a ternary whose two
+ *  arms are whole, and `round`/`floor`/`ceil`, which return whole numbers or
+ *  `na` by definition. Anything else — a division, a price, a user series — is
+ *  not proven whole and answers false, so the refusal stands. */
+export function wholeValued(node, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 64) return false
+  if (node.type === 'num') return Number.isInteger(node.value)
+  if (node.type === 'series') return node.name === 'barindex' || node.name === 'lastbarindex'
+  if (node.type === 'call') {
+    return ['round', 'floor', 'ceil'].includes(node.name) && (node.args || []).length === 1
+  }
+  if (node.type !== 'op') return false
+  const a = node.args || []
+  if (node.name === '/' && a.length === 2 && a[0] && a[1] && a[0].type === 'num'
+    && a[1].type === 'num' && a[0].value === 0 && a[1].value === 0) return true   // na
+  if (['+', '-', '*'].includes(node.name) && a.length === 2) {
+    return wholeValued(a[0], depth + 1) && wholeValued(a[1], depth + 1)
+  }
+  if (node.name === 'u-' && a.length === 1) return wholeValued(a[0], depth + 1)
+  if (node.name === '?:' && a.length === 3) return wholeValued(a[1], depth + 1) && wholeValued(a[2], depth + 1)
+  return false
+}
+
 function foldWindow(node) {
   const v = constantValueOf(node)
   if (v === null || !Number.isInteger(v) || v < 0) return node
@@ -7379,6 +7412,9 @@ export class Resolver {
       const inner = this.resolve(node.args[0].value)
       const folded = foldWindow(inner)
       if (folded && folded.type === 'num' && Number.isInteger(folded.value)) return folded
+      // ⭐ AN ARGUMENT THAT IS WHOLE (OR `na`) ON EVERY BAR IS ITS OWN `int`.
+      // See `wholeValued`: no rounding rule is involved, so none is invented.
+      if (wholeValued(inner)) return inner
       throw new PineRefusal('pine:function',
         `${REFUSALS['pine:function']} — \`int\` is only taken here when its argument `
         + 'already reduces to a whole number, and this one does not. TradingView does '
