@@ -20,6 +20,103 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
+
+> Base `0a16dd9ab` (`pine/object-pass-integrated`). Door = `memberPaneDefinition` over the
+> 266 committed scripts, objects-only flag off/on. Census tool (opt-in, committed):
+> `app/src/components/chart/builder/memberPane/vocabularyWalls.census.measure.test.js`
+> (`VOCAB_CENSUS=1`). Capture queue: `docs/pine/capture-queue-2026-09-27.md`.
+
+**How "last wall" was measured.** For every script the door refuses with a vocabulary
+guard (`pine:function` 7 · `pine:builtin` 6 · `pine:input-kind` 2 · `pine:arity` 1 = **16
+scripts**, identical flag off and on), the refused name was replaced — every occurrence —
+by a correct-TYPE value (`time(...)` → `time`, `ta.nvi` → `close`, `syminfo.mintick` →
+`0.01`, …) and the door re-run until it attached or met a non-vocabulary wall. Never by
+deleting a binding line (that removes a name and manufactures `pine:undefined`). The chain
+is identical flag off and on for all 16.
+
+**The result, measured: only FOUR scripts have a vocabulary name as their last wall, and
+every one of the four is held by a RULING or an unmeasured semantics, not by a missing
+table row.**
+
+| name / form (first site) | first wall of | inside (masked) | LAST wall of | class | built? | evidence |
+|---|---:|---:|---:|---|---|---|
+| `time(tf, session[, tz])` (`opening-range…4a7416ab01:12`, `session-highs…c0ca8cf749:49`) | 2 | 0 | **1** (`opening-range-initial-balance-opening-price`) | C | no | 5m only (`r11-time-session…`); 1D unread → probe `vw-time-session` |
+| `input.time` (`session-hilo…WM2g5GtC4h:44`, `open-interest-profile…875691ab51:85`) | 2 | 0 | **1** (`session-hilo`) | B, **ruled** | no | ruling: `pine:input-kind` "under the threshold"; value confirm in `vw-time-tf` T16 |
+| `ta.nvi` + `ta.pvi` (`smart-money-interest-index…:13-14`, `smart-money-volume-index…:17-18`) | 2 | 0 | **2, jointly** (neither alone) | C, **ruled** | no | nvi seed on disk; pvi unread; `_functions_excluded.nvi/.pvi` refuses the fetch-dependent level → probe `vw-nvi-pvi` |
+| `time(<tf ≠ D>)` (`smart-money-concepts…:250`, `zigzag-ma…1302:24`, + 4 inside) | 2 | 4 | 0 (→ `pine:reassign`, `pine:request`) | A for W on 1D, C otherwise | no (needs a new clock column, both lanes) | `r11-time-tf…` (W, 610 bars, summary only) → probe `vw-time-tf` |
+| `syminfo.mintick` (`chart-champions…:73`, `renko…:40`) | 2 | 2 | 0 (→ `pine:state` ×2) | C (data) | no | `symbolScope.json::unserved` → probe `vw-mintick` |
+| `barstate.isnew` (`liquidity-engulfing…:24`, `smart-money-volume-activity…:81`) | 2 | 0 | 0 (→ `pine:request`, `pine:reassign`) | A, **ruled** | no | `barstate-full-spy-1d-closed-2026-09-10.json`: 1 on history, 0 on the newest closed bar; `_barstate.refused.isnew` |
+| `ta.vwap(src)` / v4 `vwap(src)` (`cpr…:205`, `camarilla…:313-316`, `rsi-vwap…:21`) | 1 | 2 | 0 (→ `pine:state`) | **A** for `hlc3` | **yes — `hlc3` only** | `groupb-round-max-vwap…`: `vwap(hlc3) − vwap` all 0 over 40 bars; `vwap(close)` is a different column and still refuses |
+| `year/month/dayofmonth(time)` (`initial-balance…M0u1uaug4Q:113`) | 1 | 0 | 0 (→ `time(session)`) | **B** | **yes** (+ `dayofweek`, `hour`, `minute`) | Pine reference: `year(time)` with no zone IS bare `year` (exchange zone, measured by `r11-nine-safe`); confirm probe `vw-clock-vwap` |
+| `timeframe.in_seconds(<non-literal>)` (`multiple-mtf…aArjfk9ShG:177`) | 1 | 0 | 0 (→ `pine:state`) | B for a literal (already served) | — | the literal form folds today; `vw-time-tf` T10–T15 confirm per code |
+| `int(<fractional>)` (`smarter-snr…:75`, `atr-god…:148`) | 1 | 1 | 0 (→ `pine:window`) | C | no | the `int` branch's own refusal; probe `vw-int-cast` |
+| `str.length(<non-literal>)` (`renko…:26`) | 0 (2nd) | — | 0 | C (text) | no | — |
+| `chart.right_visible_bar_time` (`open-interest-profile…:88`) | 0 (2nd) | — | 0 (→ no-output) | never matchable statically (viewport) | no | — |
+| `ta.alma` (`delta-volume-candles-lucf…:296,300`) | 0 | 1 (`pine:module`) | 0 | B | no (new table fn, zero unlock) | probe `vw-alma` |
+| bare `alma` (`highlow-channel-swing…:30`, `relative-volume…:71`) | 0 | 2 | 0 | **vendor REFUSES** | **must never be added** | `r11-alma-spy-2026-09-11.json` |
+| `ta.barssince(cond)` 1-arg unbounded · bare `barssince` 1-arg | 0 | 3 | 0 | ruled (unbounded; `r11-barssince…`) | no | — |
+| library / UDT names (`zen.`, `mymas.`, `pc.`, `PCvc.`, `kernels.`, `LucfTa.`, `breakout` arity, `input.enum`, `chart.bars/leftBarIndex/rightBarIndex`) | 0 | 11 | 0 | not vocabulary (Group C) | no | `r11-vocabulary-gap.md` |
+
+**Door counts, measured with `partialDrawing.census.measure.test.js` before and after:**
+flag off **34 → 34**, flag on **54 → 54**. **No script newly attaches** — the expected
+answer, since no last wall was an A/B name. One wall MOVED: `initial-balance-ib-and-
+previous-day-week-high-low-close` now refuses on the `time(<session>)` session clock
+instead of on `year(time)` (both flags). `pineTimenowAccept.test.js` records the move.
+
+**What shipped (the two names are IDENTITIES onto columns the engine already carries — no
+table name, no Python lane, no frozen digest moved — plus one guard their first consequence
+needed):**
+1. `ta.vwap(hlc3)` / `vwap(hlc3)` / the spelled-out `(high + low + close) / 3` → `vwap()`.
+   Any other source still refuses (`pine:arity`), now saying it is a different column and
+   naming `ta.vwap(hlc3)`. `ta.vwap(src, anchor)` unchanged.
+   ⚠️ An `input.source` DEFAULTING to `hlc3` translates too — the same behaviour
+   `sourceMustBe` already has for `ta.cci`/`ta.mfi`: an edit to another source is a
+   re-translation, which then refuses.
+2. `year|month|dayofmonth|dayofweek|hour|minute(time)` → the bare field, for a VERSIONED
+   script (whose `time` is `time * 1000`; recognised by identity with
+   `PINE_CLOCK_TRANSFORM.time()`). `time[1]`, a computed timestamp, a zone string and a
+   versionless script still refuse. `dayofweek(timenow)` refuses (no `lastbardayofweek`).
+3. **`pine:budget` — screener lane only.** Once `ta.vwap(hlc3)` translated,
+   `26-spy-to-es-qqq-to-nq` (community fixtures, non-strict) offered `sma(vwap(), 3)`, which
+   the budget refuses ("nothing can be wrapped around" the session-long `vwap()`): a
+   translation `doorScorecard` rightly calls unsaveable. The translate door now refuses a
+   column whose tree `checkBudget` rejects for `budget:lookback` AND that contains a
+   session-anchored call, in the budget's own sentence, on the SCREENER lane only.
+   ⚰️ **A blanket version was built first and measured wrong:** on the member door it
+   detached `volume-spikes-growing-volume-signals-with-alerts-scanner` (lookback 1000 > 960)
+   and `liquidity-pools__fa7b28e733` — the chart pane does not save under that budget, so
+   refusing there was an over-refusal. Narrowed to one cause and one lane; measured reach over
+   `pine`, `pine_community`, `pine_oos` and the 266, both lanes: script 26 only.
+   ⚰️ **And a second over-reach, caught by the suite:** measuring every screener tree
+   turned four trees the budget cannot MEASURE (a folded zero window — the C10 seam) into
+   `pine:statement` refusals. The session test now runs first and the measure is guarded;
+   an unmeasurable tree keeps meeting the engine's own refusal later, as before.
+   `REFUSALS` grows 43 → 44 (`symbolRosterSpeaks` re-pinned, with the reason).
+   `pine.guardCensus`: `pine:arity` joins the unexercised list (its only corpus firing was
+   that `ta.vwap(input_vwap_source)`), `pine:budget` is exercised.
+
+Rail: `app/src/components/chart/engine/ast/pineVocabularyWave.test.js` (12 tests; the vwap
+half READS the capture and asserts both its zero and its non-zero control). Mutation-proved
+8 ways, each red, restored from captured bytes and sha256-verified, unmutated control green:
+bar-time branch dead (1 red) · any argument accepted as bar time (3) · vwap accepts any
+source (1) · vwap branch removed (2) · the refusal gate forgets `dayofweek` (2) · budget check
+removed (1) · budget check on the host lane too (1) · budget check not narrowed to a session
+anchor (1).
+
+**Open, for the owner — each is a ruling, not a build:**
+1. `time(<session>)` on a daily bar — the refusal says "this engine screens daily bars,
+   where there is no inside to be in". Whether TradingView agrees is unread (probe #1). It
+   is the sole last wall of one script.
+2. `input.time` — sole last wall of `session-hilo`; blocked by the input-kind threshold
+   ruling, not by semantics.
+3. `ta.nvi`/`ta.pvi` — the fetch-dependence ruling; probe #3 turns its premise into a
+   measurement (two depths, same dates).
+4. `barstate.isnew` — the capture on disk already says TradingView answers 1 on every
+   historical bar and 0 on the newest closed bar; the ruling refuses on per-tick grounds.
+
+---
+
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
 
 > `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on
