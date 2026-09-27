@@ -132,6 +132,36 @@ class R2ObjectStore:
         return self.client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
 
 
+# ⛔ THE OFF-SITE PUT IS ON THE ADMIN-DELETE REQUEST PATH, SO IT IS BOUNDED (wave 10 10C
+# fix round 1 item 3; CLAUDE.md "any NEW blocking external call on the request path MUST
+# have a timeout"). `data_sync._client()` is built with the SDK's defaults (60 s reads,
+# several retries), which let one hung bucket pin a threadpool worker for minutes; that
+# shared client is left exactly as other callers rely on it, and this call gets its own.
+# Worst case ~ TOTAL_ATTEMPTS x (CONNECT + READ) plus the SDK's short backoff; a put that
+# does not land in time leaves the tombstone PENDING, and the next backup run pushes it.
+PUT_CONNECT_TIMEOUT_S = 2
+PUT_READ_TIMEOUT_S = 4
+PUT_TOTAL_ATTEMPTS = 2
+# The same environment `data_sync._client()` reads (a rail pins the two lists together).
+_DATA_SYNC_ENV = ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY", "DATA_SYNC_SECRET_KEY",
+                  "DATA_SYNC_REGION")
+
+
+def _bounded_client():
+    """An S3 client on data_sync's endpoint and credentials, with a bounded network config;
+    None when the credentials are absent (the same rule as `data_sync._client`)."""
+    endpoint, access_key, secret_key, region = (os.environ.get(n) for n in _DATA_SYNC_ENV)
+    if not (endpoint and access_key and secret_key):
+        return None
+    import boto3
+    from botocore.config import Config
+    return boto3.client(
+        "s3", endpoint_url=endpoint, aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key, region_name=region or "auto",
+        config=Config(connect_timeout=PUT_CONNECT_TIMEOUT_S, read_timeout=PUT_READ_TIMEOUT_S,
+                      retries={"total_max_attempts": PUT_TOTAL_ATTEMPTS, "mode": "standard"}))
+
+
 def default_store():
     """The local fake when `ACCOUNT_TOMBSTONE_LOCAL_STORE` names one; else R2 -- but ONLY
     while the auth.db backups are armed (`authdb_backup.is_enabled()`, i.e.
@@ -151,7 +181,7 @@ def default_store():
         from api.services import authdb_backup, data_sync
         if not authdb_backup.is_enabled():
             return None
-        client, bucket = data_sync._client(), data_sync._bucket()
+        client, bucket = _bounded_client(), data_sync._bucket()
     except Exception as e:  # noqa: BLE001 -- no boto3, bad env: pending, never a raise
         log.warning("[tombstones] no object store: %s", e)
         return None
