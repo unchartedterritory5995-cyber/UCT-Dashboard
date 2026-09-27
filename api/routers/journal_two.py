@@ -138,6 +138,14 @@ _J2_TELEMETRY_EVENTS = {
 # its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
 # EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
 # PARSES the client source — change both or neither.
+#
+# The `save_failed` reason the client sends when the BROWSER itself reports no
+# connection (`NoteEditorPage.jsx` `reportSaveFailed`: no status and
+# `navigator.onLine === false`). Named once, here, because the Notebook SLO's
+# stall count reads it too (`notebook_slo._offline_reason`): an offline retry
+# streak is the member's network, not our outage. tests/test_notebook_slo.py pins
+# it to the word the client source sends.
+SAVE_FAILED_OFFLINE_REASON = "offline"
 _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     "note_open_ms": {
         "ms": "num",
@@ -146,7 +154,8 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "save_failed": {
         "status": "num",
-        "reason": ("network", "http", "conflict", "quota", "offline", "too-large", "unknown"),
+        "reason": ("network", "http", "conflict", "quota", SAVE_FAILED_OFFLINE_REASON, "too-large",
+                   "unknown"),
         "offline": "bool",
         "retrying": "bool",
     },

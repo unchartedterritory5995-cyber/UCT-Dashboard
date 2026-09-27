@@ -46,6 +46,13 @@ are ONE incident, so moving between them never pages twice. ⛔ The incident end
 only on evidence: an OK reading while the streaks that began in the hour still
 outnumber the saves that landed is NOT a recovery, so a slow outage whose hourly
 count dips under the threshold is held rather than re-paged every half hour.
+⛔ A streak whose reason is the OFFLINE word — the browser itself reported no
+connection — is the member's network, not our outage (controller ruling, fix
+round 3). It never counts toward a stall; it is set aside and counted as
+`offline_streaks`. The word is the one the server's arrival allow-list holds
+(`journal_two.SAVE_FAILED_OFFLINE_REASON`), never retyped here. `network` — a
+fetch that threw, which our server dropping connections also produces — and
+every 5xx still count.
 
 ⛔ A DESIGNED REFUSAL IS NOT AN INTEGRITY FAILURE (review M-5, controller ruling
 2026-09-27). The server refusing a body it will not store — 413 `too-large`, and
@@ -240,20 +247,37 @@ def _classify_failures(rows: list) -> tuple[int, int, Optional[str]]:
     return failed, refused, last
 
 
-def _streaks_begun(rows: list, since: str) -> tuple[int, Optional[str]]:
-    """(retry streaks that BEGAN at or after `since`, the newest one's created_at).
+def _offline_reason() -> str:
+    """The `save_failed` reason a row carries when the BROWSER reported no
+    connection. Read from beside the server's arrival allow-list, never retyped
+    here — the same lazy read `notebook_soak._enum_values` makes of that dict."""
+    from api.routers.journal_two import SAVE_FAILED_OFFLINE_REASON
+    return SAVE_FAILED_OFFLINE_REASON
+
+
+def _streaks_begun(rows: list, since: str) -> tuple[int, Optional[str], int]:
+    """(retry streaks that BEGAN at or after `since` and count toward a stall, the
+    newest such one's created_at, offline streaks set aside).
     Every `save_failed` row with `retrying: true` is one streak that began — the
-    client reports a streak once, when it starts, and never again while it retries."""
-    n = 0
+    client reports a streak once, when it starts, and never again while it retries.
+    ⛔ An offline streak (the browser reported no connection) is the member's
+    network, not our outage: set aside, never counted toward a stall. `network`
+    and every 5xx still count."""
+    offline_word = _offline_reason()
+    n = offline = 0
     last: Optional[str] = None
     for created_at, d in rows:
         stamp = str(created_at) if created_at is not None else ""
-        if not stamp or stamp < since or _props(d).get("retrying") is not True:
+        p = _props(d)
+        if not stamp or stamp < since or p.get("retrying") is not True:
+            continue
+        if p.get("reason") == offline_word:
+            offline += 1
             continue
         n += 1
         if last is None or stamp > last:
             last = stamp
-    return n, last
+    return n, last, offline
 
 
 def _latency(conn, event: str, since: str, objective: float, min_n: int) -> dict[str, Any]:
@@ -278,7 +302,7 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
         ok_n = _count(conn, "j2:save_success", since)
         fail_rows = _rows(conn, "j2:save_failed", since)
         failed, refused, last_failure_at = _classify_failures(fail_rows)
-        streaks, last_streak_at = _streaks_begun(fail_rows, stall_since)
+        streaks, last_streak_at, offline_streaks = _streaks_begun(fail_rows, stall_since)
         landed = _count(conn, "j2:save_success", stall_since)
         attempts = ok_n + failed
         rate = (ok_n / attempts) if attempts else None
@@ -299,6 +323,7 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
                                  "refused": refused, "last_failure_at": last_failure_at,
                                  "min_n": SAVE_SUCCESS_MIN_ATTEMPTS,
                                  "stall": {"streaks": streaks, "succeeded": landed,
+                                           "offline_streaks": offline_streaks,
                                            "window_hours": STALL_WINDOW_HOURS,
                                            "min_streaks": STALL_MIN_STREAKS,
                                            "last_streak_at": last_streak_at}},
@@ -352,7 +377,13 @@ def _recovered(r: dict[str, Any]) -> bool:
     """Is an OK reading EVIDENCE that the incident ended? For save success, only
     when the saves that landed in the stall window have caught up with the retry
     streaks that began in it; an hour where streaks still outnumber them is saves
-    that have not landed, however the rate reads. Other SLOs: any OK is recovery."""
+    that have not landed, however the rate reads. Other SLOs: any OK is recovery.
+
+    ⛔ THE HOLD HAS ONE VISIBLE SIDE EFFECT, RATIFIED (controller, fix round 3): while
+    it holds, the run's EVALUATION row reads `ok` (the reading) and the STATE row
+    still reads `stall` (the incident). The two answer different questions — what
+    this hour measured, and whether the outage has been shown to be over — so a
+    reader who sees them disagree is looking at a held incident, not a defect."""
     st = r.get("stall")
     return st is None or st["succeeded"] >= st["streaks"]
 
@@ -375,7 +406,9 @@ def _record_evaluation(conn, result: dict[str, Any], now: datetime) -> list:
                             " WHERE slo = ?", (slo,)).fetchone()
         if r["state"] not in _PAGING_STATES:
             # Only an OK that is EVIDENCE of recovery ends an incident (see
-            # `_recovered`); INSUFFICIENT is no verdict and moves nothing.
+            # `_recovered`); INSUFFICIENT is no verdict and moves nothing. While the
+            # hold lasts, the evaluation row above says `ok` and the state row still
+            # says `stall` — the ratified side effect `_recovered` names.
             if r["state"] == OK and _recovered(r):
                 conn.execute(
                     "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"

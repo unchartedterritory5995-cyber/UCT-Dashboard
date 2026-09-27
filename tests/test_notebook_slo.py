@@ -40,14 +40,24 @@ Fix round 2 (re-review D.1, D.2, N-1, N-2):
   * both jobs carry their misfire grace (N-1);
   * a run forced inside another run's `post()` sends no second page, and a failed
     page's claim ages out so a later run pages (N-2).
+
+Fix round 3 (controller ruling on concern 2):
+  * CONTROL: three OFFLINE streaks and no save in the hour is not a stall — the
+    browser said it had no connection, which is the member's network;
+  * three NETWORK streaks and no save in the hour IS a stall — a fetch that threw
+    can be our server dropping connections;
+  * the offline word is the one the client source sends, the allow-list holds it,
+    the SLO reads it from there, and `network` is not it.
 """
 from __future__ import annotations
 
 import importlib
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -712,3 +722,78 @@ def test_a_state_table_made_by_fix_round_1_gains_the_claim_column(slo):
     pager = _Pager()
     out = mod.run_check(NOW, post=pager)
     assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}] and len(pager.sent) == 1
+
+
+# ── Fix round 3 — an offline streak is the member's network ────────────────
+
+
+_EDITOR = Path(__file__).resolve().parents[1] / "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx"
+
+
+def _client_no_status_reasons() -> tuple[str, str]:
+    """(offline word, network word) PARSED out of `reportSaveFailed` — the words the
+    client really sends for a failure with no status. Never retyped."""
+    src = _EDITOR.read_text(encoding="utf-8")
+    found = re.findall(r"!status \? \(offline \? '([a-z-]+)' : '([a-z-]+)'\)", src)
+    # NON-VACUITY: exactly one mapping, or the parse is reading the wrong thing.
+    assert len(found) == 1, f"reportSaveFailed's no-status branch not found exactly once: {found}"
+    return found[0]
+
+
+def _no_status_streak(reason: str) -> dict:
+    """A retry streak that began on a failure with no status, shaped as the client
+    sends it (`{status, reason, offline, retrying}`)."""
+    offline_word, _ = _client_no_status_reasons()
+    return {"status": 0, "reason": reason, "offline": reason == offline_word, "retrying": True}
+
+
+def test_the_offline_word_is_the_clients_and_the_allow_lists_and_network_is_not_it(slo):
+    """The word the stall sets aside is the one the client source sends, the one
+    the server's arrival allow-list keeps (a word off that list is stored as
+    'other' and the exclusion would never fire), and the one the SLO reads. And
+    `network` — the other no-status word — is a different word, so it still counts.
+    (Mutation: misspell `SAVE_FAILED_OFFLINE_REASON` -> red here.)"""
+    mod, _ = slo
+    from api.routers.journal_two import SAVE_FAILED_OFFLINE_REASON, _NOTEBOOK_PROP_SCHEMAS
+    offline_word, network_word = _client_no_status_reasons()
+    allowed = _NOTEBOOK_PROP_SCHEMAS["save_failed"]["reason"]
+    assert offline_word == SAVE_FAILED_OFFLINE_REASON == mod._offline_reason()
+    assert offline_word in allowed and network_word in allowed
+    assert network_word != offline_word
+
+
+def test_CONTROL_three_offline_streaks_and_no_saves_in_an_hour_is_not_a_stall(slo):
+    """Controller ruling, fix round 3: the browser itself said it had no connection,
+    so the streaks are the member's network, not our outage. The same three
+    streaks with `network` are a stall (the rail below), so this reads the reason
+    and nothing else. (Mutation: remove the exclusion in `_streaks_begun` -> this
+    stalls and pages -> red.)"""
+    mod, auth_db = slo
+    offline_word, _ = _client_no_status_reasons()
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(hours=5)] * 100)
+    _log_at(auth_db, "save_failed", _no_status_streak(offline_word),
+            [NOW - timedelta(minutes=m) for m in (5, 25, 45)])
+    pager = _Pager()
+    s = mod.run_check(NOW, post=pager)["slos"]["save_success"]
+    st = s["stall"]
+    # ONE comparison, so a failure prints the whole reading. NON-VACUITY is inside
+    # it: the three rows were read in the window (offline_streaks == 3) and set aside.
+    reading = (s["state"], st["streaks"], st["offline_streaks"], st["succeeded"], len(pager.sent))
+    assert reading == ("ok", 0, 3, 0, 0), (reading, s)
+
+
+def test_STALL_three_network_streaks_and_no_saves_in_an_hour_is_a_stall(slo):
+    """The companion: the identical fixture with `network` — a fetch that threw,
+    which our server dropping connections also produces — is a stall and pages
+    once. (Mutation: set `network` aside too -> no stall, no page -> red.)"""
+    mod, auth_db = slo
+    _, network_word = _client_no_status_reasons()
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(hours=5)] * 100)
+    _log_at(auth_db, "save_failed", _no_status_streak(network_word),
+            [NOW - timedelta(minutes=m) for m in (5, 25, 45)])
+    pager = _Pager()
+    s = mod.run_check(NOW, post=pager)["slos"]["save_success"]
+    st = s["stall"]
+    reading = (s["state"], st["streaks"], st["offline_streaks"], st["succeeded"], len(pager.sent))
+    assert reading == ("stall", 3, 0, 0, 1), (reading, s)
+    assert "STALL" in pager.sent[0]
