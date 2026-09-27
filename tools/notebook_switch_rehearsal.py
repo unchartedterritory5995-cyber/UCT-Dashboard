@@ -699,6 +699,8 @@ def production_text(table: dict[str, bool], modes: list[str], armed: list[str]) 
     t = "tools/notebook_switch_rehearsal.py"
     skipped = "\n".join(f"  {k}: {why}" for k, why in not_rehearsed(table, modes).items()
                         if k not in keys)
+    # the doors --verify reads, from the same table it reads them from (never a typed list)
+    get_doors = ", ".join(s.door[1] for s in SWITCHES if s.door and s.door[0] == "GET")
     return f"""PRODUCTION WINDOW -- R-11, the controller's half. ONE off-hours window (weekend), two web
 redeploys (82-119 s /api/* blip each, docs/runbooks/deploy-windows.md). Nothing here was run by lane
 10C. Each step in its own call; read each result before the next (H15: a failing verify after the
@@ -719,8 +721,8 @@ RESTORE is answered by re-running the restore, then reporting -- never by diagno
 
 2. VERIFY OFF (GET-only as the smoke account; SMOKE_EMAIL / SMOKE_PASSWORD in the environment):
      python {t} --verify {PROD} --expect off --set-at <SET_OFF_AT>
-   PASS needs: a NEW BOOT (uptime < time since SET_OFF_AT), every payload key above false, the
-   share / publish / sample-notebook doors 404. No new boot within ~3 min:
+   PASS needs: a NEW BOOT (uptime < time since SET_OFF_AT), every payload key above false, and
+   every GET door of a switched gate 404: {get_doors}. No new boot within ~3 min:
      railway redeploy --service web --yes     then re-run step 2.
 
 3. RESTORE -- exactly what `--check-record` printed: deletes FIRST (a delete stages, it does not

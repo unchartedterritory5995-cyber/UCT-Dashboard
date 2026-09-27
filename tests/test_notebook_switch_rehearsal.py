@@ -220,6 +220,9 @@ def test_the_production_text_is_one_off_command_and_names_the_record(t, table):
     assert len(sets) == 1 and '"NOTEBOOK_OFFLINE_DEFAULT_ON=0"' in sets[0]
     assert "--check-record" in text and "--kv" in text and "NOTEBOOK_DOOR_GUARD" in text
     assert "NOTEBOOK_TASK_REMINDERS_ENABLED:" in text   # a gate the window skips is NAMED, with why
+    for s in t.SWITCHES:                                # every door --verify reads is named
+        if s.door and s.door[0] == "GET":
+            assert s.door[1] in text, s.door[1]
 
 
 def test_the_tool_cannot_run_railway(t):
