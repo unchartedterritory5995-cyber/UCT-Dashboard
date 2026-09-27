@@ -50,6 +50,16 @@ Fix round 1 (the review's I-2 and M-5, measured in real Chromium, never jsdom):
       Undo button is inside the viewport and is what a finger at its centre touches,
       and tapping THERE undoes
 
+Follow-up F1 (brief wave10-10B-F1, the Journal shell on a phone):
+  B9d the Journal shell at 390 px (Notebook note, Today, Trades, Calendar, Insights,
+      Compass) and 820 px (Notebook note, Trades), touch, with the voice first-run hint
+      SHOWN and DISMISSED: the document and the app's <main> scroller no wider than
+      themselves, every header control wholly on screen, no other control off screen
+      unless its own on-screen container scrolls sideways, the hint (where it renders)
+      wholly on screen; and at 390 the header's More and Log Trade menus opened with a
+      finger, every item on screen and what a finger at its centre lands on. A red cell
+      NAMES what widens <main>.
+
 `--only B9,B10` runs just those rows (the mutant-build run that shows each goes red);
 the evidence run runs everything and holds the sandbox past its +120 s checkpoint, so
 the integrity line names all four (pre-boot, +15 s, +120 s, shutdown).
@@ -828,6 +838,172 @@ def run_walk(base: str, art: Path) -> None:
             record("B9c_page_chrome_at_390_no_table", "INCONCLUSIVE", reason="reported, not graded: pre-existing "
                    "page chrome, no table involved", **out)
 
+        # ── follow-up F1 (brief wave10-10B-F1): the Journal shell at 390 / 820 px ──
+        # One CELL = one Journal route at one width, with the voice first-run hint SHOWN
+        # (a fresh browser: the key unset) or DISMISSED (the key set before the page
+        # loads). A cell passes only when:
+        #  * document.scrollingElement AND the app's own scroller (<main> -- the app
+        #    scrolls it, never the window) each have scrollWidth == clientWidth;
+        #  * every header control (Log Trade, ?, account, report, settings, More) is
+        #    wholly inside the viewport -- not merely reachable by a sideways swipe;
+        #  * every other visible control is inside the viewport, or inside an on-screen
+        #    container that itself scrolls sideways (the Journal tab strip) -- reachable
+        #    by scrolling THAT container, never by scrolling the page;
+        #  * where the hint renders it is wholly on screen, its Dismiss button too; on
+        #    the Notebook note it MUST render when shown and MUST NOT when dismissed (a
+        #    cell that could not produce its state is not a pass).
+        # What widens <main> is NAMED (an element past its right edge with no clipping
+        # box between the two), so a red cell says why, not just that.
+        CHROME_JS = """() => {
+          const de = document.scrollingElement || document.documentElement;
+          const vw = de.clientWidth;
+          const main = document.querySelector('main');
+          const name = (el) => el.tagName + '.' + String(el.className && el.className.baseVal !== undefined
+            ? el.className.baseVal : el.className).slice(0, 40);
+          const inView = (r) => r.left >= -0.5 && r.right <= vw + 0.5;
+          const box = (r) => ({ left: Math.round(r.left), right: Math.round(r.right) });
+          const out = { vw, doc: { scrollWidth: de.scrollWidth, clientWidth: de.clientWidth },
+                        main: main ? { cls: String(main.className).slice(0, 40), scrollWidth: main.scrollWidth,
+                                       clientWidth: main.clientWidth } : null,
+                        widens_main: [], header_off: [], clipped: [], in_scroller: [] };
+          if (main) {
+            const edge = main.getBoundingClientRect().left + main.clientWidth;
+            for (const e of main.querySelectorAll('*')) {
+              const r = e.getBoundingClientRect();
+              if (!(r.width > 0 && r.right > edge + 0.5)) continue;
+              let clip = false;
+              for (let a = e.parentElement; a && a !== main; a = a.parentElement)
+                if (getComputedStyle(a).overflowX !== 'visible') { clip = true; break; }
+              if (clip) continue;
+              const chain = [];
+              for (let a = e; a && a !== main && chain.length < 5; a = a.parentElement) chain.push(name(a));
+              out.widens_main.push({ ...box(r), text: (e.innerText || '').slice(0, 40), chain });
+              if (out.widens_main.length >= 8) break;
+            }
+          }
+          const sel = 'button, a[href], input:not([type=hidden]), select, textarea, [role="button"], [role="tab"], [role="menuitem"]';
+          for (const c of document.querySelectorAll(sel)) {
+            const r = c.getBoundingClientRect();
+            if (r.width < 4 || r.height < 4 || getComputedStyle(c).visibility === 'hidden') continue;
+            if (inView(r)) continue;
+            const label = (c.getAttribute('aria-label') || c.innerText || c.title || '').trim().slice(0, 30);
+            const rec = { label, ...box(r) };
+            if (c.closest('[class*="headerRight"]')) { out.header_off.push(rec); continue; }
+            let sc = null;
+            for (let a = c.parentElement; a && a !== main; a = a.parentElement) {
+              const ox = getComputedStyle(a).overflowX;
+              if ((ox === 'auto' || ox === 'scroll') && a.scrollWidth > a.clientWidth + 1) { sc = a; break; }
+            }
+            if (sc && inView(sc.getBoundingClientRect())) out.in_scroller.push({ ...rec, scroller: name(sc) });
+            else out.clipped.push(rec);
+          }
+          const hint = [...document.querySelectorAll('[role="status"]')].find(
+            (s) => /speak instead of type/i.test(s.textContent || ''));
+          if (hint) {
+            const hr = hint.getBoundingClientRect();
+            const d = hint.querySelector('button[aria-label="Dismiss tip"]');
+            const dr = d ? d.getBoundingClientRect() : null;
+            out.hint = { present: true, ...box(hr), width: Math.round(hr.width),
+                         dismiss: dr && box(dr), on_screen: inView(hr) && (!dr || inView(dr)) };
+          } else out.hint = { present: false };
+          return out;
+        }"""
+
+        def chrome_verdict(m, route, hint):
+            fails = []
+            if m["doc"]["scrollWidth"] != m["doc"]["clientWidth"]:
+                fails.append("the document is wider than the viewport")
+            if not m.get("main"):
+                fails.append("the app's <main> scroller was not found")
+            elif m["main"]["scrollWidth"] != m["main"]["clientWidth"]:
+                fails.append("the app's <main> scroller is wider than itself")
+            if m["header_off"]:
+                fails.append("a header control sits outside the viewport")
+            if m["clipped"]:
+                fails.append("a control sits outside the viewport with no container of its own to scroll")
+            h = m.get("hint") or {}
+            if h.get("present") and not h.get("on_screen"):
+                fails.append("the voice hint is not wholly on screen")
+            if route == "notebook" and hint == "shown" and not h.get("present"):
+                fails.append("the voice hint did not render in the shown state (the cell could not be taken)")
+            if hint == "dismissed" and h.get("present"):
+                fails.append("the voice hint rendered although it was dismissed")
+            return not fails, fails
+
+        MENU_JS = """(which) => {
+          const vw = (document.scrollingElement || document.documentElement).clientWidth;
+          const panel = which === 'more' ? document.querySelector('[data-testid="j2-more-menu"]')
+                                         : document.querySelector('[role="menu"][aria-label="Log a trade"]');
+          if (!panel) return { open: false };
+          const items = [...panel.querySelectorAll('a, button')].map((it) => {
+            const r = it.getBoundingClientRect();
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+            return { label: (it.innerText || '').trim().slice(0, 30), left: Math.round(r.left),
+                     right: Math.round(r.right), top: Math.round(r.top), bottom: Math.round(r.bottom),
+                     on_screen: r.width > 0 && r.left >= -0.5 && r.right <= vw + 0.5
+                       && r.top >= 0 && r.bottom <= window.innerHeight,
+                     finger_lands_on_it: !!hit && (hit === it || it.contains(hit)) };
+          });
+          return { open: true, items, ok: items.length > 0 && items.every((i) => i.on_screen && i.finger_lands_on_it) };
+        }"""
+
+        @guarded("B9d_journal_shell_fits_390_820")
+        def b9d():
+            # A folder named the way an import names one: the note header's folder <select>
+            # is as wide as its LONGEST option, and the pre-fix full walk found the page
+            # widened by exactly that ("Imported from Files (Markdown, Text, HTML, Word)",
+            # left behind by B5). Made here so an --only run carries the same condition.
+            fr = api.post(base + "/api/j2/note-folders",
+                          data={"name": f"Imported from Files (Markdown, Text, HTML, Word) {run}"})
+            if not fr.ok:
+                raise RuntimeError(f"create folder: HTTP {fr.status} {fr.text()[:200]}")
+            control = mk_note(f"B9d chrome {run}", DOC(P("No table here, a plain note.")))
+            routes = [("notebook", f"/journal/notebook?note={control['id']}"), ("today", "/journal"),
+                      ("trades", "/journal/trades"), ("calendar", "/journal/calendar"),
+                      ("insights", "/journal/insights"), ("compass", "/journal/compass")]
+            plan = [(390, 844, routes), (820, 1180, [r for r in routes if r[0] in ("notebook", "trades")])]
+            cells, menus = {}, {}
+            for width, height, rts in plan:
+                for hint in ("shown", "dismissed"):
+                    ctx = browser.new_context(viewport={"width": width, "height": height}, has_touch=True,
+                                              is_mobile=width <= 640, storage_state=member.storage_state())
+                    if hint == "dismissed":
+                        ctx.add_init_script(HINT_SEEN)
+                    new = pages_of(ctx)
+                    for route, path in rts:
+                        if route == "notebook":
+                            pg = open_note(new, control["id"])
+                        else:
+                            pg = new()
+                            pg.goto(base + path)
+                            H._dismiss_intro(pg)
+                        pg.wait_for_timeout(2500)   # past the late mounts (coach marks, SWR fills)
+                        m = pg.evaluate(CHROME_JS)
+                        ok, fails = chrome_verdict(m, route, hint)
+                        key = f"{width}/{route}/{hint}"
+                        cells[key] = {"ok": ok, "fails": fails, **m}
+                        if not ok or (width == 390 and route in ("notebook", "trades")):
+                            cells[key]["shot"] = shot(pg, f"B9d-{width}-{route}-{hint}")
+                        if width == 390 and route == "trades" and hint == "dismissed":
+                            # the two header menus, opened with a finger: every item on screen
+                            # and what a finger at its centre lands on (a clipped menu fails)
+                            for which, opener in (("more", '[class*="headerRight"] button[aria-label="More"]'),
+                                                  ("log_trade", '[class*="headerRight"] button[title="Log a trade"]')):
+                                pg.locator(opener).first.tap()
+                                pg.wait_for_timeout(500)
+                                menus[which] = pg.evaluate(MENU_JS, which)
+                                menus[which]["shot"] = shot(pg, f"B9d-390-menu-{which}")
+                                pg.reload()                  # a clean page for the next menu
+                                H._dismiss_intro(pg)
+                                pg.wait_for_timeout(2000)
+                        pg.close()
+                    ctx.close()
+            menus_ok = all((menus.get(w) or {}).get("ok") for w in ("more", "log_trade"))
+            ok = all(c["ok"] for c in cells.values()) and menus_ok
+            record("B9d_journal_shell_fits_390_820", "PASS" if ok else "FAIL",
+                   failing_cells=sorted(k for k, c in cells.items() if not c["ok"]),
+                   menus_ok=menus_ok, cells=cells, menus=menus)
+
         # ── fix round 1: B10 (review M-5) ──────────────────────────────────────
         UNDO_JS = """() => {
           const b = document.querySelector('button[aria-label="Undo"]');
@@ -889,7 +1065,7 @@ def run_walk(base: str, art: Path) -> None:
                    toolbar_scrolled_away=scrolled_away, before_typing=at_top, after_typing=m,
                    tap_at_centre_undid=bool(undone), back_at_top=back, screenshots=[s, s2])
 
-        rows = (b1, b2, b3, b4, b5_keep, b5_logseq, b5_onenote, b7, b9, b9b, b9c, b10, b6)
+        rows = (b1, b2, b3, b4, b5_keep, b5_logseq, b5_onenote, b7, b9, b9b, b9c, b9d, b10, b6)
         for fn in rows:
             if ONLY and not any(fn.key.startswith(o) for o in ONLY):
                 continue
