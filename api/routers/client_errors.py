@@ -129,7 +129,8 @@ def admin_notebook_slo(
 
 @router.post("/api/admin/notebook-slo/run")
 def admin_notebook_slo_run(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
-    """Force one scheduled check: record the evaluation, page a save-success breach."""
+    """Force one scheduled check: record the evaluation, page a save-success breach
+    or stall (never twice inside another run's page — the in-flight claim)."""
     from api.services.journal_two import notebook_slo
     return notebook_slo.run_check()
 

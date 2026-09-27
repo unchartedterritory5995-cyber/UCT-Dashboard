@@ -8207,18 +8207,22 @@ async def lifespan(app: FastAPI):
         # raise, and the check commits before any network call (review I-2), so a
         # slow webhook cannot hold auth.db's writer lock. Cadence: every 15 minutes,
         # offset from the other quarter-hour jobs; digest 17:10 ET after the close.
-        # Rail: tests/test_notebook_slo.py pins both ids (a pager nobody schedules
-        # reads as coverage — the desk_session_audit lesson).
+        # ⛔ misfire_grace_time (fix round 2, N-1): the default grace is 1 s, so a
+        # busy pool or a pod swap at the trigger minute drops the run silently
+        # (EVENT_JOB_MISSED) — a 15-minute hole in the pager, or the whole day's
+        # digest row. 600 s for the check, 3600 s for the digest, as the siblings do.
+        # Rail: tests/test_notebook_slo.py pins both ids AND both graces (a pager
+        # nobody schedules reads as coverage — the desk_session_audit lesson).
         try:
             from api.services.journal_two import notebook_slo as _j2_notebook_slo
             _scheduler.add_job(_j2_notebook_slo.scheduled_check,
                                trigger=CronTrigger(minute="11/15", timezone=_ET),
                                id="notebook_slo_check", max_instances=1, coalesce=True,
-                               replace_existing=True)
+                               misfire_grace_time=600, replace_existing=True)
             _scheduler.add_job(_j2_notebook_slo.scheduled_digest,
                                trigger=CronTrigger(hour=17, minute=10, timezone=_ET),
                                id="notebook_slo_digest", max_instances=1, coalesce=True,
-                               replace_existing=True)
+                               misfire_grace_time=3600, replace_existing=True)
             print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
         except Exception as e:
             print(f"[startup] notebook SLO registration failed (non-fatal): {e}")

@@ -26,6 +26,20 @@ Fix round 1 (review I-1, I-2, M-4, M-5, M-6; Concern 3):
   * `activity_log(action, created_at)` exists after init and the SLO's COUNT
     uses it (M-6);
   * the scheduler registers both SLO jobs, by id, in `api/main.py` (Concern 3).
+
+Fix round 2 (re-review D.1, D.2, N-1, N-2):
+  * the measured save-door 5xx outage (120 morning saves, then three hours of
+    streaks that begin and never recover) reads STALL and pages once, saying so;
+  * a whole-window outage is a STALL, not INSUFFICIENT;
+  * CONTROLS: a blip (2 streaks beside 40 saves), 2 streaks with no saves, and 3
+    streaks against 10 saves are not stalls;
+  * a slow outage whose hourly streak count dips is HELD, not re-paged every half
+    hour, and a real recovery still re-arms;
+  * a stall that turns into a breach is one incident — one page;
+  * a refused spike is a named digest line and never a page (D.2);
+  * both jobs carry their misfire grace (N-1);
+  * a run forced inside another run's `post()` sends no second page, and a failed
+    page's claim ages out so a later run pages (N-2).
 """
 from __future__ import annotations
 
@@ -428,18 +442,273 @@ def _add_job_calls(tree):
     return out
 
 
+def _grace(call):
+    """The literal `misfire_grace_time=` on an add_job Call, or None."""
+    import ast
+    for kw in call.keywords:
+        if kw.arg == "misfire_grace_time" and isinstance(kw.value, ast.Constant):
+            return kw.value.value
+    return None
+
+
 def test_both_slo_jobs_are_registered_on_the_scheduler_in_main():
-    """Concern 3 — a pager nobody schedules reads as coverage. (Mutation: delete
-    either add_job, or point it at a different function -> red.)"""
+    """Concern 3 — a pager nobody schedules reads as coverage — and N-1: each job
+    carries a misfire grace, or a busy pool at the trigger minute drops the run
+    silently. (Mutation: delete either add_job, point it at a different function,
+    or drop / change either grace -> red.)"""
     import ast
     import pathlib
     main = pathlib.Path(__file__).resolve().parent.parent / "api" / "main.py"
     calls = _add_job_calls(ast.parse(main.read_text(encoding="utf-8")))
-    # NON-VACUITY: the probe must see a sibling Notebook job it is not looking for.
+    # NON-VACUITY: the probe must see a sibling Notebook job it is not looking for,
+    # and read a grace off a sibling that has one (1 s default would read None).
     assert "notebook_semantic_sweep" in calls, "the add_job AST scan is broken; its verdict means nothing"
-    for job_id, fn in (("notebook_slo_check", "scheduled_check"),
-                       ("notebook_slo_digest", "scheduled_digest")):
+    assert _grace(calls["screener_scan_sweep"]) == 3600, "the grace reader is broken; its verdict means nothing"
+    for job_id, fn, grace in (("notebook_slo_check", "scheduled_check", 600),
+                              ("notebook_slo_digest", "scheduled_digest", 3600)):
         assert job_id in calls, f"{job_id} is scheduled nowhere in api/main.py"
         target = calls[job_id].args[0]
         assert isinstance(target, ast.Attribute) and target.attr == fn, (
             f"{job_id} must run notebook_slo.{fn}, got {ast.dump(target)}")
+        assert _grace(calls[job_id]) == grace, (
+            f"{job_id} must carry misfire_grace_time={grace}; got {_grace(calls[job_id])}")
+
+
+# ── Fix round 2 ──────────────────────────────────────────────────────────────
+
+
+_STREAK = {"status": 503, "reason": "http", "retrying": True}
+_GIVE_UP = {"status": 500, "reason": "http", "retrying": False}
+
+
+def _log_at(auth_db, event, details, stamps, uid="u1"):
+    conn = auth_db.get_connection()
+    conn.executemany(
+        "INSERT INTO activity_log (id, user_id, action, details, created_at)"
+        " VALUES (lower(hex(randomblob(8))), ?, ?, ?, ?)",
+        [(uid, f"j2:{event}", json.dumps(details), t.strftime("%Y-%m-%d %H:%M:%S")) for t in stamps])
+    conn.commit()
+    conn.close()
+
+
+def _claim(auth_db, slo="save_success"):
+    conn = auth_db.get_connection()
+    try:
+        row = conn.execute("SELECT page_attempt_at FROM notebook_slo_state WHERE slo = ?", (slo,)).fetchone()
+        return row[0] if row else None
+    finally:
+        conn.close()
+
+
+def _run_outage(mod, auth_db, start, minutes, every, pager):
+    """Minute by minute from `start`: a retry streak BEGINS every `every` minutes
+    (none recovers), and the scheduled check runs every 15 — rows are written as
+    time passes, never ahead of the run that reads them. Returns the last result."""
+    out = None
+    for m in range(0, minutes + 1):
+        t = start + timedelta(minutes=m)
+        if m % every == 0 and m < minutes:
+            _log_at(auth_db, "save_failed", _STREAK, [t])
+        if m and m % 15 == 0:
+            out = mod.run_check(t, post=pager)
+    return out
+
+
+def test_STALL_the_measured_save_door_outage_reads_stall_and_pages_once(slo):
+    """Re-review D.1, measured: 120 saves in the morning, then a three-hour 5xx
+    outage confined to the save door — 30 streaks begin, none recovers. The rate
+    reads 1.0 (a retry is not a give-up) and, before this fix, nothing paged.
+    (Mutation: delete the STALL assignment in `evaluate` -> no page -> red.)"""
+    mod, auth_db = slo
+    start = NOW - timedelta(hours=3)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [start - timedelta(hours=2)] * 120)
+    pager = _Pager()
+    out = _run_outage(mod, auth_db, start, 180, 6, pager)
+    s = out["slos"]["save_success"]
+    assert s["value"] == 1.0 and s["failed"] == 0, "the fixture must be the outage the rate cannot see"
+    assert s["state"] == "stall", s
+    assert s["stall"]["streaks"] >= mod.STALL_MIN_STREAKS and s["stall"]["succeeded"] == 0
+    assert len(pager.sent) == 1, f"one incident, one page; got {len(pager.sent)}"
+    assert "STALL" in pager.sent[0] and "breach" not in pager.sent[0].lower(), pager.sent[0]
+    pages = [(r["kind"], r["state"]) for r in mod.recent_events(200) if r["kind"] == "page"]
+    assert pages == [("page", "stall")]
+
+
+def test_a_stall_that_lasts_is_repaged_after_the_interval(slo):
+    """M-4 holds for a stall: its "still live" is a streak that BEGAN in the last
+    hour (a stall has no give-ups to read). Seven hours of outage: the first page,
+    then one re-page after REPAGE_HOURS. (Mutation: read a stall's recency off the
+    give-ups -> it is never re-paged -> red.)"""
+    mod, auth_db = slo
+    start = NOW - timedelta(hours=7)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [start - timedelta(hours=2)] * 120)
+    pager = _Pager()
+    _run_outage(mod, auth_db, start, 7 * 60, 6, pager)
+    assert len(pager.sent) == 2, f"first page + one re-page after {mod.REPAGE_HOURS} h; got {len(pager.sent)}"
+    assert all("STALL" in t for t in pager.sent)
+
+
+def test_STALL_a_whole_window_outage_is_a_stall_not_insufficient(slo):
+    """No save lands all day, streaks keep beginning: zero attempts is INSUFFICIENT
+    to the rate, and a stall must outrank it. (Mutation: let the stall outrank only
+    OK -> this reads insufficient and pages nobody -> red.)"""
+    mod, auth_db = slo
+    stamps = [NOW - timedelta(minutes=10 + 20 * k) for k in range(72)]   # 3 in the last hour
+    _log_at(auth_db, "save_failed", _STREAK, stamps)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    s = out["slos"]["save_success"]
+    assert (s["n"], s["value"]) == (0, None), "zero attempts: the rate alone would read insufficient"
+    assert s["state"] == "stall" and s["stall"]["streaks"] == 3, s
+    assert len(pager.sent) == 1 and "n/a" in pager.sent[0]
+
+
+def test_CONTROL_an_ordinary_blip_is_not_a_stall(slo):
+    """Two streaks in an hour that also has forty saves; and — isolating the
+    STALL_MIN_STREAKS clause — two streaks with no save at all in the hour.
+    (Mutation: drop the minimum-streaks clause -> the second reading stalls -> red.)"""
+    mod, auth_db = slo
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(minutes=30)] * 40)
+    _log_at(auth_db, "save_failed", _STREAK, [NOW - timedelta(minutes=20), NOW - timedelta(minutes=40)])
+    pager = _Pager()
+    assert mod.run_check(NOW, post=pager)["slos"]["save_success"]["state"] == "ok"
+    later = NOW + timedelta(hours=2)
+    _log_at(auth_db, "save_failed", _STREAK, [later - timedelta(minutes=5), later - timedelta(minutes=25)])
+    s = mod.run_check(later, post=pager)["slos"]["save_success"]
+    assert (s["stall"]["streaks"], s["stall"]["succeeded"]) == (2, 0)
+    assert s["state"] == "ok", "two streaks are a blip even with nothing landing"
+    assert pager.sent == []
+
+
+def test_CONTROL_three_streaks_against_ten_saves_is_not_a_stall(slo):
+    """The threshold is met but the saves outnumber the streaks — saves ARE landing.
+    Then the companion: the same three streaks against two saves is a stall.
+    (Mutation: drop the `streaks > saves` clause -> the first reading stalls -> red.)"""
+    mod, auth_db = slo
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(hours=5)] * 100)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(minutes=15)] * 10)
+    _log_at(auth_db, "save_failed", _STREAK, [NOW - timedelta(minutes=m) for m in (5, 25, 45)])
+    pager = _Pager()
+    s = mod.run_check(NOW, post=pager)["slos"]["save_success"]
+    assert (s["stall"]["streaks"], s["stall"]["succeeded"], s["state"]) == (3, 10, "ok")
+    assert pager.sent == []
+    # companion: two hours on, three streaks and only two landed saves in the hour
+    later = NOW + timedelta(hours=2)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [later - timedelta(minutes=15)] * 2)
+    _log_at(auth_db, "save_failed", _STREAK, [later - timedelta(minutes=m) for m in (5, 25, 45)])
+    s2 = mod.run_check(later, post=pager)["slos"]["save_success"]
+    assert (s2["stall"]["streaks"], s2["stall"]["succeeded"], s2["state"]) == (3, 2, "stall")
+    assert len(pager.sent) == 1
+
+
+def test_a_slow_outage_whose_hourly_count_dips_is_held_not_repaged(slo):
+    """One streak every 25 minutes: the hourly count swings 3, 3, 2, 3, 2 ... and
+    the rate reads OK in every dip. Recovery is an OK reading WITH evidence; a dip
+    where the streaks still outnumber the saves is held. Measured without the
+    hold: four pages in three hours. Then a real recovery (the retries land)
+    re-arms, and the next stall pages at once. (Mutations: `_recovered` always
+    True -> repeated pages -> red; always False -> the later stall never pages -> red.)"""
+    mod, auth_db = slo
+    start = NOW - timedelta(hours=3)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [start - timedelta(hours=2)] * 120)
+    pager = _Pager()
+    _run_outage(mod, auth_db, start, 180, 25, pager)
+    assert len(pager.sent) == 1, f"a dip is not a recovery; got {len(pager.sent)} pages"
+    # the door comes back: the eight stuck saves land
+    back = NOW + timedelta(minutes=5)
+    _log_at(auth_db, "save_success", {"door": "editor"}, [back] * 8)
+    assert mod.run_check(NOW + timedelta(minutes=15), post=pager)["slos"]["save_success"]["state"] == "ok"
+    assert _state(auth_db)[0] == "ok", "a real recovery must end the incident"
+    # a fresh outage two hours later pages at once
+    _run_outage(mod, auth_db, NOW + timedelta(hours=2), 60, 6, pager)
+    assert len(pager.sent) == 2, "after a recovery the next stall pages at once"
+
+
+def test_a_stall_that_becomes_a_breach_is_one_incident_and_one_page(slo):
+    """A stall pages; then saves start GIVING UP and the rate breaches. Same
+    incident, so no second page — and the state row says what it now is.
+    (Mutation: key `began` on a change of state instead of leaving the paging
+    states -> the breach pages again -> red.)"""
+    mod, auth_db = slo
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(hours=5)] * 100)
+    _log_at(auth_db, "save_failed", _STREAK, [NOW - timedelta(minutes=m) for m in (5, 20, 35, 50)])
+    pager = _Pager()
+    assert mod.run_check(NOW, post=pager)["slos"]["save_success"]["state"] == "stall"
+    later = NOW + timedelta(minutes=15)
+    _log_at(auth_db, "save_failed", _GIVE_UP, [later - timedelta(minutes=2)] * 10)
+    assert mod.run_check(later, post=pager)["slos"]["save_success"]["state"] == "breach"
+    assert len(pager.sent) == 1
+    assert _state(auth_db)[0] == "breach"
+
+
+def test_a_refused_spike_is_a_named_digest_line_and_never_a_page(slo):
+    """Re-review D.2: a server limit set wrong makes every affected save a designed
+    refusal, which the rate excludes by ruling. The digest names the spike; the
+    pager never hears of it. CONTROL: one under the line is not named.
+    (Mutations: drop the line, or `>=` -> `>` -> red; lower the line -> the
+    control reds.)"""
+    mod, auth_db = slo
+    _log_at(auth_db, "save_success", {"door": "editor"}, [NOW - timedelta(hours=2)] * 100)
+    _log_at(auth_db, "save_failed", {"status": 413, "reason": "too-large", "retrying": False},
+            [NOW - timedelta(hours=3)] * (mod.REFUSED_SPIKE_MIN - 1))
+    assert "refused spike" not in mod.run_digest(NOW)["digest"], "the control must not be named"
+    _log_at(auth_db, "save_failed", {"status": 400, "reason": "http", "retrying": False},
+            [NOW - timedelta(hours=3)])
+    digest = mod.run_digest(NOW)["digest"]
+    assert f"refused spike: {mod.REFUSED_SPIKE_MIN} saves refused — check the server limits" in digest
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["slos"]["save_success"]["state"] == "ok" and pager.sent == [], "a refusal never pages"
+
+
+def test_a_run_forced_inside_another_runs_page_sends_no_second_page(slo):
+    """N-2, the reviewer's measured race as a rail: an admin "run now" lands while
+    a scheduled run is on the network with its page. Before the claim, both paged.
+    (Mutation: drop the claim check -> the inner run pages too -> red.)"""
+    mod, auth_db = slo
+    _breaching(auth_db)
+    inner_pager, inner = _Pager(), {}
+
+    def outer_post(text):
+        inner["out"] = mod.run_check(NOW + timedelta(seconds=5), post=inner_pager)
+        return "discord"
+    out = mod.run_check(NOW, post=outer_post)
+    # NON-VACUITY: the inner run really ran, and read the breach.
+    assert inner["out"]["slos"]["save_success"]["state"] == "breach"
+    assert inner_pager.sent == [] and inner["out"]["pages"] == [], "a second page inside the window"
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}]
+    assert [r["kind"] for r in mod.recent_events(50)].count("page") == 1
+    assert _claim(auth_db) is None, "a delivered page releases its claim"
+
+
+def test_a_failed_pages_claim_ages_out_and_a_later_run_pages(slo):
+    """N-2 with I-1: the failed delivery leaves its claim, which holds a run inside
+    PAGE_CLAIM_SECONDS and not after. (Mutation: a claim that never expires -> the
+    run past the minute is held too -> red.)"""
+    mod, auth_db = slo
+    _breaching(auth_db)
+    mod.run_check(NOW, post=_Pager(answer="failed"))
+    assert _state(auth_db) == ("breach", None) and _claim(auth_db) is not None
+    held = _Pager()
+    mod.run_check(NOW + timedelta(seconds=30), post=held)
+    assert held.sent == [], "a claim under a minute old holds the page"
+    later = _Pager()
+    out = mod.run_check(NOW + timedelta(seconds=mod.PAGE_CLAIM_SECONDS + 1), post=later)
+    assert len(later.sent) == 1 and out["pages"] == [{"slo": "save_success", "delivered": "discord"}]
+    assert _state(auth_db)[1] is not None and _claim(auth_db) is None
+
+
+def test_a_state_table_made_by_fix_round_1_gains_the_claim_column(slo):
+    """`CREATE TABLE IF NOT EXISTS` never adds a column; an auth.db that ran fix
+    round 1 would make every run raise inside the scheduler's catch-all — a dead
+    pager. (Mutation: drop the ALTER in `_ensure` -> OperationalError -> red.)"""
+    mod, auth_db = slo
+    conn = auth_db.get_connection()
+    conn.execute("CREATE TABLE notebook_slo_state (slo TEXT PRIMARY KEY, state TEXT NOT NULL,"
+                 " since TEXT NOT NULL, last_paged_at TEXT)")
+    conn.commit()
+    conn.close()
+    _breaching(auth_db)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}] and len(pager.sent) == 1

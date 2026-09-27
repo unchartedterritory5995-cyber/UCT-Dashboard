@@ -32,6 +32,21 @@ that recovers ends in a `save_success`. So only the give-ups are failures, and a
 409 that forked (`reason: 'conflict'`) is excluded: the fork is the designed
 resolution that preserves both copies, counted by `conflict_forked` on its own.
 
+⛔⛔ A STALL IS THE OUTAGE THE RATE CANNOT SEE (re-review D.1, controller ruling,
+fix round 2). The autosave retries every no-status or >= 500 failure FOREVER, so
+a 5xx outage confined to the save door produces streaks that begin and never
+give up: no final failure, successes simply stop, and the rate reads OK (or
+INSUFFICIENT) for the whole outage. `/api/health` stays 200 and the nav smoke
+makes no note-API call, so nothing else sees it either. So each `retrying: true`
+row is counted as one streak that BEGAN, and save success reads STALL when, in
+the last STALL_WINDOW_HOURS, at least STALL_MIN_STREAKS streaks began AND they
+outnumber the saves that landed. A stall outranks OK and INSUFFICIENT (never a
+breach), and pages through the breach's own discipline — a stall and a breach
+are ONE incident, so moving between them never pages twice. ⛔ The incident ends
+only on evidence: an OK reading while the streaks that began in the hour still
+outnumber the saves that landed is NOT a recovery, so a slow outage whose hourly
+count dips under the threshold is held rather than re-paged every half hour.
+
 ⛔ A DESIGNED REFUSAL IS NOT AN INTEGRITY FAILURE (review M-5, controller ruling
 2026-09-27). The server refusing a body it will not store — 413 `too-large`, and
 every 400 the note write door answers (the H14 depth cap and the rest of
@@ -44,11 +59,16 @@ visible in the admin readout. `REFUSAL_REASONS` / `REFUSAL_STATUSES` are the lis
 ⛔ NEVER CONTENT. Only the `ms`, `retrying`, `reason` and `status` props are read —
 the same closed props the server's arrival schema keeps (`_NOTEBOOK_PROP_SCHEMAS`).
 
-⛔ CHEAP, ON PURPOSE (the single web pod): one COUNT and three bounded reads per
+⛔ CHEAP, ON PURPOSE (the single web pod): two COUNTs and three bounded reads per
 run over `activity_log(action, created_at)` (a composite index, `auth_db._SCHEMA`),
 no network unless a page is due — and ⛔ NO auth.db TRANSACTION IS EVER OPEN
 ACROSS THE NETWORK CALL (review I-2): the evaluation is committed before `post()`
 runs, so a slow webhook cannot hold the one writer lock every note save needs.
+⛔ Because the page is sent AFTER that commit, the committed transaction also
+writes an in-flight CLAIM (`page_attempt_at`, review N-2): a second run inside
+the webhook window (an admin "run now" landing on a scheduled page) finds a
+claim younger than PAGE_CLAIM_SECONDS and does not page. `last_paged_at` stays
+the stamp of a DELIVERED page only, so a failed delivery still re-pages (I-1).
 The scheduler registration is in `api/main.py` (ids `notebook_slo_check`,
 `notebook_slo_digest`, pinned by `tests/test_notebook_slo.py`);
 `POST /api/admin/notebook-slo/run` forces a run.
@@ -85,6 +105,21 @@ REPAGE_HOURS = 6
 #: FIRST page of a breach is not subject to this.
 REPAGE_RECENT_FAILURE_HOURS = 1
 
+#: The STALL (see the module docstring): over the last STALL_WINDOW_HOURS, at
+#: least STALL_MIN_STREAKS retry streaks began AND they outnumber the saves that
+#: landed. A blip (two streaks beside forty saves) is not one.
+STALL_WINDOW_HOURS = 1
+STALL_MIN_STREAKS = 3
+
+#: A page claimed by a run in flight holds every other run back this long (N-2).
+#: The webhook times out at 10 s; a claim this old belongs to a run that died.
+PAGE_CLAIM_SECONDS = 60
+
+#: The digest names a spike of designed refusals at this many in the window
+#: (re-review D.2). ⛔ NEVER a page: a refusal is the server enforcing a limit,
+#: and the one blind spot is a limit set wrong, which a person reads, not a pager.
+REFUSED_SPIKE_MIN = 20
+
 #: Designed refusals (see the module docstring): excluded from the paging rate,
 #: counted as `refused`. A 413 always arrives as `too-large`; the list carries both
 #: spellings so neither door can slip through the other's.
@@ -102,15 +137,17 @@ _MAX_MS_ROWS = 20_000
 #: statement rather than a copy of it.
 _COUNT_SQL = "SELECT COUNT(*) FROM activity_log WHERE action = ? AND created_at >= ?"
 
-OK, BREACH, INSUFFICIENT = "ok", "breach", "insufficient"
+OK, BREACH, STALL, INSUFFICIENT = "ok", "breach", "stall", "insufficient"
+#: The states that page (a paging SLO's). One incident may move between them.
+_PAGING_STATES = frozenset({BREACH, STALL})
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS notebook_slo_events (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at   TEXT NOT NULL,
-    kind         TEXT NOT NULL,          -- 'evaluation' | 'page' | 'digest'
+    kind         TEXT NOT NULL,          -- 'evaluation' | 'page' | 'page_failed' | 'digest'
     slo          TEXT,                   -- save_success | ask_latency | search_latency | NULL (digest)
-    state        TEXT,                   -- ok | breach | insufficient
+    state        TEXT,                   -- ok | breach | stall | insufficient
     value        REAL,
     objective    REAL,
     n            INTEGER,
@@ -120,16 +157,24 @@ CREATE TABLE IF NOT EXISTS notebook_slo_events (
 );
 CREATE INDEX IF NOT EXISTS idx_notebook_slo_events_created ON notebook_slo_events(created_at);
 CREATE TABLE IF NOT EXISTS notebook_slo_state (
-    slo            TEXT PRIMARY KEY,
-    state          TEXT NOT NULL,
-    since          TEXT NOT NULL,
-    last_paged_at  TEXT
+    slo              TEXT PRIMARY KEY,
+    state            TEXT NOT NULL,
+    since            TEXT NOT NULL,
+    last_paged_at    TEXT,                -- a DELIVERED page only (I-1)
+    page_attempt_at  TEXT                 -- the in-flight claim (N-2)
 );
 """
 
 
 def _ensure(conn) -> None:
     conn.executescript(_SCHEMA)
+    # A table made by fix round 1 has no claim column, and `CREATE ... IF NOT
+    # EXISTS` never adds one: without this every run would raise inside the
+    # scheduler's catch-all and the pager would be silently dead.
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(notebook_slo_state)").fetchall()}
+    if "page_attempt_at" not in cols:
+        conn.execute("ALTER TABLE notebook_slo_state ADD COLUMN page_attempt_at TEXT")
+        conn.commit()
 
 
 def _iso(t: datetime) -> str:
@@ -195,6 +240,22 @@ def _classify_failures(rows: list) -> tuple[int, int, Optional[str]]:
     return failed, refused, last
 
 
+def _streaks_begun(rows: list, since: str) -> tuple[int, Optional[str]]:
+    """(retry streaks that BEGAN at or after `since`, the newest one's created_at).
+    Every `save_failed` row with `retrying: true` is one streak that began — the
+    client reports a streak once, when it starts, and never again while it retries."""
+    n = 0
+    last: Optional[str] = None
+    for created_at, d in rows:
+        stamp = str(created_at) if created_at is not None else ""
+        if not stamp or stamp < since or _props(d).get("retrying") is not True:
+            continue
+        n += 1
+        if last is None or stamp > last:
+            last = stamp
+    return n, last
+
+
 def _latency(conn, event: str, since: str, objective: float, min_n: int) -> dict[str, Any]:
     vals = sorted(v for v in (ms_of(d) for d in _details(conn, f"j2:{event}", since)) if v is not None)
     p95 = percentile(vals, 0.95)
@@ -213,14 +274,22 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
     conn = conn or auth_db.get_connection()
     try:
         since = _since(now, window_hours)
+        stall_since = _since(now, STALL_WINDOW_HOURS)
         ok_n = _count(conn, "j2:save_success", since)
-        failed, refused, last_failure_at = _classify_failures(_rows(conn, "j2:save_failed", since))
+        fail_rows = _rows(conn, "j2:save_failed", since)
+        failed, refused, last_failure_at = _classify_failures(fail_rows)
+        streaks, last_streak_at = _streaks_begun(fail_rows, stall_since)
+        landed = _count(conn, "j2:save_success", stall_since)
         attempts = ok_n + failed
         rate = (ok_n / attempts) if attempts else None
         if attempts < SAVE_SUCCESS_MIN_ATTEMPTS or rate is None:
             save_state = INSUFFICIENT
         else:
             save_state = BREACH if rate < SAVE_SUCCESS_OBJECTIVE else OK
+        # ⛔ D.1: saves are retrying, not landing. Outranks OK and INSUFFICIENT
+        # (the two readings a save-door outage produces); a breach keeps its name.
+        if save_state != BREACH and streaks >= STALL_MIN_STREAKS and streaks > landed:
+            save_state = STALL
         return {
             "evaluated_at": _iso(now),
             "window_hours": window_hours,
@@ -228,7 +297,11 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
                 "save_success": {"state": save_state, "value": rate, "objective": SAVE_SUCCESS_OBJECTIVE,
                                  "n": attempts, "succeeded": ok_n, "failed": failed,
                                  "refused": refused, "last_failure_at": last_failure_at,
-                                 "min_n": SAVE_SUCCESS_MIN_ATTEMPTS},
+                                 "min_n": SAVE_SUCCESS_MIN_ATTEMPTS,
+                                 "stall": {"streaks": streaks, "succeeded": landed,
+                                           "window_hours": STALL_WINDOW_HOURS,
+                                           "min_streaks": STALL_MIN_STREAKS,
+                                           "last_streak_at": last_streak_at}},
                 "ask_latency": _latency(conn, "ask_used", since, ASK_P95_MS_OBJECTIVE, ASK_MIN_SAMPLES),
                 "search_latency": _latency(conn, "search_used", since, SEARCH_P95_MS_OBJECTIVE,
                                            SEARCH_MIN_SAMPLES),
@@ -255,21 +328,42 @@ def _post_discord(text: str) -> str:
 
 
 def _page_text(slo: str, r: dict[str, Any], window_hours: int) -> str:
+    if r["state"] == STALL:
+        st = r["stall"]
+        rate = "n/a" if r["value"] is None else f"{r['value']:.4f}"
+        return (f"🔴 **Notebook save STALL — {slo}**: {st['streaks']} save retry streaks began in "
+                f"the last {st['window_hours']} h and {st['succeeded']} saves landed. Members' "
+                f"saves are retrying, not landing (a stall is >= {st['min_streaks']} streaks that "
+                f"outnumber the saves). The {window_hours} h rate reads {rate} because a retry is "
+                f"not a give-up. Read /api/admin/notebook-slo.")
     return (f"🔴 **Notebook SLO breach — {slo}**: {r['value']:.4f} vs objective "
             f">= {r['objective']} over {r['n']} final save outcomes in {window_hours} h "
             f"({r.get('failed', 0)} gave up). Read /api/admin/notebook-slo.")
 
 
 def _failed_recently(r: dict[str, Any], now: datetime) -> bool:
-    last = r.get("last_failure_at")
+    """M-4's recency, per state: a breach is still live if a save GAVE UP in the
+    last hour; a stall if a retry streak BEGAN in it."""
+    last = (r.get("stall") or {}).get("last_streak_at") if r["state"] == STALL else r.get("last_failure_at")
     return bool(last) and str(last) >= _iso(now - timedelta(hours=REPAGE_RECENT_FAILURE_HOURS))
 
 
+def _recovered(r: dict[str, Any]) -> bool:
+    """Is an OK reading EVIDENCE that the incident ended? For save success, only
+    when the saves that landed in the stall window have caught up with the retry
+    streaks that began in it; an hour where streaks still outnumber them is saves
+    that have not landed, however the rate reads. Other SLOs: any OK is recovery."""
+    st = r.get("stall")
+    return st is None or st["succeeded"] >= st["streaks"]
+
+
 def _record_evaluation(conn, result: dict[str, Any], now: datetime) -> list:
-    """Write one evaluation row per SLO and move the breach state. Returns the
-    paging SLOs whose page is due. Opens a transaction; the CALLER commits it —
-    before any network call (I-2)."""
+    """Write one evaluation row per SLO, move the incident state, and CLAIM each
+    page that is due. Returns the paging SLOs whose page this run sends. Opens a
+    transaction; the CALLER commits it — before any network call (I-2) — which is
+    also what makes the claim visible to a second run while this one posts (N-2)."""
     stamp = result["evaluated_at"]
+    claim_floor = _iso(now - timedelta(seconds=PAGE_CLAIM_SECONDS))
     due = []
     for slo, r in result["slos"].items():
         conn.execute(
@@ -277,50 +371,67 @@ def _record_evaluation(conn, result: dict[str, Any], now: datetime) -> list:
             " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (stamp, "evaluation", slo, r["state"], r["value"], r["objective"], r["n"],
              result["window_hours"], "none", None))
-        prev = conn.execute("SELECT state, last_paged_at FROM notebook_slo_state WHERE slo = ?",
-                            (slo,)).fetchone()
-        if r["state"] != BREACH:
-            if r["state"] == OK:
+        prev = conn.execute("SELECT state, last_paged_at, page_attempt_at FROM notebook_slo_state"
+                            " WHERE slo = ?", (slo,)).fetchone()
+        if r["state"] not in _PAGING_STATES:
+            # Only an OK that is EVIDENCE of recovery ends an incident (see
+            # `_recovered`); INSUFFICIENT is no verdict and moves nothing.
+            if r["state"] == OK and _recovered(r):
                 conn.execute(
                     "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
                     " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since,"
-                    " last_paged_at = NULL WHERE notebook_slo_state.state != excluded.state",
+                    " last_paged_at = NULL, page_attempt_at = NULL"
+                    " WHERE notebook_slo_state.state != excluded.state",
                     (slo, OK, stamp))
             continue
         if slo not in PAGING_SLOS:
             continue   # ⛔ speed is reported, never paged (R-15 / D-9C3)
-        began = prev is None or prev[0] != BREACH
+        # A breach and a stall are one incident: moving between them never pages twice.
+        began = prev is None or prev[0] not in _PAGING_STATES
         if began:
             conn.execute(
                 "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
                 " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since,"
                 " last_paged_at = NULL",
-                (slo, BREACH, stamp))
+                (slo, r["state"], stamp))
+        elif prev[0] != r["state"]:
+            conn.execute("UPDATE notebook_slo_state SET state = ? WHERE slo = ?", (r["state"], slo))
         last = None if began else prev[1]
         if last is None:
-            # The breach's first page — or a first page whose delivery failed (I-1).
-            due.append((slo, r))
+            pass   # the incident's first page — or a first page whose delivery failed (I-1)
         elif last <= _iso(now - timedelta(hours=REPAGE_HOURS)) and _failed_recently(r, now):
-            # A re-page: the interval has passed AND saves are still failing (M-4).
-            due.append((slo, r))
+            pass   # a re-page: the interval has passed AND saves are still failing (M-4)
+        else:
+            continue
+        claim = prev[2] if prev is not None else None
+        if claim and str(claim) > claim_floor:
+            # ⛔ N-2: another run claimed this page under PAGE_CLAIM_SECONDS ago and
+            # may be on the network with it right now. Its outcome decides; if it
+            # failed, the claim ages out and a later run pages (I-1).
+            continue
+        conn.execute("UPDATE notebook_slo_state SET page_attempt_at = ? WHERE slo = ?", (stamp, slo))
+        due.append((slo, r))
     return due
 
 
 def run_check(now: Optional[datetime] = None, conn=None, *,
               post: Optional[Callable[[str], str]] = None) -> dict[str, Any]:
-    """Evaluate, record one row per SLO, and PAGE a paging SLO's breach.
+    """Evaluate, record one row per SLO, and PAGE a paging SLO's breach or stall.
 
-    A breach pages when it BEGINS, and again every REPAGE_HOURS while it lasts AND a
-    final failure landed within REPAGE_RECENT_FAILURE_HOURS; a recovery clears the
-    state so the next breach pages at once. Speed SLOs are recorded and never reach
-    `post`.
+    An incident (breach or stall — one incident, whichever it reads) pages when it
+    BEGINS, and again every REPAGE_HOURS while it lasts AND it is still live within
+    REPAGE_RECENT_FAILURE_HOURS (a give-up for a breach, a streak begun for a
+    stall); a recovery clears the state so the next incident pages at once. Speed
+    SLOs are recorded and never reach `post`.
 
     ⛔ I-2: the evaluation and state rows are COMMITTED before `post()` runs, and the
     page outcome is written in its own short transaction after it — no auth.db
     transaction is ever open across the network call.
     ⛔ I-1: only a delivered page (`DELIVERED`) is a `page` row and stamps
     `last_paged_at`. A failed delivery is a `page_failed` row with
-    `delivered='failed'`, `last_paged_at` stays as it was, and the next run pages.
+    `delivered='failed'`, `last_paged_at` stays as it was, and a later run pages.
+    ⛔ N-2: the committed transaction claims the page (`page_attempt_at`); a run
+    that finds a claim younger than PAGE_CLAIM_SECONDS does not page.
     """
     now = now or datetime.now(timezone.utc)
     post = post or _post_discord
@@ -344,11 +455,12 @@ def run_check(now: Optional[datetime] = None, conn=None, *,
             conn.execute(
                 "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
                 " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (stamp, "page" if ok else "page_failed", slo, BREACH, r["value"], r["objective"],
+                (stamp, "page" if ok else "page_failed", slo, r["state"], r["value"], r["objective"],
                  r["n"], result["window_hours"], delivered if ok else "failed", text))
             if ok:
-                conn.execute("UPDATE notebook_slo_state SET last_paged_at = ? WHERE slo = ?",
-                             (stamp, slo))
+                conn.execute("UPDATE notebook_slo_state SET last_paged_at = ?, page_attempt_at = NULL"
+                             " WHERE slo = ?", (stamp, slo))
+            # A failed delivery leaves its claim to age out (PAGE_CLAIM_SECONDS).
             conn.commit()
             pages.append({"slo": slo, "delivered": delivered if ok else "failed"})
         result["pages"] = pages
@@ -360,8 +472,9 @@ def run_check(now: Optional[datetime] = None, conn=None, *,
 
 def run_digest(now: Optional[datetime] = None, conn=None) -> dict[str, Any]:
     """The daily, NON-PAGING digest: one row naming every SLO's state, latency
-    breaches included. It is read from `GET /api/admin/notebook-slo`; it never
-    posts anywhere."""
+    breaches included, and a named `refused spike` line when designed refusals
+    reach REFUSED_SPIKE_MIN in the window (re-review D.2). It is read from
+    `GET /api/admin/notebook-slo`; it never posts anywhere."""
     now = now or datetime.now(timezone.utc)
     owned = conn is None
     conn = conn or auth_db.get_connection()
@@ -374,7 +487,10 @@ def run_digest(now: Optional[datetime] = None, conn=None) -> dict[str, Any]:
             shown = "n/a" if v is None else (f"{v:.4f}" if slo == "save_success" else f"{v:.0f} ms")
             extra = f", refused={r['refused']}" if "refused" in r else ""
             lines.append(f"{slo}: {r['state'].upper()} {shown} (objective {r['objective']}, n={r['n']}{extra})")
-        text = "Notebook SLO digest, last %d h — %s" % (result["window_hours"], "; ".join(lines))
+        refused = result["slos"]["save_success"].get("refused", 0)
+        if refused >= REFUSED_SPIKE_MIN:
+            lines.append(f"refused spike: {refused} saves refused — check the server limits")
+        text ="Notebook SLO digest, last %d h — %s" % (result["window_hours"], "; ".join(lines))
         conn.execute(
             "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
             " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
