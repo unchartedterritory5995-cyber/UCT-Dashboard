@@ -61,6 +61,7 @@ jobs:
         run: >
           python tools/notebook_scale_benchmark.py --tiers 10000 --ratio ratio_ci
           --json notebook-latency.json
+          --slow-op "GET /notes q=rare (list+count)=400"
 
       - name: The ratio budget, re-read by the budget tool
         if: always()
