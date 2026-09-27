@@ -233,6 +233,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // A plot coloured by a condition between two static colours draws per point.
     const condKey = (typeof p.colorUp === 'string' && typeof p.colorDown === 'string')
       ? conditionColumnFor(p.colorCondition) : null
+    // ⭐⭐ …and so does an N-way chain: a palette, and a column holding which
+    // entry each bar uses (ATR Trailing Stoploss's green/red/black line).
+    const paletteKey = (!condKey && Array.isArray(p.colorPalette) && p.colorPalette.length >= 2)
+      ? conditionColumnFor(p.colorIndex) : null
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
     // `meta.repaint` is a TRUTH CLAIM a member makes decisions on, and the
     // install door refuses a declaration that disagrees with what it measures —
@@ -268,6 +272,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
+      ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
     }
   })
 
@@ -322,6 +327,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
         row.fill.colorMode = `column:${fillKey}`
         row.fill.colorUp = f.colorUp
         row.fill.colorDown = f.colorDown
+      } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
+        const palKey = conditionColumnFor(f.colorIndex)
+        if (palKey) {
+          row.fill.colorMode = `column:${palKey}`
+          row.fill.colorPalette = f.colorPalette.slice()
+        }
       }
     }
     // ⭐ A COLUMN NOBODY NAMES CANNOT EXIST — BY CONSTRUCTION, NOT BY A GUARD.

@@ -60,10 +60,16 @@ describe('live TradingView captures — KNOWN divergences', () => {
     expect((v.plots || []).find((p) => p.title === 'Basis').verdict).toBe('MATCH')
   }, 60000)
 
-  it('ATR Trailing Stoploss: the line is the only divergence (three-colour chain + ATR seed)', () => {
+  it('ATR Trailing Stoploss: the line diverges on VALUES only (the ATR seed) — its three-colour chain now agrees', () => {
     const v = grade('atr-trailing-stoploss-rddt-1d-2026-09-27')
     const div = (v.plots || []).filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)
     expect(div).toEqual(['ATR Trailing Stoploss'])
+    const line = v.plots.find((p) => p.id === 'plot_1')
+    // ⭐ green / red / black, carried as a palette + index column: every compared
+    // bar's colour agrees with TradingView (was 0 of 568 — the pane's gold).
+    expect(line.stats.colorCompared).toBeGreaterThan(500)
+    expect(line.stats.colorMismatches).toBe(0)
+    expect(line.stats.firstDivergence.kind).toBe('value')
   }, 60000)
 })
 
@@ -81,13 +87,19 @@ describe('comparator rules the live captures forced', () => {
   })
 
   it('a plot TradingView does not DISPLAY has its values graded and its colour not', () => {
+    // A vendor that reported a DIFFERENT palette entry on every bar: rotate the
+    // line's colorer index (plot_2 → plot_1) so colours disagree everywhere.
     const c = JSON.parse(JSON.stringify(load('atr-trailing-stoploss-rddt-1d-2026-09-27')))
-    const visible = gradeCapture(c).verdict.plots.find((p) => p.id === 'plot_1')
-    // CONTROL — displayed, its first divergence is the colour (gold vs #363a45)
-    expect(visible.stats.firstDivergence.kind).toBe('color')
+    const col = c.plotValues.fields.indexOf('plot_2')
+    expect(col).toBeGreaterThan(0)
+    c.plotValues.rows.forEach((r) => { if (Number.isInteger(r[col])) r[col] = (r[col] + 1) % 3 })
+    const visible = gradeCapture(sealCapture(c)).verdict.plots.find((p) => p.id === 'plot_1')
+    // CONTROL — displayed, the rotated colours are seen as disagreements
+    expect(visible.stats.colorMismatches).toBeGreaterThan(500)
     c.study.styleState.plot_1 = { ...(c.study.styleState.plot_1 || {}), display: 0 }
     const hidden = gradeCapture(sealCapture(c)).verdict.plots.find((p) => p.id === 'plot_1')
-    expect(hidden.stats.firstDivergence.kind).not.toBe('color')
+    expect(hidden.stats.colorMismatches).toBe(0)
+    expect(hidden.stats.firstDivergence.kind).toBe('value')
     expect(hidden.verdict).toBe('DIVERGE')             // the ATR-seed VALUES still count
   })
 })

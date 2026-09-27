@@ -473,6 +473,12 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       ...(r.colorMode && r.colorUp && r.colorDown
         ? { colorMode: r.colorMode, colorUp: r.colorUp, colorDown: r.colorDown }
         : {}),
+      // ⭐⭐ …or a PALETTE: the named column holds which entry each bar uses (an
+      // N-way Pine colour chain). Same all-or-none rule: mode and palette travel
+      // together or neither does.
+      ...(r.colorMode && !r.colorUp && Array.isArray(r.colorPalette) && r.colorPalette.length >= 2
+        ? { colorMode: r.colorMode, colorPalette: r.colorPalette.slice() }
+        : {}),
       // ⭐⭐ THE AUTHOR'S OPACITY. `defSchema` validates `plots[].opacity` and
       // `pool` reads it, and the member pane has put it on its rows since
       // 2026-09-12 — but this projection never named it, so it stopped here and
@@ -525,6 +531,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
                 colorUp: r.fill.colorUp,
                 colorDown: r.fill.colorDown,
               }
+              : {}),
+            ...(r.fill.colorMode && !r.fill.colorUp && Array.isArray(r.fill.colorPalette)
+              && r.fill.colorPalette.length >= 2
+              && rows.some((o) => o.key === String(r.fill.colorMode).slice('column:'.length))
+              ? { colorMode: r.fill.colorMode, colorPalette: r.fill.colorPalette.slice() }
               : {}),
           },
           ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),

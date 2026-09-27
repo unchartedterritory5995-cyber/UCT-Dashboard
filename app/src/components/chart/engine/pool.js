@@ -669,6 +669,20 @@ function twoColoursOf(plot) {
   return (up && down) ? { up, down } : null
 }
 
+/** A palette's colours with the plot's alpha applied, or null unless every
+ *  entry is a colour and there are at least two of them. */
+function paletteOf(plot) {
+  const pal = plot && plot.colorPalette
+  if (!Array.isArray(pal) || pal.length < 2) return null
+  const alpha = plotAlpha(plot)
+  const out = pal.map((raw) => {
+    if (typeof raw !== 'string' || !raw) return null
+    if (alpha === null || alpha >= 1) return raw
+    return withAlpha(raw, alpha) || raw
+  })
+  return out.every(Boolean) ? out : null
+}
+
 /**
  * ⭐⭐ C1: THE PER-POINT COLOURS A `colorMode: 'column:<key>'` PLOT DRAWS WITH.
  *
@@ -707,7 +721,10 @@ export function columnColorsForPlot(plot) {
   const key = plot.colorMode.slice('column:'.length)
   if (!key) return null
   const two = twoColoursOf(plot)
-  return two ? { key, up: two.up, down: two.down } : null
+  if (two) return { key, up: two.up, down: two.down }
+  // ⭐⭐ AN N-WAY PINE COLOUR CHAIN: the named column holds the palette index.
+  const palette = paletteOf(plot)
+  return palette ? { key, up: null, down: null, palette } : null
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────
