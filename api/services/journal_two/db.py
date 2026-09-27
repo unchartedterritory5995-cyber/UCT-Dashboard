@@ -2021,6 +2021,16 @@ _PERF_INDEXES = [
     # the LIMIT stops the walk at 200.
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_folder_title"
     " ON j2_notes(user_id, deleted_at, archived_at, folder_id, title COLLATE NOCASE)",
+    # Wave 10 (lane 10A): the ticker surfaces' backlinks (`get_symbol_backlinks`) drive
+    # from a symbol's note-id SET (embeds UNION mentions -- 5,000 notes for one ticker in
+    # the 50k seed) and look each one up by `id`. Through the id autoindex every lookup
+    # then read the note's ROW for user_id / deleted_at / updated_at, and those columns
+    # sit after body_json, so each read walked the body's overflow pages. Keyed by `id`
+    # and carrying what both backlink queries read, the lookups never touch a row:
+    # count 24 -> 7 ms, list 32 -> 14 ms at 50k (perf-budgets.md §7). ⛔ A NEW name, like
+    # every index this file changes (`CREATE INDEX IF NOT EXISTS` never rewrites one).
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_id_live"
+    " ON j2_notes(id, user_id, deleted_at, updated_at, title)",
 ]
 
 

@@ -18,7 +18,11 @@ measured at 50k notes):
   * the tasks read (`?view=tasks`) starts from the task-bearing partial index,
     never from every live note's body, and reads the task index beside it (wave 10);
   * a search maps its full-text matches to NOTE ROWIDS through the covering
-    `idx_j2_notes_fts_map_rowid_note`, never through j2_notes' TEXT key (wave 10).
+    `idx_j2_notes_fts_map_rowid_note`, never through j2_notes' TEXT key (wave 10);
+  * the backlinks look each note up in the covering `idx_j2_notes_id_live`, never its
+    row; the relevance order reads its candidates from the NARROW covering
+    `idx_j2_notes_switcher_live`, and its page's total comes from that same read, with
+    no second COUNT (wave 10).
 Each rail was mutation-proved against the defect it names (see the lane-I report).
 """
 from __future__ import annotations
@@ -112,6 +116,7 @@ def test_the_live_cover_index_exists_after_ensure_schema(conn):
     assert "idx_j2_notes_live_cover" in names
     assert "idx_j2_notes_live_tasks" in names
     assert "idx_j2_notes_live_folder_title" in names
+    assert "idx_j2_notes_id_live" in names          # wave 10: the backlinks' covering lookups
 
 
 def test_folder_counts_are_served_from_a_live_covering_index_alone(conn):
@@ -177,8 +182,10 @@ def test_the_symbol_filters_carry_no_correlated_sidecar_subquery(conn, kwargs):
 
 def test_symbol_backlinks_start_from_the_symbol_set_not_from_every_note(conn):
     for sql, steps in _plans(conn, lambda c: notes_svc.get_symbol_backlinks(U, "AMD", conn=c)):
-        # the notes table is entered by primary key from the set, never walked
-        assert not any(s.startswith("SCAN n") or ("SEARCH n USING" in s and "(id=?)" not in s)
+        # the notes table is entered by its key, `id`, from the set, never walked. (Wave 10: the
+        # lookup is now `idx_j2_notes_id_live`, which also takes user_id/deleted_at as equality
+        # terms -- "(id=? AND ...)" -- so the check is that `id` LEADS the search.)
+        assert not any(s.startswith("SCAN n") or ("SEARCH n USING" in s and "(id=?" not in s)
                        for s in steps), steps
 
 
@@ -233,6 +240,53 @@ def test_a_search_maps_its_matches_to_note_rowids_through_the_covering_index_alo
         assert any("COVERING INDEX idx_j2_notes_fts_map_rowid_note" in s for s in steps), (sql, steps)
         assert not any("sqlite_autoindex_j2_notes_1" in s for s in steps), (sql, steps)
         assert "note_rowid" in sql and "m.note_id" not in sql, sql
+
+
+def test_symbol_backlinks_read_no_note_row(conn):
+    """Wave 10 (lane 10A): every note the symbol set names is looked up in the covering
+    `idx_j2_notes_id_live (id, user_id, deleted_at, updated_at, title)`. Through the id
+    autoindex each lookup read the note's ROW for those columns -- behind the body's
+    overflow pages -- 5,000 times for one ticker at 50k (count 24 -> 7 ms, list 32 -> 14 ms,
+    perf-budgets.md §7)."""
+    plans = _plans(conn, lambda c: notes_svc.get_symbol_backlinks(U, "AMD", conn=c))
+    entered = [(sql, steps) for sql, steps in plans if "JOIN j2_notes n" in sql]
+    assert len(entered) == 2, [s for s, _ in plans]      # non-vacuity: the count AND the list
+    for sql, steps in entered:
+        assert any("SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=?" in s for s in steps), steps
+    assert notes_svc.get_symbol_backlinks(U, "AMD", conn=conn)["count"] == 6
+
+
+def test_the_relevance_candidates_are_read_from_the_narrow_covering_index(conn):
+    """Wave 10 (lane 10A): the relevance order reads (rowid, updated_at) for EVERY row its
+    filter admits -- the member's whole live range -- so the index's width is its cost.
+    `title` is selected so that the covering index is `idx_j2_notes_switcher_live`, about
+    half the width of `idx_j2_notes_live_cover`, which the planner otherwise took."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    plans = _plans(conn, lambda c: notes_svc.list_notes(U, q="breakout", sort="relevance", conn=c))
+    cand = [(s, st) for s, st in plans if s.startswith(notes_svc._RELEVANCE_CANDIDATES_SQL)]
+    assert len(cand) == 1, [s for s, _ in plans]
+    assert any("COVERING INDEX idx_j2_notes_switcher_live" in s for s in cand[0][1]), cand[0][1]
+
+
+def test_a_relevance_page_takes_its_true_total_from_the_ranked_read(conn):
+    """Wave 10 (lane 10A): the relevance read admits exactly the rows `count_notes` counts
+    over the same WHERE (it must, to order them), so `list_and_count_notes` answers the
+    total from it and runs no second COUNT over the library -- and the answer is the same
+    number the separate count gives."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'"
+                 " WHERE id != 'n5'")
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id = 'n0'")
+    conn.commit()
+    rec = Recorder(conn)
+    rows, total = notes_svc.list_and_count_notes(U, q="breakout", sort="relevance", conn=rec)
+    counts = [s for s, _ in rec.statements if "COUNT(*)" in s.upper() and "FROM J2_NOTES" in s.upper()]
+    assert counts == [], counts
+    assert total == notes_svc.count_notes(U, q="breakout", conn=conn) == len(rows) == 4
+    # control: the updated-order page still counts with its own COUNT (its read is a page)
+    rec2 = Recorder(conn)
+    notes_svc.list_and_count_notes(U, q="breakout", conn=rec2)
+    assert [s for s, _ in rec2.statements if "COUNT(*)" in s.upper()], "non-vacuity: the COUNT probe sees nothing"
 
 
 def test_the_tasks_read_starts_from_the_task_bearing_partial_index(conn):

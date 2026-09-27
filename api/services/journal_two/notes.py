@@ -574,7 +574,18 @@ class _RowidSets:
     def __init__(self, conn: sqlite3.Connection):
         self._conn = conn
         self._memo: dict[tuple, str] = {}
+        self._counts: dict[tuple, int] = {}
         self.computed = 0          # how many sets were actually run (rails read this)
+
+    def remember_count(self, where_sql: str, params: list[Any], n: int) -> None:
+        """Wave 10 (lane 10A): the relevance order already read EVERY row the filter
+        admits (it has to, to order them), so `len` of that read IS the page's true total
+        over that exact WHERE. `count_notes` then answers from here instead of scanning the
+        library a second time. Keyed by the exact WHERE and params, like the sets."""
+        self._counts[(where_sql, tuple(params))] = int(n)
+
+    def known_count(self, where_sql: str, params: list[Any]) -> int | None:
+        return self._counts.get((where_sql, tuple(params)))
 
     def clause(self, set_sql: str, set_params: list[Any]) -> tuple[str, list[Any]]:
         key = (set_sql, tuple(set_params))
@@ -1705,6 +1716,24 @@ _RELEVANCE_RANKED_SQL = (
 )
 
 
+# The rows the relevance order ranks: (rowid, updated_at) for every note the filter admits.
+# ⭐ Wave 10 (lane 10A): `title` is selected ONLY so that the one covering index holding all
+# three is the narrow `idx_j2_notes_switcher_live` (db.py) -- about half the width of
+# `idx_j2_notes_live_cover`, which covers (rowid, updated_at) as well and which the planner
+# otherwise picked. This read scans the member's whole live range (it has to: every match must
+# be ordered), so the index's width IS its cost. No `INDEXED BY`: a database without that index
+# still answers, it just scans wider (the read-plan rail pins the covering read).
+_RELEVANCE_CANDIDATES_SQL = "SELECT j2_notes.rowid, j2_notes.updated_at, j2_notes.title FROM j2_notes"
+
+
+def _tuples(conn: sqlite3.Connection, sql: str, params: list[Any]) -> sqlite3.Cursor:
+    """`conn.execute` whose rows are plain tuples: a pass over every match (15k rows on a
+    common term at 50k notes) builds no `sqlite3.Row` per row. Same statement, same rows."""
+    cur = conn.cursor()
+    cur.row_factory = None
+    return cur.execute(sql, params)
+
+
 def list_notes(
     user_id: str,
     *,
@@ -1770,7 +1799,7 @@ def list_notes(
             # full summary columns read every candidate's body off its overflow
             # pages, ~280 ms at 50k).
             parts = _q_match_parts(user_id, q, tag_index=tag_index)
-            for rid, score in conn.execute(_RELEVANCE_RANKED_SQL, [relevance_expr]):
+            for rid, score in _tuples(conn, _RELEVANCE_RANKED_SQL, [relevance_expr]):
                 if rid is not None:
                     scores[rid] = score
             matched = set(scores)
@@ -1796,11 +1825,16 @@ def list_notes(
             params += prop_params
         page_limit, page_offset = max(1, min(limit, 500)), max(0, offset)
         if relevance_expr:
-            cand = conn.execute("SELECT j2_notes.rowid, j2_notes.updated_at FROM j2_notes" + where_sql,
-                                params).fetchall()
-            cand.sort(key=lambda r: r[0])                          # rowid ASC: the last tiebreak
-            cand.sort(key=lambda r: r[1] or "", reverse=True)      # updated_at DESC (stable; NULL last)
-            cand.sort(key=lambda r: -1e9 if scores.get(r[0]) is None else scores[r[0]])   # score ASC
+            cand = _tuples(conn, _RELEVANCE_CANDIDATES_SQL + where_sql, params).fetchall()
+            # ⭐ Wave 10: this read admits EXACTLY the rows `count_notes` would count over the
+            # same WHERE -- it must, to order them -- so it is the page's true total too.
+            if _shared is not None:
+                _shared.remember_count(where_sql, params, len(cand))
+            # updated_at DESC (NULL last), then rowid ASC -- one sort on one key, reversed --
+            cand.sort(key=lambda r: (r[1] or "", -r[0]), reverse=True)
+            # -- then score ASC, stable, so the two keys above break its ties.
+            score_of = scores.get
+            cand.sort(key=lambda r: -1e9 if score_of(r[0]) is None else scores[r[0]])
             order = [r[0] for r in cand[page_offset:page_offset + page_limit]]
             by_rowid = {}
             if order:
@@ -1907,6 +1941,10 @@ def count_notes(
             )
             where_sql += prop_where
             params += prop_params
+        if _shared is not None:
+            known = _shared.known_count(where_sql, params)
+            if known is not None:
+                return known       # the relevance pass read exactly this WHERE's rows
         sql = "SELECT COUNT(*) AS c FROM j2_notes" + where_sql
         row = conn.execute(sql, params).fetchone()
         return int(row["c"] or 0) if row else 0
