@@ -3341,6 +3341,29 @@ with complete confidence. It happened in both directions in one night:
 05:43:14Z  session B's deploy appears, marking session A's REMOVED
 ```
 
+⛔⛔ **AND THE INSTRUMENT MOST PEOPLE REACH FOR TO CHECK THIS IS THE WRONG ONE — measured
+2026-09-27, twice, by two sessions.** `gh api repos/.../deployments?sha=<SHA>` is **NOT** a
+record of whether Railway took a push. It returned `[]` for a commit Railway was **actively
+deploying at that moment**, while the same commit's **commit STATUSES** carried six Railway
+contexts including `web pending — "Railway is deploying the service"`. ⭐ **Read
+`repos/.../commits/<SHA>/status`, never the deployments API.** Two sessions independently
+concluded "the GitHub→Railway integration is broken" off the empty deployments list, and one
+of them escalated it to the owner and told them to go fix a connection that was working.
+⚠️ The trap has a control that makes it *look* validated: the PREVIOUS master commit really
+did have a deployments record, created 3 s after its push — so the proxy appeared to work,
+which is exactly how a proxy earns confidence it has not earned.
+
+⚠️ **A LARGE PUSH MAY NOT REGISTER AT ALL, AND THIS IS UNPROVEN BUT ACTIONABLE.** Same night:
+a master push of **622 new commits** (six merges, including a 602-commit docs merge) produced
+**ZERO commit statuses** — Railway never took it. A **1-commit** squash pushed 48 minutes
+later registered within seconds and carried the 622 commits' content with it, and a **2-commit**
+push after that registered in seconds too. ⛔ n=1 on each side, so push size is a HYPOTHESIS,
+not an established cause — do not write it up as one. But the cheap habit costs nothing:
+**land a large docs merge as its own push**, and after any master push **verify registration by
+commit statuses** before reporting anything about a deploy. A push that silently did not
+register looks identical to one whose record is merely late — which is the blind window above
+wearing a second costume.
+
 ⛔ **WAITING LONGER DOES NOT CLOSE IT.** The check and the thing it checks are separated by
 a delay the checker cannot observe, so no settle threshold fixes it — a longer wait just
 moves the hole. **"No deploy in flight" is evidence about DEPLOYS, never about PUSHES.**
