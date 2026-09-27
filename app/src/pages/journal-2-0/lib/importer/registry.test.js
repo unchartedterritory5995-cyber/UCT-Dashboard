@@ -48,4 +48,22 @@ describe('detectAdapter', () => {
     const result = await detectAdapter([vf('09-22-2026.md', '- Morning notes\n  - Watching NVDA into earnings')])
     expect(result.adapter.id).toBe('file')
   })
+
+  // Wave 10 (R-18). A real Roam export carries [[links]], so it lands on the
+  // Obsidian reader -- the census (census.js) records that route, measured.
+  it('a Logseq graph (logseq/config.edn) routes to logseq', async () => {
+    expect((await detectAdapter([vf('g/logseq/config.edn'), vf('g/pages/a.md', 'see [[b]]')])).adapter.id).toBe('logseq')
+  })
+  it('a folder opened in BOTH Obsidian and Logseq still ties to obsidian, as before logseq existed', async () => {
+    const r = await detectAdapter([vf('v/.obsidian/app.json'), vf('v/logseq/config.edn'), vf('v/a.md', 'x')])
+    expect(r.adapter.id).toBe('obsidian')
+  })
+  it('a Google Takeout Keep folder routes to keep, by path or by a Keep-shaped JSON', async () => {
+    expect((await detectAdapter([vf('Takeout/Keep/a.json', '{}')])).adapter.id).toBe('keep')
+    const loose = JSON.stringify({ textContent: 'x', userEditedTimestampUsec: 1 })
+    expect((await detectAdapter([vf('a.json', loose), vf('a.html', '<p>x</p>')])).adapter.id).toBe('keep')
+  })
+  it('an unrelated JSON file does not make a drop look like Google Keep', async () => {
+    expect((await detectAdapter([vf('data.json', '{"name":"x"}'), vf('a.md', 'plain')])).adapter.id).toBe('file')
+  })
 })

@@ -50,7 +50,7 @@ export default function ReadOnlyNote({ note }) {
       )}
       <h1 className={styles.title}>{note.title || 'Untitled'}</h1>
       {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
-      {unreadable && <UnreadableNoteNotice />}
+      {unreadable && <UnreadableNoteNotice editor={editor} />}
       <EditorContent editor={editor} />
     </div>
   )

@@ -600,10 +600,17 @@ def test_ALIAS_RESOLUTION_IS_LOAD_BEARING_and_finds_the_function_local_import():
     """CONTROL on the derivation, and a finding in its own right.
 
     `bars_continuous_audit.py` binds the sink as `_alerts` inside a function body. A
-    derivation restricted to the literal name `chart_health_alerts` - which is what
-    `tests/test_chart_health_severity_vocabulary.py::chart_health_emits_in` does -
-    finds NONE of its four sites, and those four include both `intraday_hotset_stale`
-    tiers, i.e. the exact pair whose escalation defect this wave fixed.
+    derivation restricted to the literal name `chart_health_alerts` finds NONE of its
+    four sites, and those four include both `intraday_hotset_stale` tiers, i.e. the
+    exact pair whose escalation defect this wave fixed.
+
+    ⚰️ This docstring said that restricted derivation was "what
+    `tests/test_chart_health_severity_vocabulary.py::chart_health_emits_in` does".
+    TRUE WHEN WRITTEN, FALSE NOW: that rail was alias-blind for exactly this reason
+    and has been fixed - it resolves aliases scope-aware, pins its population at 21
+    literal-severity sites, and carries its own load-bearing control of this shape.
+    The sentence is corrected rather than deleted because the blind-matcher
+    measurement is what motivated both controls.
     """
     rel = "api/services/bars_continuous_audit.py"
     src = (ROOT / rel).read_text(encoding="utf-8")

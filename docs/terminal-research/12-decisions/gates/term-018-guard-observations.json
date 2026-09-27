@@ -42,7 +42,7 @@
       "api"
     ],
     "_unit": "One guard = one emit call site, keyed <relpath>::<enclosing qualname>::<alert key>::<severity>, plus the sink module's own decision functions (`emit` and the same-module functions it calls). The key/severity in the id is the audit's own unit: 'two tiers of one metric under two thresholds are two guards, because they have two predicates'. A computed key or severity reads <computed>.",
-    "_alias_resolution_is_load_bearing": "api/services/bars_continuous_audit.py binds the sink as `_alerts` in a FUNCTION-LOCAL import, and its four sites include both intraday_hotset_stale tiers. A derivation matching only the literal name `chart_health_alerts` misses them - tests/test_chart_health_severity_vocabulary.py does.",
+    "_alias_resolution_is_load_bearing": "api/services/bars_continuous_audit.py binds the sink as `_alerts` in a FUNCTION-LOCAL import, and its four sites include both intraday_hotset_stale tiers. A derivation matching only the literal name `chart_health_alerts` misses them. This note used to end '- tests/test_chart_health_severity_vocabulary.py does': TRUE WHEN WRITTEN, FALSE NOW, that rail was fixed to resolve aliases scope-aware and pins its population at 21 literal-severity sites.",
     "emit_site_count_floor": 20,
     "gate_function_count_floor": 3,
     "must_contain_by_name": [

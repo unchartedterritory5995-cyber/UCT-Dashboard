@@ -91,6 +91,14 @@ import InsightsSurface from './surfaces/InsightsSurface'
 import CompassSurface from './surfaces/CompassSurface'
 import CommunitySurface from './surfaces/CommunitySurface'
 import AccountsSurface from './surfaces/AccountsSurface'
+import { latchNotebookFlags } from './lib/offline/notebookFlags'
+
+// ⛔ Wave 10 (10C, F-8): NotebookSurface now mounts Wave K's gate, which renders
+// nothing until the capability flags latch (or its 3 s deadline passes). The REAL
+// AuthContext latches them from /api/auth/me before AuthGuard renders any route;
+// the AuthContext mocked above does not, so latch them here exactly as the real one
+// would. The redirect assertions below are unchanged.
+latchNotebookFlags({ notebook_offline_default_on: true })
 
 // Probe that surfaces the live location so redirect assertions can read the
 // post-Navigate URL (path + search).

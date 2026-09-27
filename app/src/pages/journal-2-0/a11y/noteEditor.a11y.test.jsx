@@ -10,7 +10,7 @@
 import { describe, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { TextSelection } from '@tiptap/pm/state'
-import { installFetch, latchWave8Flags, Providers } from './fixtures'
+import { installFetch, landPendingAutosave, latchWave8Flags, Providers } from './fixtures'
 import { axeSurface } from './surface'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
@@ -76,6 +76,7 @@ describe('note editor popups', () => {
     caretAtEnd(editor)
     act(() => { editor.commands.insertContent('/') })
     await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
+    await landPendingAutosave()
   })
 
   axeSurface('editor-find', async () => {
@@ -110,6 +111,7 @@ describe('note editor popups', () => {
     caretAtEnd(editor)
     act(() => { editor.commands.insertContent(' :smi') })
     await waitFor(() => expect(document.getElementById('uct-emoji-menu')).not.toBeNull())
+    await landPendingAutosave()
   })
 
   axeSurface('editor-note-link', async () => {
@@ -118,6 +120,7 @@ describe('note editor popups', () => {
     act(() => { editor.commands.insertContent('[[wee') })
     await waitFor(() => expect(document.querySelector('[id^="uct-note-link"], [role="listbox"][aria-label*="ote"]')).not.toBeNull())
     await settle(350)
+    await landPendingAutosave()
   })
 
   axeSurface('editor-link-paste', async () => {
@@ -131,6 +134,7 @@ describe('note editor popups', () => {
       }))
     })
     await screen.findByRole('toolbar', { name: 'Pasted link' })
+    await landPendingAutosave()
   })
 
   axeSurface('editor-writing-help', async () => {

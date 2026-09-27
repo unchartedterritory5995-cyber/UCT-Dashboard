@@ -1,0 +1,30 @@
+{
+  "color": "DEFAULT",
+  "isTrashed": false,
+  "isPinned": true,
+  "isArchived": false,
+  "title": "Watchlist",
+  "listContent": [
+    {
+      "text": "NVDA into earnings",
+      "isChecked": true
+    },
+    {
+      "text": "DDOG base breakout",
+      "isChecked": false
+    }
+  ],
+  "userEditedTimestampUsec": 1790085600000000,
+  "createdTimestampUsec": 1789999200000000,
+  "labels": [
+    {
+      "name": "Trading"
+    }
+  ],
+  "attachments": [
+    {
+      "filePath": "chart.jpeg",
+      "mimetype": "image/jpeg"
+    }
+  ]
+}

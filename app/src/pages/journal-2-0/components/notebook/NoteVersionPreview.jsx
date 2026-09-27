@@ -48,7 +48,7 @@ export default function NoteVersionPreview({ title, subtitle, bodyJson }) {
     <div className={styles.wrap} data-testid="note-version-preview">
       <div className={styles.title}>{title || 'Untitled'}</div>
       {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
-      {unreadable && <UnreadableNoteNotice />}
+      {unreadable && <UnreadableNoteNotice editor={editor} />}
       <EditorContent editor={editor} className={styles.body} />
     </div>
   )

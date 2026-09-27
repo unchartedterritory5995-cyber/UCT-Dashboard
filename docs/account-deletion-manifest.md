@@ -153,6 +153,7 @@ delete them and that the code names them.
 |---|---|
 | `j2_broker_digest_dedup` | one global row (`id='fleet_digest'`) for the owner's own fleet-check digest — not member data |
 | `j2_task_reminder_runs` | one row per ET `day` (`ran_at`, `members`, `delivered` counts) — counts only, no `user_id` |
+| `account_tombstones` | the record the purge itself WRITES (wave 10, ruling R-9): the deleted member's id and the time, nothing else, so every restore of an older backup deletes them again — purging it would undo the erasure it keeps (see "Backups" below) |
 
 ### History
 
@@ -168,6 +169,47 @@ delete them and that the code names them.
   durable daily caps), keyed by `subject` — the member's id for the per-member counts. The
   shared dollar cap's row (subject `*`) is nobody's and stays; so does every other member's
   row. Rail: `test_daily_usage_counters_member_rows_are_purged_and_the_global_row_is_not`.
+
+## Backups — no restore brings a deleted account back (wave 10, ruling R-9)
+
+The purge above is **immediate** on the live database. The **backups** still hold the
+member: `authdb_backup` keeps the newest `RETAIN` (14) auth.db snapshots — taken every 6 h
+plus nightly, about 3 days — and `j2_attachments_backup` keeps up to 14 days of attachment
+tarballs (never fewer than the newest 3). Rewriting snapshots on every deletion was ruled out
+(plan D15); instead:
+
+1. **The deletion writes a TOMBSTONE, as its FIRST write** (`api/services/account_tombstones.py`;
+   both admin delete doors record it before the broker purge, through
+   `auth._record_deletion_tombstone_or_refuse`, and `purge_user_data` records it before its first
+   DELETE when called alone). ⛔ If it cannot be recorded, NOTHING is deleted: the door answers 500
+   with a sentence and the account stays. If a delete fails AFTER it, the tombstone stays and a
+   restore's replay finishes the intended deletion. ⚰️ It used to be written at the END of
+   `purge_user_data`, so a purge that raised skipped it while the account was still deleted
+   (wave 10 fix round 1; `tests/test_account_deletion_tombstone_first.py`). It is a row in
+   `account_tombstones` (so every LATER snapshot carries it) and
+   an object `authdb/tombstones/<user_id>.json` in the backups' own bucket (so a restore of an
+   EARLIER snapshot — even after losing the volume — still learns of it). The id and the time,
+   nothing else. The off-site write happens only while `AUTHDB_BACKUP_ENABLED=1` (armed on
+   `web`); a tombstone written while it could not be sent stays pending in the table and the
+   next backup run pushes it (`authdb_backup._flush_pending_tombstones`).
+2. **Every restore replays the tombstones.** `tools/authdb_restore_drill.py` reads them (the
+   bucket and the snapshot's own table), replays them on its temporary copy
+   (`account_tombstones.replay_on_db`: the Journal family's rows, then the `users(id)` cascade)
+   and **fails** if any deleted account would still come back. A REAL restore takes its file
+   from `--write-restored PATH`, which writes the replayed copy and **refuses** unless the
+   off-site tombstones were read. A restored attachment tree has the tombstoned members'
+   directories removed with `account_tombstones.replay_on_attachment_tree` before it is put in
+   place.
+3. **Snapshots expire** by `RETAIN` (auth.db) and `J2_ATTACHMENT_BACKUP_RETAIN_DAYS` (14,
+   attachments).
+
+⚠️ Stated, not hidden: (a) a volume lost between a deletion whose off-site write failed and the
+next successful backup loses that tombstone with the volume; (b) the Privacy page's "up to 7
+days" sentence names the ACCOUNT DATABASE copies — attachment tarballs are kept up to 14 days
+(owner/legal decision whether to shorten `J2_ATTACHMENT_BACKUP_RETAIN_DAYS` or word the page);
+(c) tombstones are never pruned — a member id is the least data that can honour an erasure
+against a copy still held. Rails: `tests/test_account_tombstones.py` (the resurrected-user rail
+drills a snapshot taken BEFORE a deletion and asserts the member is gone from the restored copy).
 
 ## Verification method
 

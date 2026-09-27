@@ -348,6 +348,28 @@ function windowRefusal(key, entry) {
         + 'task may grant it alone.' }
 }
 
+/** The one sentence for "this input lands in a plot's DISPLACEMENT" (2026-09-26).
+ *
+ *  ⛔ ITS OWN SENTENCE, NOT `windowRefusal`'s. The fact is the same shape — the
+ *  translator folded the input to a number, so an identifier the chart binds later
+ *  would move nothing — but the reason is different and a member reading "lands in
+ *  a WINDOW" about `offset = -rightbars` would be told something false about their
+ *  own script. Pine's `offset` is a simple int: the author's value is fixed before
+ *  the first bar, and this engine fixes it at translation.
+ *
+ *  ⚠️ SCOPED TO THE PER-INSTANCE KNOB, and says so. Re-translating the script with
+ *  another value moves the displacement (that is how the translator folds it), and
+ *  a positive displacement written as the bare input is ALSO carried as a
+ *  definition parameter; neither is a knob on the chart. */
+function displacementRefusal(key, entry) {
+  return { displacement: true, reason: `\`${key}\` sets a plot DISPLACEMENT (\`offset =\`), and a `
+    + 'displacement is folded to a whole number of bars when the script is translated — '
+    + 'Pine\'s own `offset` is a fixed int, never a per-bar value. The default '
+    + `(\`${entry.folded}\`) is folded in, so the plot is drawn where the author put it; `
+    + 'it is the per-chart KNOB that cannot exist, because moving it would move nothing. '
+    + 'TO CHANGE IT: change the value in the script and paste it again.' }
+}
+
 /** The Formula-tab's OWN pre-check message for the identical fact
  *  `windowRefusal` names — SAME detector (`formulaNameRoles`'s `literalOnly`
  *  set, read by the caller), DIFFERENT reader.
@@ -418,6 +440,11 @@ function positionVerdict(source, candidates) {
     // the knowing side stamps its answer rather than the reader re-deriving it).
     if (entry && entry.windowBound) {
       return windowRefusal(key, entry)
+    }
+    // ⭐ Same rule, second slot: an input folded into a plot's `offset=` is gone
+    // from the formula too, and only `pine.js` saw where it went.
+    if (entry && entry.displacementBound) {
+      return displacementRefusal(key, entry)
     }
     if (literalOnly.has(key)) {
       return windowRefusal(key, entry)
@@ -559,7 +586,12 @@ export function inputsFromFolded(folded, source) {
     // over a fact this function already knows, and a silent miss the day the
     // sentence is reworded. The knowing side stamps its answer.
     if (why) {
-      skipped.push({ ...d.entry, ...(why.window ? { windowBound: true } : {}), reason: why.reason })
+      skipped.push({
+        ...d.entry,
+        ...(why.window ? { windowBound: true } : {}),
+        ...(why.displacement ? { displacementBound: true } : {}),
+        reason: why.reason,
+      })
       continue
     }
     inputs.push(d.row)
@@ -620,14 +652,35 @@ export function inputsFromFolded(folded, source) {
  * told their knob does nothing, instead of that a length cannot be a knob here
  * and why. Only pass 1 was in a position to find out.
  */
-function annotate(translation, windowBound) {
+function annotate(translation, windowBound, displacementBound = new Set()) {
   return (translation.outputs || []).map((o) => {
     if (!o.formula) return { ...o, memberInputs: [], skippedInputs: [] }
-    const folded = (o.inputsFolded || []).map(
-      (e) => (e.name && windowBound.has(e.name) ? { ...e, windowBound: true } : e))
+    // ⭐ BOTH pass-1 verdicts are carried in, for the same reason: the later pass
+    // never declared these names, so it cannot report where they went.
+    const folded = (o.inputsFolded || []).map((e) => {
+      if (!e.name) return e
+      const w = windowBound.has(e.name)
+      const d = displacementBound.has(e.name)
+      return (w || d)
+        ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+        : e
+    })
     const { inputs, skipped } = inputsFromFolded(folded, o.formula)
-    return { ...o, memberInputs: inputs, skippedInputs: skipped }
+    return carryHandoffs(o, { ...o, memberInputs: inputs, skippedInputs: skipped })
   })
+}
+
+/** ⛔ A SPREAD DROPS NON-ENUMERABLE PROPERTIES, and the translator hands a
+ *  leftward displacement's parameter relation to the chart door that way
+ *  (`_displaceFrom` / `_displaceParams`, 2026-09-26). Re-attach them, still
+ *  non-enumerable, so the annotated row carries what the raw row carried. */
+function carryHandoffs(from, to) {
+  for (const k of ['_displaceFrom', '_displaceParams']) {
+    if (Object.prototype.hasOwnProperty.call(from, k)) {
+      Object.defineProperty(to, k, { value: from[k], enumerable: false })
+    }
+  }
+  return to
 }
 
 export function memberInputTranslation(translate, source, opts = {}) {
@@ -643,15 +696,23 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // to be looking at can take it would weld the literal into the other column
   // while handing out a knob — the half-applied trap, one level up.
   const windowBound = new Set()
+  // ⭐ 2026-09-26 — AND THE SAME FOR A PLOT DISPLACEMENT. An input that reached a
+  // plot's `offset=` was folded to a number there; declaring it would hand out a
+  // knob that moves the rest of the formula and leaves the displacement behind.
+  const displacementBound = new Set()
   for (const o of probed) {
-    for (const e of (o.inputsFolded || [])) if (e.windowBound && e.name) windowBound.add(e.name)
+    for (const e of (o.inputsFolded || [])) {
+      if (e.windowBound && e.name) windowBound.add(e.name)
+      if (e.displacementBound && e.name) displacementBound.add(e.name)
+    }
   }
   // ⛔⛔ `memberInputKey`, NOT `e.name`. A name that can never be a member-input
   // KEY must never be DECLARED into a formula — see `memberInputKey`'s own note
   // for the two OOS scripts this silently broke.
   const declarable = [...new Set(probed.flatMap(
     (o) => (o.inputsFolded || [])
-      .filter((e) => memberInputKey(e.name) && !windowBound.has(e.name))
+      .filter((e) => memberInputKey(e.name) && !windowBound.has(e.name)
+        && !displacementBound.has(e.name))
       .map((e) => e.name)))]
 
   // ⭐⭐ AND THEN THE CLOSURE IS *MEASURED*, NOT ARGUED.
@@ -677,7 +738,7 @@ export function memberInputTranslation(translate, source, opts = {}) {
     const t = names.length
       ? translate(source, { ...opts, declareInputs: names })
       : translate(source, opts)
-    return { ...t, outputs: annotate(t, windowBound), declaredNames: names }
+    return { ...t, outputs: annotate(t, windowBound, displacementBound), declaredNames: names }
   }
 
   let attempt = withDeclarations(declarable)

@@ -272,14 +272,16 @@ the band they mostly come from: *"the only band that costs nothing and unblocks 
 
 | RM | what it is | id | who holds it | what it unblocks | VERIFIED |
 |---|---|---|---|---|---|
-| **RM-N01** ⚰️ **[ALREADY DONE — CORRECTED 2026-09-26 by the gate-item-38 author. The window was declared and committed at **08:53** (`8da29658b`, Tuesday 2026-09-29 09:15–12:15 ET, run sheet written, partner tagged in `#deploys`); this roadmap landed at **11:35** (`985f4d9ab`) and still called it a decision nobody had made. ⭐ The lesson is bigger than the cell: EVERY "the owner has not decided this" cell in this programme is a dated claim, and this one was already false when it was written. Re-read before asking again.]** | **Declare a quiet measurement window** — a window declared, held, and stated in the artifact with its `deployments_sampled` | `TERM-007` (`FB-OBS-07`, band 0, ⛔ ACT scheduling) | the owner — *"a scheduling decision nobody has made"* | ⭐ `TERM-014`, `TERM-017`, `TERM-001`'s panel curve and CARD 18's arming condition. Item 30 §6.1: *"the highest-leverage unblock in the register"*, and it is a sentence | carried |
-| **RM-N02** | ⭐⭐ **ONE vendor ask to Massive**, covering four register items at once: live chains (to re-source the existing GEX surface off Schwab, which is `LCQ-02`'s register-mandated remedy), **multi-year historical option chains + per-symbol IV history** (`LCQ-01`), 90-day average option volume, and **a second OPRA connection** (`TERM-002`) | `LCQ-01` · `LCQ-02` · `TERM-002` · BRK-01's precondition | outside the team (`vend`) — ⛔ nobody on this box can clear it | **BRK-01, BRK-10, COV-02, COV-03**, register row X-09's standing remedy, and the permanent tape gap on every flow-worker deploy | ✅ **VERIFIED-HERE** (§9 V4–V6) |
-| **RM-N03** | **One sentence: the maximum age a panel may display without saying so** | `TERM-006` (`FB-S8-02`, band 0) | the owner — ARCH-07 §3 Q3 calls it *"a product decision nobody has made"* | `TERM-059`, every freshness render, and MG-6's contract | carried |
-| **RM-N04** | **Read the transcript-coverage monitor once** (RG-15) | `MEAS-RG15` — item 29 §7.1 #1 records it as a **hard `meas` edge** that `FB-A6-01`'s own field omits | an engineer, one monitor cycle | `TERM-032`, and the whole BRK-09 question. CARD 30 §2: *"Re-read first, build second"* | carried |
-| **RM-N05** | **The MVP pre-registration, and a named non-builder subject** — the workflow, the incumbent tool, the subject and the span in a dated artifact whose timestamp precedes day 1 | item 27 §6; CARD 22 §4's one blocking requirement and §6's owner-only half | the owner names the subject; ⛔ recorder and adjudicator are different people | the only displacement claim this programme may make. ⭐ Zero builds — CARD 24 voided the build half | carried |
-| **RM-N06** | **The owner's explicit "deploy" plus a member-impact paragraph** for the wire missed-run watchdog: move the cron past `expected_wire_date`'s 09:30 rollback boundary, **with the rail in the same commit** | `TERM-092` (**XS**, ⛔ owner deploy, no agent ships it) | the owner | a guard that **cannot fire** is live now; the incident it was built for already happened (2026-08-14) | ✅ **VERIFIED-HERE** (§9 V9) |
-| **RM-N07** | **Read the Cloudflare rule and the zone's cache key** | `TERM-008` (band 0, HELD credential) | someone who can authenticate | CARD 20's ruling being executed **by intention**: CARD 20-EXEC executed the TTL and found CARD 20's diagnosis *wrong about WHERE*, and the zone-wide 4-hour Browser TTL's **blast radius was never measured** | carried |
-| **RM-N08** | **Two product sentences:** extend-or-delete on Confluence Radar; superseded-or-not on the Discord bot's earnings-date path (OQ-14) | `TERM-003`, `TERM-004` (band 0) | a product decision; one sentence | ledger G9 leaving `AWAITING_A_DECISION`; **one** earnings-date authority | carried |
+| **RM-N01** ⚰️ **[ALREADY DONE — CORRECTED 2026-09-26 by the gate-item-38 author. The window was declared and committed at **08:53** (`8da29658b`, Tuesday 2026-09-29 09:15–12:15 ET, run sheet written, partner tagged in `#deploys`); this roadmap landed at **11:35** (`985f4d9ab`) and still called it a decision nobody had made. ⭐ The lesson is bigger than the cell: EVERY "the owner has not decided this" cell in this programme is a dated claim, and this one was already false when it was written. Re-read before asking again.]** ⚰️ **[AND THAT CORRECTION IS ITSELF OVER-STATED — RE-DERIVED 2026-09-26. "ALREADY DONE" is true of exactly ONE of the clause's three verbs.** **Declared ✅** — `8da29658b`, with the run sheet at `10-roadmap/2026-09-29-quiet-window-runsheet.md`. **HELD ⛔** — the window is **Tuesday 2026-09-29 09:15–12:15 ET**, in the future at this writing, and the run sheet reads `status: scheduled` (`:9`) above its own *"The date is still PROPOSED, not agreed, until he replies or Tuesday arrives without objection"* (`:21`). **STATED WITH `deployments_sampled` ⛔** — a repo-wide search finds that token only in documents that SPECIFY the convention (`10-roadmap/observability-plan.md:767` OBS-3, `10-roadmap/backlog.md:707`, `10-roadmap/success-metrics.md:412`) and in **no** artifact that reports a reading. ⭐ **So this one cell has now been wrong in both directions:** `carried` understated it, and `ALREADY DONE` overstates it. The honest value is **PARTIAL, 1 of 3** — which is why §2.3 clause 3 — verbatim, *"The quiet window is declared and stated with its `deployments_sampled` (RM-N01)"* — is **not** met by the declaration alone.]** | **Declare a quiet measurement window** — a window declared, held, and stated in the artifact with its `deployments_sampled` | `TERM-007` (`FB-OBS-07`, band 0, ⛔ ACT scheduling) | the owner — *"a scheduling decision nobody has made"* | ⭐ `TERM-014`, `TERM-017`, `TERM-001`'s panel curve and CARD 18's arming condition. Item 30 §6.1: *"the highest-leverage unblock in the register"*, and it is a sentence | ⚠️ **PARTIAL — 1 of 3** (declared ✅ `8da29658b` · held ⛔ 2026-09-29 · `deployments_sampled` ⛔ unreported) |
+| **RM-N02** ⭐ **[THE ASK NOW EXISTS AND IS UNSENT — re-derived 2026-09-26.** Nothing above was false; the row's STATE moved. The email is written: `10-roadmap/2026-09-26-massive-vendor-ask.md`, `status: ready to send`, one message covering all four register items. ⛔ **Not sent** — CARD 33 records why, verbatim: *"it goes to a third party under the owner's name and needs a recipient only he has"* (`12-decisions/DECISION_CARDS_2026-09-26.md:889`). ⭐ **AND THEN IT WENT OUT AND CAME BACK — SAME DAY, AFTER THE ABOVE WAS WRITTEN.** ⚠️ **PROVENANCE: OWNER STATEMENT IN SESSION, 2026-09-26, NOT A MEASURED FACT.** Verbatim: *"Massive is approved we will have that solved in two days."* Expected provisioned **~2026-09-28**. ⛔⛔ **THE REPOSITORY CARRIES NO EVIDENCE EITHER WAY** — no artifact shows the email sent and none shows a reply; `2026-09-26-massive-vendor-ask.md` still reads `status: ready to send`, which is now itself a stale record of a pre-send state. **This is NOT upgraded to VERIFIED, deliberately:** upgrading an owner statement to a verified fact is the exact kind-3b defect this whole re-derivation exists to correct, committed in the optimistic direction. ✅ **What it DOES settle: §2.3 clause 6.** That clause asks only that the ask be **SENT** — *"the answer is not an exit condition"* — and an approval necessarily implies the ask went out, so **clause 6 is satisfied as of 2026-09-26**. ⛔⛔ **WHAT "APPROVED" DOES NOT SETTLE, and the ambiguity is recorded rather than read away:** it may mean Massive approved the request, or that provisioning is approved and pending — the statement does not distinguish them; and **it names NONE of the four bundled items** (historical chains, IV history, 90-day average option volume, the second OPRA connection), so which of the four are approved is UNKNOWN. ⛔⛔ **THIS DOES NOT UNBLOCK BRK-01.** BRK-01 has **three** blockers and this touches at most one: it still has **no ticket** (H1), and its only shipped machinery rides an **X-class source**, so surfacing it as-is would publish an X-class-sourced derived work (NGB-03, §2.4). ⚠️ **Separately, recorded and not to be re-litigated:** the owner has ruled that the **second OPRA connection may be assumed present for planning**, reaffirmed after the tape-gap risk was raised. That is a decision; it changes nothing about what this repository can evidence.]** | ⭐⭐ **ONE vendor ask to Massive**, covering four register items at once: live chains (to re-source the existing GEX surface off Schwab, which is `LCQ-02`'s register-mandated remedy), **multi-year historical option chains + per-symbol IV history** (`LCQ-01`), 90-day average option volume, and **a second OPRA connection** (`TERM-002`) | `LCQ-01` · `LCQ-02` · `TERM-002` · BRK-01's precondition | outside the team (`vend`) — ⛔ nobody on this box can clear it | **BRK-01, BRK-10, COV-02, COV-03**, register row X-09's standing remedy, and the permanent tape gap on every flow-worker deploy | ✅ **VERIFIED-HERE** (§9 V4–V6) · ✅ **§2.3 clause 6 SATISFIED 2026-09-26** — ⚠️ on an **owner statement** (*"Massive is approved"*), no artifact; which of the four items, and whether "approved" means answered or provisioning-pending, both UNKNOWN |
+| **RM-N03** ⚰️⚰️ **[THE DECISION WAS MADE — TWICE, ON ONE DAY, EIGHT HOURS APART, AND NEITHER ANSWER CITES THE OTHER. Re-derived 2026-09-26.** *"A product decision nobody has made"* is FALSE. **(1)** **CARD 33 §2** — `12-decisions/DECISION_CARDS_2026-09-26.md:873`, commit `fac059c23` at 2026-09-26 13:01:42 −0500, under the owner's *"you do it all and determine it all"*: *"a panel may render data from the CURRENT expected session with no annotation; anything older must state its as-of ON THE SURFACE"*, with a carve-out that slower-than-daily surfaces state their own cadence and that *"one session is a ceiling for daily-cadence panels"*. **(2)** **`app/src/components/provenance/freshnessAge.js:114-186`** — commit `eb6eb247d` at 2026-09-26 21:46:40 −0500, an ancestor of `origin/production`, whose header calls itself the ruling *"the owner delegated the decision explicitly; recorded 2026-09-26"*: `thresholdMs = clamp(AGE_CADENCE_MULTIPLE 2 × cadenceMs, AGE_FLOOR_MS 60_000, oneTradingSessionMs())`, with the session DERIVED from `marketClock.nextBoundary()` so no 6.5-hour literal exists. ⛔⛔ **THEY AGREE AT THE DAILY END AND DIVERGE AT THE FAST END:** on a 15 s-cadence panel CARD 33 is silent until the session rolls, while `freshnessAge` badges at 60 s. A grep for `CARD 33` over the module and its test returns **0 hits**, and CARD 33 names `FreshnessBadge.jsx`, not this module. ⛔ **UNRESOLVED, and not resolved here by argument: which of the two is THE sentence.** What would settle it — one owner sentence, or a citation added in whichever artifact is to be the pointer, so the other becomes a reader of it rather than a second authority. ⚠️ **And the "what it unblocks" column is NOT realised either:** the module landed deliberately **WITHOUT A CONSUMER** — `app/src/components/screener/reachable.test.js:727-746` carries it as such, names `TERM-059` as adoption, and cites `provenance/panelAdoption.measure.test.js`'s measured **519 non-adopting panels** under `pages/**`. ⭐ So the row asked for ONE sentence and got two, which is this repo's most-recorded defect arriving inside the row written to prevent it.]** | **One sentence: the maximum age a panel may display without saying so** | `TERM-006` (`FB-S8-02`, band 0) | the owner — ARCH-07 §3 Q3 calls it *"a product decision nobody has made"* | `TERM-059`, every freshness render, and MG-6's contract | ⚰️ **DECIDED TWICE 2026-09-26 — `carried` FALSE, but NOT closed: two sentences, no reconciliation, no consumer** |
+| **RM-N04** ⚰️ **[`carried` WAS FALSE — THE RE-READ HAPPENED AND IT REFUTED THE PREMISE. Re-derived 2026-09-26.** `GET /api/admin/transcript-index-status`, read live on production **2026-09-27 01:05Z** by two lanes independently, returned **2,207 transcripts / 2,188 symbols / 15,502,995 words / 128.7 MB, span 2026-07-23 → 2026-09-24**. `00-program-control/RESEARCH_GAPS.md:20` now carries **RG-15a as REFUTED / CLOSED 2026-09-27**, and `:21` carries **RG-15b as RESOLVED GREEN** (`observed 1.0, sample 4`, at its 1.0 floor). Evidence: `10-roadmap/evidence/2026-09-27-transcript-corpus-refutation-0105Z/results.md`. ⛔ **And re-reading the monitor a second time could never have answered:** the `transcript` coverage field **cannot report anything but n=0** by construction — `_transcript_rate` is a warm-only in-process cache peek (`api/services/provider_coverage_monitor.py:473-490`) and `_evaluate_field` returns `None` on `sample <= 0`, so n=0 is the EXPECTED reading of a healthy system. The corpus endpoint was the instrument, and it had already shipped on a mounted admin panel beside the coverage row it refutes. ⭐ **§3.2's RM-X05 and §4.2's RM-L09 both already carry this collapse in their own cells. This one did not** — three cells, one fact, and the one that decides whether NOW is done was the stale copy.]** | **Read the transcript-coverage monitor once** (RG-15) | `MEAS-RG15` — item 29 §7.1 #1 records it as a **hard `meas` edge** that `FB-A6-01`'s own field omits | an engineer, one monitor cycle | `TERM-032`, and the whole BRK-09 question. CARD 30 §2: *"Re-read first, build second"* | ⚰️ **REFUTED / CLOSED 2026-09-27** (`evidence/2026-09-27-transcript-corpus-refutation-0105Z/`) |
+| **RM-N05** ⏳ **[`carried` IS SUPERSEDED — THE BLOCKING HALF IS DEFERRED, NOT CARRIED. Re-derived 2026-09-26.** `cc55bfc8c` (*"the pre-registration subject is DEFERRED TO BETA, not blocking — and the ceiling it imposes is unchanged"*) rewrote `10-roadmap/mvp.md:501`'s **Subject** row to **⏳ DEFERRED TO BETA** on the owner's ruling *"at the very end of all of our work we are hiring beta testers to navigate every aspect of the app"* — a hired beta tester IS the non-builder the row requires — and states in the same cell that *"nothing in NOW or NEXT waits on it"*. ⛔⛔ **THE CEILING IS UNCHANGED AND NO PASS MAY BE WRITTEN.** The same cell: until a subject is named and the span run, the verdict is **INCONCLUSIVE-BY-CONSTRUCTION** and *"does not become a PASS because nobody was available to disagree, because the owner verified the surface himself, or because beta is planned"*; `mvp.md:503`'s **Adjudicator** is still `⛔ unnamed`. CARD 33 refuses to name a subject on the ground that *"a name I chose would be worse than none, because it would look like a fact"* (`12-decisions/DECISION_CARDS_2026-09-26.md:883`). ⭐ **So this row occupies a third state the VERIFIED column had no value for: it neither closes nor blocks.** What defers is only the right to say we replaced something for someone.]** | **The MVP pre-registration, and a named non-builder subject** — the workflow, the incumbent tool, the subject and the span in a dated artifact whose timestamp precedes day 1 | item 27 §6; CARD 22 §4's one blocking requirement and §6's owner-only half | the owner names the subject; ⛔ recorder and adjudicator are different people | the only displacement claim this programme may make. ⭐ Zero builds — CARD 24 voided the build half | ⏳ **DEFERRED TO BETA** (`cc55bfc8c`) — neither closed nor blocking; ⛔ ceiling INCONCLUSIVE-BY-CONSTRUCTION unchanged |
+| **RM-N06** ✅ **[SHIPPED AND LIVE — AND §9 V9's EVIDENCE IS NOW STALE. Re-derived 2026-09-26.** V9 records *"CARD 27's guard that cannot fire"* by grepping the 09:05 trigger. **The guard fires.** `6c6f540c8` (*"fix(wire): the missed-run watchdog could not fire - re-time it past the 09:30 rollback"*) moved it to `CronTrigger(day_of_week="mon-fri", hour=9, minute=35, timezone=_ET)` — read at `api/main.py:2550` — **with the rail in the same commit**, as the row requires: `tests/test_wire_watchdog_fires.py` DERIVES the hour and minute from `api/main.py` by AST rather than restating them (*"minute=5 and hour=9 appear on a dozen other triggers in this module, so a regex would read some other job's schedule"*), freezes the clock on a MONDAY so "yesterday" rolls back across a weekend, and keeps a **control pinning the old 09:05 behaviour** so the regression cannot return quietly; mutation-proved both ways. ⛔ **LIVE, not merely committed:** `git merge-base --is-ancestor 6c6f540c8 origin/production` ⇒ **true**. The **member-impact paragraph** the row asks for is in the commit body: *"the badge was wrong for the pre-open window, the alert was wrong all day"*, with the 2026-08-14 incident named. ⚠️ **NOT settled from this tree:** whether the owner typed the word *"deploy"* for this specific push — a repository cannot hold that utterance, and only the owner can confirm it. ⭐ **This was §2.1's only row describing a LIVE production defect, and it no longer is.**]** | **The owner's explicit "deploy" plus a member-impact paragraph** for the wire missed-run watchdog: move the cron past `expected_wire_date`'s 09:30 rollback boundary, **with the rail in the same commit** | `TERM-092` (**XS**, ⛔ owner deploy, no agent ships it) | the owner | a guard that **cannot fire** is live now; the incident it was built for already happened (2026-08-14) | ✅ **DONE — SHIPPED AND LIVE** (`6c6f540c8`, ancestor of `origin/production`) · ⚰️ §9 V9 stale |
+| **RM-N07** ⚰️ **[`carried` WAS FALSE — THE READ IS DONE, 2026-09-26, by the owner from the Cloudflare dashboard. Recorded here as MEASURED FACT, not inference.** Rule **"Options Flow CSV — cache at edge"**; expression `(http.request.uri.path eq "/api/flow/data") or (http.request.uri.path eq "/api/flow/indexes-data")`; **Cache eligibility: Eligible for cache**; **Edge TTL: "Ignore cache-control header and use this TTL" = 1 minute**; **Browser TTL: "Respect origin TTL"** — an action, NOT an override; **Cache key: no setting configured at all**, i.e. the Cloudflare default, **URL-only, no cookie**. Zone level, Caching → Configuration: **Caching Level Standard, Browser Cache TTL = 4 hours**. ⛔⛔ **TWO THINGS ARE UNRESOLVED AND ARE NOT RESOLVED HERE BY ARGUMENT.** **(a) The wire reading the configuration does not explain.** The rule says *respect origin*, the origin sends `max-age=0`, and an earlier authenticated read of the wire said `public, max-age=14400, s-maxage=60, stale-while-revalidate=600` (`07-technical-architecture/realtime-performance-architecture.md:128`). ⚠️ **NARROWED — by a dated before/after MEASUREMENT, never by reasoning — and still not closed:** **CARD 20-EXEC** (`12-decisions/DECISION_CARDS_2026-09-26.md:576-605`) records that the `14400` reading was taken while this rule's Browser TTL was **UNSET**, that the *"Respect origin TTL"* action read above **is the edit CARD 20-EXEC added**, and that after it the wire read **`max-age=0` with the second request still a HIT**. So the two readings describe two configurations in time order rather than one contradiction. ⛔ **What is NOT established:** no wire read has been taken against the configuration as it now stands, and the zone-wide 4-hour setting **remains** with its blast radius unmeasured — CARD 20-EXEC's own words, *"Two responses were measured; the blast radius was NOT."* **(b) A hazard SHAPE whose safety its own settings do not account for.** `Ignore cache-control` plus a **cookie-free cache key** on an authenticated paid endpoint is the shape of an anonymous-exposure defect. An earlier measurement found cookie-free requests answer **401** on that path (`realtime-performance-architecture.md:99-101`), so **no exposure was observed and that measurement outranks reasoning** — but the configuration does not explain WHY, and this cell invents no reason. ⭐ **What would settle each.** **(a)** one authenticated wire read of `/api/flow/data` against today's configuration, plus a second route whose origin asks for a shorter browser lifetime, which is what measures the zone setting's reach. **(b)** a controlled edge read recording `cf-cache-status` **beside** the status on a cookie-free request after the cache is known populated: the existing record already shows that path answering `401` with **BYPASS** while three unrelated gated controls answer `401` with **DYNAMIC** (`realtime-performance-architecture.md:169-173`), so what needs naming is that **BYPASS**, which nobody in this programme configured — not the 401.]** | **Read the Cloudflare rule and the zone's cache key** | `TERM-008` (band 0, HELD credential) | someone who can authenticate | CARD 20's ruling being executed **by intention**: CARD 20-EXEC executed the TTL and found CARD 20's diagnosis *wrong about WHERE*, and the zone-wide 4-hour Browser TTL's **blast radius was never measured** | ✅ **READ 2026-09-26** (owner, dashboard) · ⛔ **2 residues UNRESOLVED** — the pre-edit `max-age=14400` wire reading, and the cookie-free-cache-key hazard shape |
+| **RM-N08** ⚰️ **[`carried` IS WRONG ON ONE SENTENCE AND RIGHT ON THE OTHER — SPLIT. Re-derived 2026-09-26.** **SENTENCE 1, Confluence Radar (`TERM-003`): ANSWERED BY THE CODE. The answer is EXTEND, and it already shipped.** `d23af5ea7` (*"feat(confluence): move Confluence into Options Flow as a tab, match palette"*) is an **ancestor of `origin/production`**, and Confluence is the **8th** Options Flow tab today: `app/src/pages/OptionsFlow.jsx:112` (`lazy(() => import("./Confluence"))`), `:631` (the `TABS` array), `:7444` (the render branch). ⛔ **But the row's stated ask was never satisfiable as written.** "ledger G9 leaving `AWAITING_A_DECISION`" — G9 is **not in** `AWAITING_A_DECISION` and never was (grep `confluence` over `app/src/components/screener/reachable.test.js`: **0 hits**), so nothing can leave it. The state it must leave is **`dormant`** in `01-existing-system/capability-ledger.md:163`, which still reads *"dormant (RG-09) · extend or delete (product decision)"* about a tab that ships to members. ⚠️ **That ledger is another document's single-owner row and is deliberately NOT edited from here** — its own convention says correct the table, not the pointer. **SENTENCE 2, the earnings-date authority (`TERM-004` / OQ-14): STILL OPEN.** ⛔ `de68f3fa8` retired `api/earnings_router.py`, and that is real — but **it is a DIFFERENT second authority**, a dashboard-internal Finviz scraper that was unmounted. OQ-14's named second authority is the **Discord bot's `get_catalyst_calendar_context`** (`00-program-control/OPEN_QUESTIONS.md:22`, status **Unknown 🔴**), which is absent from this repository entirely (grep over `**/*.py`: **0 hits**) and lives in a tree the ledger records as *"not a git repo"* with *"runtime NOT DETERMINED"* (`capability-ledger.md:224`). **One authority is still not one, and the superseded-or-not sentence is unwritten.** ⭐ **TWO TICKETS DISSOLVED IS NOT TWO PRODUCT SENTENCES:** one sentence was answered by a shipped tab nobody wrote down, the other still needs the owner — and the row cannot be marked done on the strength of the dissolutions.]** | **Two product sentences:** extend-or-delete on Confluence Radar; superseded-or-not on the Discord bot's earnings-date path (OQ-14) | `TERM-003`, `TERM-004` (band 0) | a product decision; one sentence | ledger G9 leaving `AWAITING_A_DECISION`; **one** earnings-date authority | ⚰️ **SPLIT** — sentence 1 ANSWERED BY SHIPPED CODE (`d23af5ea7`, ancestor of `origin/production`); sentence 2 (OQ-14) **STILL OPEN**, and G9 was never in `AWAITING_A_DECISION` to leave |
+
+⚰️⚰️ **THE TABLE ABOVE WAS RE-DERIVED ROW BY ROW ON 2026-09-26, AND `carried` WAS FALSE IN FIVE CELLS OF EIGHT.** RM-N04 was refuted and closed; RM-N03's decision had been made twice the same day; RM-N05's blocking half was deferred; RM-N07's read was done; RM-N08 was half-shipped. RM-N06's ✅ was right about the row and **stale about its evidence** — §9 V9 still greps the 09:05 trigger that `6c6f540c8` replaced. RM-N01's own ⚰️ correction was itself over-stated. ⭐⭐ **THE PATTERN IS THE FINDING, AND IT IS THE ONE RM-N01's CELL ALREADY NAMED:** nothing static catches a record that was true when written. Every cell that failed failed by being *accurate on its write date* — no test could go red, no grep could disagree, and the only question that finds any of them is **"when was this last true?"** ⛔ **So this section carries a standing instruction, not just a set of corrections:** a `carried` in this table is a **dated claim about a decision**, and the cost of re-reading one is a grep while the cost of trusting one is a lane. ⚠️ **What this pass did NOT settle, stated so it is not mistaken for coverage:** which of RM-N03's two sentences is canonical; RM-N07's two residues; whether the owner uttered the word *"deploy"* for RM-N06's push; which of RM-N02's four bundled items the owner's *"approved"* covers. ⚠️ **And three single-owner rows OUTSIDE this section are now stale against it and were deliberately left alone** rather than corrected in twelve places: §9 V9's grep, `01-existing-system/capability-ledger.md:163` (G9 *"dormant"* against a shipped tab), and `10-roadmap/2026-09-26-massive-vendor-ask.md`'s `status: ready to send`.
 
 ⛔ **The four band-0 items deliberately NOT in NOW, with the reason at each:** `TERM-001` (a
 board-size number) waits on RM-N01's measurement and CARD 15 rules an absolute capacity number out
@@ -736,6 +738,42 @@ TERM references, non-distinct    154
 distinct TERM ids mentioned       64
 ```
 
+⚰️ **TWO OF THOSE EIGHT OUTPUTS ARE STALE — RE-RUN 2026-09-27 against this file at `9b0ff6bb4`.**
+Nothing above is deleted: it is what the commands printed on 2026-09-26, and it was correct then.
+Both figures moved for the **same** reason, and it is the commit that landed one later —
+`9b0ff6bb4` (*"five of §2.1's eight cells were FALSE"*), which rewrote eight cells of §2.1.
+
+```
+NOW rows                         15      ✅ unchanged
+NEXT rows                         7      ✅ unchanged
+LATER rows                       19      ✅ unchanged
+NOT PLANNED rows (tabled)        14      ✅ unchanged
+NOW rows VERIFIED-HERE            6      ⚰️ was 7
+duplicate-id check              (printed nothing)   ✅ unchanged
+TERM references, non-distinct    157     ⚰️ was 154
+distinct TERM ids mentioned       64     ✅ unchanged
+```
+
+⚰️ **`NOW rows VERIFIED-HERE` is 6, and the row that left is `RM-N06`.** Measured, not inferred:
+the seven at `6675c2d02` were RM-N02, RM-N06, RM-N09, RM-N10, RM-N11, RM-N12, RM-N13; at
+`9b0ff6bb4` the same grep returns six and `comm -3` over the two lists prints exactly `RM-N06`.
+⭐ **It did not lose a verification — it gained a better one.** `9b0ff6bb4` replaced that cell's
+`VERIFIED-HERE` with `✅ DONE — SHIPPED AND LIVE (6c6f540c8, ancestor of origin/production) · ⚰️ §9
+V9 stale`, i.e. the row stopped citing §9 **because §9's citation for it had gone stale** (V9
+below). So the count falling is the correction working, and a reader who re-runs the grep expecting
+7 should not go looking for a deleted cell.
+
+⚠️ **`TERM references, non-distinct` is 157 because tombstones cite tickets.** `distinct TERM ids
+mentioned` is **still 64** — the three extra mentions are re-citations of ids the file already
+named, so the caveat below is unaffected.
+
+⛔ **AND THIS PASS MOVED IT AGAIN, TO 160 — SAID HERE RATHER THAN LEFT FOR THE NEXT READER.** §9.2's
+own ⚰️ corrections cite `TERM-028` twice and `TERM-069` once, so the working file now prints 160
+non-distinct and **still 64 distinct** (both ids were already named). ⭐ That is the §9.1 numbers'
+permanent condition, not a defect: **these eight figures are derived from the file that contains
+them, so any edit to this document — including an edit whose only purpose is to correct them —
+invalidates the two that count mentions.** Re-run the block; never quote it across a commit.
+
 ⚠️ **The last figure is a mention count, not a coverage claim.** It includes ids named in §5 as *not*
 being built and ids named in §8 as contradictions, so it must not be read as *"this roadmap places 64
 of item 30's 93 tickets"*. The register's own total is item 30's measurement (its §10), and the
@@ -744,15 +782,30 @@ says is deliberate.
 
 ### 9.2 Against `origin/master` — the eleven first-hand verifications
 
+⚠️ **"Eleven" counts V1–V11, the reads against `origin/master`; V12 is a twelfth id and is a grep
+of a sibling DOCUMENT (`backlog.md`), not of the tree.** Stated because a reader who counts the
+ids finds twelve and reasonably concludes the heading has drifted. It has not.
+
 ```bash
 git rev-parse HEAD origin/master
 # 8f14225bbfb4555888f2445dfcaf18aafe57d4d0   (this docs branch)
 # 2e0598bfa514303fe542c4473bd2f89470d04ec2   (origin/master, every read below)
+# ⚰️ RE-READ 2026-09-27: origin/master is now a7e29ad9c0f69664bff8f38d16d6a1acf9ffb165,
+#    `git rev-list --count 2e0598bfa..origin/master` = 661. Every read below WAS true at
+#    2e0598bfa and each is a dated claim. EIGHT of the twelve now carry a ⚰️, and they fail in
+#    three different ways: V1, V3, V9, V10 have lost their SUBJECT outright; V7 has lost half of
+#    its subject; V5, V8, V11 are still right about the product and wrong about their own RECEIPT
+#    (`(empty, rc=1)`, 19, 36). Only V2, V4, V6 and V12 reproduce exactly.
+#    Each ⚰️ sits at its own row and is corrected in "§9.2 RE-VERIFIED" after this fence.
 
 # V1 — rung 0 is absent from source (H3, RM-N11)
 git grep -c "TERMINAL_NEXT_ENABLED" origin/master                       # (no output = zero files)
 git grep -ho "TERMINAL_NEXT[A-Z_]*" origin/master -- api app/src docs | sort | uniq -c
 #      5 TERMINAL_NEXT_MONITOR_ENABLED
+# ⚰️⚰️ STALE 2026-09-27 — RUNG 0 IS IN SOURCE. `14fb1dac1` ("feat(terminal): rung zero —
+#    TERMINAL_NEXT_ENABLED, a cohort dependency beside require_paid, and cohorts on the auth
+#    payload", 2026-09-26) is an ancestor of BOTH origin/master and origin/production. The first
+#    grep prints 22 files; the census over api+app/src alone prints SIX TERMINAL_NEXT_* names.
 
 # V2 — the cohort machinery ships (H3, H4)
 git show origin/master:api/services/rollout.py     | wc -l              # 347
@@ -762,6 +815,11 @@ git show origin/master:tools/rollout_cohort.py     | wc -l              # 147
 git grep -n "cohorts" origin/master -- api/routers/auth.py              # (empty)
 git grep -n "_access_payload" origin/master -- api/routers/auth.py | head -1
 # api/routers/auth.py:271:def _access_payload(user: dict, plan: str) -> dict:
+# ⚰️⚰️ STALE 2026-09-27 — THE CLIENT NOW KNOWS. `14fb1dac1` put cohorts ON the auth payload:
+#    api/routers/auth.py:324 `"cohorts": rollout_gate.client_cohorts(user.get("id")),`.
+#    The `cohorts` grep prints three lines, not nothing. `_access_payload` is now :280, and
+#    `| head -1` returns a COMMENT at :25 — the pipeline still prints a def-shaped line for a
+#    file whose def has moved nine lines, which is why the content, not the number, is the check.
 
 # V4 — BRK-01's dated in-code deferral (RM-N02)
 git grep -n "out of scope v1" origin/master -- api/services/journal_two/options.py
@@ -772,6 +830,11 @@ git grep -lEi "option.?chain" origin/master -- app/src                  # (empty
 git grep -lEi "vol.surface|volatility surface" origin/master -- api app/src   # (empty, rc=1)
 git grep -cEin "iv_rank|iv.rank" origin/master -- api app/src
 # api/services/journal_two/options.py:1     <- the out-of-scope note, and nothing else
+# ⚰️ OUTPUT STALE 2026-09-27, ASSERTION INTACT — the first grep is no longer `(empty, rc=1)`: it
+#    returns app/src/pages/OptionsFlow.jsx, whose only hit is a COMMENT at :3637 ("live Massive
+#    option chains ... for a large"), added 2026-08-10 by `242e903f4`. Comment-stripped: 0 code
+#    hits (control: the same stripper finds TV_ONLY in code at 2e0598bfa, so it can still see a
+#    real occurrence). There is still no member surface. The other two greps are unchanged.
 
 # V6 — the machinery that does exist, its source class and its only readers (H1)
 git show origin/master:api/services/options_chain.py | sed -n '1,7p'
@@ -784,6 +847,12 @@ git grep -ln "options_chain" origin/master -- api app/src
 # V7 — CARD 16's gate cannot print its number; the helper to copy exists (RM-N10)
 git grep -n "stale-swr" origin/master -- tools/bars_warmth_audit.py
 # :28:COLD = {"fetch", "stale-swr", "inflight-wait", "disk", "miss", "unknown"}
+# ⚰️ FIRST LINE STALE 2026-09-27 — `stale-swr` HAS LEFT `COLD`, so the half of this row that says
+#    the gate cannot print its number is spent. `6c0dc5854` ("CARD 16's p95 gate could never be
+#    computed - stale-swr was filed as COLD") split it into a third bucket: today :42 is
+#    `STALE_SERVED = {"stale-swr"}` and :43 is `COLD = {"fetch", "inflight-wait", "disk", "miss",
+#    "unknown"}`. ⛔ Line :28 is now `import httpx` — a cited line number that still resolves,
+#    to an import. The `_diag_percentile` and `p99_ms` lines below are both EXACT and unchanged.
 git grep -n "_diag_percentile" origin/master -- api/flow_router.py | head -1
 # api/flow_router.py:1443:def _diag_percentile(sorted_vals, q):
 git grep -n "p99_ms" origin/master -- api/flow_router.py
@@ -793,19 +862,56 @@ git grep -n "p99_ms" origin/master -- api/flow_router.py
 git ls-tree -r --name-only origin/master -- app/src/components/provenance | wc -l   # 19
 #   Provenance.jsx · FreshnessBadge.jsx · CoverageLine.jsx · Cited.jsx (+ .test.jsx, .module.css)
 #   + freshnessContract.js · availabilityContract.js · presentationFormat.js · sessionStale.js
+# ⚰️ COUNT STALE 2026-09-27 — the directory holds 24, not 19. The five added since 2e0598bfa:
+#    freshnessAge.js · freshnessAge.test.js · panelAdoption.baseline.json ·
+#    panelAdoption.measure.test.js · panelAdoption.ratchet.test.js. ⭐ The ASSERTION is unchanged
+#    and in fact strengthened — all four primitives still ship with tests and contracts; 19 was
+#    only ever the evidence. ⚠️ `freshnessAge.js` is the module §2.1's RM-N03 cell records as
+#    landing deliberately WITHOUT a consumer, so a bigger count here is not more adoption.
 
 # V9 — CARD 27's guard that cannot fire (RM-N06)
 git grep -n "register_wire_watchdog_job" origin/master -- api/main.py | head -1     # :2482
 git grep -n "hour=9, minute=5" origin/master -- api/main.py | head -1               # :2517
 git grep -n "(9, 30)" origin/master -- api/services/engine.py
 # api/services/engine.py:545:    if now.weekday() < 5 and (now.hour, now.minute) < (9, 30):
+# ⚰️⚰️ STALE 2026-09-27 — THE GUARD FIRES, AND THIS GREP STILL PRINTS A PLAUSIBLE ANSWER, WHICH IS
+#    THE WHOLE TRAP. `6c6f540c8` ("fix(wire): the missed-run watchdog could not fire - re-time it
+#    past the 09:30 rollback"), an ancestor of origin/production, re-timed it to
+#    `CronTrigger(day_of_week="mon-fri", hour=9, minute=35, timezone=_ET)` at api/main.py:2550,
+#    with the rail `tests/test_wire_watchdog_fires.py` in the same commit.
+#    ⛔ `register_wire_watchdog_job` is now :2491, not :2482; and `hour=9, minute=5 | head -1` now
+#    matches an UNRELATED job at :5991 — so a reader re-running it gets rc=0 and a line number and
+#    concludes the 09:05 trigger survives. It does not. Grep the CONTENT at the line, never the
+#    exit code: the file's own comment at :2548 reads "⛔ 9:35, NOT 9:05".
+#    ⭐ engine.py:545's `(9, 30)` is unchanged and still the boundary the fix was timed against.
 
 # V10 — the futures workaround RM-N13 replaces
 git grep -n "TV_ONLY" origin/master -- app/src | head -1
 # app/src/components/tiles/FuturesStrip.jsx:136:const TV_ONLY = new Set(['BTC', 'VIX'])
+# ⚰️⚰️ STALE 2026-09-27 — THE WORKAROUND RM-N13 REPLACES NO LONGER EXISTS, AND THE CODE THAT
+#    DELETED IT SAYS SO ABOUT THIS ROADMAP. `ed0b0f1b9` ("fix(futures): delete the dead
+#    TradingView path - TERM-028 was written against code that does nothing"), 2026-09-26, an
+#    ancestor of origin/production, removed TV_SYMS + TV_ONLY. The grep's first hit is now the
+#    deletion COMMENT at :133, whose own words are: "roadmap item TERM-028 was written against
+#    this code as if it were live ('TV_ONLY handing BTC/VIX charts to TradingView') and planned an
+#    honest-blank remedy for a break-out that does not exist here. VIX is in fact served by OUR
+#    OWN chart via CUSTOM_CHART" (`const CUSTOM_CHART = new Set(['VIX'])`, :145). Rail at :143:
+#    FuturesStrip.noTradingViewBreakout.test.jsx. ⛔ The cited line :136 still EXISTS and now reads
+#    "// no outbound link. Somebody removed TradingView from the popup and left the".
+#    ⛔ Comment-stripped: 0 code hits today; 1 at 2e0598bfa (:136) as the control, so the check
+#    can still see the real declaration it used to find. ⚠️ §2.2's RM-N13 cell is another
+#    section's row and is deliberately NOT edited from here.
 
 # V11 — one webhook, many callers (RM-N09). FILES, not modules - see contradiction 9
 git grep -l "DISCORD_WEBHOOK_URL" origin/master -- api tools scripts | wc -l        # 36
+# ⚰️ COUNT STALE 2026-09-27 — 37, not 36. The one added since 2e0598bfa is
+#    api/services/alert_routing.py, and it is a real reader, not prose:
+#    `ADMIN_WEBHOOK_ENV = "DISCORD_WEBHOOK_URL"` at :119 survives a docstring/comment strip.
+#    ⚠️ The row's own caveat matters MORE at 37 than at 36: this counts FILES. Stripping
+#    docstrings and comments over all 37 leaves the literal in 33 of them; it is prose-only in
+#    api/main.py, api/notable_flow_router.py and api/services/ipo_maintenance.py, and
+#    scripts/rth-alert.ps1 is PowerShell and was not stripped (unchecked, not counted as either).
+#    So "one webhook, many callers" is intact and the caller count is ≤ 36, not 37.
 
 # V12 — no BRK-01 ticket exists in the 93 (H1)
 grep -niE "chain|greeks|vol surface|risk.profile|strategy backtest" \
@@ -818,6 +924,63 @@ grep -niE "chain|greeks|vol surface|risk.profile|strategy backtest" \
 that a name is or is not in source, that a module exists and who imports it. ⛔ They establish
 **nothing** about the pod: no flag value, no store row count, no running behaviour. A file at
 `origin/master` is a file, not a behaviour.
+
+---
+
+#### ⚰️ §9.2 RE-VERIFIED 2026-09-27 — eight of twelve rows drifted, and none of them could go red
+
+⛔ **Every V-row above is kept verbatim. Nothing is deleted.** Each was accurate against
+`2e0598bfa`; `origin/master` is now `a7e29ad9c`, **661 commits** on. Each row's own command was
+re-executed, and where a row cites a `file:line` the **content at that line** was read rather than
+the number trusted — because in this repo line numbers drift, and two of these rows now resolve to
+a line that exists and says something else.
+
+| row | what it asserts | re-run verdict |
+|---|---|---|
+| **V1** | *"rung 0 is absent from source"* — `git grep -c "TERMINAL_NEXT_ENABLED"` prints nothing | ⚰️ **STALE** — rung 0 SHIPPED. `14fb1dac1`, ancestor of `origin/production`. 22 files; six `TERMINAL_NEXT_*` names in `api`+`app/src` |
+| **V2** | *"the cohort machinery ships"* — `rollout.py` 347 lines, `rollout_cohort.py` 147 | ✅ **STILL TRUE** — both counts exact |
+| **V3** | *"the client cannot know it is in a cohort"* — `cohorts` absent from `auth.py` | ⚰️ **STALE** — `auth.py:324` `"cohorts": rollout_gate.client_cohorts(...)`, same commit |
+| **V4** | BRK-01's dated in-code deferral at `journal_two/options.py:14` | ✅ **STILL TRUE** — line and text unchanged |
+| **V5** | *"BRK-01 is absent as a member surface"* | ✅ **STILL TRUE**, ⚰️ **output stale** — one COMMENT hit in `OptionsFlow.jsx`; 0 code hits stripped |
+| **V6** | `options_chain.py`'s docstring, and its only two importers | ✅ **STILL TRUE** — docstring and both importers unchanged |
+| **V7** | *"CARD 16's gate cannot print its number; the helper to copy exists"* | ⚰️ **HALF STALE** — the gate CAN print it (`6c0dc5854`); `_diag_percentile` / `p99_ms` unchanged |
+| **V8** | *"all four provenance primitives ship, with tests and contracts"* — 19 files | ✅ **STILL TRUE**, ⚰️ **count stale** — 24 files |
+| **V9** | *"CARD 27's guard that cannot fire"* — the 09:05 trigger | ⚰️⚰️ **STALE** — `hour=9, minute=35` at `api/main.py:2550` (`6c6f540c8`, in production) |
+| **V10** | *"the futures workaround RM-N13 replaces"* — `TV_ONLY` | ⚰️⚰️ **STALE** — deleted `ed0b0f1b9`; the workaround was never live |
+| **V11** | *"one webhook, many callers"* — 36 files | ✅ **STILL TRUE**, ⚰️ **count stale** — 37 files (33 in code) |
+| **V12** | *"no BRK-01 ticket exists in the 93"* | ✅ **STILL TRUE** — `TERM-069` at `backlog.md:414` plus exactly three prose hits |
+
+⭐⭐ **THE TWO FAILURE SHAPES, AND THE SECOND ONE IS WHY A NUMBER IS NOT EVIDENCE.**
+**(1) The subject moved** — V1, V3, V9, V10. In every case the product got BETTER and the row got
+wrong: rung 0 was built, cohorts reached the payload, the watchdog was re-timed so it can fire, and
+a phantom workaround was deleted. **A verification row records a defect, so shipping the fix is
+exactly what makes it stale.** **(2) The number moved and the claim did not** — V5, V7, V8, V11.
+Those rows are still right about the product and wrong about their own receipt.
+
+⛔⛔ **V9 AND V10 ARE THE ONES TO LEARN FROM, BECAUSE BOTH STILL RETURN `rc=0`.** V9's
+`hour=9, minute=5 | head -1` matches an unrelated job at `:5991`; V10's `TV_ONLY` matches the
+comment that records the deletion. A reader re-running either gets output, a line number, and a
+false confirmation. ⭐ **An exit code cannot tell you whether a grep found the thing you named** —
+only reading the matched line can, and in this repo a matched line is as likely to be prose about
+the code as the code itself. Three of the twelve rows (V5, V7, V10) now match **only** comments.
+
+⚠️ **Method, so it can be repeated rather than trusted.** Every literal check was re-run twice:
+once as the row wrote it, and once over source with comments and docstrings removed (Python via
+`tokenize`, JSX via a string-aware scanner), each carrying a control literal that must survive the
+strip and a prose literal that must vanish. ⭐ The control earned its keep: on
+`tests/test_terminal_next_flag.py` the strip reported one lost `import` line and the run was marked
+BROKEN rather than reported — inspection showed the lost line was the word *"import"* opening a
+sentence **inside a docstring**, with the real in-function `import os` intact. A stripper that
+silently eats imports returns a confident zero; this one refused to.
+
+⛔ **NOT SETTLED FROM THIS PASS, stated so it is not mistaken for coverage.** (a) Whether the live
+pod has `TERMINAL_NEXT_ENABLED` set — V1 is now a source fact and still says nothing about a flag
+VALUE; only `railway variables --service web --kv` answers that, and the ⚠️ paragraph above still
+governs. (b) Whether CARD 16's p95 bar has now been **computed**, as opposed to being computable —
+V7's staleness only removes the obstruction; the reading is a separate artifact. (c) Whether the
+local `origin/master` ref this pass read is the remote's tip: no fetch was run, deliberately, with
+two other lanes live. ⭐ **What would settle (c) is one `git fetch origin` and a re-read of the six
+marked rows** — and if the remote has moved, the marks above are themselves dated claims.
 
 ---
 

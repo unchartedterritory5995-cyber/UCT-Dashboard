@@ -23,7 +23,7 @@ function clampPage(p, total) {
 }
 
 const TextPagesViewer = forwardRef(function TextPagesViewer(
-  { href, documentId = null, initialPage = 1 }, ref,
+  { href, documentId = null, initialPage = 1, sheet = false }, ref,
 ) {
   // loading | reading | ready | empty | failed | error — about the DOCUMENT
   const [docState, setDocState] = useState('loading')
@@ -150,7 +150,12 @@ const TextPagesViewer = forwardRef(function TextPagesViewer(
         </button>
       </div>
       <p className={styles.note}>
-        The document’s text, without its formatting. Open or download it to see the original.
+        {/* Wave 10 (G-160): a spreadsheet's page is its cell values, and a
+            formula cell is the value it last calculated (nothing is
+            recalculated) -- said here, where the member reads the numbers. */}
+        {sheet
+          ? 'The spreadsheet’s cell values, sheet by sheet, without formatting. A formula shows the value it last calculated. Open or download it to see the original.'
+          : 'The document’s text, without its formatting. Open or download it to see the original.'}
       </p>
       <section className={styles.page} aria-label={`Page ${page} of ${total}`}>
         {pageState === 'loading' && (

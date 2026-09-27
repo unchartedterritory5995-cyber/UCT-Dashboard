@@ -85,7 +85,15 @@ function tagFromManifest(trees, manifest, scanPlot) {
     for (const loc of locators) {
       const key = loc.treeIndex === null || loc.treeIndex === undefined ? scanPlot : loc.treeIndex
       let node = trees[key]
-      const steps = Array.isArray(loc.astPath) ? loc.astPath : []
+      const all = Array.isArray(loc.astPath) ? loc.astPath : []
+      // ⭐ 2026-09-26 — THE OFFSET-NODE SHAPE. A locator ending in `'value'` addresses
+      // an offset node's own bare bar count (a plot displacement or a pivot's
+      // confirmation shift). The tag belongs on the NODE that holds it, and the graph
+      // spells that `{node, path: ['value']}` — the same spelling every num locator
+      // already gets — so the trailing `'value'` is dropped here and the node checked
+      // for being an offset below. `compute_graph.locator_for_ast_path` does the same.
+      const endsAtShift = all.length > 0 && all[all.length - 1] === 'value'
+      const steps = endsAtShift ? all.slice(0, -1) : all
       for (const step of steps) {
         if (node === undefined || node === null) { node = undefined; break }
         if (typeof step === 'number') {
@@ -96,7 +104,7 @@ function tagFromManifest(trees, manifest, scanPlot) {
           node = node[step]
         }
       }
-      if (!isPlainObject(node) || node.type !== 'num') { ok = false; break }
+      if (!isPlainObject(node) || node.type !== (endsAtShift ? 'offset' : 'num')) { ok = false; break }
       found.push(node)
     }
     // ⛔ THE TAGS GO ON ONLY AFTER EVERY LOCATOR HAS RESOLVED — a half-tagged
@@ -404,6 +412,8 @@ function collectTagPaths(node, pid, path, emit) {
     return
   }
   if (!isPlainObject(node)) return
-  if (node.__uctParamId === pid) emit([...path])
+  // ⭐ An offset node carries its tag on itself but its literal in `value` — the V1
+  // locator must end at the number, as `pineParamManifest.collectParamLocators` does.
+  if (node.__uctParamId === pid) emit(node.type === 'offset' ? [...path, 'value'] : [...path])
   for (const key of Object.keys(node)) collectTagPaths(node[key], pid, [...path, key], emit)
 }

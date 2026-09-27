@@ -140,8 +140,11 @@ def test_every_required_table_is_one_the_app_actually_creates():
 # playbook entries into notes) must NOT be removed, or a restore would re-migrate.
 
 def test_the_restore_report_names_the_backfill_flags_to_remove(tmp_path, capsys):
+    from api.services import account_tombstones as at
     gz = _make_backup(tmp_path, "20260923T120000Z.db.gz")
-    code = drill.run(_args(file=str(gz)), now=NOW)
+    # A readable (empty) tombstone store: since wave 10 fix round 1 an UNREAD off-site set
+    # makes every drill INCONCLUSIVE, so a PASS needs one (tests/test_restore_drill_unknowns.py).
+    code = drill.run(_args(file=str(gz)), now=NOW, store=at.LocalObjectStore(tmp_path / "store"))
     out = capsys.readouterr().out
     assert code == drill.PASS
     assert "After a real restore" in out

@@ -12,7 +12,7 @@ You'd use it on your own screen while thinking out loud: write a note, save some
 
 Who: anyone who keeps trading notes today, in Notion, Evernote, Obsidian, OneNote, a doc or on paper. A mix of those is exactly what we want.
 When: [dates]. Pick a slot here: [link]
-Thank-you: [incentive]
+Thank-you: one free month of UCT Intelligence membership
 
 Reply here or DM me with the five screener answers below.
 ```

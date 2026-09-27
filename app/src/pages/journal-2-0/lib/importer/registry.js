@@ -3,6 +3,8 @@ import { notionAdapter } from './adapters/notion'
 import { obsidianAdapter } from './adapters/obsidian'
 import { evernoteAdapter } from './adapters/evernote'
 import { uctAdapter } from './adapters/uct'
+import { logseqAdapter } from './adapters/logseq'
+import { keepAdapter } from './adapters/keep'
 
 // Order matters: it is the tie-break when two adapters score the same
 // confidence (see detectAdapter below). uctAdapter goes first — its
@@ -13,7 +15,21 @@ import { uctAdapter } from './adapters/uct'
 // catch-all floor so it goes last. ⛔ evernote > notion > obsidian > generic
 // is load-bearing (railed in registry.test.js) — adding uctAdapter ahead of
 // all four does not change any of THEIR relative order.
-export const ADAPTERS = [uctAdapter, evernoteAdapter, notionAdapter, obsidianAdapter, genericAdapter]
+// Wave 10 (R-18): logseqAdapter sits AFTER obsidian on purpose — a folder
+// opened in both apps carries `.obsidian/` AND `logseq/config.edn` (both
+// 0.95), and the tie keeps going to Obsidian exactly as before. keepAdapter's
+// signal (a Keep-shaped Takeout JSON) overlaps nothing, so its slot only has
+// to be ahead of the generic floor. The census of every tool members bring
+// (`census.js`) names which adapter each one lands on.
+export const ADAPTERS = [
+  uctAdapter,
+  evernoteAdapter,
+  notionAdapter,
+  obsidianAdapter,
+  logseqAdapter,
+  keepAdapter,
+  genericAdapter,
+]
 
 /**
  * Scores every registered adapter against the dropped file set and returns
