@@ -210,3 +210,42 @@ one ships behind a switch that already works, instead of adding one afterwards.
 - It does not authorise **K-1**. That is a separate packet with a measured
   precondition, recorded in the manifest §10.
 - It does not claim the switch protects against an outage. Read §3 again.
+
+---
+
+## 9. REHEARSED — wave 10, lane 10C, ruling R-11 (2026-09-26)
+
+⚠️ **§1's table is the Wave K roster of 2026-09-12 and is kept as that record.** The payload
+now carries every row of `NOTEBOOK_FLAGS` (`api/routers/auth.py`), and several Notebook gates
+are ROUTE gates with no payload key at all (the personal API is one). Do not count keys from §1;
+`python tools/notebook_switch_rehearsal.py --print-production` derives the roster every time.
+
+**The sandbox half is done.** `tools/notebook_switch_rehearsal.py --run` boots the sandbox once
+per VALUE — production values, all off, restored, then each switch alone off — and asserts each
+switch by what a member sees: the offline layer opening its IndexedDB store or not, the Share
+sheet's two sections, the tour on a new member's first visit, the editor's "Writing help"
+entry, the Personal API card, and each route door's 404 / 200. Every boot also runs the SAME
+read-only check the controller runs in production (`--verify`). Result and evidence:
+**`docs/notebook/rehearsal-2026-09-26.md`**.
+
+**K-1's measurability (F-8).** The v5 Notebook route (`NotebookSurface.jsx`) now mounts
+`NotebookFlagGate`, so `notebook_config_served` fires on the route members actually use.
+Before wave 10 only the legacy tab mounted it, and K-1's precondition (a config-served RATE)
+could not be measured on v5 at all. Rail: `surfaces/NotebookSurface.gate.test.jsx`.
+
+**The production half is the controller's, in ONE off-hours window**, and it starts from what
+production HOLDS, never from this file or the ledger:
+
+```sh
+railway variables --service web --kv > notebook-switch-record-<UTC>.txt      # read-only
+python tools/notebook_switch_rehearsal.py --check-record notebook-switch-record-<UTC>.txt
+# -> prints the ONE OFF command and the RESTORE (deletes first, then ONE --set) from the record
+python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect off --set-at <UTC>
+python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect on \
+    --recorded notebook-switch-record-<UTC>.txt --set-at <UTC>
+```
+
+`--verify` is GET-only after the sign-in, refuses any account but
+`smoke@uctintelligence.internal` for production, and proves a NEW BOOT from `/api/health`'s
+uptime against the time of the `--set` — never from `--kv`. The full step list, and every
+Notebook gate the window does NOT switch with its reason, is `--print-production`.
