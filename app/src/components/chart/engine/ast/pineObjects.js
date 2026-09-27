@@ -581,6 +581,23 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ `b := box(na)` / `b := na` — THE HANDLE IS EMPTIED, the object is
+        // not. Pine keeps the box on the chart; only the variable forgets it, so
+        // a later `b.set_right(…)` or `b.delete()` touches nothing. ⚰️ Unread,
+        // the register kept its object and the next setter moved a box the
+        // script had let go of. ⛔ `:=` only, and only on a declared handle
+        // whose family the cast names — `b = box(na)` declares, it does not reset.
+        const held = decls.get(name)
+        if (h.isPunct(t[assign], ':=') && held && held.kind !== 'coll'
+            && (naHandleFamily(rhs) === held.family
+              || (rhs.length === 1 && rhs[0].kind === 'ident' && rhs[0].value === 'na'))) {
+          if (inLoop) { diagnostics.loopBlocked.push(`${held.family}(na)`); continue }
+          ops.push({
+            k: 'reset', into: name, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
         if (rhs.length && rhs[0].kind === 'ident') {
           const ns = nsOf(rhs[0].value)
           if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(rhs[0].value) === 'new') {

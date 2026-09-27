@@ -21,7 +21,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { loadCapture } from './harness'
-import { runOurSide } from './ourSide'
+import { runOurSide, toProductBars } from './ourSide'
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { objectReaderFor } from '../../objectColumns'
+import { evaluateObjects } from '../../objectRuntime'
 
 const FILE = path.resolve(process.cwd(), '..',
   'tests/fixtures/vendor/harness/zero-lag-ma-trend-levels-rddt-1d-2026-09-27.json')
@@ -58,4 +61,27 @@ describe('Zero-Lag MA Trend Levels — objects held at the last bar', () => {
     expect(ours.objects.counts.boxes - ours.objects.drawn.boxes).toBe(vendorNa)
     expect(ours.notes.join(' ')).toMatch(/5 of 18 held boxes cannot be drawn/)
   })
+})
+
+describe('Zero-Lag MA Trend Levels — each box\'s right edge (`box1.set_right(bar_index + 4)`)', () => {
+  it('⭐ each box is extended until the next one replaces it; the newest reaches the last bar + 4', () => {
+    const cap = capture()
+    const bars = toProductBars(cap)
+    const d = memberPaneDefinition({ source: cap.source.text, id: 'u_zl_rt', name: 'zl' })
+    expect(d.ok, d.reason).toBe(true)
+    const reader = objectReaderFor(d.definition, bars, { tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
+    const run = evaluateObjects(reader.program, {
+      barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+    })
+    const boxes = run.live.filter((o) => o.family === 'box').sort((a, b) => a.props.left - b.props.left)
+    expect(boxes.length).toBe(18)
+    // `not signalUp or not signalDn` is true on every bar (the two crossings
+    // cannot both fire), so the `box1 := box(na)` default arm never runs and
+    // `box1` always holds the newest box: each box's right edge is the last bar
+    // before the next box was made, + 4.
+    boxes.forEach((b, k) => {
+      const until = k + 1 < boxes.length ? boxes[k + 1].props.left - 1 : bars.length - 1
+      expect(b.props.right, `box ${k} made on bar ${b.props.left}`).toBe(until + 4)
+    })
+  }, 60000)
 })

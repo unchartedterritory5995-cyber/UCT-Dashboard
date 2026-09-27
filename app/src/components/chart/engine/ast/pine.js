@@ -12619,6 +12619,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
       if (!reg || !value) { dropped('copy:source'); continue }
       ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
+    } else if (op.k === 'reset') {
+      // ⭐ `b := box(na)` — the register forgets its object; the object stays on
+      // the chart. A `setreg` to null, which the format has always carried.
+      const reg = regId.get(op.into)
+      if (!reg) { dropped('reset:target'); continue }
+      ops.push({ k: 'setreg', reg, value: null, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
     // Both lineages implemented this call and both survived the merge as arms of

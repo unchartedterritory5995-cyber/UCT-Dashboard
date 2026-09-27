@@ -105,3 +105,57 @@ describe('⛔ where the body is not decidable from the tokens, a drawing method 
     expect(dg.dropReasons['fn:method']).toBe(1)
   })
 })
+
+// ─── ⭐⭐ THE REGISTER THE METHOD FILLS: `set_right` MOVES ITS OBJECT, `box(na)` EMPTIES IT ───
+//
+// Zero-Lag extends its newest box every bar (`box1.set_right(bar_index + 4)`)
+// and, in a default arm, empties the variable (`box1 := box(na)`). Pine's model,
+// written out bar by bar so the expectation is the rule and not our runtime:
+//   · `var b = box(na)` holds its object ACROSS bars until reassigned;
+//   · `b.set_right(x)` moves whatever `b` holds NOW; on an empty `b` it is a no-op;
+//   · `b := box(na)` forgets the object — the box stays drawn where it was.
+function expectedRights({ reset }) {
+  const right = new Map()
+  let held = null
+  for (let i = 0; i < N; i += 1) {
+    const b = BARS[i]
+    if (b.c > b.o) { held = i; right.set(i, i) }
+    if (reset && b.c < b.o) held = null
+    if (held !== null) right.set(held, i + 4)
+  }
+  return UP.map((u) => right.get(u))
+}
+
+describe('⭐⭐ the register a drawing method fills', () => {
+  const body = (extra) => 'col = color.red\nvar b = box(na)\n' + METHOD
+    + 'if close > open\n    b := col.mk(high, low)\n' + extra + 'b.set_right(bar_index + 4)\n'
+
+  it('⛔ CONTROL — the two expectations differ, so a rail on them can tell a reset from none', () => {
+    expect(expectedRights({ reset: true })).not.toEqual(expectedRights({ reset: false }))
+  })
+
+  it('⭐ `var b = box(na)` keeps its box across bars — `set_right` extends the newest box until the next one', () => {
+    const boxes = live(body(''))
+    expect(boxes.map((o) => o.props.left)).toEqual(UP)
+    expect(boxes.map((o) => o.props.right)).toEqual(expectedRights({ reset: false }))
+  })
+
+  it('⭐ `b := box(na)` empties the variable: the box stays, and later setters no longer move it', () => {
+    const boxes = live(body('if close < open\n    b := box(na)\n'))
+    expect(boxes.map((o) => o.props.left), 'a reset must not delete the box').toEqual(UP)
+    expect(boxes.map((o) => o.props.right)).toEqual(expectedRights({ reset: true }))
+  })
+
+  it('⭐ `b := na` is the same reset as `b := box(na)`', () => {
+    const a = live(body('if close < open\n    b := box(na)\n'))
+    const n = live(body('if close < open\n    b := na\n'))
+    expect(n.map((o) => o.props.right)).toEqual(a.map((o) => o.props.right))
+  })
+
+  it('⭐ a reset inside a `switch` default arm runs only when no arm above matched', () => {
+    const boxes = live('col = color.red\nvar b = box(na)\n' + METHOD
+      + 'if close > open\n    b := col.mk(high, low)\n'
+      + 'switch\n    close >= open => b.set_right(bar_index + 4)\n    => b := box(na)\n')
+    expect(boxes.map((o) => o.props.right)).toEqual(expectedRights({ reset: true }))
+  })
+})
