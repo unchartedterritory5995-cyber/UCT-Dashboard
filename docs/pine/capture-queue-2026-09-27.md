@@ -124,3 +124,47 @@ masked by a library import, so it unblocks nothing today.
 | `input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — "under the threshold", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1) |
 | `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2 |
 | `time(<session>)` on daily bars | 5m only | the refusal text: "This engine screens daily bars" | sole last wall of 1 |
+
+## CAPTURED — 2026-09-27, the parent session (rig layout 01f1AcIj)
+
+Seventeen captures under `tests/fixtures/vendor/`, every one verified by
+`verify_capture.mjs --assemble` (VERDICT PASS), every embedded source byte-identical to
+its probe on this branch (sources fetched from the branch's own commit `4b21c2474` and
+sha-checked in the page before they ran). Depth was forced with **Go to date**, never
+the `All` button.
+
+| probe | capture | bars | what it covers |
+|---|---|---|---|
+| `vw-time-session` | `vw-time-session-spy-1d-2026-09-27.json` | 8472 | the **1D** leg — full SPY history 1993→, every DST change |
+| `vw-time-tf` | `vw-time-tf-spy-1d-2026-09-27.json` | 8472 | ≥ 800 bars incl. every holiday Monday |
+| `vw-nvi-pvi` | `vw-nvi-pvi-spy-1d-full-2026-09-27.json` | 8472 | FULL history (starts at SPY's first bar, 1993) |
+| `vw-nvi-pvi` | `vw-nvi-pvi-spy-1d-truncated-2026-09-27.json` | 1040 | the same chart with ~1,000 bars loaded — the fetch-dependence ratio |
+| `vw-int-cast` | `vw-int-cast-spy-1d-2026-09-27.json` | 300 | ≥ 200 |
+| `vw-clock-vwap` | `vw-clock-vwap-spy-1d-2026-09-27.json` | 8472 | the **1D** leg, spans every year and month boundary |
+| `vw-alma` | `vw-alma-spy-1d-2026-09-27.json` | 8472 | ≥ 300 |
+| `vw-mintick` | `vw-mintick-<sym>-1d-2026-09-27.json` ×10 | 374–1040 | the nine symbols named, plus a second sub-$1 name |
+
+⛔ **STILL OWED — the intraday legs:** `vw-time-session` on AMEX:SPY **60** with extended
+hours OFF and ON, and `vw-clock-vwap` on AMEX:SPY **5m** extended ON. The 1D legs above
+answer S03–S11 and V13–V14 on their own; the straddle rows (S16/S17) and the intraday
+clock rows need those charts.
+
+### `syminfo.mintick`, read off the captures (M01; constant on every bar of every capture)
+
+| symbol | last close (M03) | mintick | pricescale / minmove |
+|---|---|---|---|
+| AMEX:SPY | 771.35 | 0.01 | 100 |
+| NASDAQ:AAPL | 341.07 | 0.01 | 100 |
+| NYSE:BRK.A | 758505.68 | 0.01 | 100 |
+| NASDAQ:SNDL | 1.40 ($1–5) | 0.01 | 100 |
+| NASDAQ:NKLA | 0.183 (sub-$1) | 0.01 | 100 |
+| OTC:AITX | 0.003 (sub-cent) | 0.0001 | 10000 |
+| SP:SPX | 7743.41 (index) | 0.01 | 100 |
+| CME_MINI:ES1! | 7803.75 (future) | 0.25 | 4 |
+| FX:EURUSD | 1.13902 (forex) | 0.00001 | 100000 |
+| BINANCE:BTCUSDT | 84432.01 (crypto) | 0.01 | 100 |
+
+⭐ **Price regime does not decide it for a listed US name:** a $0.18 NASDAQ listing is
+0.01 like a $758,505 one. Only the sub-cent OTC name, the future and the forex pair differ.
+So "US-listed equities and ETFs → 0.01" is supported by this table; OTC, futures, forex
+and any crypto pair other than BTCUSDT are NOT covered by it and must stay unserved.
