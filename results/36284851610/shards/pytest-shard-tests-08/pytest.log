@@ -1,0 +1,196 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+..................s..................................................... [ 51%]
+........................................................................ [ 54%]
+........................................................................ [ 57%]
+............................................................s........... [ 60%]
+..[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+...................................................................... [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+.......................................................
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  store rows @ h  : 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+............. [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 94%]
+........................................................................ [ 97%]
+...................................F..................................   [100%]
+=================================== FAILURES ===================================
+________ test_every_sha_cited_in_every_program_doc_resolves_against_git ________
+
+tool = <module 'verify_doc_shas' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/verify_doc_shas.py'>
+
+    def test_every_sha_cited_in_every_program_doc_resolves_against_git(tool):
+        _found, bad, _phantom = tool.scan(_ROOT)
+        if bad:
+            lines = []
+            for sha, sites in bad:
+                for rel, line in sites:
+                    lines.append(f"  {sha}  ->  {rel}:{line}")
+>           pytest.fail(
+                "SHA(s) cited in program docs that git cannot resolve.\n"
+                "Resolve each one before it is written, or add it to FOREIGN_REPO "
+                "(another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a "
+                "reason, in tools/verify_doc_shas.py:\n" + "\n".join(lines))
+E           Failed: SHA(s) cited in program docs that git cannot resolve.
+E           Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+E             01b5b35b  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:23
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+E             08d68edb  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:72
+E             08d68edb  ->  docs/terminal-research/10-roadmap/evidence/2026-09-26-s7-daily-read-0230Z/results.md:89
+E             08d68edb  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md:17
+E             08d68edb  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md:613
+E             08d68edb  ->  docs/terminal-research/12-decisions/adr/ADR-INDEX.md:203
+E             08d68edb  ->  docs/terminal-research/RESUME-HERE.md:175
+E             0e4fb56a8  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+E             217ae7230  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_6.md:24
+E             37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+E             474e8710  ->  docs/terminal-research/00-program-control/LEDGER.md:4802
+E             4e04f43f0  ->  docs/terminal-research/00-program-control/RESUME.md:439
+E             551c8c444  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:599
+E             551c8c444  ->  docs/terminal-research/RESUME-HERE.md:259
+E             56f06c223  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:652
+E             56f06c223  ->  docs/terminal-research/RESUME-HERE.md:71
+E             5c0513b1a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:684
+E             5c0513b1a  ->  docs/terminal-research/RESUME-HERE.md:259
+E             5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+E             6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:114
+E             72b7ff28  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:19
+E             73a4286d0dc4b3adcaea9f6f8ec9b80a1bff8735  ->  docs/terminal-research/10-roadmap/testing-plan.md:737
+E             7a6d0299  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-25.md:59
+E             7bb86978b  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+E             a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+E             a6e2b755  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:20
+E             b08c9841  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:22
+E             b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:113
+E             c21681ca  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:21
+E             d30c4202a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:727
+E             d30c4202a  ->  docs/terminal-research/RESUME-HERE.md:259
+E             da73ef5a  ->  docs/terminal-research/00-program-control/LEDGER.md:4271
+E             de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+E             de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:464
+E             f0d66360  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:48
+E             f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+
+tests/test_program_doc_shas_resolve.py:84: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:501: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_paywall_gate_free_tier.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_paywall_gate_free_tier.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1340: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_perf_harness.py:465: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_wave8_walk.py:627: could not import 'playwright._impl._helper': No module named 'playwright'
+FAILED tests/test_program_doc_shas_resolve.py::test_every_sha_cited_in_every_program_doc_resolves_against_git - Failed: SHA(s) cited in program docs that git cannot resolve.
+Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+  01b5b35b  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:23
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+  08d68edb  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:72
+  08d68edb  ->  docs/terminal-research/10-roadmap/evidence/2026-09-26-s7-daily-read-0230Z/results.md:89
+  08d68edb  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md:17
+  08d68edb  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md:613
+  08d68edb  ->  docs/terminal-research/12-decisions/adr/ADR-INDEX.md:203
+  08d68edb  ->  docs/terminal-research/RESUME-HERE.md:175
+  0e4fb56a8  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+  217ae7230  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_6.md:24
+  37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+  474e8710  ->  docs/terminal-research/00-program-control/LEDGER.md:4802
+  4e04f43f0  ->  docs/terminal-research/00-program-control/RESUME.md:439
+  551c8c444  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:599
+  551c8c444  ->  docs/terminal-research/RESUME-HERE.md:259
+  56f06c223  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:652
+  56f06c223  ->  docs/terminal-research/RESUME-HERE.md:71
+  5c0513b1a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:684
+  5c0513b1a  ->  docs/terminal-research/RESUME-HERE.md:259
+  5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+  6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:114
+  72b7ff28  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:19
+  73a4286d0dc4b3adcaea9f6f8ec9b80a1bff8735  ->  docs/terminal-research/10-roadmap/testing-plan.md:737
+  7a6d0299  ->  docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-25.md:59
+  7bb86978b  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+  a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+  a6e2b755  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:20
+  b08c9841  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:22
+  b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:113
+  c21681ca  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:21
+  d30c4202a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:727
+  d30c4202a  ->  docs/terminal-research/RESUME-HERE.md:259
+  da73ef5a  ->  docs/terminal-research/00-program-control/LEDGER.md:4271
+  de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+  de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:464
+  f0d66360  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-daily-read-2105Z/results.md:48
+  f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+1 failed, 2515 passed, 2 skipped, 19 warnings in 698.05s (0:11:38)
