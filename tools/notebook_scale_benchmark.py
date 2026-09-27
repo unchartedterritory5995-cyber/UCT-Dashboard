@@ -46,6 +46,10 @@ Wave 10 (lane 10A) additions:
   * `--ratio KEY` (ruling R-10): at the budget's tier, every op it names timed as a median ratio
     to `CALIBRATION_OP`, re-measured when over its line; `--slow-op LABEL=MS` feeds a check a
     slowed op on purpose (the rail that proves the check goes red, and the CI red-once run).
+  * `--members N` (fix round 1, review M-4): every tier seeds N members, each with a library
+    of the tier's size (the same seed, so the same share of every search term), and times the
+    FIRST member's reads. The full-text index is one table for every member, so a read that
+    is not scoped to its member pays for everyone's notes -- invisible with one member.
 
 A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
 commit production pays on every search. The conftest sandbox's auth.db gets its schema
@@ -559,7 +563,8 @@ def remeasure_breaches(stats: dict[str, dict], ops: dict, lines: dict[str, float
 def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool = False,
              work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None,
              attachments: int = 0, ratio_spec: dict | None = None,
-             slow_ops: dict[str, float] | None = None) -> dict:
+             slow_ops: dict[str, float] | None = None, members: int = 1) -> dict:
+    global USER_ID       # --members seeds the others under their own ids, then restores it
     tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_", dir=work_dir)
     db_path = os.path.join(tmp_dir, "bench.db")
     conn = sqlite3.connect(db_path)
@@ -572,7 +577,22 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
 
     seed_t0 = time.perf_counter()
     truth = _seed(conn, n, heavy["id"], others, paragraphs)
+    # Fix round 1 (review M-4): OTHER members' libraries of the same size (the same seed,
+    # so the same share of every search term). The full-text index is one table for every
+    # member, so a read that is not scoped to the member pays for theirs too -- a cost a
+    # one-member seed cannot show. The timed reads and the correctness checks stay the
+    # first member's; the others only share the tables.
+    first = USER_ID
+    try:
+        for k in range(1, max(1, members)):
+            USER_ID = f"{first}_other{k}"
+            oh = notes_svc.create_folder(USER_ID, "Catch-All", conn=conn)
+            oo = [notes_svc.create_folder(USER_ID, f"Folder {i}", conn=conn)["id"] for i in range(8)]
+            _seed(conn, n, oh["id"], oo, paragraphs)
+    finally:
+        USER_ID = first
     seed_ms = (time.perf_counter() - seed_t0) * 1000.0
+    notes_all_members = conn.execute("SELECT count(*) FROM j2_notes").fetchone()[0]
     # Wave 10 (lane 10A): the raw seed bypasses the door writers, which refill the
     # task index in production on every save. The boot backfill is what fills it for
     # rows written without a door, so it stands in for them here -- the same
@@ -752,6 +772,8 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
 
     return {
         "n": n,
+        "members": max(1, members),
+        "notes_all_members": notes_all_members,
         "active": truth["active"], "trashed": truth["trashed"], "archived": truth["archived"],
         "seed_ms": round(seed_ms, 1),
         "task_digest_backfill_ms": round(digest_ms, 1),
@@ -829,6 +851,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ratio", default=None,
                     help="a ratio budget key (e.g. ratio_ci): time each of its ops as a ratio to "
                          "the in-run calibration op at its tier, and breach on it (ruling R-10)")
+    ap.add_argument("--members", type=int, default=1,
+                    help="seed this many members, each with a library of the tier's size, and "
+                         "time the first one's reads (review M-4: an unscoped read pays for "
+                         "every member's notes)")
     ap.add_argument("--slow-op", action="append", default=None, metavar="LABEL=MS",
                     help="add MS of sleep to one timed op: feeds a check a slowed op on purpose")
     args = ap.parse_args(argv)
@@ -841,8 +867,8 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError:
         print(f"bad --tiers {tiers_arg!r}")
         return 3
-    if not tiers or args.reps < 1 or args.warmup < 0 or args.attachments < 0:
-        print("need at least one tier, --reps >= 1, --warmup >= 0 and --attachments >= 0")
+    if not tiers or args.reps < 1 or args.warmup < 0 or args.attachments < 0 or args.members < 1:
+        print("need at least one tier, --reps >= 1, --warmup >= 0, --attachments >= 0 and --members >= 1")
         return 3
     slow_ops: dict[str, float] = {}
     for item in args.slow_op or []:
@@ -924,18 +950,21 @@ def main(argv: list[str] | None = None) -> int:
             "remeasure_budgets": remeasure_keys,
             "timed_ops": TIMED_OPS + (ATTACHMENT_OPS if args.attachments else []),
             "attachments": args.attachments, "curve": bool(args.curve), "ratio_budget": args.ratio,
+            "members": args.members,
             "slow_ops": slow_ops,
         },
         "tiers": [],
     }
     for n in tiers:
         print(f"\n=== Seeding + measuring {n:,} notes"
+              + (f" x {args.members} members" if args.members > 1 else "")
               + (f" + {args.attachments:,} attachments" if args.attachments else "")
               + f" ({args.reps} reps after {args.warmup} warmup) ===")
         lines = pb.lines_at_tier(remeasure_src, remeasure_keys, n) if remeasure_keys else None
         r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
                      keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines,
-                     attachments=args.attachments, ratio_spec=ratio_spec, slow_ops=slow_ops)
+                     attachments=args.attachments, ratio_spec=ratio_spec, slow_ops=slow_ops,
+                     members=args.members)
         report["tiers"].append(r)
         print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
               f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}"

@@ -586,6 +586,12 @@ identical at 5,000 notes and at 50,000.
   against the 2.301 line (40 - 44 % of it) while the runner's calibration ranged
   **42.8 - 58.4 ms**: the ratio held still as the runner's speed moved by a third, which is the
   property the check exists for (`w10A/flapwatch-summary.txt`). Clause 4b is not restated.
+- ⚠️ **The ratio check compares P50s, not p95s** (fix round 1, review M-2, ruling: keep it).
+  Each round is the op's p50 over the calibration's p50, so the number held to the line is a
+  median ratio: **a regression that lands only in the tail passes CI, on purpose** -- a round's
+  p95 on a shared runner is one burst away from a flake, and this check gates promotion. The
+  tail belongs to the local 50k gate (its p95 lines), which stays the verdict. Said the same way
+  in `ratio_ci.why`, the workflow header and the rail's comment.
 
 ### Typing (clause 4d): attributed in a real browser, then fixed
 
@@ -687,4 +693,81 @@ and the budgets' common term matches 30 %: in the same process a term in every n
 ⚠️ The relevance order's ranked MATCH pass (`_RELEVANCE_RANKED_SQL`) scores every member's
 matches, not the searcher's (the FTS table's `user_id` is UNINDEXED): with one member seeded the
 benchmark cannot see that cost, and a library of many members would pay it on every search.
-Not measured.
+Not measured. (Closed in fix round 1, below: the pass is now scoped to the member, and the
+benchmark can seed more than one.)
+
+### Fix round 1 (the lane 10A task review)
+
+**The integer hop has a readiness record (review I-2).** The `note_rowid` upgrade -- the
+column, the repair of every NULL or drifted row, the new index, the dropped old one and the
+three FTS triggers rewritten to keep the column -- now runs in ONE `BEGIN IMMEDIATE`
+transaction, and records `j2_notes_fts_map.note_rowid` in `j2_schema_builds` inside that same
+transaction. The trigger swap no longer goes through `executescript` (which COMMITS whatever is
+open before it runs): the trigger DDL is split into whole statements (`_script_statements`, by
+`sqlite3.complete_statement`) and executed one by one inside the transaction. Every reader --
+the text set in `_q_match_parts`, the ranked relevance pass, the list and the count -- asks
+`_fts_map_ready` and, while the record is absent, takes the pre-wave-10 hop through `note_id`.
+**A failed upgrade costs speed, never results:** the rail makes the repair raise on an old-shape
+library and reads `['n1','n3','n5']` from `list_notes(q=...)`, the relevance order and
+`list_and_count_notes`, never `[]`, with the old triggers still in place. A drift found at a
+later boot deletes the record in its OWN commit before repairing, so the readers fall back for
+the length of the rebuild; the tag index does the same (`j2_note_tag_index@N` is deleted first,
+and a failed rebuild leaves every tag read correct -- railed).
+
+**Derivations are versioned (review I-3).** `TASK_DIGEST_VERSION` and `TAG_INDEX_VERSION` (both
+1) are recorded as `j2_note_task_digest@1` and `j2_note_tag_index@1`. At boot a version mismatch
+empties and refills the task index, or drops the tag triggers and rebuilds the tag index,
+through the same unmark-first path; `list_tasks` reads the index only while the current version
+is recorded, and otherwise parses the bodies as before wave 10. A rail
+(`tests/test_journal_two_derivation_versions.py`) hashes the derivation SOURCE -- `extract_tasks`,
+`_own_text_and_due`, `parse_due`, the date pattern, `_NOTE_TAG_INDEX_DDL`, the fold tables and
+`rebuild_note_tag_index`, tokenised with comments and docstrings removed, so a comment edit
+passes and a code edit does not -- and pins each hash to its version constant. Editing either
+derivation without bumping the version fails it; a control proves the hash moves on a code edit
+and holds on a comment edit. `backfill_note_task_digest` now takes its write lock before it
+reads the notes it will fill (review M-1).
+
+**The relevance pass reads only the searching member (review M-4).** The FTS table is shared by
+every member and its `user_id` is UNINDEXED, so the ranked MATCH pass scored everyone's matches.
+It now keeps a map row only when `+m.note_rowid IN (SELECT rowid FROM j2_notes WHERE user_id =
+?)`; the unary `+` is load-bearing -- without it the planner pushes the membership test into the
+map index's seek, `(fts_rowid=? AND note_rowid=?)`, a product of the two sets that ran for more
+than ten minutes at 50k before it was stopped. ⚠️ **This is not the form the brief suggested**
+(`JOIN j2_notes n ON n.rowid = m.note_rowid AND n.user_id = ?`), and the reason is measured, in
+one process on one 50k database, every answer identical (`w10A/m4_variants.py`): the common
+term's ranked pass unfiltered 18 ms, the membership test 26 ms, the JOIN 54 ms -- the JOIN reads
+each matched note's row (behind its body's overflow pages) where the membership test reads one
+narrow index. Interleaved A/B against the unfiltered pass (`w10A/m4_measure.py`, loaded box, so
+ratios): **one member, 50,000 notes** -- common term 1.19x / 1.15x (58.6 -> 69.8 ms, 64.9 -> 74.4
+ms p50), rare term 1.50x (12.6 -> 19.0 ms: the member's rowid list is read even for one match)
+(`w10A/m4-1member.log`); **two members, 25,000 each** -- common 0.87x both ways (40.6 -> 35.3,
+43.7 -> 38.1 ms: the other member's matches are no longer ranked), rare 1.32x (8.9 -> 11.8 ms)
+(`w10A/m4-2members.log`). So a one-member library pays about 6 - 11 ms p50 on a search, and a
+library shared with another member of the same size already gains. Rails: a member's results and
+totals are identical whether or not another member has matching notes, recorded and unrecorded
+(`test_a_members_search_does_not_move_when_another_member_matches`), and the other member's notes
+are never ranked and the plan's map seek never takes `note_rowid=?`
+(`test_the_relevance_pass_ranks_only_the_searching_members_matches`).
+`tools/notebook_scale_benchmark.py --members N` seeds N members of the tier's size and times the
+first member's reads; a 2 x 25,000 smoke run (one rep, box not checked, so no timing is cited)
+passed every correctness check (`w10A/members2x25k.json`).
+
+**The bytes gate has its red run (review M-3).** `.github/workflows/notebook-bytes.yml` now
+carries both runs in its header, as the latency gate does: SEEN GREEN run `36328815419`
+(`8e4b51a0c`: 2,205,893 B against the 2,260,793 B budget) and SEEN RED run `36345075379`
+(throwaway `ci/notebook-w10a-bytes-red`, `a27769fee` = `90dbfc0f0` with the budget set to
+1,000,000 B: "BREACH bytes.notebook_first_open: 2,205,893 B > budget 1,000,000 B"). The rail
+that refused the latency gate a `yes` without its runs now reads both workflows. Both headers
+also say what a red does: **any growth of the route's first-open JS past the budget -- from a
+change anywhere in the app that lands in the entry chunk -- refuses promotion until
+`perf-budgets.json` is edited by hand** (headroom at `8e4b51a0c`: 54,900 B, 2.4 %), and an
+infrastructure failure refuses too. Recovery is a re-run, `gh run rerun <run-id> --failed`, then
+promote the commit by hand, `gh workflow run promote-production.yml -f sha=<sha>` (a re-run does
+not re-trigger promotion). ⚠️ No markdown runbook carries the a11y gate's recovery today -- it
+lives in `notebook-a11y.yml`'s own header -- so the same two lines went into both perf workflow
+headers, beside the gate they recover.
+
+**Still open, by ruling:** the quiet-box verdicts (clauses 4b, 4d, 13d, 14a, 14b, 14d) are taken
+by the controller in a held quiet slot after this round; the SQLite page cache is not changed in
+wave 10; the two typing levers named above (the toolbar's whole-page re-render and the
+per-keystroke draft snapshot) are deferred, and the snapshot is not touched.

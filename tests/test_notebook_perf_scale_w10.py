@@ -274,7 +274,10 @@ def test_the_committed_ratio_budget_covers_every_ci_budget_and_names_its_referen
     for key in ("search_ci", "reads_ci", "tasks_ci"):
         assert set(budgets[key]["ops"]) | set(budgets[key].get("informational", [])) <= enforced, key
     assert enforced <= set(bench.TIMED_OPS)
-    # the same lines as the millisecond budgets it replaces in CI, never looser
+    # the same MILLISECOND values as the p95 lines it replaces in CI -- but held to a p50
+    # ratio (each round compares p50s; review M-2), so a tail-only regression passes CI on
+    # purpose: a round p95 on a shared runner would flake a promotion gate. The tail is the
+    # local 50k gate's.
     assert float(spec["line_ms"]) == float(budgets["search_ci"]["p95_ms_max"])
     for op, ms in (spec.get("op_line_ms") or {}).items():
         assert op in budgets["tasks_ci"]["ops"] and float(ms) == float(budgets["tasks_ci"]["p95_ms_max"])
@@ -306,18 +309,57 @@ def test_the_bytes_workflow_gates_promotion_and_runs_the_byte_check():
     assert not any("notebook_scale_benchmark.py" in r for r in runs), "a timing step in the gating workflow"
 
 
-def test_the_latency_workflow_is_promoted_only_with_a_red_and_a_green_run_on_record():
+def _promotion_evidence_missing(text: str) -> list[str]:
+    """What a `# promotion-gate: yes` header lacks: it must name a run SEEN RED and a run SEEN
+    GREEN (ruling D-A2), with both run URLs, and say how a red is recovered. [] = complete."""
+    head = "\n".join(text.splitlines()[:40])
+    missing = []
+    if "SEEN RED" not in head or "SEEN GREEN" not in head:
+        missing.append("SEEN RED / SEEN GREEN")
+    if head.count("actions/runs/") < 2:
+        missing.append("the red and the green run URLs")
+    if "gh run rerun" not in head:
+        missing.append("the re-run recovery")
+    return missing
+
+
+@pytest.mark.parametrize("wf, name", [("notebook-latency.yml", "notebook latency"),
+                                      ("notebook-bytes.yml", "notebook bytes")])
+def test_a_promoted_notebook_workflow_carries_its_red_and_green_runs_and_its_recovery(wf, name):
+    """Review M-3: the bytes gate was promoted with no SEEN RED run on record. Both gating
+    Notebook workflows now carry the evidence in their headers, and the recovery."""
     from tools import promotion_gate as pg
-    text = (REPO / ".github" / "workflows" / "notebook-latency.yml").read_text(encoding="utf-8")
+    text = (REPO / ".github" / "workflows" / wf).read_text(encoding="utf-8")
     gating, _ = pg.read_workflow_dir(REPO)
-    marker = gating.get("notebook latency")
-    assert marker in ("yes", "no"), sorted(gating)
-    if marker == "yes":
-        head = "\n".join(text.splitlines()[:40])
-        assert "SEEN RED" in head and "SEEN GREEN" in head, "promotion without its evidence"
-        assert head.count("actions/runs/") >= 2, "the red and the green run URLs belong in the header"
+    assert gating.get(name) in ("yes", "no"), sorted(gating)
+    if gating.get(name) == "yes":
+        assert _promotion_evidence_missing(text) == [], wf
+
+
+def test_the_evidence_check_can_fail():
+    """CONTROL: a promoted header with no runs, or one run, or no recovery, is refused."""
+    assert _promotion_evidence_missing("# promotion-gate: yes -- because\nname: x\n")
+    one = "# promotion-gate: yes\n# SEEN RED https://x/actions/runs/1\n# SEEN GREEN (no url)\n# gh run rerun 1\n"
+    assert _promotion_evidence_missing(one) == ["the red and the green run URLs"]
+    no_rerun = "# SEEN RED https://x/actions/runs/1\n# SEEN GREEN https://x/actions/runs/2\n"
+    assert _promotion_evidence_missing(no_rerun) == ["the re-run recovery"]
+
+
+def test_the_latency_workflow_times_the_10k_tier_as_ratios():
     runs = [" ".join(str(s.get("run", "")).split())
             for job in _workflow("notebook-latency.yml")["jobs"].values() for s in job["steps"]]
     bench_cmd = [r for r in runs if "notebook_scale_benchmark.py" in r]
     assert len(bench_cmd) == 1 and "--ratio ratio_ci" in bench_cmd[0], runs
     assert "--tiers 10000" in bench_cmd[0] or "--tiers 1000,10000" in bench_cmd[0], bench_cmd
+
+
+def test_a_two_member_tier_times_the_first_members_reads_and_its_checks_hold(tmp_path):
+    """Review M-4: the tier the benchmark can now seed -- a second member with a library of
+    the same size and the same search terms. The first member's correctness checks (which
+    count only that member's notes) must still hold, so the other's notes reached no read."""
+    one = bench.run_tier(300, reps=1, warmup=0, paragraphs=1, work_dir=str(tmp_path))
+    two = bench.run_tier(300, reps=1, warmup=0, paragraphs=1, work_dir=str(tmp_path), members=2)
+    assert one["members"] == 1 and two["members"] == 2
+    assert two["correctness"] == one["correctness"]
+    assert two["notes_all_members"] == 2 * one["notes_all_members"] == 600   # the other member is there
+    assert set(two["ops"]) == set(one["ops"])

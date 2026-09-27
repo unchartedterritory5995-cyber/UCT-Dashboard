@@ -4,6 +4,30 @@
 #   runner noise, and it may hold `web` back. Moved out of notebook-budgets.yml (which stays
 #   ADVISORY for its millisecond readings) because the gate is decided per workflow FILE
 #   (tools/promotion_gate.py) and the two could not share one marker. Wave 10, lane 10A.
+#   Held to the D-A2 standard in fix round 1 (review M-3):
+#   SEEN GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36328815419
+#     (feat/notebook-w10-a 8e4b51a0c: 2,205,893 B of JS against the 2,260,793 B budget)
+#   SEEN RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36345075379
+#     (throwaway ci/notebook-w10a-bytes-red a27769fee = 90dbfc0f0 with the budget set to
+#     1,000,000 B: "BREACH bytes.notebook_first_open: 2,205,893 B > budget 1,000,000 B")
+#
+# ⛔ A RED HERE ON A MASTER COMMIT REFUSES PROMOTION (tools/promotion_gate.py), AND NOTHING
+#   RETRIES IT. promote-production.yml reads this job's verdict when "master deploy gate"
+#   completes and refuses -- so that commit (a Notebook revert-and-push rollback included)
+#   sits unpromoted until somebody acts:
+#     * ANY growth of the Notebook route's first-open JS past the budget -- from a change
+#       anywhere in the app that lands in the entry chunk, not only a Notebook one -- REFUSES
+#       promotion until docs/notebook/perf-budgets.json is edited BY HAND, with its reason
+#       (perf-budgets.md). Headroom at 8e4b51a0c: 54,900 B (2.4 %). Never raise the budget to
+#       fit a reading; shrink the chunk, or record why the growth is paid for.
+#     * An INFRASTRUCTURE failure (`npm ci`, the build, a runner) refuses too, and says
+#       nothing about the code.
+#       Recovery is a re-run: `gh run rerun <run-id> --failed` (or Actions -> "notebook bytes" ->
+#       the red run -> "Re-run failed jobs"), then, once green, promote that commit by hand
+#       -- a re-run alone does not re-trigger promotion:
+#         gh workflow run promote-production.yml -f sha=<the master commit sha>
+#       A red that reproduces on the re-run is not infrastructure: read the step's output.
+#   (Fix round 1, review M-3; the same two steps as notebook-a11y.yml's recovery.)
 # ─── NOTEBOOK JS BYTE BUDGET, IN CI (GATING) ─────────────────────────────────
 #
 # The JS a browser fetches before the Notebook route renders: the entry plus every chunk in
