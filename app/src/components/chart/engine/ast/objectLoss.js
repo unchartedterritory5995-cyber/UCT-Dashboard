@@ -89,6 +89,11 @@ export const DROP_KEYS = Object.freeze({
   // failure as a list slot never overwritten.
   'copy:source': C(LOSS.LIST,
     "a function's returned handle never stored in the caller's variable, so a later delete of that variable removes the previous object"),
+  // ⭐ 2026-09-27 — `b := box(na)`: the variable forgets its object. Lost, the
+  // variable keeps the OLD object, so a later setter or delete of it hits an
+  // object Pine had let go of — the same failure as a handle never overwritten.
+  'reset:target': C(LOSS.LIST,
+    "a variable emptied with `x := box(na)` that this chart cannot address, so a later delete of that variable removes the object Pine had let go of"),
 })
 
 /** `guard:<op kind>` — the op's CONDITION could not be read, so the op is
@@ -111,6 +116,8 @@ export const GUARD_KINDS = Object.freeze({
   coll_clear: C(LOSS.LIST, 'a list clear whose condition cannot be read'),
   copy: C(LOSS.LIST,
     "a returned handle whose condition cannot be read — the caller's variable keeps the previous object for a later delete"),
+  reset: C(LOSS.LIST,
+    "a `x := box(na)` whose condition cannot be read — the variable keeps the object Pine let go of, for a later delete"),
 })
 
 /** `fn:<why>` — a call to a drawing function of the script's own that the reader

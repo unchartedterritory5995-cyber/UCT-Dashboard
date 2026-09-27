@@ -145,8 +145,12 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
     // code.) The deletes remove only labels, and v2 draws no label at all once
     // both creates are lost, so its two tables are drawn — with the
     // partial-drawing sentence, which is the owner's ruling (option b).
+    // ⭐ 9 of 18 since the register reset (2026-09-27): `hvPreviewLabel := na` is now
+    // READ — a `setreg` to null — and it sits behind the same unreadable guard as
+    // the delete beside it, so it is one more attempted step and one more counted
+    // drop. It used to vanish without a count.
     expect(Object.keys(byName).sort()).toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
-    expect(byName.Drawings).toMatch(/^8 of 17 drawing elements in this script aren't supported yet/)
+    expect(byName.Drawings).toMatch(/^9 of 18 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
     expect(byName.alertcondition).toContain("'HVE Trigger'")

@@ -50,8 +50,16 @@
 // bar, so inlining that body would answer a different number. A body that reads
 // only the current bar (arithmetic, `math.*`, `str.*`, `color.*`, drawing calls)
 // is identical either way and is inlined.
-// ⛔ A METHOD (`method m(...) =>`) THAT DRAWS. Its receiver is typed and this
-// reader has no type system to dispatch on.
+// ⭐⭐ A METHOD (`method m(...) =>`) THAT DRAWS IS INLINED LIKE A FUNCTION (2026-09-27).
+// `recv.m(a, b)` IS `m(recv, a, b)` — Pine's own definition of the method form —
+// so the receiver binds to the FIRST parameter and everything above applies.
+// Measured against TradingView the day it landed: Zero-Lag MA Trend Levels
+// draws all 18 of its trend boxes through `up.draw_box(…)`.
+// ⛔ WHAT STILL REFUSES `method`, BY NAME: a method defined MORE THAN ONCE (an
+// overload — Pine dispatches on the receiver's type, and this reader has no
+// type system to choose a body with), a method named like a built-in object or
+// collection method called on a declared drawing handle or list (Pine could be
+// meaning the built-in), and `copy` (every user type has a built-in one).
 // ⛔ A DRAWING FUNCTION CALLED INSIDE AN EXPRESSION (`if f(x)`, `y = 1 + f(x)`,
 // `plot(f(x))`), under `var` (`var x = f()` runs once), inside a loop this
 // reader could not parse, with a wrong argument count, or nested past a depth
@@ -190,7 +198,15 @@ export function readFunctionDefs(stmts, h) {
     // ⭐ A ONE-LINE BODY (`g(z) => label.new(…)`) is the tokens after `=>`; a
     // block body is the sub-statements. Both become one statement list.
     const body = tail.length ? [{ header: tail, sub: st.sub || [] }] : (st.sub || [])
-    defs.set(head.name, { name: head.name, isMethod: head.isMethod, params, body, line: t[0].line })
+    // ⛔ A NAME DEFINED TWICE IS AN OVERLOAD — Pine picks the body by the
+    // receiver's (or first argument's) TYPE, which this reader cannot see. The
+    // Map keeps only the last body, so the flag is what stops the inliner from
+    // running a body Pine might not have chosen (`inlineCall` refuses it).
+    const overloaded = defs.has(head.name)
+    defs.set(head.name, {
+      name: head.name, isMethod: head.isMethod, params, body, line: t[0].line,
+      ...(overloaded ? { overloaded: true } : {}),
+    })
   }
   return defs
 }
@@ -576,6 +592,43 @@ export function callsAny(toks, names) {
       && toks[i + 1].kind === 'punct' && toks[i + 1].value === '(') return String(tk.value)
   }
   return null
+}
+
+/** Method spellings Pine's OWN collection namespaces define (`array`, `map`,
+ *  `matrix`), beside the object writes `writesObject` names and every `get_*`. */
+const BUILTIN_COLLECTION_METHODS = new Set(['push', 'pop', 'shift', 'unshift', 'set', 'get',
+  'remove', 'clear', 'size', 'first', 'last', 'insert', 'copy', 'includes', 'indexof',
+  'lastindexof', 'sort', 'reverse', 'fill', 'concat', 'slice', 'join', 'keys', 'values',
+  'contains', 'put', 'sum', 'avg', 'min', 'max'])
+
+/** ⛔ A user method whose name Pine ALSO defines on a drawing handle or a list.
+ *  Called on a declared handle, `b.set_right(…)` might mean the built-in, and
+ *  choosing between them is a type decision this reader does not make. */
+export function isBuiltinMethodName(m) {
+  const s = String(m || '')
+  return writesObject(s) || s.startsWith('get_') || BUILTIN_COLLECTION_METHODS.has(s)
+}
+
+/**
+ * ⭐ A CALL HEAD naming one of `methods`, in either spelling Pine allows:
+ *   `recv.m(…)`  → `{fn: 'm', recv: 'recv'}`   the method form
+ *   `m(recv, …)` → `{fn: 'm', recv: null}`     the function form
+ * ⛔ A head under one of Pine's own namespaces (`color.m`, `box.m`) is NOT a
+ * method call on a script value — it is that namespace's function or nothing.
+ * @returns {{fn: string, recv: string|null}|null}
+ */
+export function methodHead(tk, methods) {
+  if (!tk || tk.kind !== 'ident') return null
+  const v = String(tk.value)
+  if (methods.has(v)) return { fn: v, recv: null }
+  const dot = v.lastIndexOf('.')
+  if (dot <= 0 || dot === v.length - 1) return null
+  const m = v.slice(dot + 1)
+  const recv = v.slice(0, dot)
+  if (!methods.has(m)) return null
+  const first = recv.split('.')[0]
+  if (KNOWN_NAMESPACES.has(first) || DRAWN_FAMILIES.includes(first)) return null
+  return { fn: m, recv }
 }
 
 /** A method-form call to one of `names` (`x.m(`) anywhere in these tokens. */
