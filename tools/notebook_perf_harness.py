@@ -34,9 +34,13 @@ What is measured, exactly:
   * TYPING: main-thread cost per keystroke. A capture-phase `keydown` stamps t0. The editor's
     `input` event then posts a MessageChannel message, and its handler stamps t1. That
     handler runs after the current task and its microtasks: ProseMirror's transaction, the
-    synchronous React commit, and every plugin's `view.update`. It does NOT wait for vsync,
-    so a 60 Hz frame (16.7 ms) never inflates a sample. The caret sits at the END of the
-    note, where a member appends.
+    synchronous React commit, and every plugin's `view.update`. It does NOT wait for vsync.
+    ⚠️ It DOES include one rendering frame: measured in Chromium (wave 10, lane 10A), the
+    browser runs the frame the keystroke produced (style, layout, paint of the changed note)
+    BEFORE the probe's message task in 80 of 80 keystrokes -- keydown -> frame 10.6 ms p50,
+    frame -> sample 2.7 ms p50 at 2,000 paragraphs on a loaded box (perf-budgets.md §7). So a
+    sample is "keystroke to its frame on the main thread", not script time alone. The caret
+    sits at the END of the note, where a member appends.
     ⛔ A keystroke Playwright delivers but the editor never sees yields NO sample. The run
     compares the sample count with the characters sent and reports INCONCLUSIVE on a
     shortfall. It never reports a p95 over the keys that happened to land.

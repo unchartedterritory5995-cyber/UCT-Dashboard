@@ -515,6 +515,8 @@ bounded wait). ⛔ A LOADED reading is never a verdict. Scratch evidence is in t
 | `idx_j2_notes_id_live (id, user_id, deleted_at, updated_at, title)` | backlinks read every matched note's ROW, behind its body's overflow pages | count 24 -> 7 ms, list 32 -> 14 ms at 50k |
 | `idx_j2_note_document_pages_user_doc (user_id, document_id)` | the per-note document list walked every page the member owns, once per document (the planner took the one-column `(user_id)` index) | a note with 50 documents: 85 -> 11 ms at 1,000 documents; 819 ms p50 in the 10,000-document tier before |
 | the document search ranks on the FTS table alone (`_RANKED_SQL`), then joins and snippets only the ranked pages (`api/services/journal_two/document_search.py`; the exact one-pass read `_one_pass` answers when the Trash takes more than the ranked window's slack) | one statement joined the document, the note (its `deleted_at` past the body, on an overflow page) and the page, and built a snippet, for every matching page before its sort kept twenty | a common term over 10,000 documents (9,075 matching pages): 134 -> 47 ms p50 (same process, loaded box); 32 of 32 answers identical to the old function (`w10A/docsearch_diff.py`) |
+| typing: `ToolButton` declared at module scope (`NoteEditorPage.jsx`) | declared INSIDE the page, a new component type per render: all twelve toolbar buttons and their SVG icons unmounted and re-mounted on every render, and the page renders on every keystroke | traced keystroke at 2,000 ¶ (loaded): main-thread busy 29.6 -> 20.6 ms/key, style recalc 7.3 -> 2.8 ms/key |
+| typing: UIcon takes its gold gradient id once per mounted icon (`components/ui/UIcon.jsx`) | an id numbered per RENDER: every re-render of every gold icon wrote a new `id` and `stroke=url(#…)` (an attribute write, a style recalc, an SVG resource invalidation) | the per-key `setAttribute` / SVG invalidation entries leave the trace (504 SVG attribute recalcs over 40 traced keys after the toolbar fix -> 0; `w10A/trace2`, `trace3`) |
 
 ⚰️ **`COUNT(*) OVER ()` was measured and not adopted** (the brief's second named lever): the
 window over the SQL ranked pass read 47.7 ms against 35.7 + 10.7 ms without it. The page's total
@@ -584,3 +586,105 @@ identical at 5,000 notes and at 50,000.
   against the 2.301 line (40 - 44 % of it) while the runner's calibration ranged
   **42.8 - 58.4 ms**: the ratio held still as the runner's speed moved by a third, which is the
   property the check exists for (`w10A/flapwatch-summary.txt`). Clause 4b is not restated.
+
+### Typing (clause 4d): attributed in a real browser, then fixed
+
+`tools/notebook_perf_harness.py --attribute` types the characters a second time with every
+ProseMirror plugin piece, TipTap's `emit`, the view's `dispatch` / `updateState` and React's
+scheduler tasks wrapped, and TRACES that pass (`summarize_trace`: the renderer main thread's
+self time per phase). The wrapped editor pieces were only ~2 - 3.5 ms of a keystroke; 10B's
+per-transaction column-resizing plugin is a named row (`appendTransaction selectingCells$`,
+0.02 - 0.04 ms/key) and is not the cost. The trace, a raw capture with Chrome's CPU profiler
+(`w10A/trace1`) and the invalidation tracking named the rest:
+
+| at 2,000 ¶, loaded box (attribution, never a verdict) | before (`attr2`) | after the toolbar fix (`attr3`) |
+|---|---:|---:|
+| main-thread busy per key (trace) | 29.6 ms | 20.6 ms |
+| style recalc (`UpdateLayoutTree`) per key | 7.3 ms | 2.8 ms |
+| script (`FunctionCall` self) per key | 9.1 ms | 7.0 ms |
+
+What remains per key, named: the ProseMirror transaction and its plugins (~3 ms, of which
+TipTap's `onUpdate` -> the local draft is ~1.5 ms: `captureLocalState` takes `getJSON()` of the
+whole note and writes it to localStorage on EVERY keystroke, by the Wave Q1 durability design
+-- "ONE snapshot per keystroke", `NoteEditorPage.jsx` -- which this lane did not change); the
+page's React re-render (`bumpToolbar` re-renders the whole NoteEditorPage on every transaction
+to keep the toolbar's active states current: the next lever is to re-render only when a
+toolbar-visible value changes, which needs every render-time read of the editor enumerated
+first); and the browser's own editing, style, layout and paint of the changed note.
+
+⚠️ **A typing sample includes one rendering frame.** Measured (`w10A/frames1`, 80 keys at
+2,000 ¶, loaded): the frame the keystroke produced ran BEFORE the probe's message task in 80 of
+80 keys (keydown -> frame 10.6 ms p50, frame -> sample 2.7 ms p50). It is not a vsync wait,
+but it is not script time alone either; the harness's docstring said a frame "never inflates a
+sample" and now says what is measured.
+
+**Interleaved A/B, the lane-H method** (A = the lane tip's frontend before the fixes, `dist`
+index `E774B7D72CCD`; B = both fixes, `84DD976101E4`; the same harness bytes and backend,
+`--boot --sizes 1000,2000 --opens 20 --chars 60`, a fresh data dir per run, A1 B1 … A4 B4,
+2026-09-27 11:14 - 11:36). ⛔ **Every run is LOADED**: lane 10D's long-lived sandbox shim held
+every quiet check (by rule), and the in-run sampler read each run DISTURBED (CPU median 17 - 54 %,
+up to 32 competing processes). A and B were interleaved under the same load, so the RATIOS are
+the reading; the absolute numbers are not a verdict.
+
+| typing, median of 4 runs | A p50 | B p50 | A p95 | B p95 | line |
+|---|---:|---:|---:|---:|---:|
+| 1,000 ¶ | 8.50 ms | 5.55 ms | 16.60 ms | 16.65 ms | < 16 ms |
+| 2,000 ¶ | 13.20 ms | 8.55 ms | 19.10 ms | 16.50 ms | < 16 ms |
+
+The median keystroke is 35 % cheaper at both sizes and the 2,000-¶ tail came down 2.6 ms; the
+1,000-¶ tail did not move. **Clause 4d is not closed**: no quiet reading exists, and the LOADED
+p95 sits at the line at both sizes. The budget was not moved.
+
+### The windows of this lane, as the rule reads them
+
+Quiet = no `vitest` / `pytest` / `hub_sandbox_boot` / `gate_shards` / `vite preview` process and
+more than 6,000 MB available at the start (two probes 20 s apart); since W5 a sampler runs
+DURING each window and says whether the quiet HELD (`w10A/windows.txt`, `w10A/quiet_then.ps1`).
+
+| window | when (CT) | tree | box | what it read |
+|---|---|---|---|---|
+| W1 | 09-26 22:51 | `c7e140b9e` (base) | quiet at the start (no in-run sampler yet) | the base's 50k gate: BREACH relevance common 217.7, fuzzy switcher 113.0, tasks 200.7 p95 |
+| W2 | 09-27 00:36 | `1aeebeb3e` | LOADED | not a reading |
+| CALIB-REF | 01:02 | -- | QUIET | the calibration op, 43.45 ms p50 (the `ratio_ci` reference) |
+| W3 | 01:06 | `e4647fa42` + the attachment tier | quiet at the start; 5 foreign processes by its end | every notes op under its line (relevance common 57.1 / 69.8); BREACH the per-note document list 818.6 / 887.1 (fixed: the `(user_id, document_id)` index) |
+| W4 | 08:42 | `2b0f388f8` | quiet at the start; about 2x slower than W3 throughout (no sampler) | not trusted |
+| W5 | 09:34 | `8064ce08e` | quiet at the start, DISTURBED during (23 processes) | not a verdict (relevance common 134.2) |
+| W6 | 10:34 | `8e4b51a0c` | LOADED, CPU 100 % | not a verdict |
+| W7 | 10:53 | `8e4b51a0c` | LOADED, DISTURBED (CPU median 85 %) | the curve (below) |
+| typing A/B | 11:14 - 11:36 | `8e4b51a0c` | LOADED, DISTURBED | above |
+| W8 | 11:38 | `8e4b51a0c` | LOADED, CPU 100 % | the 50k gate's 17 ops as RATIOS to the calibration op: all under their lines, worst relevance common 1.802 / 2.301 (78 %) and `list_tasks` 1.175 / 3.452 |
+| W9 | 11:45 | `8e4b51a0c` | LOADED, CPU 95 % | the page-cache experiment (below) |
+| W10 | 11:49 | `8e4b51a0c` | LOADED, CPU 98 % | the search box in the page (below) |
+
+⛔ **So the quiet-box 50k verdict (clauses 4b, 13d, 14a, 14b) was not taken on this lane.** The
+nearest reading, W3, was quiet at its start and passed every notes op; W8 converts a saturated
+box's timings into the reference box's scale through the calibration op and passes all 17 --
+a ratio reading, not the verdict.
+
+### The curve (clause 14d), and why it bent
+
+W7's curve BREACHED 9 ops, 11 lines (both `count_notes`, the three tag reads, folder counts,
+backlinks, the word-start switcher, `list_tasks`), every one bending between 10,000 and 25,000 notes. It is not a
+verdict (the tiers ran under different load: the window opened at 12.6 % CPU and averaged 85 %),
+and a same-process experiment (W9, `w10A/curve_cache.py`) names a second cause: SQLite's default
+page cache (2,000 KiB) holds a 10,000-note library's hot index pages and not a 25,000-note one's.
+With `cache_size = 64 MiB` on the same databases the 10k -> 25k step became about linear
+(backlinks x3.1 -> x2.2, `list_tasks` x2.7 -> x2.1, folder counts x2.3 -> x2.1, for 2.5x the
+notes). ⚠️ That is a property of the connection settings, not of a read: auth.db connections
+are opened per request with defaults (`auth_db.get_connection`), which is app-wide and not this
+lane's to change. Recorded as the finding; the bounds were not moved.
+
+### The search box, in the page (W10, LOADED)
+
+A 50,000-note, 10,000-document sandbox seeded by the benchmark's own seed, 24 queries typed into
+the real search box, the browser's own resource timings (`w10A/searchbox.json`; integrity CLEAN
+at pre-boot, +15 s, +120 s and shutdown; 0 page errors). On a saturated box (calibration ran 3 - 4x
+slow in W8): the notes request p50 358.8 / p95 759.2 ms, documents 55.1 / 181.6, excerpts
+48.9 / 69.9. ⚠️ Twelve of the 24 queries match EVERY seeded note ("setup", "volume", "risk", …),
+and the budgets' common term matches 30 %: in the same process a term in every note costs about
+3x the 30 % term (623 against 226 ms, loaded). No budget covers a term in every note of a
+50,000-note library; that is a gap in the budget, recorded, not closed here.
+⚠️ The relevance order's ranked MATCH pass (`_RELEVANCE_RANKED_SQL`) scores every member's
+matches, not the searcher's (the FTS table's `user_id` is UNINDEXED): with one member seeded the
+benchmark cannot see that cost, and a library of many members would pay it on every search.
+Not measured.
