@@ -121,6 +121,71 @@ describe('⭐ runtime-lane values that now agree with TradingView on every bar',
   }
 })
 
+// ─── a DISPLACED plot's colour, read where the renderer drew it ──────────────
+//
+// ⭐ trendlines' pivot markers are `plotshape(ph, …, offset = -rightbars)`. The
+// capture's rows are indexed by the COMPUTING bar (the value compare pairs them with
+// our raw column and agreed), and the binder draws each point 15 bars LEFT of it —
+// exactly where TradingView draws the circle. The harness read the drawn colour at
+// the computing bar and so graded every vendor pivot "colour unresolved". The fix is
+// in the harness (`ourSide.js::drawnColours`), not the product: this rail pins that
+// the colour now resolves at every vendor pivot AND equals TradingView's.
+describe('⭐ trendlines — a displaced marker\'s colour is graded where it is drawn', () => {
+  // ⚠️ Read off the capture directly, not through `compareCapture`: on this base the
+  // harness reader still counts a missing study-store row as a hole (the sparse-row
+  // rule is on pine/live-captures-2), which would grade these INCONCLUSIVE for a
+  // reason that has nothing to do with colour.
+  it('Pivot High / Pivot Low carry the TradingView colour at every vendor pivot', () => {
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+    const capture = load('trendlines-rddt-1d-2026-09-27.json')
+    const ours = runOurSide(capture)
+    expect(ours.ok, ours.refusal).toBe(true)
+    for (const title of ['Pivot High', 'Pivot Low']) {
+      const vp = capture.study.plots.find((p) => p.title === title)
+      const hex = String(capture.study.styleState[vp.id].color).toLowerCase()
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/)
+      const mine = ours.plots.find((p) => p.title === title)
+      const vendor = vendorValues(capture, title)
+      const pivots = vendor.map((x, i) => (Number.isFinite(x) ? i : -1)).filter((i) => i >= 0)
+      // non-vacuity: the capture has pivots, and each one now carries OUR colour
+      expect(pivots.length, `${title}: vendor drew no pivot`).toBeGreaterThan(2)
+      for (const i of pivots) {
+        expect(mine.colors && mine.colors[i], `${title} bar ${i}: no drawn colour`).toBeTruthy()
+        expect(String(mine.colors[i]).toLowerCase().slice(0, 7), `${title} bar ${i}`).toBe(hex)
+      }
+    }
+  })
+})
+
+// ⭐ cc-yata's `b1..b5`, `s1..s5`, `sc1`, `sc2` never fire on RDDT at the default
+// inputs — na on EVERY bar on both sides — so neither side draws a point and there is
+// no colour to disagree about. The harness used to report `colors: null` for them
+// ("unresolvable"), which reads as a gap on our side; it now reports "drawn nowhere".
+describe('⭐ cc-yata — a plot that draws nothing reports "drawn nowhere", not "unresolved"', () => {
+  it('b1..b5, s1..s5, sc1, sc2: na on every bar on both sides, colours all null', () => {
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+    const capture = load('cc-yata-rddt-1d-2026-09-27.json')
+    const ours = runOurSide(capture)
+    expect(ours.ok, ours.refusal).toBe(true)
+    const titles = ['b1', 'b2', 'b3', 'b4', 'b5', 's1', 's2', 's3', 's4', 's5', 'sc1', 'sc2']
+    for (const title of titles) {
+      const mine = ours.plots.find((p) => p.title === title)
+      expect(mine && mine.column, `${title}: no column`).toBeTruthy()
+      // a shape draws where its series is truthy: TradingView stores `false` as 0
+      const drawnAt = (xs) => xs.filter((v) => Number.isFinite(v) && v !== 0)
+      expect(drawnAt(Array.from(mine.column)), `${title}: ours drew`).toEqual([])
+      expect(drawnAt(vendorValues(capture, title)), `${title}: vendor drew`).toEqual([])
+      expect(Array.isArray(mine.colors) && mine.colors.length === ours.bars.length, `${title}: colours`).toBe(true)
+      expect(mine.colors.every((c) => c === null), title).toBe(true)
+    }
+    // ⛔ CONTROL — a plot that DOES draw still reports real colours, so the all-null
+    // answer above is not what the reader returns for everything.
+    const drawn = ours.plots.filter((p) => p.column && Array.from(p.column).some(Number.isFinite) && p.colors)
+    expect(drawn.length).toBeGreaterThan(0)
+    expect(drawn.some((p) => p.colors.some((c) => c !== null))).toBe(true)
+  })
+})
+
 // ─── the independent re-implementation ───────────────────────────────────────
 const PP = 'pivot-point-supertrend-rddt-1d-2026-09-27.json'
 
