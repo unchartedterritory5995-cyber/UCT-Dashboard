@@ -150,7 +150,7 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: move both `pending_observation` blocks into `observed` with the step-4 SHA and put this
 #: literal back to 22. A ceiling left loose is how a debt list stops meaning anything —
 #: `lesson_a_documented_workaround_is_not_a_recovery_path`.
-DECLARED_UNOBSERVED_CEILING = 24
+DECLARED_UNOBSERVED_CEILING = 22
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.
