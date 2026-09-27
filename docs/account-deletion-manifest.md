@@ -135,8 +135,9 @@ the wave-6 close and 20 short by wave 7 (wave 7 lane J, J4).
 - The three full-text mirrors, each emptied by an `AFTER DELETE` trigger on a table the purge
   deletes: `j2_notes_fts` / `j2_notes_fts_map` (on `j2_notes`), `j2_note_document_pages_fts` /
   `_map` (on `j2_note_document_pages`), `j2_note_excerpts_fts` / `_map` (on `j2_note_excerpts`).
-  All three carry a `user_id` column; so does `j2_note_task_digest`, the task index (wave 10),
-  emptied the same way by its `AFTER DELETE` trigger on `j2_notes`; the rail reads the triggers from the schema and fails by
+  All three carry a `user_id` column; so do the two wave-10 indexes, `j2_note_task_digest` (the
+  task index) and `j2_note_tag_index` (the tag index), each emptied the same way by its own
+  `AFTER DELETE` trigger on `j2_notes`; the rail reads the triggers from the schema and fails by
   name on any `user_id` table `ensure_schema` creates that is neither purged nor trigger-emptied.
 - On-disk attachments — `attachment_root()/<user_id>/**` (notebook images and files AND trade
   screenshots, which nest under the same per-user directory), plus the legacy root fallback:

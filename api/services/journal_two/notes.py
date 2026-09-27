@@ -8,6 +8,7 @@ docs/superpowers/specs/2026-05-26-notebook-design.md
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import os
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from api.services.auth_db import get_connection
+from api.services.journal_two import db as j2_db
 from api.services.journal_two.notebook_schema import check_body_write
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
@@ -593,7 +595,8 @@ def _rowid_in(shared: _RowidSets | None, set_sql: str, set_params: list[Any]) ->
     return shared.clause(set_sql, set_params)
 
 
-def _tag_clause(user_id: str, key: str, shared: _RowidSets | None = None) -> tuple[str, list[Any]]:
+def _tag_clause(user_id: str, key: str, shared: _RowidSets | None = None,
+                indexed: bool = False) -> tuple[str, list[Any]]:
     """The note-carries-this-tag-or-one-below-it predicate, for a NON-EMPTY
     `tag_key`: the cheap prefilter, then the exact per-tag match. ⛔ ONE copy,
     used by the list/count predicate (`_notes_filter_sql`) and by the tag
@@ -602,14 +605,48 @@ def _tag_clause(user_id: str, key: str, shared: _RowidSets | None = None) -> tup
 
     Wave 7 (lane I): phrased as a ROWID SET (`_tag_rowid_set_sql`), not a
     per-row test. See there for why."""
-    set_sql, set_params = _tag_rowid_set_sql(user_id, key, "j2_tag_match")
+    set_sql, set_params = _tag_rowid_set_sql(user_id, key, "j2_tag_match", indexed=indexed)
     return _rowid_in(shared, set_sql, set_params)
 
 
-def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str) -> tuple[str, list[Any]]:
+# Python's half of the tag index's `fold` (db.py): the SAME characters removed --
+# imported, never retyped, so the two halves of the superset key cannot drift.
+_TAG_FOLD_TABLE = {code: None for code in j2_db._TAG_FOLD_REMOVED}
+
+
+def _tag_fold(key: str) -> str:
+    """The tag index's `fold` of a `tag_key` (already lower-cased): every character
+    `tag_key` may remove, removed (db.py `_TAG_FOLD_REMOVED`)."""
+    return key.translate(_TAG_FOLD_TABLE)
+
+
+def _tag_index_ready(conn: sqlite3.Connection) -> bool:
+    """Whether `j2_note_tag_index` was BUILT on this database (db.py
+    `_ensure_note_tag_index` records it in the build's own transaction). Until it
+    is, every tag read takes the per-note scan: an index that exists but was never
+    filled would answer from the notes written since, silently short."""
+    try:
+        return conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
+                            (j2_db._NOTE_TAG_INDEX_BUILD,)).fetchone() is not None
+    except sqlite3.OperationalError:
+        return False
+
+
+def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str,
+                       indexed: bool = False) -> tuple[str, list[Any]]:
     """`SELECT rowid ...` of the member's notes (any status: the caller's own
     WHERE decides live / trash / archive) whose tags satisfy `match_fn(tag, key)`
     -- `j2_tag_match` (the tag or one below it) or `j2_tag_is` (exactly it).
+
+    ⛔⛔ Wave 10 (`indexed`, when `_tag_index_ready`): from the tag index, never
+    from the notes. An index seek on `fold` finds every ASCII text tag that CAN
+    satisfy the match (an equal fold for `j2_tag_is`, a fold that starts with the
+    key's for `j2_tag_match`); every other tag (fold NULL) is always read; and
+    `match_fn`, the exact test, decides both. The same notes as the per-note scan
+    below (tests/test_journal_two_tag_index.py), at a seek instead of ~25 ms
+    (`q=`) and ~56 ms (`tag=setups`) at 50k notes (perf-budgets.md §7). A key
+    holding a non-ASCII character can only be some non-ASCII tag's key, so it
+    reads the fold-NULL rows alone.
 
     ⛔⛔ A SET, NOT A PER-ROW TEST. As a correlated predicate the match read the
     `tags` column of every candidate note, and `tags` sits after the ~2 KB body,
@@ -618,6 +655,20 @@ def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str) -> tuple[str, list
     `rowid`, which every index carries. Measured at acf1eb51e, 50k notes: the
     `q=` list for a term matching one note took 176 ms p95, walking every note's
     overflow chain to test its tags (docs/notebook/perf-budgets.md §2)."""
+    if indexed:
+        unfolded = ("SELECT t.note_rowid FROM j2_note_tag_index t"
+                    f" WHERE t.user_id = ? AND t.fold IS NULL AND {match_fn}(t.tag, ?)")
+        if not key.isascii():
+            return unfolded, [user_id, key]
+        fk = _tag_fold(key)
+        if match_fn == "j2_tag_is":
+            seek, seek_params = "t.fold = ?", [fk]
+        else:
+            # every ASCII fold that starts with fk: "\u0080" sorts after any ASCII byte
+            seek, seek_params = "t.fold >= ? AND t.fold < ?", [fk, fk + "\u0080"]
+        return (f"SELECT t.note_rowid FROM j2_note_tag_index t WHERE t.user_id = ? AND {seek}"
+                f" AND {match_fn}(t.tag, ?) UNION ALL {unfolded}",
+                [user_id, *seek_params, key, user_id, key])
     pre_sql, pre_params = _tag_prefilter(key)
     return (f"SELECT rowid FROM j2_notes WHERE user_id = ? AND {pre_sql}"
             " AND EXISTS (SELECT 1 FROM json_each(COALESCE(j2_notes.tags, '[]')) jt"
@@ -1352,6 +1403,7 @@ def _notes_filter_sql(
     date_to: str | None = None,
     symbol_in: list[str] | None = None,
     shared: _RowidSets | None = None,
+    tag_index: bool = False,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -1466,7 +1518,7 @@ def _notes_filter_sql(
         # callers run it on a connection from `register_note_sql_functions`.
         key = tag_key(tag)
         if key:
-            tag_sql, tag_params = _tag_clause(user_id, key, shared)
+            tag_sql, tag_params = _tag_clause(user_id, key, shared, indexed=tag_index)
             sql += f" AND {tag_sql}"
             params.extend(tag_params)
         else:
@@ -1501,7 +1553,7 @@ def _notes_filter_sql(
         # after the body, on an overflow page (see `_tag_rowid_set_sql`).
         q_key = tag_key(q)
         if q_key:
-            tag_set_sql, tag_params = _tag_rowid_set_sql(user_id, q_key, "j2_tag_is")
+            tag_set_sql, tag_params = _tag_rowid_set_sql(user_id, q_key, "j2_tag_is", indexed=tag_index)
         else:
             tag_set_sql, tag_params = None, []
         # Wave 4 Slice 4 fix: a leading `$` (the natural way to type a
@@ -1653,7 +1705,7 @@ def list_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            shared=_shared,
+            shared=_shared, tag_index=bool((tag or q) and _tag_index_ready(conn)),
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1801,7 +1853,7 @@ def count_notes(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            shared=_shared,
+            shared=_shared, tag_index=bool((tag or q) and _tag_index_ready(conn)),
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1875,21 +1927,37 @@ def _tag_scan(conn: sqlite3.Connection, user_id: str) -> list[tuple[Any, set[int
     """ONE pass over every tag of every live note: `(tag value, {note rowids})`
     per DISTINCT stored spelling.
 
-    Served from `idx_j2_notes_live_cover` (db.py) alone -- `tags` is in it -- so
-    no note row, and no row's overflow page, is read. Grouped by the exact
-    spelling in SQL and handed back as one comma-joined rowid list per spelling:
-    a library repeats a handful of spellings across thousands of notes, and
-    materialising ~90k `(rowid, value)` tuples in Python cost more than the scan
-    (measured at 50k notes: ~38 ms grouped + ~8 ms to parse, against ~50 ms for
-    the raw rows before any Python work)."""
-    rows = conn.execute(
-        "SELECT je.value, group_concat(j2_notes.rowid)"
-        " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
-        " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
-        " AND j2_notes.archived_at IS NULL"
-        " GROUP BY je.value",
-        (user_id,),
-    ).fetchall()
+    Wave 10 (lane 10A): from the tag index (db.py `j2_note_tag_index`) once it is
+    built -- grouped straight off `idx_j2_note_tag_index_tag`, the live notes taken
+    from `idx_j2_notes_live_cover`, and no note's `tags` parsed at all. The same
+    groups as the per-note pass below: the index holds exactly the rows `json_each`
+    yields for every note, kept by triggers (tests/test_journal_two_tag_index.py).
+
+    The per-note pass (before the build, and the reference): served from
+    `idx_j2_notes_live_cover` (db.py) alone -- `tags` is in it -- so no note row,
+    and no row's overflow page, is read. Grouped by the exact spelling in SQL and
+    handed back as one comma-joined rowid list per spelling: a library repeats a
+    handful of spellings across thousands of notes, and materialising ~90k
+    `(rowid, value)` tuples in Python cost more than the scan (measured at 50k
+    notes: ~38 ms grouped + ~8 ms to parse, against ~50 ms for the raw rows before
+    any Python work)."""
+    if _tag_index_ready(conn):
+        rows = conn.execute(
+            "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t"
+            " WHERE t.user_id = ? AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL)"
+            " GROUP BY t.tag",
+            (user_id, user_id),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT je.value, group_concat(j2_notes.rowid)"
+            " FROM j2_notes, json_each(COALESCE(j2_notes.tags, '[]')) je"
+            " WHERE j2_notes.user_id = ? AND j2_notes.deleted_at IS NULL"
+            " AND j2_notes.archived_at IS NULL"
+            " GROUP BY je.value",
+            (user_id,),
+        ).fetchall()
     return [(r[0], set(map(int, str(r[1]).split(",")))) for r in rows if r[0] is not None]
 
 
@@ -4159,27 +4227,112 @@ SWITCHER_TYPO_MIN_LETTERS = 4    # a slip is only forgiven in a word this long
 SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers read
 
 
-# The three reads a keystroke costs. Module constants so a rail can ask
-# SQLite how it will run THESE statements (test_journal_two_notes_switcher_
-# router.py): the scan must be served by the covering index alone, and the
-# recents/favourites reads must start from the member's own (small) lists.
+# The reads a keystroke costs. Module constants so a rail can ask SQLite how it
+# will run THESE statements (test_journal_two_notes_switcher_router.py): the title
+# reads must be served by the covering index alone, and the recents/favourites
+# reads must start from the member's own (small) lists.
+#
+# ⛔⛔ Wave 10 (lane 10A): a keystroke no longer reads EVERY live title into
+# Python. Measured on a 50k seed (docs/notebook/perf-budgets.md §7): materialising
+# the member's 47.6k (rowid, title) tuples cost ~50 ms, lower-casing them ~18 ms and
+# the Python loop over them ~75 ms. Now
+#   * the exact tiers (0-5) read only the CANDIDATES `_switcher_candidates_sql`
+#     returns -- a SUPERSET of the titles Python calls a hit, decided in SQL (see
+#     there) -- in the same order as before; Python still decides every tier;
+#   * the fuzzy tiers (6-7) read their bounded scope with a LIMIT
+#     (`_SWITCHER_SCOPE_SQL`): the same first SWITCHER_FUZZY_SCOPE rows of the same
+#     order they always read, plus every recent and favourite.
+# The ranking is unchanged and so is every answer:
+# tests/test_journal_two_switcher_equivalence.py holds the pre-wave-10 algorithm,
+# frozen, as the oracle.
 _SWITCHER_SCAN_SQL = (
     "SELECT rowid, title FROM j2_notes"
     " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
     " ORDER BY updated_at DESC, title ASC, rowid ASC"
 )
+# The fuzzy tiers' scope: the first SWITCHER_FUZZY_SCOPE rows of the SAME order.
+_SWITCHER_SCOPE_SQL = _SWITCHER_SCAN_SQL + " LIMIT ?"
+# A title whose UTF-8 is longer than its characters holds a non-ASCII character.
+_SWITCHER_NON_ASCII = "length(CAST(title AS BLOB)) != length(title)"
+# The ONLY non-ASCII characters whose Python `lower()` holds an ASCII letter: the
+# dotted capital I ("İ" -> "i" + a combining dot) and the Kelvin sign (-> "k").
+# SQLite's `lower()` leaves both alone, so a title holding either is always a
+# candidate. ⛔ Typed here, DERIVED in the rail over every code point
+# (tests/test_journal_two_switcher_equivalence.py), so a Unicode upgrade that adds
+# one fails there by name.
+_SWITCHER_ASCII_FOLDING_CHARS = ("\u0130", "\u212a")
+_SWITCHER_FOLDS_TO_ASCII = " OR ".join(
+    f"instr(title, char({ord(ch)})) > 0" for ch in _SWITCHER_ASCII_FOLDING_CHARS)
 # CROSS JOIN pins the recents/favourites table as the OUTER loop — left to
 # itself the planner chose to walk all 50k notes and probe each one (~115 ms).
+# Title and updated_at ride along (wave 10): a recent or favourite beyond the fuzzy
+# scope is placed by them, since the scope no longer carries every title.
 _SWITCHER_RECENTS_SQL = (
-    "SELECT n.rowid, r.opened_at FROM j2_note_recents r"
+    "SELECT n.rowid, r.opened_at, n.title, n.updated_at FROM j2_note_recents r"
     " CROSS JOIN j2_notes n ON n.id = r.note_id AND n.user_id = r.user_id"
     " WHERE r.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
 _SWITCHER_FAVORITES_SQL = (
-    "SELECT n.rowid FROM j2_note_favorites f"
+    "SELECT n.rowid, n.title, n.updated_at FROM j2_note_favorites f"
     " CROSS JOIN j2_notes n ON n.id = f.note_id AND n.user_id = f.user_id"
     " WHERE f.user_id = ? AND n.deleted_at IS NULL AND n.archived_at IS NULL"
 )
+
+
+def _switcher_candidates_sql(tokens: list[str]) -> tuple[str, list[str]]:
+    """The exact tiers' read -- `(sql, params)` for the member's live titles that MAY
+    contain every typed token, in the keystroke order (`_SWITCHER_SCAN_SQL`'s).
+
+    ⛔ A SUPERSET of Python's `tok in title.lower()`, never a subset. Per token:
+      * an ASCII token: `instr(lower(title), tok) > 0`. Python's `lower()` maps every
+        non-ASCII character to non-ASCII text except `_SWITCHER_ASCII_FOLDING_CHARS`,
+        so in any other title an ASCII match lies inside a run of ASCII characters,
+        where SQLite's `lower()` (ASCII only) and Python's agree;
+      * a token holding a non-ASCII character can only match a title holding one
+        (an ASCII title lower-cases to ASCII): `_SWITCHER_NON_ASCII`.
+    A title holding a folding-to-ASCII character is always a candidate. A NULL
+    title is never one, as it never matched (`(title or "").lower()` holds no
+    token). ⚠️ The non-ASCII test alone would admit nearly every title: an em dash
+    or a curly quote makes a title non-ASCII (every title in the benchmark seed)."""
+    if len(tokens) == 1 and len(tokens[0]) == 1:
+        # A one-character query (the first keystroke) matches most titles, so the
+        # test would admit nearly every row and only add its own cost (measured at
+        # 50k: 51 -> 68 ms p50 with it). Every row is trivially a superset.
+        return _SWITCHER_SCAN_SQL, []
+    parts, params = [], []
+    for tok in tokens:
+        if tok.isascii():
+            parts.append("instr(lower(title), ?) > 0")
+            params.append(tok)
+        else:
+            parts.append(_SWITCHER_NON_ASCII)
+    sql = ("SELECT rowid, title FROM j2_notes"
+           " WHERE user_id = ? AND deleted_at IS NULL AND archived_at IS NULL"
+           f" AND ({_SWITCHER_FOLDS_TO_ASCII} OR ({' AND '.join(parts)}))"
+           " ORDER BY updated_at DESC, title ASC, rowid ASC")
+    return sql, params
+
+
+def _switcher_order_cmp(a: tuple, b: tuple) -> int:
+    """`(rowid, title, updated_at)` rows compared in the keystroke order --
+    `updated_at DESC, title ASC, rowid ASC`, as SQLite orders them (BINARY collation
+    compares UTF-8 bytes, which order as Python compares code points; a NULL sorts
+    first ascending, so last descending). Only ever sorts the few recents and
+    favourites beyond the fuzzy scope."""
+    (ra, ta, ua), (rb, tb, ub) = a, b
+    if ua != ub:
+        if ua is None:
+            return 1
+        if ub is None:
+            return -1
+        return -1 if ua > ub else 1
+    if ta != tb:
+        if ta is None:
+            return -1
+        if tb is None:
+            return 1
+        return -1 if ta < tb else 1
+    return -1 if ra < rb else (1 if ra > rb else 0)
 
 
 def _switcher_word_text(text: str) -> str:
@@ -4293,7 +4446,13 @@ def switcher_search(
     apply to the word being typed.
 
     Scoped like every other read here: `user_id` in SQL, active notes only
-    (a trashed note cannot be opened, so offering it would be a dead row)."""
+    (a trashed note cannot be opened, so offering it would be a dead row).
+
+    Wave 10 (lane 10A): the rows are read as candidates and a bounded scope, never
+    as the whole library (see `_SWITCHER_SCAN_SQL`'s comment). Where the old
+    version ordered a tier by a note's position in the full list, this orders it by
+    the order notes were PLACED, which is that same list order within a tier: the
+    candidates arrive in it, and the fuzzy scope is walked in it."""
     text = " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
     if not text:
         return {"notes": [], "hasMore": False, "prefixExhausted": False}
@@ -4310,36 +4469,44 @@ def switcher_search(
     conn = conn or get_connection()
     try:
         cur = conn.cursor()
-        cur.row_factory = None           # plain tuples: 50k Row objects cost real time
-        # Served from idx_j2_notes_switcher alone (a rail pins the plan).
-        live = cur.execute(_SWITCHER_SCAN_SQL, (user_id,)).fetchall()
-        recent_at = dict(cur.execute(_SWITCHER_RECENTS_SQL, (user_id,)).fetchall())
-        favs = {rid for (rid,) in cur.execute(_SWITCHER_FAVORITES_SQL, (user_id,)).fetchall()}
-
-        tiers: list[list[int]] = [[] for _ in range(SWITCHER_TIER_TYPO + 1)]
-        # Recents and favourites lead their tier, so they are noted as they are
-        # placed; everything else is read lazily, in newest-edit order, only as
-        # far as the page needs.
+        cur.row_factory = None           # plain tuples: thousands of Row objects cost real time
+        # Served from idx_j2_notes_switcher_live alone (a rail pins the plan).
+        cand_sql, cand_params = _switcher_candidates_sql(tokens)
+        candidates = cur.execute(cand_sql, (user_id, *cand_params)).fetchall()
+        recent_rows = cur.execute(_SWITCHER_RECENTS_SQL, (user_id,)).fetchall()
+        fav_rows = cur.execute(_SWITCHER_FAVORITES_SQL, (user_id,)).fetchall()
+        recent_at = {r[0]: r[1] for r in recent_rows}
+        favs = {r[0] for r in fav_rows}
+        # (rowid, title, updated_at) of every recent and favourite: the fuzzy scope
+        # reads the ones beyond its LIMIT from here.
+        special_rows = {r[0]: (r[0], r[2], r[3]) for r in recent_rows}
+        for r in fav_rows:
+            special_rows.setdefault(r[0], (r[0], r[1], r[2]))
         specials = set(recent_at) | favs
+
+        tiers: list[list[int]] = [[] for _ in range(SWITCHER_TIER_TYPO + 1)]   # rowids
+        # Recents and favourites lead their tier, so they are noted as they are
+        # placed; everything else keeps the order it was placed in, which is the
+        # newest-edit order the reads return.
         special_in: dict[int, list[int]] = {}
-        special_pos: set[int] = set()
+        placed: dict[int, int] = {}          # rowid -> placement order
 
-        def _place(pos: int, rid: int, tier: int) -> None:
-            tiers[tier].append(pos)
+        def _place(rid: int, tier: int) -> None:
+            placed[rid] = len(placed)
+            tiers[tier].append(rid)
             if rid in specials:
-                special_in.setdefault(tier, []).append(pos)
-                special_pos.add(pos)
+                special_in.setdefault(tier, []).append(rid)
 
-        misses: list[tuple[int, str]] = []   # (position, lowered title) no exact tier matched
         needle = " " + word_query
-        for pos, (rid, title) in enumerate(live):
+        for rid, title in candidates:
             t = (title or "").lower()
             if single is not None:
                 hit = single in t
             else:
                 hit = all(tok in t for tok in tokens)
             if not hit:
-                misses.append((pos, t))
+                # A non-ASCII candidate Python does not match: a miss, which the
+                # fuzzy scope reads again if it is in it.
                 continue
             if t == text:
                 tier = SWITCHER_TIER_EXACT
@@ -4359,27 +4526,27 @@ def switcher_search(
                     tier = SWITCHER_TIER_SUBSTRING
                 else:
                     tier = SWITCHER_TIER_ALL_WORDS
-            _place(pos, rid, tier)
+            _place(rid, tier)
 
         def _ranked(tier: int):
             """One tier in display order: recents (last opened first), then
             favourites, then everything else — each in newest-edit order."""
             sp = special_in.get(tier, [])
-            rec = [p for p in sp if live[p][0] in recent_at]
-            fav = [p for p in sp if live[p][0] not in recent_at]
-            rec.sort(key=lambda p: (live[p][0] not in favs, p))
-            rec.sort(key=lambda p: recent_at[live[p][0]], reverse=True)
+            rec = [r for r in sp if r in recent_at]
+            fav = [r for r in sp if r not in recent_at]
+            rec.sort(key=lambda r: (r not in favs, placed[r]))
+            rec.sort(key=lambda r: recent_at[r], reverse=True)
             yield from rec
             yield from fav
-            for p in tiers[tier]:
-                if p not in special_pos:
-                    yield p
+            for r in tiers[tier]:
+                if r not in specials:
+                    yield r
 
         picked: list[tuple[int, int]] = []
 
         def _take(tier: int) -> bool:
-            for p in _ranked(tier):
-                picked.append((p, tier))
+            for r in _ranked(tier):
+                picked.append((r, tier))
                 if len(picked) > limit:
                     return True
             return False
@@ -4390,16 +4557,22 @@ def switcher_search(
                 full = True
                 break
 
-        if not full and words and misses:
+        if not full and words:
             # ── the bounded fuzzy tiers ──
-            scope = [(p, t) for p, t in misses
-                     if p < SWITCHER_FUZZY_SCOPE or live[p][0] in recent_at or live[p][0] in favs]
+            # The misses among the first SWITCHER_FUZZY_SCOPE notes of the order,
+            # then every recent and favourite beyond them, in that same order.
+            scope_rows = cur.execute(_SWITCHER_SCOPE_SQL, (user_id, SWITCHER_FUZZY_SCOPE)).fetchall()
+            in_scope = {r[0] for r in scope_rows}
+            beyond = sorted((row for rid, row in special_rows.items() if rid not in in_scope),
+                            key=functools.cmp_to_key(_switcher_order_cmp))
+            scope = ([(rid, (title or "").lower()) for rid, title in scope_rows if rid not in placed]
+                     + [(rid, (title or "").lower()) for rid, title, _u in beyond if rid not in placed])
             typo_words = [w for w in words if _typo_eligible(w)]
             slip_memo: dict[tuple[str, str], bool] = {}
-            for p, t in scope:
+            for rid, t in scope:
                 wt = " " + t.translate(_SWITCHER_BREAK_TABLE)
                 if run_fuzzy and _in_order_from_word_start(wt, letters):
-                    _place(p, live[p][0], SWITCHER_TIER_FUZZY)
+                    _place(rid, SWITCHER_TIER_FUZZY)
                     continue
                 title_words = None
                 ok = True
@@ -4424,7 +4597,7 @@ def switcher_search(
                         ok = False
                         break
                 if ok:
-                    _place(p, live[p][0], SWITCHER_TIER_TYPO)
+                    _place(rid, SWITCHER_TIER_TYPO)
             for tier in (SWITCHER_TIER_FUZZY, SWITCHER_TIER_TYPO):
                 if _take(tier):
                     break
@@ -4436,7 +4609,7 @@ def switcher_search(
         if not picked:
             return {"notes": [], "hasMore": False, "prefixExhausted": prefix_exhausted}
 
-        rowids = [live[p][0] for p, _tier in picked]
+        rowids = [rid for rid, _tier in picked]
         placeholders = ",".join("?" * len(rowids))
         detail = {r["rowid"]: r for r in conn.execute(
             "SELECT rowid, id, title, folder_id, ticker, updated_at FROM j2_notes"
@@ -4446,8 +4619,7 @@ def switcher_search(
         paths = (_folder_paths(conn, user_id)
                  if any(r["folder_id"] for r in detail.values()) else {})
         notes = []
-        for p, tier in picked:
-            rid = live[p][0]
+        for rid, tier in picked:
             r = detail.get(rid)
             if r is None:                # deleted between the two reads
                 continue
@@ -4501,7 +4673,7 @@ def tag_member_notes(
     conn = conn or get_connection()
     try:
         register_note_sql_functions(conn)
-        tag_sql, tag_params = _tag_clause(user_id, key)
+        tag_sql, tag_params = _tag_clause(user_id, key, indexed=_tag_index_ready(conn))
         rows = conn.execute(
             "SELECT id, title FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL"
             f" AND {tag_sql} ORDER BY updated_at DESC",

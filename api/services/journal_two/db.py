@@ -2203,6 +2203,15 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.rollback()
         print(f"[notebook-fts-map] note_rowid upgrade aborted: {e}")
 
+    # Wave 10 (lane 10A): the tag index -- created, built once, drift-checked. The
+    # tag reads REQUIRE it, so a failure is printed loudly and the next boot retries;
+    # the build is one transaction and is never marked half-done.
+    try:
+        _ensure_note_tag_index(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-tag-index] ensure aborted: {e}")
+
     # Wave 10 (lane 10A): the task index, filled in place for any note that has no
     # row. A failure only means the tasks view parses those notes' bodies (the
     # pre-wave-10 cost); it can never make it wrong (see the table's comment).
@@ -2690,6 +2699,118 @@ def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
                  " ON j2_notes_fts_map(fts_rowid, note_rowid)")
     conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
     conn.commit()
+    return out
+
+
+# ── The tag index (wave 10, lane 10A) ─────────────────────────────────────────
+#
+# One row per (note, tag value) -- `json_each` over `j2_notes.tags`, maintained by
+# PURE-SQL triggers, so no writer can forget it (the reason wave 7 rejected a
+# Python-maintained tag aggregate, perf-budgets.md §2). What it answers:
+#   * the search box's "a note whose tag IS the text typed" and the `tag=` filter
+#     (`notes._tag_rowid_set_sql`): an index seek on `fold`, instead of reading
+#     every note's `tags` and testing it in Python (~25 ms of every `q=` search and
+#     ~56 ms of `tag=setups` at 50k notes, perf-budgets.md §7);
+#   * `GET /notes/tags` (`notes._tag_scan`): one grouped pass over this index.
+#
+# ⛔ `fold` is a SUPERSET key, never the identity. The identity is Python's
+# `notes.tag_key` (path-normalised, Unicode-lower-cased), which a trigger cannot
+# call. `fold` is what SQL CAN compute for an ASCII TEXT tag: the value
+# lower-cased with every character `tag_key` may remove -- Python's ASCII
+# whitespace and "/" -- removed. For such a tag `tag_key(v) == k` implies
+# `fold == notes._tag_fold(k)`, and a tag BELOW k has a fold that starts with it.
+# Every other value (non-ASCII text, a number, a nested array) gets fold NULL and
+# is checked for every lookup. Every lookup then applies the EXACT test
+# (`j2_tag_is` / `j2_tag_match`) to its candidates, so the answer is the same set
+# the per-note scan returned (tests/test_journal_two_tag_index.py).
+#
+# `note_rowid` is j2_notes' implicit rowid -- the same derived copy, and the same
+# boot drift check, as `j2_notes_fts_map.note_rowid` (`_ensure_note_tag_index`).
+_TAG_FOLD_REMOVED = (9, 10, 11, 12, 13, 28, 29, 30, 31, 32, 47)   # Python's ASCII whitespace, and "/"
+
+
+def _tag_fold_sql(expr: str) -> str:
+    out = expr
+    for code in _TAG_FOLD_REMOVED:
+        out = f"replace({out}, char({code}), '')"
+    return f"lower({out})"
+
+
+# The fold of one json_each row `je`: the coarse key for an ASCII text value, else NULL.
+_TAG_FOLD_OF_JE = (f"CASE WHEN je.type = 'text' AND length(CAST(je.value AS BLOB)) = length(je.value)"
+                   f" THEN {_tag_fold_sql('je.value')} END")
+_TAG_ROWS_OF_NEW = (
+    "SELECT new.id, new.rowid, new.user_id, je.value, " + _TAG_FOLD_OF_JE +
+    " FROM json_each(CASE WHEN json_valid(new.tags) THEN new.tags ELSE '[]' END) je"
+    " WHERE je.value IS NOT NULL"
+)
+_NOTE_TAG_INDEX_DDL = (
+    # `tag` carries NO declared type on purpose: json_each's value keeps its type
+    # (the integer 1 and the text '1' stay two groups, as the per-note scan had them).
+    "CREATE TABLE IF NOT EXISTS j2_note_tag_index ("
+    " note_id TEXT NOT NULL, note_rowid INTEGER NOT NULL, user_id TEXT NOT NULL, tag, fold TEXT)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_fold"
+    " ON j2_note_tag_index(user_id, fold, note_rowid, tag)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_tag"
+    " ON j2_note_tag_index(user_id, tag, note_rowid)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_note ON j2_note_tag_index(note_id)",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_ai AFTER INSERT ON j2_notes BEGIN"
+    " INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold) " + _TAG_ROWS_OF_NEW + ";"
+    " END",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_au AFTER UPDATE OF tags ON j2_notes BEGIN"
+    " DELETE FROM j2_note_tag_index WHERE note_id = old.id;"
+    " INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold) " + _TAG_ROWS_OF_NEW + ";"
+    " END",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_ad AFTER DELETE ON j2_notes BEGIN"
+    " DELETE FROM j2_note_tag_index WHERE note_id = old.id;"
+    " END",
+    "CREATE TABLE IF NOT EXISTS j2_schema_builds (name TEXT PRIMARY KEY, built_at TEXT NOT NULL)",
+)
+_NOTE_TAG_INDEX_BUILD = "j2_note_tag_index"
+
+
+def rebuild_note_tag_index(conn: sqlite3.Connection) -> int:
+    """Rebuild `j2_note_tag_index` from every note's `tags`, in the caller's
+    transaction. The index is DERIVED, so a rebuild is always safe; returns rows."""
+    conn.execute("DELETE FROM j2_note_tag_index")
+    cur = conn.execute(
+        "INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold)"
+        " SELECT n.id, n.rowid, n.user_id, je.value, " + _TAG_FOLD_OF_JE +
+        " FROM j2_notes n, json_each(CASE WHEN json_valid(n.tags) THEN n.tags ELSE '[]' END) je"
+        " WHERE je.value IS NOT NULL")
+    return cur.rowcount
+
+
+def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Create the tag index (table, indexes, triggers) and make it TRUE, in place,
+    on any database: built once from every note (recorded in `j2_schema_builds`, in
+    the same transaction as the build, so a half-built index is never marked), and
+    rebuilt at any boot whose drift check finds a row whose `note_rowid` is not its
+    note's (a logical dump/restore renumbers j2_notes; see
+    `_repair_fts_map_note_rowid`). The triggers keep it true between boots."""
+    out = {"built": False, "rebuilt_for_drift": False}
+    for stmt in _NOTE_TAG_INDEX_DDL:
+        conn.execute(stmt)
+    conn.commit()
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        done = conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
+                            (_NOTE_TAG_INDEX_BUILD,)).fetchone()
+        if not done:
+            rebuild_note_tag_index(conn)
+            conn.execute("INSERT OR REPLACE INTO j2_schema_builds (name, built_at) VALUES (?, ?)",
+                         (_NOTE_TAG_INDEX_BUILD, time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())))
+            out["built"] = True
+        elif conn.execute(
+                "SELECT 1 FROM j2_note_tag_index t"
+                " WHERE t.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = t.note_id)"
+                " LIMIT 1").fetchone():
+            rebuild_note_tag_index(conn)
+            out["rebuilt_for_drift"] = True
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return out
 
 

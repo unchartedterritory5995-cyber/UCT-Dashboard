@@ -132,9 +132,25 @@ def test_a_folders_rows_are_walked_in_title_order_not_sorted(conn):
     assert not any("TEMP B-TREE FOR ORDER BY" in s for s in steps), steps
 
 
-def test_the_tags_route_makes_ONE_tag_pass_and_it_is_served_from_the_cover_index(conn):
+def test_the_tags_route_makes_ONE_tag_pass_over_the_tag_index_and_parses_no_note(conn):
     # It made four whole-library json_each passes (two groupings, the nested rows,
-    # the parents' recount); at 50k notes that was ~1 s p95. One pass, covered.
+    # the parents' recount); at 50k notes that was ~1 s p95. Wave 7 made it one
+    # covered json_each pass; wave 10 reads the tag index (db.py j2_note_tag_index)
+    # instead: grouped off its covering index, the live notes from a live covering
+    # index, and no note's `tags` parsed at all.
+    plans = _plans(conn, lambda c: notes_svc.tag_counts_and_tree(U, conn=c))
+    tag = [(s, st) for s, st in plans if "j2_note_tag_index" in s]
+    assert len(tag) == 1, [s for s, _ in plans]
+    assert not [s for s, _ in plans if "json_each" in s], [s for s, _ in plans]
+    sql, steps = tag[0]
+    assert any("COVERING INDEX idx_j2_note_tag_index_tag" in s for s in steps), steps
+    assert any("COVERING INDEX idx_j2_notes_live_" in s for s in steps), steps
+
+
+def test_before_the_tag_index_is_built_the_tags_route_makes_one_covered_json_each_pass(conn):
+    # The fallback (db.py `_ensure_note_tag_index` never finished) is the wave-7 pass.
+    conn.execute("DELETE FROM j2_schema_builds WHERE name = 'j2_note_tag_index'")
+    conn.commit()
     plans = _plans(conn, lambda c: notes_svc.tag_counts_and_tree(U, conn=c))
     j2 = [(s, st) for s, st in plans if "json_each" in s]
     assert len(j2) == 1, [s for s, _ in plans]
