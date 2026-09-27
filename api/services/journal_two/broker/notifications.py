@@ -23,6 +23,11 @@ from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+# ⭐ TERM-011 / RM-N09 step 6 row 7 — the OPS-class destination reader for the three
+# owner pings below. MODULE level, matching step 3's six producers, so an import
+# problem surfaces at boot rather than while reporting a broken broker connection.
+from api.services.alert_destination import ops_webhook as _ops_webhook
+
 logger = logging.getLogger("broker_notifications")
 
 # Last-3-attempts-all-failed is the "repeatedly failing" signal (a sync that
@@ -51,7 +56,24 @@ def _et_today() -> str:
 
 
 def _post_discord(title: str, description: str) -> None:
-    url = os.environ.get("DISCORD_ALERT_WEBHOOK") or os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 6 row 7 — the OPS-class destination, resolved at CALL
+    # time. Replaces `DISCORD_ALERT_WEBHOOK or DISCORD_WEBHOOK_URL`.
+    #
+    # ⛔ THIS COULD HAVE MOVED THREE OWNER ALERTS, AND IT DOES NOT — MEASURED, NOT
+    # ASSUMED. `ops_webhook()` resolves DISCORD_OPS_WEBHOOK_URL -> DISCORD_WEBHOOK_URL
+    # and never reads DISCORD_ALERT_WEBHOOK, so a *set* DISCORD_ALERT_WEBHOOK naming a
+    # different room would have relocated these pings. Read from Railway 2026-09-27
+    # (values never printed, compared by sha256 and by Discord webhook id): on `web`
+    # and on `flow-worker` the two variables are BYTE-EQUAL and carry the SAME webhook
+    # id, i.e. one room; and DISCORD_OPS_WEBHOOK_URL is ABSENT on all seven services.
+    # So the first term of the old chain and the fallback of the new one are the same
+    # value today. Recorded in the decision packet's §6.
+    #
+    # ⛔ A DROP-IN, NOT A TIDY-UP: no `.strip()` and no other normalisation, because
+    # the invariant is that the URL POSTed to is the same value the old chain yielded.
+    # `ops_webhook()` returns "" where the literal read returned None, and this call
+    # site has always consulted it by truthiness.
+    url = _ops_webhook()
     if not url:
         return
     import requests

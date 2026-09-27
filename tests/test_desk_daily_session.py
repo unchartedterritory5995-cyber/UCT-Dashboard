@@ -570,8 +570,12 @@ def test_notify_published_embeds_thumbnail_and_section(monkeypatch):
     # The Discord announcement carries the video thumbnail, the show title, the
     # section name, and a website Watch link.
     sent = {}
+    # ⚠️ `url=` IS PART OF THE CONTRACT NOW (TERM-011 step 6 row 12 — this post resolves
+    # the OPS class instead of riding door C's import-time capture). A one-argument stub
+    # raises TypeError, `_notify_published`'s try/except swallows it, and `sent` stays
+    # empty — a conversion failure that reads as an assertion failure about the embed.
     monkeypatch.setattr("api.services.discord_notify._send_webhook",
-                        lambda embed: sent.update(embed))
+                        lambda embed, url=None: sent.update(embed))
     monkeypatch.setattr(dds, "_alert_recipients", lambda: [])   # skip email path
     dds._notify_published("Evening Update — June 29, 2026", "VIDXYZ", "Evening Update")
     assert "VIDXYZ" in sent["image"]["url"]

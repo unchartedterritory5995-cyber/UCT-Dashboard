@@ -365,7 +365,7 @@ other reader's only copy.**
 | # | call site | the OPS reading | the BUSINESS reading | why it is a decision, not a relabel |
 |---|---|---|---|---|
 | 1 | `api/services/alerts.py:529` `regime_change` | `critical` (`:120`) is the highest severity in the estate and it pages on every market phase transition — a normal-operation event | a **broadcast** member alert (`user_id=None`, `alerts.py:24-33`); the bell is where members read it | Paging on a routine market event is exactly `backlog.md:579-581`'s severity inversion. Demote it and door A stops posting it anywhere; keep it and the ops channel carries a market signal. **The class must change the destination, not the severity.** |
-| 2 | `api/services/alerts.py:534` `stop_hit` | a UCT20 book position hit its hard stop — the harness worked | a member-visible book event | `warning` posts it (`:350`). Owner wants it; ops paging does not. |
+| 2 | `api/services/alerts.py:534` `stop_hit` — ⛔ **STRUCK FROM STEP 6, 2026-09-27. NOT A DECISION: IT REACHES NOBODY.** `alert_stop_hit` is now at `alerts.py:589` and a code-only scan of `api/`, `tools/` and `scripts/` finds **no reference outside its own definition** — its only other mentions in the repo are inside `tests/test_alerts_broadcast_type_reachability.py`, which is the rail that keeps saying so, and this file's own prose. ⭐ **Verified with a CONTROL rather than by an empty result**: the same scan, same pattern, finds `alert_regime_change`'s real caller at `api/routers/push.py:196`, so it is not answering "no" to everything. `alerts.py:20`'s own derived status table already reads `[NOT WIRED]`. ⛔ **Nothing was deleted and nothing was classified.** A class on a producer nothing calls is a guess about a producer that does not exist, and because `alert_routing.resolve_channel` RAISES on an absent class (`alert_routing.py:317`), whoever wires it will be *forced* to choose — the rail doing its job, at zero cost today. ⭐ **But read this before assuming stops are un-notified:** a member IS told, through a different mechanism with a different name — `awareness/rules.py` raises `kind="stop_hit"` at importance 10 and away-delivers via `awareness/engine.py:271` → `deliver_alert_payload` with no severity, i.e. the `"warning"` default. **So the stop-hit notification that actually exists is row 5's problem, not row 2's.** | *(was: a UCT20 book position hit its hard stop — the harness worked)* | *(was: a member-visible book event)* | *(was: `warning` posts it (`:350`). Owner wants it; ops paging does not.)* — and that framing is what the strike corrects: `warning` would post it **if anything called it**. |
 | 3 | `api/services/alerts.py:548` `exposure_shift` | the AI regime read moved 20+ points — the engine ran and changed its mind | broadcast member alert | same shape as #1 at `warning`. |
 | 4 | `api/services/watchlist_alert_service.py:301` `price_alert` | none | **purely** a member's own alert firing | `severity="warning"` is **hardcoded** at `:305`, so every member price alert posts into door A's webhook and there is no parameter to stop it. BOTH because the fix is a routing decision the caller cannot express. |
 | 5 | `api/services/watchlist_alert_service.py:474` (the member fan-out) | none | indicator / catalyst / must-know / calendar / awareness / AI-briefing alerts, all with a real `user_id` (`:468-471`) | ⛔⛔ **The workaround is in the comment**: `:478-481` — bulk member content was set to `"info"` *"so 200 personalized briefs never flood the admin channel (2026-08-28 review)."* Severity is already being used as a channel control. A class field that leaves `:350` reading severity re-creates this. |
@@ -384,6 +384,59 @@ severity, or a fallback chain. Four (#7, #8, #9, #11) are **ops alarms whose pay
 data**. ⛔ Those two groups need opposite treatment, and a single `class` enum cannot express the
 second group at all: an alarm about one member's book is ops by audience and business by content.
 §5 therefore routes on **(class, audience)**, not on class alone.
+
+---
+
+#### ✅ STEP 6 — WHAT LANDED ON 2026-09-27, AND WHAT IS STILL THE OWNER'S
+
+⛔ **This section is the STATUS of §4.3's thirteen rows, not a re-derivation of them.** The
+authority for every classification below is the decision packet,
+`term-011-routing-decisions.md`; the authority for "does it still behave the same" is
+`tests/test_alert_destination.py`.
+
+| row | state | what happened |
+|---|---|---|
+| **7** `broker/notifications.py` | ✅ **CONVERTED** | `_post_discord` asks `alert_destination.ops_webhook()`. Three owner pings — connection broken, sweep failure spike, repeated sync failure — every message body ending in a triage runbook. |
+| **8** `broker/mirror_check.py` | ✅ **CONVERTED** | Same, and it carries the module's **second** ops caller with it: `run_bias_digest`'s daily 🟢/🔴 line goes through the same `_post_discord`. The conversion boundary is the function, so a second authority for the digest's destination was never created. |
+| **9** `journal_two/books_audit.py` | ✅ **CONVERTED** | `_post_discord_summary` asks `ops_webhook()`. ⛔ **The green weekly heartbeat is UNTOUCHED and railed as such** — whether 51-of-52 "nothing is wrong" posts a year should continue is the packet's separate, DEFERRED question, revisited after step 8. |
+| **10** `catalyst/digest.py` | ✅ **CONVERTED** (ordinary OPS) | Not a BOTH row: all three legs are admin-only, so there was no second audience to lose. ⛔ **And it carried a live daily duplicate, fixed separately** — see below. |
+| **11** `desk_daily_session.py:285` | ✅ **CONVERTED** | A true ops alarm; both bodies are runbooks. |
+| **12** `desk_daily_session.py:308` | ✅ **CONVERTED**, and the docstring's claim **DELETED** | Contradiction 3 above is settled: the **docstring** was the wrong sentence, not the destination. The genuinely public path for the same event already exists in `desk_session_announce.py` on `DISCORD_TSDR_WEBHOOK_URL`, behind its own per-show allowlist. ⛔⛔ Settling it the other way — pointing this post at that variable — is a **paid-content leak** to the ~750-member room and is the one consequence in step 6 that no variable can undo. |
+| **2** `alerts.py` `stop_hit` | ⛔ **STRUCK** | Zero callers. See the row itself. |
+| **13** `desk_session_recap.py` | ⏳ **MOVED TO STEP 5** | A content poster, to fail closed on `DISCORD_RECAP_WEBHOOK_URL`. Not converted. |
+| **1** `regime_change` · **3** `exposure_shift` · **4** `price_alert` · **5** the member fan-out | ⛔ **RULED, NOT BUILT** | Ruled owner-delegated 2026-09-27 (`231c51a59`, recorded in the packet's §2a): #4/#5 BUSINESS with the Discord leg removed and the switch on `user_id`; #1/#3 BOTH, resolve twice, **severity untouched**. ⛔ **No code in this change reads or writes any of them**, and the ordering in that ruling is load-bearing: the two `"info"` literals come out only AFTER the member path exists. |
+| **6** `exposure_gate_watch.py` | ⛔ **RULED, NOT BUILT** | BUSINESS, no Discord leg, and ⛔ **no `_TYPE_SEVERITY` row** — the ruling notes it is a no-op today, because classifying it BUSINESS makes the class match what the module already does. |
+
+⭐ **WHY SIX ROWS COULD LAND WITHOUT AN OWNER RULING, and it is a measurement rather than an
+argument.** `DISCORD_OPS_WEBHOOK_URL` is **absent on all seven services** (read 2026-09-27),
+so every converted producer resolves through the compatibility floor to
+`DISCORD_WEBHOOK_URL` — today's destination, byte-identically. Each one has a WIRE test
+asserting exactly that: today's channel and the exact body with the variable blank, nothing
+at all with everything blank, and the ops variable followed once it is set. **Mutation-proved**
+by deleting the fallback candidate in `alert_destination.destination_for`: 28 failed / 51
+passed, exit 1, including every row above.
+
+⚠️ **ONE REAL SEMANTIC CHANGE, in rows 7 and 8 only.** Both read
+`DISCORD_ALERT_WEBHOOK or DISCORD_WEBHOOK_URL`, and `ops_webhook()` never reads the first —
+so a *set* `DISCORD_ALERT_WEBHOOK` naming a different room would have **moved three owner
+alerts**. That was §6's one unknown and it is now contradiction 4, settled: the two are
+byte-equal, one channel with two names. The rail
+`test_rows_7_and_8_no_longer_consult_DISCORD_ALERT_WEBHOOK` reds if they ever diverge.
+
+⛔ **A SEPARATE, PRE-EXISTING DEFECT FOUND WHILE READING ROW 10 — fixed on its own.** The
+digest's **bell** leg passed no severity, so it took `deliver_alert_payload`'s
+`severity="warning"` default; `add_alert` fires Discord on warning/critical, so the digest
+**also posted itself once per admin recipient** on top of its own single post. ⭐ **And
+contradiction 4 sharpens it beyond what the packet supposed:** the packet reasoned those
+copies went to *a second room*, because door A reads `DISCORD_ALERT_WEBHOOK` while the
+digest's own post reaches door C. The two variables are the same value, so the morning digest
+was posting **1 + N copies of itself into ONE channel every day**. Fixed by stating
+`severity="info"`, which is the honest priority for a daily informational brief rather than a
+channel trick — so unlike the two `"info"` literals at `ai_search_briefings.py:282` and
+`ai_search_deep.py:530`, this one stays correct after step 7's `user_id` branch lands.
+⛔ **It does not close the class.** While `alerts.py`'s Discord gate reads severity, every
+producer that wants to be quiet must state a priority and every producer that forgets is
+loud. That is step 7's.
 
 ---
 
@@ -537,7 +590,23 @@ cannot both be true, and this document changes neither.
    `_notify_published` *"Audience-facing"* and sends it through door C, i.e. `DISCORD_WEBHOOK_URL`,
    which `terminal_next_monitor_main.py:19` and `test_terminal_next_monitor.py:44-45` call the admin
    channel that also carries signups.
-4. **Two variables, one claimed channel.** `watchlist_alert_service.py:478-479` says `add_alert`
+4. ✅ **SETTLED 2026-09-27 — IT IS ONE CHANNEL WITH TWO NAMES, and the comment is not stale.**
+   Read from the Railway service configuration during step 6's mechanical half, comparing the
+   two values **by sha256 digest and by the Discord webhook id in the URL path, so neither
+   value was ever printed**: on `web` and on `flow-worker` — the only two services that carry
+   both — `DISCORD_ALERT_WEBHOOK` and `DISCORD_WEBHOOK_URL` are **BYTE-EQUAL** and carry the
+   **same webhook id**. So *"the global admin webhook"* is an accurate description of what
+   `add_alert` reaches, and `DISCORD_ALERT_WEBHOOK` is currently **redundant** with
+   `DISCORD_WEBHOOK_URL`. ⛔ That redundancy is NOT this ticket's to remove — recorded because
+   it is what the ❓ below was asking, not as a proposal. ⛔⛔ **And it was settled by
+   measurement, NOT by the broker modules' convenience**: the original text below is right that
+   two modules treating the variables as interchangeable is evidence and not proof, and that
+   reasoning was deliberately not relied on. The consequence is that step 6 rows 7 and 8 could
+   convert without moving anything (`tests/test_alert_destination.py::test_rows_7_and_8_no_longer_consult_DISCORD_ALERT_WEBHOOK`
+   is the rail that keeps it that way if the two ever diverge). ⚠️ A variable read is a DATED
+   claim: this says what the configuration held on 2026-09-27, not what it will hold.
+
+   The original, for the record: **Two variables, one claimed channel.** `watchlist_alert_service.py:478-479` says `add_alert`
    *"fires the global admin webhook"*, but `add_alert` reads `DISCORD_ALERT_WEBHOOK`
    (`alerts.py:81`), not `DISCORD_WEBHOOK_URL`. Either both variables point at one channel
    (❓ UNREADABLE-FROM-HERE) or the comment is stale. `journal_two/broker/mirror_check.py:67` and
