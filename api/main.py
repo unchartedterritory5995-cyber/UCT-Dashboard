@@ -8200,6 +8200,28 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)")
         except Exception as e:
             print(f"[startup] notebook semantic sweep registration failed (non-fatal): {e}")
+        # Wave 10 (lane 10D, fix round 1 — Concern 3) — the Notebook SLOs. The check
+        # evaluates save success / Ask p95 / search p95 over 24 h and PAGES only a
+        # save-success breach (R-15: speed is reported, never paged) to the admin
+        # DISCORD_WEBHOOK_URL; the digest writes one non-paging row a day. Both never
+        # raise, and the check commits before any network call (review I-2), so a
+        # slow webhook cannot hold auth.db's writer lock. Cadence: every 15 minutes,
+        # offset from the other quarter-hour jobs; digest 17:10 ET after the close.
+        # Rail: tests/test_notebook_slo.py pins both ids (a pager nobody schedules
+        # reads as coverage — the desk_session_audit lesson).
+        try:
+            from api.services.journal_two import notebook_slo as _j2_notebook_slo
+            _scheduler.add_job(_j2_notebook_slo.scheduled_check,
+                               trigger=CronTrigger(minute="11/15", timezone=_ET),
+                               id="notebook_slo_check", max_instances=1, coalesce=True,
+                               replace_existing=True)
+            _scheduler.add_job(_j2_notebook_slo.scheduled_digest,
+                               trigger=CronTrigger(hour=17, minute=10, timezone=_ET),
+                               id="notebook_slo_digest", max_instances=1, coalesce=True,
+                               replace_existing=True)
+            print("[startup] notebook SLO check registered (every 15 min) + digest (17:10 ET)")
+        except Exception as e:
+            print(f"[startup] notebook SLO registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 

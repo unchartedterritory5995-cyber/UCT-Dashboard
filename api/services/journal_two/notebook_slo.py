@@ -32,13 +32,26 @@ that recovers ends in a `save_success`. So only the give-ups are failures, and a
 409 that forked (`reason: 'conflict'`) is excluded: the fork is the designed
 resolution that preserves both copies, counted by `conflict_forked` on its own.
 
-⛔ NEVER CONTENT. Only the `ms`, `retrying` and `reason` props are read — the same
-closed-enum props the server's arrival schema keeps (`_NOTEBOOK_PROP_SCHEMAS`).
+⛔ A DESIGNED REFUSAL IS NOT AN INTEGRITY FAILURE (review M-5, controller ruling
+2026-09-27). The server refusing a body it will not store — 413 `too-large`, and
+every 400 the note write door answers (the H14 depth cap and the rest of
+`NoteValidationError`, plus the withheld-placeholder echo guard; the client sends
+those as `{status: 400, reason: 'http'}`, `NoteEditorPage.jsx` `reportSaveFailed`)
+— is the product working as designed, and it repeats once per autosave pause. It
+is excluded from the paging rate and COUNTED SEPARATELY as `refused`, so it stays
+visible in the admin readout. `REFUSAL_REASONS` / `REFUSAL_STATUSES` are the list.
 
-⛔ CHEAP, ON PURPOSE (the single web pod): two indexed COUNTs and two bounded
-reads per run (`activity_log` has indexes on `action` and `created_at`), no
-network unless a page is due. The scheduler registration is `api/main.py`'s
-(the controller's wiring); `POST /api/admin/notebook-slo/run` forces a run.
+⛔ NEVER CONTENT. Only the `ms`, `retrying`, `reason` and `status` props are read —
+the same closed props the server's arrival schema keeps (`_NOTEBOOK_PROP_SCHEMAS`).
+
+⛔ CHEAP, ON PURPOSE (the single web pod): one COUNT and three bounded reads per
+run over `activity_log(action, created_at)` (a composite index, `auth_db._SCHEMA`),
+no network unless a page is due — and ⛔ NO auth.db TRANSACTION IS EVER OPEN
+ACROSS THE NETWORK CALL (review I-2): the evaluation is committed before `post()`
+runs, so a slow webhook cannot hold the one writer lock every note save needs.
+The scheduler registration is in `api/main.py` (ids `notebook_slo_check`,
+`notebook_slo_digest`, pinned by `tests/test_notebook_slo.py`);
+`POST /api/admin/notebook-slo/run` forces a run.
 """
 from __future__ import annotations
 
@@ -64,10 +77,30 @@ SEARCH_MIN_SAMPLES = 20
 
 #: Which SLOs may reach the pager. ⛔ ONE ENTRY, and railed: speed never pages.
 PAGING_SLOS = frozenset({"save_success"})
-#: While a paging SLO stays in breach, it is re-paged at most this often.
+#: While a paging SLO stays in breach, it is re-paged at most this often...
 REPAGE_HOURS = 6
+#: ...and only if a final failure landed this recently (review M-4). The rate is
+#: taken over the whole window, so after a fix it stays under the objective for up
+#: to a day; a re-page about an incident that has already stopped is noise. The
+#: FIRST page of a breach is not subject to this.
+REPAGE_RECENT_FAILURE_HOURS = 1
+
+#: Designed refusals (see the module docstring): excluded from the paging rate,
+#: counted as `refused`. A 413 always arrives as `too-large`; the list carries both
+#: spellings so neither door can slip through the other's.
+REFUSAL_REASONS = frozenset({"too-large"})
+REFUSAL_STATUSES = frozenset({400, 413})
+
+#: What `post` answers when the page reached somebody: the webhook, or — with no
+#: webhook configured (a sandbox) — the logged WARNING. Anything else is a failed
+#: delivery: recorded as failed, `last_paged_at` untouched, the next run pages again.
+DELIVERED = frozenset({"discord", "log"})
 
 _MAX_MS_ROWS = 20_000
+
+#: The one COUNT the SLO runs. A constant so the index rail can EXPLAIN this exact
+#: statement rather than a copy of it.
+_COUNT_SQL = "SELECT COUNT(*) FROM activity_log WHERE action = ? AND created_at >= ?"
 
 OK, BREACH, INSUFFICIENT = "ok", "breach", "insufficient"
 
@@ -109,33 +142,57 @@ def _since(now: datetime, hours: int) -> str:
 
 
 def _count(conn, action: str, since: str) -> int:
-    return int(conn.execute(
-        "SELECT COUNT(*) FROM activity_log WHERE action = ? AND created_at >= ?",
-        (action, since)).fetchone()[0])
+    return int(conn.execute(_COUNT_SQL, (action, since)).fetchone()[0])
+
+
+def _rows(conn, action: str, since: str) -> list:
+    return conn.execute(
+        "SELECT created_at, details FROM activity_log WHERE action = ? AND created_at >= ?"
+        " ORDER BY created_at DESC LIMIT ?", (action, since, _MAX_MS_ROWS)).fetchall()
 
 
 def _details(conn, action: str, since: str) -> list:
-    return [r[0] for r in conn.execute(
-        "SELECT details FROM activity_log WHERE action = ? AND created_at >= ?"
-        " ORDER BY created_at DESC LIMIT ?", (action, since, _MAX_MS_ROWS)).fetchall()]
+    return [r[1] for r in _rows(conn, action, since)]
 
 
-def _final_failures(details: list) -> int:
-    n = 0
-    for d in details:
-        try:
-            p = json.loads(d or "{}")
-        except (TypeError, ValueError):
-            p = {}
-        if not isinstance(p, dict):
-            p = {}
+def _props(d) -> dict:
+    try:
+        p = json.loads(d or "{}")
+    except (TypeError, ValueError):
+        p = {}
+    return p if isinstance(p, dict) else {}
+
+
+def _is_designed_refusal(p: dict) -> bool:
+    if p.get("reason") in REFUSAL_REASONS:
+        return True
+    try:
+        status = int(float(p.get("status")))
+    except (TypeError, ValueError):
+        return False
+    return status in REFUSAL_STATUSES
+
+
+def _classify_failures(rows: list) -> tuple[int, int, Optional[str]]:
+    """(final failures, designed refusals, newest final failure's created_at)."""
+    failed = refused = 0
+    last: Optional[str] = None
+    for created_at, d in rows:
+        p = _props(d)
         # A streak that BEGAN is not a failure (it may recover into a save_success);
-        # a fork (409) is the designed resolution, not a lost save. Everything else
-        # that gave up — including a row whose props could not be read — counts.
+        # a fork (409) is the designed resolution, not a lost save.
         if p.get("retrying") is True or p.get("reason") == "conflict":
             continue
-        n += 1
-    return n
+        if _is_designed_refusal(p):
+            refused += 1
+            continue
+        # Everything else that gave up — including a row whose props could not be
+        # read — counts.
+        failed += 1
+        stamp = str(created_at) if created_at is not None else None
+        if stamp and (last is None or stamp > last):
+            last = stamp
+    return failed, refused, last
 
 
 def _latency(conn, event: str, since: str, objective: float, min_n: int) -> dict[str, Any]:
@@ -157,7 +214,7 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
     try:
         since = _since(now, window_hours)
         ok_n = _count(conn, "j2:save_success", since)
-        failed = _final_failures(_details(conn, "j2:save_failed", since))
+        failed, refused, last_failure_at = _classify_failures(_rows(conn, "j2:save_failed", since))
         attempts = ok_n + failed
         rate = (ok_n / attempts) if attempts else None
         if attempts < SAVE_SUCCESS_MIN_ATTEMPTS or rate is None:
@@ -170,6 +227,7 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
             "slos": {
                 "save_success": {"state": save_state, "value": rate, "objective": SAVE_SUCCESS_OBJECTIVE,
                                  "n": attempts, "succeeded": ok_n, "failed": failed,
+                                 "refused": refused, "last_failure_at": last_failure_at,
                                  "min_n": SAVE_SUCCESS_MIN_ATTEMPTS},
                 "ask_latency": _latency(conn, "ask_used", since, ASK_P95_MS_OBJECTIVE, ASK_MIN_SAMPLES),
                 "search_latency": _latency(conn, "search_used", since, SEARCH_P95_MS_OBJECTIVE,
@@ -202,13 +260,67 @@ def _page_text(slo: str, r: dict[str, Any], window_hours: int) -> str:
             f"({r.get('failed', 0)} gave up). Read /api/admin/notebook-slo.")
 
 
+def _failed_recently(r: dict[str, Any], now: datetime) -> bool:
+    last = r.get("last_failure_at")
+    return bool(last) and str(last) >= _iso(now - timedelta(hours=REPAGE_RECENT_FAILURE_HOURS))
+
+
+def _record_evaluation(conn, result: dict[str, Any], now: datetime) -> list:
+    """Write one evaluation row per SLO and move the breach state. Returns the
+    paging SLOs whose page is due. Opens a transaction; the CALLER commits it —
+    before any network call (I-2)."""
+    stamp = result["evaluated_at"]
+    due = []
+    for slo, r in result["slos"].items():
+        conn.execute(
+            "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
+            " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
+            (stamp, "evaluation", slo, r["state"], r["value"], r["objective"], r["n"],
+             result["window_hours"], "none", None))
+        prev = conn.execute("SELECT state, last_paged_at FROM notebook_slo_state WHERE slo = ?",
+                            (slo,)).fetchone()
+        if r["state"] != BREACH:
+            if r["state"] == OK:
+                conn.execute(
+                    "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
+                    " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since,"
+                    " last_paged_at = NULL WHERE notebook_slo_state.state != excluded.state",
+                    (slo, OK, stamp))
+            continue
+        if slo not in PAGING_SLOS:
+            continue   # ⛔ speed is reported, never paged (R-15 / D-9C3)
+        began = prev is None or prev[0] != BREACH
+        if began:
+            conn.execute(
+                "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
+                " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since,"
+                " last_paged_at = NULL",
+                (slo, BREACH, stamp))
+        last = None if began else prev[1]
+        if last is None:
+            # The breach's first page — or a first page whose delivery failed (I-1).
+            due.append((slo, r))
+        elif last <= _iso(now - timedelta(hours=REPAGE_HOURS)) and _failed_recently(r, now):
+            # A re-page: the interval has passed AND saves are still failing (M-4).
+            due.append((slo, r))
+    return due
+
+
 def run_check(now: Optional[datetime] = None, conn=None, *,
               post: Optional[Callable[[str], str]] = None) -> dict[str, Any]:
     """Evaluate, record one row per SLO, and PAGE a paging SLO's breach.
 
-    A breach pages when it BEGINS, and again every REPAGE_HOURS while it lasts; a
-    recovery clears the state so the next breach pages at once. Speed SLOs are
-    recorded and never reach `post`.
+    A breach pages when it BEGINS, and again every REPAGE_HOURS while it lasts AND a
+    final failure landed within REPAGE_RECENT_FAILURE_HOURS; a recovery clears the
+    state so the next breach pages at once. Speed SLOs are recorded and never reach
+    `post`.
+
+    ⛔ I-2: the evaluation and state rows are COMMITTED before `post()` runs, and the
+    page outcome is written in its own short transaction after it — no auth.db
+    transaction is ever open across the network call.
+    ⛔ I-1: only a delivered page (`DELIVERED`) is a `page` row and stamps
+    `last_paged_at`. A failed delivery is a `page_failed` row with
+    `delivered='failed'`, `last_paged_at` stays as it was, and the next run pages.
     """
     now = now or datetime.now(timezone.utc)
     post = post or _post_discord
@@ -218,45 +330,27 @@ def run_check(now: Optional[datetime] = None, conn=None, *,
         _ensure(conn)
         result = evaluate(now, conn)
         stamp = result["evaluated_at"]
+        due = _record_evaluation(conn, result, now)
+        conn.commit()   # ⛔ I-2: on disk, lock released, BEFORE the network
         pages = []
-        for slo, r in result["slos"].items():
-            conn.execute(
-                "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
-                " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (stamp, "evaluation", slo, r["state"], r["value"], r["objective"], r["n"],
-                 result["window_hours"], "none", None))
-            prev = conn.execute("SELECT state, last_paged_at FROM notebook_slo_state WHERE slo = ?",
-                                (slo,)).fetchone()
-            if r["state"] != BREACH:
-                if r["state"] == OK:
-                    conn.execute(
-                        "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
-                        " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since,"
-                        " last_paged_at = NULL WHERE notebook_slo_state.state != excluded.state",
-                        (slo, OK, stamp))
-                continue
-            if slo not in PAGING_SLOS:
-                continue   # ⛔ speed is reported, never paged (R-15 / D-9C3)
-            last = prev[1] if prev else None
-            due = (prev is None or prev[0] != BREACH or last is None
-                   or last <= _iso(now - timedelta(hours=REPAGE_HOURS)))
-            if prev is None or prev[0] != BREACH:
-                conn.execute(
-                    "INSERT INTO notebook_slo_state (slo, state, since, last_paged_at) VALUES (?,?,?,NULL)"
-                    " ON CONFLICT(slo) DO UPDATE SET state = excluded.state, since = excluded.since",
-                    (slo, BREACH, stamp))
-            if not due:
-                continue
+        for slo, r in due:
             text = _page_text(slo, r, result["window_hours"])
-            delivered = post(text)
-            conn.execute("UPDATE notebook_slo_state SET last_paged_at = ? WHERE slo = ?", (stamp, slo))
+            try:
+                delivered = post(text)
+            except Exception as e:  # noqa: BLE001 — a pager fault is a failed delivery, never a crash
+                logger.warning("[notebook-slo] page delivery raised: %s: %s", type(e).__name__, e)
+                delivered = "failed"
+            ok = delivered in DELIVERED
             conn.execute(
                 "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
                 " window_hours, delivered, detail) VALUES (?,?,?,?,?,?,?,?,?,?)",
-                (stamp, "page", slo, BREACH, r["value"], r["objective"], r["n"],
-                 result["window_hours"], delivered, text))
-            pages.append({"slo": slo, "delivered": delivered})
-        conn.commit()
+                (stamp, "page" if ok else "page_failed", slo, BREACH, r["value"], r["objective"],
+                 r["n"], result["window_hours"], delivered if ok else "failed", text))
+            if ok:
+                conn.execute("UPDATE notebook_slo_state SET last_paged_at = ? WHERE slo = ?",
+                             (stamp, slo))
+            conn.commit()
+            pages.append({"slo": slo, "delivered": delivered if ok else "failed"})
         result["pages"] = pages
         return result
     finally:
@@ -278,7 +372,8 @@ def run_digest(now: Optional[datetime] = None, conn=None) -> dict[str, Any]:
         for slo, r in result["slos"].items():
             v = r["value"]
             shown = "n/a" if v is None else (f"{v:.4f}" if slo == "save_success" else f"{v:.0f} ms")
-            lines.append(f"{slo}: {r['state'].upper()} {shown} (objective {r['objective']}, n={r['n']})")
+            extra = f", refused={r['refused']}" if "refused" in r else ""
+            lines.append(f"{slo}: {r['state'].upper()} {shown} (objective {r['objective']}, n={r['n']}{extra})")
         text = "Notebook SLO digest, last %d h — %s" % (result["window_hours"], "; ".join(lines))
         conn.execute(
             "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"
