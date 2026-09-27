@@ -323,6 +323,17 @@ def test_a_malformed_answer_is_no_suggestions_never_a_crash():
     assert [s["value"] for s in pa.parse_suggestions(fenced, cands)] == ["ok"]
 
 
+def test_a_value_the_checks_cannot_evaluate_drops_one_suggestion_never_the_call():
+    # review M-3: json.loads turns 1 followed by 400 zeros into an int past
+    # float range; math.isfinite raised OverflowError and took the whole call.
+    cands = [_prop("n", "number"), _prop("t", "text")]
+    raw = '{"suggestions": [{"key": "p1", "value": 1' + "0" * 400 + '}, {"key": "p2", "value": "kept"}]}'
+    got = pa.parse_suggestions(raw, cands)
+    assert [(s["propertyId"], s["value"]) for s in got] == [("t", "kept")]
+    ok = pa.parse_suggestions('{"suggestions": [{"key": "p1", "value": 120}]}', cands)
+    assert [(s["propertyId"], s["display"]) for s in ok] == [("n", "120")], "control: a real number is kept"
+
+
 def test_one_suggestion_per_property_and_evidence_is_bounded():
     cands = [_prop("t", "text")]
     raw = json.dumps({"suggestions": [

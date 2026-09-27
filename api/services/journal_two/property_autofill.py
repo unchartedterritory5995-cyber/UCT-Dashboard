@@ -269,7 +269,13 @@ def parse_suggestions(raw: str, cands: list[dict[str, Any]]) -> list[dict[str, A
         prop = by_key.get(str(item.get("key") or "").strip())
         if prop is None or prop["id"] in seen:
             continue
-        fitted = _coerce(prop, item.get("value"))
+        # ⛔ PER ITEM (review M-3): a value the checks cannot even evaluate --
+        # an integer past float range makes `math.isfinite` and `format` raise
+        # OverflowError -- drops THIS suggestion, never the whole answer.
+        try:
+            fitted = _coerce(prop, item.get("value"))
+        except (OverflowError, ValueError, TypeError):
+            fitted = None
         if fitted is None:
             continue
         value, display = fitted
