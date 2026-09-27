@@ -361,6 +361,49 @@ export function collectObjectOps(stmts, h) {
         refuseCall('in-expression', drawCall, st)
       }
 
+      // ⭐⭐ A `switch` IS A CHAIN OF GUARDED ARMS, and each arm runs under its own
+      // condition AND the negation of every arm above it (Pine takes the FIRST arm
+      // that matches). ⚰️ Before this branch a `switch` fell through to the
+      // catch-all below, which walks a nested block under the PARENT's guards —
+      // so every drawing inside an arm lost its arm's condition and ran on every
+      // bar. Measured against TradingView 2026-09-27 (Zero-Lag MA Trend Levels,
+      // NYSE:RDDT 1D, live capture): two `label.new` arms guarded by crossings drew
+      // the 50-label cap where TradingView drew 8 — a confident wrong picture, not
+      // a refusal.
+      // ⭐ `switch <subject>` arms compare the subject: `(subject) == (match)`.
+      // A condition this lane cannot read (an object getter, an unsupported call)
+      // makes the GUARD unreadable, and an unreadable guard is dropped and counted
+      // by the converter — never drawn unconditionally.
+      if (word === 'switch') {
+        const subject = t.slice(1)
+        const P = (value) => ({ kind: 'punct', value, line: first.line, column: first.column, index: first.index })
+        const prior = []
+        for (const arm of st.sub || []) {
+          const ah = arm.header || []
+          const at = h.findTop(ah, (x) => h.isPunct(x, '=>'))
+          const armGuards = [...guards, ...prior.map((toks) => ({ toks, negate: true }))]
+          if (at < 0) {
+            // Not an arm shape this reader knows: an empty guard is unreadable, so
+            // whatever it draws is refused rather than run without its condition.
+            walk([arm], [...armGuards, { toks: [], negate: false }], inLoop, localScope)
+            continue
+          }
+          const match = ah.slice(0, at)
+          let g = armGuards
+          if (at > 0) {
+            const cond = subject.length
+              ? [P('('), ...subject, P(')'), P('=='), P('('), ...match, P(')')]
+              : match
+            prior.push(cond)
+            g = [...armGuards, { toks: cond, negate: false }]
+          }
+          const rhs = ah.slice(at + 1)
+          if (rhs.length) walk([{ ...arm, header: rhs }], g, inLoop, localScope)
+          else walk(arm.sub || [], g, inLoop, localScope)
+        }
+        continue
+      }
+
       if (word === 'if') {
         const condEnd = t.length
         const cond = t.slice(1, condEnd)
