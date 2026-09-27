@@ -78,8 +78,46 @@ v1). A series-dependent displacement still refuses; a fractional fold now says s
 **Still open — owner/next-lane, not ruled here:** `pine:offset-literal` (`x[n]` with
 `n` an input, or `lb + rb + 1`) is the same class a third time (3 of the 11 land on
 it); its guard's own comments tie it to the forward-reference guarantee, so it wants
-its own ruling. A negative displacement is still not DRAWN on the member pane (`rows`
-never carry `displace`) — an axis-2 gap, not a build gap.
+its own ruling.
+
+### ⭐⭐ Follow-up, same day — a LEFTWARD displacement is now DRAWN where Pine draws it
+
+⚰️ **The defect (pre-existing, not introduced by the fold above, but widened by it):**
+the translator recorded `offset = -N` as `displace: -N` on its output row, and the
+member pane never carried it into the saved definition. Every such plot — the four
+newly-attaching pivot scripts and every pre-existing literal negative offset — was
+drawn **N bars late**: a pivot marker on the bar that *confirmed* the pivot.
+
+**The rule, Pine's own:** the value computed at bar i is drawn at bar i + offset; the
+last |offset| bars carry no point; nothing is computed from a future bar. Implemented
+as a re-indexing of the finished column at DRAW time only (`binder.displacedColumn`),
+applied to line points, marker glyphs, band edges and per-point colours.
+
+| surface | honours `displace`? |
+|---|---|
+| member pane (`memberPaneDefinition` → `plots[].displace`) | **yes**, param-aware |
+| builder sheet Pine import (`PineBox` → `BuilderSheet` rows → `buildDefinition`) | **yes** (carried + restored on edit); a parameter that feeds a displacement is **withheld** there rather than tracked |
+| chart binder (line / markers / fills / colour rule) | **yes** |
+| crosshair legend | follows the drawn points (reads `seriesData`) |
+| scan column, alert seam, `source` references, server compute | **no — by design**: the column keeps the value on the bar that computed it |
+| a band whose two edges are displaced differently | **refused by name** at the door (`pine:plot-offset`; 0 corpus scripts do it) |
+| a rightward displacement | never on the plot — it is `x[N]` in the tree; the schema refuses a positive `plots[].displace` |
+
+**Concrete, `extrapolated-pivot-connector` (length = 100), synthetic peak at bar 150:**
+the column holds the pivot high (1000) at **bar 250**, the bar that confirms it; the
+chart now draws it at **bar 150**, the pivot bar — before this it was drawn at 250.
+
+**Param-aware:** when the displacement is `±p + c` for one document parameter `p`
+(every corpus case), the plot carries `displaceFrom` and `paramEdit` moves the
+drawing in the same atomic edit (pivot argument, confirmation shift and marker
+together). Any other dependence withholds `p` from the manifest, with a note.
+
+**Found on the way, fixed:** a ONE-plot member pane's parameter locators named
+`treeIndex: 'value'` while the document is single-tree (no `compute.trees`), so every
+parameter of a one-plot pane read as detached and `applyParamEdit` refused it. Locators
+now use `null` for a single-tree document.
+
+Door census after the follow-up: **unchanged — off 33, on 58, lost 0.**
 
 ---
 
