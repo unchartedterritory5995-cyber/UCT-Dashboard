@@ -296,7 +296,7 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       // from 0 usable columns to 15. The GUARD is still live and still fires for
       // `fixnan`, which carries a value forward across bars with no stated bound.
       'pine:function', // 09 (`cum`)
-      'pine:plot-offset', // 03, 12, 14
+      'pine:plot-offset', // 03, 14 (12 left 2026-09-26: `displacement - 1` now folds)
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 12, 14, 15
       'pine:hidden-only', // 10 — every visible column refuses and the survivor is
@@ -623,7 +623,15 @@ describe('the whole corpus, in one number', () => {
     // ⭐ Same reading as the `53 → 55` paragraph, in the other direction: a number that
     // falls because a wrong answer stopped being produced is a number that got more true.
     // If this climbs back to 55 without a named script, suspect the admission reopened.
-    expect(columns).toBe(46)
+    // ⭐ 46 → 49 ON 2026-09-26, AND THE NAMED SCRIPT IS `12-ichimoku-kinko-hyo` AGAIN —
+    // the three displaced plots the `53 → 55` paragraph said "still refuse". They
+    // refused because the displacement reader took only a bare number, and Pine's
+    // Ichimoku writes `displacement - 1` / `-displacement + 1` over an input. It now
+    // folds through `constantValueOf`: the two Senkou spans become `x[25]` (an exact
+    // identity for a rightward shift) and the Chikou span is the undisplaced `close`
+    // with `displace: -25`, the ruling `pine.displace.test.js` already pins. All three
+    // read bars on every session, so none is a folded-constant phantom.
+    expect(columns).toBe(49)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus

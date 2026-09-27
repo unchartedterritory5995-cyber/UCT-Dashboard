@@ -191,6 +191,44 @@ function toOhlcPoints(payload, adjustTime) {
 // `colColors`/`condColumn` for a per-bar conditional colour, and the call site at
 // the C1-B fill wiring passes six arguments. Master's four-arg spelling would drop
 // two silently — the parameters are read in the body below.
+/** A plot's leftward displacement in bars (Pine `offset = -N`), or 0.
+ *
+ *  ⭐ 2026-09-26 — A DRAWING FACT, READ ONLY HERE. `defSchema` accepts only a
+ *  negative whole number; anything else is 0, so a rightward displacement — which
+ *  the translator already put in the TREE as `x[N]` — can never be applied a
+ *  second time by the renderer. */
+export function drawShiftOf(plot) {
+  const d = plot && plot.displace
+  return Number.isInteger(d) && d < 0 ? d : 0
+}
+
+const _displacedMemo = new WeakMap()
+
+/** `column` as it is DRAWN under a leftward displacement `d` (< 0): the value the
+ *  script computed at bar i sits at bar i + d, so bar j shows the value computed at
+ *  bar j - d. The last |d| bars carry no value (NaN — whitespace, never a guess),
+ *  and a value computed before bar |d| falls off the left edge.
+ *
+ *  ⛔ NOTHING IS COMPUTED HERE. It is a re-indexing of a finished column, and the
+ *  column itself — what the scan, the alert seam and every `source` reference read —
+ *  is never touched. Memoised on the column's identity so an unchanged column keeps
+ *  its identity downstream and the point memo still hits. Works for any
+ *  array-like: a numeric column (NaN padding) or a per-point colour list (null). */
+export function displacedColumn(column, d) {
+  if (!d || !column || typeof column.length !== 'number') return column
+  let byShift = _displacedMemo.get(column)
+  if (!byShift) { byShift = new Map(); _displacedMemo.set(column, byShift) }
+  const hit = byShift.get(d)
+  if (hit) return hit
+  const n = column.length
+  const numeric = column instanceof Float64Array || column instanceof Float32Array
+  const out = numeric ? new Float64Array(n).fill(NaN) : new Array(n).fill(null)
+  const k = -d
+  for (let j = 0; j + k < n; j += 1) out[j] = column[j + k]
+  byShift.set(d, out)
+  return out
+}
+
 function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
   const out = new Array(bars.length)
   for (let i = 0; i < bars.length; i++) {
@@ -1202,10 +1240,17 @@ export function createBinder({ chart, LWC }) {
     /** The column→LWC-points mapping, reused whenever nothing it depends on has
      *  moved. `adjustTime` is part of the key because it is what stamps every
      *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
-    const pointsFor = (b, column) => {
+    const pointsFor = (b, rawColumn) => {
       // ⭐ ONE ADAPTER, TWO SHAPES. The memo is keyed on the payload's IDENTITY
       // exactly as it is on a column's, so a candle binding that did not change
       // re-uses its points for the same reason a line does.
+      // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT RE-INDEXES WHAT IS DRAWN, and the
+      // colour rule travels with the value (Pine computes a point's colour on the
+      // bar that computed the point). `displacedColumn` is memoised on identity, so
+      // an unchanged column still hits the memo below. An OHLC payload is never
+      // displaced — candles are a passthrough of the source, not an author's plot.
+      const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot)
+      const column = displacedColumn(rawColumn, shift)
       if (isOhlcPayload(column)) {
         const m0 = pointMemo.get(b.key)
         if (m0 && m0.column === column && m0.adjustTime === adjustTime) return m0.points
@@ -1218,7 +1263,7 @@ export function createBinder({ chart, LWC }) {
       // through the SAME `bindingKey` every column in this pass is stored under,
       // so a colour rule can only ever name a column of its own instance.
       const cc = sc ? null : columnColorsForPlot(b.plot)
-      const cond = cc ? columns.get(bindingKey(b.instanceId, cc.key)) : undefined
+      const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
       const m = pointMemo.get(b.key)
@@ -1481,9 +1526,13 @@ export function createBinder({ chart, LWC }) {
         attempt(() => series.detachPrimitive(fill.primitive))
         fill = null
       }
+      // ⭐ 2026-09-26 — each edge of a band is drawn where its OWN plot is drawn,
+      // so a displaced plot's band sits under the displaced line, not the column.
+      const plotShift = (key) => drawShiftOf(((b.def && b.def.plots) || []).find((p) => p && p.key === key))
       if (fillWith) {
-        const other = columns.get(bindingKey(b.instanceId, fillWith))
-        const own = columns.get(b.key)
+        const ownShift = drawShiftOf(b.plot)
+        const other = displacedColumn(columns.get(bindingKey(b.instanceId, fillWith)), plotShift(fillWith))
+        const own = displacedColumn(columns.get(b.key), ownShift)
         if (own && other) {
           const colour = effectiveFillColour(b.plot)
           if (!fill) {
@@ -1493,7 +1542,9 @@ export function createBinder({ chart, LWC }) {
           fill.setOptions({
             upper: own, lower: other, times: bars.map((bar) => adjustTime(bar.t)),
             color: colour.color, opacity: colour.opacity,
-            colors: fillColours(fillSpec, b.instanceId, columns, bars.length),
+            // ⛔ a per-point band colour travels with its edges; the door refuses a
+            // band whose two edges are displaced differently (memberPaneDefinition).
+            colors: displacedColumn(fillColours(fillSpec, b.instanceId, columns, bars.length), ownShift),
           })
         }
       }
@@ -1536,8 +1587,8 @@ export function createBinder({ chart, LWC }) {
           if (!hp || hp.hidden !== true) continue
           const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
-          const upper = columns.get(bindingKey(b.instanceId, hp.key))
-          const lower = columns.get(bindingKey(b.instanceId, hw))
+          const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
+          const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))
           // ⛔ FAIL CLOSED, exactly as the own-fill path does for an
           // unresolvable `with`: no band rather than a band between whatever is
           // lying around.
@@ -1553,7 +1604,7 @@ export function createBinder({ chart, LWC }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: fillColours(hp.fill, b.instanceId, columns, bars.length),
+            colors: displacedColumn(fillColours(hp.fill, b.instanceId, columns, bars.length), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -1588,7 +1639,10 @@ export function createBinder({ chart, LWC }) {
         markerLayer = null
       }
       if (markerSpec && typeof ctx.createSeriesMarkers === 'function') {
-        const own = columns.get(b.key)
+        // ⭐ 2026-09-26 — a displaced glyph sits where Pine draws it: a pivot
+        // marked on the pivot bar, not on the bar that confirmed it.
+        const markShift = drawShiftOf(b.plot)
+        const own = displacedColumn(columns.get(b.key), markShift)
         if (own) {
           if (!markerLayer) markerLayer = createMarkerLayer(ctx.createSeriesMarkers, series)
           const cc = columnColorsForPlot(b.plot)
@@ -1597,7 +1651,7 @@ export function createBinder({ chart, LWC }) {
             times: bars.map((bar) => adjustTime(bar.t)),
             marker: markerSpec,
             color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
-            condColumn: cc ? columns.get(bindingKey(b.instanceId, cc.key)) : null,
+            condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
           })))

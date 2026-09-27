@@ -104,3 +104,35 @@ validity context stated per row, and an explicit delta against the 2026-09-26 af
 readings. ⭐ **The deltas are the point** — the 09-26 numbers are a control taken with the market
 shut, so this is the first chance this programme has to separate "the market is open" from
 "the system is loaded".
+
+⛔⛔ **AND IT MUST REPORT `deployments_sampled`, OR THE WINDOW DOES NOT CLOSE ITS OWN GATE.**
+This run sheet did not ask for it and the NOW exit gate's clause 3 requires it — roadmap §2.3:
+*"The quiet window is declared and stated with its `deployments_sampled` (RM-N01)."* A window
+held perfectly, producing Protocols A, C and F, still leaves clause 3 OPEN without this field.
+Added 2026-09-27 after a re-derivation of §2.1 found the token in no artifact anywhere in the
+repo — only in the three documents that SPECIFY the convention.
+
+⭐ **What it is, and why it is not bookkeeping.** It is a covariate ON the Protocol F slope, not
+a property of the window. ARCH-07-OBS §4.2: *"Any T2 slope must report `deployments_sampled`
+beside the slope, because a slope pooled over three 30-minute pods and a slope from one
+104-minute pod are different measurements even when they agree."* OBS-3 sets the companion
+floor — *"≥ 40 `[mem]` samples within one deployment id before a slope is emitted"* — because
+*"5 samples on a 5-minute pod read flat-to-declining on a pod leaking 7.9 MB/min"*.
+
+⚠️ **So the expected value here is 1, and a 1 is the POINT.** The whole purpose of the freeze
+is that every sample comes from ONE deployment. If the artifact reports more than one, the
+window was disturbed and Protocol F's slope is pooled — report it as pooled and say so, rather
+than quoting a number the covariate contradicts. ⛔ Do NOT omit the field when it equals 1;
+an absent covariate and a covariate of 1 are different claims, and only one of them closes
+the clause.
+
+**How to derive it** — the distinct deployment ids Railway records inside the window bounds,
+not a count of health probes:
+
+    railway deployment list --service web --json
+
+Filter to `createdAt` within 09:15–12:15 ET, count DISTINCT deployment ids, and record the
+count beside the slope with the window bounds it was taken over. ⚠️ Railway creates a deploy
+record **minutes after** the push and the delay is variable (measured 3m25s and 2m38s, 47s
+apart), so read the list AFTER the window closes rather than during it — a read taken at
+T+180 can still be blind to a push made at T+178.

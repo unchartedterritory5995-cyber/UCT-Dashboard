@@ -111,7 +111,11 @@ expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parame
     // the running band. The locator drop is large because that one folded formula was
     // enormous; losing a single WRONG script can move a total more than losing several
     // right ones, which is why the movers are NAMED rather than the delta explained.
-expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(29)
+    // ⭐ 29 → 30 ON 2026-09-26, ONE NAMED MOVER: `12-ichimoku-kinko-hyo`'s three
+    // displaced plots now translate (`displacement - 1` folds), and the Senkou B span
+    // brings `senkouBLength` into a surviving column. `displacement` itself adds no
+    // id — every use of it is a COMPUTED displacement, which stays untagged.
+expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(30)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -134,7 +138,16 @@ expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts
     // the running band. The locator drop is large because that one folded formula was
     // enormous; losing a single WRONG script can move a total more than losing several
     // right ones, which is why the movers are NAMED rather than the delta explained.
-expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(536)
+    // ⭐ 536 → 734 ON 2026-09-26, THREE NAMED MOVERS, measured per script:
+    //   20-smc-toolkit-udt   swing_length 380 → 570 (+190)
+    //   12-ichimoku          tenkan 2→4, kijun 2→4, senkouB 0→2 (+6)
+    //   15-anchored-vwap     pivR 2 → 4 (+2)
+    // The smc and vwap moves are ONE fix: a pivot's `rightbars` is both its argument
+    // and its confirmation shift, and the shift (a bare number on the offset node)
+    // now carries the parameter tag too — so every pivot use counts twice, which is
+    // exactly the number of places an edit must rewrite. Before it, an edit moved the
+    // pivot's window and left the shift at the default.
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(734)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {

@@ -179,16 +179,14 @@
   "version": 6,
   "translates": true,
   "outputs": 5,
-  "usable": 2,
+  "usable": 5,
   "selectedFormula": "(highest(high, 9) + lowest(low, 9)) / 2",
   "downstream": {
    "ok": true,
    "guard": null,
    "repaint": "non-repainting"
   },
-  "perOutputRefusals": {
-   "pine:plot-offset": 3
-  }
+  "perOutputRefusals": {}
  },
  "13-average-true-range.pine": {
   "version": 3,

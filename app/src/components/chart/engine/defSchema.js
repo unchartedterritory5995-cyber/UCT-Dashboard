@@ -1398,6 +1398,35 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // than two a member meets on separate save attempts.
   validateMarker(plot, path, errors)
 
+  // ⭐ 2026-09-26 — `plots[].displace`: WHERE A VALUE IS DRAWN, never what it IS.
+  // Pine's `plot(x, offset = -N)` draws bar i's value at bar i - N. The binder
+  // applies it at draw time; the column (scan, alerts, `source` references) keeps
+  // the value on the bar that computed it.
+  // ⛔ NEGATIVE ONLY. A rightward displacement is an exact identity with a bar offset
+  // in the TREE (`x[N]`), which is where the translator puts it; a positive value
+  // here would shift a column that has already been shifted.
+  if (plot.displace !== undefined
+      && !(Number.isInteger(plot.displace) && plot.displace < 0)) {
+    errors.push(
+      `${path}.displace: expected a negative whole number of bars (a leftward displacement), got ` +
+      `${fmt(plot.displace)}. A rightward displacement belongs in the tree as a bar offset ` +
+      `(\`x[N]\`), never here — carrying it on the plot too would draw it twice as far.`,
+    )
+  }
+  // `plots[].displaceFrom` — the displacement's relation to ONE declared parameter,
+  // `scale * value + add`, so a parameter edit moves the drawing with the maths.
+  if (plot.displaceFrom !== undefined) {
+    const f = plot.displaceFrom
+    const ok = isPlainObject(f) && isNonEmptyString(f.param)
+      && (f.scale === 1 || f.scale === -1) && Number.isInteger(f.add)
+    if (!ok) {
+      errors.push(
+        `${path}.displaceFrom: expected {param: <parameter id>, scale: 1 | -1, add: <whole number>}, ` +
+        `got ${fmt(f)}`,
+      )
+    }
+  }
+
   // ─ substitutable fields (spec §3.1: color, width, levels) ─
 
   if (plot.color !== undefined) {
