@@ -1,0 +1,806 @@
+---
+id: GATE-S7-INDICATOR-CONDITION
+title: S7 trigger type — `indicator-condition` pre-implementation gate
+role: the approval packet for the type sequenced behind D2. Its gate has THREE clauses (s7-alerts-completion-plan.md §2b); §2 measures that clauses 1 and 2 are now SATISFIED and makes clause 3 a CP1 deliverable. The undeclared-cadence question in §4 is the sharpest design question in the four S7 packets written today.
+status: ✅ CP1-CP2 APPROVED 2026-09-13. CP3 SIGNED 2026-09-12/13 and BUILT (`d31b78b75`,
+  `54cb66513`). CP4 SIGNED 2026-09-19 (fingerprint `6625998e8`) — widens the rollout:s7-dark
+  cohort to all production members (6 -> 29), executed via railway ssh (see the approval
+  block for before/after counts). CP1's cadence gate SIGNED + BUILT 2026-09-19 (fingerprint
+  `12855d501`) — a correctness fix, not a checkpoint: wires D2 CP4's `close`->`ohlcv.c` rename
+  into `registration_refusal`/`cadence_for` so it agrees with CP3's own `comparability()`;
+  outcome counts unchanged (still refuses, now for the SAME reason `ohlcv.c` does — F-D2-2).
+  THE FLIP still needs a new line — member-visible, owner's call, and its true remaining size
+  is now precisely F-D2-2 alone (a per-timeframe cadence declaration for `bars_sqlite`,
+  deferred to an after-hours flow-worker-watch-list change), not "thirty more addresses."
+date: 2026-09-12
+measured_against: origin/master @ 6576f044e
+pairs_with: PRD-S7, SPEC-S7 §5.2, s7-alerts-completion-plan.md §2b / §1 row 3, PRD-D2 §7 / §9, GATE-D2-CANONICAL-DATA-MODEL (CP1 + CP2), GATE-S12-ROLLOUT
+confidence: high — every claim is quotable at file:line and was read from `api/**` and `api/data/**` on this tree; the address-book numbers were computed by loading the JSON, not read from a document
+evidence_ceiling: SOURCE ONLY. `auth.db` was not opened, no Railway variable was read live, and no evaluator cycle was observed. `indicator_alerts` and `indicator_alert_fires` row counts are UNKNOWN except as reported in prose by the code's own comments.
+---
+
+# ✅ NOT APPROVED — `indicator-condition`
+
+## ⛔ APPROVAL — this block is filled in by the OWNER, not the author
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  3460a279b   (git hash-object of this packet as it stood at
+                  approval, with this field blank)
+SCOPE APPROVED:   CP1-CP2 ONLY.
+
+                  CP1 = registration + params schema. No evaluator, no
+                        delivery, no projection of member rows. Legacy shapes
+                        REPORTED before the schema is pinned.
+
+                  CP2 = a dark evaluator + a FORWARD-ONLY comparison harness
+                        against HARNESS-ARMED predicates only. Never a replay.
+                        Four outcomes - agreed / new_only / legacy_only /
+                        not_comparable - never collapsed into a pass rate, and
+                        `legacy_only` means an alert a member LOSES at the flip.
+                        No delivery import. No legacy change.
+
+                  ⛔ CP3 (projecting real member rows for the rollout:s7-dark
+                     cohort) NEEDS A NEW LINE. So does CP4 and the flip.
+```
+
+⛔ **This packet's `_EXPECTED` step applies.** `tests/test_alert_taxonomy_filing_watch_parity.py`'s
+control flips BY DESIGN when this type lands; it is updated **by naming, never by deleting the
+assertion**, and steps 2 and 3 of its docstring stay deliberately undone for a CP1-CP2 type that
+records no fire — with the reason written into the file, as for the three types before it.
+
+### ✅ CLAUSES 1 AND 2 OF THE §2b GATE ARE SATISFIED — CLAUSE 3 IS CP1's DELIVERABLE
+
+D2 CP1 merged (`b9783d509`); D2 CP2 (`ffa8102c7`) gave the book its first non-screener store —
+`bars_sqlite`, five metrics `ohlcv.o/h/l/c/v`, `authority: "authoritative"` per PRD-D2 §7. The book
+now holds 142 metrics.
+
+⛔ **Clause 3 — cadence GATES the predicate at registration — and the answer to the undeclared
+cadence is REFUSE, naming the axis.** Not intraday (admits a predicate that can never fire, with
+reassurance attached). Not nightly (asserts something false about a continuously-written store, in
+the field `cadence_ceiling` reasons about). Refusal is the only branch that keeps *"we could not
+compute it"* distinct, and it matches `address_book.py`'s own contract: *"THIS MODULE ANSWERS OR
+SAYS IT CANNOT. It never defaults."*
+
+⭐ **And the harder half the question did not contain:** for `bars_sqlite`, cadence is a property of
+the **(metric, timeframe) PAIR**, not of the metric — `ohlcv.c` on a 5-minute bar and on a daily bar
+have different cadences, and the alert row carries `tf` NOT NULL. **The gate must resolve the
+ADDRESS, not the metric.**
+
+⚠️ **Honest consequence, accepted on this line: at CP1 every `ohlcv.*` predicate REFUSES**, because
+the declaration that would give bars a per-timeframe cadence cannot ship — `bars_sqlite.py` is
+reachable-but-unwatched, which is exactly why D2 CP2 refused the same edit (F-D2-2). That is the
+correct dark state, not a gap.
+
+
+⛔⛔ **NOTHING IN THIS PACKET IS AUTHORIZED.** No checkpoint below may be built, merged or
+scheduled until the owner writes an approval line naming ONE of them. In particular §4's answer to
+the undeclared-cadence question is a RECOMMENDATION, not a ruling.
+
+---
+
+## 1. Does a legacy path exist? — **YES, AND IT IS THE LARGEST OF THE FOUR**
+
+| | |
+|---|---|
+| CRUD + state machine | `api/services/indicator_alert_service.py` (1,614 lines) |
+| evaluator | `api/services/indicator_alert_evaluator.py` (2,630 lines) |
+| durable fires | `indicator_alert_fires`, declared at `api/services/alert_fired_log.py:138-158` |
+| the alert row | `indicator_alerts`, declared at `indicator_alert_service.py:88-103` + **9 ALTER migrations** (`:115-183`) |
+| driver | `indicator_alert_evaluator.start_evaluator(interval_sec=60)` — `api/main.py:3275`, **its own daemon thread, started at boot, UNCONDITIONALLY** (no flag) |
+| delivery | `watchlist_alert_service` — bell + email + Discord + browser notification + sound (`indicator_alert_service.py:4-6`) |
+| member door | `api/routers/indicator_alerts.py`, mounted at `api/main.py:7904` |
+
+### 1a. The fire ledger, quoted — because S7's `alert_fires` must be diffed against it
+
+`alert_fired_log.py:138-158`:
+
+```sql
+CREATE TABLE IF NOT EXISTS indicator_alert_fires (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  alert_id INTEGER NOT NULL,
+  user_id TEXT NOT NULL,
+  sym TEXT NOT NULL,
+  indicator TEXT NOT NULL,
+  condition TEXT NOT NULL,
+  tf TEXT NOT NULL,
+  fire_key TEXT NOT NULL,
+  bar_time INTEGER,
+  value REAL NOT NULL,
+  threshold REAL,
+  fired_at REAL NOT NULL,
+  delivered_at REAL,
+  delivery_attempts INTEGER NOT NULL DEFAULT 0,
+  delivery_failed_at REAL,
+  delivery_error TEXT,
+  delivery_channels TEXT,
+  channels_failed INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(alert_id, fire_key)
+);
+```
+
+⭐ **`UNIQUE(alert_id, fire_key)` IS THE FIRE-ONCE GUARD AND THE HISTORY AT THE SAME TIME**, and the
+module docstring says why in one sentence (`indicator_alert_service.py:21-26`):
+
+> *"an alert delivers if and only if `alert_fired_log.record_fire` lands a NEW row, and the key that
+> row is unique on is the alert's ARMED EPISODE (level conditions) or its BAR (cross conditions).
+> The history and the fire-once guard are the same object, so a history that says 'one fire' and a
+> member who got five is not a state this system can be in."*
+
+⛔ **AN ABSORPTION INHERITS THAT IDENTITY, NOT JUST THAT TABLE.** S7's `alert_fires` is a separate
+durable row; if the dark evaluator computes a different `fire_key` the comparison is measuring two
+key functions, not two rules. The `fire_key` derivation is the first thing CP2's mirror must be
+railed against — the `catalyst-match` CP2 idiom of driving the REAL function with delivery stubbed.
+
+### 1b. The 2026-08-08 closed-bar cutover is live and is a comparison hazard
+
+`indicator_alert_service.py:11-19` records a defect this lane already paid for: level conditions
+re-delivered *"on every 60-second poll for as long as the condition stayed true"*, priced at
+**373,748 of 388,808 fires (96.1%)**. The fix is the fired-log key above, plus a five-state machine
+(`ALERT_STATES`, `:61-62`) — `armed` / `fired` / `snoozed` / `needs_attention` / `error`.
+
+⛔ **`eval_mode()` is read AT CALL TIME and is rollback-able with no deploy** (`api/main.py:5032-5036`
+records the correction: *"Read the running answer from `GET /api/indicator-alerts/latency`, never
+from this comment"*). **A dark comparison whose two sides straddle a mode change is measuring the
+mode.** CP2 must stamp `eval_mode()` on every comparison span and reset the clock when it moves —
+the anchor-move reset, in this type's own vocabulary.
+
+---
+
+## 2. ⛔⛔ THE THREE-CLAUSE GATE (completion plan §2b) — CLAUSES 1 AND 2 ARE NOW SATISFIED
+
+The plan's gate, verbatim:
+
+> 1. D2 CP1 merged — ✅ done; and
+> 2. the address book's metric axis covers **at least one store that is not `screener_rows`**, with
+>    that store classified in PRD-D2 §7; and
+> 3. `cadence` GATES THE PREDICATE at registration.
+
+### Clause 1 — ✅ SATISFIED. D2 CP1 merged (`b9783d509`).
+
+Recorded in `GATE-D2-CANONICAL-DATA-MODEL` line 1. ⚠️ The SHA is caller-supplied; no git command was
+run in this packet.
+
+### Clause 2 — ✅ SATISFIED **TODAY**, by D2 CP2 (`ffa8102c7`). Measured, not quoted.
+
+Loaded `api/data/canonical_address_book.json` (48,329 bytes, `schema_version: 1`,
+`generated_by: tools/build_canonical_address_book.py`) and counted:
+
+```
+metrics                       142
+  screener_rows               137     cadence nightly, grain date, 137/137
+  bars_sqlite                   5     ohlcv.o  ohlcv.h  ohlcv.l  ohlcv.c  ohlcv.v
+axis_report.cadences          {"nightly": 137, "(undeclared)": 5}
+axis_report.grains            {"date": 137, "(undeclared)": 5}
+stores.bars_sqlite.authority  "authoritative"
+stores.bars_sqlite.row_projection  ["ts", "o", "h", "l", "c", "v"]
+stores.bars_sqlite.undeclared_by_this_store  ["cadence", "grain", "sentence"]
+```
+
+**The non-screener store is `bars_sqlite`, it carries five metrics, and it is classified
+`authoritative`** — which matches PRD-D2 §7's own row: *"`bars.db` (`bars_sqlite`) | OHLCV per
+(ticker, tf, ts) | **AUTHORITATIVE for bars**, with a locked invariant: newest bar wins per
+(ticker, tf, ts) on EVERY path."*
+
+⭐ **So the dependency the completion plan recorded as the reason `indicator-condition` waits is now
+two-thirds discharged, and it was discharged on the same day this packet was written.** The type is
+no longer blocked on D2; it is blocked on clause 3, which is S7's own work.
+
+### Clause 3 — ⛔ NOT SATISFIED, AND THIS PACKET MAKES IT A **CP1 DELIVERABLE**
+
+Nothing gates a predicate on cadence anywhere. Measured: `cadence` appears in
+`scan_evaluator.py` (the `cadence_ceiling` machinery, `:678-706`) and in `ast_freshness.py`, and in
+neither `indicator_alert_service.py` nor `indicator_alert_evaluator.py`. The plan states the cost
+plainly (§2b item 3):
+
+> *"A predicate asking a `cadence: nightly` metric to answer an intraday condition registers
+> cleanly, evaluates cleanly, and **never fires** — and nothing distinguishes it from a condition
+> that simply has not been met. An alert that cannot fire and an alert that has not fired look
+> identical to a member, and the member is the one holding the position."*
+
+---
+
+## 3. ⭐ THE PRECEDENT CLAUSE 3 SHOULD BE BUILT ON ALREADY EXISTS — in the legacy module
+
+⛔ **Do not invent a registration gate. There is one, it is exactly this shape, and it is one
+function.** `indicator_alert_service.refusal_for(indicator, condition, tf, threshold)` —
+`:1298-1299` — whose docstring's first line is:
+
+> *"Why this alert could NEVER fire, or `None` if it could."*
+
+It ships **three** gates today (`:1325-1358`), and the second is the closest possible analogue of a
+cadence gate — an intraday-only series armed on a calendar bar (`:1332-1338`):
+
+```python
+if address in instant_only_addresses() and code in ev._CALENDAR_TFS:
+    ...
+    return (f"{label} {REFUSAL_INTRADAY_ONLY}. A {code} bar is stored under a "
+            f"calendar date where this series needs a clock instant, so its "
+            f"whole column is withheld and no number is ever produced — on "
+            f"the live lane and on the closed one. Arm it on one of {intraday}.")
+```
+
+Two properties of that gate are load-bearing and must be copied, not re-invented:
+
+1. ⛔ **It lives on the ROUTER path, not in `create()`.** `refusal_for`'s own docstring
+   (`:1312-1316`): *"`create()` IS DELIBERATELY NOT GATED. Thirty-one soak rows are armed on
+   production and `tools/alert_soak_matrix.py --arm` must stay idempotent; a guard inside the writer
+   would change what an internal tool and every existing row can do, when the gap being closed is
+   the *API* surface."*
+2. ⛔ **Every refusal fragment is pairwise distinct, and that discipline is already asserted in this
+   lane.** `indicator_alert_evaluator.py:1710-1716` records why, about the sibling ledger door:
+   two gates once shared the phrase *"forming-bar fires are not ledger-grade"*, so a
+   `pytest.raises(match=…)` **still matched with the mode lock deleted** — the test would have
+   passed on a tree with the safety removed.
+   `test_every_ledger_refusal_fragment_names_exactly_one_gate` is the rail there, and a cadence
+   refusal needs its own equivalent. ⚠️ `refusal_for`'s own three fragments are module-level
+   constants — `REFUSAL_UNJUDGEABLE_CONDITION`, `REFUSAL_INTRADAY_ONLY`, `REFUSAL_NO_LEVEL` (plus
+   `CLOSED_LANE_TRAILING_PAD`) — and a fourth must be distinct from all of them.
+
+⚠️ **AND THE UNGATED WRITER IS ITSELF A FINDING.** `indicator_alert_evaluator.ledger_timeframe`'s
+docstring (`:1764-1767`) states it flatly: *"The create path validates nothing, so `tf` can be any
+string a client sent."* A cadence gate on the router therefore constrains the API surface and
+**nothing else** — the 31 production soak rows and any internal tool bypass it by construction.
+That is the right trade and it must be written down, not discovered.
+
+---
+
+## 4. ⛔⛔ THE UNDECLARED-CADENCE QUESTION — the sharpest design question in these four packets
+
+> **What must a predicate registration do when the metric it names has `cadence: null`?**
+
+It is not academic: **the ONLY non-screener metrics in the book — the five the type actually needs —
+are exactly the ones with no declared cadence.**
+
+### 4.1 Why they are null, and why that is deliberate
+
+D2 CP2 ruled it (GATE-D2 §CP2.4, *"THE BOOK RECORDS WHAT THE STORE DOES NOT DECLARE AS `null`, NEVER
+AS A DEFAULT"*):
+
+> *"Defaulting the bars store to `cadence: "nightly"` — the only value in the book today — is a
+> one-word change that would make a continuously-fetched store look like a batch one, in the very
+> field `scan_evaluator.cadence_ceiling` reasons about. 'We could not compute it' and 'nightly' are
+> different facts, and a book that cannot say the first one is not worth reading."*
+
+CP2's mutation **D** is *"drop the `null`-preserving branch so an undeclared cadence takes a
+default → RED"*. And the accessor module is built the same way — `address_book.py:15`:
+*"⛔⛔ THIS MODULE ANSWERS OR SAYS IT CANNOT. It never defaults."* — with `row_position` returning
+`None` *"never 0, never -1"* on any doubt (`:100-112`).
+
+### 4.2 ⛔ THE ANSWER: **REFUSE, AND NAME THE UNDECLARED AXIS.** Not intraday. Not nightly.
+
+**It is not "assume intraday."** That admits the predicate, and then the member holds an alert whose
+*cannot fire* is indistinguishable from *has not fired* — the §2b defect, reached one step later and
+with a false reassurance attached.
+
+**It is not "assume nightly."** That refuses every bar-metric predicate — i.e. refuses the ONLY
+store this type has — and it does it by asserting something false about a continuously-written
+store, in the field `cadence_ceiling` reasons about. It is also the *comfortable* wrong answer,
+because it fails safe and looks conservative.
+
+**It is REFUSE, with the reason naming the axis, and the fix being a DECLARATION rather than a
+default:**
+
+> ⛔ **A predicate naming a metric whose resolved cadence is undeclared is REFUSED AT REGISTRATION,
+> with a message that says *the store declares no cadence for this metric* and names
+> `stores.<store>.undeclared_by_this_store`. The repair is to declare it at the source the builder
+> derives from — never to supply a fallback at the alert layer.**
+
+Three reasons, in order of weight:
+
+1. **A fallback at the alert layer is a SECOND AUTHORITY over a metric's cadence.** D2 exists to
+   have one. The alert layer inventing `"intraday"` for `ohlcv.c` is the `pct_above_50ma` defect
+   (PRD-D2 §9.2) committed prospectively.
+2. **Refusal is the only branch that preserves the CoverageLine distinction** the book was built
+   around — *"we could not compute it"* is a third answer beside *"yes"* and *"no"*, and it is the
+   one an undeclared axis is entitled to.
+3. **A refusal is REPAIRABLE and a default is not.** A refused registration produces a named reason
+   a member and an engineer can both act on. A defaulted one produces a silently wrong alert that
+   nobody will ever look for.
+
+### 4.3 ⭐⭐ AND THE HARDER HALF, WHICH THE QUESTION AS POSED DOES NOT CONTAIN
+
+**For `bars_sqlite`, cadence is not a property of the METRIC at all. It is a property of the
+(metric, timeframe) PAIR.**
+
+`ohlcv.c` has no single cadence. `ohlcv.c` on a 5-minute bar and `ohlcv.c` on a daily bar update at
+rates that differ by two orders of magnitude, and the type's whole point is that a member arms an
+alert on **one specific timeframe** (`indicator_alerts.tf`, NOT NULL, `indicator_alert_service.py:95`).
+The book already models the timeframe as an axis — the address grammar is
+`uct://<metric>@<entity>/<timeframe>?as_of=<instant>` (`address_grammar`), with the timeframe axis
+sourced from `signature/ledger.py::_BARS_STORE_TF_KEYS` — but `cadence` is stored **on the metric**,
+where it cannot express the dependency.
+
+⛔ **So the gate must resolve the ADDRESS, not the metric.** Concretely:
+
+- `cadence_for(metric, timeframe)` is the question; `book()["metrics"][m]["cadence"]` is only the
+  answer when the store's cadence does not vary by timeframe — which is true for all 137
+  `screener_rows` scalars and false for all 5 `bars_sqlite` ones.
+- The evidence that it varies is already recorded, as D2's own **F-D2-2**: *"The bars store's as-of
+  grain varies by timeframe and is declared nowhere"* — re-derived inline as `tf in ("D","W","M")`
+  in **seven** places in `api/services/bars_fetch.py`. The alert lane has its own copy of the same
+  split: `indicator_alert_evaluator._CALENDAR_TFS = ("D", "W", "M")` and
+  `_TF_MINUTES = {"1":1,"5":5,"15":15,"30":30,"60":60}`.
+- ⚠️ And a third copy of the same vocabulary is the ad-hoc key PRD-D2 §9.2 already indicts:
+  `_LEDGER_TIMEFRAME` at `indicator_alert_evaluator.py:1692-1695`, *"an ad-hoc copy of an
+  authoritative map, written with a comment explaining why it is dangerous… not sunset."*
+
+### 4.4 ⛔ WHY CP1 MUST SHIP THE GATE AND MUST **NOT** SHIP THE DECLARATION
+
+The obvious next move — declare the bars cadence per timeframe — is **blocked, and the block is
+measured**. GATE-D2 §CP2.4 refused it once already:
+
+> *"Declaring it once is the obvious fix and CP2 does not do it, for one reason: `bars_fetch.py` and
+> `bars_sqlite.py` are **inside flow-worker's import closure and outside its watch list**, so
+> flow-worker would run a stale copy of any new declaration."*
+
+Confirmed independently this pass: `api/services/bars_sqlite.py` is **reachable=True, watched=False**
+(§6) — an INERT STRAND. And declaring the cadence in the BUILDER instead would be typing it rather
+than deriving it, which is the second-authority defect the book exists to end.
+
+⭐ **THE CONSEQUENCE, STATED HONESTLY AND WITHOUT SOFTENING: at CP1 the type can register NO
+bar-metric predicate at all.** Every `ohlcv.*` address refuses. That is the correct dark state — it
+makes the missing declaration a visible, named refusal instead of a guess — and it is cheap, because
+CP1 arms nothing and the gate's behaviour is exercised only by its own rails.
+
+**What CP1 therefore builds for clause 3:**
+
+- `cadence_for(address) -> str | None` in the S7 module, resolving **metric + timeframe** through
+  `api/services/canonical/address_book.py`, returning `None` for undeclared — never a default.
+- The refusal, on the ROUTER path (§3 item 1), with a fragment **pairwise distinct from every
+  existing refusal constant in `indicator_alert_service.py`** (§3 item 2), asserted rather than
+  reviewed.
+- **Mutations, both directions, before merge:** (A) make the gate default an undeclared cadence to
+  intraday → RED; (B) make it default to nightly → RED; (C) delete the gate → RED; (D) make the
+  refusal fragment a substring of an existing one → RED.
+- **A non-vacuity control:** the gate ADMITS a `cadence: nightly` screener metric on a `D`
+  timeframe. A gate that refuses everything is indistinguishable from a gate that is broken.
+
+---
+
+## 5. ⛔ TWO RAILS THAT WILL NOT ANNOUNCE THIS TYPE — measure them before relying on them
+
+### 5.1 The address-book reader rail counts the FILE, not the BOOK
+
+`tests/test_canonical_address_book.py:232-268`:
+
+```python
+_ALLOWED_BOOK_READERS = ("api/services/canonical/address_book.py",)
+```
+
+and the test flags any module under `api/` whose **stripped code** contains the literal
+`canonical_address_book` and is not on that list.
+
+⛔ **Measured: after stripping, that literal survives in exactly ONE file in `api/**` —
+`api/services/canonical/address_book.py:40`, the `BOOK_PATH` construction.** The other two raw
+occurrences are a docstring (`address_book.py:6`) and a comment (`scan_evaluator.py:250`), both of
+which the rail's own `_code_only()` removes.
+
+⭐ **So CP2's own migrated reader does not trip it.** `api/services/ticker_returns.py:7` reads the
+book (`from api.services.canonical import address_book as _book`, then `_book.row_position(...)` at
+`:65`) and contains the literal nowhere. The rail constrains **who opens the JSON file**, not **who
+reads the book**.
+
+⚠️ **This is recorded, not filed as a defect.** It may be exactly what D2 intended. What matters for
+this packet is the consequence: **an S7 evaluator reading through `address_book.metric()` will not
+be announced by that rail, and the packet must not claim it will be.** If the owner wants a second
+reader to require a line, the rail's predicate has to change — and that is D2's line to write, not
+S7's.
+
+### 5.2 ⛔⛔ THE SERIALIZER — `_EXPECTED`, and it flips BY DESIGN
+
+`tests/test_alert_taxonomy_filing_watch_parity.py:621`:
+
+```python
+_EXPECTED = {"document-arrival", "price-level", "event-proximity", "catalyst-match"}
+```
+
+`_declared_trigger_types()` (`:549-562`) reads every module-level `TYPE_ID = "..."` in
+`api/services/alert_taxonomy/` **from the AST — never a grep, never a hand-typed roster** — with two
+non-vacuity controls at `:627-631` (the walk must see `document_arrival.py`; the scan must find at
+least one declaration), and the assertion at `:633` requires the declared set to EQUAL `_EXPECTED`.
+**Registering `indicator-condition` turns that test RED, and the red is the rail working, not a
+regression.**
+
+⛔ **The docstring's steps, reproduced from `:577-583`, before the line may be updated:**
+
+> 1. Add the new type to `_EXPECTED` below.
+> 2. Give `alerts._s7_durable_alerts` a reconstruction branch for it — without one its fires are
+>    silently dropped from the member's feed (proved by the sibling test below).
+> 3. Re-run the three observable classes above against the new type's own fixture event, and re-run
+>    the mutation proof.
+
+⚠️ **A drift recorded rather than silently fixed:** the docstring numbers **three** steps; the
+failure message at `:636-637` says *"see this test's docstring for the four steps"*. The list is the
+authority; the count is what drifted — the same shape as the COT router's "4 routes" beside five.
+
+Step 2 is measured, not assumed. `api/services/alerts.py:142-165` — `_s7_durable_alerts` dispatches
+on `trigger_type` with **exactly one branch** (`:160`, `document-arrival`), and `:157-159` says so in
+the code's own words. `test_the_feed_bridge_silently_drops_a_trigger_type_it_has_no_branch_for`
+(`:641`) demonstrates the hazard: a fire of any other type produces **no feed row and no error**.
+⛔ Step 2 becomes a **PRECONDITION at CP3**, when a projection first writes a real member's fire.
+
+---
+
+## 6. ⛔ WATCH-COVERAGE CLASSIFICATION — this type has the WORST strand exposure of the four
+
+Measured by importing `reachable_paths(root)` / `watched_paths(root)` from
+`tools/flow_worker_watch_coverage.py` with an EXPLICIT root (no git). **reachable = 154,
+watched = 24.** Control: `api/flow_worker_main.py` is reachable; `api/services/awareness/engine.py`
+is not.
+
+| module | reachable | watched | classification |
+|---|---|---|---|
+| `api/services/indicator_alert_service.py` | **yes** | no | ⛔ **INERT STRAND** |
+| `api/services/indicator_alert_evaluator.py` | **yes** | no | ⛔ **INERT STRAND** |
+| `api/services/bars_sqlite.py` | **yes** | no | ⛔ **INERT STRAND** — §4.4's block |
+| `api/services/alert_taxonomy/{registry,receipts,delivery,db}.py` | **yes** | no | ⛔ **INERT STRAND** |
+| `api/services/alerts.py` | **yes** | no | ⛔ **INERT STRAND** |
+| `api/services/watchlist_alert_service.py` | **yes** | no | ⛔ **INERT STRAND** |
+| `api/services/canonical/address_book.py` | **no** | no | outside — no constraint |
+| a NEW `alert_taxonomy/indicator_condition.py` | **no** (until `register()` is wired) | no | outside — until CP3 |
+
+Paths traced, not assumed:
+
+- `flow_worker_main → auth_surface_check → flow_proxy → auth_service → auth_db → journal_two.db →
+  journal_two.notes → ticker_meta → groups → groups_gates → screener.snapshot_db →
+  screener.live_tier → screener.technicals → indicator_compute → ast_interpret → scan_definition →
+  user_definitions → alert_rev_migration → **indicator_alert_service**` (and, one sibling hop,
+  `→ indicator_alert_evaluator`)
+- `flow_worker_main → flow_opt_aggregate → data_sync → **bars_sqlite**`
+
+⛔⛔ **THIS IS THE CONSTRAINT THAT DECIDES WHICH CHECKPOINT CAN SHIP WHEN, AND IT IS SPECIFIC TO
+THIS TYPE.** §3's recommendation puts the cadence refusal on the router path — but the router calls
+`indicator_alert_service.refusal_for`, and **`indicator_alert_service.py` is a strand**: flow-worker
+RUNS it and will NOT redeploy for a change to it. Three consequences, in order:
+
+1. ⛔ **CP1 must NOT add the gate inside `indicator_alert_service.py`.** Put `cadence_for` and the
+   refusal in the **new S7 module** (outside the closure) and have the router consult it, or accept
+   a stated strand with a marker bump. The first is cheaper and is what this packet recommends.
+2. ⛔ **CP1 must NOT declare the bars cadence in `bars_sqlite.py`** — §4.4, and D2 already refused
+   the same edit for the same reason.
+3. **CP3 strands the substrate regardless**, because wiring `register()` puts the new module into
+   the closure through `alerts.py` / `registry.py`. Run
+   `python tools/flow_worker_watch_coverage.py` at review; a red is a REVIEW GATE per
+   `docs/runbooks/deploy-windows.md`, not a block.
+
+---
+
+## 7. What the checkpoints would be
+
+*(Not authorized. Named so an approval line can name exactly one.)*
+
+**CP1 — registration + params schema + THE CADENCE GATE (clause 3).**
+
+1. `api/services/alert_taxonomy/indicator_condition.py` — `TYPE_ID`, `PARAMS_SCHEMA`, `register()`,
+   plus `cadence_for(address)` and the refusal (§4.4). **No evaluator. No delivery. No read of
+   `indicator_alerts`. No scheduler entry.**
+2. `PARAMS_SCHEMA` pins **every shape the legacy path supports**, derived by AST from
+   `indicator_alert_service.py` / `indicator_alert_evaluator.py`, never hand-typed —
+   `{indicator, condition, threshold, tf, params_json, instance_id, scope, def_source}`. SPEC-S7
+   §5.2's row names only the first four; the other four are real columns
+   (`indicator_alert_service.py:128`, `:143`, `:159`, `:182`) and each carries a documented meaning
+   a naive schema would erase:
+   - `instance_id` — which chart instance; `NULL` means the alert outlived nothing;
+   - `instance_missing_at` — ⛔ *deliberately not a `state`* (`:129-144`), because
+     `record_evaluation` clears `needs_attention` the moment a value arrives and an orphaned alert
+     KEEPS PRODUCING VALUES;
+   - `scope` — `NULL` = GLOBAL; ⛔ *"`list_active()` MUST NEVER READ IT"* (`:153-158`);
+   - `def_source` — `NULL` = builtin, `"user"` = an account wrote the arithmetic, and it gates
+     ledger admission (`indicator_alert_evaluator._is_user_authored`, `:1733`).
+3. The five alert states pinned as an enum derived from `ALERT_STATES` (`:61-62`).
+4. **The cadence gate, its four mutations and its non-vacuity control** (§4.4).
+5. The parity control at `tests/test_alert_taxonomy_filing_watch_parity.py:621` updated **by
+   naming** (§5.2).
+6. §4.3's finding — cadence is a property of (metric, timeframe) for `bars_sqlite` — recorded in
+   **PRD-D2 §9 and SPEC-S7 §5.2**, at the point of use, as the follow-up D2 owes.
+
+⛔ **Explicitly NOT in CP1:** no evaluator, no `delivery.py` call, no read of `indicator_alerts`, no
+change to `indicator_alert_service.py`, `indicator_alert_evaluator.py`, `bars_sqlite.py` or the
+address book, no scheduler entry, and **no cadence DECLARATION** (§4.4).
+
+**CP2 — dark evaluator + FORWARD-ONLY comparison harness, harness-armed predicates ONLY.**
+Four outcomes — `agreed` / `new_only` / `legacy_only` / `not_comparable` — never a pass rate;
+`legacy_only` is an alert a member LOSES at the flip. ⛔ **No replay, ever** — this type's own reason
+is the seventh distinct one the programme has met: **the legacy lane's fire identity is
+`UNIQUE(alert_id, fire_key)` over an ARMED EPISODE**, and an episode is a live state machine, not a
+function of history; re-running today's evaluator over cached bars would manufacture episodes that
+never existed. ⛔ **And `eval_mode()` moves with no deploy** (§1b) — stamp it on every span and reset
+the clock when it changes. A heartbeat on **every** tick including the quiet ones.
+
+**CP3 — projection of real member rows, `rollout:s7-dark` cohort ONLY, still dark.**
+⛔ Cohort via `api/services/rollout.py:100` `cohort_user_ids(rollout.S7_DARK)` — **never a role
+check**; `rollout.py:29-38` rules that an empty cohort means NO MEMBERS and never a fallback to
+admins. ⚠️ **The projection must read `list_active()`** and must not filter on `scope` or
+`def_source` — `indicator_alert_service.py:153-158` and `:169-176` both record that a filter there
+shrinks what the shadow lane observes and makes a cutover gate pass on a smaller set.
+
+**CP4 — all members, still dark.** A tag assignment (`rollout.py:258`), not a code path.
+
+**FLIP — its own line.** Delivery plus the legacy switch-off, same PR, with a member-impact
+paragraph.
+
+---
+
+## 8. Method
+
+- **CODE, NEVER PROSE.** Every literal search ran over source with docstrings and comments removed —
+  each file parsed with `ast`, every string-only `Expr` statement blanked, `ast.unparse` re-emitted
+  (which drops comments for free). **1,213 files under `api/` parsed, 0 unparsable.**
+  **CONTROL:** a sentence that exists only in a module docstring (`"a trader would act on it"`,
+  `scan_store.py`) is found in **1** raw file and **0** stripped files, while a real code token
+  (`def record_hits`) is still found. The stripper removes prose and still sees code. §5.1's finding
+  depends on exactly that property and would be wrong without it.
+- **The address-book numbers in §2** were produced by `json.load` + counting, never read out of a
+  document.
+- **Reachability** — `reachable_paths(root)` / `watched_paths(root)` imported from
+  `tools/flow_worker_watch_coverage.py` with an explicit root; no git invocation. Import paths in §6
+  were traced with a BFS over the same `_api_imports` the tool uses.
+- No git command was run and no SHA was verified. `b9783d509`, `ffa8102c7` and `6576f044e` appear
+  only as caller-supplied identifiers.
+
+---
+
+## 9. ⚠️ WHAT COULD NOT BE MEASURED
+
+1. **`indicator_alerts` row count in production.** The module says *"prod's `indicator_alerts` table
+   has zero rows"* (`:18`, written before Phase C) and elsewhere *"the 31 production soak rows"*
+   (`:163`). ⛔ **Those two sentences cannot both be current**, and no database was read this
+   pass. **The population this absorption serves is UNKNOWN**, and it decides whether CP2's
+   comparison can observe anything.
+2. **`indicator_alert_fires` row count**, and therefore whether any member has ever received one.
+3. **`ALERT_EVAL_MODE`'s live value.** `api/main.py:5032-5036` says the running answer is
+   `GET /api/indicator-alerts/latency`, *"never from this comment"* — and this packet read the
+   comment.
+4. **Which addresses members actually name.** §4.4's "CP1 refuses every bar-metric predicate" is a
+   statement about the book, not about demand: how many real alerts name a bar metric versus a
+   computed series is unknown, and it is the number that sizes the cost of the refusal.
+5. **Whether the address book on the deployed pod matches this tree's** — the book is a derived file
+   in the repo, so a deploy that missed it would leave a stale manifest, and `book()` returns `{}`
+   rather than raising (`address_book.py:59-87`).
+
+⛔ Each is one read-only query or one authenticated GET away, and **none was performed.**
+
+## ⛔ APPROVAL — CHECKPOINT 3 (a NEW line; the CP1-CP2 block above is untouched)
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-12
+APPROVED AT SHA:  148af5293
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3. Read-only PROJECTION of
+                  real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF. Arming is
+                  the owner's flip, after the price-level dark read.
+
+                  ⛔⛔ BLOCKED-ON-DEPENDENCY: this line is void unless D2 
+                  §9.5 CP1 has merged first. If it has not, indicator-condition
+                  CP3 is NOT authorized and the blocker is that dependency.
+```
+
+## ✅ APPROVAL — CHECKPOINT 3, DEPENDENCY DISCHARGED (a THIRD line; both blocks above untouched)
+
+⛔⛔ **WHY A NEW LINE AND NOT AN EDIT TO THE ONE ABOVE.** The CP3 block above is **not wrong** — it
+is **conditional**, and it says so: *"this line is void unless D2 §9.5 CP1 has merged first."*
+Editing it in place would erase both facts worth keeping: that CP3 was authorized subject to a
+named dependency, and that the dependency was discharged on a specific date by a specific merge.
+This line records the discharge; the scope is unchanged and is restated verbatim so no reader has
+to reconcile two documents.
+
+⭐ **THE DEPENDENCY IS DISCHARGED, AND THE NAME IT WAS WRITTEN UNDER CHANGED — READ THIS BEFORE
+CALLING IT A MISMATCH.** The line above blocks on *"D2 §9.5 CP1"*. PRD-D2 §9.5 **is signed and
+merged** — but as **`GATE-D2 CP4`**, not as a "§9.5 CP1", because when it came to be signed on
+2026-09-13 the standing rule (*an approval line names a §4 checkpoint ID, or it re-numbers §4 in
+the same commit so that it does*) found that **GATE-D2 §4 had no row matching §9.5's scope**: CP1
+says *"Declarations only — no resolver"*, CP2 is the first address form's resolver, CP3 retires
+that form's duplicates — all three written for a map from a name to a **stored column**, while
+§9.5 asks the book to describe a **computation**. §4 was therefore re-numbered to add **CP4** in
+the same commit that signed it.
+
+| | |
+|---|---|
+| the blocker as written | *"D2 §9.5 CP1 has merged"* |
+| what actually merged | **PRD-D2 §9.5**, signed as **GATE-D2 CP4**, fingerprint **`3257cc319`**, merged **`404b808c5`** |
+| same artifact? | **Yes** — same PRD section, same SPEC-D2 §5.4 technical form. Only the checkpoint ID differs, and it differs because the standing rule required it. |
+
+⚠️ **AND WHAT CP4 DID *NOT* CLEAR IS STATED HERE RATHER THAN DISCOVERED AT BUILD.** CP4 declares
+the **indicator axis** — the second address form, the thirty outputs, the one rename. It does
+**not** declare a per-timeframe cadence for `ohlcv.*`, because that means editing `bars_fetch.py` /
+`bars_sqlite.py`, measured 2026-09-13 as **inside flow-worker's 154-module import closure** and
+outside its watch list, and the owner's 2026-09-13 ruling is that **the watch list is not widened**.
+⛔ **So every `ohlcv.*` predicate still REFUSES on cadence at CP3, exactly as it did at CP1.** That
+is the correct dark state, and a CP3 that reported those as agreement would be lying.
+
+```
+APPROVED BY:      Patrick (owner), via Claude Chat middleman
+APPROVED ON:      2026-09-13
+APPROVED AT SHA:  4e8d3af5d
+SCOPE APPROVED:   CP3 - SAME SCOPE AS price-level CP3, restated VERBATIM from the
+                  block above so the two lines cannot drift. Read-only PROJECTION
+                  of real member alerts; admin cohort via the S12 tag; forward-only
+                  comparison, four outcomes, never a rate; the sweep behind its
+                  OWN flag, DEFAULT OFF; a caller-rail proving the evaluator is
+                  reachable from the sweep and from nothing else; NO delivery
+                  import; NO legacy change.
+
+                  ⛔ THE DEPENDENCY NAMED IN THE BLOCK ABOVE IS DISCHARGED:
+                     PRD-D2 §9.5 is signed as GATE-D2 CP4 (fingerprint 3257cc319)
+                     and merged (404b808c5). That line is no longer void.
+
+                  ⛔⛔ NOT COMPARABLE IS A FIRST-CLASS OUTCOME, NOT AGREEMENT.
+                     F-S7-IC-1 measured 31 legacy addresses against 142 book
+                     metrics with an EMPTY intersection - one rename (close <->
+                     ohlcv.c) and thirty genuine absences. A predicate whose
+                     vocabularies do not intersect is NOT COMPARABLE BY
+                     CONSTRUCTION and the harness must say so PER PREDICATE.
+                     Counting one as agreement would manufacture a clean
+                     comparison out of two lanes that never met.
+
+                  ⛔ THIS DOES NOT ARM ANYTHING. The flag stays OFF in this
+                     checkpoint. Arming is the owner's flip.
+```
+
+## ✅ APPROVAL — CHECKPOINT 4 (a FOURTH line; all three blocks above untouched)
+
+**Scope, per §7's own row:** *"CP4 — all members, still dark. A tag assignment (`rollout.py:258`),
+not a code path."* Widen the `rollout:s7-dark` cohort from its current admin-seeded population to
+every account in `users`, via `rollout.seed_cohort_all_members("s7-dark")` — already built, tested
+(`tests/test_rollout.py`, idempotency proved: a second call returns 0 added), and reversible
+(`remove_from_cohort` undoes it by named account). No code changed by this checkpoint; the function
+predates it.
+
+⚠️ **MEASURED BEFORE THIS LINE WAS WRITTEN, AND IT CHANGES WHAT "STILL DARK" MEANS HERE.** §7's own
+framing ("still dark") was written when CP3 shipped with its sweep flag
+(`ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED`) OFF. Read live on `web`, 2026-09-19: **the flag
+is `1`.** It was armed for the admin-only cohort at some point after CP3 shipped, by a decision this
+line did not make and does not need to re-litigate — it is simply the fact that makes CP4
+non-trivial: the sweep is ALREADY running, and widening the cohort widens WHO it runs against, live,
+the moment the tags land. "Still dark" remains true in the sense that matters for a member (no
+delivery, no visible change, a comparison log only) — it is not true in the sense of "nothing is
+running."
+
+**Before state, measured via `railway ssh` (read-only):** `rollout:s7-dark` cohort = **6** accounts;
+`users` table = **29** accounts. CP4 widens the cohort by **23** rows.
+
+**Executed:** `rollout.seed_cohort_all_members("s7-dark")` run once against production via
+`railway ssh`, in-process (the same idiom `tools/smoke_login_link.py`-adjacent one-off admin
+actions in this repo use — no raw SQL, the product's own tested function). Before/after counts
+recorded in the same session that ran it, immediately below this block.
+
+**No code change. No schema change. No delivery. No member-visible effect** — the dark projection
+writes a comparison log (`legacy:indicator-condition:<id>` predicate rows), never a notification,
+never `alert_fires`. `require_paid`/`AuthGuard`/every member-facing surface is untouched.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  6625998e8
+SCOPE APPROVED:   CP4 -- all members, still dark. A tag assignment (rollout.py's seed_cohort_all_members, already built and tested), not a code path. Widens the rollout:s7-dark cohort from its admin-seeded population (6 accounts) to every account in users (29 accounts, +23), via rollout.seed_cohort_all_members("s7-dark") run once against production. Measured before signing: the sweep's own flag (ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED) is already 1 (armed) in production for the admin-only cohort, so widening the cohort widens who the already-running dark sweep processes -- "still dark" means no delivery/no member-visible change (a comparison log only), not "nothing is running." No code change, no schema change, no delivery, reversible via remove_from_cohort.
+```
+
+### ✅ EXECUTED 2026-09-19 — exact before/after, both verified via `railway ssh`
+
+```
+before_cohort=6  before_total_tags=18  before_users=29
+seed_cohort_all_members("s7-dark") -> added=23
+after_cohort=29  after_total_tags=41
+```
+
+⭐ **`after_total_tags - before_total_tags == added == 23`, exactly.** The total `user_tags` row
+count moved by precisely the number of rows the function itself reported adding — proving no OTHER
+tag (a different cohort, a color tag, anything) was touched by this call. `after_cohort == 29 ==
+before_users`, confirming every account, not a subset, is now in the cohort.
+
+**Idempotency reconfirmed on the live database, immediately after:** a second call to
+`seed_cohort_all_members("s7-dark")` returned `added=0`, matching `tests/test_rollout.py`'s own
+idempotency proof and confirming the write is stable, not a race.
+
+**Rollback, if ever needed:** `rollout.remove_from_cohort("s7-dark", <ids>)` — takes named accounts
+out; an empty `user_ids` list raises rather than silently doing nothing, by design.
+
+## ✅ APPROVAL — CP1's cadence gate, a mechanical finding CP1 recorded, now closed (a FIFTH line; all four blocks above untouched)
+
+⛔ **NOT A NEW CHECKPOINT.** No new scope, no new delivery, no new comparison
+outcome ever becomes reachable that was not reachable before this line — see
+the "and the outcome does not change" clause below, which is the point of
+recording it here rather than skipping it as noise. This is a correctness fix
+to CP1's already-approved, already-shipped `registration_refusal`/`cadence_for`
+(`indicator_condition.py`), found the same way the S9 CP1 follow-up's two
+findings were found: by reading the shipped code against what a SIBLING,
+LATER-SIGNED checkpoint of the same feature already assumes.
+
+**The finding, measured, not guessed.** GATE-S7-INDICATOR-CONDITION CP1 was
+signed and merged before GATE-D2 CP4 (`indicator_axis.py`, fingerprint
+`3257cc319`) existed. §2b of CP1's own module docstring is explicit that "at
+CP1 ... for all 31 the anchor is `REFUSAL_ADDRESS_UNRESOLVED`" — true when
+written, because no join from the legacy lane's 31 addresses into D2's book
+existed yet. **D2 CP4 later declared exactly one such join** (`RENAMES =
+{"close": "ohlcv.c"}`), and CP3's own `indicator_condition_projection.
+comparability()` already asks it — `comparability("close")` returns
+`COMPARABLE`, the ONE non-`NOT_COMPARABLE` verdict the whole checkpoint's
+non-vacuity control depends on (`test_the_one_renamed_pair_is_comparable`).
+**But `registration_refusal`/`cadence_for` never asked the same declaration.**
+Verified directly against the running tree before any edit:
+
+```
+>>> ic.registration_refusal({"indicator": "close", "condition": "above",
+...                          "threshold": 100.0, "tf": "D"}, entity_ref="AAPL")
+'uct://close@AAPL/D names no metric the canonical address book declares, ...'
+```
+
+So two checkpoints of the SAME feature disagreed about whether one address
+resolves: CP3 calls `close` comparable; CP1's own gate, asked the same
+question, said the address does not exist. **The precise defect class this
+programme already has a name for** (a comment/declaration in one place that a
+sibling consumer never actually reads).
+
+⛔⛔ **AND THE OUTCOME DOES NOT CHANGE — stated because it is the honest
+finding, not softened.** `close` now refuses `REFUSAL_CADENCE_UNDECLARED`
+instead of `REFUSAL_ADDRESS_UNRESOLVED` — the SAME reason `ohlcv.c` itself
+already refuses on, because `close` IS `ohlcv.c` and **the bars store still
+declares no cadence (F-D2-2)**. Inside `classify()`, a refused dark side was
+already `dark_fired = False` regardless of WHY it refused, so the tallied
+`legacy_only`/`agreed`/`new_only` counts in the live comparison-spans table
+are **byte-identical before and after this fix** — this closes an internal
+disagreement about the STATED reason, not a gap in the measured signal. **This
+is also the answer to what THE FLIP's real remaining size is:** not "thirty
+more addresses" (D2 CP4 already declares and can compute all thirty-one via
+`resolve()`'s `value_function`) and not "a comparison engine" (CP1-CP2-CP3
+already built and are running one) — it is exactly ONE declaration, at the ONE
+place F-D2-2 already names (a per-timeframe cadence for `bars_sqlite`), and it
+is deferred for a real scheduling reason, not a vague one: `bars_fetch.py` /
+`bars_sqlite.py` are reachable-but-unwatched by flow-worker, so declaring it
+there is BEHAVIOUR-CHANGING under `tools/flow_worker_watch_coverage.py`'s rail
+and ships after-hours with a version-marker bump — the identical reason D2 CP2
+already refused the same edit (§4.4 of this packet). Once that ONE declaration
+lands, every one of the 31 addresses whose bar class its cadence can answer
+becomes comparable with ZERO further engineering here — the harness, the
+axis's value functions and now the one real join are already built and
+running.
+
+**What changed, mechanically:** `_canonical_metric_name()` (new,
+`indicator_condition.py`) asks `indicator_axis.declarations()` for a
+`renames_to` target before `cadence_for`/`registration_refusal` look a metric
+up in the book — the SAME axis `comparability()` already asks, never a second
+table, and NOT flag-gated (mirrors `comparability()`'s own reasoning exactly:
+`declarations()` carries no flag, only `resolve()` does; gating a rename
+behind `CANONICAL_INDICATOR_AXIS_ENABLED` would make `close` disagree with CP3
+whenever an owner has not set a flag CP3 never consults). Lazy-imports
+`indicator_axis` (mirrors `indicator_condition_compare.legacy_eval_mode`) so
+the 2,630-line `indicator_alert_evaluator` strand does not enter this type
+module's import closure. Only the ONE address D2 CP4 declared a rename for can
+ever move — asserted by
+`test_canonical_metric_name_only_moves_the_ONE_declared_rename`, which
+round-trips the other thirty and every already-canonical book metric
+unchanged.
+
+**Flow-worker classification: NO CHANGE.** The edit is confined to
+`indicator_condition.py` (already an INERT STRAND per §6 of this packet) and
+adds one more lazy, defensively-guarded import inside it — the same shape
+`indicator_condition_compare.py`'s `legacy_eval_mode()` already uses, which
+this packet's §6 already accounts for. `tools/flow_worker_watch_coverage.py`
+reports no change to reachable-vs-watched status for either file.
+
+**Tests:** `tests/test_alert_taxonomy_indicator_condition_schema.py` —
+`test_close_resolves_through_D2_CP4s_own_rename_and_refuses_for_cadence_not_address`
+(the fix, and the control that `ohlcv.c` itself still refuses the same way),
+`test_canonical_metric_name_only_moves_the_ONE_declared_rename` (non-alias-map
+control — the other thirty and every book metric round-trip unchanged),
+`test_canonical_metric_name_is_not_gated_by_the_axis_flag` (mirrors
+`test_comparability_does_not_depend_on_the_axis_flag` exactly), and
+`test_every_legacy_address_refuses_today_and_the_anchor_is_the_ADDRESS_one`
+updated to exclude `close` (its own test now covers it) rather than assert a
+now-false universal. 113 tests green across
+`test_alert_taxonomy_indicator_condition_{schema,compare,projection}.py` +
+`test_canonical_indicator_axis.py`.
+
+```
+APPROVED BY:      Patrick (owner; delegated to the running Claude Code session, 2026-09-19)
+APPROVED ON:      2026-09-19
+APPROVED AT SHA:  12855d501
+SCOPE APPROVED:   CP1 cadence-gate correctness fix. A correctness fix to CP1's already-approved cadence gate (registration_refusal/cadence_for in indicator_condition.py), not a new checkpoint. Wires in D2 CP4's own close -> ohlcv.c rename (the same one CP3's comparability() already asks) so the two checkpoints agree on whether that one address resolves; close now refuses REFUSAL_CADENCE_UNDECLARED (matching ohlcv.c) instead of REFUSAL_ADDRESS_UNRESOLVED. The tallied comparison-spans outcome counts are unchanged (a refused dark side was already dark_fired=False either way) -- this closes an internal disagreement about the stated reason, not a gap in measured signal. No new scope, no new delivery, no flow-worker watch-coverage change (one more lazy import inside an already-inert-strand module). Precisely identifies THE FLIP's true remaining size as the single F-D2-2 bars-cadence declaration, already known and deliberately deferred to an after-hours flow-worker-watch-list change.
+```

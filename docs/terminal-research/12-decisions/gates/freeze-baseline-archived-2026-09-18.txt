@@ -1,0 +1,109 @@
+# THE SIGNING FREEZE — recorded once, at freeze. Do not hand-edit.
+# Any DIFF against this set means a fingerprint, the universe, the order
+# or the replay has moved, and the sitting must not start.
+#
+# ⛔⛔ LIFTED 2026-09-18 (ET, per python tools/weekly_exec.py et). Reason: the
+# sitting this freeze protected is complete — sitting_verify reports CLEAN
+# (65 rows signed, 45 merged, nothing stranded) and verify_manifest
+# --check-commits reports 50 of 50 branch commits mapped, universe 0
+# unclaimed. The 12 paths that moved since this baseline was recorded (the
+# code branch's tip through E CP36/37, and every gate/manifest/engine file
+# touched by signing rows d3-cp2 through k-cp20 and building E CP34-37) are
+# all legitimate per-unit signing and engine-fix activity, not a violation —
+# `freeze_check.py` was never wired into any automated gate, so nothing
+# depended on this file staying current. Archived here as the historical
+# record of what was frozen and when; tools/freeze_baseline.txt no longer
+# exists, so a bare `python tools/freeze_check.py` now reports UNREADABLE
+# (no baseline), which is the correct post-lift state, not a failure.
+
+@code:feat/s7-price-level | d50fadadf7c73ad8b210abd8fa3aa542341bb64e
+docs/terminal-research/12-decisions/gates/d2-canonical-data-model-pre-implementation-gate.md | 8b5f1fa10a6fb727243a6e5bbd5a5e4c6143b216
+docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | f7e851d580e7b0d687933104c6e32c5602e82ccc
+docs/terminal-research/12-decisions/gates/d3-realtime-streaming-pre-implementation-gate.md | 9c213cfeb3e7dd28c54d729b89e7d52179e61e9d
+docs/terminal-research/12-decisions/gates/d4-caching-and-serving-pre-implementation-gate.md | 3cb3e98efc2b0ad7dc1c0d508784ea6a59669159
+docs/terminal-research/12-decisions/gates/d5-reference-corp-actions-pre-implementation-gate.md | 59ec2cdfa80910e84682cb540505195a93ab84a6
+docs/terminal-research/12-decisions/gates/e-cp10-build-record.md | 450f2f9a0b068fcb7bfab2a21e28329484cca761
+docs/terminal-research/12-decisions/gates/e-cp11-build-record.md | a214624f4f264b56d036e9dcfc0dcb8c93625e90
+docs/terminal-research/12-decisions/gates/e-cp12-build-record.md | b8c133593c3c13e44a3bc187db14473f4c3a0ae1
+docs/terminal-research/12-decisions/gates/e-cp13-build-record.md | ace6ea03e9d1105180e01ac60736c215bc4b5dd7
+docs/terminal-research/12-decisions/gates/e-cp14-build-record.md | 4ede4be3625f52c5f95373d62954eed4a5bfee4a
+docs/terminal-research/12-decisions/gates/e-cp15-build-record.md | 943fd4cf4c8536c763badaccd118f4ac559acb90
+docs/terminal-research/12-decisions/gates/e-cp16-build-record.md | 34ab3c8841cef00c04f47a16cbaf6d6afec1e357
+docs/terminal-research/12-decisions/gates/e-cp17-build-record.md | bd0b228022d6656f67802f5a5efa1eb5d6ff7e9e
+docs/terminal-research/12-decisions/gates/e-cp18-build-record.md | d2f3c2a552e32e683432441b472c4f59344b807d
+docs/terminal-research/12-decisions/gates/e-cp19-build-record.md | c2893a5b6cdc73569954f59867f97091a9879955
+docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | 5c26a885f91801b2b62ac36c758b291e19823fea
+docs/terminal-research/12-decisions/gates/e-cp20-build-record.md | 439108624e14a17bf46d1d983c6d394d29505221
+docs/terminal-research/12-decisions/gates/e-cp21-build-record.md | 0735762a6e539dc2555d02cb626a3fd5d16d110c
+docs/terminal-research/12-decisions/gates/e-cp22-build-record.md | bbe67021ad321ce91ebe101f861999b26f3cfed7
+docs/terminal-research/12-decisions/gates/e-cp23-build-record.md | b824867b2a9683244e541404ff57b2e496c75318
+docs/terminal-research/12-decisions/gates/e-cp24-build-record.md | 21144ffb1755b79c8dcce33b2de1dea2cd9b6a0f
+docs/terminal-research/12-decisions/gates/e-cp25-build-record.md | f32f4fc2d890f3f541f3d1edb6bd9aee4f1a6ace
+docs/terminal-research/12-decisions/gates/e-cp26-build-record.md | 06ae1b7d0f1f43407655959ab9cf367615281f3f
+docs/terminal-research/12-decisions/gates/e-cp27-build-record.md | e739c88a4507a8dc4eea4053cb61eb4bd8338028
+docs/terminal-research/12-decisions/gates/e-cp28-build-record.md | f2efa638cedcad19f485e31dc435c76271355591
+docs/terminal-research/12-decisions/gates/e-cp29-build-record.md | acb687466ae8f7f17df5466a3fb29d22f8b256ce
+docs/terminal-research/12-decisions/gates/e-cp30-build-record.md | 035f86538b0e1c761fa13474b7a3fd8f38b24194
+docs/terminal-research/12-decisions/gates/e-cp31-build-record.md | ac28f45e7dee229715ffccc07424c906369b0d20
+docs/terminal-research/12-decisions/gates/e-cp32-build-record.md | e4957ab5174b2c36e38faf4d04e91b1dd31117ce
+docs/terminal-research/12-decisions/gates/e-cp33-build-record.md | 936d5fe6726f38a6f2da8087d95cf6cdb2d451d2
+docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | aa663d7e26ed10eb5dbf540653d237c6f4f4a736
+docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | 922385382832fd5ad6217fb7600488d68e137549
+docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | ecaac9fbfd5580a4c58f8037494d4bab181dfbfb
+docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | d067a1f7ab3fca92cf01fccedf4395d55776860a
+docs/terminal-research/12-decisions/gates/e-cp6-build-record.md | 7475a2780e2fbc7414d531ffd6035f21210bc1d4
+docs/terminal-research/12-decisions/gates/e-cp7-build-record.md | b1d4eff93dce893724945c884a8e78e3fa4baa39
+docs/terminal-research/12-decisions/gates/e-cp8-build-record.md | 105811d38b242f980e92dab837a55817d58691a6
+docs/terminal-research/12-decisions/gates/e-cp9-build-record.md | 50b9bad63ec7a176f3073a937fab09c05e442ce4
+docs/terminal-research/12-decisions/gates/entity-master-pre-implementation-gate.md | be66c39e2b85797e5996342a2414a35dd0afe4f6
+docs/terminal-research/12-decisions/gates/h14-placeholder-stop-unification-gate.md | 08a39891336f4150df28a8ca292d7500fa9bcb89
+docs/terminal-research/12-decisions/gates/intelligence-layer-pre-implementation-gate.md | 852d7647db04dcc7c96a92f6904c99f9c6fc9984
+docs/terminal-research/12-decisions/gates/k-cp10-build-record.md | 01aa1f155a42db1588dbb967b66e37d6371e9ee9
+docs/terminal-research/12-decisions/gates/k-cp11-build-record.md | 2703b80e1865abbc10b10155b6d651c3369f0a3e
+docs/terminal-research/12-decisions/gates/k-cp13-build-record.md | 781998dea77cf438fbcfaab4eb12cc5996527acf
+docs/terminal-research/12-decisions/gates/k-cp14-build-record.md | 28c1ce563da836ea01fddf44fa561ffdf6441dd2
+docs/terminal-research/12-decisions/gates/k-cp15-build-record.md | bcd1468a2b6377c23db8766d3858e4a52e5b25dc
+docs/terminal-research/12-decisions/gates/k-cp16-build-record.md | 8f5a13473244316f4b2e8d460c0ede66d826421f
+docs/terminal-research/12-decisions/gates/k-cp17-build-record.md | d091fe5e272eecf50f99999e91eccb2d0d52d32c
+docs/terminal-research/12-decisions/gates/k-cp18-build-record.md | f0726e17c607cebb5bcd7809d941ddb7fa44996f
+docs/terminal-research/12-decisions/gates/k-cp19-build-record.md | 5a1fb55f4d08cbdfbc63a399242a44ec56751f30
+docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | 5821c915cf16aec4ca48aa87a25cb611a08d895f
+docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | 693ece9a49e05306ddb02a8982c34be4ec11e9df
+docs/terminal-research/12-decisions/gates/k-cp5-build-record.md | 83761cd2d082df2a7afee391bce6afe9a8aea7b2
+docs/terminal-research/12-decisions/gates/k-cp6-build-record.md | 16dd5924985c02301ea5f100babe049d15e432db
+docs/terminal-research/12-decisions/gates/k-cp7-build-record.md | bea2d6ede8cfd766215487e2e0d018c9cc51e183
+docs/terminal-research/12-decisions/gates/k-cp8-build-record.md | 8575c6d78ecb6c4251ff3f6a595e157dd1fb068b
+docs/terminal-research/12-decisions/gates/k-cp9-build-record.md | 206b5ba24b657c2709e67fcf97cee6d96592d42e
+docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | 1b378b595cc799a59467a25fbdea398a0b336a7c
+docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | ade4bd225367c43009e69254897ffa886061fc43
+docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | 0b992789eadc6fb58bad312e2701c4ad0cc71268
+docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | fab0f7f8c14a7437f8b6f4707d2deb8d798a6ffc
+docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | fbd925739cc87096c4297c195be7464349743a00
+docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | 320a54823fe1dd65612496c269e83de2b0a07c4b
+docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | 5179b2890bd50a8b7be12dece32299ce87409518
+docs/terminal-research/12-decisions/gates/packet-v-multi-volume-gate.md | eee940c75b92454bd59725ea001804c976244d8a
+docs/terminal-research/12-decisions/gates/s1-terminal-shell-pre-implementation-gate.md | 9d71678d3fd194c776b5bcdc2c15309eee6f2a8d
+docs/terminal-research/12-decisions/gates/s10-presentation-primitives-pre-implementation-gate.md | d39e8bd5d4a00818c8c00adb0b568be694c76016
+docs/terminal-research/12-decisions/gates/s12-rollout-pre-implementation-gate.md | d80daaf11ca8ba00dbdd639cec3d08588f063cea
+docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementation-gate.md | 72cda4cdafd66ef0ab419511efef1ea34a878b84
+docs/terminal-research/12-decisions/gates/s2-command-search-pre-implementation-gate.md | 3d8e97df72d5198446cd7079f075a732267c5fd8
+docs/terminal-research/12-decisions/gates/s4-context-bus-pre-implementation-gate.md | 97102c10b70aa7eb2554904ff701fddf7b9d5e80
+docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | 76006bb3622937e05ea1a98669660d56be95604e
+docs/terminal-research/12-decisions/gates/s5-persistence-user-state-pre-implementation-gate.md | 9e539f3f9e30d79e03d9c8a2795720a51da2a51d
+docs/terminal-research/12-decisions/gates/s6-personalization-pre-implementation-gate.md | 109bce59aedfb6759b193b477fbd342a77ad1973
+docs/terminal-research/12-decisions/gates/s7-catalyst-match-pre-implementation-gate.md | 968d83874e2f1518bc6805d64c27bb3dacb32b27
+docs/terminal-research/12-decisions/gates/s7-event-proximity-pre-implementation-gate.md | a5b2fe44d5fa034e4f6765ce9cbe9c3760da04cb
+docs/terminal-research/12-decisions/gates/s7-indicator-condition-pre-implementation-gate.md | 326994c8c622b2716468f3ac4fe065a83bd3891f
+docs/terminal-research/12-decisions/gates/s7-position-risk-pre-implementation-gate.md | d8affb9e27fb2408b3eba1c1eeab428b50453868
+docs/terminal-research/12-decisions/gates/s7-price-level-pre-implementation-gate.md | 0c74c141c6e8693b4ddb5832aaeb5152b1c9726e
+docs/terminal-research/12-decisions/gates/s7-regime-change-pre-implementation-gate.md | 5b059740eac9366e7db8bb0ffc827fbc2243c71c
+docs/terminal-research/12-decisions/gates/s7-scan-membership-change-pre-implementation-gate.md | d79314bb8870b1e086ceb71bec0fd5cc9fbccb5b
+docs/terminal-research/12-decisions/gates/s9-entitlements-pre-implementation-gate.md | a0f5c77c3c039d09c513acd990f28416be7685a5
+docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | 21c37a3bc0a5c564470927bec7362a1bcdbd489b
+docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | d6ceffd2ed62a8e8975c931fbeec295367c644c7
+tools/merge_all.py | d2a23b8c80cc11150c9fe8fd13ccbf1c70e46803
+tools/pre_sitting.py | 3ef7c90092769cdb2af0d7676077984cc7739201
+tools/sign_all.py | 9791ebb0a5c1fb90d84b12617a1952cb008ec4cd
+tools/sign_gate.py | d8e6194718a9b9ec41ea690012b2a6dbb6170bbe
+tools/sign_manifest.txt | 8627191e4110c7fef74e05078fb9959f9d2df855
+tools/verify_manifest.py | d23091da94de3cdc62460a90d9de26587d7140ca

@@ -1,0 +1,193 @@
+# TERMINAL-NEXT — the signing manifest, in MERGE ORDER.
+#
+# One row per checkpoint, not per packet: the T/D3 packet carries two checkpoints and
+# therefore two rows, because a signature must name a CHECKPOINT and never a packet.
+#
+# Columns:  packet path | checkpoint id(s) | expected fingerprint
+#
+# ⛔ The fingerprint is `git hash-object` of the packet WITH ITS `APPROVED AT SHA:` FIELD
+# BLANK. tools/sign_all.py recomputes it and STOPS on any mismatch — a packet edited after
+# its hash was published must not be signed against the published value.
+#
+# ⚰️ 2026-09-14: the F-S2-1 packet was published as 28da7740d and then edited the same day
+# (an attribution correction, 0b7570df4 -> 453ecc3ec). Its real fingerprint is 72cda4cda.
+# That drift is exactly what the recompute is for.
+#
+# Order is the MERGE order and is load-bearing. The prose below is the REASON; the
+# `#!` directives under it are the same constraints in a form a machine reads, and
+# tools/merge_all.py enforces them against its own UNITS order (K CP3).
+#
+# WHY BOTH: prose alone drifts from the list it describes -- this programme's oldest
+# recurring defect. A directive nobody can read is no better. So the reason stays in
+# English, the constraint is derived, and a disagreement between the two is a refusal,
+# not a comment somebody skims past.
+#
+#   C before D   - same file (CLAUDE.md), different sections; never squash
+#   B before V   - V adds CP4 to B's roster
+#   E CP1 before E CP2 - CP2's publish job is appended to CP1's workflow file
+#   K CP2 before K CP3 - CP3 enforces constraints from inside CP2's own merge_all.py
+#   F-S2-1 LAST  - the only member-visible unit, merged alone
+#
+# Syntax: `#!after: <stem> <- <stem>` means the LEFT unit merges AFTER the right one.
+#         `#!last:  <stem>` marks the LAST MEMBER-VISIBLE unit, alone in its sitting.
+#                   Rows after it must carry ZERO member-visible files, DERIVED from
+#                   their file set (a path under app/src/ that is not a test, spec,
+#                   __tests__ member or story). merge_all enforces the derivation.
+#         [STRUCK 2026-09-16, F-SIGN-5] it previously meant "nothing may be ordered
+#                   after it", an ORDINAL. That made F-SIGN-5 unresolvable by
+#                   construction: `76a3b98c2` modifies a file F-S2-1 CREATES, so the
+#                   only position it can occupy is after F-S2-1. An ordinal is not the
+#                   property anyone wanted; the property is "no member-visible change
+#                   lands after this one".
+#
+#!after: packet-d-nav-tabs-gate <- packet-c-instrument-and-claudemd-gate
+#!after: packet-v-multi-volume-gate <- packet-b-schema-resolution-gate
+#!after: e-cp2-build-record <- packet-e-ci-gap-gate
+#!after: e-cp4-build-record <- e-cp2-build-record
+#!after: e-cp5-build-record <- e-cp4-build-record
+#!after: e-cp6-build-record <- e-cp5-build-record
+#!after: e-cp7-build-record <- e-cp6-build-record
+#!after: e-cp8-build-record <- e-cp7-build-record
+#!after: e-cp9-build-record <- e-cp8-build-record
+#!after: e-cp10-build-record <- e-cp9-build-record
+#!after: e-cp11-build-record <- e-cp10-build-record
+#!after: e-cp12-build-record <- e-cp11-build-record
+#!after: e-cp13-build-record <- e-cp12-build-record
+#!after: e-cp14-build-record <- e-cp13-build-record
+#!after: e-cp15-build-record <- e-cp14-build-record
+#!after: e-cp16-build-record <- e-cp15-build-record
+#!after: e-cp17-build-record <- e-cp16-build-record
+#!after: e-cp18-build-record <- e-cp17-build-record
+#!after: e-cp19-build-record <- e-cp18-build-record
+#!after: e-cp20-build-record <- e-cp19-build-record
+#!after: e-cp21-build-record <- e-cp20-build-record
+#!after: e-cp22-build-record <- e-cp21-build-record
+#!after: e-cp23-build-record <- e-cp22-build-record
+#!after: e-cp24-build-record <- e-cp23-build-record
+#!after: e-cp25-build-record <- e-cp24-build-record
+#!after: e-cp26-build-record <- e-cp25-build-record
+#!after: e-cp30-build-record <- e-cp25-build-record
+#!after: e-cp31-build-record <- e-cp30-build-record
+#!after: e-cp26-build-record <- e-cp31-build-record
+#!after: e-cp32-build-record <- e-cp26-build-record
+#!after: e-cp33-build-record <- e-cp32-build-record
+#!after: e-cp27-build-record <- e-cp33-build-record
+#!after: e-cp5-build-record <- t2-cp1-build-record
+#!after: e-cp28-build-record <- e-cp27-build-record
+#!after: e-cp29-build-record <- e-cp28-build-record
+#!after: t2-cp1-build-record <- e-cp4-build-record
+#!after: k-cp3-build-record <- packet-k-two-command-signing-gate
+#!after: k-cp4-build-record <- k-cp3-build-record
+#!after: k-cp5-build-record <- k-cp4-build-record
+#!after: k-cp6-build-record <- k-cp5-build-record
+#!after: k-cp7-build-record <- k-cp6-build-record
+#!after: k-cp8-build-record <- k-cp7-build-record
+#!after: k-cp9-build-record <- k-cp8-build-record
+#!after: k-cp10-build-record <- k-cp9-build-record
+#!after: k-cp11-build-record <- k-cp10-build-record
+#!after: k-cp14-build-record <- k-cp11-build-record
+#!after: k-cp15-build-record <- k-cp14-build-record
+#!after: k-cp13-build-record <- k-cp15-build-record
+#!after: k-cp16-build-record <- k-cp13-build-record
+#!after: k-cp17-build-record <- k-cp16-build-record
+#!after: k-cp19-build-record <- k-cp17-build-record
+#!after: k-cp18-build-record <- k-cp19-build-record
+#!after: k-cp20-build-record <- k-cp18-build-record
+#!after: t-cp2-build-record <- s2-accelerator-chord-pre-implementation-gate
+#!after: e-cp34-build-record <- t-cp2-build-record
+#!after: e-cp35-build-record <- e-cp34-build-record
+#!after: e-cp36-build-record <- e-cp35-build-record
+#!after: e-cp37-build-record <- e-cp36-build-record
+#!after: e-cp38-build-record <- e-cp37-build-record
+#!after: d-cp4-build-record <- e-cp38-build-record
+#!after: d4-cp4-build-record <- d-cp4-build-record
+#!after: s7-price-level-f6-build-record <- d4-cp4-build-record
+#!after: d5-cp3-build-record <- s7-price-level-f6-build-record
+#!after: d5-cp4-build-record <- d5-cp3-build-record
+#!after: d5-cp5-build-record <- d5-cp4-build-record
+#!after: d5-cp7-build-record <- d5-cp5-build-record
+#!after: s6-cp2-prime-build-record <- d5-cp7-build-record
+#!after: s6-cp3-build-record <- s6-cp2-prime-build-record
+#!after: d5-cp6-build-record <- s6-cp3-build-record
+#!after: s6-cp4-build-record <- d5-cp6-build-record
+#!after: d3-cp3-build-record <- d3-cp2-build-record
+#!last: d3-cp3-build-record
+
+docs/terminal-research/12-decisions/gates/packet-a-absent-bound-gate.md | A-CP1 | f6180b3da
+docs/terminal-research/12-decisions/gates/packet-c-instrument-and-claudemd-gate.md | CP1,CP2 | c443515eb
+docs/terminal-research/12-decisions/gates/packet-d-nav-tabs-gate.md | CP1,CP2 | e279c828c
+docs/terminal-research/12-decisions/gates/packet-b-schema-resolution-gate.md | CP1,CP2,CP3 | a03e0cbf5
+docs/terminal-research/12-decisions/gates/packet-v-multi-volume-gate.md | CP4 | f94d7addc
+docs/terminal-research/12-decisions/gates/s4-cp2-build-record.md | CP2 | 21d6ad3e8
+docs/terminal-research/12-decisions/gates/packet-e-ci-gap-gate.md | CP1 | fdfc697ce
+docs/terminal-research/12-decisions/gates/e-cp2-build-record.md | CP2 | 00eecb391
+docs/terminal-research/12-decisions/gates/e-cp4-build-record.md | CP4 | fcb2dd9b1
+docs/terminal-research/12-decisions/gates/t2-cp1-build-record.md | T2-CP1 | 42eafe314
+docs/terminal-research/12-decisions/gates/e-cp5-build-record.md | CP5 | 789e35efd
+docs/terminal-research/12-decisions/gates/e-cp6-build-record.md | CP6 | 0052e2ac6
+docs/terminal-research/12-decisions/gates/e-cp7-build-record.md | CP7 | 98b4c8786
+docs/terminal-research/12-decisions/gates/e-cp8-build-record.md | CP8 | 437a51a06
+docs/terminal-research/12-decisions/gates/e-cp9-build-record.md | CP9 | 5573bcb52
+docs/terminal-research/12-decisions/gates/e-cp10-build-record.md | CP10 | 3f12a8773
+docs/terminal-research/12-decisions/gates/e-cp11-build-record.md | CP11 | 0207d7f25
+docs/terminal-research/12-decisions/gates/e-cp12-build-record.md | CP12 | 9f0ba6cdc
+docs/terminal-research/12-decisions/gates/e-cp13-build-record.md | CP13 | a2c1f43d1
+docs/terminal-research/12-decisions/gates/e-cp14-build-record.md | CP14 | 0efd9caea
+docs/terminal-research/12-decisions/gates/e-cp15-build-record.md | CP15 | 7cd34db76
+docs/terminal-research/12-decisions/gates/e-cp16-build-record.md | CP16 | f62b29968
+docs/terminal-research/12-decisions/gates/e-cp17-build-record.md | CP17 | f176b7212
+docs/terminal-research/12-decisions/gates/e-cp18-build-record.md | CP18 | b8aa16024
+docs/terminal-research/12-decisions/gates/e-cp19-build-record.md | CP19 | e81d61259
+docs/terminal-research/12-decisions/gates/e-cp20-build-record.md | CP20 | 8b1afab93
+docs/terminal-research/12-decisions/gates/e-cp21-build-record.md | CP21 | d75a0716a
+docs/terminal-research/12-decisions/gates/e-cp22-build-record.md | CP22 | ac382d2b2
+docs/terminal-research/12-decisions/gates/e-cp23-build-record.md | CP23 | 78583d19b
+docs/terminal-research/12-decisions/gates/e-cp24-build-record.md | CP24 | c9904433a
+docs/terminal-research/12-decisions/gates/e-cp25-build-record.md | CP25 | 768f6e2fc
+docs/terminal-research/12-decisions/gates/e-cp30-build-record.md | CP30 | 451bc7295
+docs/terminal-research/12-decisions/gates/e-cp31-build-record.md | CP31 | f4fd0651f
+docs/terminal-research/12-decisions/gates/e-cp26-build-record.md | CP26 | cff0f04a6
+docs/terminal-research/12-decisions/gates/e-cp32-build-record.md | CP32 | 604b0dc69
+docs/terminal-research/12-decisions/gates/e-cp33-build-record.md | CP33 | 0651de213
+docs/terminal-research/12-decisions/gates/e-cp27-build-record.md | CP27 | a46b03961
+docs/terminal-research/12-decisions/gates/e-cp28-build-record.md | CP28 | 72443be8b
+docs/terminal-research/12-decisions/gates/e-cp29-build-record.md | CP29 | 1d216521b
+docs/terminal-research/12-decisions/gates/packet-k-two-command-signing-gate.md | CP1,CP2 | 36179a330
+docs/terminal-research/12-decisions/gates/k-cp3-build-record.md | CP3 | ba5e34e79
+docs/terminal-research/12-decisions/gates/k-cp4-build-record.md | CP4 | 35237823c
+docs/terminal-research/12-decisions/gates/k-cp5-build-record.md | CP5 | 137378730
+docs/terminal-research/12-decisions/gates/k-cp6-build-record.md | CP6 | 78ed615fd
+docs/terminal-research/12-decisions/gates/k-cp7-build-record.md | CP7 | ce36c1f65
+docs/terminal-research/12-decisions/gates/k-cp8-build-record.md | CP8 | 5695c7919
+docs/terminal-research/12-decisions/gates/k-cp9-build-record.md | CP9 | 439dfc4a7
+docs/terminal-research/12-decisions/gates/k-cp10-build-record.md | CP10 | 65104478d
+docs/terminal-research/12-decisions/gates/k-cp11-build-record.md | CP11 | 6038494bd
+docs/terminal-research/12-decisions/gates/k-cp14-build-record.md | CP14 | 66b3a2be3
+docs/terminal-research/12-decisions/gates/k-cp15-build-record.md | CP15 | ebd609425
+docs/terminal-research/12-decisions/gates/k-cp13-build-record.md | CP13 | 83651c95e
+docs/terminal-research/12-decisions/gates/k-cp16-build-record.md | CP16 | f74b8fcbf
+docs/terminal-research/12-decisions/gates/k-cp17-build-record.md | CP17 | 5beba91be
+docs/terminal-research/12-decisions/gates/k-cp19-build-record.md | CP19 | ce5f54e14
+docs/terminal-research/12-decisions/gates/k-cp18-build-record.md | CP18 | 5ef59fc8d
+docs/terminal-research/12-decisions/gates/packet-t-stale-test-gate.md | T-CP1 | 5179b2890
+docs/terminal-research/12-decisions/gates/d3-cp2-build-record.md | CP2 | f7e851d58
+docs/terminal-research/12-decisions/gates/s2-accelerator-chord-pre-implementation-gate.md | CP1 | 72cda4cda
+docs/terminal-research/12-decisions/gates/t-cp2-build-record.md | T-CP2 | 21c37a3bc
+docs/terminal-research/12-decisions/gates/e-cp34-build-record.md | CP34 | aa663d7e2
+docs/terminal-research/12-decisions/gates/e-cp35-build-record.md | CP35 | 922385382
+docs/terminal-research/12-decisions/gates/k-cp20-build-record.md | CP20 | 51c47081a
+docs/terminal-research/12-decisions/gates/e-cp36-build-record.md | CP36 | 85bd06d20
+docs/terminal-research/12-decisions/gates/e-cp37-build-record.md | CP37 | 99f53fb54
+docs/terminal-research/12-decisions/gates/e-cp38-build-record.md | CP38 | 2e91d23c6
+docs/terminal-research/12-decisions/gates/d-cp4-build-record.md | CP4 | 45472396e
+docs/terminal-research/12-decisions/gates/d4-cp4-build-record.md | CP4' | 23a8da7a9
+docs/terminal-research/12-decisions/gates/s7-price-level-f6-build-record.md | CP3 | 809a6447f
+docs/terminal-research/12-decisions/gates/d5-cp3-build-record.md | CP3 | c6f071bf6
+docs/terminal-research/12-decisions/gates/d5-cp4-build-record.md | CP4 | 51e4434d0
+docs/terminal-research/12-decisions/gates/d5-cp5-build-record.md | CP5 | b448dd7b3
+docs/terminal-research/12-decisions/gates/d5-cp7-build-record.md | CP7 | d8c232db0
+docs/terminal-research/12-decisions/gates/s6-cp2-prime-build-record.md | CP2' | 57b9fe9a6
+docs/terminal-research/12-decisions/gates/s6-cp3-build-record.md | CP3 | de2ed54f8
+docs/terminal-research/12-decisions/gates/d5-cp6-build-record.md | CP6 | 24cf70a80
+docs/terminal-research/12-decisions/gates/s6-cp4-build-record.md | CP4 | 78268f5e0
+docs/terminal-research/12-decisions/gates/d3-cp3-build-record.md | CP3 | f028e4390
