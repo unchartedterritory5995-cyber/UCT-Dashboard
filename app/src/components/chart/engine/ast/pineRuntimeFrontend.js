@@ -147,6 +147,10 @@ function fromCanonical(node, tok) {
 }
 
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
+/** `+=` `-=` `*=` `/=` `%=` — ONE predicate, read by the mutability pre-scan and
+ *  by the lowering that desugars it, so the two cannot disagree. */
+const isCompoundAssign = (t) => !!t && t.kind === 'punct'
+  && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0])
 
 /** Pine's condition over an IR value: `na` and `0` are false (see
  *  `pine.js::pineCondition`, which carries the vendor evidence). A comparison
@@ -623,6 +627,18 @@ export function scanMutability(stmts, out) {
     const walrus = findTop(toks, (t) => isPunct(t, ':='))
     if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
       acc.mutated.add(toks[walrus - 1].value)
+    }
+    // ⭐ 2026-09-27 — A COMPOUND ASSIGNMENT IS A REASSIGNMENT. `num += w * v` is
+    // desugared to `num := num + (w * v)` at lowering (the `compoundAt` arm), so it
+    // mutates `num` exactly as `:=` does — but this scan only looked for `:=`, so
+    // `float num = 0.0` followed by `num += …` in a loop classified `num` as pure,
+    // folded its declaration, and the rewritten write then found no slot: "`num` is
+    // reassigned before it is declared" (kernel-channel, nadaraya-watson,
+    // nonlinear-regression). The predicate is the lowering's own, so the two cannot
+    // disagree about which tokens are a compound operator.
+    const compound = findTop(toks, isCompoundAssign)
+    if (compound > 0 && toks[compound - 1] && toks[compound - 1].kind === 'ident') {
+      acc.mutated.add(toks[compound - 1].value)
     }
     if (st.sub && st.sub.length) scanMutability(st.sub, acc)
   }
@@ -4828,8 +4844,7 @@ export function buildRuntimeIr(source, opts = {}) {
       // handles and persistence; desugaring into it inherits all of that, where
       // a second assignment path would be a second authority over what a write
       // means — the defect this file records paying for repeatedly.
-      const compoundAt = findTop(toks, (t) => t.kind === 'punct'
-        && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0]))
+      const compoundAt = findTop(toks, isCompoundAssign)
       if (compoundAt > 0) {
         const opTok = toks[compoundAt]
         const target = toks.slice(0, compoundAt)
@@ -5706,6 +5721,20 @@ export function buildRuntimeIr(source, opts = {}) {
         note('runtime:expression-statement')
         throw new RuntimeRefusal('runtime:expression-statement', `\`${name}()\``, locate(first))
       }
+
+      // ── a bare NAME as a statement — `countBuy` as the last line of an `if` ──
+      //
+      // ⭐ 2026-09-27. In Pine a block's last line is the block's VALUE; an `if` or
+      // `for` written as a statement discards it. So a lone name there reads a
+      // value and does nothing with it — no write, no call, no effect — and
+      // skipping it is the whole of its meaning. The btc-charlie scanner ends each
+      // counter `if` this way (`countBuy += 1` then `countBuy`).
+      //
+      // ⛔ ONLY A NAME THIS SCRIPT BOUND TO A SLOT. A name nothing binds is a
+      // TradingView compile error, and skipping it would accept a script the
+      // vendor rejects; it keeps the named refusal below. A block whose value IS
+      // used (`x = if …`) never reaches here — the block-valued binding lowers it.
+      if (toks.length === 1 && word && !(st.sub && st.sub.length) && scope.lookup(word) !== null) continue
 
       throw new RuntimeRefusal('runtime:statement', null, locate(first))
     }

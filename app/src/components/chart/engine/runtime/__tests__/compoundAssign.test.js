@@ -90,6 +90,33 @@ describe('⭐ compound assignment lowers as reassignment with the operator folde
     for (let i = 0; i < N; i += 1) expect(out[i]).toBe(BARS[i].c - 100)
   })
 
+  // ⭐ 2026-09-27 — A NAME WRITTEN ONLY BY A COMPOUND IS MUTABLE. The mutability
+  // pre-scan looked for `:=` alone, so `float num = 0.0` whose only writes were
+  // `num += …` was classified pure, its declaration folded, and the desugared write
+  // then found no slot: "`num` is reassigned before it is declared". Three corpus
+  // kernels were walled on exactly this (kernel-channel, nadaraya-watson,
+  // nonlinear-regression).
+  it('⭐⭐ a typed, non-`var` declaration written only by `+=` — at top level', () => {
+    // non-`var`: re-declared every bar, so acc = 0 + close
+    const out = runPine(`${head}float acc = 0.0\nacc += close\nplot(acc)\n`)
+    for (let i = 0; i < N; i += 1) expect(out[i], `bar ${i}`).toBe(BARS[i].c)
+  })
+
+  it('⭐⭐ …and inside a function body, accumulated by a `for` loop — the kernel shape', () => {
+    // f(s, n) = Σ_{k=0}^{n-1} nz(s[k]); close = 100 + bar, so with n = 3:
+    //   bar 0: 100 · bar 1: 101 + 100 = 201 · bar i ≥ 2: 3(100 + i) - 3 = 297 + 3i
+    const src = `${head}f(s, n) =>\n    float num = 0.0\n    for i = 0 to n - 1\n        num += nz(s[i])\n    num\nplot(f(close, 3))\n`
+    const out = runPine(src)
+    expect(out[0]).toBe(100)
+    expect(out[1]).toBe(201)
+    for (let i = 2; i < N; i += 1) expect(out[i], `bar ${i}`).toBe(297 + 3 * i)
+  })
+
+  it('⭐ `/=` on a typed declaration, both statements at top level', () => {
+    const out = runPine(`${head}float a = 10.0\na /= 4\nplot(a)\n`)
+    for (let i = 0; i < N; i += 1) expect(out[i], `bar ${i}`).toBe(2.5)
+  })
+
   it('⛔ a compound with nothing on the right refuses by name', () => {
     const b = buildRuntimeIr(`${head}var x = 0.0\nx +=\nplot(x)\n`, { bars: BARS, inputs: {} })
     expect(b.ok).toBe(false)

@@ -39,6 +39,9 @@ const NEWLY = {
   'atr-stepped-pdf-ma-loxx__9b90a3f7bb': { shapesMayBeSilent: true },   // `showSigs` defaults false
   'twin-range-filter__xF3L2PeXm7': {},
   'range-filter-bs-signals__eCVFctFlqp': {},
+  // `i_bothEMAs` defaults true, so the consolidated line is `na` on every bar by
+  // the author's own ternary — on TradingView too.
+  'btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a': { naByInput: ['Consolidated EMA'] },
 }
 
 describe('⭐ newly attaching through the runtime lane — finite, plausible, no NaN-poisoning', () => {
@@ -58,12 +61,15 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
         const specs = d.definition.compute.columns
         let lines = 0
         let shapesFired = 0
+        for (const t of rule.naByInput || []) expect(d.rows.map((r) => r.label), t).toContain(t)
         for (const row of d.rows.filter((r) => !r.colourFor)) {
           const call = specs[row.key] && specs[row.key].call
           const col = Array.from(cols[row.key])
           expect(col.length, row.label).toBe(bars.length)
           expect(col.some((v) => v === Infinity || v === -Infinity), `${row.label} carries Infinity`).toBe(false)
-          if (call === 'plot') {
+          if (call === 'plot' && (rule.naByInput || []).includes(row.label)) {
+            expect(col.filter(Number.isFinite), `${row.label} should be na by input`).toEqual([])
+          } else if (call === 'plot') {
             lines += 1
             const first = col.findIndex(Number.isFinite)
             expect(first, `${row.label} never draws`).toBeGreaterThanOrEqual(0)
