@@ -298,11 +298,40 @@ def get_video_ticker_returns(video_id: int, _user: dict = Depends(require_paid))
 
 @router.get("/tickers/{sym}/mentions")
 def get_ticker_mentions(sym: str, _user: dict = Depends(require_paid)):
-    """Every Desk session mention of a ticker, newest-first — the single
-    authority behind StockChart's Desk-mentions chart markers and
-    TickerPopup's Desk timeline tab. anchor_date is derived here (created_at
-    → ET) so the client never re-derives it. Unknown/uncovered sym still 200s
-    with an empty list. ~10-min in-process cache per symbol."""
+    """Every Desk session mention of a ticker, newest-first — the authority
+    behind StockChart's Desk-mentions chart-marker category. anchor_date is
+    derived here (created_at → ET) so the client never re-derives it.
+    Unknown/uncovered sym still 200s with an empty list. ~10-min in-process
+    cache per symbol.
+
+    THE CLIENT WIRE, NAMED SO THE NEXT READER CAN CHECK IT:
+    app/src/components/StockChart.jsx:3121 builds this URL in a template
+    literal and fetches it with its own useSWR (:3133 buildDeskMentionMarkers,
+    :3243 merge into mergedMarkers, :16730 deskMentionHref click-through).
+    Member opt-in via cs.markers.desk, OFF by default, so an untoggled chart
+    issues no request at all (null SWR key). It deliberately does NOT use
+    app/src/hooks/useTickerMentions.js, whose error policy is the opposite.
+
+    ⚰️ CORRECTED 2026-09-27 — THE SECOND SURFACE THIS DOCSTRING NAMED DOES
+    NOT EXIST. It read: "the single authority behind StockChart's
+    Desk-mentions chart markers and TickerPopup's Desk timeline tab." The
+    StockChart half is TRUE and shipped (2e86685a9, Phase 2C; git merge-base
+    --is-ancestor 2e86685a9 origin/production exits 0). The TickerPopup half
+    was never built: Phase 2B's "Desk" tab does not exist — that popup's tabs
+    are Daily / About / Fundamentals / The Street (TickerPopup.jsx:369, :377,
+    :385) — and a per-identifier AST census over 3,715 files in app/src finds
+    ZERO references to this route in TickerPopup.jsx. The hook written for
+    that tab has exactly one importer: its own test.
+    ⛔ A docstring naming a mount is a claim about a run, and this one read as
+    a wire for seven weeks.
+
+    ⭐ THIS IS NOT A RETIREMENT CASE. The route serves a SHIPPED surface and
+    deleting it would break the chart-marker category; it is also a governed
+    member door elsewhere —
+    api/services/wisdom/publish/adapters/desk_markers.py names this route as
+    the one member door the Wisdom publication floor governs, and
+    tools/wisdom/gating_rehearsal.py:171 rehearses it as desk_markers.
+    """
     from api.services import ticker_mentions
     return ticker_mentions.mentions_for_symbol(sym)
 
