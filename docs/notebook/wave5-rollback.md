@@ -5,8 +5,12 @@
 > every wave landed as a SQUASH. At today's tip, reverting wave 5 alone stops on
 > **68 unmerged paths** — including `notebookSchema.js` and `notebook_schema.py`,
 > the guard this file exists to keep — so a Notebook rollback now reverts the
-> **NEWEST wave first**, one squash at a time. That path was rehearsed on a
-> sandbox from a `git archive` and is measured there.
+> **NEWEST wave first**, one squash at a time. ⚠️ **That procedure was rehearsed
+> for WAVE 9 ONLY** — wave 9's squash reverted on a sandbox from a `git archive`
+> (evidence `docs/notebook/evidence/wave10-10c/rollback/`, committed `6252d03bc`).
+> **Reverting waves 8, 7, 6 and 5 in sequence is the prescribed order but
+> UNREHEARSED**: nobody has run it, including wave 6's revert, which removes the
+> eight level-2 table entries.
 
 > ⛔⛔ **THREE commits are never reverted with the features: `8167f7aa0`,
 > `fd87271fd` and `82c56dd63`.** Revert the feature merge, then re-apply all
@@ -285,7 +289,10 @@ stash). Raw runs committed before this reading: `6252d03bc`,
    `notebook_schema.py` out from under them — the one outcome this document
    forbids ("never remove a table entry"). To remove wave 5's features today,
    revert the waves **newest first** (9, 8, 7, 6, then 5), and at each step keep
-   both schema-table files exactly as the tip has them.
+   both schema-table files exactly as the tip has them. ⚠️ **Only the first step
+   of that sequence, wave 9, was rehearsed.** Reverting 8, 7, 6 and then 5 is the
+   prescribed order but **UNREHEARSED** — its conflicts, and the table restore
+   that wave 6's revert needs, have never been run.
 2. ⭐ **The check after every revert is one command**, and it is the rule that
    outlives every wave: `git diff <tip> HEAD -- app/src/pages/journal-2-0/lib/notebookSchema.js api/services/journal_two/notebook_schema.py`
    must print **nothing**. A revert whose squash added table entries (wave 6
