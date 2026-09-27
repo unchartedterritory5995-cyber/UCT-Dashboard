@@ -411,6 +411,12 @@ def _definition_tree(def_id: str, user_id: Any) -> tuple[dict, dict]:
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
     tree = compute.get("ast")
+    if defs.is_runtime_lane(doc):
+        # ⭐ NAMED (2026-09-27): a backtest replays a tree on the server, and a
+        # runtime-lane document has none — say so rather than "no tree".
+        raise HTTPException(
+            status_code=400,
+            detail=f"definition {def_id!r} cannot be replayed: {defs.RUNTIME_LANE_REASON}")
     if compute.get("kind") != "ast" or not isinstance(tree, dict) or not tree:
         raise HTTPException(
             status_code=400,

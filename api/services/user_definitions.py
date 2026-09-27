@@ -984,6 +984,234 @@ def validate_v2(definition: dict) -> None:
 
 # ─── the linter verdict, stored at save time ─────────────────────────────────
 
+# ─── the RUNTIME LANE: `compute.kind: 'pine'` (2026-09-27, flag-gated) ───────
+#
+# ⭐ WHAT A `pine` DOCUMENT IS. The member door's fallback
+# (`app/src/components/chart/builder/memberPane/runtimeLaneDefinition.js`)
+# stores a script the host lane refused: the member's Pine SOURCE, and the map
+# from each plot key to the runtime output it reads. The program is REBUILT in
+# the browser for every chart (`engine/pineRuntimeLane.js` says why nothing
+# stored could be "the maths" the way `compute.ast` is). So:
+#
+#   ⛔ NOTHING ON THIS SERVER CAN COMPUTE ONE. The sweep, the screener, the alert
+#   doors and relint each meet a stored `pine` row and REFUSE it BY NAME —
+#   `RUNTIME_LANE_REASON`, one sentence for every door — never a crash, never an
+#   empty answer that reads as a quiet market, never a number made up to fill it.
+#
+#   ⛔ AND THE STORE TAKES ONE ONLY BEHIND ITS OWN FLAG. Off, `save()` answers a
+#   `pine` document with the sentence it always spoke, byte for byte.
+
+RUNTIME_LANE_KIND = "pine"
+
+#: The one sentence every server-side consumer refuses a runtime-lane row with.
+RUNTIME_LANE_REASON = "not computable server-side: runtime-lane definition"
+
+#: ⭐ THE SOURCE CAP IS THE STORE'S OWN ROW CAP, NOT A NEW NUMBER. A source can
+#: never be larger than the row it rides in; checking it FIRST, by its own name,
+#: means an oversized script is refused as a script before a hash is taken of it.
+MAX_PINE_SOURCE_BYTES = MAX_DEFINITION_BYTES
+
+_PINE_COMPUTE_KEYS = frozenset({"kind", "fn", "rev", "source", "lane", "columns", "inputs"})
+_PINE_REQUIRED_KEYS = frozenset({"kind", "fn", "rev", "source", "lane", "columns"})
+_PINE_LANE_KEYS = frozenset({"plotColours", "ownsDrawing"})
+_PINE_COLUMN_KEYS = frozenset({"output", "call", "line", "shift"})
+_LONE_SURROGATE = re.compile("[\ud800-\udfff]")
+_PINE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*")
+
+
+def runtime_lane_store_enabled() -> bool:
+    """May the store take a `compute.kind: 'pine'` document?
+
+    ⛔ DEFAULT OFF, EXACTLY `"1"`, READ PER CALL — never captured at import, so a
+    Railway variable flip reaches the next save and a test can flip it. `"true"`,
+    `"yes"` and a padded `" 1"` are all OFF: the failure direction is the store
+    this was before, never a document nothing can compute.
+    """
+    return os.environ.get("PINE_RUNTIME_LANE_STORE_ENABLED", "0") == "1"
+
+
+def is_runtime_lane(definition: Any) -> bool:
+    """Is this a runtime-lane (`pine`) document? ONE question for every consumer."""
+    if not isinstance(definition, Mapping):
+        return False
+    compute = definition.get("compute")
+    return isinstance(compute, Mapping) and compute.get("kind") == RUNTIME_LANE_KIND
+
+
+def _js_string(s: str) -> str:
+    """`JSON.stringify(s)`, byte for byte. `json.dumps(ensure_ascii=False)` escapes
+    the same control characters with the same lowercase hex; the one difference
+    is a LONE surrogate, which JS escapes (`"\\ud800"`) and Python leaves raw."""
+    return _LONE_SURROGATE.sub(lambda m: "\\u%04x" % ord(m.group()),
+                               json.dumps(s, ensure_ascii=False))
+
+
+def _canonical_json(value: Any) -> str:
+    """Key-sorted JSON with no whitespace — `pineRuntimeHandle.canonicalJson`.
+
+    ⛔ A NON-INTEGRAL OR NON-FINITE NUMBER IS REFUSED, as the JS lane refuses it:
+    the two lanes format those differently, and every number a handle covers is
+    an output index, a line or a shift. An integral float is written as an
+    integer, because JS has one number type (`stable_stringify` says the same).
+    """
+    if isinstance(value, list):
+        return "[" + ",".join(_canonical_json(v) for v in value) + "]"
+    if isinstance(value, Mapping):
+        return "{" + ",".join(f"{_js_string(str(k))}:{_canonical_json(value[k])}"
+                              for k in sorted(value)) + "}"
+    if isinstance(value, str):
+        return _js_string(value)
+    if value is None:
+        return "null"
+    if type(value) is bool:
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    raise ValueError(f"compute: {value!r} is not an integer; a runtime-lane handle "
+                     "covers integers only")
+
+
+def runtime_lane_handle(compute: Any) -> str:
+    """The `compute.fn` a runtime-lane document must carry: `pine:<FNV-1a>` over
+    the UTF-16 code units of the key-sorted JSON of
+    `[source, columns, inputs, plotColours, ownsDrawing]`.
+
+    ⭐ MIRRORS `app/src/components/chart/engine/pineRuntimeHandle.js::
+    runtimeLaneHandleOf`, and both are held to one committed vector table
+    (`tests/fixtures/pine_store/handle_vectors.json`). KEY-SORTED so a document
+    read back out of this store — which persists `sort_keys=True` — hashes to the
+    handle it was minted with.
+    """
+    c = compute if isinstance(compute, Mapping) else {}
+    lane = c.get("lane") if isinstance(c.get("lane"), Mapping) else {}
+    text = _canonical_json([
+        c.get("source") if isinstance(c.get("source"), str) else "",
+        c.get("columns") if isinstance(c.get("columns"), Mapping) else {},
+        c.get("inputs") if isinstance(c.get("inputs"), Mapping) else {},
+        lane.get("plotColours") is True,
+        lane.get("ownsDrawing") is True,
+    ])
+    units = text.encode("utf-16-le", "surrogatepass")
+    h = 0x811C9DC5
+    for i in range(0, len(units), 2):
+        h ^= units[i] | (units[i + 1] << 8)
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return f"pine:{h:08x}"
+
+
+def _is_int(v: Any) -> bool:
+    return isinstance(v, int) and not isinstance(v, bool)
+
+
+def validate_pine(definition: dict) -> None:
+    """The last door for a `pine` document — the browser's `defSchema` pine rules,
+    re-applied here, plus the three things only the store can hold it to.
+
+    Mirrors `defSchema.validatePineCompute` + `validatePineColumnsAgainstPlots`
+    (the shape, the plot/column key sets in both directions, every runtime input
+    naming a declared input) and adds: the EXACT compute key set (so no `ast`,
+    `trees` or `paramManifest` rides along on a document nothing will walk), the
+    source cap, the `lane` options the program's output indices were minted
+    under, and the handle — RE-DERIVED, never trusted, for the reason `validate_v2`
+    re-derives an `ast` document's `fn`.
+    """
+    compute = definition.get("compute") or {}
+    extra = sorted(set(compute) - _PINE_COMPUTE_KEYS)
+    if extra:
+        raise ValueError(
+            f"compute.{extra[0]}: a 'pine' definition carries only "
+            f"{', '.join(sorted(_PINE_COMPUTE_KEYS))} — the program is the member's "
+            "script, so any other compute key is a second statement of the maths "
+            "that nothing would ever read")
+    missing = sorted(_PINE_REQUIRED_KEYS - set(compute))
+    if missing:
+        raise ValueError(f"compute.{missing[0]}: a 'pine' definition must carry it")
+
+    source = compute.get("source")
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError(
+            f"compute.source: a 'pine' definition carries the member's script, got {source!r}"[:300])
+    size = len(source.encode("utf-8"))
+    if size > MAX_PINE_SOURCE_BYTES:
+        raise ValueError(
+            f"compute.source: the script is {size} bytes, over the {MAX_PINE_SOURCE_BYTES}-byte "
+            "cap every stored definition is held to")
+
+    rev = compute.get("rev")
+    if not _is_int(rev) or rev < 0:
+        raise ValueError(f"compute.rev: expected a whole number >= 0, got {rev!r}")
+
+    lane = compute.get("lane")
+    if (not isinstance(lane, Mapping) or set(lane) != _PINE_LANE_KEYS
+            or any(type(lane[k]) is not bool for k in _PINE_LANE_KEYS)):
+        raise ValueError(
+            "compute.lane: expected exactly {plotColours: bool, ownsDrawing: bool} — the "
+            f"options the program's output indices were minted under, got {lane!r}"[:300])
+
+    columns = compute.get("columns")
+    if not isinstance(columns, Mapping) or not columns:
+        raise ValueError(
+            "compute.columns: a 'pine' definition maps each plot key to a runtime "
+            f"output, got {columns!r}"[:300])
+    for key, spec in columns.items():
+        path = f"compute.columns.{key}"
+        if not isinstance(key, str) or not _PLOT_KEY_RE.match(key):
+            raise ValueError(f"{path}: not a legal plot key ({_PLOT_KEY_RE.pattern})")
+        if (not isinstance(spec, Mapping) or set(spec) - _PINE_COLUMN_KEYS
+                or not _is_int(spec.get("output")) or spec["output"] < 0
+                or not isinstance(spec.get("call"), str) or not spec["call"].strip()):
+            raise ValueError(
+                f"{path}: expected {{output: integer >= 0, call: string, line?, shift?}}, "
+                f"got {spec!r}"[:300])
+        if spec.get("line") is not None and not _is_int(spec["line"]):
+            raise ValueError(f"{path}.line: expected an integer line or null, got {spec['line']!r}")
+        if "shift" in spec and (not _is_int(spec["shift"]) or spec["shift"] < 0):
+            raise ValueError(
+                f"{path}.shift: a rightward displacement is a whole number of bars >= 0, "
+                f"got {spec['shift']!r}")
+
+    plots = definition.get("plots") or []
+    data = [p.get("key") for p in plots
+            if isinstance(p, Mapping) and isinstance(p.get("key"), str) and p["key"]
+            and p.get("style") != "hlines"]
+    for k in data:
+        if k not in columns:
+            raise ValueError(
+                f"plots: data-bearing plot {k!r} has no entry in compute.columns "
+                f"({', '.join(sorted(columns))}) — a plot no runtime output fills")
+    for k in columns:
+        if k not in data:
+            raise ValueError(
+                f"compute.columns.{k}: names no data-bearing plot (plots: "
+                f"{', '.join(data) or 'none'})")
+
+    if "inputs" in compute:
+        inputs = compute["inputs"]
+        if not isinstance(inputs, Mapping):
+            raise ValueError(
+                f"compute.inputs: expected an object of input key → Pine name, got {inputs!r}"[:300])
+        declared = {s.get("key") for s in (definition.get("inputs") or [])
+                    if isinstance(s, Mapping)}
+        for key, name in inputs.items():
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError(
+                    f"compute.inputs.{key}: expected the Pine name it sets, got {name!r}")
+            if key not in declared:
+                raise ValueError(
+                    f"compute.inputs.{key}: names no declared input — a value the runtime "
+                    "reads that no control can set is a knob that moves nothing")
+
+    expected = runtime_lane_handle(compute)
+    if compute.get("fn") != expected:
+        raise ValueError(
+            f"compute.fn: a 'pine' definition's handle is {expected!r} (FNV-1a over its "
+            f"script, map, inputs and lane options), got {compute.get('fn')!r}. The "
+            "handle is checked, never trusted: a stale one would file this script "
+            "under another's name")
+
+
 def lint_verdict(definition: dict) -> dict:
     """`{plotKey: mode}` from the SHIPPED linter — per plot, per the owner's ruling.
 
@@ -1046,6 +1274,19 @@ def requirement_tags(definition: dict) -> list:
     }
     if not by_tag:
         return []
+
+    # ⭐ A RUNTIME-LANE DOCUMENT HAS NO TREE TO WALK — ITS PROGRAM IS ITS SOURCE.
+    # So the manifest's own call names are looked for in the Pine, by identifier
+    # (a dotted name counts by its last part: `ta.cum`, `barstate.isfirst`). ⚠️
+    # CONSERVATIVE BY CONSTRUCTION, in the direction this function must lean: a
+    # name in a comment or a string ADDS the tag, never omits it. And a document
+    # whose source cannot be read carries EVERY tag.
+    if is_runtime_lane(definition):
+        source = (definition.get("compute") or {}).get("source")
+        if not isinstance(source, str):
+            return _all_declared_tags()
+        named = {tok.rsplit(".", 1)[-1] for tok in _PINE_NAME.findall(source)}
+        return sorted(tag for tag, names in by_tag.items() if named & names)
 
     called: set = set()
     unreadable = False
@@ -1292,10 +1533,23 @@ def save(user_id: Any, def_id: str, definition: dict,
             "makes `defId.plotKey` resolve to two different things")
 
     compute = definition.get("compute")
-    if not isinstance(compute, dict) or compute.get("kind") != "ast":
+    # ⭐ THE RUNTIME LANE (2026-09-27): a `pine` document is taken ONLY with
+    # `PINE_RUNTIME_LANE_STORE_ENABLED` on. With it off this branch is never
+    # entered and the refusal below is the sentence it always was, byte for byte.
+    pine = is_runtime_lane(definition) and runtime_lane_store_enabled()
+    if not pine and (not isinstance(compute, dict) or compute.get("kind") != "ast"):
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
             f"'ast', got {(compute or {}).get('kind')!r}")
+    if pine:
+        # ⛔ VALIDATED BEFORE ANYTHING IS DERIVED FROM IT, and the rest of this
+        # function is the SAME write path an `ast` document takes — one cap, one
+        # lock, one append, one migration — so a `pine` row is never a second
+        # shape of write. `validate_pine` refuses every compute key but its own,
+        # so the parameter hook and the shared-graph split below are INERT for
+        # it (no `paramManifest`, no `graph`); only the row's identity differs —
+        # the document's own handle, re-derived there, never trusted.
+        validate_pine(definition)
 
     # ⛔⛔ TRACK F PARAMETER-MANIFEST HOOK (DEC-006, TRACK_F_PARAMETER_ADR_V2*.md)
     # — INERT for every definition without a `compute.paramManifest` key (see
@@ -1337,7 +1591,7 @@ def save(user_id: Any, def_id: str, definition: dict,
     # The hash comes off the tree BEFORE anything is written, so a tree this
     # lane cannot hash is refused rather than stored with a hash nobody can
     # reproduce. `assert_canonical` runs inside `ast_hash`.
-    new_hash = ast_hash(compute.get("ast"))
+    new_hash = compute["fn"] if pine else ast_hash(compute.get("ast"))
 
     # ⭐ THE SECOND IDENTITY, AND IT DECIDES A BUMP WITHOUT TOUCHING THE FIRST.
     # `new_hash` above is still `ast_hash(compute.ast)` and it is still what gets
@@ -1353,7 +1607,9 @@ def save(user_id: Any, def_id: str, definition: dict,
     # table every member shares. It runs on EVERY document: on a v1 one it
     # checks the `fn`/tree agreement and that no v2 key rides alone, which is
     # why it is placed here rather than behind a `if trees` branch.
-    validate_v2(definition)
+    # (A `pine` document has no tree for it to check; `validate_pine` was its door.)
+    if not pine:
+        validate_v2(definition)
 
     # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
     # materialised working copy from here up; persisting it would write the

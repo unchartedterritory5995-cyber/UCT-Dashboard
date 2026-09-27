@@ -495,6 +495,8 @@ def lookback_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
                                    alert.get("def_version"))
         if not row:
             return None
+        if user_definitions.is_runtime_lane(row.get("definition")):
+            return None       # no tree to size a fetch from; the lane door refuses it by name
         tree = ((row.get("definition") or {}).get("compute") or {}).get("ast")
         if tree is None:
             return None
@@ -521,6 +523,17 @@ def _gate_lane(row: Mapping[str, Any]) -> dict:
     """It is a FORMULA. `compute.kind` is the lane, and only `ast` is one."""
     definition = row.get("definition") or {}
     compute = definition.get("compute") or {}
+    from api.services import user_definitions                       # noqa: PLC0415
+    if user_definitions.is_runtime_lane(definition):
+        # ⭐ NAMED (2026-09-27). A runtime-lane document is a member's saved Pine
+        # script; alerts evaluate HERE, on the server, and nothing here can run
+        # it. The same sentence every server-side door uses, under this door.
+        raise AdmissionRefused(
+            "lane",
+            f"{row.get('def_id')!r} is a runtime-lane definition — "
+            f"{user_definitions.RUNTIME_LANE_REASON}: alerts are evaluated on the "
+            "server, and only the chart's runtime lane can run this script, so it "
+            f"{REFUSAL_FRAGMENTS['lane']}")
     if compute.get("kind") != "ast":
         raise AdmissionRefused(
             "lane",

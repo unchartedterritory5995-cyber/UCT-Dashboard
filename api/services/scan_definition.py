@@ -442,6 +442,18 @@ def assert_scannable(definition: Any) -> dict:
                 night.
     """
     compute = _compute_of(definition)
+    if user_definitions.is_runtime_lane(definition):
+        # ⭐ NAMED, NOT LUMPED IN WITH "some other kind". A runtime-lane document
+        # is a member's saved Pine script that the store took on purpose; the
+        # member, the sweep receipt and the screener stamp each read WHY it is
+        # not a screen — the same sentence every server-side door uses.
+        raise ScanRefused(
+            "kind",
+            f"{user_definitions.RUNTIME_LANE_REASON} — compute.kind "
+            f"{user_definitions.RUNTIME_LANE_KIND!r} is the member's Pine script, which "
+            "only the chart's runtime lane can run; a scan is a tree this lane can "
+            f"walk, so only {AST_KIND!r} is scannable.",
+        )
     if compute.get("kind") != AST_KIND:
         raise ScanRefused(
             "kind",
