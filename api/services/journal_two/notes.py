@@ -3106,9 +3106,18 @@ def restore_note_version(
     baseline."""
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        # ⛔ The write lock before the read (wave 10 fix round 1): the restore's
+        # compare-and-set is update_note's, and it runs inside this lock, so a
+        # writer racing the restore waits and then sees the restored revision.
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+            began = True
         version = get_note_version(user_id, note_id, version_id, conn=conn)
         if version is None:
+            if began:
+                conn.rollback()
             return None
         return update_note(
             user_id, note_id,
@@ -3125,6 +3134,10 @@ def restore_note_version(
             conn=conn, expected_updated_at=expected_updated_at, force_version=True,
             restored_from_version_id=version_id,
         )
+    except BaseException:
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -3158,7 +3171,21 @@ def update_note(
         raise NoteValidationError("patch must be an object")
     owned = conn is None
     conn = conn or get_connection()
+    began = False
     try:
+        # ⛔⛔ THE WRITE LOCK IS TAKEN BEFORE THE READ (wave 10 fix round 1, H14).
+        # The compare-and-set below reads `updated_at` and compares it; in
+        # autocommit that read takes no lock, so a second writer holding the
+        # same baseline passed the same check, committed, and this call's UPDATE
+        # then overwrote words the server had ALREADY ACKNOWLEDGED to it. With
+        # the lock held from the read to the commit, the second writer waits,
+        # then reads THIS commit's revision and gets the 409. `patch_note_tags`'
+        # docstring names the mechanism. A caller already in a transaction (the
+        # personal API, `patch_note_tags`) holds the lock itself.
+        # Rail: tests/test_notes_cas_is_atomic.py.
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+            began = True
         # Wave 0 trash: a soft-deleted note reads as 404 here too — editing
         # a trashed note directly (without restoring it first) must not
         # silently work, matching `get_note`'s default behavior.
@@ -3167,6 +3194,8 @@ def update_note(
             (note_id, user_id),
         ).fetchone()
         if existing is None:
+            if began:
+                conn.rollback()
             return None
         if "bodyJson" in patch:
             check_body_write(existing["body_json"], client_schema)
@@ -3260,6 +3289,8 @@ def update_note(
             sets.append("properties_json = ?"); params.append(new_properties_json)
 
         if not sets:
+            if began:
+                conn.rollback()
             return _row_to_note(existing)
 
         # Wave C: capture a version checkpoint of the OLD content BEFORE
@@ -3302,6 +3333,13 @@ def update_note(
         row = _read_own_write(conn, note_id)
         conn.commit()
         return _row_to_note(row)
+    except BaseException:
+        # A raise (the 409, a refused body, a validation error) never leaves the
+        # lock this call took: roll back what it began. A caller's own
+        # transaction is the caller's to end, as before.
+        if began and conn.in_transaction:
+            conn.rollback()
+        raise
     finally:
         if owned:
             conn.close()
@@ -3337,11 +3375,21 @@ def append_widget_embed(
     try:
         # Wave 0 trash: same as update_note — appending to a trashed note
         # must not silently work.
+        # ⛔ The write lock BEFORE the read (wave 10 fix round 1, H14): a plain
+        # SELECT takes no lock, so an editor PUT committing between this read
+        # and the rewrite below had its acknowledged words replaced by the
+        # stale body plus this block. Held from here to the commit, the PUT
+        # waits, then sees this revision and 409s (and merges the append).
+        began = not conn.in_transaction
+        if began:
+            conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
+            if began:
+                conn.rollback()
             return None
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -3392,11 +3440,21 @@ def append_financial_fact(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # ⛔ The write lock BEFORE the read (wave 10 fix round 1, H14): a plain
+        # SELECT takes no lock, so an editor PUT committing between this read
+        # and the rewrite below had its acknowledged words replaced by the
+        # stale body plus this block. Held from here to the commit, the PUT
+        # waits, then sees this revision and 409s (and merges the append).
+        began = not conn.in_transaction
+        if began:
+            conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
+            if began:
+                conn.rollback()
             return None
         try:
             doc = json.loads(row["body_json"] or "{}")
@@ -3448,11 +3506,21 @@ def append_document_excerpt(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # ⛔ The write lock BEFORE the read (wave 10 fix round 1, H14): a plain
+        # SELECT takes no lock, so an editor PUT committing between this read
+        # and the rewrite below had its acknowledged words replaced by the
+        # stale body plus this block. Held from here to the commit, the PUT
+        # waits, then sees this revision and 409s (and merges the append).
+        began = not conn.in_transaction
+        if began:
+            conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
+            if began:
+                conn.rollback()
             return None
         try:
             doc = json.loads(row["body_json"] or "{}")
