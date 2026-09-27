@@ -69,6 +69,58 @@ describe('⭐ runtime-lane scripts that MATCH TradingView on every mappable plot
   }
 })
 
+// ─── values read straight off the capture (no harness row reader) ────────────
+//
+// ⭐ qqe-signals and trendlines were graded DIVERGE on the runtime lane before this
+// branch's `?:` rule (`pineTernaryNa.test.js`): QQE long drew a shape at bar 73 where
+// TradingView draws none, and trendlines' `res_x1 := ph ? phb1 : res_x1[1]` lost its
+// held value whenever `ph` was na, so both trendlines went na from bars 368 / 491.
+// These rails read the vendor's values directly — a bar with NO study-store row is
+// `na` (TradingView stores a row only where some plot is non-na, measured by
+// `probe-sparse-rows-rddt-1d-2026-09-27` on pine/live-captures-2) — so they do not
+// depend on which harness reader a tree carries.
+function vendorValues(capture, title) {
+  const plot = capture.study.plots.filter((p) => (p.title || p.name) === title)
+  expect(plot.length, `vendor title ${title}`).toBe(1)
+  const col = capture.plotValues.fields.indexOf(plot[0].id)
+  const byTime = new Map(capture.plotValues.rows.map((r) => [r[0], r[col]]))
+  return capture.bars.rows.map((b) => {
+    const v = byTime.get(b[0])
+    return v === null || v === undefined ? NaN : v
+  })
+}
+
+describe('⭐ runtime-lane values that now agree with TradingView on every bar', () => {
+  // ⭐ A SHAPE is drawn where its series is truthy, so for a `plotshape` title `0`
+  // and `na` are the same drawing and are compared as such. ⚠️ RESIDUAL, STATED:
+  // trendlines' `Long Break` is `crossover(close, res_y)`; on bar 367 `res_y[1]` is
+  // na and TradingView stores 0 (false) where this engine's cross family answers na
+  // ("not computable" — `interpret.js::crossing`, a shared ruling). No shape either way.
+  const SHAPES = new Set(['QQE long', 'QQE short', 'Long Break', 'Short Break'])
+  const asDrawn = (xs) => xs.map((v) => (Number.isFinite(v) && v !== 0 ? v : 0))
+  for (const [file, titles] of [
+    ['qqe-signals-rddt-1d-2026-09-27.json', ['QQE long', 'QQE short']],
+    ['trendlines-rddt-1d-2026-09-27.json', ['Resistance Trendline', 'Support Trendline', 'Long Break', 'Short Break']],
+  ]) {
+    it(file, () => {
+      vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+      const capture = load(file)
+      const ours = runOurSide(capture)
+      expect(ours.ok, ours.refusal).toBe(true)
+      for (const title of titles) {
+        const mine = ours.plots.find((q) => q.title === title)
+        expect(mine && mine.column, `${title}: no column`).toBeTruthy()
+        let theirs = vendorValues(capture, title)
+        let own = Array.from(mine.column)
+        if (SHAPES.has(title)) { theirs = asDrawn(theirs); own = asDrawn(own) }
+        const bad = disagreements(own, theirs, 1e-9)
+        expect(bad, `${title} disagrees on ${bad.length} bars`).toEqual([])
+        expect(theirs.filter((v) => Number.isFinite(v) && v !== 0).length, `${title}: vendor drew nothing`).toBeGreaterThan(0)
+      }
+    })
+  }
+})
+
 // ─── the independent re-implementation ───────────────────────────────────────
 const PP = 'pivot-point-supertrend-rddt-1d-2026-09-27.json'
 
@@ -152,13 +204,28 @@ describe('⭐ pivot-point-supertrend — the divergence is two shared rulings an
     expect(noTie[0]).toBe(476)         // the left-tie pivot at bar 474 confirms on 476
   })
 
-  it('OUR runtime-lane column equals the re-implementation under the ENGINE\'s rulings', () => {
+  it('OUR runtime-lane column equals the re-implementation under the ENGINE\'s OWN rulings, read off the engine', () => {
+    // ⭐ THE RULINGS ARE MEASURED, NOT ASSUMED, so this rail stays true when either
+    // lands (`pine/atr-seed-host` carries Pine's ATR seed): the engine's first ATR
+    // bar says which seed it uses, and whether bar 474's tied high confirms as a
+    // pivot on bar 476 says which tie rule it uses.
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+    const probe = { ...capture, source: { ...capture.source, text: [
+      '//@version=4', 'study("probe")', 'plot(atr(10))', 'plot(pivothigh(2, 2))', ''].join(String.fromCharCode(10)) } }
+    const p = runOurSide(probe, { lane: 'runtime' })
+    expect(p.ok, p.refusal).toBe(true)
+    const atrCol = Array.from(p.plots[0].column)
+    const phCol = Array.from(p.plots[1].column)
+    const atrFirst = atrCol.findIndex(Number.isFinite)
+    expect([9, 10]).toContain(atrFirst)
+    const rulings = { atrBar0: atrFirst === 9, leftTie: Number.isFinite(phCol[476]) }
     const { ours } = grade(PP)
-    const plot = ours.plots.find((p) => p.title === 'PP SuperTrend')
+    const plot = ours.plots.find((q) => q.title === 'PP SuperTrend')
     expect(plot && plot.column, 'the runtime door did not carry the PP SuperTrend plot').toBeTruthy()
     const mine = Array.from(plot.column)
-    expect(disagreements(simulate(bars, { leftTie: false, atrBar0: false }), mine, 1e-9)).toEqual([])
-    // and it is NOT the vendor's yet — flip this when rulings (a) and (b) land.
-    expect(disagreements(mine, vendor, 1e-9).length).toBeGreaterThan(0)
+    expect(disagreements(simulate(bars, rulings), mine, 1e-9), JSON.stringify(rulings)).toEqual([])
+    // …so whether it matches TradingView is exactly whether both rulings are Pine's.
+    const vendorRulings = rulings.atrBar0 && rulings.leftTie
+    expect(disagreements(mine, vendor, 1e-9).length === 0, JSON.stringify(rulings)).toBe(vendorRulings)
   })
 })
