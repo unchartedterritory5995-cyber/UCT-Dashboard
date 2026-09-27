@@ -145,17 +145,23 @@ export function mapCheckboxLists(doc) {
       ul.setAttribute('data-type', 'taskList')
       return
     }
+    // ⛔ EVERY child moves, in order -- not only the <li>s (review I-1). An
+    // indented sub-list written as a DIRECT child <ul> (what contenteditable
+    // indent emits) or a stray text run sits between items; filtering to LI
+    // and then removing the original <ul> deleted them silently. A non-LI
+    // node rides with the run it sits in (a plain run when it comes first).
     let run = null
     let runIsTask = null
-    for (const li of items) {
-      const task = isTask(li)
-      if (!run || task !== runIsTask) {
+    for (const node of [...ul.childNodes]) {
+      const isLi = node.nodeType === 1 && node.tagName === 'LI'
+      const task = isLi ? isTask(node) : runIsTask ?? false
+      if (!run || (isLi && task !== runIsTask)) {
         run = doc.createElement('ul')
         if (task) run.setAttribute('data-type', 'taskList')
         ul.parentNode.insertBefore(run, ul)
         runIsTask = task
       }
-      run.appendChild(li)
+      run.appendChild(node)
     }
     ul.remove()
   })
