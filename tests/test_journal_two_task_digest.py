@@ -62,7 +62,16 @@ EXEMPT = {
 def _derived_writers() -> set[tuple[str, str]]:
     """(file, function) for every function under api/ whose SQL inserts a j2_notes row
     or writes its body -- `UPDATE j2_notes SET` naming body_json, or an assembled SET
-    (`update_note` builds its list). Read from the AST, never recalled."""
+    (`update_note` builds its list). Read from the AST, never recalled.
+
+    ⚠️ Fix round 1 (review M-6): the census matches SQL TEXT inside each function's
+    source, so a statement split across adjacent string literals (`"UPDATE j2_notes"
+    " SET ..."` with the break after the table name) would evade it. That is acceptable
+    because CORRECTNESS DOES NOT REST ON THIS CENSUS: the table's triggers delete a
+    note's row on every body write by any statement, so a writer the census misses can
+    only leave a row ABSENT (the note is parsed from its body), never stale. The census
+    exists to keep the DOORS fast -- it proves each one refills -- not to keep the index
+    true."""
     ins = re.compile(r"INSERT\s+(?:OR\s+\w+\s+)?INTO\s+j2_notes\s*\(")
     upd = re.compile(r"UPDATE\s+j2_notes\s+SET\b")
     out = set()

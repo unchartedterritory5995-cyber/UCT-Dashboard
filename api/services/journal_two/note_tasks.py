@@ -305,10 +305,21 @@ def list_tasks(
         # marks satisfied by the index rather than re-evaluating it per row. A row
         # is exact or absent by construction (the table's triggers), so the answer
         # equals the parse-every-body one (tests/test_journal_two_task_digest.py).
+        # ⛔⛔ Fix round 1 (review I-3): ONLY while THIS version of the extraction is
+        # recorded as having built the index (db.py `_TASK_DIGEST_BUILD`). A row written
+        # by another version of `extract_tasks` would otherwise be served for every
+        # note not re-saved since the deploy; until the next boot empties and refills
+        # the table, every note is read from its body -- the pre-wave-10 path.
+        from api.services.journal_two import db as j2_db
+        if j2_db.schema_built(conn, j2_db._TASK_DIGEST_BUILD):
+            select = ("SELECT n.id, n.title, n.updated_at, d.tasks_json,"
+                      " CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json"
+                      " FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id")
+        else:
+            select = ("SELECT n.id, n.title, n.updated_at, NULL AS tasks_json, n.body_json"
+                      " FROM j2_notes n")
         rows = conn.execute(
-            "SELECT n.id, n.title, n.updated_at, d.tasks_json,"
-            " CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json"
-            " FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id"
+            select +
             " WHERE n.user_id = ?" + _live_clause(conn, "n") +
             " AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
             (user_id,),

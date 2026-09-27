@@ -643,12 +643,20 @@ def _tag_index_ready(conn: sqlite3.Connection) -> bool:
     """Whether `j2_note_tag_index` was BUILT on this database (db.py
     `_ensure_note_tag_index` records it in the build's own transaction). Until it
     is, every tag read takes the per-note scan: an index that exists but was never
-    filled would answer from the notes written since, silently short."""
-    try:
-        return conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
-                            (j2_db._NOTE_TAG_INDEX_BUILD,)).fetchone() is not None
-    except sqlite3.OperationalError:
-        return False
+    filled would answer from the notes written since, silently short. The record
+    carries the derivation's VERSION (fix round 1, review I-3), so an index built by
+    other code is not trusted either."""
+    return j2_db.schema_built(conn, j2_db._NOTE_TAG_INDEX_BUILD)
+
+
+def _fts_map_ready(conn: sqlite3.Connection) -> bool:
+    """Whether `j2_notes_fts_map.note_rowid` was made TRUE on this database (db.py
+    `_upgrade_fts_map_note_rowid` records it in the upgrade's own transaction, and
+    forgets it BEFORE any repair). Until it is, a search maps its matches through
+    `note_id` -- the pre-wave-10 hop -- so a failed boot upgrade costs speed, never
+    results (fix round 1, review I-2: a NULL `note_rowid` never satisfies `IN`, and
+    the unguarded read answered `[]`)."""
+    return j2_db.schema_built(conn, j2_db._FTS_MAP_BUILD)
 
 
 def _tag_rowid_set_sql(user_id: str, key: str, match_fn: str,
@@ -1408,7 +1416,8 @@ def _folder_depth(conn: sqlite3.Connection, user_id: str, folder_id: str) -> int
 
 # ── Notes CRUD ───────────────────────────────────────────────────────────────
 
-def _q_match_parts(user_id: str, q: str, *, tag_index: bool = False) -> dict[str, Any]:
+def _q_match_parts(user_id: str, q: str, *, tag_index: bool = False,
+                   fts_map: bool = False) -> dict[str, Any]:
     """The three ways a search `q` matches a note, each a `(sql, params)` rowid set:
     `text` (the full-text MATCH, or None when `q` yields no FTS expression -- `expr`
     None), `tag` (a tag whose `tag_key` IS the text typed, or None) and `ticker` (the
@@ -1428,6 +1437,9 @@ def _q_match_parts(user_id: str, q: str, *, tag_index: bool = False) -> dict[str
     j2_notes' TEXT key -> rowid (three lookups per match, ~15k matches for a common
     term at 50k notes). `note_rowid` is re-derived from `note_id` at every boot
     (db.py `_repair_fts_map_note_rowid`); a NULL one can never match `IN`.
+    ⛔ Fix round 1 (review I-2): only while the map is RECORDED as upgraded
+    (`fts_map`, from `_fts_map_ready`). Otherwise the text set takes the
+    pre-wave-10 hop through `note_id`, which every map row has always carried.
 
     The search box finds a note whose tag IS the text typed -- the same `tag_key`
     identity the `tag=` filter uses (never its children: a search for "research" is
@@ -1440,11 +1452,20 @@ def _q_match_parts(user_id: str, q: str, *, tag_index: bool = False) -> dict[str
     expr = fts_match_expr(q)
     return {
         "expr": expr,
-        "text": (("SELECT m.note_rowid FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
-                  " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?)"), [expr]) if expr else None,
+        "text": ((_TEXT_SET_BY_ROWID if fts_map else _TEXT_SET_BY_ID), [expr]) if expr else None,
         "tag": _tag_rowid_set_sql(user_id, q_key, "j2_tag_is", indexed=tag_index) if q_key else None,
         "ticker": ("SELECT rowid FROM j2_notes WHERE user_id = ? AND ticker = ?", [user_id, exact_ticker]),
     }
+
+
+#: The full-text match as NOTE ROWIDS: through the map's `note_rowid` (one covering
+#: read) once the map is recorded as upgraded, else through `note_id` (the pre-wave-10
+#: hop, three lookups per match, always correct).
+_TEXT_SET_BY_ROWID = ("SELECT m.note_rowid FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                      " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?)")
+_TEXT_SET_BY_ID = ("SELECT n.rowid FROM j2_notes n WHERE"
+                   " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                   " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?))")
 
 
 def _q_match_set_sql(parts: dict[str, Any]) -> tuple[str, list[Any]]:
@@ -1474,6 +1495,7 @@ def _notes_filter_sql(
     symbol_in: list[str] | None = None,
     shared: _RowidSets | None = None,
     tag_index: bool = False,
+    fts_map: bool = False,
 ) -> tuple[str, list[Any]]:
     """The WHERE clause (starting at ``WHERE user_id = ?``) + its bound params
     for "which notes match this filter set". `list_notes` and `count_notes`
@@ -1621,7 +1643,7 @@ def _notes_filter_sql(
         # ⛔ Wave 7 (lane I): every branch of the `q` match below is a ROWID SET,
         # computed once, never a per-row test -- the tag and ticker columns sit
         # after the body, on an overflow page (see `_tag_rowid_set_sql`).
-        parts = _q_match_parts(user_id, q, tag_index=tag_index)
+        parts = _q_match_parts(user_id, q, tag_index=tag_index, fts_map=fts_map)
         if parts["expr"]:
             q_set_sql, q_set_params = _q_match_set_sql(parts)
             q_clause, q_params = _rowid_in(shared, q_set_sql, q_set_params)
@@ -1708,11 +1730,31 @@ def _snippets_for(
     return out
 
 
-# The relevance order's ONE ranked MATCH pass (wave 7), keyed by NOTE ROWID (wave 10).
+# The relevance order's ONE ranked MATCH pass (wave 7), keyed by NOTE ROWID (wave 10),
+# for the SEARCHING MEMBER's notes only (fix round 1, review M-4): the FTS table is one
+# table for every member, and scoring and holding every member's matches in Python
+# cost what the whole platform's library costs. Params: [MATCH expression, user_id].
+# ⛔ The member is a MEMBERSHIP TEST against the member's rowids, read once from a
+# covering index (`idx_j2_notes_user_deleted`), never a read of each match's j2_notes
+# row: a common term at 50k notes, same process, 18 ms unfiltered, 26 ms with the test,
+# 54 ms joining j2_notes by rowid (15k scattered table pages; perf-budgets.md §7).
+# ⛔⛔ The `+` is load-bearing: without it SQLite pushes the IN list into the map's
+# index seek as `(fts_rowid=? AND note_rowid=?)` and probes EVERY member rowid for EVERY
+# match -- 15k x 50k seeks, which did not finish in 10 minutes. The unary `+` keeps the
+# test a lookup in the list (railed: tests/test_journal_two_notes_read_plans.py).
 _RELEVANCE_RANKED_SQL = (
     "SELECT m.note_rowid, bm25(j2_notes_fts) FROM j2_notes_fts"
     " JOIN j2_notes_fts_map m ON m.fts_rowid = j2_notes_fts.rowid"
-    " WHERE j2_notes_fts MATCH ?"
+    " WHERE j2_notes_fts MATCH ?1"
+    " AND +m.note_rowid IN (SELECT rowid FROM j2_notes WHERE user_id = ?2)"
+)
+# ...and the same pass through `note_id` while the map is not recorded as upgraded
+# (fix round 1, review I-2; `_fts_map_ready`).
+_RELEVANCE_RANKED_SQL_BY_ID = (
+    "SELECT n.rowid, bm25(j2_notes_fts) FROM j2_notes_fts"
+    " JOIN j2_notes_fts_map m ON m.fts_rowid = j2_notes_fts.rowid"
+    " JOIN j2_notes n ON n.id = m.note_id AND n.user_id = ?2"
+    " WHERE j2_notes_fts MATCH ?1"
 )
 
 
@@ -1761,6 +1803,7 @@ def list_notes(
     register_note_sql_functions(conn)
     try:
         tag_index = bool((tag or q) and _tag_index_ready(conn))
+        fts_map = bool(q and _fts_map_ready(conn))
         # Wave 4 Slice 2: relevance ranking is opt-in (`sort="relevance"`),
         # never silently applied under the existing "updated" default --
         # every pre-Wave-4 caller keeps byte-identical ordering. Requires a
@@ -1798,8 +1841,9 @@ def list_notes(
             # keys only; the page's columns are read for the page alone (sorting the
             # full summary columns read every candidate's body off its overflow
             # pages, ~280 ms at 50k).
-            parts = _q_match_parts(user_id, q, tag_index=tag_index)
-            for rid, score in _tuples(conn, _RELEVANCE_RANKED_SQL, [relevance_expr]):
+            parts = _q_match_parts(user_id, q, tag_index=tag_index, fts_map=fts_map)
+            ranked_sql = _RELEVANCE_RANKED_SQL if fts_map else _RELEVANCE_RANKED_SQL_BY_ID
+            for rid, score in _tuples(conn, ranked_sql, [relevance_expr, user_id]):
                 if rid is not None:
                     scores[rid] = score
             matched = set(scores)
@@ -1809,12 +1853,15 @@ def list_notes(
             if _shared is None:
                 _shared = _RowidSets(conn)
             q_set_sql, q_set_params = _q_match_set_sql(parts)
+            # The primed set holds this member's text matches only (the pass joins on
+            # `user_id`), where the set's SQL holds every member's: equal under every
+            # WHERE this set is read in, all of which start `user_id = ?`.
             _shared.prime(q_set_sql, q_set_params, matched)
         where_sql, params = _notes_filter_sql(
             user_id, folder_id=folder_id, tag=tag, ticker=ticker, q=q,
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
-            shared=_shared, tag_index=tag_index,
+            shared=_shared, tag_index=tag_index, fts_map=fts_map,
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql
@@ -1933,6 +1980,7 @@ def count_notes(
             embed_symbol=embed_symbol, embed_widget=embed_widget, deleted=deleted,
             date_from=date_from, date_to=date_to, symbol_in=symbol_in,
             shared=_shared, tag_index=bool((tag or q) and _tag_index_ready(conn)),
+            fts_map=bool(q and _fts_map_ready(conn)),
         )
         if property_filter:
             from api.services.journal_two.note_properties import property_filter_sql

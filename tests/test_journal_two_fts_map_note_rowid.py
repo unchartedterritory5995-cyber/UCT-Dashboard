@@ -19,7 +19,12 @@ KEY on, because a logical dump/restore renumbers it. What is pinned here, and wh
     name would be a no-op on every existing database (review M-7, perf-budgets.md
     §2) -- the index-column assertion is what goes red if that happens;
   * a dump/restore that RENUMBERS j2_notes is repaired at the next boot, and search
-    then returns the right notes.
+    then returns the right notes;
+  * ⛔ fix round 1 (review I-2): the readers trust `note_rowid` only while the upgrade is
+    RECORDED (`j2_schema_builds`, in the upgrade's own transaction, which also makes the
+    trigger swap atomic). An upgrade that FAILS -- on an old-shaped database, or on a
+    drift repair -- leaves the map unrecorded, and every search answers through the
+    pre-wave-10 `note_id` hop: the same notes, never `[]`.
 """
 from __future__ import annotations
 
@@ -155,6 +160,8 @@ def _build_old_shape(path):
     for i in range(6):
         _insert(c, f"n{i}", "breakout over the pivot" if i % 2 else "a quiet range")
     _insert(c, "other", "breakout over the pivot", user="u2")
+    # a pre-wave-10 database has no record of the upgrade (ensure_schema above made one)
+    c.execute("DELETE FROM j2_schema_builds WHERE name = ?", (j2db._FTS_MAP_BUILD,))
     c.commit()
     assert "note_rowid" not in {r[1] for r in c.execute("PRAGMA table_info(j2_notes_fts_map)")}
     return c
@@ -223,3 +230,112 @@ def test_the_repair_writes_nothing_when_the_map_already_agrees(tmp_path, data_di
     c.execute("UPDATE j2_notes_fts_map SET note_rowid = note_rowid + 100 WHERE note_id = 'a'")
     assert j2db._repair_fts_map_note_rowid(c) == 1
     assert _map_agrees(c) == []
+
+
+# ── fix round 1 (review I-2): a failed upgrade degrades speed, never results ──────
+
+def _answers(c, q="breakout"):
+    """The four reads the reviewer's probe named: the list, the relevance order, and the
+    pair (page + total) in both orders."""
+    listed = sorted(n["id"] for n in notes_svc.list_notes(U, q=q, conn=c))
+    ranked = sorted(n["id"] for n in notes_svc.list_notes(U, q=q, sort="relevance", conn=c))
+    rows, total = notes_svc.list_and_count_notes(U, q=q, conn=c)
+    rrows, rtotal = notes_svc.list_and_count_notes(U, q=q, sort="relevance", conn=c)
+    return listed, ranked, (sorted(n["id"] for n in rows), total), (sorted(n["id"] for n in rrows), rtotal)
+
+
+def _trigger_sql(c, name):
+    return c.execute("SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?", (name,)).fetchone()[0]
+
+
+def test_an_upgrade_that_fails_leaves_search_answering_the_old_way(tmp_path, data_dir, monkeypatch):
+    """The reviewer's probe: an old-shaped database whose repair RAISES at boot (a `database
+    is locked` on auth.db's 3 s timeout). The map keeps a NULL `note_rowid` for every row,
+    and a NULL never satisfies `IN`: the unguarded read answered `[]` for every search
+    until a later boot succeeded."""
+    want = ["n1", "n3", "n5"]
+    path = tmp_path / "old.db"
+    _build_old_shape(path).close()
+    c = _conn(path)
+
+    def locked(conn):
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(j2db, "_repair_fts_map_note_rowid", locked)
+    j2db.ensure_schema(c)                          # prints the abort; boot goes on
+    notes_svc.register_note_sql_functions(c)
+    # non-vacuity: the map really holds NULLs, and nothing was recorded
+    assert c.execute("SELECT count(*) FROM j2_notes_fts_map WHERE note_rowid IS NULL").fetchone()[0] == 7
+    assert not notes_svc._fts_map_ready(c)
+    # ONE transaction: the repair's failure rolled the trigger swap back with it
+    assert "note_rowid" not in _trigger_sql(c, "j2_notes_fts_ai")
+    assert "note_rowid" not in _trigger_sql(c, "j2_notes_fts_au")
+    assert _answers(c) == (want, want, (want, 3), (want, 3))
+    # the next boot upgrades, records it, and the answers do not move
+    monkeypatch.undo()
+    out = j2db._upgrade_fts_map_note_rowid(c)
+    assert out["marked"] and out["triggers_replaced"] and out["rows_repaired"] == 7
+    assert notes_svc._fts_map_ready(c) and _map_agrees(c) == []
+    assert _answers(c) == (want, want, (want, 3), (want, 3))
+
+
+def test_a_drift_repair_that_fails_leaves_search_answering_the_old_way(tmp_path, data_dir, monkeypatch):
+    """A recorded map whose notes a restore RENUMBERED: the record is forgotten FIRST, in
+    its own commit, so a repair that then fails leaves the readers on the `note_id` hop
+    -- the right notes -- rather than on `note_rowid`s that now point at other notes."""
+    c = _conn(tmp_path / "t.db")
+    j2db.ensure_schema(c)
+    for i in range(12):
+        _insert(c, f"id{i:03d}", "breakout over the pivot" if i % 3 == 0 else "range day")
+    c.commit()
+    notes_svc.register_note_sql_functions(c)
+    want = _answers(c)
+    assert want[0] == ["id000", "id003", "id006", "id009"]
+    c.execute("UPDATE j2_notes SET rowid = 100000 - rowid")
+    c.commit()
+    assert _answers(c) != want                     # non-vacuity: the drift really misleads
+
+    def locked(conn):
+        raise sqlite3.OperationalError("database is locked")
+    monkeypatch.setattr(j2db, "_repair_fts_map_note_rowid", locked)
+    j2db.ensure_schema(c)
+    assert not notes_svc._fts_map_ready(c)
+    assert _answers(c) == want
+    monkeypatch.undo()
+    j2db.ensure_schema(c)
+    assert notes_svc._fts_map_ready(c) and _map_agrees(c) == []
+    assert _answers(c) == want
+
+
+def test_the_trigger_ddl_splits_into_whole_statements():
+    """`executescript` commits before it runs, so the upgrade executes the trigger DDL
+    statement by statement; each trigger body must come through whole."""
+    stmts = j2db._script_statements(j2db._J2_NOTES_FTS_TRIGGERS_DDL)
+    assert [s.split()[2] for s in stmts] == ["j2_notes_fts_ai", "j2_notes_fts_ad", "j2_notes_fts_au"]
+    assert all(s.rstrip().endswith("END;") for s in stmts)
+
+
+@pytest.mark.parametrize("recorded", [True, False])
+def test_a_members_search_does_not_move_when_another_member_matches(tmp_path, data_dir, recorded):
+    """Fix round 1 (review M-4): the ranked pass is scoped to the searching member, on the
+    recorded path and on the `note_id` fallback alike. Member A's results and totals are the
+    same whether or not member B holds matching notes, and B's notes never appear. (The ORDER
+    within A's results is bm25's, whose term weights are corpus-wide over the one shared
+    FTS table -- pre-existing, and not what this pins.)"""
+    c = _conn(tmp_path / "m.db")
+    j2db.ensure_schema(c)
+    for i in range(8):
+        _insert(c, f"a{i}", "breakout over the pivot" if i % 2 else "a quiet range")
+    c.commit()
+    notes_svc.register_note_sql_functions(c)
+    if not recorded:
+        c.execute("DELETE FROM j2_schema_builds WHERE name = ?", (j2db._FTS_MAP_BUILD,))
+        c.commit()
+    assert notes_svc._fts_map_ready(c) is recorded
+    alone = _answers(c)
+    assert alone[0] == ["a1", "a3", "a5", "a7"]
+    for i in range(20):
+        _insert(c, f"b{i}", "breakout breakout over the pivot", user="u2", title="breakout")
+    c.commit()
+    assert _answers(c) == alone
+    with_b = notes_svc.list_notes(U, q="breakout", sort="relevance", limit=500, conn=c)
+    assert not [n for n in with_b if n["id"].startswith("b")]

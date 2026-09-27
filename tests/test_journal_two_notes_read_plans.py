@@ -156,7 +156,7 @@ def test_the_tags_route_makes_ONE_tag_pass_over_the_tag_index_and_parses_no_note
 
 def test_before_the_tag_index_is_built_the_tags_route_makes_one_covered_json_each_pass(conn):
     # The fallback (db.py `_ensure_note_tag_index` never finished) is the wave-7 pass.
-    conn.execute("DELETE FROM j2_schema_builds WHERE name = 'j2_note_tag_index'")
+    conn.execute("DELETE FROM j2_schema_builds WHERE name = ?", (j2db._NOTE_TAG_INDEX_BUILD,))
     conn.commit()
     plans = _plans(conn, lambda c: notes_svc.tag_counts_and_tree(U, conn=c))
     j2 = [(s, st) for s, st in plans if "json_each" in s]
@@ -458,7 +458,8 @@ def test_the_document_search_falls_back_to_the_exact_read_when_the_trash_takes_t
     assert ordered, "the exact one-pass read never ran"
     # control: with room in the window, the fast path answers and the one-pass read does not run
     rec2 = Recorder(conn)
-    assert [h["document_id"] for h in ds.search_document_pages(U, "zzqfallback", limit=8, conn=rec2)]         == ["l0", "l1", "l2"]
+    got = [h["document_id"] for h in ds.search_document_pages(U, "zzqfallback", limit=8, conn=rec2)]
+    assert got == ["l0", "l1", "l2"]
     assert not [s for s, _ in rec2.statements if "ORDER BY bm25" in s and " JOIN " in s]
 
 
@@ -486,3 +487,32 @@ def test_the_document_search_answers_exactly_what_the_one_pass_read_answers(conn
         assert got == want, (q, limit, [h["document_id"] for h in got], [h["document_id"] for h in want])
     assert ds.search_document_pages(U, "guidance", limit=limit, conn=conn), "non-vacuity"
     assert ds.search_document_pages(U, "trashonly", limit=limit, conn=conn) == []
+
+
+def test_the_relevance_pass_ranks_only_the_searching_members_matches(conn):
+    """Fix round 1 (review M-4): the FTS table holds every member's notes, and the ranked
+    pass held every member's matches in Python before the outer WHERE dropped them -- a
+    cost that grew with the platform's library, which a one-member benchmark cannot see.
+    The pass now tests each match against the member's rowids, and the test must stay a
+    LOOKUP: pushed into the map's index seek (`note_rowid=?`) it probes every member rowid
+    for every match."""
+    ts = "2026-09-01T00:00:00+00:00"
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    for i in range(4):
+        conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, ticker,"
+                     " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                     (f"o{i}", "u2", "breakout", '{"type":"doc"}', "breakout over the pivot", "[]", None, ts, ts))
+    conn.commit()
+    rec = Recorder(conn)
+    rows = notes_svc.list_notes(U, q="breakout", sort="relevance", conn=rec)
+    assert sorted(r["id"] for r in rows) == [f"n{i}" for i in range(6)]
+    ranked = [(s, p) for s, p in rec.statements if s == notes_svc._RELEVANCE_RANKED_SQL]
+    assert len(ranked) == 1, [s for s, _ in rec.statements]
+    sql, params = ranked[0]
+    assert U in params
+    got = conn.execute(sql, params).fetchall()
+    member = {r[0] for r in conn.execute("SELECT rowid FROM j2_notes WHERE user_id = ?", (U,))}
+    assert len(got) == 6 and {r[0] for r in got} <= member              # u2's four never ranked
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    seek = [s for s in steps if "idx_j2_notes_fts_map_rowid_note" in s]
+    assert seek and all("note_rowid=?" not in s for s in seek), steps   # a lookup, never a seek

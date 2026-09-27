@@ -2649,6 +2649,104 @@ def _ensure_fts_map_note_rowid_column(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER")
 
 
+# ── Schema builds: the readiness record every derived structure is read under ──
+#
+# Wave 10 (lane 10A, fix round 1, review I-2/I-3). A derived structure a READER
+# trusts -- the map's `note_rowid`, the tag index, the task index -- is recorded in
+# `j2_schema_builds` in the SAME transaction that made it true, and every reader
+# asks `schema_built` first and takes the pre-wave-10 path while it is not. So a
+# boot upgrade that fails (a `database is locked` on auth.db's 3 s timeout, a crash)
+# degrades SPEED, never RESULTS. Two rules make that hold:
+#   * a structure that must be REBUILT is UNMARKED FIRST, in its own commit, so the
+#     readers fall back for as long as the rebuild is pending -- and stay fallen
+#     back if it fails;
+#   * the version is IN the name (`j2_note_task_digest@1`): a derivation that
+#     changes bumps its version, the old record no longer answers, and the next
+#     boot rebuilds through the same guarded path
+#     (tests/test_journal_two_derivation_versions.py pins each version to a hash of
+#     its derivation's source).
+_SCHEMA_BUILDS_DDL = (
+    "CREATE TABLE IF NOT EXISTS j2_schema_builds (name TEXT PRIMARY KEY, built_at TEXT NOT NULL)"
+)
+_FTS_MAP_BUILD = "j2_notes_fts_map.note_rowid"
+
+
+def schema_built(conn: sqlite3.Connection, name: str) -> bool:
+    """Whether `name` was built on this database (and not since unmarked). A
+    database without the table has built nothing."""
+    try:
+        return conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
+                            (name,)).fetchone() is not None
+    except sqlite3.OperationalError:
+        return False
+
+
+def _mark_built(conn: sqlite3.Connection, name: str) -> None:
+    """Record `name` as built -- inside the caller's transaction, never on its own."""
+    conn.execute("INSERT OR REPLACE INTO j2_schema_builds (name, built_at) VALUES (?, ?)",
+                 (name, time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())))
+
+
+def _unmark_built(conn: sqlite3.Connection, family: str) -> int:
+    """Forget every record of `family` (its bare name and every `family@<version>`),
+    in its OWN commit: the readers fall back from this instant, before any rebuild
+    starts. Returns the records removed."""
+    cur = conn.execute("DELETE FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                       (family, family + "@%"))
+    conn.commit()
+    return cur.rowcount
+
+
+def _script_statements(script: str) -> list[str]:
+    """Split an SQL script into its statements, trigger bodies whole
+    (`sqlite3.complete_statement` knows `BEGIN ... END`). `executescript` is not an
+    option inside a guarded upgrade: it COMMITS whatever transaction is open before
+    it runs, which is how a trigger swap stopped being atomic (review I-2)."""
+    out: list[str] = []
+    buf = ""
+    for line in script.splitlines(keepends=True):
+        if not buf and (not line.strip() or line.lstrip().startswith("--")):
+            continue
+        buf += line
+        if sqlite3.complete_statement(buf):
+            out.append(buf.strip())
+            buf = ""
+    if buf.strip():
+        raise ValueError(f"an incomplete SQL statement at the end of the script: {buf[:80]!r}")
+    return out
+
+
+def _fts_map_drift(conn: sqlite3.Connection) -> bool:
+    """Whether ANY map row's `note_rowid` disagrees with its note (see
+    `_repair_fts_map_note_rowid`)."""
+    return conn.execute(
+        "SELECT 1 FROM j2_notes_fts_map m"
+        " WHERE m.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = m.note_id)"
+        " LIMIT 1"
+    ).fetchone() is not None
+
+
+def _fts_triggers_stale(conn: sqlite3.Connection) -> bool:
+    bodies = {r[0]: r[1] or "" for r in conn.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type='trigger'"
+        " AND name IN ('j2_notes_fts_ai', 'j2_notes_fts_au', 'j2_notes_fts_ad')")}
+    return (any("note_rowid" not in bodies.get(n, "") for n in ("j2_notes_fts_ai", "j2_notes_fts_au"))
+            or "j2_notes_fts_ad" not in bodies)
+
+
+def _fts_map_in_shape(conn: sqlite3.Connection) -> bool:
+    """The whole wave-10 shape: the column, trigger bodies that keep it, the covering
+    index under its NEW name (and not the old one), and no row out of step."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes_fts_map)")}
+    if "note_rowid" not in cols or _fts_triggers_stale(conn):
+        return False
+    idx = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='j2_notes_fts_map'")}
+    if "idx_j2_notes_fts_map_rowid_note" not in idx or "idx_j2_notes_fts_map_rowid" in idx:
+        return False
+    return not _fts_map_drift(conn)
+
+
 def _repair_fts_map_note_rowid(conn: sqlite3.Connection) -> int:
     """Re-derive `j2_notes_fts_map.note_rowid` from `note_id` when ANY row disagrees
     with its note: NULL for a note that exists (an older map, or a row an older
@@ -2665,12 +2763,7 @@ def _repair_fts_map_note_rowid(conn: sqlite3.Connection) -> int:
     NULL as a value: a map row with no note settles at NULL and stays settled.
     A search reads the column, so a wrong value would silently return a different
     note of the same member -- or none."""
-    bad = conn.execute(
-        "SELECT 1 FROM j2_notes_fts_map m"
-        " WHERE m.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = m.note_id)"
-        " LIMIT 1"
-    ).fetchone()
-    if not bad:
+    if not _fts_map_drift(conn):
         return 0
     cur = conn.execute(
         "UPDATE j2_notes_fts_map SET note_rowid ="
@@ -2696,30 +2789,48 @@ def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
          NOT EXISTS` never touches an index that already exists, so a changed
          definition under the old name would leave every existing database on the
          old shape while every fresh (test) database got the new one
-         (perf-budgets.md §2, review M-7)."""
-    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0}
+         (perf-budgets.md §2, review M-7).
+
+    ⛔⛔ Fix round 1 (review I-2): the readers trust `note_rowid` ONLY while
+    `_FTS_MAP_BUILD` is recorded, and it is recorded in the same transaction as
+    steps 1-4 -- one `BEGIN IMMEDIATE`, the trigger swap included (statement by
+    statement: `executescript` commits first). A database that needs any of the
+    work is UNMARKED FIRST, in its own commit. So a failed upgrade leaves the map
+    unmarked and every search takes the pre-wave-10 `note_id` hop: slower, and the
+    same answer. It used to answer `[]` for every note an old map row had not
+    re-derived (a NULL never satisfies `IN`)."""
+    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0, "marked": False}
     has_map = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts_map'").fetchone()
     has_fts = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'").fetchone()
     if not has_map or not has_fts:
         return out
-    _ensure_fts_map_note_rowid_column(conn)
-    bodies = {r[0]: r[1] or "" for r in conn.execute(
-        "SELECT name, sql FROM sqlite_master WHERE type='trigger'"
-        " AND name IN ('j2_notes_fts_ai', 'j2_notes_fts_au', 'j2_notes_fts_ad')")}
-    stale = [n for n in ("j2_notes_fts_ai", "j2_notes_fts_au") if "note_rowid" not in bodies.get(n, "")]
-    if stale or "j2_notes_fts_ad" not in bodies:
-        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ai")
-        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ad")
-        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_au")
-        conn.executescript(_J2_NOTES_FTS_TRIGGERS_DDL)
-        out["triggers_replaced"] = True
-    out["rows_repaired"] = _repair_fts_map_note_rowid(conn)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
-                 " ON j2_notes_fts_map(fts_rowid, note_rowid)")
-    conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
+    conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
+    if schema_built(conn, _FTS_MAP_BUILD):
+        if _fts_map_in_shape(conn):
+            return out
+        _unmark_built(conn, _FTS_MAP_BUILD)       # the readers fall back from here on
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        _ensure_fts_map_note_rowid_column(conn)
+        if _fts_triggers_stale(conn):
+            for name in ("j2_notes_fts_ai", "j2_notes_fts_ad", "j2_notes_fts_au"):
+                conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+            for stmt in _script_statements(_J2_NOTES_FTS_TRIGGERS_DDL):
+                conn.execute(stmt)
+            out["triggers_replaced"] = True
+        out["rows_repaired"] = _repair_fts_map_note_rowid(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
+                     " ON j2_notes_fts_map(fts_rowid, note_rowid)")
+        conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
+        _mark_built(conn, _FTS_MAP_BUILD)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    out["marked"] = True
     return out
 
 
@@ -2748,6 +2859,14 @@ def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
 # `note_rowid` is j2_notes' implicit rowid -- the same derived copy, and the same
 # boot drift check, as `j2_notes_fts_map.note_rowid` (`_ensure_note_tag_index`).
 _TAG_FOLD_REMOVED = (9, 10, 11, 12, 13, 28, 29, 30, 31, 32, 47)   # Python's ASCII whitespace, and "/"
+
+#: ⛔ BUMP THIS when the tag index's DERIVATION changes -- the DDL and trigger SQL
+#: (`_NOTE_TAG_INDEX_DDL`), the fold (`_TAG_FOLD_REMOVED`, `_TAG_FOLD_OF_JE`) or the
+#: rebuild (`rebuild_note_tag_index`). Its record in `j2_schema_builds` carries the
+#: version, so the next boot drops the triggers and the table and rebuilds them from
+#: this code; until then the readers take the per-note scan.
+#: tests/test_journal_two_derivation_versions.py pins it to a hash of those sources.
+TAG_INDEX_VERSION = 1
 
 
 def _tag_fold_sql(expr: str) -> str:
@@ -2785,9 +2904,13 @@ _NOTE_TAG_INDEX_DDL = (
     "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_ad AFTER DELETE ON j2_notes BEGIN"
     " DELETE FROM j2_note_tag_index WHERE note_id = old.id;"
     " END",
-    "CREATE TABLE IF NOT EXISTS j2_schema_builds (name TEXT PRIMARY KEY, built_at TEXT NOT NULL)",
+    _SCHEMA_BUILDS_DDL,
 )
-_NOTE_TAG_INDEX_BUILD = "j2_note_tag_index"
+_NOTE_TAG_INDEX_FAMILY = "j2_note_tag_index"
+_NOTE_TAG_INDEX_BUILD = f"{_NOTE_TAG_INDEX_FAMILY}@{TAG_INDEX_VERSION}"
+_NOTE_TAG_INDEX_TRIGGERS = ("j2_note_tag_index_ai", "j2_note_tag_index_au", "j2_note_tag_index_ad")
+_NOTE_TAG_INDEX_INDEXES = ("idx_j2_note_tag_index_fold", "idx_j2_note_tag_index_tag",
+                           "idx_j2_note_tag_index_note")
 
 
 def rebuild_note_tag_index(conn: sqlite3.Connection) -> int:
@@ -2802,37 +2925,79 @@ def rebuild_note_tag_index(conn: sqlite3.Connection) -> int:
     return cur.rowcount
 
 
+def _tag_index_in_shape(conn: sqlite3.Connection) -> bool:
+    """Every object the index needs exists, and no row's `note_rowid` is out of step
+    with its note (a logical dump/restore renumbers j2_notes; see
+    `_repair_fts_map_note_rowid`)."""
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE name IN (?, ?, ?, ?, ?, ?, ?)",
+                                        (_NOTE_TAG_INDEX_FAMILY, *_NOTE_TAG_INDEX_TRIGGERS,
+                                         *_NOTE_TAG_INDEX_INDEXES))}
+    if len(names) != 1 + len(_NOTE_TAG_INDEX_TRIGGERS) + len(_NOTE_TAG_INDEX_INDEXES):
+        return False
+    return conn.execute(
+        "SELECT 1 FROM j2_note_tag_index t"
+        " WHERE t.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = t.note_id)"
+        " LIMIT 1").fetchone() is None
+
+
 def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
     """Create the tag index (table, indexes, triggers) and make it TRUE, in place,
-    on any database: built once from every note (recorded in `j2_schema_builds`, in
-    the same transaction as the build, so a half-built index is never marked), and
-    rebuilt at any boot whose drift check finds a row whose `note_rowid` is not its
-    note's (a logical dump/restore renumbers j2_notes; see
-    `_repair_fts_map_note_rowid`). The triggers keep it true between boots."""
-    out = {"built": False, "rebuilt_for_drift": False}
-    for stmt in _NOTE_TAG_INDEX_DDL:
-        conn.execute(stmt)
+    on any database, recorded as `_NOTE_TAG_INDEX_BUILD` in the build's own
+    transaction (a half-built index is never marked). The triggers keep it true
+    between boots.
+
+    ⛔⛔ Fix round 1 (reviews I-2, I-3). Three reasons to (re)build, one guarded path:
+      * never built on this database (`built`);
+      * built by another VERSION of the derivation (`rebuilt_for_version`): the
+        triggers are `CREATE TRIGGER IF NOT EXISTS`, which never replaces an
+        existing body, so without the version a change to the fold or the trigger
+        SQL reached fresh databases only;
+      * built, but an object is missing or a row's `note_rowid` drifted
+        (`rebuilt_for_drift`).
+    Every record of the index is DELETED FIRST, in its own commit, so the readers
+    (`notes._tag_index_ready`) take the per-note scan while the rebuild runs -- and
+    stay on it if the rebuild fails. The rebuild then drops the triggers and the
+    table and recreates them from this code, all in one `BEGIN IMMEDIATE`."""
+    out = {"built": False, "rebuilt_for_drift": False, "rebuilt_for_version": False}
+    conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
+    if schema_built(conn, _NOTE_TAG_INDEX_BUILD):
+        if _tag_index_in_shape(conn):
+            return out
+        reason = "rebuilt_for_drift"
+    else:
+        other = conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                             (_NOTE_TAG_INDEX_FAMILY, _NOTE_TAG_INDEX_FAMILY + "@%")).fetchone()
+        reason = "rebuilt_for_version" if other else "built"
+    _unmark_built(conn, _NOTE_TAG_INDEX_FAMILY)     # the readers fall back from here on
     conn.execute("BEGIN IMMEDIATE")
     try:
-        done = conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
-                            (_NOTE_TAG_INDEX_BUILD,)).fetchone()
-        if not done:
-            rebuild_note_tag_index(conn)
-            conn.execute("INSERT OR REPLACE INTO j2_schema_builds (name, built_at) VALUES (?, ?)",
-                         (_NOTE_TAG_INDEX_BUILD, time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())))
-            out["built"] = True
-        elif conn.execute(
-                "SELECT 1 FROM j2_note_tag_index t"
-                " WHERE t.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = t.note_id)"
-                " LIMIT 1").fetchone():
-            rebuild_note_tag_index(conn)
-            out["rebuilt_for_drift"] = True
+        for name in _NOTE_TAG_INDEX_TRIGGERS:
+            conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+        conn.execute(f"DROP TABLE IF EXISTS {_NOTE_TAG_INDEX_FAMILY}")
+        for stmt in _NOTE_TAG_INDEX_DDL:
+            conn.execute(stmt)
+        rebuild_note_tag_index(conn)
+        _mark_built(conn, _NOTE_TAG_INDEX_BUILD)
         conn.commit()
     except Exception:
         conn.rollback()
         raise
+    out[reason] = True
     return out
+
+
+#: ⛔ BUMP THIS when the task index's DERIVATION changes -- `note_tasks.extract_tasks`
+#: or anything it reads (`_own_text_and_due`, `parse_due`, `_DATE_RE`, `_NESTED_LISTS`).
+#: `list_tasks` trusts a row over the body, and a row is invalidated only when its
+#: note's body is written, so without the version a changed extraction would be
+#: served stale for every note not re-saved since the deploy (review I-3). With it,
+#: the next boot empties the table and refills it from this code, and until that
+#: commits `list_tasks` parses the bodies. tests/test_journal_two_derivation_versions.py
+#: pins it to a hash of those sources.
+TASK_DIGEST_VERSION = 1
+_TASK_DIGEST_FAMILY = "j2_note_task_digest"
+_TASK_DIGEST_BUILD = f"{_TASK_DIGEST_FAMILY}@{TASK_DIGEST_VERSION}"
 
 
 def backfill_note_task_digest(conn: sqlite3.Connection) -> int:
@@ -2846,26 +3011,48 @@ def backfill_note_task_digest(conn: sqlite3.Connection) -> int:
     ⛔ Same candidate rule as `list_tasks` (`instr(body_json, 'taskItem') > 0`,
     spelled as the partial index spells it) and the SAME extraction
     (`note_tasks.extract_tasks`), so what it writes is what the reader would have
-    computed from the body."""
+    computed from the body.
+
+    ⛔ Fix round 1 (review M-1): the bodies are read INSIDE `BEGIN IMMEDIATE`, so no
+    body write can land between the read and the `INSERT OR REPLACE` -- the one
+    writer where "exact or absent" did not hold by construction now does.
+    ⛔ And (review I-3): when this database's rows were derived by another VERSION of
+    the extraction, every record of the index is forgotten first (own commit), and
+    the table is EMPTIED and refilled in the same transaction that records
+    `_TASK_DIGEST_BUILD`; `list_tasks` reads rows only while that record stands."""
     from api.services.journal_two.note_tasks import extract_tasks
-    rows = conn.execute(
-        "SELECT n.id, n.user_id, n.body_json FROM j2_notes n"
-        " WHERE instr(n.body_json, 'taskItem') > 0"
-        " AND NOT EXISTS (SELECT 1 FROM j2_note_task_digest d WHERE d.note_id = n.id)"
-    ).fetchall()
-    written = 0
-    for r in rows:
-        try:
-            doc = json.loads(r[2] or "{}")
-        except (ValueError, TypeError):
-            continue
-        tasks = extract_tasks(doc)
-        if tasks:
-            conn.execute(
-                "INSERT OR REPLACE INTO j2_note_task_digest (note_id, user_id, tasks_json)"
-                " VALUES (?, ?, ?)", (r[0], r[1], json.dumps(tasks)))
-            written += 1
+    conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
+    current = schema_built(conn, _TASK_DIGEST_BUILD)
+    if not current:
+        _unmark_built(conn, _TASK_DIGEST_FAMILY)        # the reader parses bodies from here on
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        if not current:
+            conn.execute("DELETE FROM j2_note_task_digest")
+        rows = conn.execute(
+            "SELECT n.id, n.user_id, n.body_json FROM j2_notes n"
+            " WHERE instr(n.body_json, 'taskItem') > 0"
+            " AND NOT EXISTS (SELECT 1 FROM j2_note_task_digest d WHERE d.note_id = n.id)"
+        ).fetchall()
+        written = 0
+        for r in rows:
+            try:
+                doc = json.loads(r[2] or "{}")
+            except (ValueError, TypeError):
+                continue
+            tasks = extract_tasks(doc)
+            if tasks:
+                conn.execute(
+                    "INSERT OR REPLACE INTO j2_note_task_digest (note_id, user_id, tasks_json)"
+                    " VALUES (?, ?, ?)", (r[0], r[1], json.dumps(tasks)))
+                written += 1
+        if not current:
+            _mark_built(conn, _TASK_DIGEST_BUILD)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return written
 
 

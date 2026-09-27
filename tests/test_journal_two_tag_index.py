@@ -71,7 +71,7 @@ def _unbuilt(c):
     class _Scope:
         def __enter__(self):
             c.execute("SAVEPOINT unbuilt")
-            c.execute("DELETE FROM j2_schema_builds WHERE name = 'j2_note_tag_index'")
+            c.execute("DELETE FROM j2_schema_builds WHERE name = ?", (j2db._NOTE_TAG_INDEX_BUILD,))
 
         def __exit__(self, *exc):
             c.execute("ROLLBACK TO unbuilt")
@@ -229,3 +229,31 @@ def test_a_raw_json_true_tag_is_found_where_the_cloud_counts_it(tmp_path):
     assert cloud == {"1": 1}, cloud
     assert [n["id"] for n in notes_svc.list_notes(U, tag="1", conn=c)] == ["b1"]
     c.close()
+
+
+def test_a_drift_rebuild_that_fails_leaves_the_tag_reads_correct(tmp_path, monkeypatch):
+    """Fix round 1 (review I-2): on drift the index's record is forgotten FIRST, in its own
+    commit, so a rebuild that fails leaves every tag read on the per-note scan -- never on
+    `note_rowid`s that a restore made point at other notes of the member."""
+    c = _library(tmp_path, 41, n=40)
+    try:
+        keys = ["setups", "research", "research/semis"]
+        want = [notes_svc.list_and_count_notes(U, tag=k, limit=500, conn=c) for k in keys]
+        assert sum(t for _, t in want) > 0
+        c.execute("UPDATE j2_notes SET rowid = 100000 - rowid")
+        c.commit()
+
+        def locked(conn):
+            raise sqlite3.OperationalError("database is locked")
+        monkeypatch.setattr(j2db, "rebuild_note_tag_index", locked)
+        with pytest.raises(sqlite3.OperationalError):
+            j2db._ensure_note_tag_index(c)
+        assert not notes_svc._tag_index_ready(c)
+        assert [notes_svc.list_and_count_notes(U, tag=k, limit=500, conn=c) for k in keys] == want
+        monkeypatch.undo()
+        out = j2db._ensure_note_tag_index(c)
+        # the failed attempt had already forgotten the record: from here it is a first build
+        assert out["built"] is True and notes_svc._tag_index_ready(c)
+        assert [notes_svc.list_and_count_notes(U, tag=k, limit=500, conn=c) for k in keys] == want
+    finally:
+        c.close()
