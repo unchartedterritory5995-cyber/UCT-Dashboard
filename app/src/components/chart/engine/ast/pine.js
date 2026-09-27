@@ -11646,7 +11646,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  reachable table scripts colour conditionally far more often than not. */
   const colorNodeOf = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
-    const hex = staticColourOf(node, scope)
+    // ⭐ WITH its transparency — see `staticObjectColourOf`. A drawing object
+    // has one colour string and no opacity field, so the alpha rides in it.
+    const hex = staticObjectColourOf(node, scope)
     if (hex) return { c: 'lit', hex }
     if (node.type === 'ternary') {
       const cond = resolveTree(node.test)
@@ -14906,6 +14908,43 @@ function colourTransparencyOf(node, env, depth = 0) {
     return opacity === null ? null : (1 - opacity) * 100
   }
   return null
+}
+
+/** ⭐⭐ THE COLOUR A DRAWING OBJECT PAINTS: `staticColourOf`'s hex WITH its
+ *  transparency folded in as `#RRGGBBAA`, or null.
+ *
+ *  ⚰️ MEASURED 2026-09-27: every box, label, table cell and linefill painted a
+ *  transparent colour SOLID. `box.new(…, bgcolor = color.new(color.red, 80))`
+ *  reached the object program as `#F23645` — the 80 was read and validated by
+ *  `staticColourOf` and then dropped, because a plot carries its alpha in a
+ *  separate `presentation.opacity` and an object has no such field: its one
+ *  colour string IS the paint. A zone drawn at 20% opacity covered the candles
+ *  under it. Only an 8-digit literal survived, because nothing parsed it.
+ *
+ *  ⛔ NO NEW ARITHMETIC. `colourTransparencyOf` already answers this number for
+ *  exactly the colours `staticColourOf` folds (a name, a literal, `color.new`,
+ *  `color.rgb`'s fourth argument, `input.color`'s default, a bound name), so the
+ *  two cannot disagree about what counts as a colour.
+ *
+ *  ⛔ AN 8-DIGIT LITERAL IS KEPT BYTE-FOR-BYTE. Re-encoding it through a 0-100
+ *  transparency is lossy (`#…81` → 49 → `#…82`); when the transparency read back
+ *  is the literal's own, the literal is the answer. `color.new(#FF000080, 0)`
+ *  still comes out `#FF0000` — `color.new` SETS the transparency, it does not
+ *  stack onto the base's.
+ *
+ *  ⛔ AN OPAQUE COLOUR STAYS SIX DIGITS, so nothing that was already right
+ *  changes its bytes. */
+function staticObjectColourOf(node, env) {
+  const hex = staticColourOf(node, env)
+  if (!hex) return null
+  const base = /^#[0-9a-f]{6}/i.exec(hex)
+  const t = colourTransparencyOf(node, env)
+  if (!base || t === null) return hex
+  const own = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(hex)
+  if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
+  if (!(t > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
