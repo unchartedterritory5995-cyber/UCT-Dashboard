@@ -315,10 +315,66 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // `BuilderSheet`'s multi-output import already follows. `treeIndex: null`
   // resolves against `compute.ast`, which is an ALIAS of the scan plot, so a
   // later reassignment would silently move every unnamed locator.
+  // ⛔⛔ 2026-09-26 — …EXCEPT WHEN THERE IS NO `compute.trees` TO NAME. A document
+  // with ONE row is written single-tree by `buildDefinition` (`multi` is
+  // `rows.length > 1`), so a locator naming `'value'` resolved against
+  // `compute.trees` — which does not exist — and every parameter of a one-plot
+  // member pane was DETACHED: `applyParamEdit` refused "every locator is detached"
+  // and `reconcile` reported the control dead. Measured on the rail below. `null` is
+  // the one address a single-tree document has, and it is unambiguous there.
+  const singleTree = rows.length === 1
   const manifest = manifestFromPlacements(t.inputParams || [], drawable.map((o, i) => ({
-    treeIndex: keyAt(i),
+    treeIndex: singleTree ? null : keyAt(i),
     locators: paramLocatorsIn(t.inputParams || [], o.ast),
   })))
+
+  // ⭐⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT IS DRAWN, NOT DROPPED.
+  //
+  // ⚰️ `plot(x, offset = -N)` translated to the undisplaced tree plus `displace: -N`
+  // on the translator's row — and these rows never carried it, so the pane drew
+  // every such plot N bars LATE: a pivot marked on its confirmation bar instead of
+  // the pivot bar, with nothing on screen saying so. The row now carries it and the
+  // binder draws bar i's value at bar i + displace, Pine's own rule. The COLUMN is
+  // untouched — the scan, the alert seam and every `source` reference still read the
+  // value on the bar that computed it; `displace` is a drawing fact only.
+  //
+  // ⛔ AND A DEFINITION-PARAMETER EDIT MUST MOVE IT. When the displacement is `±p + c`
+  // for one parameter `p` of this document, the row carries that relation and
+  // `paramEdit` recomputes the displacement with the edit. When it reads a parameter
+  // any other way, that parameter is WITHHELD from the manifest — an edit that moved
+  // the pivot and left its drawing where it was would be the half-applied trap — and
+  // the member is told why.
+  const withheld = new Set()
+  drawable.forEach((o, i) => {
+    const d = o && o.displace
+    if (!Number.isInteger(d) || d >= 0) return
+    rows[i].displace = d
+    const from = o._displaceFrom
+    const tracked = from && manifest[from.param] ? from.param : null
+    if (tracked) rows[i].displaceFrom = { param: from.param, scale: from.scale, add: from.add }
+    for (const pid of (o._displaceParams || [])) {
+      if (pid !== tracked && manifest[pid]) withheld.add(pid)
+    }
+  })
+  for (const pid of withheld) delete manifest[pid]
+  // ⛔ A BAND BETWEEN TWO PLOTS DRAWN AT DIFFERENT DISPLACEMENTS IS REFUSED BY NAME.
+  // Each edge would be drawn where its own plot is, but which bar's colour a band
+  // takes when its edges disagree is not something this door has measured against
+  // TradingView — drawing one guess would be a band that looks right and is not.
+  // No committed corpus script does this (measured 2026-09-26).
+  for (const r of rows) {
+    const w = r.fill && r.fill.with
+    if (!w) continue
+    const other = rows.find((x) => x.key === w)
+    const a = r.displace || 0
+    const b = (other && other.displace) || 0
+    if (a !== b) {
+      return no(`a fill joins two plots drawn at different displacements (${a} and ${b} bars), `
+        + 'and which bar\'s colour such a band takes has not been measured against TradingView — '
+        + 'so it is not drawn as a guess. TO UNBLOCK: give both plots the same `offset`.',
+      'pine:plot-offset', t)
+    }
+  }
 
   // ⭐⭐ AN OBJECTS-ONLY SCRIPT NEEDS AN ANCHOR ROW, AND ITS PEERS ALREADY WROTE
   // ONE. A definition's primary `source`/`ast` come from its first plot, and a
@@ -432,6 +488,19 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       seen.add(key)
       notes.push(n)
     }
+  }
+  // ⭐ 2026-09-26 — A PARAMETER WITHHELD BECAUSE IT SETS A DISPLACEMENT THE
+  // DOCUMENT CANNOT RECOMPUTE, said in words beside the others. Silence would
+  // read as "this script has no such setting".
+  for (const pid of withheld) {
+    const p = (t.inputParams || []).find((x) => x && x.id === pid)
+    const name = (p && (p.title || p.sourceName)) || pid
+    notes.push({
+      name,
+      note: `\`${name}\` also sets where a plot is drawn (its \`offset\`), in a way this `
+        + 'document cannot recompute from a new value — so it is not offered as an '
+        + 'adjustable setting here. Change it in the script and paste it again.',
+    })
   }
   // ⭐⭐ T5b — THE DISCLOSURES RIDE ON THE SAVED DOCUMENT, OR THE MEMBER NEVER
   // SEES THEM.

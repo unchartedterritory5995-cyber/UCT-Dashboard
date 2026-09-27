@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-09-23",
+  "measured_at": "2026-09-27",
   "scripts": 266,
   "host_ok": 43,
   "screener_ok": 52,
@@ -281,12 +281,10 @@
       "screener": false,
       "hostGuards": [
         "pine:state",
-        "pine:plot-offset",
         "pine:roundtrip"
       ],
       "screenerGuards": [
         "pine:state",
-        "pine:plot-offset",
         "pine:roundtrip"
       ]
     },
@@ -1632,11 +1630,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:plot-offset",
         "pine:state"
       ],
       "screenerGuards": [
-        "pine:plot-offset",
         "pine:state"
       ]
     },
@@ -1796,12 +1792,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:offset-literal",
-        "pine:plot-offset"
+        "pine:offset-literal"
       ],
       "screenerGuards": [
-        "pine:offset-literal",
-        "pine:plot-offset"
+        "pine:offset-literal"
       ]
     },
     {
@@ -3014,12 +3008,10 @@
       "screener": false,
       "hostGuards": [
         "pine:reassign",
-        "pine:plot-offset",
         "pine:state"
       ],
       "screenerGuards": [
         "pine:reassign",
-        "pine:plot-offset",
         "pine:state"
       ]
     },
