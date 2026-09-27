@@ -1,9 +1,14 @@
-# promotion-gate: no — ADVISORY until it has been SEEN RED ONCE AND SEEN GREEN ONCE in CI
-#   (ruling R-10, the D-A2 precedent). Only then may this marker become `yes`, and the two
-#   run URLs belong in this header when it does (tests/test_notebook_perf_scale_w10.py
-#   refuses a `yes` without them). ⛔ And if the ratio check FLAPS in its first 20 runs,
-#   R-10 says: gate bytes only (notebook-bytes.yml) and restate clause 4b -- this marker
-#   goes back to `no`. Added 2026-09-27, wave 10 lane 10A.
+# promotion-gate: yes — PROMOTED 2026-09-27 under ruling R-10 (the D-A2 precedent), having been
+#   SEEN RED once and SEEN GREEN once in CI, both on this workflow's own ratio step:
+#   SEEN GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36323273589
+#     (feat/notebook-w10-a 2b0f388f8: 14 ops, ratios 0.018-0.942 against a 2.301 line)
+#   SEEN RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36323335660
+#     (throwaway ci/notebook-w10a-latency-red aafb5b1d7 = the same tree + --slow-op
+#     "GET /notes q=rare (list+count)=400": that op alone breached, 7.588 re-measured 7.620,
+#     and the other 13 stayed under the line).
+#   ⛔ If the ratio check FLAPS in its first 20 runs, R-10 says: gate bytes only
+#   (notebook-bytes.yml), restate clause 4b, and this marker goes back to `no`. The run
+#   count and every flap are recorded in docs/notebook/perf-budgets.md §7.
 # ─── NOTEBOOK READ LATENCY, IN CI, AS A RATIO (RULING R-10) ─────────────────
 #
 # A shared runner's speed is not ours: the millisecond check in notebook-budgets.yml went
@@ -24,6 +29,7 @@
 name: notebook latency
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'api/services/journal_two/**'

@@ -566,7 +566,13 @@ identical at 5,000 notes and at 50,000.
   is decided per workflow FILE (`tools/promotion_gate.py`) and one file carries one marker.
   `notebook-budgets.yml` keeps its advisory millisecond job and its `no` marker.
 - **The ratio check:** `.github/workflows/notebook-latency.yml` runs the 10k tier with
-  `--ratio ratio_ci`, `# promotion-gate: no` until it has been seen red once and green once
-  (the D-A2 precedent); the two run URLs go in its header when the marker flips, and
-  `tests/test_notebook_perf_scale_w10.py` refuses a `yes` without them. If it flaps in its first
-  20 runs, R-10 says gate bytes only and restate clause 4b. ⛔ The local 50k gate stays the verdict.
+  `--ratio ratio_ci`. It was advisory until it had been seen red once and green once (the D-A2
+  precedent), and `tests/test_notebook_perf_scale_w10.py` refuses a `yes` without the two run
+  URLs in its header. **Promoted 2026-09-27** (`# promotion-gate: yes`):
+  SEEN GREEN, run `36323273589` (`2b0f388f8`; 14 ops, ratios 0.018 - 0.942 against the 2.301
+  line, the runner's calibration p50 about 53 ms against the reference 43.45);
+  SEEN RED, run `36323335660` (throwaway branch `ci/notebook-w10a-latency-red`, `aafb5b1d7` = the
+  same tree plus `--slow-op "GET /notes q=rare (list+count)=400"`: that op alone breached, median
+  7.588, re-measured 7.620; the other 13 stayed under the line). If it flaps in its first 20
+  runs, R-10 says gate bytes only, restate clause 4b and put the marker back to `no`. ⛔ The
+  local 50k gate stays the verdict.
