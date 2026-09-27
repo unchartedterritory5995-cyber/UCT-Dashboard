@@ -1,0 +1,161 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 4,
+    "fixed": 7,
+    "unchanged": 176,
+    "missing": 0,
+    "baseline": 183,
+    "current": 181,
+    "current_ran": 59796,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 3,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 183 = unchanged 176 + fixed 7 + missing 0  |  current 181 = unchanged 176 + new 4 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36293681289",
+  "current_run_id": "36298119050",
+  "baseline_sha": "9310ae0b0455711f33b8f71bb72e4be36c41b597",
+  "current_sha": "5eda463e9f039ee22ee6badf8930f371df0920ad",
+  "commit_range": "9310ae0b0455711f33b8f71bb72e4be36c41b597..5eda463e9f039ee22ee6badf8930f371df0920ad",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_account_tombstones|test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed",
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "pytest|tests.test_plain_text_parity|test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too]",
+    "pytest|tests.test_user_study_kit|test_the_consent_form_is_marked_as_a_draft_needing_the_owner"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ask_document_navigation|test_the_client_reads_the_SAME_two_values",
+    "pytest|tests.test_ticker_meta|test_a_disk_entry_from_before_exchange_existed_is_treated_as_STALE",
+    "pytest|tests.test_ticker_meta|test_an_OTCQX_symbol_reaches_the_store_as_OTC_end_to_end",
+    "pytest|tests.test_ticker_meta|test_partial_yfinance_missing_name_backfills_name_from_finnhub",
+    "pytest|tests.test_ticker_meta|test_yfinance_happy_path",
+    "pytest|tests.test_ticker_meta|test_yfinance_without_an_exchange_still_runs_the_FMP_leg_to_fill_it",
+    "pytest|tests.test_ticker_meta|test_yfinances_exchange_WINS_over_FMPs_when_both_answer"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_account_tombstones|test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed": {
+      "class": "test-file-change",
+      "commits": [
+        "4f708a0d2"
+      ],
+      "workstreams": [
+        {
+          "commit": "4f708a0d2",
+          "workstream": "Notebook wave 10 L1a",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "imported-file-change",
+      "commits": [
+        "4f708a0d2"
+      ],
+      "workstreams": [
+        {
+          "commit": "4f708a0d2",
+          "workstream": "Notebook wave 10 L1a",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_plain_text_parity|test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too]": {
+      "class": "imported-file-change",
+      "commits": [
+        "4f708a0d2"
+      ],
+      "workstreams": [
+        {
+          "commit": "4f708a0d2",
+          "workstream": "Notebook wave 10 L1a",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_user_study_kit|test_the_consent_form_is_marked_as_a_draft_needing_the_owner": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_user_study_kit.py or anything it imports"
+    },
+    "pytest|tests.test_ask_document_navigation|test_the_client_reads_the_SAME_two_values": {
+      "class": "test-file-change",
+      "commits": [
+        "4f708a0d2"
+      ],
+      "workstreams": [
+        {
+          "commit": "4f708a0d2",
+          "workstream": "Notebook wave 10 L1a",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_ticker_meta|test_a_disk_entry_from_before_exchange_existed_is_treated_as_STALE": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_meta|test_an_OTCQX_symbol_reaches_the_store_as_OTC_end_to_end": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_meta|test_partial_yfinance_missing_name_backfills_name_from_finnhub": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_meta|test_yfinance_happy_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_meta|test_yfinance_without_an_exchange_still_runs_the_FMP_leg_to_fill_it": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    },
+    "pytest|tests.test_ticker_meta|test_yfinances_exchange_WINS_over_FMPs_when_both_answer": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 9310ae0b0..5eda463e9 touched tests/test_ticker_meta.py or anything it imports"
+    }
+  }
+}
