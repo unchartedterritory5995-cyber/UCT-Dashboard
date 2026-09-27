@@ -1,0 +1,67 @@
+# promotion-gate: yes — ruling R-10 (wave 10): "gate the byte budget in CI now". The byte
+#   check is DETERMINISTIC -- it sums the Notebook route's static JS closure out of the Vite
+#   build manifest against a hand-edited budget -- so a red here is a real regression, never
+#   runner noise, and it may hold `web` back. Moved out of notebook-budgets.yml (which stays
+#   ADVISORY for its millisecond readings) because the gate is decided per workflow FILE
+#   (tools/promotion_gate.py) and the two could not share one marker. Wave 10, lane 10A.
+# ─── NOTEBOOK JS BYTE BUDGET, IN CI (GATING) ─────────────────────────────────
+#
+# The JS a browser fetches before the Notebook route renders: the entry plus every chunk in
+# the STATIC import closure of the route's lazy roots in the Vite build manifest
+# (`build.manifest: true` in app/vite.config.js), derived from the graph on every run and
+# never a hand-typed chunk list. Budget and baseline: `docs/notebook/perf-budgets.json`
+# (edited BY HAND), `bytes.notebook_first_open`. The ONE checker is
+# `tools/notebook_perf_budgets.py`, the same one the advisory workflow used.
+#
+# ⛔ A MISSING MANIFEST OR A RENAMED ROUTE ROOT EXITS 3 AND FAILS THE JOB (closed). A budget
+#   that could not be checked did not pass.
+name: notebook bytes
+
+on:
+  push:
+    paths:
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-bytes.yml'
+  pull_request:
+    paths:
+      - 'app/src/**'
+      - 'app/vite.config.js'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-bytes.yml'
+
+jobs:
+  bytes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Build (writes dist/.vite/manifest.json)
+        working-directory: app
+        run: npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Stdlib only: the byte check reads the manifest and the files beside it.
+      - name: Notebook JS byte budget
+        run: python tools/notebook_perf_budgets.py --dist app/dist

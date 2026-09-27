@@ -3,7 +3,19 @@ Wave 7, lane I2. It runs LOCALLY ONLY and is never run in CI.
 
 Playwright is a LOCAL install on this box. It is not in requirements.txt and is not in any
 workflow. CI runs the search benchmark and the byte budget instead
-(`.github/workflows/notebook-budgets.yml`); these two budgets are a local gate step.
+(`.github/workflows/notebook-budgets.yml`; since wave 10 the gating byte check is
+`notebook-bytes.yml` and the ratio latency check `notebook-latency.yml`); these two budgets
+are a local gate step.
+
+Wave 10 (lane 10A), `--attribute`: after each size's timed typing pass -- the budget reading,
+uninstrumented -- the same characters are typed AGAIN with every piece of the editor timed in
+place: each ProseMirror plugin's state field, plugin view `update`, `decorations` / text-input
+props and `appendTransaction` (named by plugin key, so 10B's per-transaction column-resizing
+plugin is a named row), the view's `dispatch` and `updateState`, TipTap's `emit` per event, and
+React's scheduler tasks (its render + commit work, timed through the MessageChannel it runs
+on) with a count of React commits. Reported as ms per timed keystroke, largest first. The
+wrappers add their own cost, so the instrumented pass's p50 is printed beside it and never
+used as a budget reading.
 
 Budgets: read from docs/notebook/perf-budgets.json, key "editor" (never retyped here):
   * note open p95 < 300 ms for notes up to 1,000 paragraphs
@@ -168,6 +180,7 @@ INSTALL_TYPING_PROBE_JS = """
     if (t0 == null) return
     st.pending = null
     const ch = new MessageChannel()
+    ch.port1.__w10probe = true   // the attribution pass must not count THIS port as React's scheduler
     ch.port1.onmessage = () => { st.samples.push(performance.now() - t0) }
     queueMicrotask(() => ch.port2.postMessage(0))
   })
@@ -184,6 +197,135 @@ INSTALL_TYPING_PROBE_JS = """
 """
 
 READ_TYPING_JS = "() => (window.__w7Typing ? window.__w7Typing.samples.slice() : null)"
+
+# ── wave 10 (lane 10A): attribution -- WHERE a keystroke's main-thread time goes ──────────
+# Installed BEFORE the app loads (an init script): React's scheduler runs its render + commit
+# work in MessageChannel tasks, so every `port.onmessage` handler is timed (the typing probe's
+# own port is marked and skipped), and a minimal DevTools hook counts React commits. Inert until
+# `on` is set, so the uninstrumented timing pass is unaffected by anything but the wrapper call.
+ATTRIBUTION_INIT_JS = r"""
+(() => {
+  const S = window.__w10Sched = { on: false, ms: 0, n: 0, commits: 0 }
+  const d = Object.getOwnPropertyDescriptor(MessagePort.prototype, 'onmessage')
+  if (d && d.set) {
+    Object.defineProperty(MessagePort.prototype, 'onmessage', {
+      configurable: true, enumerable: d.enumerable,
+      get() { return d.get.call(this) },
+      set(fn) {
+        if (typeof fn !== 'function') return d.set.call(this, fn)
+        const port = this
+        d.set.call(this, function (ev) {
+          if (!S.on || port.__w10probe) return fn.call(this, ev)
+          const t = performance.now()
+          try { return fn.call(this, ev) } finally { S.ms += performance.now() - t; S.n += 1 }
+        })
+      },
+    })
+  }
+  if (!window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+    let id = 0
+    window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+      supportsFiber: true, isDisabled: false, renderers: new Map(),
+      inject(r) { id += 1; this.renderers.set(id, r); return id },
+      onCommitFiberRoot() { if (S.on) S.commits += 1 },
+      onCommitFiberUnmount() {}, onPostCommitFiberRoot() {}, onScheduleFiberRoot() {},
+      setStrictMode() {}, checkDCE() {},
+    }
+  }
+})()
+"""
+
+# Wraps, IN PLACE, every piece of the editor a transaction runs through, named by its
+# ProseMirror plugin key: each plugin's state field (`config.fields[].apply`), its view's
+# `update`, its `decorations` / text-input props and its `appendTransaction`; plus the view's
+# `dispatch` and `updateState`, and TipTap's `emit` per event. Time is summed per name while
+# `on`. Nested buckets overlap by design (`dispatch (total)` contains the rest).
+INSTALL_ATTRIBUTION_JS = r"""
+() => {
+  const pm = document.querySelector('.ProseMirror')
+  const editor = pm && pm.editor
+  if (!editor || !editor.view) return { ok: false, why: 'no TipTap editor on .ProseMirror' }
+  const view = editor.view
+  const S = window.__w10Sched
+  const A = window.__w10Attr = { on: false, buckets: {} }
+  const add = (k, dt) => { const b = A.buckets[k] || (A.buckets[k] = { ms: 0, n: 0 }); b.ms += dt; b.n += 1 }
+  const wrap = (obj, key, label) => {
+    const fn = obj && obj[key]
+    if (typeof fn !== 'function' || fn.__w10) return 0
+    const w = function (...args) {
+      if (!A.on) return fn.apply(this, args)
+      const t = performance.now()
+      try { return fn.apply(this, args) } finally { add(label, performance.now() - t) }
+    }
+    w.__w10 = true
+    obj[key] = w
+    return 1
+  }
+  let wrapped = 0
+  for (const f of view.state.config.fields || []) wrapped += wrap(f, 'apply', 'state.apply ' + f.name)
+  const withView = view.state.plugins.filter(p => p.spec && p.spec.view)
+  ;(view.pluginViews || []).forEach((pv, i) => {
+    const p = withView[i]
+    wrapped += wrap(pv, 'update', 'view.update ' + (p ? p.key : '#' + i))
+  })
+  for (const p of view.state.plugins) {
+    const props = p.props || {}
+    for (const k of ['decorations', 'handleTextInput', 'handleKeyDown', 'handleKeyPress', 'nodeViews'])
+      if (typeof props[k] === 'function') wrapped += wrap(props, k, k + ' ' + p.key)
+    if (p.spec) wrapped += wrap(p.spec, 'appendTransaction', 'appendTransaction ' + p.key)
+  }
+  wrapped += wrap(view, 'dispatch', 'dispatch (total)')
+  wrapped += wrap(view, 'updateState', 'view.updateState (DOM, decorations, plugin views)')
+  const emit = editor.emit
+  if (typeof emit === 'function' && !emit.__w10) {
+    const e = function (name, ...args) {
+      if (!A.on) return emit.call(this, name, ...args)
+      const t = performance.now()
+      try { return emit.call(this, name, ...args) } finally { add('tiptap emit ' + name, performance.now() - t) }
+    }
+    e.__w10 = true
+    editor.emit = e
+    wrapped += 1
+  }
+  return { ok: true, wrapped, plugins: view.state.plugins.map(p => p.key), sched: !!S }
+}
+"""
+
+ATTRIBUTION_ON_JS = """
+() => {
+  const S = window.__w10Sched, A = window.__w10Attr
+  if (S) { S.ms = 0; S.n = 0; S.commits = 0; S.on = true }
+  if (A) { A.buckets = {}; A.on = true }
+  return !!A
+}
+"""
+
+ATTRIBUTION_READ_JS = """
+() => {
+  const S = window.__w10Sched, A = window.__w10Attr
+  if (S) S.on = false
+  if (A) A.on = false
+  return { buckets: A ? A.buckets : {}, sched: S ? { ms: S.ms, n: S.n, commits: S.commits } : null }
+}
+"""
+
+
+def summarize_attribution(raw: dict, keys: int) -> list[dict]:
+    """Per-keystroke milliseconds by piece, largest first. `keys` is the number of timed
+    keystrokes the pass produced (never the characters sent: a key the editor never saw did no
+    work). React's scheduler tasks (render + commit) and the commit count ride along."""
+    rows = []
+    for name, b in (raw.get("buckets") or {}).items():
+        rows.append({"piece": name, "ms_per_key": round(b["ms"] / keys, 4) if keys else None,
+                     "calls_per_key": round(b["n"] / keys, 2) if keys else None})
+    sched = raw.get("sched")
+    if sched:
+        rows.append({"piece": "React scheduler tasks (render + commit)",
+                     "ms_per_key": round(sched["ms"] / keys, 4) if keys else None,
+                     "calls_per_key": round(sched["n"] / keys, 2) if keys else None,
+                     "react_commits_per_key": round(sched["commits"] / keys, 2) if keys else None})
+    rows.sort(key=lambda r: -(r["ms_per_key"] or 0))
+    return rows
 
 
 def percentile(samples: list[float], pct: float) -> float:
@@ -527,7 +669,11 @@ def _dismiss_intro(pg) -> None:
         dialog.first.wait_for(state="detached", timeout=8000)
 
 
-def run_live(base: str, sizes: list[int], opens: int, chars: int) -> tuple[dict, dict, dict, list[str]]:
+def run_live(base: str, sizes: list[int], opens: int, chars: int,
+             attribution: dict | None = None) -> tuple[dict, dict, dict, list[str]]:
+    """`attribution`, when given a dict, is filled with each size's per-keystroke breakdown
+    (`summarize_attribution`), taken in a SECOND typing pass after the timed one, so the
+    budget reading never runs through the wrappers."""
     from playwright.sync_api import sync_playwright
     errors: list[str] = []
     run = time.strftime("r%H%M%S")
@@ -538,6 +684,8 @@ def run_live(base: str, sizes: list[int], opens: int, chars: int) -> tuple[dict,
         br = pw.chromium.launch()
         admin_ctx = br.new_context()
         ctx = br.new_context(viewport={"width": 1280, "height": 800}, reduced_motion="reduce")
+        if attribution is not None:
+            ctx.add_init_script(ATTRIBUTION_INIT_JS)
         _provision(admin_ctx.request, ctx.request, base)
         notes = _seed(ctx.request, base, sizes, run)
         pg = ctx.new_page()
@@ -564,6 +712,22 @@ def run_live(base: str, sizes: list[int], opens: int, chars: int) -> tuple[dict,
             samples = pg.evaluate(READ_TYPING_JS) or []
             typing_ms[n] = samples
             typed[n] = chars
+            if attribution is not None:
+                inst = pg.evaluate(INSTALL_ATTRIBUTION_JS)
+                if not inst.get("ok"):
+                    errors.append(f"attribution could not install at {n} paragraphs: {inst.get('why')}")
+                    continue
+                before = len(pg.evaluate(READ_TYPING_JS) or [])
+                pg.evaluate(ATTRIBUTION_ON_JS)
+                pg.keyboard.type("y" * chars, delay=25)
+                pg.wait_for_timeout(300)
+                raw = pg.evaluate(ATTRIBUTION_READ_JS)
+                inst_samples = (pg.evaluate(READ_TYPING_JS) or [])[before:]
+                keys = len(inst_samples)
+                attribution[n] = {"keys": keys, "wrapped": inst.get("wrapped"),
+                                  "plugins": inst.get("plugins"),
+                                  "instrumented_p50_ms": round(percentile(inst_samples, 50), 3) if inst_samples else None,
+                                  "rows": summarize_attribution(raw, keys)}
         br.close()
     return open_ms, typing_ms, typed, errors
 
@@ -572,10 +736,18 @@ def dry_run() -> int:
     """No browser, no sandbox: parse the page scripts, and run the pure halves against
     stub samples, including one that must breach and one that must be INCONCLUSIVE."""
     import re
-    for name, js in (("OPEN_NOTE_JS", OPEN_NOTE_JS), ("INSTALL_TYPING_PROBE_JS", INSTALL_TYPING_PROBE_JS)):
+    for name, js in (("OPEN_NOTE_JS", OPEN_NOTE_JS), ("INSTALL_TYPING_PROBE_JS", INSTALL_TYPING_PROBE_JS),
+                     ("ATTRIBUTION_INIT_JS", ATTRIBUTION_INIT_JS), ("INSTALL_ATTRIBUTION_JS", INSTALL_ATTRIBUTION_JS),
+                     ("ATTRIBUTION_ON_JS", ATTRIBUTION_ON_JS), ("ATTRIBUTION_READ_JS", ATTRIBUTION_READ_JS)):
         opens, closes = js.count("{"), js.count("}")
         assert opens == closes, f"{name}: unbalanced braces ({opens} vs {closes})"
         assert re.search(r"=>", js), f"{name}: not a function"
+    # wave 10: the attribution summary is per TIMED keystroke, largest first, React row included
+    att = summarize_attribution({"buckets": {"a": {"ms": 10.0, "n": 5}, "b": {"ms": 30.0, "n": 5}},
+                                 "sched": {"ms": 20.0, "n": 10, "commits": 5}}, 5)
+    assert [r["piece"] for r in att] == ["b", "React scheduler tasks (render + commit)", "a"], att
+    assert att[0]["ms_per_key"] == 6.0 and att[1]["react_commits_per_key"] == 1.0, att
+    assert all(r["ms_per_key"] is None for r in summarize_attribution({"buckets": {"a": {"ms": 1.0, "n": 1}}}, 0))
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
@@ -675,10 +847,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--shutdown-wait", type=float, default=None,
                     help="with --base: seconds to wait, after the run, for that sandbox's shutdown "
                          f"checkpoint (default {BASE_SHUTDOWN_WAIT_S:.0f}); stop the sandbox to supply it")
+    ap.add_argument("--attribute", action="store_true",
+                    help="after each size's timed typing pass, type the same characters again with "
+                         "every plugin piece, the view's dispatch/updateState, TipTap's events and "
+                         "React's scheduler tasks timed; report ms per keystroke by piece (wave 10)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
         return dry_run()
+    attr: dict | None = {} if args.attribute else None
+    live_kw = {"attribution": attr} if attr is not None else {}
     try:
         sizes = [int(x) for x in args.sizes.split(",") if x.strip()]
     except ValueError:
@@ -711,7 +889,7 @@ def main(argv: list[str] | None = None) -> int:
                 failure = "the sandbox never answered /api/health"
             else:
                 try:
-                    live = run_live(base, sizes, args.opens, args.chars)
+                    live = run_live(base, sizes, args.opens, args.chars, **live_kw)
                 except SetupFailed as e:
                     not_run = str(e)[:300]
                 except Exception as e:  # noqa: BLE001 -- recorded, and the sandbox is still stopped
@@ -733,7 +911,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"REFUSED: {identity.sentence}")
             return 3
         try:
-            live = run_live(base, sizes, args.opens, args.chars)
+            live = run_live(base, sizes, args.opens, args.chars, **live_kw)
         except SetupFailed as e:
             not_run = str(e)[:300]
         except Exception as e:  # noqa: BLE001
@@ -780,6 +958,14 @@ def main(argv: list[str] | None = None) -> int:
     open_ms, typing_ms, typed, errors = live
     summary = summarize(open_ms, typing_ms, typed)
     out.update({"page_errors": errors, "raw": {"open_ms": open_ms, "typing_ms": typing_ms}, **summary})
+    if attr is not None:
+        out["attribution"] = attr
+        for n, a in sorted(attr.items()):
+            print(f"attribution at {n:,} paragraphs: {a['keys']} keys, instrumented p50 "
+                  f"{a['instrumented_p50_ms']} ms/key, {a['wrapped']} pieces wrapped")
+            for r in a["rows"][:18]:
+                extra = f"  ({r['react_commits_per_key']} React commits/key)" if "react_commits_per_key" in r else ""
+                print(f"  {r['ms_per_key']:8.3f} ms/key  {r['calls_per_key']:6.2f} calls/key  {r['piece']}{extra}")
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
     md = markdown_rows(summary, sha)

@@ -2031,6 +2031,17 @@ _PERF_INDEXES = [
     # every index this file changes (`CREATE INDEX IF NOT EXISTS` never rewrites one).
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_id_live"
     " ON j2_notes(id, user_id, deleted_at, updated_at, title)",
+    # Wave 10 (lane 10A, clause 14b): a document's pages by `document_id = ? AND
+    # user_id = ?` -- the editor's per-note document list asks it once per document
+    # (document_ocr.document_text_state), and so do the page reads beside it. With no
+    # ANALYZE statistics the planner took `idx_j2_note_document_pages_user (user_id)`,
+    # one equality term against the primary key's one, and so walked EVERY page the
+    # member owns for each document: 819 ms p50 for a note with 50 documents in a
+    # library of 10,000 (30,000 pages). Two equality terms win the tie; 1.6 -> 0.004 ms
+    # per document (perf-budgets.md §7). Leads with user_id so it also answers every
+    # user-only read the old index serves.
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_document_pages_user_doc"
+    " ON j2_note_document_pages(user_id, document_id)",
 ]
 
 

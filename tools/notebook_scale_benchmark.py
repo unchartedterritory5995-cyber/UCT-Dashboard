@@ -37,6 +37,16 @@ this changes what counts as a reading, never what a reading must be under. Measu
 fix: 8 of 56 runs of the CI job on `feat/notebook-w7` went red, every one on `search_ci`'s
 `q=` ops, several on commits that could not move a read.
 
+Wave 10 (lane 10A) additions:
+  * `--attachments N` (clause 14b): N extracted documents (3 pages each) seeded over the notes,
+    and the document reads timed through the routes a browser calls (`ATTACHMENT_OPS`), each
+    with correctness checks that can fail (a rare page found once, a trashed note's page never).
+  * `--curve` (clause 14d): the tiers 1k / 5k / 10k / 25k / 50k, and every op's log-log slope
+    printed and bounded by the `curve` budget (`notebook_perf_budgets.check_curve`).
+  * `--ratio KEY` (ruling R-10): at the budget's tier, every op it names timed as a median ratio
+    to `CALIBRATION_OP`, re-measured when over its line; `--slow-op LABEL=MS` feeds a check a
+    slowed op on purpose (the rail that proves the check goes red, and the CI red-once run).
+
 A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
 commit production pays on every search. The conftest sandbox's auth.db gets its schema
 (`auth_db.init_db()`) at start-up, so that write lands and is timed. It must not fail fast,
@@ -51,7 +61,8 @@ Usage:
     python tools/notebook_scale_benchmark.py [--tiers 1000,10000,50000] [--reps 20]
         [--warmup 2] [--json report.json] [--thresholds docs/notebook/perf-budgets.json]
         [--budget search [--budget tasks ...]] [--remeasure search_ci [--remeasure ...]]
-        [--keep-db] [--work-dir DIR]
+        [--keep-db] [--work-dir DIR] [--attachments N] [--curve] [--ratio KEY]
+        [--slow-op LABEL=MS]
 
 Exit codes: 0 = every correctness check passed and no budget was breached; 1 = a
 correctness check failed; 2 = a budget was breached (named on stdout); 3 = bad arguments
@@ -67,6 +78,7 @@ import os
 import platform
 import random
 import sqlite3
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -154,6 +166,38 @@ TIMED_OPS = [
     "switcher_search (fuzzy, in order)",
     "list_tasks (open, ?view=tasks)",
 ]
+
+# ── Wave 10 (lane 10A): the 10k-attachment tier (clause 14b) ──
+# The reads that grow with ATTACHMENTS rather than notes, timed through the routes a member's
+# browser calls (the search box's document half, `useDocumentSearch`; the editor's per-note
+# document list, `useNoteDocuments`). Added to the op table only when `--attachments N` seeds
+# documents, so a run without attachments measures exactly what it always did.
+ATTACHMENT_OPS = [
+    "GET /notes/documents/search q=common (search box)",
+    "GET /notes/documents/search q=rare (search box)",
+    "GET /notes/{id}/documents (note with 50 documents)",
+]
+_DOC_COMMON_MARKER = "quarterly guidance reiterated"
+_DOC_RARE_MARKER = "zzqdocrareterm"
+_DOC_TRASH_MARKER = "zzqdoctrashonly"   # on a TRASHED note's document only: must never be found
+_HEAVY_DOCS = 50
+_PAGES_PER_DOC = 3
+_DOC_PAGE = ("Management discussed {ticker} segment revenue, gross margin and the capital "
+             "return plan for the coming quarters, with inventory normalising and pricing held. "
+             "Filing page {p} of document {d}. {marker} ")
+
+# ── Wave 10 (lane 10A): the curve (clause 14d) ──
+CURVE_TIERS = (1000, 5000, 10000, 25000, 50000)
+
+# ── Wave 10 (lane 10A): the runner-noise-robust CI latency check (ruling R-10) ──
+# Each op is timed as a RATIO to an in-run calibration op: a fixed SQLite + JSON workload that
+# touches no product code, so a runner that is 2x slower makes both halves 2x slower and the
+# ratio does not move. The calibration builds its own table (never the product schema), so a
+# product change can never move the yardstick it is measured against.
+CALIBRATION_OP = "calibration (fixed SQLite + JSON workload)"
+_CALIB_ROWS = 20000
+_CALIB_WORDS = ("ledger", "margin", "breakout", "volume", "pullback", "earnings", "guidance",
+                "sector", "rotation", "base", "pivot", "stop", "risk", "trend", "gap", "range")
 
 
 def _body(ticker: str, i: int, marker: str, paragraphs: int, tasks: list[dict] | None) -> tuple[str, str]:
@@ -303,6 +347,161 @@ def _seed(conn: sqlite3.Connection, n: int, heavy_folder_id: str, other_folder_i
     }
 
 
+def _seed_attachments(conn: sqlite3.Connection, count: int) -> dict:
+    """Bulk raw INSERT of `count` extracted documents (`_PAGES_PER_DOC` pages each) over the
+    notes `_seed` wrote, through the real schema: the page triggers fill the document FTS the
+    way an extraction does. Distribution: `_HEAVY_DOCS` on one live note (the editor's per-note
+    list), one per note after that across the library, every 50th on a TRASHED note (search
+    must hide those), the common marker on ~30% of pages, the rare marker on exactly one live
+    page and the trash marker on exactly one trashed page. Returns the ground truth.
+
+    ⚠️ Documents only: the file bytes behind them are never written (no read here serves one),
+    and no image node is added to a body -- no timed read derives anything from one."""
+    rng = random.Random(1014)
+    notes = conn.execute(
+        "SELECT id, deleted_at, archived_at, ticker, updated_at FROM j2_notes"
+        " WHERE user_id = ? ORDER BY rowid", (USER_ID,)).fetchall()
+    live = [r for r in notes if r[1] is None and r[2] is None]
+    trashed = [r for r in notes if r[1] is not None]
+    if len(live) < 2:
+        raise ValueError("the attachment seed needs at least two live notes")
+    heavy_note = live[0]
+    heavy = min(_HEAVY_DOCS, count)
+    doc_rows, page_rows = [], []
+    rare_at = heavy + (count - heavy) // 2      # a document on a live note, never the heavy one
+    trash_placed = False
+    rare_placed = 0
+    common_live_pages = 0
+    k = 1
+    for d in range(count):
+        on_trash = False
+        if d < heavy:
+            note = heavy_note
+        elif trashed and d % 50 == 0 and d != rare_at:
+            note = trashed[(d // 50) % len(trashed)]
+            on_trash = True
+        else:
+            note = live[1 + (k % (len(live) - 1))]
+            k += 1
+        doc_id = uuid.uuid4().hex
+        ts = note[4]
+        doc_rows.append((doc_id, USER_ID, note[0],
+                         f"/api/j2/notes/attachments/{USER_ID}/{note[0]}/files/filing-{d:05d}.pdf",
+                         f"Filing {d:05d}.pdf", "ready", _PAGES_PER_DOC, 1, ts, ts))
+        for p in range(1, _PAGES_PER_DOC + 1):
+            markers = []
+            if rng.random() < 0.30:
+                markers.append(_DOC_COMMON_MARKER)
+                if not on_trash:
+                    common_live_pages += 1
+            if d == rare_at and p == 2:
+                markers.append(_DOC_RARE_MARKER)
+                rare_placed += 1
+            if on_trash and not trash_placed and p == 1:
+                markers.append(_DOC_TRASH_MARKER)
+                trash_placed = True
+            text = (_DOC_PAGE.format(ticker=note[3], p=p, d=d, marker=" ".join(markers)) * 4).strip()
+            page_rows.append((doc_id, USER_ID, p, text, "native"))
+    conn.executemany(
+        "INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name, status,"
+        " page_count, extraction_version, created_at, processed_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        doc_rows)
+    conn.executemany(
+        "INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text, text_origin)"
+        " VALUES (?,?,?,?,?)", page_rows)
+    conn.commit()
+    return {"attachments": count, "pages": len(page_rows), "heavy_note_id": heavy_note[0],
+            "heavy_docs": heavy, "rare_pages": rare_placed, "trash_marker_placed": trash_placed,
+            "common_live_pages": common_live_pages}
+
+
+@contextlib.contextmanager
+def _auth_db_is(path: str):
+    """Point `auth_db.get_connection()` at the tier's database for the duration of ONE route
+    call, then put back whatever was there. The document routes open their own connection the
+    way production does (a fresh one per request, production's own timeout and row factory),
+    so the timing includes that open. Scoped per call, never for the tier: a `q=` search's
+    activity write must keep landing in the conftest sandbox's auth.db."""
+    from api.services import auth_db
+    prior = auth_db._DB_PATH
+    auth_db._DB_PATH = path
+    try:
+        yield
+    finally:
+        auth_db._DB_PATH = prior
+
+
+def _build_calibration(work_dir: str) -> tuple[sqlite3.Connection, object]:
+    """The calibration op's own database and the op itself. Deterministic (fixed seed, fixed
+    row count), product-independent (its own table), and shaped like the timed reads: an
+    `instr` scan with a GROUP BY, a `json_each` fan-out, and a Python JSON loop."""
+    path = os.path.join(work_dir, "calibration.db")
+    c = sqlite3.connect(path)
+    c.execute("PRAGMA journal_mode=WAL")
+    c.execute("DROP TABLE IF EXISTS calib")
+    c.execute("CREATE TABLE calib (id INTEGER PRIMARY KEY, grp INTEGER NOT NULL,"
+              " body TEXT NOT NULL, tags TEXT NOT NULL)")
+    rng = random.Random(1010)
+    c.executemany("INSERT INTO calib (id, grp, body, tags) VALUES (?,?,?,?)", [
+        (i, i % 97, " ".join(rng.choice(_CALIB_WORDS) for _ in range(60)),
+         json.dumps(rng.sample(_CALIB_WORDS, 3))) for i in range(_CALIB_ROWS)])
+    c.commit()
+
+    def op():
+        a = c.execute("SELECT grp, count(*), sum(length(body)) FROM calib"
+                      " WHERE instr(body, 'ledger pivot') > 0 GROUP BY grp").fetchall()
+        b = c.execute("SELECT value, count(*) FROM calib, json_each(calib.tags) GROUP BY value").fetchall()
+        n = 0
+        for (t,) in c.execute("SELECT tags FROM calib WHERE id % 4 = 0"):
+            n += len(json.loads(t))
+        return len(a), len(b), n
+    return c, op
+
+
+def _ratio_rounds(fn, calibration, *, rounds: int, reps: int, warmup: int, measure) -> dict:
+    """`rounds` interleaved (calibration, op) pairs; each round's ratio is the op's p50 over the
+    calibration's p50 in THAT round, and the reading is the median round. Interleaving puts a
+    burst on both halves of a round; the median discards the rounds a burst split."""
+    ratios, calib = [], []
+    for _ in range(rounds):
+        c, _ = measure(calibration, warmup, reps)
+        o, _ = measure(fn, warmup, reps)
+        calib.append(c["p50_ms"])
+        ratios.append(round(o["p50_ms"] / c["p50_ms"], 4) if c["p50_ms"] > 0 else float("inf"))
+    return {"rounds": ratios, "median": statistics.median(ratios),
+            "calibration_p50_ms": round(statistics.median(calib), 3)}
+
+
+def measure_ratios(ops: dict, lines: dict[str, float], calibration, *, rounds: int,
+                   reps: int, warmup: int, measure=None) -> dict:
+    """The R-10 reading for every op in `lines` (`{op: ratio line}`) that `ops` holds: its median
+    ratio, and -- when that median is at or over its line -- a second, independent set of rounds
+    (`"remeasure"`). The budget tool breaches an op only when BOTH medians are over the line. An
+    op `ops` does not hold is left out, so the checker names it as unmeasured (never a pass).
+    `measure` is late-bound (`_measure` by default) so a rail can drive it with fixed readings."""
+    measure = measure or _measure
+    out: dict[str, dict] = {}
+    for label, line in lines.items():
+        fn = ops.get(label)
+        if fn is None:
+            continue
+        r = _ratio_rounds(fn, calibration, rounds=rounds, reps=reps, warmup=warmup, measure=measure)
+        if r["median"] >= line:
+            r["remeasure"] = _ratio_rounds(fn, calibration, rounds=rounds, reps=reps,
+                                           warmup=warmup, measure=measure)
+        out[label] = r
+    return out
+
+
+def _slowed(fn, ms: float):
+    """`fn` plus a fixed sleep: the seam that feeds the CI check a slowed op (`--slow-op`), so
+    'the check goes red on a slow op' is something a rail and a CI run can show, not assert."""
+    def slow():
+        time.sleep(ms / 1000.0)
+        return fn()
+    return slow
+
+
 def percentile(samples: list[float], pct: float) -> float:
     """Nearest-rank percentile (no interpolation): the smallest sample with at least
     `pct`% of the samples at or below it."""
@@ -358,7 +557,9 @@ def remeasure_breaches(stats: dict[str, dict], ops: dict, lines: dict[str, float
 
 
 def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool = False,
-             work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None) -> dict:
+             work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None,
+             attachments: int = 0, ratio_spec: dict | None = None,
+             slow_ops: dict[str, float] | None = None) -> dict:
     tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_", dir=work_dir)
     db_path = os.path.join(tmp_dir, "bench.db")
     conn = sqlite3.connect(db_path)
@@ -380,6 +581,12 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     digest_t0 = time.perf_counter()
     j2db.backfill_note_task_digest(conn)
     digest_ms = (time.perf_counter() - digest_t0) * 1000.0
+    atruth = None
+    attach_ms = 0.0
+    if attachments:
+        att_t0 = time.perf_counter()
+        atruth = _seed_attachments(conn, attachments)
+        attach_ms = (time.perf_counter() - att_t0) * 1000.0
     # No ANALYZE: production never runs ANALYZE or `PRAGMA optimize` on auth.db, so the
     # planner here must see the same absence of sqlite_stat1 that it sees there.
     db_bytes = os.path.getsize(db_path)
@@ -421,9 +628,29 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "list_tasks (open, ?view=tasks)": lambda: note_tasks.list_tasks(U, status="open", now=now_et, conn=conn),
     }
     assert list(ops) == TIMED_OPS, "TIMED_OPS and the op table drifted"
+    if atruth is not None:
+        from api.routers import journal_two as j2_router   # lazily: only an attachment tier needs it
+        user = {"id": U}
+
+        def doc_search(q):
+            with _auth_db_is(db_path):
+                return j2_router.search_note_documents_endpoint(q=q, limit=20, user=user)
+
+        def doc_list():
+            with _auth_db_is(db_path):
+                return j2_router.list_note_documents_endpoint(atruth["heavy_note_id"], user=user)
+        ops[ATTACHMENT_OPS[0]] = lambda: doc_search(_DOC_COMMON_MARKER)
+        ops[ATTACHMENT_OPS[1]] = lambda: doc_search(_DOC_RARE_MARKER)
+        ops[ATTACHMENT_OPS[2]] = doc_list
+        assert list(ops) == TIMED_OPS + ATTACHMENT_OPS, "ATTACHMENT_OPS and the op table drifted"
+    for label, ms in (slow_ops or {}).items():
+        if label not in ops:
+            raise KeyError(f"--slow-op names {label!r}, which this tier does not time")
+        ops[label] = _slowed(ops[label], ms)
 
     stats: dict[str, dict] = {}
     results: dict[str, object] = {}
+    ratio_out = None
     with _ticker_meta_stubbed():
         # ⛔⛔ TIMED WITH TRACEMALLOC OFF. The wave-0 version timed every read INSIDE
         # tracemalloc, which hooks every Python allocation. Measured on the 50k seed:
@@ -437,6 +664,23 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         # untraced, after every op has had its first pass.
         if remeasure_lines:
             remeasure_breaches(stats, ops, remeasure_lines, warmup=warmup, reps=reps)
+        # R-10: the ratio reading, after every op's own pass, still untraced.
+        if ratio_spec is not None and int(ratio_spec["tier"]) == n:
+            from tools import notebook_perf_budgets as pb
+            calib_conn, calibration = _build_calibration(tmp_dir)
+            try:
+                lines_by_op = pb.ratio_lines(ratio_spec)
+                ratio_out = {
+                    "budget_line_ms": float(ratio_spec["line_ms"]),
+                    "calibration_ref_ms": float(ratio_spec["calibration_ref_ms"]),
+                    "line": pb.ratio_line(ratio_spec), "lines": lines_by_op,
+                    "rounds": int(ratio_spec["rounds"]),
+                    "ops": measure_ratios(ops, lines_by_op, calibration,
+                                          rounds=int(ratio_spec["rounds"]),
+                                          reps=int(ratio_spec["reps"]), warmup=warmup),
+                }
+            finally:
+                calib_conn.close()
         # Peak memory comes from ONE untimed pass per op, traced separately.
         tracemalloc.start()
         for fn in ops.values():
@@ -475,14 +719,32 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "list_tasks returns every open task on an active note": tasks["count"] == truth["open_tasks"],
         "switcher finds titles": len(results["switcher_search (word start)"]["notes"]) > 0,
     }
+    if atruth is not None:
+        with _auth_db_is(db_path):
+            from api.routers import journal_two as j2_router
+            trash_hits = j2_router.search_note_documents_endpoint(
+                q=_DOC_TRASH_MARKER, limit=20, user={"id": U})["results"]
+        listed = results[ATTACHMENT_OPS[2]]["documents"]
+        correctness.update({
+            "document search finds exactly the one rare page":
+                len(results[ATTACHMENT_OPS[1]]["results"]) == atruth["rare_pages"] == 1,
+            "document search returns a full page of common hits":
+                len(results[ATTACHMENT_OPS[0]]["results"]) == min(20, atruth["common_live_pages"]),
+            "document search hides a trashed note's documents":
+                atruth["trash_marker_placed"] and trash_hits == [],
+            "the heavy note lists every one of its documents, each with its whole text":
+                len(listed) == atruth["heavy_docs"]
+                and all(d["pagesTotal"] == _PAGES_PER_DOC and d["textComplete"] for d in listed),
+        })
 
     conn.close()
     if not keep_db:
-        for suffix in ("", "-wal", "-shm"):
-            try:
-                os.remove(db_path + suffix)
-            except OSError:
-                pass
+        for base in (db_path, os.path.join(tmp_dir, "calibration.db")):
+            for suffix in ("", "-wal", "-shm"):
+                try:
+                    os.remove(base + suffix)
+                except OSError:
+                    pass
         try:
             os.rmdir(tmp_dir)
         except OSError:
@@ -493,8 +755,12 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "active": truth["active"], "trashed": truth["trashed"], "archived": truth["archived"],
         "seed_ms": round(seed_ms, 1),
         "task_digest_backfill_ms": round(digest_ms, 1),
+        "attachments": attachments,
+        "attachment_pages": atruth["pages"] if atruth else 0,
+        "attachment_seed_ms": round(attach_ms, 1),
         "db_bytes": db_bytes,
         "ops": stats,
+        "ratio": ratio_out,
         "peak_tracemalloc_bytes": peak_bytes,
         "correctness": correctness,
         "db_path": db_path if keep_db else None,
@@ -554,18 +820,44 @@ def main(argv: list[str] | None = None) -> int:
                          "Every --budget applied with --thresholds is re-measured too")
     ap.add_argument("--keep-db", action="store_true")
     ap.add_argument("--work-dir", default=None, help="where the per-tier SQLite files go (default: TEMP)")
+    ap.add_argument("--attachments", type=int, default=0,
+                    help="seed this many extracted documents into every tier and time the "
+                         "document reads (clause 14b; the `attachments` budget)")
+    ap.add_argument("--curve", action="store_true",
+                    help="run the curve tiers (1k/5k/10k/25k/50k unless --tiers is given) and "
+                         "bound each op's log-log slope by the `curve` budget (clause 14d)")
+    ap.add_argument("--ratio", default=None,
+                    help="a ratio budget key (e.g. ratio_ci): time each of its ops as a ratio to "
+                         "the in-run calibration op at its tier, and breach on it (ruling R-10)")
+    ap.add_argument("--slow-op", action="append", default=None, metavar="LABEL=MS",
+                    help="add MS of sleep to one timed op: feeds a check a slowed op on purpose")
     args = ap.parse_args(argv)
 
+    tiers_arg = args.tiers
+    if args.curve and not any(a == "--tiers" or str(a).startswith("--tiers=") for a in (argv or sys.argv[1:])):
+        tiers_arg = ",".join(str(t) for t in CURVE_TIERS)
     try:
-        tiers = [int(x) for x in args.tiers.split(",") if x.strip()]
+        tiers = [int(x) for x in tiers_arg.split(",") if x.strip()]
     except ValueError:
-        print(f"bad --tiers {args.tiers!r}")
+        print(f"bad --tiers {tiers_arg!r}")
         return 3
-    if not tiers or args.reps < 1 or args.warmup < 0:
-        print("need at least one tier, --reps >= 1 and --warmup >= 0")
+    if not tiers or args.reps < 1 or args.warmup < 0 or args.attachments < 0:
+        print("need at least one tier, --reps >= 1, --warmup >= 0 and --attachments >= 0")
         return 3
+    slow_ops: dict[str, float] = {}
+    for item in args.slow_op or []:
+        label, sep, ms = item.rpartition("=")
+        try:
+            if not sep or not label:
+                raise ValueError(item)
+            slow_ops[label] = float(ms)
+        except ValueError:
+            print(f"bad --slow-op {item!r} (want LABEL=MS)")
+            return 3
     thresholds = None
-    budget_keys = args.budget or ["search"]
+    # A --ratio or --curve run applies only what it names: `search` is the default budget of a
+    # plain `--thresholds` run, never of one that asked for something else.
+    budget_keys = args.budget or ([] if (args.ratio or args.curve) else ["search"])
     if args.thresholds:
         try:
             thresholds = json.loads(Path(args.thresholds).read_text(encoding="utf-8"))
@@ -595,6 +887,27 @@ def main(argv: list[str] | None = None) -> int:
         except (pb.Unevaluable, OSError, ValueError, KeyError, TypeError) as e:
             print(f"cannot read a re-measure budget: {e!r}")
             return 3
+    # R-10 and 14d read their specs from the thresholds file, else the committed budget file.
+    ratio_spec = curve_spec = None
+    if args.ratio or args.curve:
+        from tools import notebook_perf_budgets as pb
+        try:
+            src = thresholds if thresholds is not None else pb.load_budgets(pb.DEFAULT_BUDGETS)
+            if args.ratio:
+                ratio_spec = src[args.ratio]
+                pb.ratio_line(ratio_spec)
+                int(ratio_spec["rounds"]), int(ratio_spec["reps"]), int(ratio_spec["tier"])
+                if not ratio_spec["ops"]:
+                    raise ValueError(f"ratio budget {args.ratio!r} names no ops")
+                if int(ratio_spec["tier"]) not in tiers:
+                    raise ValueError(f"ratio budget {args.ratio!r} is at {int(ratio_spec['tier']):,} "
+                                     f"notes, which --tiers does not run")
+            if args.curve:
+                curve_spec = src["curve"]
+                float(curve_spec["max_slope"]), float(curve_spec["max_last_segment_slope"])
+        except (pb.Unevaluable, OSError, ValueError, KeyError, TypeError) as e:
+            print(f"cannot read the ratio/curve budget: {e!r}")
+            return 3
 
     violations_before = len(conftest.SHARED_ROOT_VIOLATIONS)
     _prepare_activity_sink()
@@ -609,17 +922,25 @@ def main(argv: list[str] | None = None) -> int:
             "platform": platform.platform(), "reps": args.reps, "warmup": args.warmup,
             "paragraphs": args.paragraphs, "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "remeasure_budgets": remeasure_keys,
+            "timed_ops": TIMED_OPS + (ATTACHMENT_OPS if args.attachments else []),
+            "attachments": args.attachments, "curve": bool(args.curve), "ratio_budget": args.ratio,
+            "slow_ops": slow_ops,
         },
         "tiers": [],
     }
     for n in tiers:
-        print(f"\n=== Seeding + measuring {n:,} notes ({args.reps} reps after {args.warmup} warmup) ===")
+        print(f"\n=== Seeding + measuring {n:,} notes"
+              + (f" + {args.attachments:,} attachments" if args.attachments else "")
+              + f" ({args.reps} reps after {args.warmup} warmup) ===")
         lines = pb.lines_at_tier(remeasure_src, remeasure_keys, n) if remeasure_keys else None
         r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
-                     keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines)
+                     keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines,
+                     attachments=args.attachments, ratio_spec=ratio_spec, slow_ops=slow_ops)
         report["tiers"].append(r)
         print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
-              f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}")
+              f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}"
+              + (f"  attachments {r['attachments']:,} ({r['attachment_pages']:,} pages, "
+                 f"{r['attachment_seed_ms'] / 1000:.1f}s)" if r["attachments"] else ""))
         print(f"  {'op':52s} {'p50':>9s} {'p95':>9s} {'max':>9s}")
         for label, st in r["ops"].items():
             print(f"  {label:52s} {st['p50_ms']:8.2f}ms {st['p95_ms']:8.2f}ms {st['max_ms']:8.2f}ms")
@@ -628,8 +949,31 @@ def main(argv: list[str] | None = None) -> int:
                 again = st["remeasure"]
                 print(f"  re-measured {label}: p95 {st['p95_ms']:.2f} ms -> {again['p95_ms']:.2f} ms "
                       f"(line {again['line_ms']:g} ms)")
+        if r.get("ratio"):
+            ro = r["ratio"]
+            print(f"  ratio to the calibration op (line {ro['line']:.3f} = {ro['budget_line_ms']:g} ms"
+                  f" / {ro['calibration_ref_ms']:g} ms reference; median of {ro['rounds']} rounds):")
+            for label, x in ro["ops"].items():
+                again = x.get("remeasure")
+                print(f"  {label:52s} {x['median']:8.3f} / line {ro['lines'].get(label, ro['line']):.3f}"
+                      f"  (calibration p50 {x['calibration_p50_ms']:.2f} ms)"
+                      + (f"  re-measured {again['median']:.3f}" if again else ""))
         failed = [k for k, v in r["correctness"].items() if not v]
         print(f"  XX CORRECTNESS FAILURES: {failed}" if failed else "  OK all correctness checks passed")
+
+    curve_breaches: list[str] = []
+    if curve_spec is not None:
+        from tools import notebook_perf_budgets as pb
+        curve_breaches, table = pb.check_curve(report, curve_spec, report["meta"]["timed_ops"])
+        report["curve"] = {"spec": curve_spec, "ops": table, "breaches": curve_breaches}
+        print(f"\n=== Curve: log-log slope of p50 over {[t['n'] for t in report['tiers']]} "
+              f"(bound: fit <= {float(curve_spec['max_slope']):g}, last segment <= "
+              f"{float(curve_spec['max_last_segment_slope']):g}) ===")
+        for label, row in table.items():
+            if row.get("slope") is None:
+                print(f"  {label:52s} NOT MEASURED at {row.get('missing')}")
+            else:
+                print(f"  {label:52s} slope {row['slope']:6.3f}  last segment {row['last_segment']:6.3f}")
 
     stray = conftest.SHARED_ROOT_VIOLATIONS[violations_before:]
     report["meta"]["shared_root_writes"] = [{"op": v["op"], "path": v["path"]} for v in stray]
@@ -642,22 +986,34 @@ def main(argv: list[str] | None = None) -> int:
     if any(not v for t in report["tiers"] for v in t["correctness"].values()):
         print("VERDICT: FAIL -- a correctness check failed (a fast wrong answer is not a pass)")
         return 1
-    if thresholds is not None:
-        breaches = []
+    breaches: list[str] = []
+    passed: list[str] = []
+    if thresholds is not None and budget_keys:
         from tools.notebook_perf_budgets import informational_notes, unreproduced_notes
         for key in budget_keys:
             breaches += [f"[{key}] {b}" for b in check_thresholds(report, thresholds, key)]
             # reported against the same line, never a breach (review M-8; I-3's one-offs)
             for note in informational_notes(report, thresholds[key]) + unreproduced_notes(report, thresholds[key]):
                 print(f"  note [{key}] {note}")
-        if breaches:
-            print("VERDICT: BUDGET BREACH")
-            for b in breaches:
-                print(f"  BREACH {b}")
-            return 2
-        print("VERDICT: PASS -- every budgeted op under its p95 budget: " + "; ".join(
+        passed.append("every budgeted op under its p95 budget: " + "; ".join(
             f"{k} < {thresholds[k]['p95_ms_max']} ms at {int(thresholds[k]['tier']):,} notes"
             for k in budget_keys))
+    if ratio_spec is not None:
+        from tools import notebook_perf_budgets as pb
+        breaches += [f"[{args.ratio}] {b}" for b in pb.check_ratio(report, ratio_spec)]
+        for note in pb.ratio_unreproduced_notes(report, ratio_spec):
+            print(f"  note [{args.ratio}] {note}")
+        passed.append(f"{args.ratio}: every op's median ratio under {pb.ratio_line(ratio_spec):.3f}")
+    if curve_spec is not None:
+        breaches += [f"[curve] {b}" for b in curve_breaches]
+        passed.append(f"curve: every op's slope <= {float(curve_spec['max_slope']):g}")
+    if breaches:
+        print("VERDICT: BUDGET BREACH")
+        for b in breaches:
+            print(f"  BREACH {b}")
+        return 2
+    if passed:
+        print("VERDICT: PASS -- " + "; ".join(passed))
         return 0
     print("VERDICT: PASS (no thresholds given)")
     return 0

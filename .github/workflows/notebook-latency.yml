@@ -1,0 +1,74 @@
+# promotion-gate: no — ADVISORY until it has been SEEN RED ONCE AND SEEN GREEN ONCE in CI
+#   (ruling R-10, the D-A2 precedent). Only then may this marker become `yes`, and the two
+#   run URLs belong in this header when it does (tests/test_notebook_perf_scale_w10.py
+#   refuses a `yes` without them). ⛔ And if the ratio check FLAPS in its first 20 runs,
+#   R-10 says: gate bytes only (notebook-bytes.yml) and restate clause 4b -- this marker
+#   goes back to `no`. Added 2026-09-27, wave 10 lane 10A.
+# ─── NOTEBOOK READ LATENCY, IN CI, AS A RATIO (RULING R-10) ─────────────────
+#
+# A shared runner's speed is not ours: the millisecond check in notebook-budgets.yml went
+# red on 8 of 56 runs on runner noise alone (docs/notebook/perf-budgets.md §3). This check
+# times every CI-budgeted read AS A RATIO to an in-run CALIBRATION op -- a fixed SQLite +
+# JSON workload on its own table, touching no product code -- so a runner twice as slow
+# makes both halves twice as slow and the ratio does not move:
+#   * each round times the calibration, then the op, back to back (a burst lands on both);
+#   * the reading is the MEDIAN of the rounds (a burst that split a round is discarded);
+#   * a median over its line is RE-MEASURED with fresh rounds, and breaches only if the
+#     re-measure is over the line too.
+# The line is `line_ms / calibration_ref_ms`: the same 100 ms (tasks 150 ms) the CI tier
+# always used, at the REFERENCE box's calibration speed, recorded by hand in
+# docs/notebook/perf-budgets.json (`ratio_ci`, with where and when it was read).
+#
+# ⛔ The local 50k gate stays the VERDICT (perf-budgets.md): this job exists to catch the
+#   gross regression on every push, the way the 10k tier always did, without crying wolf.
+name: notebook latency
+
+on:
+  push:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-latency.yml'
+  pull_request:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-latency.yml'
+
+jobs:
+  ratio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+
+      # The benchmark imports the repo-root conftest before any api.* module, so every
+      # /data path it could touch is pinned to a sandbox and a stray write fails the run.
+      - name: Time the 10k tier, every CI-budgeted read as a ratio to the calibration op
+        run: >
+          python tools/notebook_scale_benchmark.py --tiers 10000 --ratio ratio_ci
+          --json notebook-latency.json
+
+      - name: The ratio budget, re-read by the budget tool
+        if: always()
+        run: python tools/notebook_perf_budgets.py --bench notebook-latency.json --ratio ratio_ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-latency
+          path: notebook-latency.json
+          if-no-files-found: warn

@@ -256,6 +256,31 @@ def test_symbol_backlinks_read_no_note_row(conn):
     assert notes_svc.get_symbol_backlinks(U, "AMD", conn=conn)["count"] == 6
 
 
+def test_a_documents_pages_are_found_by_user_and_document_not_by_user_alone(conn):
+    """Wave 10 (lane 10A, clause 14b): the editor's per-note document list asks
+    `document_text_state` once per document, and its pages read is `document_id = ? AND
+    user_id = ?`. Without statistics the planner took the one-column
+    `idx_j2_note_document_pages_user (user_id)` and walked every page the member owns, per
+    document: 819 ms for a note with 50 documents in a 10,000-document library. The
+    two-column `idx_j2_note_document_pages_user_doc` wins the tie (11 ms at 1,000)."""
+    from api.services.journal_two import document_ocr
+    ts = "2026-09-01T00:00:00+00:00"
+    for d in range(3):
+        conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name, status,"
+                     " page_count, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                     (f"d{d}", U, "n1", f"/a/{d}.pdf", f"{d}.pdf", "ready", 2, ts))
+        for p in (1, 2):
+            conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                         " VALUES (?,?,?,?)", (f"d{d}", U, p, "page text"))
+    conn.commit()
+    plans = _plans(conn, lambda c: document_ocr.document_text_state(c, U, "d1"))
+    pages = [(s, st) for s, st in plans if "FROM j2_note_document_pages WHERE" in s]
+    assert len(pages) == 1, [s for s, _ in plans]
+    assert any("idx_j2_note_document_pages_user_doc (user_id=? AND document_id=?)" in s
+               for s in pages[0][1]), pages[0][1]
+    assert document_ocr.document_text_state(conn, U, "d1")["pages_total"] == 2   # non-vacuity
+
+
 def test_the_relevance_candidates_are_read_from_the_narrow_covering_index(conn):
     """Wave 10 (lane 10A): the relevance order reads (rowid, updated_at) for EVERY row its
     filter admits -- the member's whole live range -- so the index's width is its cost.
