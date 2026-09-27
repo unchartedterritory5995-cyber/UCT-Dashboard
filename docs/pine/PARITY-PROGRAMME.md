@@ -20,6 +20,227 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-27 — THE RUNTIME LANE AS A GATED FALLBACK AT THE MEMBER DOOR (branch `pine/runtime-lane-door`)
+
+> Owner goal, 2026-09-27: *"fully import every and any TradingView Pine script
+> indicator so it shows on UCT charts exactly as on TradingView."* It supersedes
+> ruling D2 for ONE path, and only that path. Base `pine/object-pass-integrated`
+> @ `f33bee110`. Every count is `memberPaneDefinition` over the 266 committed
+> scripts (`runtimeLaneDoor.census.measure.test.js`, `RUNTIME_CENSUS=1`).
+
+### The design
+
+**When.** `memberPaneDefinition` asks the host lane first, exactly as before. Only
+when `paneGate` REFUSES, and **every** refusal the host translation carries is a
+limit of its own single-expression value model, does it try the runtime lane.
+That set is `RUNTIME_FALLBACK_GUARDS` in `engine/pineRuntimeLane.js`:
+
+| guard | proof (the host refuses it with that guard alone; the runtime lane builds it) |
+|---|---|
+| `pine:state` | `var float s = 0.0 / s := s + close / plot(s)` |
+| `pine:reassign` | `float s = 0.0 / for i = 0 to 3: s := s + close[i]` |
+| `pine:block` | `x = switch …` as a value |
+| `pine:collection` | `array.new_float` / `array.push` / `array.get` |
+| `pine:type` | `type P` + `P.new(close)` |
+| `pine:function-def` | `trendlines__43QQg9nDN0` (corpus; it draws, so built with object ownership) |
+
+⚠️ **Measured out:** `pine:tuple` and `pine:na` read like value-model limits and are
+NOT in the set — no fixture exists where the host refuses them and this lane builds
+(`[k, d] = ta.stoch(…)` refuses here too, `runtime:tuple`; `fixnan` refuses in both
+lanes). ⛔ **No vocabulary or ruling guard is ever in it** (`pine:function`,
+`pine:role-order`, `pine:input-kind`, `pine:request`, …): those record that nobody
+has ruled what a name MEANS, and a second engine must not route around them.
+Measured: `support-and-resistance__UgNPprOr8h` (host `pine:role-order`) BUILDS in the
+runtime lane and is still refused. The host lane stays authoritative whenever it
+succeeds — the census asserts no host-attached script changes lane.
+
+**What is saved.** A `compute.kind: 'pine'` document
+(`builder/memberPane/runtimeLaneDefinition.js`), assembled by the SAME
+`buildDefinition` the host door uses, with its `compute` replaced by:
+
+```
+{ kind: 'pine', fn: 'pine:<fnv1a>', rev: 1,
+  source: <the member's Pine>,                 // the program, recompiled per chart
+  lane: { plotColours, ownsDrawing },          // the build options the indices were minted under
+  columns: { <plotKey>: { output, call, line, shift? } },
+  inputs:  { pine_<name>: <Pine name> } }      // member settings → the runtime's input names
+```
+
+⭐ **The source, recompiled — never a stored program.** The runtime program is
+compiled against the bars (pure sub-expressions become columns at build time) and
+the member's values (a length sizes a ring before bar 0), so nothing stored could be
+"the maths" the way `compute.ast` is. `computeFor` (kind `pine`) →
+`pineRuntimeLane.runtimeLaneColumns` rebuilds per (bars, inputs, tf, symbol, clock),
+cached by the bars array's identity, and **checks the saved map against the rebuilt
+program** — a stale map is `runtime-door:shape`, never another plot's series. Every
+failure is a named column error; nothing throws into the binder.
+
+**How settings edit.** Every numeric input the program READS (`collectInputs`) is a
+real per-instance `int`/`float`/`bool` input (`pine_<name>`); the rebuild hands the
+member's values to the runtime with `inputsReachEveryFold`, so a length reaches the
+window and a history offset reaches its ring — the half-applied knob the frozen
+resolver would otherwise produce. This is ruling R-H's "inputs as runtime
+parameters" for runtime documents. Withheld, each with a sentence: an input that sets
+where a plot is drawn (`offset =`); an input read only on an output the pane does not
+draw (`hline(th)`); and every input when the document carries a host object program
+(those trees were translated at the defaults).
+
+**How it draws.** Through the same pane, binder and object renderer:
+- **Presentation is the host lane's.** `translatePine(src, {drawPresentation: true})`
+  hands each output row — refused rows included — its title, style, width, marker,
+  static colour (through `pinePalette.js` by `@version`) and displacement, read by the
+  host row's own readers. Rows pair with runtime outputs by `(call, line)`.
+- **A colour the host cannot fold is the runtime lane's own.** `plotColours` emits each
+  plot's `color =` as a per-bar packed-colour output; the row draws it through the new
+  `colorMode: 'rgba:<key>'` (`binder.pointColour`, `markersFor`, fills). `na` paints
+  transparent. A colour neither lane can carry is drawn in one colour and SAID.
+- **Objects:** the host object pass's program, under the same `paneObjectsGate` +
+  `objectLossNote` partial-drawing rule — a lost removal withholds the drawings and
+  keeps the plots; anything else is drawn and disclosed "N of M". The runtime lane
+  treats drawing calls as the object program's only when that pass saw them.
+- **Not drawn, and said:** `hline`, `bgcolor`, `barcolor`, `plotarrow`, alert
+  conditions (D1's sentence), rows past the pane's visible ceiling; a
+  `request.security` script is refused (`runtime-door:request`) because every value
+  would draw as `na`.
+
+**Flag.** `VITE_PINE_RUNTIME_LANE_ENABLED`, default OFF (`=== '1'`, fail-closed), ONE
+module (`engine/pineRuntimeLaneGate.js`) read by the door AND the install door
+(`validateUserDefinitions`), so a `pine` document minted on an armed build cannot
+compute on an unarmed one. Dockerfile.web ARG + ENV; both ledgers `dark`.
+
+⛔ **The lane has ONE door.** `pineRuntimeFrontendGate.test.js` now asserts the live
+importers of the runtime lane are EXACTLY `engine/pineRuntimeLane.js` (the fallback)
+and `engine/runtime/objectLane.js` (lane-internal, reached by no component), and the
+fallback's own importers are exactly the door, the document builder and `nativeRegistry`.
+`tools/pine_lane_reachability.mjs` therefore now reports the runtime frontend/VM as
+reached (**204** components, through `nativeRegistry`) — which is the door, and is why
+the importer rail, not the reachability report, is what guards it.
+
+### The census — four flag combinations
+
+| objects-only | runtime lane | attached | of 266 |
+|---|---|---|---|
+| off | off | **34** | 12.8% |
+| on | off | **54** | 20.3% |
+| off | **on** | **40** | +6 |
+| on | **on** | **60** | +6 |
+
+**Newly attaching through the runtime lane (the same 6 under both objects settings):**
+`adx-and-di-for-v4__932`, `cc-yata__bd898a1af0`, `fvg-trend__21e364f2ed`,
+`pivot-point-supertrend__HN4w1eNW3B`, `qqe-signals__EhBrwQPjZ1`,
+`trendlines__43QQg9nDN0`. Matches the programme's 2026-09-23 prediction (+6).
+
+### The second walls — ranked by scripts each would COMPLETE
+
+54 scripts are admissible to the fallback; 6 attach; **48 hit a runtime-lane wall.**
+Peeled line by line through the runtime DOOR's own build (the `peelToBuilding`
+method: a failing binding becomes `= 0.0`, any other failing line is blanked):
+
+| clearing this wall ALONE completes | scripts |
+|---|---|
+| `runtime:history-dynamic-offset` | **2** — `atr-stepped-pdf-ma-loxx`, `twin-range-filter` |
+| `runtime:statement` | **1** — `btc-charlie-trader-xo-macro-trend-scanner` |
+| any two walls (4 pairs) | 1 each: `call-text-state+object-op`, `builtin+input-kind`, `pine:statement+call-undeclared-builtin-state`, `pine:function+input-kind` |
+
+First walls, by count (what the member is told today): `runtime:history-dynamic-offset`
+12 · `runtime:array` 5 · `pine:input-kind` 4 · `runtime:statement` 3 ·
+`runtime:call-undeclared-builtin-state` 3 · `pine:function` 3 · then 1–2 each.
+
+⛔ **Read the counts as an ESTIMATE, and the ranking as the real finding.** The peel
+reached a building program for only **19 of 48**; 17 stuck on `pine:statement` (the
+peel's own blanking breaks block structure), 9 hit the 20-step cap. Of the 19, the
+median distance is 6 peel steps (range 1–16). So **the runtime lane is nowhere near one capability from
+most of these scripts**: `history-dynamic-offset` is the widest FIRST wall (12) but
+completes only 2 on its own, because the scripts behind it carry 4–15 more. The
+cheapest measured completions are the three single-wall scripts above.
+
+### Evidence against the vendor
+
+- **Both doors, same numbers.** For every committed script BOTH doors build (7), the
+  runtime door forced draws **bit-identical** columns to the host door, row for row
+  (51 rows, 600 SPY bars; `runtimeLaneDoor.test.js`). ⚠️ This proves the door's
+  plumbing, not independent maths: those rows are pure expressions both lanes compute
+  through `interpret`.
+- **The one native capture, through both engines.** `keltner-channels-bands-rddt-1d-
+  2026-09-27` graded through the runtime door gets the same per-plot verdicts and counts
+  as the host door (Basis MATCH; the six bands DIVERGE on the documented converging
+  seed prefix). Keltner is host-served, so a member never reaches the runtime lane with it.
+- **A host-refused script against TradingView.** `adx-and-di-for-v4` (host `pine:state`,
+  runtime-lane only) through the full member door: DI+ and DI- against the owner's
+  capture of the built-in `ta.dmi(14, 14)` on 300 SPY bars
+  (`observations/plus-di-14` / `minus-di-14`) — worst relative difference per 50-bar
+  window DI+ `1.5e-2 → 3.7e-4 → 2.9e-6 → 2.2e-7`, DI- `2.9e-3 → 9.5e-5 → 1.6e-6 →
+  3.5e-8`: the script's zero seed decaying by (13/14)^50, then agreement to <1e-6.
+  ⛔ It is the vendor's BUILT-IN, not a capture of this script (the script's DI is the
+  same Wilder recurrence); its ADX is `sma(DX)` where the built-in is an RMA, so ADX is
+  NOT compared.
+
+⛔ **No vendor capture of any runtime-lane script exists yet.** The six that most need
+one, in order: `adx-and-di-for-v4` (ADX line), `pivot-point-supertrend` (the
+state-driven trailing line and its per-bar colour), `fvg-trend` (per-bar colour),
+`qqe-signals`, `cc-yata`, `trendlines`.
+
+### Verification on this branch
+
+**Rails** (all by name): `engine/__tests__/pineRuntimeLane.test.js` (flag, guard
+proofs, columns/shift/stale-map, knobs incl. a history ring, opt-in options, the
+hand-off, the install door, the schema), `builder/memberPane/runtimeLaneDoor.test.js`
+(the real door + install + computeFor + binder), `engine/__tests__/
+pineRuntimeFrontendGate.test.js` (the one door), `engine/__tests__/vendorHarness/
+runtimeLaneVendor.test.js`, and the opt-in census. Python:
+`tests/test_dockerfile_vite_build_args.py` + `tests/test_vite_flag_ledger.py` 11/11.
+
+**Mutations — 17 code + 3 wiring, every one RED, every file restored from captured
+bytes and sha256-verified (and equal to the committed blob):** flag reads anything as
+on · door ignores the flag · admissible on the first guard only · a ruling guard joins
+the set · install door ignores the flag · saved map trusted · member values stop at
+the columns (⚰️ SURVIVED the first run — the length case read through a column; a
+history-ring case was added and it went red) · no plot colour channel · binder ignores
+the packed colour · objects drawn despite a lost removal · displacement input offered
+· undrawn-only input offered · runtime tried when the host succeeds · refused rows lose
+the hand-off · bool spelling lost · **the fallback stubbed out (18 red)** · computeFor
+loses the `pine` lane (13 red) · Dockerfile ARG removed · ENV line removed · ledger row
+removed. Unmutated control green before and after.
+
+**Regression** (engine suite + `src/components/chart/builder/`, this branch vs base
+`f33bee110`, by test-name set difference): 9,562 → 9,623 tests, 20 → 23 failed. The
+three names red only here: `pineRuntimeFrontendGate` "the fallback itself…" — a real
+catch, the rail counted `__tests__/vendorHarness/ourSide.js` as a door, fixed;
+`memberPaneGate` "is read in exactly ONE place" (STACK_TRACE_ERROR under load) and
+`stockChartWiring` "A HOVER REACHES THE RENDERER NOT AT ALL" — both pass alone. **No
+new failures.** ⚠️ `memberPaneGate` "WAS VACUOUS" is red on BOTH trees (it has
+asserted "no non-test importer of pineRuntimeFrontend" while `runtime/objectLane.js`
+was one); it now names two, and its own message asks for a rewrite once the lane has a
+consumer — left for the owner of that file.
+
+### Open, for the owner
+
+1. **The store refuses the document.** `api/services/user_definitions.py::save`
+   requires `compute.kind == 'ast'` and hashes `compute.ast`; so with the flag on a
+   runtime-lane pane PREVIEWS and draws in the builder, and "Add this script to my
+   chart" is refused with the store's own sentence. Widening it is a backend change
+   with its own blast radius — the scan sweep, alerts, definition records and relint
+   all read `compute.ast` off stored rows and must skip or serve `pine`.
+2. **The repaint badge** of a runtime document is a token rule (`repaints` when the
+   source reads a realtime `barstate.*`, `timenow` or `varip`; else `non-repainting`),
+   not the linter — there is no tree to lint.
+3. **An input read only by a branch dead at the defaults** is not offered (the program
+   never reads it at those settings).
+4. **A document carrying objects offers no settings** (host object trees are the
+   defaults'); per-input object trees are the object lane's job.
+5. **`transp =` on a plot whose colour is per-bar** is unmeasured: the packed colour's
+   own alpha is drawn.
+6. **History dependence.** A `var` accumulator depends on where the loaded history
+   starts, exactly as the host's `window_dependent` tag describes for `ta.cum`; the
+   runtime door raises that tag only for its rosters' Pine spellings (`ta.cum`,
+   `barstate.isfirst`), not for every `var`. A broader sentence is a ruling.
+
+⚠️ **Observed, pre-existing, not changed here:** `buildDefinition` drops a row's
+`opacity` (the member door sets it; the document never carries it), for host and
+runtime documents alike.
+
+---
+
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
 
 > `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on
@@ -729,6 +950,11 @@ node tools/pine_lane_reachability.mjs --self-check # proves the walk sees a 2-ho
 | RUNTIME frontend (`ast/pineRuntimeFrontend.js`) | 2 | **0** |
 | RUNTIME vm (`runtime/vm.js`) | 2 | **0** |
 | OBJECT lane (`runtime/objectLane.js`) | 1 | **0** |
+
+⚰️ **SUPERSEDED FOR ONE PATH on 2026-09-27** (branch `pine/runtime-lane-door`, section
+at the top): the RUNTIME lane is now reached through exactly one gated door — the
+member-door fallback, `VITE_PINE_RUNTIME_LANE_ENABLED`, default off. The OBJECT lane
+still reaches no rendered component. The paragraph below is the 2026-09-23 state.
 
 ⛔⛔ **THE RUNTIME AND OBJECT LANES REACH NO RENDERED COMPONENT.** Their only
 importers are each other and `ast/peelToBuilding.js`, which is an instrument. So
