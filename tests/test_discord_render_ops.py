@@ -322,3 +322,56 @@ def test_a_declined_page_card_says_why(monkeypatch):
         raise TimeoutError("read")
     d = {}
     assert page.fetch_basis_product("AMD", "stocks", 10, 1.0, get=slow, diag=d) is None and d["reason"] == "timeout"
+
+
+# ── per-step chart timing (2026-09-26: a member's SNDK chart spent ~20 s in web, unlogged) ──
+
+def _chart_args(house):
+    from tests.test_discord_chart import daily_bars
+    return dict(bars_fn=lambda *a: daily_bars(30), render_fn=lambda *a, **k: b"\x89PNG\r\n\x1a\nmpl",
+                house_fn=house, quote_fn=lambda t: None)
+
+
+def test_every_member_chart_logs_how_long_each_step_took(caplog):
+    import logging
+    from api.services import discord_chart_prefs as p, discord_interactions as di
+    from api.services.render_gate import MEMBER
+    prefs = dict(p.DEFAULTS)
+    caplog.set_level(logging.INFO, logger="api.services.discord_interactions")
+    out = di.produce_chart(di.ChartRequest("SNDK", "D"), p.render_options(prefs, "D"), prefs, cls=MEMBER,
+                           **_chart_args(lambda *a, **k: b"\x89PNG\r\n\x1a\nhouse"))
+    assert out[0] == "ok"
+    lines = [r.getMessage() for r in caplog.records if "timing SNDK D" in r.getMessage()]
+    assert len(lines) == 1, lines
+    line = lines[0]
+    assert line.startswith("[discord-chart] timing SNDK D member ok ")
+    for step in ("slot ", "gate D ", "bars Dx", "quote ", "house "):
+        assert step in line, (step, line)
+    assert getattr(di._TIMING, "stages", None) is None, "the per-thread stages are cleared after each chart"
+
+
+def test_a_fast_background_render_stays_quiet_and_a_slow_one_logs(caplog, monkeypatch):
+    import logging
+    from api.services import discord_chart_prefs as p, discord_interactions as di
+    from api.services.render_gate import BACKGROUND
+    prefs = dict(p.DEFAULTS)
+    caplog.set_level(logging.INFO, logger="api.services.discord_interactions")
+    run = lambda: di.produce_chart(di.ChartRequest("AMD", "D"), p.render_options(prefs, "D"), prefs, cls=BACKGROUND,
+                                   **_chart_args(lambda *a, **k: None))
+    run()
+    assert not [r for r in caplog.records if "timing AMD" in r.getMessage()], "the warm loop must not flood the log"
+    monkeypatch.setattr(di, "TIMING_LOG_S", 0.0)
+    run()
+    line = [r.getMessage() for r in caplog.records if "timing AMD" in r.getMessage()][0]
+    assert " background fallback " in line and "stand-in render " in line, line
+
+
+def test_a_slow_house_render_splits_zones_from_the_renderer(caplog, monkeypatch):
+    import logging
+    from api.services import discord_chart_house as house
+    caplog.set_level(logging.INFO, logger=house.log.name)
+    monkeypatch.setattr(house, "HOUSE_TIMING_LOG_S", 0.0)
+    house._log_house_timing("SNDK", "D", __import__("time").monotonic() - 21.0, 18.9, 1, True)
+    line = [r.getMessage() for r in caplog.records if "house timing" in r.getMessage()][0]
+    assert line.startswith("[discord-chart] house timing SNDK D ok 21.") and "zones 18.9s" in line \
+        and "renderer 2.1s (1 attempt)" in line, line

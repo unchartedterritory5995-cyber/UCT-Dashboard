@@ -20,6 +20,7 @@ import logging
 import pathlib
 import re
 import os
+import time
 from urllib.parse import urlencode
 
 log = logging.getLogger(__name__)
@@ -303,6 +304,7 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     base = os.environ.get("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     opts = dict(options or {})
+    t0 = time.monotonic()           # ⏱ zones vs renderer, logged when slow (see _log_house_timing)
     if opts.get("darkpool") and not opts.get("dpzones"):
         # Compute dark-pool zones server-side (darkpool.db is web-local; the endpoint
         # is flow-user-gated so the headless page can't fetch them) and embed them.
@@ -311,6 +313,7 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
             opts["dpzones"] = darkpool_db.get_ticker_zones(sym, limit=25) or []
         except Exception as e:  # noqa: BLE001 — overlay is decoration; never break the render
             log.warning("[discord-chart] dark-pool zones failed for %s: %s", sym, e)
+    t_zones = time.monotonic() - t0
     page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=opts)
 
     # ── the chart-edge render capability ────────────────────────────────────
@@ -364,7 +367,9 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                 if not has_chart_content(r.content):
                     log.warning("[discord-chart] house render body BLANK for %s %s (attempt %d)", sym, tf, attempt)
                     continue
+                _log_house_timing(sym, tf, t0, t_zones, attempt, True)
                 return r.content
+            _log_house_timing(sym, tf, t0, t_zones, len(_ATTEMPTS), False)
             return None
         finally:
             if own:
@@ -372,3 +377,19 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
     except Exception as e:  # noqa: BLE001 — fallback, never a failure
         log.warning("[discord-chart] house render failed for %s %s: %s", sym, tf, e)
         return None
+
+
+HOUSE_TIMING_LOG_S = 3.0
+
+
+def _log_house_timing(sym, tf, t0, t_zones, attempts, ok) -> None:
+    """One line when a house render is slow: how much was the dark-pool zones lookup (web, before
+    the renderer is called) and how much the renderer's attempts. Never raises."""
+    try:
+        total = time.monotonic() - t0
+        if total >= HOUSE_TIMING_LOG_S or t_zones >= 1.0:
+            log.info("[discord-chart] house timing %s %s %s %.1fs: zones %.1fs · renderer %.1fs (%d attempt%s)",
+                     sym, tf, "ok" if ok else "empty", total, t_zones, total - t_zones, attempts,
+                     "" if attempts == 1 else "s")
+    except Exception:  # noqa: BLE001
+        pass
