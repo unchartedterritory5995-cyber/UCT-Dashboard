@@ -4,7 +4,8 @@ import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
 import {
-  AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillCandidates, requestAutofill,
+  AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
+  autofillCandidates, requestAutofill,
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
 
@@ -146,13 +147,34 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   // property, through `setValue` (the door above). A failed save keeps the
   // suggestion on screen with the door's own error beside it.
   const acceptSuggestion = async (s) => {
+    // ⛔ STILL EMPTY? asked at ACCEPT time, not at Suggest time (review M-2).
+    // The member (or another tab) may have set this property while the
+    // suggestion sat on screen; a suggestion only ever fills an EMPTY
+    // property, so a value set since then wins and nothing is written. The
+    // freshest read is the one we fetch now; the render's list is the fallback.
+    let current = properties
+    try {
+      const fresh = await refresh()
+      if (Array.isArray(fresh?.properties)) current = fresh.properties
+    } catch { /* keep the render's list */ }
+    const now = current.find((p) => p.id === s.propertyId)
+    if (now && now.value != null) {
+      dropSuggestion(s.propertyId)
+      setError(autofillAlreadySetSentence(s.name))
+      return
+    }
     const ok = await setValue(s.propertyId, s.value)
     if (!ok) return
     setManuallyShown((prev) => new Set(prev).add(s.propertyId))
     dropSuggestion(s.propertyId)
   }
 
-  const autofillControls = (canSuggest || suggestState !== 'idle') && (
+  // ⛔ `autofillOn` gates the PANEL too, not only the button (review M-4): a
+  // note locked while suggestions sat on screen must not keep an Accept. ONE
+  // mechanism, in the render (no reset effect beside it -- two would leave this
+  // one unprovable). Unlocked again, the panel the member left open returns;
+  // its Accept still asks whether the property is empty (M-2) before writing.
+  const autofillControls = autofillOn && (canSuggest || suggestState !== 'idle') && (
     <>
       {canSuggest && (
         <button type="button" className={styles.addLink} onClick={suggest}

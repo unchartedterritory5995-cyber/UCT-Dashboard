@@ -120,6 +120,47 @@ describe('PropertiesSection — Suggest values (wave 10, G-165)', () => {
     expect(updateNoteSpy).not.toHaveBeenCalled()
   })
 
+  // review M-2: a suggestion only ever fills an EMPTY property, so Accept asks
+  // again at ACCEPT time. Two ways the value arrives while the panel is open.
+  it('⛔ Accept writes nothing when ANOTHER TAB set the property after Suggest -- and says so', async () => {
+    const panel = await openSuggestions()
+    const filled = PROPS.map((p) => (p.id === 'builtin:thesis_status' ? { ...p, value: 'watching' } : p))
+    refreshSpy.mockImplementationOnce(() => Promise.resolve({ properties: filled }))
+    fireEvent.click(within(panel).getByRole('button', { name: 'Accept Thesis Status: Active' }))
+    expect(await screen.findByText('Thesis Status already has a value, so the suggestion was not applied.')).toBeTruthy()
+    expect(updateNoteSpy).not.toHaveBeenCalled()
+    expect(panel.querySelector('[data-suggestion="builtin:thesis_status"]')).toBeNull()
+    expect(panel.querySelector('[data-suggestion="builtin:review_date"]')).toBeTruthy()
+  })
+
+  it('⛔ Accept writes nothing when the member set the property BY HAND after Suggest', async () => {
+    const { rerender } = render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} autofillOn />)
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest values with Compass' }))
+    const panel = await screen.findByRole('region', { name: 'Suggested values' })
+    // the member's own save lands and the section re-reads it
+    notePropsResult = {
+      properties: PROPS.map((p) => (p.id === 'builtin:review_date' ? { ...p, value: '2026-11-02' } : p)),
+      isLoading: false, refresh: refreshSpy,
+    }
+    rerender(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} autofillOn />)
+    fireEvent.click(within(panel).getByRole('button', { name: 'Accept Review Date: 2026-10-14' }))
+    expect(await screen.findByText('Review Date already has a value, so the suggestion was not applied.')).toBeTruthy()
+    expect(updateNoteSpy).not.toHaveBeenCalled()
+  })
+
+  // review M-4: the editor passes autofillOn=false for a locked or unreadable
+  // note; the PANEL goes with the button, so no Accept outlives the lock.
+  it('autofillOn turning off (the note was locked) removes the open panel and every Accept', async () => {
+    const { rerender } = render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} autofillOn />)
+    fireEvent.click(screen.getByRole('button', { name: 'Suggest values with Compass' }))
+    await screen.findByRole('region', { name: 'Suggested values' })
+    rerender(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} autofillOn={false} />)
+    expect(screen.queryByRole('region', { name: 'Suggested values' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Accept / })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Suggest values with Compass' })).toBeNull()
+    expect(updateNoteSpy).not.toHaveBeenCalled()
+  })
+
   it('the client module makes ONE request, to the autofill route, and it is not a write', () => {
     const src = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/lib/propertyAutofill.js'), 'utf8')
     const fetches = [...src.matchAll(/fetch\(\s*`([^`]+)`/g)].map((m) => m[1])

@@ -3652,8 +3652,12 @@ export default function NoteEditorPage({
             link, never a permanent header (progressive disclosure). */}
         {/* Wave 10 (G-165): "Suggest values" rides writing help's own gate and
             paid check (`writingHelpOn`, one authority); a suggestion is written
-            only on the member's Accept, through `update` -- the same door. */}
-        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker} autofillOn={writingHelpOn} />
+            only on the member's Accept, through `update` -- the same door.
+            ⛔ Review M-4: never on a LOCKED or UNREADABLE note -- the same two
+            reasons the title and subtitle are read-only for (wave 6: a locked
+            note shows no editing controls at all). */}
+        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker}
+          autofillOn={writingHelpOn && !locked && !unreadable} />
 
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case

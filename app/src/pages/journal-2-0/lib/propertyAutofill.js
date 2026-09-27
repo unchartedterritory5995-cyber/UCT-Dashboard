@@ -21,6 +21,9 @@ export const AUTOFILL_SOURCE_LABEL = 'Suggested by Compass from this note'
 export const AUTOFILL_NOT_SAVED = 'Nothing is saved until you accept a value.'
 export const AUTOFILL_NOTHING_SENTENCE = 'Compass found nothing in this note to fill in.'
 export const AUTOFILL_FAILED_SENTENCE = "Couldn't reach Compass. Nothing was changed in your note."
+/** Said when Accept finds the property was given a value after Suggest (review M-2). */
+export const autofillAlreadySetSentence = (name) =>
+  `${name || 'This property'} already has a value, so the suggestion was not applied.`
 
 /** The properties a suggestion may be offered for: member-set, empty, of a
  *  type Compass can fill -- the server's own rule, so the button is only
