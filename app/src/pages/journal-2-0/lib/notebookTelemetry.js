@@ -26,7 +26,8 @@
  * writing_help_used and dictation_used. The eight events below the line are
  * that list's missing half (`bulk_used` is T5's bulk move/tag), and each fires
  * from its door on SUCCESS only. Which event carries which task is the table in
- * `CORE_ACTION_EVENTS` below, railed by notebookTelemetry.doors.test.jsx.
+ * `CORE_ACTION_EVENTS` below, railed by notebookTelemetry.test.js (the "R-16 —
+ * every core action has an event that fires on its success" block).
  * ⚰️ `capture_used`, `search_used` and `switcher_used` were declared in wave 6
  * and fired from NO door until wave 10 — declared is not wired.
  */

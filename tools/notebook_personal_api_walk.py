@@ -20,6 +20,15 @@ that folder AND has no daily note for today yet (so the walk makes, and then
 trashes, today's note rather than writing into one it did not make). Otherwise the
 step is NOT RUN, with the reason, and the walk says so.
 
+⛔ "NO DAILY NOTE FOR TODAY" IS DECIDED THE WAY THE SERVER DECIDES IT (review M-2):
+by `dailyDate` on the full note (the unique index `idx_j2_notes_daily`), read for
+EVERY live and archived note bench@ has — never by a title inside a capped list. A
+title is only how the door names a note it creates; the member can rename or move
+it, and an archived daily note is still today's. When the walk cannot read every
+note (a non-200, or more than DAILY_SCAN_CAP), it cannot prove today's note is
+absent, and the step is NOT RUN. The folder name and title come from
+`note_daily` itself (`DAILY_FOLDER_NAME`, `daily_title`), never restated here.
+
 R-RAW: the raw per-step record is written to --out BEFORE the summary is printed.
 Exit: 0 every step PASS · 1 a FAIL · 2 INCONCLUSIVE (not signed in / no credentials).
 
@@ -41,10 +50,103 @@ for _s in (sys.stdout, sys.stderr):
     except Exception:  # noqa: BLE001
         pass
 
+_REPO = pathlib.Path(__file__).resolve().parent.parent
+if str(_REPO) not in sys.path:
+    sys.path.insert(0, str(_REPO))
+# One authority: the folder the daily door makes and the title it gives today's
+# note are note_daily's. (Importing it opens no database: auth_db connects lazily.)
+from api.services.journal_two.note_daily import DAILY_FOLDER_NAME, daily_title  # noqa: E402
+
 ET = ZoneInfo("America/New_York")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/140.0.0.0 Safari/537.36")
-DAILY_FOLDER_NAME = "Daily"   # note_daily.DAILY_FOLDER_NAME — the folder the daily door would make
+
+#: The daily gate reads every live and archived note in full (the list door carries
+#: no `dailyDate`). Past this many it cannot prove today's note is absent, so the
+#: step does not run.
+DAILY_SCAN_CAP = 300
+_PAGE = 100
+
+
+def _list_note_ids(req, params: dict) -> tuple[list, bool]:
+    """Every note id the list door answers for `params`, paging to its `total`.
+    (ids, complete): complete is False on a non-200 or past DAILY_SCAN_CAP."""
+    ids: list = []
+    offset = 0
+    while True:
+        r = req.get("/api/j2/notes", params={**params, "limit": _PAGE, "offset": offset})
+        if r.status != 200:
+            return ids, False
+        body = r.json() or {}
+        rows = body.get("notes") or []
+        ids += [n.get("id") for n in rows if n.get("id")]
+        if len(ids) > DAILY_SCAN_CAP:
+            return ids, False
+        offset += _PAGE
+        if not rows or offset >= int(body.get("total") or 0):
+            return ids, True
+
+
+def find_todays_daily_note(req, day_iso: str) -> tuple:
+    """(note_id, None) when a live note carries `dailyDate == day_iso`; (None, None)
+    when every live and archived note was read and none does; (None, why) when that
+    could not be proven. Trashed notes are not asked about: the daily door releases a
+    trashed holder's day before it looks (notes.release_trashed_daily_date)."""
+    ids: list = []
+    for params, label in (({}, "live"), ({"folder_id": "__archived__"}, "archived")):
+        got, complete = _list_note_ids(req, params)
+        if not complete:
+            return None, (f"could not list every {label} note (more than {DAILY_SCAN_CAP}, or a "
+                          "non-200), so the walk cannot prove today's daily note is absent")
+        ids += got
+    for nid in dict.fromkeys(ids):
+        g = req.get(f"/api/j2/notes/{nid}")
+        if g.status != 200:
+            return None, (f"could not read note {nid} in full (HTTP {g.status}), so the walk "
+                          "cannot prove today's daily note is absent")
+        if ((g.json() or {}).get("note") or {}).get("dailyDate") == day_iso:
+            return nid, None
+    return None, None
+
+
+def daily_step(req, bare, bearer: dict, today, step, rec) -> int:
+    """The daily append, only where it can create no folder and touch no note of
+    bench's. Returns the exit-code contribution (0, or 1 on a FAIL)."""
+    folders = (req.get("/api/j2/note-folders").json() or {}).get("folders") or []
+    # The door's own match: a ROOT folder whose name equals DAILY_FOLDER_NAME under
+    # NOCASE (note_daily._daily_folder_id) — no trimming, or " Daily" would read as
+    # present here while the door, finding none, CREATED one.
+    daily = [f for f in folders if str(f.get("name") or "").lower() == DAILY_FOLDER_NAME.lower()
+             and not f.get("parentId")]
+    day_iso = today.isoformat()
+    if not daily:
+        step("append to today's daily note", "NOT RUN", None,
+             why=f"bench@ has no root {DAILY_FOLDER_NAME} folder, and the daily door would CREATE one — "
+                 "the walk never creates a folder in production")
+        return 0
+    existing, why = find_todays_daily_note(req, day_iso)
+    if why:
+        step("append to today's daily note", "NOT RUN", None, why=why)
+        return 0
+    if existing:
+        step("append to today's daily note", "NOT RUN", None, note_id=existing,
+             why="bench@ already has a note whose dailyDate is today; the walk does not write into "
+                 "a note it did not make")
+        return 0
+    daily_text = "10D walk: a daily entry through the personal API."
+    r = bare.post("/api/j2/personal/daily/append", headers=bearer,
+                  data=json.dumps({"markdown": daily_text}))
+    dj = r.json() if r.status == 200 else {}
+    did = (dj.get("note") or {}).get("id")
+    # ⛔ Only a note THIS request made is the walk's to trash. `created: false`
+    # means today's note existed after all (a race with the scan above) — it is
+    # bench@'s, it is left alone, and the step fails so the report says so.
+    if did and dj.get("created") is True:
+        rec["made"]["note_ids"].append(did)
+    ok = r.status == 200 and did and dj.get("created") is True and dj.get("day") == day_iso
+    step("append to today's daily note (made today's note)", "PASS" if ok else "FAIL", r.status,
+         note_id=did, created=dj.get("created"), day=dj.get("day"), expected_title=daily_title(today))
+    return 0 if ok else 1
 
 
 def _mask(email: str) -> str:
@@ -177,40 +279,8 @@ def main(argv=None) -> int:
                     code = 1
 
             # ── the daily append, only where it can create no folder and touch no note of bench's ──
-            folders = req.get("/api/j2/note-folders").json().get("folders") or []
-            daily = [f for f in folders if str(f.get("name") or "").strip().lower()
-                     == DAILY_FOLDER_NAME.lower() and not f.get("parentId")]
-            has_daily = bool(daily)
-            today = dt.datetime.now(ET).date()
-            day_title = f"{today.isoformat()} · {today.strftime('%A')}"
-            has_today = False
-            if has_daily:
-                listed = req.get("/api/j2/notes", params={"folder_id": daily[0]["id"], "limit": 100}).json()
-                has_today = any(str(n.get("title") or "") == day_title for n in listed.get("notes") or [])
-            if not has_daily:
-                step("append to today's daily note", "NOT RUN", None,
-                     why="bench@ has no root Daily folder, and the daily door would CREATE one — "
-                         "the walk never creates a folder in production")
-            elif has_today:
-                step("append to today's daily note", "NOT RUN", None,
-                     why="today's daily note already exists for bench@; the walk does not write into "
-                         "a note it did not make")
-            else:
-                daily_text = "10D walk: a daily entry through the personal API."
-                r = bare.post("/api/j2/personal/daily/append", headers=bearer,
-                             data=json.dumps({"markdown": daily_text}))
-                dj = r.json() if r.status == 200 else {}
-                did = (dj.get("note") or {}).get("id")
-                # ⛔ Only a note THIS request made is the walk's to trash. `created: false`
-                # means today's note existed after all (outside the Daily folder) — it is
-                # bench@'s, it is left alone, and the step fails so the report says so.
-                if did and dj.get("created") is True:
-                    rec["made"]["note_ids"].append(did)
-                ok = r.status == 200 and did and dj.get("created") is True and dj.get("day") == today.isoformat()
-                step("append to today's daily note (made today's note)", "PASS" if ok else "FAIL", r.status,
-                     note_id=did, created=dj.get("created"), day=dj.get("day"))
-                if not ok:
-                    code = 1
+            if daily_step(req, bare, bearer, dt.datetime.now(ET).date(), step, rec):
+                code = 1
 
             r = req.delete(f"/api/j2/personal/tokens/{token_id}")
             step("revoke the token (session)", "PASS" if r.status == 200 else "FAIL", r.status)

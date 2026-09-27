@@ -178,7 +178,8 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     # Wave 10 (10D, R-16). ⛔ `bulk_used.op` must stay NOTE_BATCH_OPS (railed:
     # tests/test_notebook_telemetry_events.py), `import_used.source` the importer
     # registry's adapter ids and `export_used.format` EXPORT_FORMATS + png/print
-    # (railed client-side, notebookTelemetry.doors.test.jsx).
+    # (railed client-side: app/src/pages/journal-2-0/lib/notebookTelemetry.test.js,
+    # the "R-16 — every core action has an event that fires on its success" block).
     "save_success": {
         "door": ("editor", "outbox"),
         "queued": "bool",
@@ -3995,8 +3996,19 @@ def create_excerpt_endpoint(
         )
     except note_excerpts.ExcerptValidationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    # ⛔ Wave 10 10D fix round 1 (review M-10): placing the node can be REFUSED —
+    # a note already stored past the H14 depth cap fails `_validate_body_json`
+    # inside the append — and the excerpt row above is already written. A refusal
+    # answers 400 with the sentence (like the embed and fact doors) and removes
+    # the row this request made, so a refused save leaves no unplaced excerpt
+    # behind; a note gone since (None) is cleaned up the same way.
+    try:
+        note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    except NoteValidationError as e:
+        note_excerpts.delete_excerpt(user["id"], excerpt["id"])
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if note is None:
+        note_excerpts.delete_excerpt(user["id"], excerpt["id"])
         raise HTTPException(status_code=404, detail="Note not found")
     # Wave Q1 (2026-09-12): ADDITIVE -- the note travels back with the excerpt.
     # `append_document_excerpt` advanced this note's `updated_at`, and a browser
