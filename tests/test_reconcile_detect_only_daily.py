@@ -5,11 +5,24 @@ chart TF) is excluded from healing because a mis-heal there is the worst case.
 Daily previously had ZERO drift visibility, though. The detect-only pass audits
 Daily vs canonical and RECORDS + ALERTS fail-severity drift while NEVER calling
 the delete path — closing the visibility gap with zero mis-heal risk.
+
+The alert is severity `warning`, deliberately: it lands in
+chart_health_alerts' queue for the admin Chart Health page, and it does NOT
+page Discord — only `critical` does. A detect-only finding is never healed, so
+it is re-detected every cycle (48/day, 24/7) under one constant alert_key;
+paging it would be routine, not exceptional.
+
+⛔ TWO SEVERITY SCALES MEET IN THIS FILE. `_Diff(t, "warn")` below is
+audit.py's per-bar DIFF scale (`ok`/`warn`/`fail`) and is correct; the alert's
+severity is `info`/`warning`/`critical`. They share no word, and
+test_chart_health_severity_vocabulary derives both sets from their own modules
+so neither site can be "fixed" into the other's vocabulary.
 """
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from api.services import bars_reconciliation as R
+from tests.test_chart_health_severity_vocabulary import recognised_severities
 
 
 class _Diff:
@@ -58,7 +71,13 @@ def test_detect_drift_records_and_alerts_but_never_deletes():
     assert emit.called
     args = emit.call_args.args
     assert args[0] == "daily_drift_detected"
-    assert args[1] == "warn"
+    assert args[1] == "warning"
+    # ...and it must be on the ALERT scale, which is DERIVED from alerts.py's
+    # SEVERITY_* constants rather than typed here, so a fourth invented word
+    # cannot pass. `warn` — what this call used to send — is audit.py's DIFF
+    # scale: a real word on the wrong scale, which emit() accepts, stores, and
+    # acts on in no way at all.
+    assert args[1] in recognised_severities()
 
 
 def test_clean_daily_records_nothing():
@@ -130,3 +149,22 @@ def test_closed_bar_drift_still_fires_when_today_also_drifts():
     assert last["fail_count"] == 2                 # today excluded, two closed bars remain
     assert 20260706 not in last["sample_ts"]
     assert emit.called
+
+
+def test_the_warn_count_is_on_the_audit_scale_not_the_alert_scale():
+    # `_result(warn_ts=...)` builds diffs carrying audit.py's `warn` severity,
+    # which is a DIFFERENT scale from the alert's `warning`. Renaming the module's
+    # `d.severity == "warn"` filter to match the alert severity would make it
+    # select zero rows — no exception, no red anywhere else in this file, just a
+    # count that is always 0. This is the test that would go red.
+    _reset_state()
+    audit = SimpleNamespace(audit_ticker=lambda t, tf, bars: _result(
+        fail_ts=[20260701], warn_ts=[20260702, 20260703]))
+    with patch.object(R, "_detect_only_pairs", return_value=[("AAPL", "D")]), \
+         patch.object(R, "_current_session_date_key", return_value=20200101), \
+         patch.object(R, "_heal_drift"), \
+         patch("api.services.chart_health_alerts.emit"):
+        R._run_detect_only(audit)
+    last = R._state["last_detect_drift"][-1]
+    assert last["fail_count"] == 1
+    assert last["warn_count"] == 2, "the audit-scale warn filter stopped matching"

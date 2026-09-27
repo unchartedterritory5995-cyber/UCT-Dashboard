@@ -349,13 +349,40 @@ def _run_detect_only(audit) -> None:
                 ticker, tf, fail_count, warn_count, bad_ts[:5],
             )
             _record_detect_drift(ticker, tf, fail_count, warn_count, bad_ts)
-            # Route to the same ops alert channel the intraday watchdog uses, so a
-            # real daily-drift event pages someone instead of hiding in logs.
+            # Route to the same ops alert channel the intraday watchdog uses.
+            # What that channel actually DOES, stated rather than assumed: the
+            # alert lands in chart_health_alerts' in-memory queue, is served by
+            # GET /api/admin/bars/alerts, and the admin Chart Health page marks
+            # the row by severity -- read ChartHealth.jsx for how it ranks them;
+            # restating another file's branches here is how a comment goes stale.
+            # ⛔ It does NOT page anyone, and that is deliberate rather than an
+            # oversight. chart_health_alerts._should_page_discord pages on
+            # 'critical' ONLY, and a detect-only finding must not hold that
+            # severity: this pass NEVER heals, so the drift survives the cycle
+            # and the next cycle re-detects it. _CYCLE_SECONDS defaults to 1800
+            # and _run_forever loops 24/7 => 48 cycles/day; _DETECT_PAIRS_PER_CYCLE
+            # is 12 (half drawn from _PRIORITY_TICKERS' 24 names), and the
+            # alert_key is a CONSTANT, so ONE unhealed daily bar on a priority
+            # ticker alerts ~12x/day (ceiling 48/day, 336/week) until a human
+            # acts. Paging that trains an operator to mute the channel the real
+            # criticals use -- the fundamentals_monitor rotating-sample page
+            # storm was this exact shape. Escalate to 'critical' only if this
+            # ever becomes self-clearing.
+            # ⛔ THE SEVERITY THIS USED TO SEND WAS 'warn', WHICH IS THE OTHER
+            # SCALE IN THIS FUNCTION: audit.py classifies each bar diff
+            # 'ok'|'warn'|'fail', and the two `d.severity` filters above are
+            # correctly on THAT scale, fourteen lines up. emit() validates
+            # nothing, so as shipped this alert was stored, ranked by nobody and
+            # paged nobody -- while this comment claimed it paged someone. A
+            # reader grepping this function for 'warn' finds both scales and
+            # cannot tell them apart, which is why the typo survived; the rail is
+            # tests/test_chart_health_severity_vocabulary.py, which derives each
+            # scale from the module that declares it.
             try:
                 from api.services import chart_health_alerts
                 chart_health_alerts.emit(
                     "daily_drift_detected",
-                    "warn",
+                    "warning",
                     f"{ticker}/{tf}: {fail_count} daily bar(s) diverge from canonical "
                     f"(detect-only, closed bars, not auto-healed) — investigate",
                     {"ticker": ticker, "tf": tf, "fail_count": fail_count,

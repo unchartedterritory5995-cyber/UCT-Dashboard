@@ -74,6 +74,16 @@
       ],
       "note": ""
     },
+    "ALERT_ROUTING_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "default": "1",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-011 / RM-N09 step 2. The class-based alert resolver (api/services/alert_routing.py) landed with NO CALLER by design, so nothing routes by class yet and this gate governs a decision no producer makes -- that is why the status is dark: the CAPABILITY is unreleased, not the gate turned off. The gate itself is a KILL SWITCH and its default is therefore ON (\"1\"): an observability change whose default is off is project_feature_flag_ledger's indistinguishable case, and default-on with an explicit \"0\" escape keeps the rollback a variable rather than a revert. \"0\" restores pre-split behaviour verbatim (DISCORD_WEBHOOK_URL for everything). Read PER CALL in alert_routing.routing_enabled(), never at import -- the discord_notify.py:11 defect. The one authority over the default is alert_routing.ROUTING_FLAG_DEFAULT and tests/test_alert_routing.py pins THIS field against it, because feature_flag_index cannot derive it: the reader falls back to a module constant and _default_of reads only a literal second argument, so needs_declaration() returns True and this entry is REQUIRED rather than surplus (measured 2026-09-26: the ledger rail went 217 passed -> 1 failed the moment the reader landed without it). SET NOWHERE as of 2026-09-26."
+    },
     "ALERT_SHADOW_ENABLED": {
       "status": "armed",
       "where": [

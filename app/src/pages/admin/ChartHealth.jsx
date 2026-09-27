@@ -2,6 +2,65 @@ import { useEffect, useState } from 'react'
 import { formatETFull } from '../../utils/timeAgo'
 import styles from './ChartHealth.module.css'
 
+/** Severity → row treatment. A TABLE, looked up against the DECLARED vocabulary.
+ *
+ * ⛔ THE VOCABULARY IS DECLARED IN `api/services/alerts.py` AND IT IS THREE WORDS:
+ * `SEVERITY_INFO` / `SEVERITY_WARNING` / `SEVERITY_CRITICAL` = `info` / `warning` /
+ * `critical`. This view never read it. `chart_health_alerts.emit()` takes `severity` as
+ * a free string and validates nothing, so a word from any scale is accepted, stored,
+ * and served straight to this table.
+ *
+ * ⛔ THE OLD PREDICATE WAS `a.severity === 'warning' || a.severity === 'error'`, AND IT
+ * WAS WRONG THREE WAYS AT ONCE. `error` is not in the declared vocabulary and is emitted
+ * nowhere in `api/**` — a branch that could not fire. `critical` was absent, and it is
+ * the ONE severity that pages Discord (`chart_health_alerts._should_page_discord`), so
+ * the class that means "wake the owner" rendered LESS marked than a warning sitting next
+ * to it. And a real fourth word was already falling through to an unstyled row:
+ * `api/services/bars_reconciliation.py` emitted `warn`, which is the AUDIT diff scale's
+ * word (`api/services/audit.py`: `ok`/`warn`/`fail`), not an alert severity. A concurrent
+ * lane has corrected that call site to `warning`; the rail on the Python side is
+ * `tests/test_chart_health_severity_vocabulary.py`.
+ *
+ * ⛔ SO AN UNDECLARED WORD IS MARKED AND NAMED — never normalised, never silent. An
+ * earlier draft of this table aliased `warn` to the warning tier, and that is the wrong
+ * answer: it would render a mis-scaled word as a legitimate warning and remove its last
+ * visible symptom, on the one page an operator would have seen it. `info` is the declared
+ * all-clear and the ONLY unmarked answer, so "unmarked" is a decision taken against a
+ * declared word rather than a fall-through.
+ *
+ * `tier` states the ranking so a test can assert it instead of inferring it from colour.
+ * Unknown sits BELOW warning deliberately: it is marked so nobody misses it, not
+ * escalated on a guess about what it means.
+ *
+ * ⚠ Nothing pins these three words to `alerts.py` — that rail deliberately does not read
+ * this file (it would then agree that `warn` was fine). Keep them in step by hand.
+ *
+ * Styling is inline because this file does not own its stylesheet; the quality heatmap
+ * below does the same. Background and weight only: `.table` is `border-collapse: collapse`,
+ * where a border or box-shadow on a `<tr>` is not reliably painted. Every `var()` carries
+ * a literal fallback — an undefined custom property is a silent no-op.
+ */
+export const SEVERITY_TIER = { quiet: 0, unknown: 1, warning: 2, critical: 3 }
+
+export const UNKNOWN_SEVERITY_NOTE = 'unrecognised severity'
+
+const CRITICAL_ROW_STYLE = { background: 'var(--loss-bg, rgba(240,138,138,0.16))', fontWeight: 600 }
+const UNKNOWN_ROW_STYLE = { background: 'rgba(220,187,94,0.14)', fontStyle: 'italic' }
+
+export function severityTreatment(raw) {
+  const severity = String(raw ?? '').trim().toLowerCase()
+  if (severity === 'critical') {
+    return { tier: SEVERITY_TIER.critical, className: styles.staleRow, style: CRITICAL_ROW_STYLE, note: '' }
+  }
+  if (severity === 'warning') {
+    return { tier: SEVERITY_TIER.warning, className: styles.staleRow, style: undefined, note: '' }
+  }
+  if (severity === 'info') {
+    return { tier: SEVERITY_TIER.quiet, className: undefined, style: undefined, note: '' }
+  }
+  return { tier: SEVERITY_TIER.unknown, className: undefined, style: UNKNOWN_ROW_STYLE, note: UNKNOWN_SEVERITY_NOTE }
+}
+
 export default function ChartHealth() {
   const [report, setReport] = useState(null)
   const [quarantineCount, setQuarantineCount] = useState(null)
@@ -362,14 +421,17 @@ export default function ChartHealth() {
           <table className={styles.table}>
             <thead><tr><th>Time</th><th>Severity</th><th>Key</th><th>Message</th></tr></thead>
             <tbody>
-              {alerts.slice(0, 25).map((a, idx) => (
-                <tr key={idx} className={a.severity === 'warning' || a.severity === 'error' ? styles.staleRow : undefined}>
-                  <td>{formatETFull(a.emitted_at * 1000)}</td>
-                  <td>{a.severity}</td>
-                  <td>{a.alert_key}</td>
-                  <td>{a.message}</td>
-                </tr>
-              ))}
+              {alerts.slice(0, 25).map((a, idx) => {
+                const mark = severityTreatment(a.severity)
+                return (
+                  <tr key={idx} className={mark.className} style={mark.style}>
+                    <td>{formatETFull(a.emitted_at * 1000)}</td>
+                    <td>{mark.note ? `${a.severity || '(none)'} — ${mark.note}` : a.severity}</td>
+                    <td>{a.alert_key}</td>
+                    <td>{a.message}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
