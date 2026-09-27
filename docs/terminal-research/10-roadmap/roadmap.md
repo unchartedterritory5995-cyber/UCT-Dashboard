@@ -738,6 +738,42 @@ TERM references, non-distinct    154
 distinct TERM ids mentioned       64
 ```
 
+⚰️ **TWO OF THOSE EIGHT OUTPUTS ARE STALE — RE-RUN 2026-09-27 against this file at `9b0ff6bb4`.**
+Nothing above is deleted: it is what the commands printed on 2026-09-26, and it was correct then.
+Both figures moved for the **same** reason, and it is the commit that landed one later —
+`9b0ff6bb4` (*"five of §2.1's eight cells were FALSE"*), which rewrote eight cells of §2.1.
+
+```
+NOW rows                         15      ✅ unchanged
+NEXT rows                         7      ✅ unchanged
+LATER rows                       19      ✅ unchanged
+NOT PLANNED rows (tabled)        14      ✅ unchanged
+NOW rows VERIFIED-HERE            6      ⚰️ was 7
+duplicate-id check              (printed nothing)   ✅ unchanged
+TERM references, non-distinct    157     ⚰️ was 154
+distinct TERM ids mentioned       64     ✅ unchanged
+```
+
+⚰️ **`NOW rows VERIFIED-HERE` is 6, and the row that left is `RM-N06`.** Measured, not inferred:
+the seven at `6675c2d02` were RM-N02, RM-N06, RM-N09, RM-N10, RM-N11, RM-N12, RM-N13; at
+`9b0ff6bb4` the same grep returns six and `comm -3` over the two lists prints exactly `RM-N06`.
+⭐ **It did not lose a verification — it gained a better one.** `9b0ff6bb4` replaced that cell's
+`VERIFIED-HERE` with `✅ DONE — SHIPPED AND LIVE (6c6f540c8, ancestor of origin/production) · ⚰️ §9
+V9 stale`, i.e. the row stopped citing §9 **because §9's citation for it had gone stale** (V9
+below). So the count falling is the correction working, and a reader who re-runs the grep expecting
+7 should not go looking for a deleted cell.
+
+⚠️ **`TERM references, non-distinct` is 157 because tombstones cite tickets.** `distinct TERM ids
+mentioned` is **still 64** — the three extra mentions are re-citations of ids the file already
+named, so the caveat below is unaffected.
+
+⛔ **AND THIS PASS MOVED IT AGAIN, TO 160 — SAID HERE RATHER THAN LEFT FOR THE NEXT READER.** §9.2's
+own ⚰️ corrections cite `TERM-028` twice and `TERM-069` once, so the working file now prints 160
+non-distinct and **still 64 distinct** (both ids were already named). ⭐ That is the §9.1 numbers'
+permanent condition, not a defect: **these eight figures are derived from the file that contains
+them, so any edit to this document — including an edit whose only purpose is to correct them —
+invalidates the two that count mentions.** Re-run the block; never quote it across a commit.
+
 ⚠️ **The last figure is a mention count, not a coverage claim.** It includes ids named in §5 as *not*
 being built and ids named in §8 as contradictions, so it must not be read as *"this roadmap places 64
 of item 30's 93 tickets"*. The register's own total is item 30's measurement (its §10), and the
@@ -746,15 +782,30 @@ says is deliberate.
 
 ### 9.2 Against `origin/master` — the eleven first-hand verifications
 
+⚠️ **"Eleven" counts V1–V11, the reads against `origin/master`; V12 is a twelfth id and is a grep
+of a sibling DOCUMENT (`backlog.md`), not of the tree.** Stated because a reader who counts the
+ids finds twelve and reasonably concludes the heading has drifted. It has not.
+
 ```bash
 git rev-parse HEAD origin/master
 # 8f14225bbfb4555888f2445dfcaf18aafe57d4d0   (this docs branch)
 # 2e0598bfa514303fe542c4473bd2f89470d04ec2   (origin/master, every read below)
+# ⚰️ RE-READ 2026-09-27: origin/master is now a7e29ad9c0f69664bff8f38d16d6a1acf9ffb165,
+#    `git rev-list --count 2e0598bfa..origin/master` = 661. Every read below WAS true at
+#    2e0598bfa and each is a dated claim. EIGHT of the twelve now carry a ⚰️, and they fail in
+#    three different ways: V1, V3, V9, V10 have lost their SUBJECT outright; V7 has lost half of
+#    its subject; V5, V8, V11 are still right about the product and wrong about their own RECEIPT
+#    (`(empty, rc=1)`, 19, 36). Only V2, V4, V6 and V12 reproduce exactly.
+#    Each ⚰️ sits at its own row and is corrected in "§9.2 RE-VERIFIED" after this fence.
 
 # V1 — rung 0 is absent from source (H3, RM-N11)
 git grep -c "TERMINAL_NEXT_ENABLED" origin/master                       # (no output = zero files)
 git grep -ho "TERMINAL_NEXT[A-Z_]*" origin/master -- api app/src docs | sort | uniq -c
 #      5 TERMINAL_NEXT_MONITOR_ENABLED
+# ⚰️⚰️ STALE 2026-09-27 — RUNG 0 IS IN SOURCE. `14fb1dac1` ("feat(terminal): rung zero —
+#    TERMINAL_NEXT_ENABLED, a cohort dependency beside require_paid, and cohorts on the auth
+#    payload", 2026-09-26) is an ancestor of BOTH origin/master and origin/production. The first
+#    grep prints 22 files; the census over api+app/src alone prints SIX TERMINAL_NEXT_* names.
 
 # V2 — the cohort machinery ships (H3, H4)
 git show origin/master:api/services/rollout.py     | wc -l              # 347
@@ -764,6 +815,11 @@ git show origin/master:tools/rollout_cohort.py     | wc -l              # 147
 git grep -n "cohorts" origin/master -- api/routers/auth.py              # (empty)
 git grep -n "_access_payload" origin/master -- api/routers/auth.py | head -1
 # api/routers/auth.py:271:def _access_payload(user: dict, plan: str) -> dict:
+# ⚰️⚰️ STALE 2026-09-27 — THE CLIENT NOW KNOWS. `14fb1dac1` put cohorts ON the auth payload:
+#    api/routers/auth.py:324 `"cohorts": rollout_gate.client_cohorts(user.get("id")),`.
+#    The `cohorts` grep prints three lines, not nothing. `_access_payload` is now :280, and
+#    `| head -1` returns a COMMENT at :25 — the pipeline still prints a def-shaped line for a
+#    file whose def has moved nine lines, which is why the content, not the number, is the check.
 
 # V4 — BRK-01's dated in-code deferral (RM-N02)
 git grep -n "out of scope v1" origin/master -- api/services/journal_two/options.py
@@ -774,6 +830,11 @@ git grep -lEi "option.?chain" origin/master -- app/src                  # (empty
 git grep -lEi "vol.surface|volatility surface" origin/master -- api app/src   # (empty, rc=1)
 git grep -cEin "iv_rank|iv.rank" origin/master -- api app/src
 # api/services/journal_two/options.py:1     <- the out-of-scope note, and nothing else
+# ⚰️ OUTPUT STALE 2026-09-27, ASSERTION INTACT — the first grep is no longer `(empty, rc=1)`: it
+#    returns app/src/pages/OptionsFlow.jsx, whose only hit is a COMMENT at :3637 ("live Massive
+#    option chains ... for a large"), added 2026-08-10 by `242e903f4`. Comment-stripped: 0 code
+#    hits (control: the same stripper finds TV_ONLY in code at 2e0598bfa, so it can still see a
+#    real occurrence). There is still no member surface. The other two greps are unchanged.
 
 # V6 — the machinery that does exist, its source class and its only readers (H1)
 git show origin/master:api/services/options_chain.py | sed -n '1,7p'
@@ -786,6 +847,12 @@ git grep -ln "options_chain" origin/master -- api app/src
 # V7 — CARD 16's gate cannot print its number; the helper to copy exists (RM-N10)
 git grep -n "stale-swr" origin/master -- tools/bars_warmth_audit.py
 # :28:COLD = {"fetch", "stale-swr", "inflight-wait", "disk", "miss", "unknown"}
+# ⚰️ FIRST LINE STALE 2026-09-27 — `stale-swr` HAS LEFT `COLD`, so the half of this row that says
+#    the gate cannot print its number is spent. `6c0dc5854` ("CARD 16's p95 gate could never be
+#    computed - stale-swr was filed as COLD") split it into a third bucket: today :42 is
+#    `STALE_SERVED = {"stale-swr"}` and :43 is `COLD = {"fetch", "inflight-wait", "disk", "miss",
+#    "unknown"}`. ⛔ Line :28 is now `import httpx` — a cited line number that still resolves,
+#    to an import. The `_diag_percentile` and `p99_ms` lines below are both EXACT and unchanged.
 git grep -n "_diag_percentile" origin/master -- api/flow_router.py | head -1
 # api/flow_router.py:1443:def _diag_percentile(sorted_vals, q):
 git grep -n "p99_ms" origin/master -- api/flow_router.py
@@ -795,19 +862,56 @@ git grep -n "p99_ms" origin/master -- api/flow_router.py
 git ls-tree -r --name-only origin/master -- app/src/components/provenance | wc -l   # 19
 #   Provenance.jsx · FreshnessBadge.jsx · CoverageLine.jsx · Cited.jsx (+ .test.jsx, .module.css)
 #   + freshnessContract.js · availabilityContract.js · presentationFormat.js · sessionStale.js
+# ⚰️ COUNT STALE 2026-09-27 — the directory holds 24, not 19. The five added since 2e0598bfa:
+#    freshnessAge.js · freshnessAge.test.js · panelAdoption.baseline.json ·
+#    panelAdoption.measure.test.js · panelAdoption.ratchet.test.js. ⭐ The ASSERTION is unchanged
+#    and in fact strengthened — all four primitives still ship with tests and contracts; 19 was
+#    only ever the evidence. ⚠️ `freshnessAge.js` is the module §2.1's RM-N03 cell records as
+#    landing deliberately WITHOUT a consumer, so a bigger count here is not more adoption.
 
 # V9 — CARD 27's guard that cannot fire (RM-N06)
 git grep -n "register_wire_watchdog_job" origin/master -- api/main.py | head -1     # :2482
 git grep -n "hour=9, minute=5" origin/master -- api/main.py | head -1               # :2517
 git grep -n "(9, 30)" origin/master -- api/services/engine.py
 # api/services/engine.py:545:    if now.weekday() < 5 and (now.hour, now.minute) < (9, 30):
+# ⚰️⚰️ STALE 2026-09-27 — THE GUARD FIRES, AND THIS GREP STILL PRINTS A PLAUSIBLE ANSWER, WHICH IS
+#    THE WHOLE TRAP. `6c6f540c8` ("fix(wire): the missed-run watchdog could not fire - re-time it
+#    past the 09:30 rollback"), an ancestor of origin/production, re-timed it to
+#    `CronTrigger(day_of_week="mon-fri", hour=9, minute=35, timezone=_ET)` at api/main.py:2550,
+#    with the rail `tests/test_wire_watchdog_fires.py` in the same commit.
+#    ⛔ `register_wire_watchdog_job` is now :2491, not :2482; and `hour=9, minute=5 | head -1` now
+#    matches an UNRELATED job at :5991 — so a reader re-running it gets rc=0 and a line number and
+#    concludes the 09:05 trigger survives. It does not. Grep the CONTENT at the line, never the
+#    exit code: the file's own comment at :2548 reads "⛔ 9:35, NOT 9:05".
+#    ⭐ engine.py:545's `(9, 30)` is unchanged and still the boundary the fix was timed against.
 
 # V10 — the futures workaround RM-N13 replaces
 git grep -n "TV_ONLY" origin/master -- app/src | head -1
 # app/src/components/tiles/FuturesStrip.jsx:136:const TV_ONLY = new Set(['BTC', 'VIX'])
+# ⚰️⚰️ STALE 2026-09-27 — THE WORKAROUND RM-N13 REPLACES NO LONGER EXISTS, AND THE CODE THAT
+#    DELETED IT SAYS SO ABOUT THIS ROADMAP. `ed0b0f1b9` ("fix(futures): delete the dead
+#    TradingView path - TERM-028 was written against code that does nothing"), 2026-09-26, an
+#    ancestor of origin/production, removed TV_SYMS + TV_ONLY. The grep's first hit is now the
+#    deletion COMMENT at :133, whose own words are: "roadmap item TERM-028 was written against
+#    this code as if it were live ('TV_ONLY handing BTC/VIX charts to TradingView') and planned an
+#    honest-blank remedy for a break-out that does not exist here. VIX is in fact served by OUR
+#    OWN chart via CUSTOM_CHART" (`const CUSTOM_CHART = new Set(['VIX'])`, :145). Rail at :143:
+#    FuturesStrip.noTradingViewBreakout.test.jsx. ⛔ The cited line :136 still EXISTS and now reads
+#    "// no outbound link. Somebody removed TradingView from the popup and left the".
+#    ⛔ Comment-stripped: 0 code hits today; 1 at 2e0598bfa (:136) as the control, so the check
+#    can still see the real declaration it used to find. ⚠️ §2.2's RM-N13 cell is another
+#    section's row and is deliberately NOT edited from here.
 
 # V11 — one webhook, many callers (RM-N09). FILES, not modules - see contradiction 9
 git grep -l "DISCORD_WEBHOOK_URL" origin/master -- api tools scripts | wc -l        # 36
+# ⚰️ COUNT STALE 2026-09-27 — 37, not 36. The one added since 2e0598bfa is
+#    api/services/alert_routing.py, and it is a real reader, not prose:
+#    `ADMIN_WEBHOOK_ENV = "DISCORD_WEBHOOK_URL"` at :119 survives a docstring/comment strip.
+#    ⚠️ The row's own caveat matters MORE at 37 than at 36: this counts FILES. Stripping
+#    docstrings and comments over all 37 leaves the literal in 33 of them; it is prose-only in
+#    api/main.py, api/notable_flow_router.py and api/services/ipo_maintenance.py, and
+#    scripts/rth-alert.ps1 is PowerShell and was not stripped (unchecked, not counted as either).
+#    So "one webhook, many callers" is intact and the caller count is ≤ 36, not 37.
 
 # V12 — no BRK-01 ticket exists in the 93 (H1)
 grep -niE "chain|greeks|vol surface|risk.profile|strategy backtest" \
@@ -820,6 +924,63 @@ grep -niE "chain|greeks|vol surface|risk.profile|strategy backtest" \
 that a name is or is not in source, that a module exists and who imports it. ⛔ They establish
 **nothing** about the pod: no flag value, no store row count, no running behaviour. A file at
 `origin/master` is a file, not a behaviour.
+
+---
+
+#### ⚰️ §9.2 RE-VERIFIED 2026-09-27 — eight of twelve rows drifted, and none of them could go red
+
+⛔ **Every V-row above is kept verbatim. Nothing is deleted.** Each was accurate against
+`2e0598bfa`; `origin/master` is now `a7e29ad9c`, **661 commits** on. Each row's own command was
+re-executed, and where a row cites a `file:line` the **content at that line** was read rather than
+the number trusted — because in this repo line numbers drift, and two of these rows now resolve to
+a line that exists and says something else.
+
+| row | what it asserts | re-run verdict |
+|---|---|---|
+| **V1** | *"rung 0 is absent from source"* — `git grep -c "TERMINAL_NEXT_ENABLED"` prints nothing | ⚰️ **STALE** — rung 0 SHIPPED. `14fb1dac1`, ancestor of `origin/production`. 22 files; six `TERMINAL_NEXT_*` names in `api`+`app/src` |
+| **V2** | *"the cohort machinery ships"* — `rollout.py` 347 lines, `rollout_cohort.py` 147 | ✅ **STILL TRUE** — both counts exact |
+| **V3** | *"the client cannot know it is in a cohort"* — `cohorts` absent from `auth.py` | ⚰️ **STALE** — `auth.py:324` `"cohorts": rollout_gate.client_cohorts(...)`, same commit |
+| **V4** | BRK-01's dated in-code deferral at `journal_two/options.py:14` | ✅ **STILL TRUE** — line and text unchanged |
+| **V5** | *"BRK-01 is absent as a member surface"* | ✅ **STILL TRUE**, ⚰️ **output stale** — one COMMENT hit in `OptionsFlow.jsx`; 0 code hits stripped |
+| **V6** | `options_chain.py`'s docstring, and its only two importers | ✅ **STILL TRUE** — docstring and both importers unchanged |
+| **V7** | *"CARD 16's gate cannot print its number; the helper to copy exists"* | ⚰️ **HALF STALE** — the gate CAN print it (`6c0dc5854`); `_diag_percentile` / `p99_ms` unchanged |
+| **V8** | *"all four provenance primitives ship, with tests and contracts"* — 19 files | ✅ **STILL TRUE**, ⚰️ **count stale** — 24 files |
+| **V9** | *"CARD 27's guard that cannot fire"* — the 09:05 trigger | ⚰️⚰️ **STALE** — `hour=9, minute=35` at `api/main.py:2550` (`6c6f540c8`, in production) |
+| **V10** | *"the futures workaround RM-N13 replaces"* — `TV_ONLY` | ⚰️⚰️ **STALE** — deleted `ed0b0f1b9`; the workaround was never live |
+| **V11** | *"one webhook, many callers"* — 36 files | ✅ **STILL TRUE**, ⚰️ **count stale** — 37 files (33 in code) |
+| **V12** | *"no BRK-01 ticket exists in the 93"* | ✅ **STILL TRUE** — `TERM-069` at `backlog.md:414` plus exactly three prose hits |
+
+⭐⭐ **THE TWO FAILURE SHAPES, AND THE SECOND ONE IS WHY A NUMBER IS NOT EVIDENCE.**
+**(1) The subject moved** — V1, V3, V9, V10. In every case the product got BETTER and the row got
+wrong: rung 0 was built, cohorts reached the payload, the watchdog was re-timed so it can fire, and
+a phantom workaround was deleted. **A verification row records a defect, so shipping the fix is
+exactly what makes it stale.** **(2) The number moved and the claim did not** — V5, V7, V8, V11.
+Those rows are still right about the product and wrong about their own receipt.
+
+⛔⛔ **V9 AND V10 ARE THE ONES TO LEARN FROM, BECAUSE BOTH STILL RETURN `rc=0`.** V9's
+`hour=9, minute=5 | head -1` matches an unrelated job at `:5991`; V10's `TV_ONLY` matches the
+comment that records the deletion. A reader re-running either gets output, a line number, and a
+false confirmation. ⭐ **An exit code cannot tell you whether a grep found the thing you named** —
+only reading the matched line can, and in this repo a matched line is as likely to be prose about
+the code as the code itself. Three of the twelve rows (V5, V7, V10) now match **only** comments.
+
+⚠️ **Method, so it can be repeated rather than trusted.** Every literal check was re-run twice:
+once as the row wrote it, and once over source with comments and docstrings removed (Python via
+`tokenize`, JSX via a string-aware scanner), each carrying a control literal that must survive the
+strip and a prose literal that must vanish. ⭐ The control earned its keep: on
+`tests/test_terminal_next_flag.py` the strip reported one lost `import` line and the run was marked
+BROKEN rather than reported — inspection showed the lost line was the word *"import"* opening a
+sentence **inside a docstring**, with the real in-function `import os` intact. A stripper that
+silently eats imports returns a confident zero; this one refused to.
+
+⛔ **NOT SETTLED FROM THIS PASS, stated so it is not mistaken for coverage.** (a) Whether the live
+pod has `TERMINAL_NEXT_ENABLED` set — V1 is now a source fact and still says nothing about a flag
+VALUE; only `railway variables --service web --kv` answers that, and the ⚠️ paragraph above still
+governs. (b) Whether CARD 16's p95 bar has now been **computed**, as opposed to being computable —
+V7's staleness only removes the obstruction; the reading is a separate artifact. (c) Whether the
+local `origin/master` ref this pass read is the remote's tip: no fetch was run, deliberately, with
+two other lanes live. ⭐ **What would settle (c) is one `git fetch origin` and a re-read of the six
+marked rows** — and if the remote has moved, the marks above are themselves dated claims.
 
 ---
 
