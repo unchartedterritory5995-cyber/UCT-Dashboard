@@ -343,6 +343,27 @@ GATE_READ_PATHS = (
     # and pins them to the editor's real schema -- a change to this file CAN change a suite
     # result, so a carry-over verdict must not cross it.
     "api/services/journal_two/note_citation_text.py",
+    # ⛔ READ BY app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js (wave 10,
+    # lane 10C): the write-door census classifies every note door as loss / fork / none and
+    # CITES its evidence -- it statSync()s each cited file and readFileSync()s the Python
+    # sources it parses. Deleting or renaming one of these CAN change a suite result, so a
+    # carry-over verdict must not cross it. Exact paths, never their directories: a whole
+    # `tests/` would make C0 miss on every Python-only landing.
+    "api/services/journal_two/note_connectors/engine.py",
+    "api/services/journal_two/test_note_connectors_engine.py",
+    "api/services/journal_two/test_notes_trash.py",
+    "docs/notebook/evidence/wave10-10c/burst-probe-raw.json",
+    "docs/notebook/wave-q1-f5-append-merge-finding.md",
+    "tests/test_journal_two_daily_note_router.py",
+    "tests/test_journal_two_notes_batch_router.py",
+    "tests/test_journal_two_notes_lock_router.py",
+    "tests/test_journal_two_notes_versions_router.py",
+    "tests/test_notebook_inbound_email.py",
+    "tests/test_notebook_personal_api.py",
+    "tests/test_notes_cas_is_atomic.py",
+    "tests/test_notes_import_router.py",
+    "tests/test_sample_notebook.py",
+    "tests/test_typing_burst_rail.py",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",

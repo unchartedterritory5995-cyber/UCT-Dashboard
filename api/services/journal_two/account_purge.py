@@ -144,16 +144,84 @@ _DIRECT_USER_TABLES = (
 # j2_task_reminder_runs is deliberately excluded too: one row per ET DAY
 # (day, ran_at, members, delivered) recording that the reminder pass closed
 # that day — counts only, no user_id, nothing that names a member.
+#
+# account_tombstones is deliberately excluded as well (wave 10, lane 10C, ruling
+# R-9): it is the record THIS purge writes -- the deleted member's id and the time,
+# nothing else -- so that every restore of an older backup deletes them again
+# (api/services/account_tombstones.py). Purging it would undo the erasure it exists
+# to keep.
 
 
-def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
-    """Delete every row across the Journal 2.0 / Notebook table family for
-    one `user_id`, plus their on-disk attachment tree.
+def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
+                    tombstone: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Record the deletion's TOMBSTONE (wave 10, R-9) FIRST, then delete every row
+    across the Journal 2.0 / Notebook table family for one `user_id`, plus their
+    on-disk attachment tree.
+
+    ⛔⛔ THE TOMBSTONE COMES BEFORE ANY DELETE (wave 10 10C fix round 1). Recorded
+    last, any exception in the purge skipped it while the caller still deleted the
+    account -- and every older backup then brought the member back on restore. Now:
+      * no tombstone  -> nothing is deleted; the report says `aborted` and why, and
+        the caller must not delete the account either;
+      * tombstone, then a failed delete -> the tombstone stays, so a restore's replay
+        finishes the deletion that was intended (correct, not merely safe).
+    `tombstone` is the caller's own already-recorded result (the admin endpoints record
+    it before their broker purge, which is also a delete); None records it here.
 
     Best-effort per table — one bad table can never abort the rest. Returns
     a report so a caller can distinguish "purged clean" from "purged with
     errors" rather than a bare boolean.
     """
+    from api.services import account_tombstones
+    tomb = tombstone if tombstone is not None else account_tombstones.record_tombstone(user_id, conn)
+    if not tomb.get("recorded"):
+        why = f"tombstone: {tomb.get('why')}"
+        log.warning("journal_two account purge ABORTED for %s -- %s", user_id, why)
+        return {"ok": False, "aborted": True, "user_id": user_id, "rows_deleted": {},
+                "total_rows_deleted": 0, "attachment_dirs_removed": 0,
+                "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
+
+    report = purge_user_rows(user_id, conn)
+    errors = report["errors"]
+
+    # On-disk attachments: notebook inline/hero images AND trade screenshots
+    # both nest under one per-user directory (attachment_root()/user_id) by
+    # construction — see attachment_gc.py's own `root / user_id` walk and
+    # trade_attachments.py's `_ATTACHMENT_ROOT / user_id / "trades"`. One
+    # directory removal covers every attachment sub-type, present or future.
+    freed_dirs = 0
+    try:
+        from api.services.journal_two.attachment_root import (
+            LEGACY_ATTACHMENT_ROOT,
+            attachment_root,
+        )
+
+        for root in (attachment_root(), LEGACY_ATTACHMENT_ROOT):
+            udir = root / user_id
+            if udir.is_dir():
+                shutil.rmtree(udir, ignore_errors=True)
+                freed_dirs += 1
+    except Exception as e:  # noqa: BLE001 — disk cleanup must never mask the DB purge's result
+        errors.append(f"attachments: {e}")
+        log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
+
+    # The tombstone (R-9) was recorded before the first delete above: the live purge is
+    # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
+    # an object beside the backups -- is what makes every restore delete them again.
+    return {
+        **report,
+        "ok": not errors,
+        "attachment_dirs_removed": freed_dirs,
+        "errors": errors,
+        "tombstone": tomb,
+    }
+
+
+def purge_user_rows(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
+    """The DATABASE half of `purge_user_data`: every row of the family, and nothing on
+    disk, and no tombstone. ⛔ This is what a RESTORE replays (account_tombstones.replay_on_db):
+    on the machine running a restore drill the attachment directories are not the
+    deleted member's, so a replay must never touch a filesystem."""
     errors: list[str] = []
     deleted: dict[str, int] = {}
 
@@ -205,32 +273,11 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
 
     conn.commit()
 
-    # On-disk attachments: notebook inline/hero images AND trade screenshots
-    # both nest under one per-user directory (attachment_root()/user_id) by
-    # construction — see attachment_gc.py's own `root / user_id` walk and
-    # trade_attachments.py's `_ATTACHMENT_ROOT / user_id / "trades"`. One
-    # directory removal covers every attachment sub-type, present or future.
-    freed_dirs = 0
-    try:
-        from api.services.journal_two.attachment_root import (
-            LEGACY_ATTACHMENT_ROOT,
-            attachment_root,
-        )
-
-        for root in (attachment_root(), LEGACY_ATTACHMENT_ROOT):
-            udir = root / user_id
-            if udir.is_dir():
-                shutil.rmtree(udir, ignore_errors=True)
-                freed_dirs += 1
-    except Exception as e:  # noqa: BLE001 — disk cleanup must never mask the DB purge's result
-        errors.append(f"attachments: {e}")
-        log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
-
     return {
         "ok": not errors,
         "user_id": user_id,
         "rows_deleted": deleted,
         "total_rows_deleted": sum(deleted.values()),
-        "attachment_dirs_removed": freed_dirs,
+        "attachment_dirs_removed": 0,
         "errors": errors,
     }

@@ -1,5 +1,17 @@
 # Rolling back Notebook wave 5: keep the schema guard
 
+> ⛔⛔ **READ "Measured at production's tip, 2026-09-26" (below the 2026-09-24
+> simulation) BEFORE RUNNING PROCEDURE A.** Waves 6–9 are built on wave 5, and
+> every wave landed as a SQUASH. At today's tip, reverting wave 5 alone stops on
+> **68 unmerged paths** — including `notebookSchema.js` and `notebook_schema.py`,
+> the guard this file exists to keep — so a Notebook rollback now reverts the
+> **NEWEST wave first**, one squash at a time. ⚠️ **That procedure was rehearsed
+> for WAVE 9 ONLY** — wave 9's squash reverted on a sandbox from a `git archive`
+> (evidence `docs/notebook/evidence/wave10-10c/rollback/`, committed `6252d03bc`).
+> **Reverting waves 8, 7, 6 and 5 in sequence is the prescribed order but
+> UNREHEARSED**: nobody has run it, including wave 6's revert, which removes the
+> eight level-2 table entries.
+
 > ⛔⛔ **THREE commits are never reverted with the features: `8167f7aa0`,
 > `fd87271fd` and `82c56dd63`.** Revert the feature merge, then re-apply all
 > three commits in that order. Or revert everything except them.
@@ -252,6 +264,48 @@ I ran the simulation in a throwaway worktree, since removed:
 | Rail, enumeration, hub write-path rails, importer suites | 16 files, 175 tests passed |
 | Probe: types registered by the rolled-back editor | `[]`, none of the six |
 | Probe: header the rolled-back bundle sends | `X-UCT-Notebook-Schema: 0` |
+
+## Measured at production's tip, 2026-09-26 (wave 10, lane 10C, ruling R-11)
+
+Rehearsed on a SANDBOX, never a production revert (R-11). An isolated local
+clone at production's tip, `origin/master` `6e7785b52` (own index, refs and
+stash). Raw runs committed before this reading: `6252d03bc`,
+`docs/notebook/evidence/wave10-10c/rollback/`.
+
+| Step | Result |
+|---|---|
+| Procedure A step 1, literally: `git revert -m 1 2c3ed3093` | git 2.53 **accepts** `-m 1` on the one-parent squash and reverts it as a plain commit. It stops on **68 unmerged paths** (36 content, 32 modify/delete) — `notebookSchema.js`, `notebook_schema.py`, `notebookSchema.rail.test.js`, `noteContentGuard.js` among them. Aborted cleanly. `procedure-a-literal-*.{log,txt}` |
+| The newest wave instead: `git revert --no-edit 1c4b0bf74` (wave 9's squash) | **0 conflicts.** The two schema-table files are byte-identical before and after (`git diff` empty). Tree `93d7d0288`. `revert-wave9-squash.log` |
+| `tests/test_notebook_schema_guard.py` on that tree | 17 passed |
+| This file's *Verify before pushing* vitest list on that tree | 20 files, 243 passed |
+| A sandbox booted from a `git archive` of `93d7d0288`, its own `app/dist`, on the tip's data dir (`C:\data-w10c`) | SANDBOX INTEGRITY CLEAN at pre-boot, +15 s, +120 s and shutdown |
+| The reverted wave is gone: `POST /api/j2/notes/batch/export?format=__bogus__` | tip **422** (wave 9 checks the format) → rolled back **200** (the Markdown zip it always sent) |
+| The never-revert set is not: a note holding a level-2 node (`tableOfContents`, wave 6) | opens with no unreadable notice on both; the editor's body PUT declares `X-UCT-Notebook-Schema: 2` on both; the stored body keeps the node and the typed words on both |
+
+**What this changes for whoever rolls back next:**
+
+1. ⛔ **Reverting wave 5 alone is no longer a procedure.** Waves 6–9 extend the
+   guard's own files, so the wave-5 revert would DELETE `notebookSchema.js` and
+   `notebook_schema.py` out from under them — the one outcome this document
+   forbids ("never remove a table entry"). To remove wave 5's features today,
+   revert the waves **newest first** (9, 8, 7, 6, then 5), and at each step keep
+   both schema-table files exactly as the tip has them. ⚠️ **Only the first step
+   of that sequence, wave 9, was rehearsed.** Reverting 8, 7, 6 and then 5 is the
+   prescribed order but **UNREHEARSED** — its conflicts, and the table restore
+   that wave 6's revert needs, have never been run.
+2. ⭐ **The check after every revert is one command**, and it is the rule that
+   outlives every wave: `git diff <tip> HEAD -- app/src/pages/journal-2-0/lib/notebookSchema.js api/services/journal_two/notebook_schema.py`
+   must print **nothing**. A revert whose squash added table entries (wave 6
+   added the eight level-2 types) removes them — restore both files from the
+   tip before committing the revert. A bundle that still registers a type keeps
+   declaring its level; a table without the entry declares 0 for a type members
+   have already written (*Rules that outlive this wave*).
+3. `git revert -m 1` on a squash does not fail on this git; do not read "the
+   flag was accepted" as "this was a merge revert". Every Notebook wave on
+   master is a one-parent squash (`git show --no-patch --format=%P <sha>`).
+4. The rehearsal did not re-run `82c56dd63`'s cherry-pick: in a newest-first
+   rollback that stops above wave 5, all three never-revert commits stay in the
+   tree because wave 5's squash is never reverted.
 
 ## What a member sees after a rollback
 

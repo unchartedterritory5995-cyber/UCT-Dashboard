@@ -1,0 +1,16 @@
+{
+  "identity": "http://127.0.0.1:8213 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w10C\\rba\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T19-47-41.md (identity 11326532ff6f..., data dir C:\\data-w10c)",
+  "proven": true,
+  "create": 200,
+  "note_id": "dc52912731ac4212aed699000bcb5b09",
+  "batch_export_bogus_format": 200,
+  "unreadable_notice": false,
+  "body_puts": [
+    {
+      "url": "http://127.0.0.1:8213/api/j2/notes/dc52912731ac4212aed699000bcb5b09",
+      "schema": "2"
+    }
+  ],
+  "stored_has_toc": true,
+  "stored_has_typed": true
+}

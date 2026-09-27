@@ -115,6 +115,25 @@ def _prune(client, bucket: str, keep: int = RETAIN) -> int:
         return 0
 
 
+def _flush_pending_tombstones(src_path: str, client, bucket: str) -> int:
+    """Wave 10 (R-9): push every account-deletion tombstone whose off-site write has not
+    happened yet (a deletion while R2 was unreachable, or before this job was armed) to
+    the SAME bucket, beside the backups it guards. Never raises."""
+    try:
+        from api.services import account_tombstones
+        conn = sqlite3.connect(src_path, timeout=3)
+        try:
+            n = account_tombstones.flush_pending(conn, account_tombstones.R2ObjectStore(client, bucket))
+        finally:
+            conn.close()
+        if n:
+            logger.info("[authdb_backup] pushed %d pending account tombstone(s)", n)
+        return n
+    except Exception as e:  # noqa: BLE001 -- a tombstone flush never fails a backup
+        logger.warning("[authdb_backup] tombstone flush failed (non-fatal): %s", e)
+        return 0
+
+
 def run_backup() -> Optional[str]:
     """Take one auth.db backup and ship it to R2. Returns the UTC ts string on
     success, or None (disabled / no creds / nothing to back up / any failure).
@@ -159,6 +178,7 @@ def run_backup() -> Optional[str]:
                 "[authdb_backup] uploaded %s (%d bytes, %.1fs)", key, gz_bytes, dur
             )
             _prune(client, bucket, RETAIN)
+            _flush_pending_tombstones(src_path, client, bucket)
             return ts
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

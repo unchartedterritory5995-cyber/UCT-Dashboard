@@ -1,0 +1,396 @@
+{
+  "base": "http://127.0.0.1:8213",
+  "certifying": false,
+  "stamp": "2026-09-26T22-57-49Z",
+  "runs": [
+    {
+      "identity": "sandbox-member",
+      "note_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+      "burst": {
+        "verdict": "PASS",
+        "puts": 2,
+        "conflicts_409": 0,
+        "unsettled_409": 0,
+        "forks": [],
+        "sentence_present": true,
+        "problems": [],
+        "put_sequence": [
+          {
+            "status": 200,
+            "sent_keys": [
+              "baseUpdatedAt",
+              "bodyJson",
+              "title"
+            ],
+            "sent_base": "2026-09-26T22:58:28.712598+00:00",
+            "got_updated_at": "2026-09-26T22:58:34.186448+00:00",
+            "detail": null
+          },
+          {
+            "status": 200,
+            "sent_keys": [
+              "baseUpdatedAt",
+              "bodyJson"
+            ],
+            "sent_base": "2026-09-26T22:58:34.186448+00:00",
+            "got_updated_at": "2026-09-26T22:58:36.300494+00:00",
+            "detail": null
+          }
+        ]
+      },
+      "calls": [
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/folder-counts",
+          "status": 200,
+          "t": 1790463503.8274653
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+          "status": 200,
+          "t": 1790463503.827768
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+          "status": 200,
+          "t": 1790463503.828039
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+          "status": 200,
+          "t": 1790463503.8283327
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/favorites",
+          "status": 200,
+          "t": 1790463503.8286078
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/recents",
+          "status": 200,
+          "t": 1790463503.8288784
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/tags",
+          "status": 200,
+          "t": 1790463503.829105
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=updated",
+          "status": 200,
+          "t": 1790463503.8301294
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=title",
+          "status": 200,
+          "t": 1790463503.8303828
+        },
+        {
+          "m": "POST",
+          "u": "/api/j2/notes",
+          "status": 200,
+          "t": 1790463508.7012346,
+          "sent_keys": [
+            "title"
+          ],
+          "sent_base": null,
+          "sent_title": "",
+          "got_updated_at": "2026-09-26T22:58:28.712598+00:00",
+          "got_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+          "got_title": ""
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=title",
+          "status": 200,
+          "t": 1790463508.7398975
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1",
+          "status": 200,
+          "t": 1790463508.7730277,
+          "got_updated_at": "2026-09-26T22:58:28.712598+00:00",
+          "got_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+          "got_title": ""
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/documents",
+          "status": 200,
+          "t": 1790463508.773347
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/excerpts",
+          "status": 200,
+          "t": 1790463508.773537
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/trade-ref/resolve",
+          "status": 200,
+          "t": 1790463508.8458242
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/properties",
+          "status": 200,
+          "t": 1790463508.846163
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/thesis-summary",
+          "status": 200,
+          "t": 1790463508.8465269
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/facts",
+          "status": 200,
+          "t": 1790463508.8468392
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/evidence-candidates",
+          "status": 200,
+          "t": 1790463508.8470962
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/backlinks",
+          "status": 200,
+          "t": 1790463508.8476512
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/related-from",
+          "status": 200,
+          "t": 1790463508.8478596
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/unlinked-mentions",
+          "status": 200,
+          "t": 1790463508.8480604
+        },
+        {
+          "m": "POST",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/opened",
+          "status": 200,
+          "t": 1790463508.8482597,
+          "sent_keys": [],
+          "sent_base": null,
+          "sent_title": null
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/recents",
+          "status": 200,
+          "t": 1790463508.9520118
+        },
+        {
+          "m": "PUT",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1",
+          "status": 200,
+          "t": 1790463514.1767383,
+          "sent_keys": [
+            "baseUpdatedAt",
+            "bodyJson",
+            "title"
+          ],
+          "sent_base": "2026-09-26T22:58:28.712598+00:00",
+          "sent_title": "T-12 smoke 2026-09-26",
+          "got_updated_at": "2026-09-26T22:58:34.186448+00:00",
+          "got_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+          "got_title": "T-12 smoke 2026-09-26"
+        },
+        {
+          "m": "PUT",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1",
+          "status": 200,
+          "t": 1790463516.2902608,
+          "sent_keys": [
+            "baseUpdatedAt",
+            "bodyJson"
+          ],
+          "sent_base": "2026-09-26T22:58:34.186448+00:00",
+          "sent_title": null,
+          "got_updated_at": "2026-09-26T22:58:36.300494+00:00",
+          "got_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+          "got_title": "T-12 smoke 2026-09-26"
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/folder-counts",
+          "status": 200,
+          "t": 1790463521.563729
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+          "status": 200,
+          "t": 1790463521.5638232
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+          "status": 200,
+          "t": 1790463521.5639138
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+          "status": 200,
+          "t": 1790463521.5640035
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/favorites",
+          "status": 200,
+          "t": 1790463521.564093
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/recents",
+          "status": 200,
+          "t": 1790463521.5641747
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/tags",
+          "status": 200,
+          "t": 1790463521.564252
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1",
+          "status": 200,
+          "t": 1790463521.5643604,
+          "got_updated_at": "2026-09-26T22:58:36.300494+00:00",
+          "got_id": "767003a9cc3c4befa3ff9ebc674bc0b1",
+          "got_title": "T-12 smoke 2026-09-26"
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/documents",
+          "status": 200,
+          "t": 1790463521.5644522
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/excerpts",
+          "status": 200,
+          "t": 1790463521.5645387
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=updated",
+          "status": 200,
+          "t": 1790463521.5647538
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?sort=title",
+          "status": 200,
+          "t": 1790463521.5648549
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/trade-ref/resolve",
+          "status": 200,
+          "t": 1790463521.9668243
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/properties",
+          "status": 200,
+          "t": 1790463521.9670894
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/thesis-summary",
+          "status": 200,
+          "t": 1790463521.9677398
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/facts",
+          "status": 200,
+          "t": 1790463521.9679718
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/evidence-candidates",
+          "status": 200,
+          "t": 1790463521.9681532
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/backlinks",
+          "status": 200,
+          "t": 1790463521.9684384
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/related-from",
+          "status": 200,
+          "t": 1790463521.9685547
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/unlinked-mentions",
+          "status": 200,
+          "t": 1790463521.968652
+        },
+        {
+          "m": "POST",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/opened",
+          "status": 200,
+          "t": 1790463521.9687455,
+          "sent_keys": [],
+          "sent_base": null,
+          "sent_title": null
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1/reviews",
+          "status": 200,
+          "t": 1790463522.124235
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes/recents",
+          "status": 200,
+          "t": 1790463522.1600103
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?limit=200",
+          "status": 200,
+          "t": 1790463529.6434774
+        },
+        {
+          "m": "GET",
+          "u": "/api/j2/notes?limit=200",
+          "status": 200,
+          "t": 1790463530.74189
+        },
+        {
+          "m": "DELETE",
+          "u": "/api/j2/notes/767003a9cc3c4befa3ff9ebc674bc0b1",
+          "status": 200,
+          "t": 1790463531.228042
+        }
+      ]
+    }
+  ]
+}

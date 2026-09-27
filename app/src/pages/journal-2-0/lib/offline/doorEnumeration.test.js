@@ -276,6 +276,34 @@ function variableUrlWrites() {
   return out
 }
 
+/**
+ * ⑤'s ledger of SERVER-side doors outside journal_two.py -- the rows rail ⑤ pins and
+ * the census ⑥ classifies. Hoisted unchanged from inside rail ⑤ (wave 10, 10C).
+ */
+const SERVER_LEDGER = {
+  'api/routers/notebook_personal_api.py':
+    'create_note for POST /api/j2/personal/notes; the two appends delegate to note_personal_api',
+  'api/services/journal_two/note_personal_api.py':
+    'update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note, no client to settle',
+  'api/services/journal_two/inbound_email.py':
+    'create_note, then update_note(expected_updated_at) for the attachment nodes; no client to settle',
+  'api/services/journal_two/note_daily.py':
+    'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
+    + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
+    + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
+  // Wave 8 (8C; controller ruling on the whole-branch pass): the sample notebook reaches the
+  // notes through `import_confirm` and `delete_note`, which the matcher did not name, so the
+  // matcher now names every note writer a module outside journal_two.py can call.
+  'api/services/journal_two/sample_notebook.py':
+    'import_confirm (the file importer\'s own function) seeds NEW notes no tab holds yet, and its second pass '
+    + 'rewrites only those fresh ids inside the same call; delete_note (DELETE /api/j2/onboarding/sample-notebook) '
+    + 'trashes only the recorded sample ids, and a later save to one reads 404 (update_note treats a trashed note as missing); '
+    + 'so its one client door (ResearchHome "Remove it") first runs the bulk trash\'s own pre-check '
+    + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
+    + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
+    + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
+}
+
 describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions', () => {
   const sql = sqlAdvancingFunctions()
   const advancing = reachingFunctions(sql)
@@ -337,29 +365,9 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     // conflict copy, never a clobber); a locked note is refused 423 (D-G1(d));
     // both ship dark. Derived from the code the way ② is, then pinned: a file
     // that starts calling a note writer without a row here fails by name.
-    const LEDGER = {
-      'api/routers/notebook_personal_api.py':
-        'create_note for POST /api/j2/personal/notes; the two appends delegate to note_personal_api',
-      'api/services/journal_two/note_personal_api.py':
-        'update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note, no client to settle',
-      'api/services/journal_two/inbound_email.py':
-        'create_note, then update_note(expected_updated_at) for the attachment nodes; no client to settle',
-      'api/services/journal_two/note_daily.py':
-        'wave 6: create-if-missing behind journal_two\'s /notes/daily, whose client settles the answer (rail ③ covers that route); '
-        + 'since wave 7 ALSO reached from note_personal_api.append_to_daily (POST /api/j2/personal/daily), which has NO client: '
-        + 'the day\'s note is created, then appended through note_personal_api\'s own row, and nothing settles either write',
-      // Wave 8 (8C; controller ruling on the whole-branch pass): the sample notebook reaches the
-      // notes through `import_confirm` and `delete_note`, which the matcher did not name, so the
-      // matcher now names every note writer a module outside journal_two.py can call.
-      'api/services/journal_two/sample_notebook.py':
-        'import_confirm (the file importer\'s own function) seeds NEW notes no tab holds yet, and its second pass '
-        + 'rewrites only those fresh ids inside the same call; delete_note (DELETE /api/j2/onboarding/sample-notebook) '
-        + 'trashes only the recorded sample ids, and a later save to one reads 404 (update_note treats a trashed note as missing); '
-        + 'so its one client door (ResearchHome "Remove it") first runs the bulk trash\'s own pre-check '
-        + '(lib/noteBatch.js precheckNoteBatch, op trash: blocked, unsent, unchecked) over the sample ids still out of Trash, and '
-        + 'sends the DELETE only when none holds unsent words -- one that does holds the whole removal back and is named, and a '
-        + 'device that cannot be checked gets a confirmed "Remove anyway" whose re-run still refuses unsent words (wave-8 final review FE I-3)',
-    }
+    // ⭐ Wave 10 (10C): the rows live at module scope as SERVER_LEDGER, so the
+    // loss/fork/none census ⑥ reads the SAME object rather than a copy.
+    const LEDGER = SERVER_LEDGER
     const found = []
     for (const p of [...walk(join(API, 'routers')), ...walk(join(API, 'services', 'journal_two'))]) {
       if (!p.endsWith('.py') || isTest(p) || p === NOTES_SERVICE) continue
@@ -510,5 +518,223 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
       expect(why.length, `${key} needs a real reason, not a label`).toBeGreaterThan(80)
       expect(why, `${key} must say what would close it`).toMatch(/would have to|To close it/)
     }
+  })
+})
+
+/**
+ * ⛔⛔ ⑥ THE LOSS / FORK / NONE CENSUS (wave 10, lane 10C — clause 2d, "no known
+ * data-loss path").
+ *
+ * Every door rails ①–⑤ DERIVE is classified by the worst thing its landing can do
+ * to a member's words that are unsent in ANOTHER tab or device at that moment:
+ *   none  — the words survive untouched: the change is metadata (rebased) or a
+ *           server-appended block (merged), or nobody can be holding the note;
+ *   fork  — both versions survive: the member's words land in a "(conflicted copy)"
+ *           sibling (fork-never-clobber). Correct for a genuine second writer;
+ *   loss  — the words can vanish. ⛔ The census FAILS on any.
+ * The rail fails on a derived door with NO classification, on a classification
+ * that names a door no longer derived (stale), on any `loss`, and on an entry
+ * whose evidence does not exist on disk.
+ *
+ * ⛔ WHAT THIS CENSUS DID TO THE TREE (the classifications are evidence, not labels):
+ *   · F-5, the T-12 409 (tag door): NONE, measured — 12/12 sandbox burst runs, 15
+ *     409s all settled, 0 forks, 0 lost words (docs/notebook/evidence/wave10-10c/).
+ *   · A body nested past what the routes can serve (24 bullet levels) was STORED
+ *     and then answered 500 forever — a LOSS on every body door. Closed at the one
+ *     place they all pass (notes.MAX_BODY_DEPTH, tests/test_notes_body_depth_cap.py);
+ *     notes stored deeper BEFORE that fix still 500 on read (the router's half,
+ *     named in the wave-10 10C report) — a read defect, not a door.
+ *   · A body ProseMirror cannot build (an empty text node) opened LOCKED — kept,
+ *     not lost; now refused at the create doors (tests/test_notes_unbuildable_body_refused.py).
+ *   · Fix round 1 (H14, live on master until 45a13b171): the compare-and-set and the
+ *     append doors' read-modify-write were NOT atomic — the read ran in autocommit, so
+ *     a second writer committing between the read and the write was told "saved" and
+ *     then overwritten. A LOSS on the PUT, the versions restore and the three appends
+ *     until every one of them took BEGIN IMMEDIATE before its read
+ *     (tests/test_notes_cas_is_atomic.py). The rows below are NONE/FORK because the
+ *     code now makes them so, not because the reconcile alone did.
+ */
+const NONE = 'none'
+const FORK = 'fork'
+const LOSS = 'loss'
+const E = 'docs/notebook/evidence/wave10-10c/burst-probe-raw.json'
+
+const DOOR_CLASSIFICATION = {
+  // ── client door routes (derived by ① + ②) ────────────────────────────────────
+  'PUT /api/j2/notes/*': {
+    class: FORK,
+    why: 'the editor\'s own body/title save and the outbox drain\'s send, both compare-and-set on '
+      + 'baseUpdatedAt. When ANOTHER tab or device rewrote the body or title first, the 409 reconcile '
+      + '(ownerReconcilePlan -> classifyServerChange) forks: the member\'s words become a conflicted copy. '
+      + 'The compare-and-set runs inside BEGIN IMMEDIATE, so two writers holding one baseline cannot both land.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
+      'app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'PATCH /api/j2/notes/*/tags': {
+    class: NONE,
+    why: 'metadata only (patch_note_tags -> update_note tags). F-5: its revision lands under the editor\'s '
+      + 'open body save, which 409s once and is rebased by the reconcile (METADATA_ONLY), resending the '
+      + 'member\'s current words -- 12/12 sandbox burst runs, 15 409s, all settled, 0 forks, 0 lost words.',
+    evidence: [E, 'tests/test_typing_burst_rail.py',
+      'app/src/pages/journal-2-0/components/notebook/NoteEditorPage.metadataSettle.test.jsx'],
+  },
+  'PATCH /api/j2/notes/*/lock': {
+    class: NONE,
+    why: 'metadata only (the locked flag) and it advances the revision; the server never refuses a body '
+      + 'write to a locked note, so a queued edit rebases (METADATA_ONLY) instead of conflicting.',
+    evidence: ['tests/test_journal_two_notes_lock_router.py'],
+  },
+  'POST /api/j2/notes/*/hero': {
+    class: NONE,
+    why: 'metadata only (hero_image_url). classifyServerChange compares title, subtitle and body; an '
+      + 'unchanged body is METADATA_ONLY, so another tab\'s unsent words rebase onto the new revision.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js'],
+  },
+  'DELETE /api/j2/notes/*/hero': {
+    class: NONE,
+    why: 'metadata only (hero_image_url cleared) -- the same METADATA_ONLY rebase as setting a hero; '
+      + 'the body, title and subtitle are untouched so nothing an editor holds is contradicted.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js'],
+  },
+  'POST /api/j2/notes/*/embeds': {
+    class: NONE,
+    why: 'appends ONE widgetEmbed at the end (append_widget_embed); widgetEmbed is a SERVER_APPENDED_TYPE, '
+      + 'so the reconcile proves APPEND_ONLY and merges the block into the member\'s document (F-6 closed). '
+      + 'Read and rewritten inside BEGIN IMMEDIATE, so an editor PUT cannot land between the two.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/settleKeepsTheAppendBase.test.js',
+      'docs/notebook/wave-q1-f5-append-merge-finding.md', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'POST /api/j2/notes/*/facts/*/insert': {
+    class: NONE,
+    why: 'appends ONE financialFact block (append_financial_fact); a SERVER_APPENDED_TYPE, merged by the '
+      + 'reconcile\'s APPEND_ONLY branch exactly like a widget embed, never forked; read and rewritten '
+      + 'inside BEGIN IMMEDIATE.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'POST /api/j2/notes/*/excerpts': {
+    class: NONE,
+    why: 'appends ONE documentExcerpt block (append_document_excerpt); a SERVER_APPENDED_TYPE, merged by '
+      + 'the reconcile\'s APPEND_ONLY branch, never forked; read and rewritten inside BEGIN IMMEDIATE.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'POST /api/j2/notes/*/restore': {
+    class: NONE,
+    why: 'Trash -> library: clears deleted_at and moves the revision, body unchanged. A save against a '
+      + 'trashed note 404s and the words stay queued; after the restore they rebase (METADATA_ONLY).',
+    evidence: ['api/services/journal_two/test_notes_trash.py'],
+  },
+  'POST /api/j2/notes/*/versions/*/restore': {
+    class: FORK,
+    why: 'rewrites the body to an old version (restore_note_version -> update_note). Another tab holding '
+      + 'unsent words 409s into a BODY_REWRITE and forks: both the restored text and the words survive. '
+      + 'The restore holds BEGIN IMMEDIATE from its read to its commit.',
+    evidence: ['tests/test_journal_two_notes_versions_router.py',
+      'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js', 'tests/test_notes_cas_is_atomic.py'],
+  },
+  'POST /api/j2/notes/import/confirm': {
+    class: FORK,
+    why: 're-importing an export UPDATES the matching notes\' bodies; this browser lands the revisions '
+      + '(settleNoteWrites), and another tab holding unsent words in one of them forks on its next save.',
+    evidence: ['tests/test_notes_import_router.py'],
+  },
+  'POST /api/j2/notes/batch': {
+    class: NONE,
+    why: 'every op is metadata (move, add/remove/rename tag, favourite, trash, restore, archive); none '
+      + 'touches a title, subtitle or body, so a queued edit rebases (METADATA_ONLY), never forks.',
+    evidence: ['tests/test_journal_two_notes_batch_router.py'],
+  },
+  'DELETE /api/j2/note-folders/*': {
+    class: NONE,
+    why: 'moves the folder\'s notes (folder_id only) and returns every moved revision, which the client '
+      + 'lands (settleNoteWrites) -- metadata, rebased, never forked (see ④\'s control).',
+    evidence: ['app/src/pages/journal-2-0/hooks/useJ2NoteFolders.js'],
+  },
+  // ── server-side doors with NO client (rail ⑤'s ledger + rail ②'s engine) ──────
+  'api/routers/notebook_personal_api.py': {
+    class: FORK,
+    why: 'a Shortcut or script creates a note (nobody holds it) or appends paragraphs to one; paragraphs '
+      + 'are not a SERVER_APPENDED_TYPE, so a tab holding unsent words forks (D-G1(b)/D-W2, R-13 keeps it).',
+    evidence: ['tests/test_notebook_personal_api.py'],
+  },
+  'api/services/journal_two/note_personal_api.py': {
+    class: FORK,
+    why: 'append_nodes: update_note(expected_updated_at) under BEGIN IMMEDIATE, 423 on a locked note. An '
+      + 'open dirty tab 409s into a BODY_REWRITE and forks -- a conflicted copy, never a clobber.',
+    evidence: ['tests/test_notebook_personal_api.py'],
+  },
+  'api/services/journal_two/inbound_email.py': {
+    class: FORK,
+    why: 'creates a NEW note per email, then appends its attachment nodes to that same note seconds later; '
+      + 'only a tab that opened the brand-new note in between could hold words, and that tab would fork.',
+    evidence: ['tests/test_notebook_inbound_email.py'],
+  },
+  'api/services/journal_two/note_daily.py': {
+    class: FORK,
+    why: 'create-if-missing is a new note nobody holds; the personal API\'s append-to-daily appends '
+      + 'paragraphs into a note a tab may hold dirty, which forks (the same D-G1(b) shape).',
+    evidence: ['tests/test_journal_two_daily_note_router.py', 'tests/test_notebook_personal_api.py'],
+  },
+  'api/services/journal_two/sample_notebook.py': {
+    class: NONE,
+    why: 'seeds NEW notes nobody holds; removal trashes only the sample ids after the bulk pre-check refuses '
+      + 'any holding unsent words (a later save to one reads 404 and the words stay queued).',
+    evidence: ['tests/test_sample_notebook.py'],
+  },
+  'api/services/journal_two/note_connectors/engine.py': {
+    class: FORK,
+    why: 'a GENUINE second writer (Roam/Notion/Craft sync in the background). A fork against it is the '
+      + 'correct answer; two of its three writers preserve updated_at and are not doors at all (rail ②).',
+    evidence: ['api/services/journal_two/test_note_connectors_engine.py'],
+  },
+}
+
+/** Pure, so the controls below can plant each failure. */
+function censusProblems(doors, classification) {
+  const problems = []
+  for (const d of doors) if (!classification[d]) problems.push(`UNCLASSIFIED: ${d}`)
+  for (const [k, v] of Object.entries(classification)) {
+    if (!doors.includes(k)) problems.push(`STALE: ${k} is classified but no longer derived as a door`)
+    if (![NONE, FORK, LOSS].includes(v.class)) problems.push(`BAD CLASS: ${k} -> ${v.class}`)
+    if (v.class === LOSS) problems.push(`LOSS: ${k} -- ${v.why}`)
+  }
+  return problems
+}
+
+const ENGINE = 'api/services/journal_two/note_connectors/engine.py'
+
+describe('⛔⛔ ⑥ LOSS / FORK / NONE — every derived door is classified, and none loses words', () => {
+  const doors = () => [
+    ...advancingRoutes(reachingFunctions(sqlAdvancingFunctions())),
+    ...Object.keys(SERVER_LEDGER),
+    ENGINE,
+  ]
+
+  it('the door universe is DERIVED and non-empty (non-vacuity)', () => {
+    const ds = doors()
+    expect(ds, 'the derivation must see the editor\'s own door').toContain('PUT /api/j2/notes/*')
+    expect(ds, 'and the F-5 tag door').toContain('PATCH /api/j2/notes/*/tags')
+    expect(ds.length).toBeGreaterThan(15)
+  })
+
+  it('every door is classified, nothing stale, and NO door is a loss', () => {
+    expect(censusProblems(doors(), DOOR_CLASSIFICATION)).toEqual([])
+  })
+
+  it('every classification cites evidence that exists, and says why', () => {
+    for (const [k, v] of Object.entries(DOOR_CLASSIFICATION)) {
+      expect(v.why.length, `${k} needs a reason, not a label`).toBeGreaterThan(60)
+      expect(v.evidence.length, `${k} cites no evidence`).toBeGreaterThan(0)
+      for (const ev of v.evidence) {
+        expect(statSync(join(REPO, ...ev.split('/'))).isFile(), `${k}: evidence ${ev} is missing`).toBe(true)
+      }
+    }
+  })
+
+  it('⭐ CONTROL — the census reports an unclassified door, a stale entry and a loss', () => {
+    const base = { 'PUT /x': { class: NONE, why: 'w', evidence: [] } }
+    expect(censusProblems(['PUT /x', 'POST /new'], base)).toEqual(['UNCLASSIFIED: POST /new'])
+    expect(censusProblems([], base)).toEqual(['STALE: PUT /x is classified but no longer derived as a door'])
+    expect(censusProblems(['PUT /x'], { 'PUT /x': { class: LOSS, why: 'gone', evidence: [] } }))
+      .toEqual(['LOSS: PUT /x -- gone'])
   })
 })

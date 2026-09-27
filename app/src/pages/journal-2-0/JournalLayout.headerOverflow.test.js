@@ -1,24 +1,28 @@
 // The Journal header's action cluster (Log Trade / ? / account / report /
-// settings / More) must not spill off-screen, unreachable, on a phone.
+// settings / More) must FIT a phone: every control on screen, and both header
+// menus usable.
 //
-// ⛔⛔ WHY THIS EXISTS ALONGSIDE A RENDERED-COMPONENT TEST. jsdom performs no
-// layout, so a `JournalLayout.test.jsx` render cannot see that `.headerRight`
-// is 438px wide inside a 350px-wide row at 390px viewport — that fact only
-// exists once a real browser lays the flex row out. Driving the real page at
-// 390px (`tools/mobile_audit_out/notebook_flows/`) measured `.settingsPill`
-// and `.gearIcon` sitting flush against the viewport's right edge and the
-// "More" button (Community + Accounts — the only door to Journal Accounts)
-// entirely out of frame, with `document.documentElement.scrollWidth` still
-// reading 0 extra px (the app shell's `.main` clips horizontally, so the
-// overflow is invisible rather than producing a page scrollbar — see
-// `styles.headerRight` in JournalLayout.module.css for the fix and why the
-// mechanism hides the bug from a page-level overflow check).
+// ⛔ A STRUCTURAL RAIL, NOT THE VERDICT. jsdom performs no layout, so it cannot
+// see where a flex row puts a button at 390 px. The verdict is the real-browser
+// walk row B9d (tools/notebook_wave10b_walk.py): at 390 and 820 px, on the
+// Notebook, Today, Trades, Calendar, Insights and Compass tabs, every header
+// control wholly inside the viewport, the document and the app's <main>
+// scroller no wider than themselves, and at 390 the More and Log Trade menus
+// opened with a finger -- every item on screen and what a finger at its centre
+// lands on. This file asserts the CSS that makes that true exists, in the media
+// block that actually applies at the width that broke, with controls proving
+// the parser can see an absent fix.
 //
-// This is the CSS-text-parsing style established by
-// `tabs/NotebookTab.touchTier.test.js` for exactly this situation: assert the
-// declaration exists in the media block that actually applies at the width
-// that broke, with a non-vacuity check and a control proving the parser can
-// see an absent fix.
+// ⚰️ HISTORY. The phone rule used to make `.headerRight` a hidden-scrollbar
+// sideways SCROLLER (overflow-x: auto + nowrap), and this file asserted exactly
+// that. B9d measured what it did (wave 10 follow-up F1): the settings gear and
+// "More" (Community + Accounts -- the only door to Journal Accounts) sat off
+// screen at x 358-458 behind a swipe nothing hinted at, and -- because a box
+// that scrolls one axis clips the other -- BOTH header menus opened inside the
+// 46 px row and were clipped away: a finger at an item's centre landed on the
+// menu backdrop. The row now WRAPS instead, and the More menu anchors to the
+// row. This file is rewritten to the rule that measured clean; the scroller is
+// now asserted ABSENT.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -26,7 +30,10 @@ import { join } from 'node:path'
 const CSS = readFileSync(
   join(process.cwd(), 'src/pages/journal-2-0/JournalLayout.module.css'),
   'utf8',
-)
+  // Comments out first: a comment inside a rule (or just above one) would be read
+  // as part of a selector or a declaration, and a guard that is present would read
+  // as absent.
+).replace(/\/\*[\s\S]*?\*\//g, '')
 const PHONE = 390
 
 /** Bodies of the @media blocks that ACTUALLY APPLY at `width`. */
@@ -51,11 +58,30 @@ function mediaBodiesAt(css, width) {
   return out
 }
 
+/** The stylesheet with every @media block cut out -- the rules for every width. */
+function baseRules(css) {
+  let out = ''
+  let i = 0
+  const re = /@media[^{]+\{/g
+  let m
+  while ((m = re.exec(css))) {
+    out += css.slice(i, m.index)
+    let depth = 1
+    let j = re.lastIndex
+    for (; j < css.length && depth > 0; j += 1) {
+      if (css[j] === '{') depth += 1
+      else if (css[j] === '}') depth -= 1
+    }
+    i = j
+    re.lastIndex = j
+  }
+  return out + css.slice(i)
+}
+
 /** Does `selector`'s rule body (within the given CSS text) declare `prop`
- *  with a value matching `pattern`? Mirrors NotebookTab.touchTier.test.js's
- *  declValue split-not-match approach (a template-literal regex silently
- *  swallows `\s`, which is exactly how that file's first version failed
- *  against CSS that was already correct). */
+ *  with a value matching `pattern`? Split, never a template-literal regex (one
+ *  silently swallows `\s` -- how NotebookTab.touchTier.test.js's first version
+ *  failed against CSS that was already correct). */
 function declaresProp(blockText, selector, prop, pattern) {
   const rules = [...blockText.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   for (const [, sels, decls] of rules) {
@@ -71,38 +97,52 @@ function declaresProp(blockText, selector, prop, pattern) {
   return false
 }
 
-describe('the Journal header action cluster is reachable on a phone', () => {
+describe('the Journal header action cluster fits a phone (structural rail; B9d is the verdict)', () => {
   const phoneCss = mediaBodiesAt(CSS, PHONE).join('\n')
+  const atPhone = baseRules(CSS) + '\n' + phoneCss
 
-  it('⛔ NON-VACUITY — a phone-applicable block really was found', () => {
+  it('⛔ NON-VACUITY -- a phone-applicable block really was found, and it names the row', () => {
     expect(phoneCss.length).toBeGreaterThan(0)
     expect(phoneCss).toMatch(/headerRight/)
   })
 
-  it('makes .headerRight a real horizontal scroll container on phone', () => {
-    expect(declaresProp(phoneCss, '.headerRight', 'overflow-x', /auto/)).toBe(true)
-    // Without flex-wrap: nowrap the children would just wrap onto new lines
-    // inside the row instead of overflowing it — there would be nothing
-    // for overflow-x to scroll, and the fix would be a silent no-op.
-    expect(declaresProp(phoneCss, '.headerRight', 'flex-wrap', /nowrap/)).toBe(true)
-  })
-
-  it('caps the row so it cannot just keep growing past the viewport', () => {
+  it('wraps .headerRight on a phone, inside a row that may shrink to the header', () => {
+    expect(declaresProp(phoneCss, '.headerRight', 'flex-wrap', /^wrap$/)).toBe(true)
     expect(declaresProp(phoneCss, '.headerRight', 'max-width', /100%/)).toBe(true)
+    // min-width: auto would hold the row at its widest control and never let it wrap
+    expect(declaresProp(phoneCss, '.headerRight', 'min-width', /^0(px)?$/)).toBe(true)
   })
 
-  it('⭐ CONTROL — a media block missing the property does NOT satisfy this', () => {
-    const withoutFix = '@media (max-width: 640px) { .headerRight { display: flex; } }'
+  it('⛔ .headerRight is NOT a scroller at 390 px -- a box that scrolls one axis clips the menus', () => {
+    for (const prop of ['overflow', 'overflow-x', 'overflow-y']) {
+      expect(declaresProp(atPhone, '.headerRight', prop, /auto|scroll|hidden|clip/)).toBe(false)
+    }
+  })
+
+  it('anchors the More menu to the whole row on a phone (the row relative, .moreWrap static)', () => {
+    expect(declaresProp(phoneCss, '.headerRight', 'position', /relative/)).toBe(true)
+    expect(declaresProp(phoneCss, '.moreWrap', 'position', /static/)).toBe(true)
+    // ...while the Log Trade split keeps its own anchor, the first control in the row
+    expect(declaresProp(phoneCss, '.logTradeWrap', 'position', /static/)).toBe(false)
+  })
+
+  it('⭐ CONTROL -- a phone block without the wrap does NOT satisfy this', () => {
+    const withoutFix = '@media (max-width: 640px) { .headerRight { display: flex; max-width: 100%; } }'
     const parsed = mediaBodiesAt(withoutFix, PHONE).join('\n')
-    expect(declaresProp(parsed, '.headerRight', 'overflow-x', /auto/)).toBe(false)
+    expect(declaresProp(parsed, '.headerRight', 'flex-wrap', /^wrap$/)).toBe(false)
   })
 
-  it('⭐ CONTROL — the tablet width (1024px) is untouched by the phone-only fix', () => {
-    // Real-browser evidence (mobile_audit.py + a direct measurement) found
-    // NO overflow at 820/1024px — .headerRight already fits there. A fix
-    // scoped wider than phone would be an unreviewed behavior change to a
-    // layout that already works.
-    const tabletCss = mediaBodiesAt(CSS, 1024).join('\n')
-    expect(declaresProp(tabletCss, '.headerRight', 'overflow-x', /auto/)).toBe(false)
+  it('⭐ CONTROL -- the scroller check can see a scroller (the old rule reds it)', () => {
+    const oldRule = '@media (max-width: 640px) { .headerRight { flex-wrap: nowrap; overflow-x: auto; } }'
+    const parsed = mediaBodiesAt(oldRule, PHONE).join('\n')
+    expect(declaresProp(parsed, '.headerRight', 'overflow-x', /auto|scroll|hidden|clip/)).toBe(true)
+  })
+
+  it('⭐ CONTROL -- the tablet (820 px) is untouched by the phone-only rule', () => {
+    // B9d measured the 820 px header whole and on screen with no phone rule applying;
+    // a rule scoped wider than the phone would be an unmeasured change there.
+    const tabletCss = mediaBodiesAt(CSS, 820).join('\n')
+    expect(declaresProp(tabletCss, '.headerRight', 'flex-wrap', /^wrap$/)).toBe(false)
+    expect(declaresProp(tabletCss, '.moreWrap', 'position', /static/)).toBe(false)
   })
 })

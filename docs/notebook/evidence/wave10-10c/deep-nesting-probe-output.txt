@@ -1,0 +1,24 @@
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp101u2mqj.db
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+nested bullets 10: GET -> 200; POST -> 200; POST stored a row anyway: True
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+nested bullets 20: GET -> 200; POST -> 200; POST stored a row anyway: True
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+nested bullets 23: GET -> 200; POST -> 200; POST stored a row anyway: True
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+nested bullets 24: GET -> 500; POST -> 500; POST stored a row anyway: True
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u-deep: FOREIGN KEY constraint failed
+nested bullets 30: GET -> 500; POST -> 500; POST stored a row anyway: True

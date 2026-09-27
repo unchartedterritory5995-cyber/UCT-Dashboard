@@ -327,7 +327,9 @@ export default function UpbRichEditor({ docJson, contentKey, placeholder, onSave
 
   return (
     <>
-      {unreadable && <UnreadableNoteNotice />}
+      {/* The editor, so the notice says why THIS entry is locked -- not the reason
+          every live locked editor agrees on (wave 10 10C fix round 1). */}
+      {unreadable && <UnreadableNoteNotice editor={editor} />}
       <EditorContent editor={editor} />
     </>
   )

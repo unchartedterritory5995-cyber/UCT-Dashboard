@@ -11,7 +11,7 @@ import PdfViewerBoundary from './PdfViewerBoundary'
 // touches pdfjs, so both are plain imports; the PDF path stays behind its boundary.
 import ImageDocumentViewer from './ImageDocumentViewer'
 import TextPagesViewer from './TextPagesViewer'
-import { DOCUMENT_KIND_DOCX, DOCUMENT_KIND_IMAGE, documentKindFromHref } from './documentKind'
+import { DOCUMENT_KIND_DOCX, DOCUMENT_KIND_IMAGE, DOCUMENT_KIND_XLSX, documentKindFromHref } from './documentKind'
 import styles from './DocumentPreviewSheet.module.css'
 
 /**
@@ -96,8 +96,10 @@ export default function DocumentPreviewSheet({
       </div>
       {kind === DOCUMENT_KIND_IMAGE ? (
         <ImageDocumentViewer ref={viewerRef} href={href} documentId={documentId} name={name} />
-      ) : kind === DOCUMENT_KIND_DOCX ? (
-        <TextPagesViewer ref={viewerRef} href={href} documentId={documentId} initialPage={page} />
+      ) : kind === DOCUMENT_KIND_DOCX || kind === DOCUMENT_KIND_XLSX ? (
+        // Wave 10 (G-160): a spreadsheet reads as its cell text, like a docx.
+        <TextPagesViewer ref={viewerRef} href={href} documentId={documentId} initialPage={page}
+          sheet={kind === DOCUMENT_KIND_XLSX} />
       ) : (
         <PdfViewerBoundary
           ref={viewerRef}

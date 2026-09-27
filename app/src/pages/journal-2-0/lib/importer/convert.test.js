@@ -36,6 +36,38 @@ describe('htmlToNote', () => {
     expect(list.content[1].attrs.checked).toBe(false)
   })
 
+  // Wave 10 (10B, found by the R-18 census): a list MIXING plain bullets and
+  // to-dos is split into runs in its own order -- and no empty to-do appears.
+  it('splits a mixed plain / to-do list into runs in source order, with no empty to-do', () => {
+    const { bodyJson, bodyPlain } = htmlToNote(mdToHtml('- plain first\n- [ ] open one\n- [x] done one\n- plain last\n'))
+    const text = (n) => (n.content || []).flatMap((c) => (c.type === 'text' ? [c.text] : [text(c)])).join('')
+    expect(bodyJson.content.map((n) => n.type)).toEqual(['bulletList', 'taskList', 'bulletList'])
+    expect(bodyJson.content[1].content.map((i) => [text(i), i.attrs.checked])).toEqual([
+      ['open one', false],
+      ['done one', true],
+    ])
+    expect(bodyPlain.indexOf('plain first')).toBeLessThan(bodyPlain.indexOf('open one'))
+    expect(bodyPlain.indexOf('done one')).toBeLessThan(bodyPlain.indexOf('plain last'))
+  })
+
+  it('keeps every child of a mixed list, a directly nested list and stray text included (review I-1)', () => {
+    // The reviewer's jsdom repro: splitting moved only the <li>s and then removed
+    // the original <ul>, so a sub-list written as a DIRECT child (what
+    // contenteditable indent emits) and any stray text vanished on import.
+    const html = '<ul><li><input type="checkbox" checked> Buy NVDA</li><li>Watch the open</li>'
+      + '<ul><li>Nested note that must survive</li></ul>stray words kept<li><input type="checkbox"> Trim AMD</li></ul>'
+    const { bodyJson, bodyPlain } = htmlToNote(html)
+    const words = ['Buy NVDA', 'Watch the open', 'Nested note that must survive', 'stray words kept', 'Trim AMD']
+    for (const w of words) expect(bodyPlain).toContain(w)
+    const at = words.map((w) => bodyPlain.indexOf(w))
+    expect(at).toEqual([...at].sort((a, b) => a - b))
+    // …and the to-dos are still to-dos, split around the plain run
+    const types = bodyJson.content.map((n) => n.type)
+    expect(types[0]).toBe('taskList')
+    expect(types[types.length - 1]).toBe('taskList')
+    expect(types).toContain('bulletList')
+  })
+
   it('keeps tables and produces searchable plain text', () => {
     const { bodyJson, bodyPlain } = htmlToNote(
       '<h1>Title</h1><table><tr><td>alpha</td></tr></table>')

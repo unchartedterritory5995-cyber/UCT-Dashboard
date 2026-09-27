@@ -1,0 +1,1064 @@
+{
+ "wave": 10,
+ "lane": "10B",
+ "checks": {
+  "B9d_journal_shell_fits_390_820": {
+   "verdict": "FAIL",
+   "failing_cells": [
+    "390/calendar/dismissed",
+    "390/calendar/shown",
+    "390/compass/dismissed",
+    "390/compass/shown",
+    "390/insights/dismissed",
+    "390/insights/shown",
+    "390/notebook/dismissed",
+    "390/notebook/shown",
+    "390/today/dismissed",
+    "390/today/shown",
+    "390/trades/dismissed",
+    "390/trades/shown"
+   ],
+   "menus_ok": false,
+   "cells": {
+    "390/notebook/shown": {
+     "ok": false,
+     "fails": [
+      "the app's <main> scroller is wider than itself",
+      "a header control sits outside the viewport",
+      "a control sits outside the viewport with no container of its own to scroll",
+      "the voice hint is not wholly on screen"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 526,
+      "clientWidth": 390
+     },
+     "widens_main": [
+      {
+       "left": 56,
+       "right": 526,
+       "text": "Ask\nFind\nHistory\nShare\nUnfiled\nImported ",
+       "chain": [
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1",
+        "DIV._notePane_1hxjo_185"
+       ]
+      },
+      {
+       "left": 338,
+       "right": 409,
+       "text": "Share",
+       "chain": [
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 56,
+       "right": 526,
+       "text": "Unfiled\nImported from Files (Markdown, T",
+       "chain": [
+        "SELECT._headerSelect_txesz_251",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 383,
+       "right": 472,
+       "text": "Duplicate",
+       "chain": [
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 394,
+       "right": 407,
+       "text": "",
+       "chain": [
+        "svg.",
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17"
+       ]
+      },
+      {
+       "left": 143,
+       "right": 441,
+       "text": "Lock\nArchive\nSave as template",
+       "chain": [
+        "SPAN._group_bj0uy_5",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 305,
+       "right": 441,
+       "text": "Save as template",
+       "chain": [
+        "BUTTON._btn_bj0uy_19",
+        "SPAN._group_bj0uy_5",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17"
+       ]
+      },
+      {
+       "left": 263,
+       "right": 493,
+       "text": "New: speak instead of type. Tap the mic ",
+       "chain": [
+        "SPAN.",
+        "SPAN.",
+        "DIV._toolbarRow_txesz_61",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      }
+     ],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [
+      {
+       "label": "Share",
+       "left": 338,
+       "right": 409
+      },
+      {
+       "label": "Folder",
+       "left": 56,
+       "right": 526
+      },
+      {
+       "label": "Duplicate note",
+       "left": 383,
+       "right": 472
+      },
+      {
+       "label": "Save as template",
+       "left": 305,
+       "right": 441
+      },
+      {
+       "label": "Dismiss tip",
+       "left": 452,
+       "right": 496
+      }
+     ],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": true,
+      "left": 263,
+      "right": 493,
+      "width": 230,
+      "dismiss": {
+       "left": 452,
+       "right": 496
+      },
+      "on_screen": false
+     },
+     "shot": "r210526-B9d-390-notebook-shown.png"
+    },
+    "390/today/shown": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-today-shown.png"
+    },
+    "390/trades/shown": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-trades-shown.png"
+    },
+    "390/calendar/shown": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-calendar-shown.png"
+    },
+    "390/insights/shown": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-insights-shown.png"
+    },
+    "390/compass/shown": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": true,
+      "left": 61,
+      "right": 291,
+      "width": 230,
+      "dismiss": {
+       "left": 250,
+       "right": 294
+      },
+      "on_screen": true
+     },
+     "shot": "r210526-B9d-390-compass-shown.png"
+    },
+    "390/notebook/dismissed": {
+     "ok": false,
+     "fails": [
+      "the app's <main> scroller is wider than itself",
+      "a header control sits outside the viewport",
+      "a control sits outside the viewport with no container of its own to scroll"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 526,
+      "clientWidth": 390
+     },
+     "widens_main": [
+      {
+       "left": 56,
+       "right": 526,
+       "text": "Ask\nFind\nHistory\nShare\nUnfiled\nImported ",
+       "chain": [
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1",
+        "DIV._notePane_1hxjo_185"
+       ]
+      },
+      {
+       "left": 338,
+       "right": 409,
+       "text": "Share",
+       "chain": [
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 56,
+       "right": 526,
+       "text": "Unfiled\nImported from Files (Markdown, T",
+       "chain": [
+        "SELECT._headerSelect_txesz_251",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 383,
+       "right": 472,
+       "text": "Duplicate",
+       "chain": [
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 394,
+       "right": 407,
+       "text": "",
+       "chain": [
+        "svg.",
+        "BUTTON._chromeBtn_txesz_1375",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17"
+       ]
+      },
+      {
+       "left": 143,
+       "right": 441,
+       "text": "Lock\nArchive\nSave as template",
+       "chain": [
+        "SPAN._group_bj0uy_5",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17",
+        "DIV._page_txesz_1"
+       ]
+      },
+      {
+       "left": 305,
+       "right": 441,
+       "text": "Save as template",
+       "chain": [
+        "BUTTON._btn_bj0uy_19",
+        "SPAN._group_bj0uy_5",
+        "DIV._headerControls_txesz_237",
+        "HEADER._header_txesz_29",
+        "DIV._chrome_txesz_17"
+       ]
+      }
+     ],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [
+      {
+       "label": "Share",
+       "left": 338,
+       "right": 409
+      },
+      {
+       "label": "Folder",
+       "left": 56,
+       "right": 526
+      },
+      {
+       "label": "Duplicate note",
+       "left": 383,
+       "right": 472
+      },
+      {
+       "label": "Save as template",
+       "left": 305,
+       "right": 441
+      }
+     ],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-notebook-dismissed.png"
+    },
+    "390/today/dismissed": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-today-dismissed.png"
+    },
+    "390/trades/dismissed": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-trades-dismissed.png"
+    },
+    "390/calendar/dismissed": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-calendar-dismissed.png"
+    },
+    "390/insights/dismissed": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-insights-dismissed.png"
+    },
+    "390/compass/dismissed": {
+     "ok": false,
+     "fails": [
+      "a header control sits outside the viewport"
+     ],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [
+      {
+       "label": "Open Portfolio Settings",
+       "left": 358,
+       "right": 404
+      },
+      {
+       "label": "More",
+       "left": 414,
+       "right": 458
+      }
+     ],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r210526-B9d-390-compass-dismissed.png"
+    },
+    "820/notebook/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": true,
+      "left": 437,
+      "right": 667,
+      "width": 230,
+      "dismiss": {
+       "left": 626,
+       "right": 670
+      },
+      "on_screen": true
+     }
+    },
+    "820/trades/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    },
+    "820/notebook/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    },
+    "820/trades/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    }
+   },
+   "menus": {
+    "more": {
+     "open": true,
+     "items": [
+      {
+       "label": "Community",
+       "left": 177,
+       "right": 363,
+       "top": 163,
+       "bottom": 207,
+       "on_screen": true,
+       "finger_lands_on_it": false
+      },
+      {
+       "label": "Accounts",
+       "left": 177,
+       "right": 363,
+       "top": 209,
+       "bottom": 253,
+       "on_screen": true,
+       "finger_lands_on_it": false
+      }
+     ],
+     "ok": false,
+     "shot": "r210526-B9d-390-menu-more.png"
+    },
+    "log_trade": {
+     "open": true,
+     "items": [
+      {
+       "label": "Log open position",
+       "left": 27,
+       "right": 213,
+       "top": 163,
+       "bottom": 207,
+       "on_screen": true,
+       "finger_lands_on_it": false
+      },
+      {
+       "label": "Log closed trade",
+       "left": 27,
+       "right": 213,
+       "top": 209,
+       "bottom": 253,
+       "on_screen": true,
+       "finger_lands_on_it": false
+      }
+     ],
+     "ok": false,
+     "shot": "r210526-B9d-390-menu-log_trade.png"
+    }
+   }
+  },
+  "B8_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "only": [
+  "B9d"
+ ],
+ "tip": "cd9c472a0-prefix+B9d-instrument",
+ "base": "http://127.0.0.1:8212",
+ "data_dir": "C:\\data-w10b",
+ "instrument": "tools\\notebook_wave10b_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": true,
+  "NOTEBOOK_WRITING_HELP_ENABLED": true,
+  "J2_SHARE_LINKS_ENABLED": true,
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8212 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T21-04-43.md (identity 3b1f523db5f2..., data dir C:\\data-w10b)"
+ },
+ "run": "r210526",
+ "member": "w10b-r210526@local.dev",
+ "server_flags": {
+  "notebook_writing_help_enabled": true,
+  "paid_equiv": true
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w10B\\f1\\walk-before-only.integrity.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w10B\\f1\\walk-before-only.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 21:04:48",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 21:05:25",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 21:06:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

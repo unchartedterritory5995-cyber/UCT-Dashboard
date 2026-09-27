@@ -8,6 +8,7 @@
 // tags, saved views, a note with a table and a callout, a graph, tasks), never
 // `{}` for everything: an empty payload renders the empty state, and an axe run
 // over an empty state proves nothing about the populated screen a member sees.
+import { act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { vi } from 'vitest'
@@ -200,6 +201,18 @@ export function latchWave8Flags(on, extra = {}) {
     ...extra,
   })
 }
+
+/**
+ * Wait out the editor's autosave (AUTOSAVE_MS = 800 in NoteEditorPage) so it lands while the
+ * editor is still MOUNTED. Every recipe that changes a note's text must end with this.
+ *
+ * ⛔ Without it the save is flushed at unmount instead. Its PUT succeeds, but the cache update
+ * after it runs against the per-render SWR cache below, which `SWRConfig` has already torn
+ * down, so it throws. The editor reads that throw as a network failure and schedules a retry,
+ * which fires in a later test or after the environment is gone: an unhandled error that failed
+ * the a11y job at random (L1a, 2026-09-26). Test-only: the app runs one global SWR cache.
+ */
+export const landPendingAutosave = () => act(async () => { await new Promise((r) => setTimeout(r, 1000)) })
 
 /** The provider stack the Journal renders the Notebook inside. */
 export function Providers({ children, route = '/journal/notebook', auth = AUTH }) {
