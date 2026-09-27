@@ -435,6 +435,31 @@ export function NoteLinkedTradeChips({ noteId }) {
   )
 }
 
+/**
+ * One editor-toolbar button (Bold, Italic, H1, H2, the lists, quote, code, link, image).
+ *
+ * ⛔ DECLARED AT MODULE SCOPE, NEVER INSIDE NoteEditorPage. Wave 10 (lane 10A, clause 4d):
+ * declared inside the page, it was a NEW component type on every render of the page, so React
+ * UNMOUNTED and re-mounted all twelve buttons -- and the SVG icons inside them -- on every
+ * render, and the page renders on every keystroke. A traced keystroke at 2,000 paragraphs
+ * spent most of its main-thread time on it: ~12.6 buttons torn down and rebuilt per key
+ * (`removeChild` / `insertBefore` the largest self-time entries in the CPU profile), and each
+ * insertion re-ran the note pane's `:has()` style invalidation over ~131 elements
+ * (docs/notebook/perf-budgets.md §7). Railed by NoteEditorPage.toolbarIdentity.test.jsx
+ * (a button keeps its DOM node across a re-render) and lib/nestedComponents.test.js.
+ */
+function ToolButton({ active, onClick, label, title }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
+      onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      title={title}
+      aria-label={title}
+    >{label}</button>
+  )
+}
+
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
   // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
@@ -3006,16 +3031,6 @@ export default function NoteEditorPage({
       window.removeEventListener('focus', onFocus)
     }
   }, [])
-
-  const ToolButton = ({ active, onClick, label, title }) => (
-    <button
-      type="button"
-      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
-      onMouseDown={(e) => { e.preventDefault(); onClick() }}
-      title={title}
-      aria-label={title}
-    >{label}</button>
-  )
 
   if (isLoading) {
     // Wave B (G-106 adoption): a skeleton approximating the note page's own

@@ -15,7 +15,10 @@ plugin is a named row), the view's `dispatch` and `updateState`, TipTap's `emit`
 React's scheduler tasks (its render + commit work, timed through the MessageChannel it runs
 on) with a count of React commits. Reported as ms per timed keystroke, largest first. The
 wrappers add their own cost, so the instrumented pass's p50 is printed beside it and never
-used as a budget reading.
+used as a budget reading. The same pass is TRACED (Chrome's own timeline, `summarize_trace`):
+the renderer main thread's self time per phase -- each input event's dispatch, style, layout,
+paint, script, GC -- because what the wrappers cannot see (the browser's own editing work on
+a large contenteditable) can be where a keystroke's time goes.
 
 Budgets: read from docs/notebook/perf-budgets.json, key "editor" (never retyped here):
   * note open p95 < 300 ms for notes up to 1,000 paragraphs
@@ -326,6 +329,62 @@ def summarize_attribution(raw: dict, keys: int) -> list[dict]:
                      "react_commits_per_key": round(sched["commits"] / keys, 2) if keys else None})
     rows.sort(key=lambda r: -(r["ms_per_key"] or 0))
     return rows
+
+
+#: The timeline categories the attribution pass records. `devtools.timeline` carries the
+#: renderer's phases (EventDispatch per event type, UpdateLayoutTree, Layout, Paint, FunctionCall,
+#: RunMicrotasks, GC); `toplevel` carries the task boundaries they nest in.
+TRACE_CATEGORIES = ["devtools.timeline", "disabled-by-default-devtools.timeline", "toplevel", "v8"]
+
+
+def _trace_label(e: dict) -> str:
+    name = e.get("name", "?")
+    data = (e.get("args") or {}).get("data") or {}
+    if name == "EventDispatch" and data.get("type"):
+        return f"EventDispatch {data['type']}"
+    return name
+
+
+def summarize_trace(trace, keys: int, top: int = 25) -> dict:
+    """SELF time per phase on the renderer main thread(s), per timed keystroke, largest first.
+    Complete (`X`) events are nested by time on each thread and a parent's self time excludes
+    its children, so the rows ADD UP to the thread's busy time (`busy_ms_per_key`)."""
+    data = json.loads(trace) if isinstance(trace, (bytes, bytearray, str)) else trace
+    events = data.get("traceEvents", []) if isinstance(data, dict) else list(data)
+    mains = {(e.get("pid"), e.get("tid")) for e in events
+             if e.get("ph") == "M" and e.get("name") == "thread_name"
+             and (e.get("args") or {}).get("name") == "CrRendererMain"}
+    threads: dict[tuple, list[dict]] = {}
+    for e in events:
+        if e.get("ph") == "X" and "dur" in e and (e.get("pid"), e.get("tid")) in mains:
+            threads.setdefault((e["pid"], e["tid"]), []).append(e)
+    self_us: dict[str, float] = {}
+    count: dict[str, int] = {}
+
+    def close(item):
+        lab = item["label"]
+        self_us[lab] = self_us.get(lab, 0.0) + max(0.0, item["dur"] - item["child"])
+        count[lab] = count.get(lab, 0) + 1
+
+    for evs in threads.values():
+        evs.sort(key=lambda e: (e["ts"], -e["dur"]))
+        stack: list[dict] = []
+        for e in evs:
+            while stack and stack[-1]["end"] <= e["ts"]:
+                close(stack.pop())
+            item = {"label": _trace_label(e), "dur": float(e["dur"]), "end": e["ts"] + e["dur"], "child": 0.0}
+            if stack:
+                stack[-1]["child"] += min(item["dur"], max(0.0, stack[-1]["end"] - e["ts"]))
+            stack.append(item)
+        while stack:
+            close(stack.pop())
+    busy = sum(self_us.values())
+    rows = [{"phase": k, "self_ms_per_key": round(v / 1000.0 / keys, 4) if keys else None,
+             "count_per_key": round(count[k] / keys, 2) if keys else None}
+            for k, v in self_us.items()]
+    rows.sort(key=lambda r: -(r["self_ms_per_key"] or 0))
+    return {"threads": len(threads), "busy_ms_per_key": round(busy / 1000.0 / keys, 3) if keys else None,
+            "rows": rows[:top]}
 
 
 def percentile(samples: list[float], pct: float) -> float:
@@ -718,16 +777,19 @@ def run_live(base: str, sizes: list[int], opens: int, chars: int,
                     errors.append(f"attribution could not install at {n} paragraphs: {inst.get('why')}")
                     continue
                 before = len(pg.evaluate(READ_TYPING_JS) or [])
+                br.start_tracing(page=pg, categories=TRACE_CATEGORIES)
                 pg.evaluate(ATTRIBUTION_ON_JS)
                 pg.keyboard.type("y" * chars, delay=25)
                 pg.wait_for_timeout(300)
                 raw = pg.evaluate(ATTRIBUTION_READ_JS)
+                trace = br.stop_tracing()
                 inst_samples = (pg.evaluate(READ_TYPING_JS) or [])[before:]
                 keys = len(inst_samples)
                 attribution[n] = {"keys": keys, "wrapped": inst.get("wrapped"),
                                   "plugins": inst.get("plugins"),
                                   "instrumented_p50_ms": round(percentile(inst_samples, 50), 3) if inst_samples else None,
-                                  "rows": summarize_attribution(raw, keys)}
+                                  "rows": summarize_attribution(raw, keys),
+                                  "trace": summarize_trace(trace, keys)}
         br.close()
     return open_ms, typing_ms, typed, errors
 
@@ -748,6 +810,17 @@ def dry_run() -> int:
     assert [r["piece"] for r in att] == ["b", "React scheduler tasks (render + commit)", "a"], att
     assert att[0]["ms_per_key"] == 6.0 and att[1]["react_commits_per_key"] == 1.0, att
     assert all(r["ms_per_key"] is None for r in summarize_attribution({"buckets": {"a": {"ms": 1.0, "n": 1}}}, 0))
+    # wave 10: the trace summary is SELF time -- a parent's children come out of it, rows add up
+    tr = summarize_trace({"traceEvents": [
+        {"ph": "M", "name": "thread_name", "pid": 1, "tid": 7, "args": {"name": "CrRendererMain"}},
+        {"ph": "X", "name": "RunTask", "pid": 1, "tid": 7, "ts": 0, "dur": 10000},
+        {"ph": "X", "name": "EventDispatch", "pid": 1, "tid": 7, "ts": 1000, "dur": 6000,
+         "args": {"data": {"type": "keydown"}}},
+        {"ph": "X", "name": "Layout", "pid": 1, "tid": 7, "ts": 2000, "dur": 4000},
+        {"ph": "X", "name": "Layout", "pid": 2, "tid": 9, "ts": 0, "dur": 99000}]}, 2)
+    got = {r["phase"]: r["self_ms_per_key"] for r in tr["rows"]}
+    assert got == {"Layout": 2.0, "EventDispatch keydown": 1.0, "RunTask": 2.0}, got
+    assert tr["busy_ms_per_key"] == 5.0 and tr["threads"] == 1, tr
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
@@ -966,6 +1039,11 @@ def main(argv: list[str] | None = None) -> int:
             for r in a["rows"][:18]:
                 extra = f"  ({r['react_commits_per_key']} React commits/key)" if "react_commits_per_key" in r else ""
                 print(f"  {r['ms_per_key']:8.3f} ms/key  {r['calls_per_key']:6.2f} calls/key  {r['piece']}{extra}")
+            tr = a.get("trace") or {}
+            print(f"  renderer main thread, traced: {tr.get('busy_ms_per_key')} ms/key busy "
+                  f"({tr.get('threads')} thread(s)); self time by phase:")
+            for r in (tr.get("rows") or [])[:18]:
+                print(f"  {r['self_ms_per_key']:8.3f} ms/key  {r['count_per_key']:6.2f} /key  {r['phase']}")
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
     md = markdown_rows(summary, sha)

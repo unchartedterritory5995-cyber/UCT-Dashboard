@@ -14,6 +14,8 @@
 // When a surface wants an emoji, reach for a name here instead. Add new glyphs
 // to ICONS below rather than introducing a one-off emoji.
 
+import { useRef } from 'react'
+
 const ICONS = {
   // ── CHART NOTATION — THE INDICATOR FAMILY GLYPHS ─────────────────────
   //
@@ -643,13 +645,22 @@ let _gid = 0
  * color must stay semantic green/red on a given surface).
  */
 export default function UIcon({ name, size = 18, strokeWidth = 1.7, gold, className, title, style, ...rest }) {
+  // ⛔ The gradient id is taken ONCE per mounted icon, never once per render. Wave 10 (lane
+  // 10A, clause 4d): numbered per render, every re-render of every gold icon handed React a
+  // new `id` and a new `stroke="url(#…)"`, so each one was an attribute write, a style
+  // recalc and an SVG resource invalidation. The Notebook page re-renders on every
+  // keystroke: ~12.6 icons per key at 2,000 paragraphs, `setAttribute` the largest
+  // remaining self-time entry of a traced keystroke (docs/notebook/perf-budgets.md §7).
+  // The id keeps its `uig<number>` shape. Railed: UIcon.stableId.test.jsx.
+  const gidRef = useRef(null)
+  if (gidRef.current === null) gidRef.current = (_gid = (_gid + 1) % 1e6)
   const glyph = ICONS[name]
   if (!glyph) {
     if (typeof console !== 'undefined') console.warn(`UIcon: unknown name "${name}"`)
     return null
   }
   const useGold = gold === undefined ? true : gold
-  const gid = useGold ? `uig${(_gid = (_gid + 1) % 1e6)}` : null
+  const gid = useGold ? `uig${gidRef.current}` : null
   const goldStyle = useGold
     ? {
         color: '#e6cd8a',
