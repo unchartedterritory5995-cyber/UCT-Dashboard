@@ -315,6 +315,15 @@ export function inspectSource(source, dialect = 'auto', opts = undefined) {
   }
 }
 
+/** ⭐ 2026-09-26 — an output's leftward displacement and the parameters it reads,
+ *  for the sheet to carry onto the plot row (drawn by the binder) and to keep out of
+ *  the parameter manifest (an edit could not move the drawing with it). A
+ *  projection names what it carries — a field left off here is dropped silently. */
+function displacementOf(o) {
+  if (!o || !Number.isInteger(o.displace) || o.displace >= 0) return {}
+  return { displace: o.displace, displaceParams: Array.isArray(o._displaceParams) ? o._displaceParams : [] }
+}
+
 function Refusal({ refusal, testId, dialect, onApply = null }) {
   if (!refusal) return null
   return (
@@ -789,10 +798,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
         presentation: o.presentation || {},
         inputs: o.memberInputs || [],
         paramLocators: placementsFor(o),
+        ...displacementOf(o),
       }))
     const outputs = wrapped ? null : [
       { source: picked, title: (active && active.title) || null, presentation: outPres,
-        inputs: rows, paramLocators: wrapped ? [] : placementsFor(active) },
+        inputs: rows, paramLocators: wrapped ? [] : placementsFor(active),
+        ...displacementOf(active) },
       ...others,
     ]
     // ⭐ THE IMMUTABLE METADATA RIDES ONCE, BESIDE THE PLACEMENTS. `BuilderSheet`

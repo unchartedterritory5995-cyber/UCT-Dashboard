@@ -541,3 +541,208 @@ describe('this commit is the authority plus its rails, with no consumer', () => 
       .toEqual([])
   })
 })
+
+// ─── 8. RM-N03 — CARD 33 §2 IS THE RULING; THIS MODULE IS ITS READER ────────
+//
+// ⛔⛔ THE DEFECT THIS SECTION EXISTS FOR. "What is the maximum age a panel may
+// display without saying so" was decided TWICE on 2026-09-26, eight hours apart
+// — `fac059c23` 13:01:42 (CARD 33 §2) and `eb6eb247d` 21:46:40 (the module
+// under test) — and for a day NOTHING reconciled them: a search for "CARD 33"
+// over the module and over this file returned zero. Both shipped; both are
+// ancestors of `origin/production`.
+//
+// ⭐ THEY DO NOT DISAGREE, and the test that settles it is worth more than the
+// verdict: ASK WHETHER ANY ONE RENDERING SATISFIES BOTH. The card sets a
+// CEILING on silence ("One session is a ceiling") and mandates silence nowhere;
+// this module is tighter inside that permission. So on a 15s-cadence panel 90
+// seconds old — the case that looks like divergence — the card requires nothing
+// and the module requires the age, and SHOWING THE AGE satisfies both. Same for
+// the card's slower-than-daily carve-out: "weekly · as of Fri" satisfies the
+// carve-out (it states its cadence) AND this module's cap. Two rules genuinely
+// disagree only when no rendering satisfies both, and there is no such case
+// here. The fix was therefore a citation and this rail — NO behaviour changed,
+// and `AGE_CADENCE_MULTIPLE` / `AGE_FLOOR_MS` / the derived ceiling are
+// untouched shipped values.
+//
+// ⚠️ A CITATION ROTS EXACTLY LIKE THE CELL IT REPLACES, which is why this is a
+// rail and not a comment. It goes red on THREE independent edits:
+//   (1) the citation in `freshnessAge.js` is broken or removed;
+//   (2) the module's ceiling derivation changes, or any cadence's threshold is
+//       let past the derived session;
+//   (3) CARD 33 §2's ceiling sentence is edited out of the decision card.
+// Mutation-proved on (1) and (2) rather than asserted: breaking the cited path
+// reds 2 of 77 by name, and removing the ceiling from the clamp reds 7 of 77
+// (three of them below, four in §3).
+//
+// ⚠️ HONEST CONSTRAINT, STATED SO A FUTURE READER CANNOT ASSUME THE OPPOSITE:
+// THIS GUARDS A RULE NOBODY RENDERS. The module is deliberately unconsumed —
+// `components/screener/reachable.test.js:727-746` parks it by name, names
+// TERM-059 as its adoption, cites 519 measured non-adopting panels, and carries
+// the expiry 2026-11-30 (`reachable.test.js:805`). Everything below is about the
+// card's TEXT and this authority's ARITHMETIC. None of it is evidence that a
+// member has ever been shown an age.
+//
+// ⛔ ONE DELIBERATE ASYMMETRY IN HOW SOURCE IS READ HERE. The CITATION is
+// matched in the module's COMMENTS — a pointer to a ruling is exactly what a
+// comment is for. Every check over a LITERAL still strips comments first, and
+// §6 owns all of those; this section adds no second copy of them, because a
+// checker that matches its own prose is a failure this repo has recorded six
+// times.
+
+const CARD_33_REL = 'docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md'
+const CARD_33_PATH = path.join(ROOT, ...CARD_33_REL.split('/'))
+const CARD_33_HEADING = '## CARD 33'
+const CARD_33_SECTION_2 = '### 2. MAX AGE A PANEL MAY DISPLAY SILENTLY'
+
+/**
+ * CARD 33 §2, sliced out of the REAL decision-card file by its own headings.
+ *
+ * ⛔ Every step THROWS rather than returning an empty string. An empty slice
+ * satisfies every check written over it, which is this repo's "an empty result
+ * is a failed invocation until proven otherwise" rule — and the reason a missing
+ * card must be a red, never a quiet pass.
+ */
+function card33Section2() {
+  if (!fs.existsSync(CARD_33_PATH)) {
+    throw new Error(`RM-N03: the decision card named by freshnessAge.js is gone from ${CARD_33_REL}`)
+  }
+  const src = read(CARD_33_PATH)
+  const card = src.indexOf(CARD_33_HEADING)
+  if (card < 0) throw new Error(`RM-N03: "${CARD_33_HEADING}" not found in ${CARD_33_REL}`)
+  const start = src.indexOf(CARD_33_SECTION_2, card)
+  if (start < 0) throw new Error(`RM-N03: "${CARD_33_SECTION_2}" not found under CARD 33 in ${CARD_33_REL}`)
+  const end = src.indexOf('\n### ', start + 1)
+  if (end < 0) throw new Error('RM-N03: CARD 33 §2 has no following section — the slice would run to end of file')
+  return src.slice(start, end)
+}
+
+// The card's own words for the ceiling, each NAMED so a red says which sentence
+// moved rather than "the card changed".
+const CEILING_CLAIMS = [
+  ['the ceiling is one expected session', /one expected session/],
+  ['it is a CEILING, not a mandate to stay silent', /One session is a ceiling/],
+  ['the obligation past it is ON THE SURFACE', /anything older must state its as-of/],
+  ['silence inside it is PERMITTED, never required', /may render data from the CURRENT expected session with no annotation/],
+]
+
+/** Which of CARD 33 §2's ceiling claims are MISSING from `section`. */
+function missingCeilingClaims(section) {
+  return CEILING_CLAIMS.filter(([, re]) => !re.test(section)).map(([name]) => name)
+}
+
+// Each element of the citation, so a red names the half that rotted.
+const CITATION_PARTS = [
+  ['the card file, by path', CARD_33_REL],
+  ['the card, by number', 'CARD 33'],
+  ['the section, by number', '§2'],
+]
+
+/** Which parts of the citation are MISSING from `moduleSource`. */
+function missingCitationParts(moduleSource) {
+  return CITATION_PARTS.filter(([, needle]) => !moduleSource.includes(needle)).map(([name]) => name)
+}
+
+describe('RM-N03: the module CITES CARD 33 §2 rather than restating it', () => {
+  it('NON-VACUITY: the decision card was read and §2 was actually sliced out', () => {
+    const section = card33Section2()
+    expect(section.startsWith(CARD_33_SECTION_2)).toBe(true)
+    expect(section.length).toBeGreaterThan(400)
+    expect(section).toContain('NG-17') // the card's own reason the ceiling has a number at all
+  })
+
+  it('⛔ CONTROL: the claim matcher SEES all four of the card\'s ceiling claims in the real section', () => {
+    expect(missingCeilingClaims(card33Section2())).toEqual([])
+  })
+
+  it('⛔ CONTROL: ...and REPORTS the one that is absent — so an absence is evidence', () => {
+    const gutted = card33Section2().replace('One session is a ceiling', 'One session is a suggestion')
+    expect(missingCeilingClaims(gutted)).toEqual(['it is a CEILING, not a mandate to stay silent'])
+  })
+
+  it('⛔ CONTROL: an empty section reports ALL FOUR missing, so nothing passes vacuously', () => {
+    expect(missingCeilingClaims('')).toHaveLength(CEILING_CLAIMS.length)
+  })
+
+  it('⛔ CONTROL: the citation check SEES the real citation in the real module', () => {
+    expect(missingCitationParts(read(OWNER))).toEqual([])
+  })
+
+  it('⛔ CONTROL: ...and names the part that is gone when the citation rots', () => {
+    const broken = read(OWNER).split(CARD_33_REL).join('docs/terminal-research/somewhere-else.md')
+    expect(missingCitationParts(broken)).toEqual(['the card file, by path'])
+  })
+
+  it('the module cites the card, and the cited path resolves to a file that exists', () => {
+    expect(missingCitationParts(read(OWNER))).toEqual([])
+    expect(fs.existsSync(CARD_33_PATH)).toBe(true)
+  })
+})
+
+describe('RM-N03: the ceiling the card NAMES is the ceiling this module CLAMPS to', () => {
+  // ⛔ BOTH SIDES DERIVED. No session duration is written in this section: §6
+  // already reds if one appears in the module, and writing one here would make
+  // this rail the third authority over the very number it exists to protect.
+  //
+  // ⚠️⚠️ SO THIS SECTION PINS THE CEILING'S *SHAPE* AND §0/§3 PIN ITS *VALUE*.
+  // Both halves are required and NEITHER COVERS THE OTHER. Measured, not
+  // assumed: scaling `oneTradingSessionMs`'s derivation by 2 reds SIX tests in
+  // §0 and §3 and NOT ONE of the tests below — because every assertion here
+  // compares the module against `oneTradingSessionMs`, so a scaled derivation
+  // moves both sides together
+  // (`lesson_an_identity_join_is_not_a_correctness_check`).
+  // ⛔ Do NOT delete §0 or §3 on the grounds that this section guards the cap.
+  for (const [label, now] of [
+    ['a regular day', REGULAR_RTH],
+    ['the eve of an NYSE early close', HALF_DAY_EVE_RTH],
+  ]) {
+    it(`${label}: a daily-cadence panel is bounded by the DERIVED session, and \`bound\` says so`, () => {
+      const cap = oneTradingSessionMs(now)
+      expect(cap).toBeGreaterThan(0)
+      const t = ageThresholdMs({ cadenceMs: CADENCE_DAILY, now })
+      expect(t.capMs).toBe(cap)
+      expect(t.thresholdMs).toBe(cap)
+      expect(t.bound).toBe('session_cap')
+    })
+  }
+
+  it('the two instants yield DIFFERENT ceilings, so this is not one constant wearing a derivation', () => {
+    expect(oneTradingSessionMs(REGULAR_RTH)).not.toBe(oneTradingSessionMs(HALF_DAY_EVE_RTH))
+  })
+
+  it('⛔ NO CADENCE ESCAPES THE CEILING — the card\'s word "ceiling", as an invariant', () => {
+    // ⚠️ `weekly` and `quarterly` are the card's own carve-out examples (weekly
+    // COT, quarterly fundamentals), which it says "state their own cadence
+    // instead". This module is TIGHTER there, deliberately — "nothing
+    // daily-or-slower escapes labelling entirely" — and a rendering that states
+    // the cadence AND the as-of satisfies both, which is why the carve-out is a
+    // tension in strictness and not a competing answer. Recorded here so the
+    // next reader does not rediscover it as a defect.
+    const cap = oneTradingSessionMs(REGULAR_RTH)
+    const cadences = [
+      ['15s', CADENCE_15S],
+      ['5min', CADENCE_5MIN],
+      ['hourly', HOUR],
+      ['daily', CADENCE_DAILY],
+      ['weekly (the card\'s carve-out)', 7 * CADENCE_DAILY],
+      ['quarterly (the card\'s carve-out)', 90 * CADENCE_DAILY],
+      ['undeclared', null],
+    ]
+    for (const [name, cadenceMs] of cadences) {
+      const t = ageThresholdMs({ cadenceMs, now: REGULAR_RTH })
+      expect(t.thresholdMs, `${name} is allowed past CARD 33 §2's ceiling`).toBeLessThanOrEqual(cap)
+    }
+  })
+
+  it('⭐ the ONE branch that could be more permissive than the card is not reachable through S11', () => {
+    // `ageThresholdMs` is wider than the ruling in exactly one case — `capMs:
+    // null`, when S11's walk finds no complete open->close pair — and the module
+    // surfaces that rather than hiding it behind a literal. MEASURED here rather
+    // than argued: `marketClock._dayBoundaries` DEGRADES to weekday boundaries
+    // for a year its calendar does not cover (it stops asking about holidays; it
+    // does not stop emitting events), so a date well past `COVERED_YEARS` still
+    // yields a cap, and the null branch stays defensive.
+    const beyondCoverage = new Date('2031-03-05T15:00:00Z') // a Wednesday, years past the calendar
+    expect(oneTradingSessionMs(beyondCoverage)).toBe(oneTradingSessionMs(REGULAR_RTH))
+    expect(ageThresholdMs({ cadenceMs: CADENCE_DAILY, now: beyondCoverage }).capMs).not.toBeNull()
+  })
+})

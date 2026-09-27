@@ -161,7 +161,7 @@ the second-authority-over-one-value defect that has caused three separate outage
 | "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | ⚰️ This row said `useTapeFeed.js` was DELETED — **stale, corrected 2026-09-22.** The file was restored (`06d3a6318 revert(web): restore useTapeFeed.js — it was never mine to delete`) by another session and is now **IN-FLIGHT, not orphaned**: `reachable.test.js` tracks it correctly as "a 30s poll of `/api/tweets/tape` whose docstring names its intended mount (MoversSidebar) — the wire is planned rather than lost," and explicitly warns against mounting OR deleting it as guessing at an owner's intent that has already been reverted once. **Do not touch this file** — read `reachable.test.js`'s own entry for it before acting. The successor tile this row also describes is real and unaffected: `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile), reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero *frontend* callers** — a browser holding the previous bundle still polls it; retiring the route is a separate decision from whatever happens to `useTapeFeed.js`. |
 | `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
 | `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
-| `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
+| `api/earnings_router.py` — its own docstring said *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🗑️ **RETIRED 2026-09-26 (TERM-004). This row was the only live one in this table and no longer is — the table has no live rows.** Verified before deleting: **zero** `include_router` calls anywhere, the name `earnings_router` absent from `api/main.py` entirely, and its only references were three test files (one guard plus two prose citations). It was superseded: `api/schwab_router.py` is `APIRouter(prefix="/api/schwab")` with a mounted `@router.post("/earnings")` over Yahoo-backed `_fetch_earnings_yf` — the very address its docstring asked for. ⭐ **Deleted rather than kept as the rollback copy this row used to describe, because the docstring was the hazard**: following it registered `(POST, /api/schwab/earnings)` twice, FastAPI answers on FIRST MATCH, and which of a Finviz scraper and a Yahoo fetcher ran would depend on include order in an 11,000-line file. git history is the rollback; a live instruction to create a second authority over one value is not worth keeping in the tree for it. ⭐ **The guard SURVIVED the deletion and got stronger** — `tests/test_earnings_router_stays_unmounted.py` (name kept; three files cite it) still walks `api.main:app`'s live route table and reds on a **second registration of that address whatever module produces it**, plus a new rail asserting the module stays gone on disk AND unimportable, each with a present-sibling control so it cannot pass by answering "no" to everything. ⚠️ **`POST /api/schwab/earnings` itself is mounted with zero in-repo callers** and is NOT retired with it: deleting a mounted endpoint is a different risk class, since an in-repo sweep cannot see a partner's own tooling, a saved request or a script on his box. |
 | `GET /api/voice/risk-dashboard` + `voice_position_sizing.get_risk_dashboard()` — own docstring said *"Used by the Risk Dashboard UI panel to visualize the position-sizing engine state"* | 🗑️ **RETIRED 2026-09-23 (Packet AE CP1, fingerprint `d56a02db8`).** The UI panel it names, `app/src/pages/RiskDashboard.jsx`, was deleted 2026-08-09 (`d26cee0c0`) — dead by inheritance from the 2026-05-25 free-tier narrowing (`709f4407a`) that dropped the `/risk` route. The backend was never cleaned up alongside it: the route ran real per-member risk math on every hit with zero frontend caller for four months. Deleted rather than revived because `api/services/portfolio_heat.py` + `/portfolio-heat` (A14 CP1, shipped 2026-09-21 — one day before this was found) already covers the same ground more completely (notional exposure vs. regime ceiling, actual concentration-breach flags) **and more safely**: `get_risk_dashboard`'s heat math had no placeholder-stop detection, so a broker-imported position with no real stop contributed zero to its risk total — exactly the under-reporting bug `portfolio_heat.py` was built to close. `tests/test_risk_dashboard.py` deleted with it. The one thing genuinely unique to the orphan — a "recent refusals" list from `voice_tool_calls` — has no home yet; it is a real, small, candidate follow-up, not carried forward here. |
 
 ✅ **CORRECTED 2026-09-22 — `BrokerEquityCurve` is NOT orphaned; this table previously said
@@ -191,9 +191,11 @@ RISK-015) rather than re-typed from memory.
 ✅ **THE FILES ARE GONE NOW** — this said *"the files are still there"*, and a
 separate pass deleted them the same day (`d26cee0c` · `ed53f9b6` · `24ee463b`,
 each independently revertable; the kept-and-why ledger is
-`.superpowers/sdd/audit/fix-orphan-deletion-report.md`). Every row above except
-`api/earnings_router.py` now describes a path that does not exist, which is
-**still worth reading**: the sections further down still name these files, and
+`.superpowers/sdd/audit/fix-orphan-deletion-report.md`). ⚰️ This sentence read
+*"Every row above except `api/earnings_router.py` now describes a path that does
+not exist"* until 2026-09-26 — **that exception is gone with the file** (TERM-004;
+see its row). **Every row above now describes a path that does not exist**, which
+is **still worth reading**: the sections further down still name these files, and
 the row tells you what replaced each one.
 
 ⛔ **Do not re-derive this table from a stale audit.** The last census that
@@ -1911,6 +1913,41 @@ cannot see is a gate you did not run.**
 ⚠️ It is a cap on CONCURRENCY, not on total agents — three at a time, as many waves as the work
 needs. Dispatching a fourth because "this one is small" is how five happened.
 
+### ⛔⛔ THE SESSION SCRATCHPAD IS SHARED BETWEEN LANES — AND A RACE THERE DEFEATS A SHA-VERIFIED RESTORE
+
+> **Give every scratchpad file a lane-unique name. And a sha256 equality is proof of
+> restoration ONLY for a file no other process can write.**
+
+⚰️ Measured 2026-09-26, with the red signature reproduced. Two concurrent lanes each
+wrote a mutation harness to `<scratchpad>\mutate.py`. Between one lane's Write and its
+Bash call, the other replaced that exact path — so its invocation ran the OTHER lane's
+harness, mutating three files under `api/` and `tests/` it had never been asked to touch
+and running a different suite entirely.
+
+⭐ **The wasted run is not the damage. THIS is:** both harnesses did capture-and-restore
+over overlapping files, and the interleaving is silent.
+
+| | |
+|---|---|
+| A | captures the CLEAN bytes, mutates |
+| B | captures the **MUTATED** bytes as its "original" |
+| A | restores clean |
+| B | "restores" its mutated capture — **and its sha256 assertion PASSES** |
+
+The mutation was then live on disk behind a restore that had verified. The symptom was a
+post-restore baseline going **52 passed → 5 failed while every per-file sha restore
+reported OK**, and it was very nearly filed as "pre-existing reds".
+
+⛔ **A sha proves the bytes on disk match what you captured. It says NOTHING about
+whether what you captured was the original.** That is a different claim, and it is the one
+that matters after a restore. Under concurrency, prove a restore against the committed
+blob (`git cat-file blob HEAD:<path>`) or against `git status`, never against your own
+capture alone.
+
+⚠️ The same reasoning covers any shared mutable path a lane writes — a lock file, a
+results directory, a generated record. `docs/.../term-018-guard-observations.json`
+survived this incident only because the rail that reads it never writes it.
+
 ### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
 
 > **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
@@ -2339,6 +2376,43 @@ reported back to the session was **`exit code 0`**, because `echo` was last. The
 lane was read correctly only because the VERDICT line exists and was read from the
 FILE. **A rule that fixes the pipe and leaves the semicolon has fixed the example,
 not the defect.**
+
+### ⛔⛔ AND A FIFTH SHAPE: A GREP WHOSE TARGET MOVED STILL EXITS 0 — READ THE CONTENT AT THE LINE
+
+> **An exit code tells you the command SUCCEEDED, never that it found the thing you
+> NAMED. A verification that re-runs a grep and checks only its status confirms
+> whatever the grep happens to hit today.**
+
+⚰️ Measured 2026-09-27, sweeping roadmap §9's twelve verification rows against a tree
+**661 commits** newer than the one they were written at. **Two of the stale rows still
+exit 0**, and both still print a plausible line number:
+
+* **V9** greps `hour=9, minute=5 | head -1` to show the wire watchdog could not fire.
+  The trigger moved to `minute=35` in `6c6f540c8`, an ancestor of `origin/production`.
+  The grep now matches **`:5991` — an entirely unrelated job**, exits 0, and reads as a
+  confirmation of a state the product left five commits and one production deploy ago.
+* **V10** greps for a futures workaround deleted by `ed0b0f1b9`. Its first hit today is
+  the **deletion comment**, whose own text says the roadmap item *"was written against
+  this code as if it were live."* The check now succeeds by matching the sentence
+  explaining that its subject is gone.
+
+⭐ **THIS IS NOT THE PIPE TRAP ABOVE.** There is no pipe eating a status and no `echo`
+at the end — the grep genuinely succeeded. The defect is that **success was never the
+question.** The question was *"is this specific thing still here?"*, and only reading the
+CONTENT at the matched line answers it.
+
+⛔ **So a re-verification must assert on what it FOUND, never on whether it found
+something.** Print the matched line, compare it to what the row claims, and treat a
+match at an unexpected line number as a MISS. A cited `file:line` is a dated claim like
+any other: line numbers in this repo drift constantly, and a drifted one that still
+resolves is more dangerous than one that does not, because it answers.
+
+⭐ **The companion finding, worth as much as the trap:** four of §9's rows were stale
+**because the product got better** — rung zero built, cohorts shipped, the watchdog
+re-timed, a phantom workaround deleted. **A verification row records a defect, so
+shipping the fix is exactly what makes it stale.** Staleness in a verification section is
+therefore the EXPECTED steady state, not an anomaly — which is why it needs a scheduled
+re-read rather than a reader's suspicion.
 
 
 ## ⛔⛔ A FRESH WORKTREE, AND THE JUNCTION THAT DELETED A LIVE `node_modules`
@@ -3340,6 +3414,29 @@ with complete confidence. It happened in both directions in one night:
 05:40:58Z  session A's deploy record finally appears (3m25s later)
 05:43:14Z  session B's deploy appears, marking session A's REMOVED
 ```
+
+⛔⛔ **AND THE INSTRUMENT MOST PEOPLE REACH FOR TO CHECK THIS IS THE WRONG ONE — measured
+2026-09-27, twice, by two sessions.** `gh api repos/.../deployments?sha=<SHA>` is **NOT** a
+record of whether Railway took a push. It returned `[]` for a commit Railway was **actively
+deploying at that moment**, while the same commit's **commit STATUSES** carried six Railway
+contexts including `web pending — "Railway is deploying the service"`. ⭐ **Read
+`repos/.../commits/<SHA>/status`, never the deployments API.** Two sessions independently
+concluded "the GitHub→Railway integration is broken" off the empty deployments list, and one
+of them escalated it to the owner and told them to go fix a connection that was working.
+⚠️ The trap has a control that makes it *look* validated: the PREVIOUS master commit really
+did have a deployments record, created 3 s after its push — so the proxy appeared to work,
+which is exactly how a proxy earns confidence it has not earned.
+
+⚠️ **A LARGE PUSH MAY NOT REGISTER AT ALL, AND THIS IS UNPROVEN BUT ACTIONABLE.** Same night:
+a master push of **622 new commits** (six merges, including a 602-commit docs merge) produced
+**ZERO commit statuses** — Railway never took it. A **1-commit** squash pushed 48 minutes
+later registered within seconds and carried the 622 commits' content with it, and a **2-commit**
+push after that registered in seconds too. ⛔ n=1 on each side, so push size is a HYPOTHESIS,
+not an established cause — do not write it up as one. But the cheap habit costs nothing:
+**land a large docs merge as its own push**, and after any master push **verify registration by
+commit statuses** before reporting anything about a deploy. A push that silently did not
+register looks identical to one whose record is merely late — which is the blind window above
+wearing a second costume.
 
 ⛔ **WAITING LONGER DOES NOT CLOSE IT.** The check and the thing it checks are separated by
 a delay the checker cannot observe, so no settle threshold fixes it — a longer wait just
@@ -5026,6 +5123,35 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
   - 💬 Send Feedback → opens existing star-rating + message form (posts to `/api/auth/feedback`)
   - 🎫 Support Ticket → navigates to `/support`
 - Backdrop click closes menu/form; Escape not wired (backdrop handles it)
+
+## Discord `/chart` + `/flow` renders — ops and speed (2026-09-25 → 09-27)
+
+The member-facing Discord charts and `/flow` cards. **Runbook and evidence:**
+`docs/discord-render/RENDER-OPS-2026-09-25.md` — read it before touching this path.
+
+- **`/flow` card = the Options Flow page's own product** (`DISCORD_FLOW_CARD_PAGE_ENABLED=1` on web,
+  `api/services/flow_card_from_page.py`); a labelled rollup answers if the page product cannot be had
+  in 45 s. Window buttons `1D · 5D · 20D · All` (`flowwin|T|W`) redraw the SAME message; the lit
+  button is the window actually SERVED (a widened card lights the wider one).
+- **Instruments** (all in `api/services/flow_card_ops.py`, each a default-ON kill switch, `0` on web to
+  stop): post-deploy smoke → **#render-smoke** 240 s after each web boot (D/W/60/5 charts, `5m fresh`
+  vs `last_closed_session()`, weekly = daily, a live `/flow`) — `DISCORD_RENDER_SMOKE_ENABLED`; daily
+  `/flow` outcome line 16:25 ET → #render-alerts from `/data/flow_card_stats.db` —
+  `DISCORD_FLOW_STATS_ENABLED`; `/flow` pre-warm of the hour's names in RTH — `DISCORD_FLOW_HOTWARM_ENABLED`.
+- **The master deploy gate runs the reply golden + render-ops rails** (`Discord render replies match
+  the golden`), GATING since 2026-09-26. The golden (`docs/discord-render/instruments/goldens/`) is
+  refreshed BY CAUSE, never re-blessed wholesale: explain every drifted path first.
+- ⭐ **A SLOW CHART NAMES ITS OWN CAUSE — read the timing line before theorising.** Every member render
+  logs `[discord-chart] timing SYM TF member <outcome> Ns: slot · gate · bars · quote · house`, and
+  `house timing … zones · renderer` when the house step is >= 3 s. ⚰️ 2026-09-26 two confident
+  theories about a 20 s View chart were both wrong; the line settled it in one click.
+- **Measured 2026-09-27:** a warm member chart is ~2.5 s (renderer ~2 s of it). Dark-pool levels are
+  cached 10 min per ticker and started BEFORE the bar fetch (`discord_chart_house.dark_pool_zones`,
+  2.8 s → overlapped). The plain mplfinance stand-in appears only after `fast_after_s()` = **8 s**
+  (was 3 s, which flashed it on most clicks; `DISCORD_CHART_FAST_AFTER_S` overrides).
+- ⚠️ **Open:** for a few minutes after each web deploy the 5,000-bar page pre-fetch runs cold (3–17 s)
+  and the single bars gate queues (13 s seen). Do NOT shrink below `PAGE_BARS` to fix it — measured
+  worse (blank charts) on 2026-08-26; needs its own session.
 
 ## Discord `/buzz` — ticker-mention board (LIVE in #main-chat, 2026-09-02)
 

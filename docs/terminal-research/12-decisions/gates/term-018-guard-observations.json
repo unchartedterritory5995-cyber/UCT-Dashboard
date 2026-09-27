@@ -1,0 +1,354 @@
+{
+  "_README": [
+    "TERM-018 / RM-N15 - the durable record of WHICH GUARDS HAVE BEEN OBSERVED RED",
+    "BEFORE GREEN. Read tests/test_term018_every_guard_can_fire.py; it is the rail",
+    "that verifies every line of this file and the reason this file cannot be a",
+    "spelling check.",
+    "",
+    "THE GUARD POPULATION IN `derived_population` IS NOT LISTED HERE. It is DERIVED",
+    "by AST from the sink module named below, every run. This file only says which",
+    "of the derived guards carry an observation and which are declared debt, and the",
+    "rail asserts that partition is EXACTLY the derived set. A guard added to the",
+    "code and to neither list fails the rail BY NAME on its first run.",
+    "",
+    "WHAT AN `observed` ENTRY MUST SURVIVE (all six, every run, no exceptions):",
+    " 1. `predicate.file` + `predicate.scope` resolve to a real def by AST.",
+    " 2. `predicate.pinned` is PRESENT in that scope's source, after comments and",
+    "    docstrings are stripped and whitespace normalised.",
+    " 3. `predicate.mutation` is ABSENT from that same stripped source.",
+    " 4. DISCRIMINATOR: applying the mutation to the source IN MEMORY makes 2 and 3",
+    "    both fail. This is what stops a pin that cannot tell the two apart.",
+    " 5. every `observed_by` node id EXISTS by AST and is COLLECTED by pytest, and",
+    "    its module mentions - in code, never in a docstring - a name that reaches",
+    "    the pinned scope.",
+    " 6. `proof.commit` is an ancestor of HEAD and its message contains",
+    "    `proof.quote` verbatim. So a record cannot be added without a commit that",
+    "    records a real red count.",
+    "",
+    "WHAT THIS FILE DOES NOT PROVE: that the recorded test is red TODAY if the guard",
+    "is reverted. Nothing static can prove that. It proves the mutation was really",
+    "performed once, on a named commit, against a named test that still exists and",
+    "is still collected, and that the exact predicate it was performed against is",
+    "still the predicate in the code.",
+    "",
+    "`declared_unobserved` IS DEBT AND MAY ONLY SHRINK. The ceiling is a literal in",
+    "the rail, not in this file, so growing it is a visible test edit."
+  ],
+  "derived_population": {
+    "_what": "The chart-health operator alert channel - lane A's channel (TERM-011).",
+    "sink_module": "api.services.chart_health_alerts",
+    "sink_function": "emit",
+    "emit_site_roots": [
+      "api"
+    ],
+    "_unit": "One guard = one emit call site, keyed <relpath>::<enclosing qualname>::<alert key>::<severity>, plus the sink module's own decision functions (`emit` and the same-module functions it calls). The key/severity in the id is the audit's own unit: 'two tiers of one metric under two thresholds are two guards, because they have two predicates'. A computed key or severity reads <computed>.",
+    "_alias_resolution_is_load_bearing": "api/services/bars_continuous_audit.py binds the sink as `_alerts` in a FUNCTION-LOCAL import, and its four sites include both intraday_hotset_stale tiers. A derivation matching only the literal name `chart_health_alerts` misses them. This note used to end '- tests/test_chart_health_severity_vocabulary.py does': TRUE WHEN WRITTEN, FALSE NOW, that rail was fixed to resolve aliases scope-aware and pins its population at 21 literal-severity sites.",
+    "emit_site_count_floor": 20,
+    "gate_function_count_floor": 3,
+    "must_contain_by_name": [
+      "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::critical",
+      "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::warning",
+      "api/services/bars_continuous_audit.py::_run_5min_check::bars_store_unhealthy::critical",
+      "api/services/bars_reconciliation.py::_run_detect_only::daily_drift_detected::warning",
+      "api/services/wisdom/registry.py::_page::<computed>::critical",
+      "api/services/chart_health_alerts.py::emit",
+      "api/services/chart_health_alerts.py::_should_page_discord"
+    ]
+  },
+  "observed": [
+    {
+      "guard": "api/services/bars_reconciliation.py::_run_detect_only::daily_drift_detected::warning",
+      "in_population": true,
+      "audit_rows": [
+        "G-09"
+      ],
+      "what_the_guard_decides": "Whether a closed daily bar diverging from canonical raises an operator alert, and on which scale. It emitted `warn`, which is audit.py's diff scale and not an alert severity, so the row was unrankable and paged nobody while the comment above it claimed it paged someone.",
+      "predicate": {
+        "file": "api/services/bars_reconciliation.py",
+        "scope": "_run_detect_only",
+        "pinned": "\"daily_drift_detected\", \"warning\",",
+        "mutation": "\"daily_drift_detected\", \"warn\","
+      },
+      "observed_by": [
+        "tests/test_chart_health_severity_vocabulary.py::test_every_alert_the_reconciler_emits_uses_a_recognised_severity",
+        "tests/test_chart_health_severity_vocabulary.py::test_the_reconcilers_alert_severity_is_never_the_audit_scales_word",
+        "tests/test_chart_health_severity_vocabulary.py::test_the_daily_drift_alert_is_deliberately_not_a_page"
+      ],
+      "proof": {
+        "commit": "e28834d82",
+        "quote": "the defect restored (4 red)"
+      }
+    },
+    {
+      "guard": "api/services/wisdom/registry.py::_page::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-32",
+        "G-33"
+      ],
+      "what_the_guard_decides": "Whether a wisdom job that has stopped succeeding pages. The window came from `max(last_ok, boot)` with boot set at module import, so for the one case the guard exists for - a FAILING job, whose last success predates this pod - the age it compared was POD UPTIME. 70 days of uninterrupted uptime for the monthly packet; 30 minutes even for the 900s jobs, above this pod's median life. The predicate is `_staleness_window`, which is a different function from the emit site it governs - that is why this record pins a scope rather than the call site.",
+      "predicate": {
+        "file": "api/services/wisdom/registry.py",
+        "scope": "_staleness_window",
+        "pinned": "if last_ok is not None: return last_ok, 2 * spec.expected_every_s",
+        "mutation": "if last_ok is not None: return max(last_ok, boot), 2 * spec.expected_every_s"
+      },
+      "observed_by": [
+        "tests/test_wisdom_watchdog_boot_grace.py::test_a_failing_long_period_job_is_detected_on_a_pod_that_only_just_booted",
+        "tests/test_wisdom_watchdog_boot_grace.py::test_the_page_quotes_job_staleness_and_never_the_pods_age",
+        "tests/test_wisdom_watchdog_boot_grace.py::test_a_freshly_booted_pod_never_pages_a_job_that_has_not_had_its_slot_yet"
+      ],
+      "proof": {
+        "commit": "a1f212dd6",
+        "quote": "Reverting `_staleness_window` to `max(last_ok, boot)` reds 4 of 5"
+      }
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::emit",
+      "in_population": true,
+      "audit_rows": [
+        "G-47"
+      ],
+      "what_the_guard_decides": "Whether an alert enters the deque at all - and therefore whether it can ever reach the pager, because `emit` returns on the throttle BEFORE `_should_page_discord` runs. Keyed on the alert key alone, a warning at 0.08 swallowed the CRITICAL page at 0.20 for the same condition for ten minutes, on a five-minute cycle. Escalation is the one event a page exists for.",
+      "predicate": {
+        "file": "api/services/chart_health_alerts.py",
+        "scope": "emit",
+        "pinned": "throttle_key = (alert_key, severity) last = _throttle.get(throttle_key, 0)",
+        "mutation": "last = _throttle.get(alert_key, 0)"
+      },
+      "observed_by": [
+        "tests/test_chart_health_escalation.py::test_a_critical_pages_even_when_a_warning_fired_inside_the_throttle_window",
+        "tests/test_chart_health_escalation.py::test_the_throttle_key_carries_the_severity",
+        "tests/test_chart_health_escalation.py::test_CONTROL_a_repeated_warning_is_still_throttled"
+      ],
+      "proof": {
+        "commit": "cf2613969",
+        "quote": "reverting the two throttle lines to their per-key form reds 2 of 8"
+      }
+    },
+    {
+      "guard": "api/main.py::register_wire_watchdog_job::wire_missed::critical",
+      "in_population": false,
+      "audit_rows": [
+        "G-01"
+      ],
+      "what_the_guard_decides": "Whether a morning wire that never ran pages the owner. OUTSIDE the derived population on purpose: its sink is `alerts.add_alert`, not the chart-health channel. Recorded here because it is the audit's oldest CANNOT-FIRE row (CARD 27) and was fixed in this wave - the job ran at 09:05 while `expected_wire_date` rolls back before 09:30, so `expected` was YESTERDAY and `yesterday < yesterday` is False. The guard could only fire at TWO sessions stale.",
+      "predicate": {
+        "file": "api/main.py",
+        "scope": "register_wire_watchdog_job",
+        "pinned": "hour=9, minute=35, timezone=_ET",
+        "mutation": "hour=9, minute=5, timezone=_ET"
+      },
+      "observed_by": [
+        "tests/test_wire_watchdog_fires.py::test_the_watchdog_is_scheduled_after_the_0930_rollback_boundary",
+        "tests/test_wire_watchdog_fires.py::test_the_comparison_FIRES_for_a_one_day_stale_payload",
+        "tests/test_wire_watchdog_fires.py::test_CONTROL_at_0905_the_comparison_could_not_fire"
+      ],
+      "proof": {
+        "commit": "6c6f540c8",
+        "quote": "reverting minute 35 -> 5 turns 5 of the 6 tests red"
+      }
+    },
+    {
+      "guard": "tools/bars_warmth_audit.py::<module>::warm_latency_p95_bar",
+      "in_population": false,
+      "audit_rows": [
+        "G-49"
+      ],
+      "what_the_guard_decides": "Whether CARD 16's ratified p95 latency bar is COMPUTED at all - this is lane A's other half, TERM-012. `stale-swr` sat in COLD while the module's own docstring defined COLD as 'the user waited', so on daily reads the no-wait set emptied, a bare `if warm_ms:` with no else printed nothing, and the COLD line's p50/max was read as the p95. OUTSIDE the derived population: it is an acceptance bar in a tool, not an alert emit site.",
+      "predicate": {
+        "file": "tools/bars_warmth_audit.py",
+        "scope": "<module>",
+        "pinned": "STALE_SERVED = {\"stale-swr\"} COLD = {\"fetch\", \"inflight-wait\", \"disk\", \"miss\", \"unknown\"}",
+        "mutation": "STALE_SERVED = set() COLD = {\"fetch\", \"stale-swr\", \"inflight-wait\", \"disk\", \"miss\", \"unknown\"}"
+      },
+      "observed_by": [
+        "tests/test_bars_warmth_audit_buckets.py::test_stale_swr_is_its_own_bucket_and_not_cold",
+        "tests/test_bars_warmth_audit_buckets.py::test_the_layers_that_mean_the_user_waited_are_still_cold",
+        "tests/test_bars_warmth_audit_buckets.py::test_an_all_stale_sample_IS_computable_which_it_was_not_before"
+      ],
+      "proof": {
+        "commit": "6c0dc5854",
+        "quote": "putting stale-swr back into COLD turns two of them red"
+      }
+    }
+  ],
+  "declared_unobserved": [
+    {
+      "guard": "api/cream_card.py::_alert_missed::<computed>::critical",
+      "audit_rows": [
+        "G-22"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_cream_eod_catchup.py drives the firing path with an injected input. No mutation was ever taken, so nothing shows the guard can say NO."
+    },
+    {
+      "guard": "api/oi_morning.py::_alert_missed::<computed>::critical",
+      "audit_rows": [
+        "G-23"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_oi_morning_catchup.py, same shape as G-22. One-sided."
+    },
+    {
+      "guard": "api/routers/market_calendar.py::_announce::<computed>::<computed>",
+      "audit_rows": [
+        "G-18",
+        "G-19",
+        "G-20"
+      ],
+      "audit_class": "PROVEN/FIREABLE",
+      "why": "THREE audit rows collapse to ONE derived guard here: the key AND the severity are both computed, so nothing static can split the milestone / ordinary-expiring / expired tiers apart. Splitting the id needs the emitter to pass literals. Also cannot fire on a clock before ~2027-07-04."
+    },
+    {
+      "guard": "api/routers/push.py::_check_taxonomy_handshake::taxonomy_version_mismatch::warning",
+      "audit_rows": [
+        "G-21"
+      ],
+      "audit_class": "PROVEN",
+      "why": "The predicate is satisfiable (tests/theme_engine/test_propagation.py) but NOTHING in this repo writes taxonomy_version into a push payload, so the production input is out of reach here."
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_daily_store_stale::critical",
+      "audit_rows": [
+        "G-06"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "Split proof only: one test proves the INPUT reports stale, another proves the key pages. Nothing drives this emit."
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_store_unhealthy::critical",
+      "audit_rows": [
+        "G-05"
+      ],
+      "audit_class": "PROVEN",
+      "why": "The audit's ONLY row with an AST-over-source rail (tests/test_bars_store_health_monitor.py). Still no recorded mutation."
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::critical",
+      "audit_rows": [
+        "G-07"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "No test drives the 0.20 threshold. Its PAGE path is now observed via the sink's throttle, but this predicate is not."
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::warning",
+      "audit_rows": [
+        "G-08"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "No test drives the 0.08 threshold."
+    },
+    {
+      "guard": "api/services/desk_session_insights.py::_emit_coverage_alert::<computed>::critical",
+      "audit_rows": [
+        "G-26"
+      ],
+      "audit_class": "PROVEN",
+      "why": "Three tests assert the key and severity with injected inputs. One-sided."
+    },
+    {
+      "guard": "api/services/discord_buzz_digest.py::_alert_missed::<computed>::critical",
+      "audit_rows": [
+        "G-24"
+      ],
+      "audit_class": "PROVEN",
+      "why": "One of the audit's four rows that carries a CONTROL (a posted slot raises nothing). Still no mutation."
+    },
+    {
+      "guard": "api/services/discord_render/stall_record.py::note::<computed>::critical",
+      "audit_rows": [
+        "G-25"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_stall_record.py drives emit twice. No mutation."
+    },
+    {
+      "guard": "api/services/fundamentals_monitor.py::_alert::fundamentals_regression::critical",
+      "audit_rows": [
+        "G-12"
+      ],
+      "audit_class": "UNKNOWN",
+      "why": "No test names the key at all. Whether the predicate has ever been satisfiable is a data question; the cheapest read is GET /api/admin/fundamentals-health."
+    },
+    {
+      "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
+      "audit_rows": [
+        "G-15"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_ai_search_resilience.py asserts key and severity. One-sided."
+    },
+    {
+      "guard": "api/services/provider_coverage_monitor.py::_alert::provider_coverage_regression::critical",
+      "audit_rows": [
+        "G-11"
+      ],
+      "audit_class": "PROVEN",
+      "why": "The audit's ONE row with a recorded PRODUCTION firing (2026-08-18, quoted in tests/test_provider_coverage_em_refusals.py). A production firing is stronger evidence than a mutation, and is not the same artifact - it is not red-before-green and cannot regress-detect."
+    },
+    {
+      "guard": "api/services/single_stock_etfs.py::_finish::ssetf_rebuild_refused::warning",
+      "audit_rows": [
+        "G-14"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_single_stock_etfs.py asserts exactly one call across three refusals - close to a control, but no mutation."
+    },
+    {
+      "guard": "api/services/source_circuit_breaker.py::state::<computed>::warning",
+      "audit_rows": [
+        "G-10"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "No test names the key."
+    },
+    {
+      "guard": "api/services/wire/coverage_monitor.py::_alert_incomplete::wire_coverage_incomplete::critical",
+      "audit_rows": [
+        "G-16"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_wire_coverage_monitor.py. One-sided."
+    },
+    {
+      "guard": "api/services/wire/coverage_monitor.py::_alert_unmeasured::wire_coverage_unmeasured::warning",
+      "audit_rows": [
+        "G-17"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_wire_coverage_monitor.py. One-sided."
+    },
+    {
+      "guard": "api/services/wisdom/capture/health.py::page::<computed>::critical",
+      "audit_rows": [
+        "G-30"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "classify/should_page are pure and unit-covered; no assertion of the emit itself was found."
+    },
+    {
+      "guard": "api/services/wisdom/extract/batch.py::_page::<computed>::critical",
+      "audit_rows": [
+        "G-31"
+      ],
+      "audit_class": "FIREABLE",
+      "why": "No assertion found."
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_should_page_discord",
+      "audit_rows": [
+        "G-46"
+      ],
+      "audit_class": "PROVEN",
+      "why": "tests/test_chart_health_discord.py drives page -> suppressed -> page, which IS a two-sided behavioural proof. It is still not a mutation: nothing shows the suite goes red if the gate is deleted."
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_page_discord",
+      "audit_rows": [],
+      "audit_class": "NOT IN THE AUDIT",
+      "why": "The transport, not a threshold - but it carries a real suppression (`if not webhook: return`) and the derivation cannot tell a transport guard from a threshold guard. Recorded as debt rather than excluded by hand, because an exclusion rule written by hand is the defect this programme documents."
+    }
+  ]
+}

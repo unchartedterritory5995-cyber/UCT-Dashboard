@@ -20,6 +20,225 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-27 — PARTIAL DRAWINGS AT THE MEMBER DOOR: a lost removal refuses, every other loss is disclosed
+
+> Branch `pine/partial-drawing-rule` (base `pine/plot-offset-bound` @ `cf009d3ea`).
+> Every number below is `memberPaneDefinition` over the 266 committed scripts,
+> objects-only flag off/on, measured on this base before and after. The census is
+> `app/src/components/chart/builder/memberPane/partialDrawing.census.measure.test.js`
+> (opt-in: `PARTIAL_CENSUS=1`). ⚠️ The brief's master-code figures (off 29/15, on
+> 53/37) are not this base's; this base measures off 33/17, on 58/40.
+
+**The defect.** The member door admitted object programs that lost operations and
+drew the survivors with no disclosure. `paneGate` with the objects-only flag
+admitted a DIRTY program (`pine:objects-only`) as `ok`, and a plotting script
+carried whatever the object pass kept. Where the lost ops were deletes or table
+clears, the chart kept objects TradingView removes: a wrong picture, not a smaller one.
+
+**Owner ruling (option b), as implemented.**
+
+1. A lost REMOVAL (a delete, a `table.clear`, or a lost list change the script
+   deletes through) **refuses** a drawing-only script by name
+   (`pine:object-removal-lost`). A plotting script with the same loss **keeps its
+   plots and has its drawings withheld** (`objects: null`, the shape every
+   plot-only script already has, so no new render path), and says so in a note.
+2. Every other partial program attaches with **"N of M drawing elements in this
+   script aren't supported yet"** on the existing notes channel (`notes` →
+   `MemberPane`'s list → `meta.disclosures` on the saved document → the real
+   chart's `AttachedPineDisclosures`). N = the pass's `droppedOps`; M = the pass's
+   new `attemptedOps`, every op the converter tried, loop ops and loop-body ops
+   alike, so `N <= M` holds by construction. (`collectedOps` counts only top-level
+   reader ops and read "62 of 29" on `dual-view-htf-candlestick-patterns`.)
+3. A clean object program and a plot-only script are unchanged.
+
+⚠️ **A lost removal of something never drawn is not a removal loss.** The pass now
+records every lost `*.delete` / `table.clear` with its family (`lostRemovals`). If
+the program draws no create of that family at all, nothing that removal would take
+off the chart is on it, and the loss is PARTIAL. It is judged by FAMILY, not by
+register, because Pine fills a register through `l := array.get(…)` / `l := f(…)`,
+which the reader does not model. This is what keeps **Volume v2**'s two tables: it
+loses three `label.delete`s and draws no label anywhere (the one `label.new` is lost
+too), and now carries "5 of 14 drawing elements…". A removal whose family the pass
+cannot name always counts. **This refinement is an interpretation, flagged for a
+ruling below.**
+
+**Classification of every key the object pass emits** (`engine/ast/objectLoss.js`,
+railed against the `dropped(...)` call sites in `pine.js` and the op kinds in
+`pineObjects.js`; an unclassified key is refused, never guessed):
+
+| key | class | why |
+|---|---|---|
+| `delete:target` | REMOVES | a delete whose target cannot be read; the object Pine deletes stays |
+| `guard:delete` | REMOVES | a delete whose condition cannot be read |
+| `clear:target`, `clear:range`, `guard:clear` | REMOVES | a `table.clear` lost; the cells Pine wipes keep last bar's text |
+| `guard:loop`, `loop:bounds` | LOOP, by body | the body is never converted; REMOVES if it held a reaching delete/clear, else LIST if it changed lists, else PARTIAL |
+| `coll:push`, `coll:set`, `coll:remove`, `coll:unknown`, `coll:<method>` (e.g. `pop`), `guard:coll_*` | LIST | lists are how a script finds what it later deletes; REMOVES when the script removes anything, PARTIAL otherwise |
+| `create:<family>`, `guard:create` | PARTIAL | a missing object, never an extra one |
+| `update:target`, `update:props`, `guard:update` | PARTIAL | a stale position or style, not an extra object |
+| `cell:target`, `cell:address`, `cell:text`, `guard:cell` | PARTIAL | a missing cell (dropped whole, never written blank) |
+| `cellpatch:target`, `cellpatch:address`, `cellpatch:<prop>`, `guard:cellpatch` | PARTIAL | a missing style |
+| `loop:empty` | PARTIAL | its body ops are each counted under their own key |
+| reader: `*.delete`, `table.clear` (loop-blocked or unsupported) | REMOVES, unless that family is never drawn | never became an op, so in no drop count; `sonarlab-order-blocks` has zero drops and a lost `box.delete` |
+| reader: `array.*` | LIST | as above |
+| reader: anything else, `outOfScope` namespaces | PARTIAL | named in the note (`It also uses …`) |
+
+**Before and after (this base).**
+
+| | flag OFF | flag ON |
+|---|---|---|
+| attached, before | 33 (17 with drops; 18 with any loss) | 58 (40 with drops; 42 with any loss) |
+| attached, after | 33 | 47 |
+| … with the "N of M" / "uses X" disclosure | 17 | 30 |
+| … plots drawn, drawings withheld | 1 (`fibonacci-pivot-points-cc`) | 1 (same) |
+| refused for a lost removal | 0 | 11 |
+| clean with objects (unchanged) | 3 | 4 |
+| plot-only (unchanged) | 12 | 12 |
+
+Refused, flag ON (all drawing-only): `fibonacci-retracement-statistics-by-volprofex`,
+`ict-institutional-order-flow-fadi`, `ict-ipda-look-back`,
+`linear-regression-channel-tradingfinder-existing-trend-lines`, `market-profile-with-tpo`,
+`options-max-pain-calculator-backquant`, `rsi-horizontal-resistance-levels`,
+`sonarlab-order-blocks`, **`strong-start-rvol-dashboard`** (the objects-only lane's
+acceptance dashboard; it loses a `table.clear`), `swing-highlow-zigzag-chartprime`,
+`volumized-order-blocks-flux-charts`.
+
+Of the 25 scripts the flag adds on this base, 24 had a loss: 11 are now refused, 13
+attach with a disclosure, and 1 is clean (`makuchaku039s-trade-tools-fair-value-gaps`).
+
+**The member sentences** (worded once, in `objectLoss.js`):
+- refused: *"This script's drawing can't be shown yet. It removes drawings as it runs,
+  and this chart can't follow part of that (a delete), so drawing the rest would leave
+  lines, labels, boxes or table cells on screen that TradingView would have removed."*
+- withheld: *"This script's plots are shown, but its drawings are not. It removes
+  drawings as it runs, and this chart can't follow part of that (a delete), so showing
+  them would leave lines, labels, boxes or table cells on screen that TradingView would
+  have removed."*
+- partial: *"199 of 246 drawing elements in this script aren't supported yet, so what
+  it draws is incomplete. (The 246 are every drawing step this chart tried to carry:
+  each line, label, box or table created, changed or written to, each change to a list
+  of them, and each loop.) It also uses `line.set_xloc`, which this chart doesn't draw
+  yet."*
+- reader-only: *"This script uses `table.merge_cells`, which this chart doesn't draw
+  yet, so what it draws is incomplete."*
+
+**Rails.** `builder/memberPane/partialDrawing.test.jsx` is a table over 11 named
+corpus scripts (clean ×3, partial ×2, refused ×3, plots+partial ×2, withheld ×1) plus
+the flag-off control, asserting the door verdict AND the rendered DOM text.
+`engine/ast/objectLoss.test.js` derives the classification check from source, holds
+`N <= M` over the corpus, and pins the family test. Nine mutations (the pass counter,
+the family test, two classifications, both `paneGate` admissions, the withholding, the
+note push, the N/M order) each turned the rails red; every file was restored from
+captured bytes and verified by sha256.
+
+**Needs a ruling.** (a) the family-level "never drawn" refinement above; (b) LIST as
+conditional on the script removing anything; (c) prop-level losses inside a kept op
+(`droppedProps`, `unsupportedProps`) are not disclosed; (d) reader-level losses are
+named but not counted in N/M, because they never became ops; (e) the acceptance
+dashboard is now refused with the flag ON.
+
+---
+
+## ⭐⭐ 2026-09-26 — `pine:plot-offset` (11) SIZED, AND IT WAS NOT A PINE GAP
+
+> Branch `pine/plot-offset-bound`. Every number below is `memberPaneDefinition`
+> over the 266 committed scripts, objects-only flag off/on, measured before and
+> after on the same tree (probe: the census `__probe_memberDoor.test.js`, never
+> committed).
+
+**What the 11 actually were.** Every offending `offset =` is an **input, or
+arithmetic on inputs** — no series, no timeframe flag:
+
+| script | line | offset expr | class | next wall (measured) | attaches |
+|---|---|---|---|---|---|
+| bolingger-bands-inside-bar-boxes | 47 | `offset` (`input.int(0)`) | input | `pine:reassign` (`IBStatus`, l.98) | n |
+| extrapolated-pivot-connector | 37 | `-length` (`input(100)`) | −input | `pine:arity` (pivot `rightbars` from an input) → cleared here | **y** |
+| multicator-table | 407 / 413 / 414 | `offset`; `-displacement + 1`; `displacement - 1` | input / arithmetic | `pine:state` (`lastPh`) | n |
+| multiple-mtf-moving-average-xdecow | 203 | `i_ma1_offset` (`input.int(0)`) | input | `pine:builtin` (`timeframe.in_seconds`) | n |
+| pivot-high-low-points | 11 | `-lb` (`input(5)`) | −input | `pine:offset-literal` (`high[mb]`, `mb = lb + rb + 1`) | n |
+| price-action-…-trendline | 42 | `-rightbars` (`input.int(5)`) | −input | `pine:arity` → cleared here | **y** |
+| support-and-resistance | 15 | `-left` (`input(10)`) | −input | `pine:role-order` (`valuewhen`) | n |
+| swing-points-and-liquidity-by-leviathan | 171 | `-swingSizeR` (`input.int(10)`) | −input | `pine:arity` → then `pine:offset-literal` (`high[swingSizeR]`) | n |
+| trend-lines-supports-and-resistances | 350 | `-pvtLength` (`input.int(20)`) | −input | `pine:arity` → cleared here | **y** |
+| trendlines | 25 | `-rightbars` (`input(15)`) | −input | `pine:arity` → then `pine:function-def` (`get_y`) | n |
+| wyckoff-accumulation-distribution | 83 | `offsetVal` = `-pivotLen` (`input.int(5)`) | −input (via a name) | `pine:arity` → then `pine:offset-literal` | n |
+
+⭐⭐ **THE WALL WAS THE MEMBER DOOR'S OWN MODE, NOT PINE.** `translatePine` without
+`declareInputs` already folded `offset = -prd` (`pine.displace.test.js`). The member
+door translates with `declareInputs`, which hands an input back as an IDENTIFIER, and
+the displacement reader accepted only a bare `num`. Same shape, one slot over: a
+pivot's `rightbars` (`pivotAtConfirmation`) refused the identifier too — that is the
+`pine:arity` wall six of the eleven hit next. **One defect class, two slots.**
+
+**The ruling applied (Pine's own semantics):** `offset` is a simple int, fixed from
+inputs/constants before the first bar. So it folds at translation through
+`constantValueOf` (declared input → its value; arithmetic; `u-`) — the author's
+default, or the member's value when the script is re-translated with `inputValues`.
+The input is recorded `displacementBound` and refused as a per-chart knob BY NAME,
+with its own sentence (not the window one). A positive displacement that is an
+input's bare value carries the parameter tag onto the offset node, so a definition
+edit moves it (locator `[..., 'value']`, the shape `param_manifest.py` accepted since
+v1). A series-dependent displacement still refuses; a fractional fold now says so.
+
+**Door, before → after:** off **29 → 33**, on **53 → 58**, **lost 0**. Newly attaching
+(on): `extrapolated-pivot-connector`, `price-action-as-in-book-fibonacci-…`,
+`trend-lines-supports-and-resistances` (the 11), plus `liquidity-pools` (was
+`pine:arity`, same pivot class) and `market-structure-by-leviathan` (was
+`pine:no-output`). `pine:plot-offset` at the door: **11 → 0**.
+
+**Two live defects found on the way, both fixed with rails:**
+1. ⛔ `paramEdit.applyParamEdit` read the ORIGINAL tree for every locator, so a
+   parameter used twice in one tree kept only the last write — measured on master:
+   `sma(close, len) - ema(close, len)` edited 14 → 21 saved `sma(close, 14) - ema(close, 21)`.
+2. ⛔ A pivot's `rightbars` is its argument AND its confirmation shift; only the
+   argument was tagged, so an edit moved the pivot's window and left the shift at the
+   default. Both now tagged (corpus locators 536 → 734, all from this).
+
+**Still open — owner/next-lane, not ruled here:** `pine:offset-literal` (`x[n]` with
+`n` an input, or `lb + rb + 1`) is the same class a third time (3 of the 11 land on
+it); its guard's own comments tie it to the forward-reference guarantee, so it wants
+its own ruling.
+
+### ⭐⭐ Follow-up, same day — a LEFTWARD displacement is now DRAWN where Pine draws it
+
+⚰️ **The defect (pre-existing, not introduced by the fold above, but widened by it):**
+the translator recorded `offset = -N` as `displace: -N` on its output row, and the
+member pane never carried it into the saved definition. Every such plot — the four
+newly-attaching pivot scripts and every pre-existing literal negative offset — was
+drawn **N bars late**: a pivot marker on the bar that *confirmed* the pivot.
+
+**The rule, Pine's own:** the value computed at bar i is drawn at bar i + offset; the
+last |offset| bars carry no point; nothing is computed from a future bar. Implemented
+as a re-indexing of the finished column at DRAW time only (`binder.displacedColumn`),
+applied to line points, marker glyphs, band edges and per-point colours.
+
+| surface | honours `displace`? |
+|---|---|
+| member pane (`memberPaneDefinition` → `plots[].displace`) | **yes**, param-aware |
+| builder sheet Pine import (`PineBox` → `BuilderSheet` rows → `buildDefinition`) | **yes** (carried + restored on edit); a parameter that feeds a displacement is **withheld** there rather than tracked |
+| chart binder (line / markers / fills / colour rule) | **yes** |
+| crosshair legend | follows the drawn points (reads `seriesData`) |
+| scan column, alert seam, `source` references, server compute | **no — by design**: the column keeps the value on the bar that computed it |
+| a band whose two edges are displaced differently | **refused by name** at the door (`pine:plot-offset`; 0 corpus scripts do it) |
+| a rightward displacement | never on the plot — it is `x[N]` in the tree; the schema refuses a positive `plots[].displace` |
+
+**Concrete, `extrapolated-pivot-connector` (length = 100), synthetic peak at bar 150:**
+the column holds the pivot high (1000) at **bar 250**, the bar that confirms it; the
+chart now draws it at **bar 150**, the pivot bar — before this it was drawn at 250.
+
+**Param-aware:** when the displacement is `±p + c` for one document parameter `p`
+(every corpus case), the plot carries `displaceFrom` and `paramEdit` moves the
+drawing in the same atomic edit (pivot argument, confirmation shift and marker
+together). Any other dependence withholds `p` from the manifest, with a note.
+
+**Found on the way, fixed:** a ONE-plot member pane's parameter locators named
+`treeIndex: 'value'` while the document is single-tree (no `compute.trees`), so every
+parameter of a one-plot pane read as detached and `applyParamEdit` refused it. Locators
+now use `null` for a single-tree document.
+
+Door census after the follow-up: **unchanged — off 33, on 58, lost 0.**
+
+---
+
 ## ⭐⭐⭐ 2026-09-23 — DECISIONS 5 AND 6, RULED (both delegated: *"You decide both of those"*)
 
 ### 5. What "100%" is a percentage OF — **212, NOT 266**
@@ -179,7 +398,7 @@ prioritise on today's corpus.
 | **16** | `pine:state` | lane | carried forward past the bounded accumulator — the runtime lane's purpose |
 | **15** | `pine:request` | **vendor-gated** | `OWNER-CAPTURE-PACKET.md`; cannot be cleared by code |
 | **12** | `pine:block` | lane | `if`/`switch` as a value — served in the runtime lane (RC-L) |
-| **11** | `pine:plot-offset` | unmeasured | no ruling on file; size it before planning it |
+| **11** | `pine:plot-offset` | ~~unmeasured~~ **SIZED 2026-09-26** | a member-door declare-mode fold gap, not Pine — see the 2026-09-26 section at the top (11 -> 0; +5 attach) |
 | **8** | `pine:reassign` | lane | `:=` — served in the runtime lane |
 | 7 / 5 / 5 | `collection` / `tuple` / `type` | vocabulary | |
 
@@ -218,7 +437,7 @@ without a human.
    is the only thing that makes "identical" checkable rather than asserted.
 3. **The object pass's 33** — the largest code-side row, and the one whose scripts
    most obviously WANT to be drawn.
-4. **Rule `plot-offset` (11)** — unmeasured; size it before it is planned.
+4. ~~**Rule `plot-offset` (11)** — unmeasured~~ — SIZED and fixed 2026-09-26 (section at the top).
 5. **Then** the lane work: clear the runtime lane's second walls so the 36
    `state`/`block`/`reassign` scripts actually land when the door opens.
 6. **Owner decision** on whether 100% means 212 or 266.

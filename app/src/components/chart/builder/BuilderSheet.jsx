@@ -279,6 +279,9 @@ function isUntouchedRow(row) {
     && row.key === 'value'
     && row.style === 'line'
     && row.hidden !== true
+    // ⭐ 2026-09-26 — a displaced plot is not the untouched default: the legacy
+    // single-plot document has no `plots[].displace`, so it would drop it.
+    && !(Number.isInteger(row.displace) && row.displace < 0)
     && String(row.label || '').trim() === ''
     && row.color === BUILDER_INPUTS[0].default
     && row.width === BUILDER_INPUTS[1].default
@@ -479,6 +482,14 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // two renderers over one column. A row whose style the member has since
       // changed drops its marker rather than making the document unsaveable.
       ...(r.marker && r.marker.shape && r.style === 'markers' ? { marker: r.marker } : {}),
+      // ⭐ 2026-09-26 — A LEFTWARD PLOT DISPLACEMENT (Pine `offset = -N`), a DRAWING
+      // fact the binder applies; the tree and its column stay undisplaced. Only a
+      // negative whole number is carried — a rightward one is already `x[N]` in the
+      // tree, and carrying it here too would shift it twice.
+      ...(Number.isInteger(r.displace) && r.displace < 0 ? { displace: r.displace } : {}),
+      // …and its relation to a parameter, kept even at 0 bars so a later edit can
+      // move it off 0 again.
+      ...(r.displaceFrom ? { displaceFrom: { ...r.displaceFrom } } : {}),
       // ⭐⭐ C1-B — the band, as `defSchema.plots[].fill` already validates it.
       // ⛔ ONLY WHEN THE NAMED EDGE IS REALLY IN THIS DOCUMENT. `defSchema`
       // refuses a fill naming a plot nobody declares, so a stale `with` would
@@ -1231,6 +1242,10 @@ export default function BuilderSheet({
         width: (widthSpec && Number.isFinite(widthSpec.default))
           ? widthSpec.default : BUILDER_INPUTS[1].default,
         hidden: p.hidden === true,
+        // ⭐ 2026-09-26 — a saved leftward displacement survives an edit-and-resave;
+        // without this, reopening would quietly draw the plot late again.
+        ...(Number.isInteger(p.displace) && p.displace < 0 ? { displace: p.displace } : {}),
+        ...(p.displaceFrom ? { displaceFrom: { ...p.displaceFrom } } : {}),
         // ⭐ A REOPENED FORMULA STARTS UNACKNOWLEDGED, ONE ROW AT A TIME. A
         // stored document carries no acknowledgement (it is a save-time gate,
         // never persisted), so there is nothing honest to restore here beyond
@@ -2158,6 +2173,21 @@ export default function BuilderSheet({
                   if (typeof o.style === 'string') patch.style = o.style
                   if (Object.keys(patch).length) setPlot0((prev) => ({ ...prev, ...patch }))
                 }
+                // ⭐ 2026-09-26 — THE PICKED COLUMN'S LEFTWARD DISPLACEMENT, REPLACED
+                // OUTRIGHT like every other thing a paste brings (a new script is a
+                // new script). Drawn by the binder; the scan still reads the column.
+                {
+                  const first = (picked && !Array.isArray(picked) && typeof picked === 'object'
+                    && Array.isArray(picked.outputs)) ? picked.outputs[0] : null
+                  const d = first && Number.isInteger(first.displace) && first.displace < 0
+                    ? first.displace : null
+                  setPlot0((prev) => {
+                    const next = { ...prev }
+                    if (d === null) delete next.displace
+                    else next.displace = d
+                    return next
+                  })
+                }
                 // ⭐⭐ C0.1 — ONE INDICATOR, MANY OUTPUTS.
                 //
                 // ⚰️ A FOUR-PLOT PINE INDICATOR USED TO BECOME FOUR APPLY ACTIONS
@@ -2278,6 +2308,9 @@ export default function BuilderSheet({
                       // reduced Pine's twelve shapes to the four the renderer
                       // draws and recorded which ones it approximated.
                       ...(op.marker && op.marker.shape ? { marker: op.marker } : {}),
+                      // ⭐ 2026-09-26 — the column's leftward displacement (a drawing fact).
+                      ...(out && Number.isInteger(out.displace) && out.displace < 0
+                        ? { displace: out.displace } : {}),
                       ...(colourPatch(op, key) || {}),
                     }
                   })
@@ -2393,6 +2426,18 @@ export default function BuilderSheet({
                     }])
                     nextParamManifest = Object.keys(built).length ? built : null
                   }
+                }
+                // ⭐ 2026-09-26 — A PARAMETER THAT ALSO SETS A LEFTWARD DISPLACEMENT
+                // IS WITHHELD. The displacement is drawn from the plot row, which a
+                // parameter edit (a tree-literal rewrite) cannot reach; offering the
+                // control would move the maths and leave the drawing behind. The
+                // member pane door tracks the simple `±p + c` case instead — this
+                // sheet does not yet, so it refuses to half-apply rather than guess.
+                if (nextParamManifest && picked2 && Array.isArray(picked2.outputs)) {
+                  for (const o of picked2.outputs) {
+                    for (const pid of ((o && o.displaceParams) || [])) delete nextParamManifest[pid]
+                  }
+                  if (!Object.keys(nextParamManifest).length) nextParamManifest = null
                 }
                 setParamManifest(nextParamManifest)
                 // ⛔ `picked2` IS NULL FOR THE STRING FORM. `onPick` still

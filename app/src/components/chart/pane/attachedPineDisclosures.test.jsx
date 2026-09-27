@@ -134,13 +134,18 @@ describe('⭐⭐ the sentences ride on the saved document', () => {
     const def = installSaved(built.definition, 'u_t5b-artifact')
     // `defSchema` preserves unknown `meta.*` keys (IGNORE-AND-PRESERVE), which is
     // what makes `meta` the sanctioned home rather than a schema change.
-    expect(def.meta.disclosures.map((n) => n.name)).toEqual(['alertcondition', 'baseTimeframeFolds'])
+    // ⭐ 2026-09-27 — THE DRAWING DISCLOSURE LEADS (owner ruling, option b): v2's
+    // object program drops 5 of the 14 steps it attempts, and a member reading its
+    // tables is owed that sentence on the real chart, not only in the builder.
+    expect(def.meta.disclosures.map((n) => n.name))
+      .toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
     expect(def.meta.requirementTags).toEqual(['window_dependent'])
     // ⛔ VERBATIM, not "contains the word alert". The wording is declared once, in
     // `closedTable.json::_alertconditions`, and a paraphrase anywhere is the
     // second-vocabulary defect this project keeps paying for.
     expect(def.meta.disclosures[0].note).toBe(built.notes[0].note)
     expect(def.meta.disclosures[1].note).toBe(built.notes[1].note)
+    expect(def.meta.disclosures[2].note).toBe(built.notes[2].note)
   })
 
   it('⛔ and the four drawn series are what got saved, not the scan plot', () => {
@@ -170,7 +175,7 @@ describe('⭐⭐ the member route — indicatorInstances on ChartPane', () => {
     expect(handed.indicatorInstances.map((i) => i.defId)).toContain('u_t5b-route')
   })
 
-  it('⭐⭐ renders all three disclosures, verbatim, with the live bar count', async () => {
+  it('⭐⭐ renders all four disclosures, verbatim, with the live bar count', async () => {
     render(<ChartPane sym="SPY" tf="D" stored={settings} onStore={() => {}} onTfChange={() => {}} />)
 
     // The chart reports what it DREW. 4,633 is the count the forced-depth SPY
@@ -182,12 +187,16 @@ describe('⭐⭐ the member route — indicatorInstances on ChartPane', () => {
 
     await waitFor(() => {
       const items = [...screen.getByTestId('pine-attached-disclosures').querySelectorAll('li')]
-      expect(items).toHaveLength(3)
+      expect(items).toHaveLength(4)
       expect(items.map((li) => li.textContent)).toEqual([
         def.meta.disclosures[0].note,
         def.meta.disclosures[1].note,
+        def.meta.disclosures[2].note,
         requirementNote('window_dependent', 4633).note,
       ])
+      // ⭐ RENDERED TEXT, NOT STATE: the partial-drawing sentence, as the member reads it.
+      expect(items[0].textContent)
+        .toMatch(/^5 of 14 drawing elements in this script aren't supported yet/)
     })
     // ⛔ THE NUMBER IS THE ONE THE CHART REPORTED, not a placeholder. A badge that
     // says "an unknown number of bars" beside a chart holding 4,633 of them is
@@ -292,11 +301,11 @@ describe('⛔⛔ flag-off on the member route: no pane, no instance, nothing in 
     const btn = screen.getByRole('button', { name: /Add this script to my chart/ })
     fireEvent.click(btn)
     expect(attachSpy).toHaveBeenCalledTimes(1)
-    // The document handed over is the one that was drawn: four series, both
-    // disclosures, the tag.
+    // The document handed over is the one that was drawn: four series, all three
+    // disclosures (the drawing, the alert, the fold), the tag.
     const handed = attachSpy.mock.calls[0][0]
     expect(handed.plots.map((p) => p.key)).toEqual(['value', 'out2', 'out3', 'out4'])
-    expect(handed.meta.disclosures).toHaveLength(2)
+    expect(handed.meta.disclosures).toHaveLength(3)
     expect(handed.meta.requirementTags).toEqual(['window_dependent'])
     // MemberPane's own throwaway install is torn down on unmount; register it so
     // afterEach cleans up if the unmount path ever changes.
@@ -361,12 +370,12 @@ describe('⭐⭐ two definitions that differ on one parameter coexist on one cha
     expect(handed.indicatorInstances.filter((i) => String(i.defId).startsWith('u_t5b-var')))
       .toHaveLength(2)
 
-    // ⛔ THREE SENTENCES, NOT SIX. Both documents came from one script and carry
-    // the same two notes and the same tag; rendering each twice reads as two
+    // ⛔ FOUR SENTENCES, NOT EIGHT. Both documents came from one script and carry
+    // the same three notes and the same tag; rendering each twice reads as two
     // problems, which is the defect `memberPaneDefinition` dedupes rows for one
     // layer down.
     const items = [...screen.getByTestId('pine-attached-disclosures').querySelectorAll('li')]
-    expect(items).toHaveLength(3)
+    expect(items).toHaveLength(4)
   })
 
   it('⛔⛔ …and `lookbackBarsHVE` is REFUSED BY NAME, with the reason (ruling D1)', () => {

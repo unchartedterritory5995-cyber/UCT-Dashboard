@@ -1229,6 +1229,52 @@ def edit_original(app_id: str, token: str, *, content: str, png: bytes | None = 
 def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
                   bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0,
                   cls: int) -> tuple:
+    """ONE chart, TIMED: every member render (and any render over TIMING_LOG_S) logs one line
+    naming how long each step took, so a slow chart names its own cause. See _produce_chart."""
+    _TIMING.stages = [("start", time.monotonic())]
+    result = None
+    try:
+        result = _produce_chart(req, options, prefs, compare, bars_fn=bars_fn, render_fn=render_fn,
+                                house_fn=house_fn, quote_fn=quote_fn, slot_wait=slot_wait, cls=cls)
+        return result
+    finally:
+        _log_timing(req, cls, result)
+        _TIMING.stages = None
+
+
+# ⏱ PER-STEP TIMING (2026-09-26). A member's SNDK chart (View chart, dark-pool levels on) spent
+# ~20 s in web BEFORE the renderer was called (the renderer itself took 1.84 s) and nothing
+# logged which step it was: the slot, the shared bars gate, a bar fetch, the quote or the house
+# call. Thread-local because produce_chart runs on the caller's thread and is not re-entered.
+_TIMING = threading.local()
+TIMING_LOG_S = 5.0          # a background render this slow is logged too; every MEMBER render is
+
+
+def _stage(name: str) -> None:
+    stages = getattr(_TIMING, "stages", None)
+    if stages is not None:
+        stages.append((name, time.monotonic()))
+
+
+def _log_timing(req, cls, result) -> None:
+    try:
+        stages = getattr(_TIMING, "stages", None) or []
+        if len(stages) < 1:
+            return
+        total = time.monotonic() - stages[0][1]
+        if cls != MEMBER and total < TIMING_LOG_S:
+            return
+        parts = [f"{name} {at - prev:.1f}s" for (_, prev), (name, at) in zip(stages, stages[1:])]
+        log.info("[discord-chart] timing %s %s %s %s %.1fs: %s", req.ticker, req.tf,
+                 "member" if cls == MEMBER else "background", (result or ("none",))[0], total,
+                 " · ".join(parts) or "-")
+    except Exception:  # noqa: BLE001 — a log line never costs a chart
+        pass
+
+
+def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple = (), *,
+                   bars_fn, render_fn, house_fn=None, quote_fn=None, slot_wait: float = 0.0,
+                   cls: int) -> tuple:
     """ONE chart: (outcome, png, filename). outcome = ok | fallback | busy |
     no_bars | render_failed. Takes a render slot for the duration; never raises.
 
@@ -1252,7 +1298,9 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         for attempt in (0, 1):
             try:
                 with bars_warm_gate():          # one cold fetch at a time (see the gate)
+                    _stage(f"gate {tf}")
                     bars = bars_fn(req.ticker, tf, n) or None
+                _stage(f"bars {tf}x{n}")
             except Exception as e:  # noqa: BLE001
                 log.warning("[discord-chart] bars failed %s %s: %s", req.ticker, tf, e)
                 bars = None
@@ -1267,6 +1315,12 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
     # contenders directly and never come through this function.
     got = (RENDER_SLOTS.acquire(timeout=slot_wait, cls=cls) if slot_wait > 0
            else RENDER_SLOTS.acquire(blocking=False, cls=cls))
+    _stage("slot")
+    if got and house_fn is not None and options.get("darkpool"):
+        # The dark-pool levels do not depend on the bars: start them now so they overlap the
+        # fetches below instead of running after them inside the house render (2.8 s measured).
+        from api.services import discord_chart_house as _house_zones
+        _house_zones.prefetch_dark_pool_zones(req.ticker)
     if not got:
         return ("busy", None, None)
     try:
@@ -1317,11 +1371,13 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
                     house_opts["exttag"] = quote_fn(req.ticker) or None
                 except Exception as e:  # noqa: BLE001
                     log.warning("[discord-chart] ext quote failed %s: %s", req.ticker, e)
+                _stage("quote")
             try:
                 png = house_fn(req.ticker, req.tf, compute_stats(daily, req.tf), house_opts)
             except Exception as e:  # noqa: BLE001
                 log.warning("[discord-chart] house render raised %s %s: %s", req.ticker, req.tf, e)
                 png = None
+            _stage("house")
             if png:
                 return ("ok", png, attachment_name(req.ticker, req.tf, daily[-1]["t"]))
             # The house renderer was configured, was asked, and produced nothing.
@@ -1342,6 +1398,7 @@ def produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple 
         except Exception as e:  # noqa: BLE001
             log.warning("[discord-chart] render failed %s %s: %s", req.ticker, req.tf, e)
             return ("render_failed", None, None)
+        _stage("stand-in render")
         return ("fallback" if house_missed else "ok", png,
                 attachment_name(req.ticker, req.tf, bars[-1]["t"]))
     finally:
@@ -1803,8 +1860,14 @@ def fast_first_enabled() -> bool:
     return os.environ.get("DISCORD_CHART_FAST_FIRST", "1").strip().lower() not in ("0", "false", "off", "")
 
 
-def fast_after_s(default: float = 3.0) -> float:
-    """How long the house render gets before the plain chart stands in."""
+def fast_after_s(default: float = 8.0) -> float:
+    """How long the house render gets before the plain chart stands in.
+
+    8 s, was 3 s (2026-09-26, owner). Measured with per-step timing on production: a warm member
+    chart takes 2-5 s end to end (renderer ~1.8-2.1 s of it), so at 3 s the plain chart flashed up
+    on most View chart clicks and was replaced a second or two later - a member saw the old-style
+    chart first on a chart that was about to arrive. At 8 s it stands in only for a real stall.
+    DISCORD_CHART_FAST_AFTER_S still overrides (0 < v <= 30)."""
     try:
         v = float(os.environ.get("DISCORD_CHART_FAST_AFTER_S", ""))
         return v if 0 < v <= 30 else default

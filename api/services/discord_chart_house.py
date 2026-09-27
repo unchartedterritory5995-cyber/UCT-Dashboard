@@ -20,6 +20,8 @@ import logging
 import pathlib
 import re
 import os
+import threading
+import time
 from urllib.parse import urlencode
 
 log = logging.getLogger(__name__)
@@ -293,6 +295,64 @@ def _vintage_param(opts: dict) -> str | None:
     return badge.vintage_param(opts)
 
 
+# ⏱ DARK-POOL LEVELS: CACHED PER TICKER, AND STARTED EARLY (2026-09-26). Measured on production:
+# a member's View chart for GH spent 2.8 s of its 5.0 s computing the levels (the renderer took
+# 1.8 s), serially, AFTER the bar fetches. The levels only change at the nightly ingest, so they
+# are kept ZONES_TTL_S; produce_chart starts the lookup on a thread before it fetches bars
+# (prefetch_dark_pool_zones), and one computation per ticker is shared by concurrent callers
+# (a member and the hot warm arriving together).
+ZONES_TTL_S = 600.0
+_ZONES_MAX = 500
+_zones_cache: dict = {}          # SYM -> (expires_monotonic, zones)
+_zones_inflight: dict = {}       # SYM -> threading.Event, set when that computation lands
+_zones_lock = threading.Lock()
+
+
+def dark_pool_zones(sym: str) -> list:
+    """The ticker's dark-pool zones for the chart overlay (top 25), cached ZONES_TTL_S and
+    computed once per ticker however many callers ask at once. Never raises: [] on failure."""
+    s = (sym or "").upper().strip()
+    if not s:
+        return []
+    with _zones_lock:
+        hit = _zones_cache.get(s)
+        if hit and hit[0] > time.monotonic():
+            return hit[1]
+        ev = _zones_inflight.get(s)
+        owner = ev is None
+        if owner:
+            ev = _zones_inflight[s] = threading.Event()
+    if not owner:
+        ev.wait(timeout=30.0)
+        with _zones_lock:
+            hit = _zones_cache.get(s)
+        return hit[1] if hit else []
+    try:
+        from api import darkpool_db
+        zones = darkpool_db.get_ticker_zones(s, limit=25) or []
+        with _zones_lock:
+            _zones_cache[s] = (time.monotonic() + ZONES_TTL_S, zones)
+            if len(_zones_cache) > _ZONES_MAX:          # drop the soonest-expiring
+                for k, _ in sorted(_zones_cache.items(), key=lambda kv: kv[1][0])[:len(_zones_cache) - _ZONES_MAX]:
+                    _zones_cache.pop(k, None)
+        return zones
+    except Exception as e:  # noqa: BLE001 — the overlay is decoration; never break a render
+        log.warning("[discord-chart] dark-pool zones failed for %s: %s", s, e)
+        return []
+    finally:
+        with _zones_lock:
+            _zones_inflight.pop(s, None)
+        ev.set()
+
+
+def prefetch_dark_pool_zones(sym: str) -> None:
+    """Start dark_pool_zones on a daemon thread so it overlaps the bar fetches. Never raises."""
+    try:
+        threading.Thread(target=dark_pool_zones, args=(sym,), name="dp-zones", daemon=True).start()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | None = None, *, client=None) -> bytes | None:
     """PNG bytes of the house chart, or None (unconfigured, renderer down,
     non-PNG body, any exception). Never raises."""
@@ -303,14 +363,12 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
     token = os.environ.get("CHART_RENDER_TOKEN", "")
     base = os.environ.get("CHART_RENDER_BASE_URL", "https://uctintelligence.com")
     opts = dict(options or {})
+    t0 = time.monotonic()           # ⏱ zones vs renderer, logged when slow (see _log_house_timing)
     if opts.get("darkpool") and not opts.get("dpzones"):
         # Compute dark-pool zones server-side (darkpool.db is web-local; the endpoint
         # is flow-user-gated so the headless page can't fetch them) and embed them.
-        try:
-            from api import darkpool_db
-            opts["dpzones"] = darkpool_db.get_ticker_zones(sym, limit=25) or []
-        except Exception as e:  # noqa: BLE001 — overlay is decoration; never break the render
-            log.warning("[discord-chart] dark-pool zones failed for %s: %s", sym, e)
+        opts["dpzones"] = dark_pool_zones(sym)       # cached; usually already computing (see above)
+    t_zones = time.monotonic() - t0
     page_url = build_render_url(sym, tf, stats, base_url=base, token=token, options=opts)
 
     # ── the chart-edge render capability ────────────────────────────────────
@@ -364,7 +422,9 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
                 if not has_chart_content(r.content):
                     log.warning("[discord-chart] house render body BLANK for %s %s (attempt %d)", sym, tf, attempt)
                     continue
+                _log_house_timing(sym, tf, t0, t_zones, attempt, True)
                 return r.content
+            _log_house_timing(sym, tf, t0, t_zones, len(_ATTEMPTS), False)
             return None
         finally:
             if own:
@@ -372,3 +432,19 @@ def render_house_chart(sym: str, tf: str, stats: dict | None, options: dict | No
     except Exception as e:  # noqa: BLE001 — fallback, never a failure
         log.warning("[discord-chart] house render failed for %s %s: %s", sym, tf, e)
         return None
+
+
+HOUSE_TIMING_LOG_S = 3.0
+
+
+def _log_house_timing(sym, tf, t0, t_zones, attempts, ok) -> None:
+    """One line when a house render is slow: how much was the dark-pool zones lookup (web, before
+    the renderer is called) and how much the renderer's attempts. Never raises."""
+    try:
+        total = time.monotonic() - t0
+        if total >= HOUSE_TIMING_LOG_S or t_zones >= 1.0:
+            log.info("[discord-chart] house timing %s %s %s %.1fs: zones %.1fs · renderer %.1fs (%d attempt%s)",
+                     sym, tf, "ok" if ok else "empty", total, t_zones, total - t_zones, attempts,
+                     "" if attempts == 1 else "s")
+    except Exception:  # noqa: BLE001
+        pass

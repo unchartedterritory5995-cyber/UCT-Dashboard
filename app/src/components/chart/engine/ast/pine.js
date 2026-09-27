@@ -125,6 +125,10 @@ import {
 // exchange spellings on one side, TradingView's on the other), and a fact that
 // can change without any code changing does not belong in code.
 import SYMBOL_SCOPE from './symbolScope.json'
+// ⭐⭐ THE NAMED-COLOUR PALETTE, PER `//@version=` — measured off TradingView and
+// held in ONE place. Every colour name this file resolves goes through it, with
+// the script's version; see `PALETTE_VERSION` below for how the version travels.
+import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pinePalette.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -1740,9 +1744,22 @@ function pivotAtConfirmation(name, args) {
       + 'as a plain whole number' }
   }
   const call = cCall(name, [src, left, right])
-  return Number(right.value) === 0
-    ? call
-    : { type: 'offset', value: Number(right.value), args: [call] }
+  if (Number(right.value) === 0) return call
+  const shifted = { type: 'offset', value: Number(right.value), args: [call] }
+  // ⭐⭐ 2026-09-26 — `rightbars` LIVES IN TWO PLACES, SO ITS PARAMETER TAG MUST TOO.
+  // It is the pivot's own argument (the tagged `num` above, which the manifest
+  // already locates) AND the confirmation shift — a bare number on this node, which
+  // the manifest could not see. So an edit to the input rewrote the pivot's window
+  // and left the shift at the author's default: `pivothigh(high, 5, 7)[5]`, a pivot
+  // drawn two bars from where it was confirmed, with nothing on screen saying so.
+  // Tagging the node too puts both uses under one parameter, and `paramEdit` moves
+  // them atomically or refuses the edit (a shift must stay ≥ 1 bar). Non-enumerable,
+  // so no tree, hash or persisted copy changes by a byte.
+  if (right.__uctParamId !== undefined) {
+    Object.defineProperty(shifted, '__uctParamId',
+      { value: right.__uctParamId, enumerable: false, configurable: true })
+  }
+  return shifted
 }
 
 /** The sole argument of `year(timenow)` and its four siblings, resolved to an
@@ -5131,6 +5148,14 @@ export class Resolver {
     /** Bound input names that reached an `int` slot on this run — collected so a
      *  caller can refuse them rather than hand back a half-applied knob. */
     this.windowBoundInputs = new Set()
+    /** ⭐ 2026-09-26 — bound input names that reached a plot's `offset=` on this
+     *  run. The displacement is folded to a whole number here, before there is a
+     *  chart, so the input cannot ALSO be an identifier the chart binds later:
+     *  moving it per instance would move nothing. Collected for the same reason
+     *  as `windowBoundInputs` — the caller refuses the knob BY NAME — and kept
+     *  as its OWN set because the sentence the member reads is different: this
+     *  input lands in a displacement, not a window. */
+    this.displacementBoundInputs = new Set()
     /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
      *  per-Resolver) parameter-identity table: `{ counter, byNode: Map<node,
      *  entry>, metadata: entry[] }`, or `null` for every existing caller —
@@ -8557,7 +8582,9 @@ export class Resolver {
       // ⚠️ RESOLVED HERE, because `built` above lives inside the expansion branch
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
-      const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      const resolvedRaw = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      const resolved = (namespacedName === 'ta.pivothigh' || namespacedName === 'ta.pivotlow')
+        ? this.foldPivotBars(resolvedRaw) : resolvedRaw
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
       // sentence about ARITY rather than about pivots. ⚰️ This site used to
@@ -8790,7 +8817,8 @@ export class Resolver {
       // unshifted meaning exactly as before.
       if ((bare === 'pivothigh' || bare === 'pivotlow') && args.length === 2
           && !args.some((a) => a && a.name)) {
-        const resolvedArgs = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+        const resolvedArgs = this.foldPivotBars(
+          args.map((a) => this.resolve(a.value !== undefined ? a.value : a)))
         const shifted = pivotAtConfirmation(bare, resolvedArgs)
         if (shifted) return shifted
       }
@@ -8936,6 +8964,35 @@ export class Resolver {
       out.push(resolved)
     }
     return cCall(key, out)
+  }
+
+  /** A pivot's resolved arguments with its two BAR COUNTS folded as window lengths.
+   *
+   *  ⭐⭐ 2026-09-26 — THE SAME FOLD AN `int` SLOT GETS, FOR THE ONE BUILDER THAT
+   *  BYPASSES `resolveTableCall`. `pivotAtConfirmation` needs `rightbars` as a
+   *  number at build time (it becomes the `offset` node's bar count), and both
+   *  counts are `int` slots of `pivothigh`/`pivotlow` in the table. In declare
+   *  mode an input arrives as an IDENTIFIER, so `ta.pivothigh(lb, rb)` refused
+   *  with *"write it as a plain whole number"* about a script that already wrote
+   *  one through an input — measured at the member door on 6 of the 11
+   *  `pine:plot-offset` scripts, the wall directly behind that one.
+   *
+   *  ⛔ ONLY A DECLARED INPUT IS TOUCHED, AND IT IS RECORDED AS WINDOW-BOUND before
+   *  the fold erases it — so the caller refuses that knob BY NAME, with the window
+   *  sentence (true: a pivot's bar counts are its window), exactly as it does for
+   *  `sma(close, len)`. Anything else passes through unchanged, so the default
+   *  (non-declare) path is byte-identical and `pivotAtConfirmation`'s own refusal
+   *  still answers a count that is genuinely not a whole number. */
+  foldPivotBars(resolvedArgs) {
+    if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
+    const from = resolvedArgs.length - 2
+    return resolvedArgs.map((node, i) => {
+      if (i < from) return node
+      const declared = declaredInputNames(node)
+      if (!declared.size) return node
+      for (const n of declared) this.windowBoundInputs.add(n)
+      return foldWindow(node)
+    })
   }
 
   /** `input.int(14, "RSI Length")` → `14`.
@@ -11101,6 +11158,49 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // tell an engineer whether the guard, the handle or the content was the
     // gate that refused, and those are three different pieces of work.
     dropReasons: {},
+    // ⭐⭐ 2026-09-27 — THE DENOMINATOR `droppedOps` IS A FRACTION OF.
+    // `collectedOps` below counts the READER's top-level ops, so a loop is one op
+    // there while every op inside its body is converted — and dropped — one at a
+    // time. Measured on the committed corpus: `dual-view-htf-candlestick-patterns`
+    // drops 62 of a `collectedOps` of 29. A member told "62 of 29 drawing elements
+    // aren't supported" is told nothing. This counts every op the converter
+    // ATTEMPTS, loop ops and loop-body ops alike, so `droppedOps <= attemptedOps`
+    // holds by construction: each attempt ends in exactly one push or one
+    // `dropped()`. `memberPaneDisclosure.test.js` holds that over the corpus.
+    attemptedOps: 0,
+    // ⭐ WHAT A LOOP DROPPED WHOLE WAS GOING TO DO. `guard:loop` and `loop:bounds`
+    // drop the loop before its body is converted, so the body's deletes are in no
+    // other counter — and a lost delete is the one loss the member door refuses
+    // (ruling 2026-09-27, option b). Reader op kinds, counted recursively.
+    unconvertedLoopOps: {},
+    // ⭐⭐ EVERY LOST REMOVAL, AND WHETHER IT COULD HAVE REMOVED ANYTHING DRAWN.
+    // `{via, family, reaches}` per lost `*.delete` / `table.clear` — dropped
+    // itself, or inside a loop dropped whole. `reaches` is false only when the
+    // program carries NO create of that family at all: then nothing that removal
+    // could have taken off the chart is ever on it. `uncharted-volume-v2` loses
+    // three `label.delete`s and draws no label anywhere (the one `label.new` is
+    // dropped too), so its two tables are not a picture with extra objects in it.
+    //
+    // ⛔ BY FAMILY, NOT BY REGISTER, ON PURPOSE. A register is only ever FILLED
+    // here by a `create … into` it, but in Pine it can also be filled by
+    // `l := array.get(ls, i)` or `l := f(…)`, which this reader does not model —
+    // so "no create writes this register" would wave through a delete of a label
+    // that IS drawn. "No label is drawn anywhere" cannot be fooled that way. A
+    // removal whose family this pass cannot name always reaches — the loud way.
+    lostRemovals: [],
+  }
+  const lostRemovalFamilies = []
+  const lostRemoval = (via, op) => {
+    const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
+    lostRemovalFamilies.push({ via, family })
+  }
+  const unconverted = (body, via) => {
+    for (const b of body || []) {
+      if (!b || !b.k) continue
+      diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
+      if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
+      if (b.k === 'loop') unconverted(b.body, via)
+    }
   }
   const dropped = (why) => {
     diagnostics.droppedOps += 1
@@ -12250,10 +12350,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  rather than being flattened into the program beside its parent. */
   const convertList = (list) => {
   for (const op of list) {
+    diagnostics.attemptedOps += 1
     scopeEnv = scopeFor(op.locals)
     loopIds = op.loopIds || []
     const g = guardOf(op.guards)
-    if (g === undefined) { dropped(`guard:${op.k}`); continue }
+    if (g === undefined) {
+      if (op.k === 'loop') unconverted(op.body, 'guard:loop')
+      if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      dropped(`guard:${op.k}`)
+      continue
+    }
     const when = g.when
     const lastBarOnly = g.extra
     // ⭐⭐ A COUNTED LOOP. Its BOUNDS are resolved in the OUTER scope (the
@@ -12265,7 +12371,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
-      if (!from || !to) { dropped('loop:bounds'); continue }
+      if (!from || !to) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
       const outer = ops
       const body = []
       ops = body
@@ -12345,7 +12451,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
-      if (!target) { dropped('delete:target'); continue }
+      if (!target) { lostRemoval('delete:target', op); dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
@@ -12406,7 +12512,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
-      if (!target) { dropped('clear:target'); continue }
+      if (!target) { lostRemoval('clear:target', op); dropped('clear:target'); continue }
       const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
       const col = raw.start_column ? valueRef(raw.start_column) : null
       const row = raw.start_row ? valueRef(raw.start_row) : null
@@ -12414,7 +12520,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // an unreadable start to (0,0) would clear from the top-left corner of a
       // dashboard the author never asked to touch — wiping real numbers is a
       // strictly worse outcome than leaving stale ones, so this refuses.
-      if (!col || !row) { dropped('clear:range'); continue }
+      if (!col || !row) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       // ⭐⭐ PINE'S OWN DEFAULT, APPLIED ONCE, HERE. The reference
       // (`pine-presentation-spec.md:1689`) says `end_column`/`end_row` default
       // to "the argument used for `start_column`" / `start_row`, so
@@ -12424,7 +12530,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // different answers for the same expression.
       const col2 = raw.end_column ? valueRef(raw.end_column) : col
       const row2 = raw.end_row ? valueRef(raw.end_row) : row
-      if (!col2 || !row2) { dropped('clear:range'); continue }
+      if (!col2 || !row2) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
@@ -12455,6 +12561,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   }
   convertList(collected.ops)
+
+  // ⭐ WHICH LOST REMOVALS COULD HAVE REMOVED SOMETHING DRAWN — read off the
+  // families the conversion actually CARRIED a create for, loop bodies included.
+  {
+    const drawnFamilies = new Set()
+    const scanDrawn = (list) => {
+      for (const o of list || []) {
+        if (o.k === 'create' && o.family) drawnFamilies.add(o.family)
+        if (o.k === 'loop') scanDrawn(o.body)
+      }
+    }
+    scanDrawn(ops)
+    diagnostics.lostRemovals = lostRemovalFamilies.map(({ via, family }) => ({
+      via,
+      family,
+      reaches: !family || drawnFamilies.has(family),
+    }))
+  }
 
   // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
   // envelope is read rather than invented — and clamped to ours, because a
@@ -12605,6 +12729,10 @@ function translatePineResult(source, opts = {}) {
   // is inside it. Opening it any later would leave the phase that actually hangs
   // outside the guard, which is the mistake this guard was written to correct.
   beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  // ⭐ THE PALETTE SCOPE IS SAVED HERE and restored in the SAME `finally` that
+  // closes the budget, so a translation can never leave its version behind for
+  // the next one. It is OPENED once the lexer has read the version, below.
+  const priorPalette = PALETTE_VERSION
   try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
@@ -12623,6 +12751,7 @@ function translatePineResult(source, opts = {}) {
   }
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
+  beginPaletteScope(version)
   if (tokens.length === 0) {
     const r = refusalValue('pine:empty', REFUSALS['pine:empty'], null)
     return { ...blank, version, refusal: r, refusals: [r] }
@@ -13609,9 +13738,22 @@ function translatePineResult(source, opts = {}) {
       // the value on display there would be a FUTURE bar's, which has no node,
       // while the author's computed value at each bar is exactly what the
       // undisplaced tree says.
-      const shift = foldDisplacement(resolver, seriesArg)
+      const {
+        shift, paramId: shiftParamId, displaceFrom, displaceParams,
+      } = foldDisplacement(resolver, seriesArg)
       const base = resolver.resolve(seriesArg.value)
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
+      // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
+      // THAT INPUT'S PARAMETER ID, on the OFFSET NODE (a bare number cannot hold a
+      // property). `pineParamManifest` turns it into a locator ending at `'value'`
+      // — the shape `param_manifest.py::_literal_value` has accepted since v1 —
+      // so a member's edit moves the displacement with the rest of the input's
+      // uses instead of leaving it at the author's default. Non-enumerable, like
+      // every other tag: `astHash` and every persisted copy never see it.
+      if (shift > 0 && shiftParamId !== undefined) {
+        Object.defineProperty(ast, '__uctParamId',
+          { value: shiftParamId, enumerable: false, configurable: true })
+      }
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
       // Asked ONCE each, because both answers are needed twice below.
@@ -13668,14 +13810,22 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        inputsFolded: [...resolver.usedInputs.values()].map((e) => (
+        inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
           // THIS resolution — the reader sees only the folded formula, where the
           // literal has already replaced the identifier, so it is not recoverable
           // downstream. A consumer that tried would be guessing.
-          e.name && resolver.windowBoundInputs.has(e.name)
-            ? { ...e, windowBound: true } : e)),
+          // ⭐ `displacementBound` is the same fact for a plot's `offset=` — the
+          // folded displacement is a number on the tree or the row, so the name
+          // is gone from both by the time a reader looks.
+          if (!e.name) return e
+          const w = resolver.windowBoundInputs.has(e.name)
+          const d = resolver.displacementBoundInputs.has(e.name)
+          return (w || d)
+            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+            : e
+        }),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
         // moment `plotshape` becomes an output. `03-rsi-directional-momentum-
         // scanner` guards four of its signals behind `input.bool` toggles that
@@ -13718,6 +13868,14 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
+      // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
+      // definition-parameter edit moves the drawing too. Non-enumerable, like
+      // `_bareRole`: it is a hand-off to one reader, not part of the row's shape.
+      if (shift < 0) {
+        Object.defineProperty(row, '_displaceFrom', { value: displaceFrom, enumerable: false })
+        Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
+      }
       Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
     } catch (err) {
       row = {
@@ -14261,6 +14419,7 @@ function translatePineResult(source, opts = {}) {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
     // `printFormula` call — a test, a preview — throw a timeout it never earned.
     endTranslateBudget()
+    endPaletteScope(priorPalette)
   }
 }
 
@@ -14379,52 +14538,51 @@ export function isBareSource(node) {
 // does not promise UCT draws every one of them — a style with no counterpart is
 // reported and left unset rather than silently mapped onto a near neighbour.
 
-/** TradingView's own published constants. ⛔ THESE ARE THE VENDOR'S HEX VALUES,
- *  not our palette: an imported indicator that comes back a different red has
- *  not been imported faithfully, and "close enough" is the whole failure this
- *  wave exists to stop.
+/** ⭐⭐ THE PALETTE A SCRIPT DRAWS WITH DEPENDS ON ITS `//@version=`, and the
+ *  tables live in `../pinePalette.js` — the one authority, pinned name by name
+ *  and version by version to TradingView's own resolved hexes
+ *  (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`).
  *
- *  ⚰️ `color.red` READ `#F23645` UNTIL 2026-09-07, AND THAT IS THE CHART'S
- *  DOWN-CANDLE RED, NOT PINE'S. The comment directly above has said "these are
- *  the vendor's hex values" since the table was written, and nothing in the repo
- *  could falsify it: every rail that touched a colour asserted OUR constant, so
- *  the wrong red was the expected red everywhere. What caught it was the first
- *  observation ever taken of TradingView's own resolved marker styles
- *  (`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`),
- *  where a `color = color.red` plotshape came back `#FF5252`. Six of the seven
- *  colours that observation reaches — aqua, blue, fuchsia, green, orange,
- *  purple — matched this table exactly; red was the one that did not.
- *  ⭐ `vendorMarkerParity.test.js` now pins every one of the seven to the
- *  vendor's own answer, so this table can no longer drift undetected. */
-const PINE_COLOURS = Object.freeze({
-  'color.aqua': '#00BCD4', 'color.black': '#363A45', 'color.blue': '#2962FF',
-  'color.fuchsia': '#E040FB', 'color.gray': '#787B86', 'color.grey': '#787B86',
-  'color.green': '#4CAF50', 'color.lime': '#00E676', 'color.maroon': '#880E4F',
-  'color.navy': '#311B92', 'color.olive': '#808000', 'color.orange': '#FF9800',
-  'color.purple': '#9C27B0', 'color.red': '#FF5252', 'color.silver': '#B2B5BE',
-  'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
-})
+ *  ⚰️ THIS FILE CARRIED ONE VERSION-BLIND TABLE UNTIL 2026-09-27, AND IT WAS
+ *  RIGHT FOR ONE DIALECT IN FOUR. Its comment said "THESE ARE THE VENDOR'S HEX
+ *  VALUES", and they were — for `@version=5`, which is what the 2026-09-07
+ *  observation that corrected `color.red` to `#FF5252` happened to probe. The
+ *  same `color.red` is `#F23645` at v6; `color.blue` is `#2196F3` at v4; and a v3
+ *  script's bare `red` is plain web red `#FF0000`. The first live harness capture
+ *  (a v4 Keltner script, two `color.blue` bands) graded DIVERGE on colour on
+ *  every bar because of it. A correction measured at one version and applied to
+ *  all of them is the same defect as the one it corrected.
+ *
+ *  ⭐ HOW THE VERSION TRAVELS. Every colour name this file resolves is reached
+ *  from inside `translatePineResult`, through a dozen private helpers that take
+ *  `(node, env, depth, ctx)` and no version. Rather than thread a fifth argument
+ *  through each (and leave the next helper to default it), the translation opens
+ *  a PALETTE SCOPE right after lexing — the same shape as the budget window it
+ *  sits beside, closed in the same `finally`. `activePaletteVersion()` THROWS
+ *  outside a scope, so a colour resolved where no script's version is known is a
+ *  loud defect, never a silent v5.
+ *
+ *  ⚠️ `null` (no `//@version=`), v1 and v2 are UNMEASURED and keep the table this
+ *  file always used (v5) — `pinePalette.UNMEASURED_FALLBACK` says so where the
+ *  choice lives. */
+const NO_PALETTE_SCOPE = Symbol('no palette scope')
+let PALETTE_VERSION = NO_PALETTE_SCOPE
 
-/**
- * ⭐⭐ THE SAME EIGHTEEN COLOURS UNDER THEIR PINE v3/v4 SPELLING — `red`, not
- * `color.red`.
- *
- * ⚰️ MEASURED, AND IT WAS A LARGE SILENT LOSS. Wave B read `color.x` only, so
- * every v3/v4 script's colour argument fell through to "an expression this door
- * cannot say" — including plain `color=aqua`, which is not an expression at all.
- * In the frozen 60 that is most of `cm-ultimate-rsi-mtf` (`aqua`, `red`, `lime`,
- * `gray`, `orange`) and both of `waddah-attar`'s conditionals (`lime`/`green`,
- * `orange`/`red`). The colour was simply not read.
- *
- * ⛔ DERIVED FROM THE `color.` TABLE, NEVER RE-TYPED. Two hand-written tables of
- * the same eighteen hexes is the second-authority defect this file names
- * elsewhere; the day a vendor hex moves, one of them would keep the old value.
- *
- * ⚠️ `grey`/`gray` both survive the strip, which is correct — Pine accepts both.
- */
-const PINE_COLOURS_BARE = Object.freeze(Object.fromEntries(
-  Object.entries(PINE_COLOURS).map(([k, v]) => [k.slice('color.'.length), v]),
-))
+/** Open a palette scope; returns the previous one so a caller can restore it. */
+function beginPaletteScope(version) {
+  const prior = PALETTE_VERSION
+  PALETTE_VERSION = Number.isFinite(version) ? version : null
+  return prior
+}
+
+function endPaletteScope(prior) { PALETTE_VERSION = prior }
+
+function activePaletteVersion() {
+  if (PALETTE_VERSION === NO_PALETTE_SCOPE) {
+    throw new Error('a Pine colour name was resolved outside a translation: no script version is in scope')
+  }
+  return PALETTE_VERSION
+}
 
 /** Pine plot style → the name `defSchema.PLOT_STYLES` already validates.
  *  ⛔ A STYLE WITH NO COUNTERPART IS ABSENT FROM THIS MAP ON PURPOSE, so it is
@@ -14513,25 +14671,26 @@ const PINE_PLOT_STYLES = Object.freeze({
 // called `green` must not silently become a colour. The bound-name check is the
 // caller's (`staticColourOf` is handed a node the env has already been asked
 // about); here the question is only whether the SPELLING names a Pine colour.
-/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through THIS table.
+/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through the SAME
+ *  authority, at the SAME script version.
  *
- *  These eighteen hex values are vendor-pinned — six of the seven a real
- *  TradingView observation reaches matched, and `color.red` was corrected from
- *  the down-candle red to the vendor's `#FF5252` when that observation was
- *  taken. A second copy in the runtime lane would be a second chance to carry
- *  the wrong red, and nothing would catch it: every rail that touched a colour
- *  would assert OUR constant.
+ *  ⛔ THE VERSION IS REQUIRED, AND A MISSING ONE THROWS. The runtime lane lexes
+ *  the script itself and holds its `pineVersion`; a caller that forgets to pass
+ *  it would get a default, and a default is how a door goes version-blind again
+ *  without any rail noticing — right for one dialect in four. `null` is a real
+ *  answer (a script with no `//@version=`); `undefined` is a forgotten one.
  *
  *  ⚠️ Answers `null` for a name that is not a Pine colour, so the caller can
  *  tell "not a colour" from "a colour I cannot read". */
-export const colourHexByName = (name) => (
-  Object.hasOwn(PINE_COLOURS, name) ? PINE_COLOURS[name]
-    : (Object.hasOwn(PINE_COLOURS_BARE, name) ? PINE_COLOURS_BARE[name] : null))
+export function colourHexByName(name, version) {
+  if (version === undefined) {
+    throw new Error(`colourHexByName(${JSON.stringify(name)}) needs the script's Pine version (null when it declares none)`)
+  }
+  return pineColourHex(name, version)
+}
 
-const isColourName = (v) => !!v && v.type === 'name'
-  && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
-const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)
-  ? PINE_COLOURS[v.name] : PINE_COLOURS_BARE[v.name])
+const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
+const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every
@@ -14581,8 +14740,7 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     }
     // Bound to something this door cannot open (an opaque binding) — then a bare
     // colour spelling is the member's variable, not Pine's constant.
-    if (bound && Object.hasOwn(PINE_COLOURS_BARE, node.name)
-        && !Object.hasOwn(PINE_COLOURS, node.name)) return null
+    if (bound && isBareColourSpelling(node.name)) return null
     return isColourName(node) ? colourHexOf(node) : null
   }
   if (node.type === 'colour') return String(node.value)
@@ -15331,9 +15489,52 @@ export function treeYieldsBool(node, table = TABLE) {
  *  ⛔ A DISPLACEMENT THAT DOES NOT REDUCE TO A CONSTANT REFUSES. One that depends
  *  on a COLUMN is a per-bar shift — neither a node nor a presentation constant —
  *  and there is nothing honest to do with it. */
+/** Every parameter id tagged anywhere inside a resolved tree. */
+function paramIdsIn(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.__uctParamId !== undefined) out.add(String(node.__uctParamId))
+  for (const a of (node.args || [])) paramIdsIn(a, out)
+  return out
+}
+
+/** A resolved displacement as `scale * <one parameter> + add`, or null.
+ *
+ *  ⭐ 2026-09-26 — WHY THIS EXISTS: a NEGATIVE displacement is drawn from the
+ *  plot row (`displace`), not from the tree, so a definition-parameter edit —
+ *  which rewrites tree literals — cannot reach it. For the shapes the corpus
+ *  actually writes (`-len`, `-n - 1`, `-displacement + 1`) the displacement is
+ *  an affine function of ONE input with a ±1 slope, so the row can carry that
+ *  relation and `paramEdit` recomputes the displacement from the new value.
+ *  ⛔ Anything else — two inputs, a product, a call — answers null, and the
+ *  caller withholds the parameter rather than let an edit half-apply. */
+function affineDisplacement(node) {
+  if (!node || typeof node !== 'object') return null
+  if (node.type === 'num') {
+    if (!Number.isFinite(Number(node.value))) return null
+    return node.__uctParamId !== undefined
+      ? { param: String(node.__uctParamId), scale: 1, add: 0 }
+      : { param: null, scale: 0, add: Number(node.value) }
+  }
+  if (node.type !== 'op') return null
+  const args = node.args || []
+  if (node.name === 'u-' && args.length === 1) {
+    const a = affineDisplacement(args[0])
+    return a && { param: a.param, scale: -a.scale, add: -a.add }
+  }
+  if ((node.name === '+' || node.name === '-') && args.length === 2) {
+    const a = affineDisplacement(args[0])
+    const b = affineDisplacement(args[1])
+    if (!a || !b) return null
+    if (a.param && b.param) return null
+    const sign = node.name === '-' ? -1 : 1
+    return { param: a.param || b.param, scale: a.scale + sign * b.scale, add: a.add + sign * b.add }
+  }
+  return null
+}
+
 function foldDisplacement(resolver, seriesArg) {
   const node = seriesArg.offsetNode
-  if (!node) return 0
+  if (!node) return { shift: 0, paramId: undefined, displaceFrom: null, displaceParams: [] }
   let folded
   try {
     folded = resolver.resolve(node)
@@ -15341,11 +15542,46 @@ function foldDisplacement(resolver, seriesArg) {
     throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
       locate(seriesArg.offsetTok))
   }
-  let value = NaN
-  if (folded && folded.type === 'num') value = Number(folded.value)
-  else if (folded && folded.type === 'op' && folded.name === 'u-'
-           && (folded.args || []).length === 1 && folded.args[0].type === 'num') {
-    value = -Number(folded.args[0].value)
+  // ⭐⭐ 2026-09-26 — PINE'S `offset` IS A SIMPLE INT, SO FOLD IT THE WAY A
+  // WINDOW IS FOLDED. The member door translates with `declareInputs`, which
+  // hands back an input as an IDENTIFIER (`series` leaf carrying its default)
+  // so a chart can bind it later. The old reader accepted only a bare `num` or
+  // `u-` over one, so `offset = -rightbars` refused at the member door on
+  // exactly the scripts it already translated everywhere else — measured: 11
+  // corpus scripts, every one an input or arithmetic on inputs.
+  //
+  // ⛔ `constantValueOf` IS THE ONE FOLD, NOT A NEW READER. It already reduces a
+  // declared input to its `inputDefault` (which is the MEMBER'S value when
+  // `inputValues` overrode it — `resolveInput` folds the override first), `u-`,
+  // arithmetic and pointwise calls, and returns null for anything that reads a
+  // bar. So `displacement - 1` folds to 25 as Pine computes it, and
+  // `close > open ? 1 : 2` still refuses below.
+  //
+  // ⛔⛔ AND THE INPUT IS RECORDED BEFORE THE FOLD ERASES IT. The displacement is
+  // a number in the tree (or on the row) from here on; an input that fed it
+  // cannot also be a per-instance knob the chart binds, because moving that knob
+  // would move nothing here — the half-applied trap `windowBoundInputs` exists
+  // for, arriving by a second slot.
+  for (const n of declaredInputNames(folded)) resolver.displacementBoundInputs.add(n)
+  const constant = constantValueOf(folded)
+  const value = constant === null ? NaN : Number(constant)
+  // ⭐ THE PARAMETER TAG RIDES OUT ONLY FOR A BARE PASS-THROUGH — `offset = len`,
+  // where the displacement IS the input's own value — exactly `foldWindow`'s
+  // rule. `len - 1` is a computed function of the input; there is no way to
+  // rewrite it from a later edit to the folded number, so it stays untagged.
+  const paramId = folded && typeof folded === 'object' && folded.type === 'num'
+    ? folded.__uctParamId : undefined
+  if (constant !== null && !Number.isInteger(value)) {
+    // ⛔ A CONSTANT THAT IS NOT A WHOLE NUMBER IS A DIFFERENT FACT from one this
+    // translator could not know, and gets its own sentence. It DID fold — to a
+    // fraction — and Pine's `offset` is a simple int, so the script as written
+    // is refused by Pine too; the sentence below would send the member looking
+    // for a timeframe flag that is not there.
+    throw new PineRefusal('pine:plot-offset',
+      `${REFUSALS['pine:plot-offset']} — it folds to ${value}, and a displacement `
+      + 'counts whole bars (Pine\'s `offset` is an int). TO UNBLOCK: round it '
+      + 'yourself, e.g. `math.round(...)`, to the number of bars you mean.',
+      locate(seriesArg.offsetTok))
   }
   if (!Number.isInteger(value)) {
     // ⭐⭐ AND IT NAMES WHAT WOULD CHANGE THE ANSWER. `12-ichimoku-clouds` writes
@@ -15365,7 +15601,16 @@ function foldDisplacement(resolver, seriesArg) {
       + 'bars you mean.',
       locate(seriesArg.offsetTok))
   }
-  return value
+  // ⭐ THE PARAMETER RELATION, for a displacement drawn from the row. Only a
+  // ±1-slope function of ONE tagged input is carried; `displaceParams` names
+  // every parameter the displacement reads so a caller can withhold the ones
+  // the relation cannot express.
+  const fit = affineDisplacement(folded)
+  const displaceFrom = fit && fit.param && Math.abs(fit.scale) === 1
+    // `+ 0` normalises a `-0` (from `u-` over a zero constant) — a stored `-0` would
+    // round-trip through JSON as `0` and read as a different document.
+    ? { param: fit.param, scale: fit.scale, add: fit.add + 0 } : null
+  return { shift: value, paramId, displaceFrom, displaceParams: [...paramIdsIn(folded)] }
 }
 
 /** The argument a screener reads. `plot(series, title, …)` and

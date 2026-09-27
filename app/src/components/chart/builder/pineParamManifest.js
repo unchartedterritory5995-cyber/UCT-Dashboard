@@ -62,7 +62,14 @@ function collectParamLocators(root, id, path, out) {
     return
   }
   if (!isPlainObject(root)) return
-  if (root.__uctParamId === id) out.push([...path])
+  // ⭐ 2026-09-26 — AN OFFSET NODE IS TAGGED ON ITSELF, BUT ITS LITERAL IS ITS OWN
+  // `value` FIELD. `pine.js` tags the node for a positive plot displacement that is
+  // an input's bare value (`plot(x, offset = len)`), because a bare number cannot
+  // hold a property. The locator must end at the NUMBER — `[..., 'value']` — which
+  // is the shape `param_manifest.py::_literal_value` has accepted since v1 and
+  // `paramEdit.replaceLiteralAt` writes. A locator ending at the node itself would
+  // reconcile as `non_literal` on the server and throw in the editor.
+  if (root.__uctParamId === id) out.push(root.type === 'offset' ? [...path, 'value'] : [...path])
   for (const key of Object.keys(root)) {
     collectParamLocators(root[key], id, [...path, key], out)
   }

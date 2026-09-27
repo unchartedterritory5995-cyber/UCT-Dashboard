@@ -80,7 +80,10 @@ describe('a6 / R10 — the fill note contract', () => {
     expect(fills[0].opacity, 'and no single opacity is invented for two branches').toBeUndefined()
     // …and the pair IS carried, which is what (j) consumes.
     expect(fills[0].colorUp).toBe('#4CAF50')
-    expect(fills[0].colorDown).toBe('#FF5252')
+    // ⚰️ `#FF5252` was v5's red, pinned while the palette was version-blind; this
+    // file's HEAD is `@version=6`, and v6 draws `#F23645` (measured,
+    // `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`).
+    expect(fills[0].colorDown).toBe('#F23645')
   })
 
   it('⛔⛔ CONTROL — a 3-argument colour carries NO opacity', () => {
