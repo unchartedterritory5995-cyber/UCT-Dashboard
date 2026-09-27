@@ -2,15 +2,48 @@
 //
 // ─── TERM-006 / RM-N03 — ONE SHELL-LEVEL FRESHNESS AUTHORITY, IN TIME UNITS ──
 //
-// THE RULING (the owner delegated the decision explicitly; recorded 2026-09-26):
+// ─── ⛔⛔ THE CEILING IS A RULING, AND THE RULING IS THE CARD — READ IT THERE ──
+//
+//     docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md
+//     CARD 33 §2 — "MAX AGE A PANEL MAY DISPLAY SILENTLY"    (fac059c23)
+//
+// ⛔ IT IS DELIBERATELY NOT RESTATED HERE, and neither is the quantity behind
+// it. A second copy of a ruling is how "a second authority over one value" —
+// this repo's most-recorded defect — is born, and RM-N03 is the instance where
+// it nearly was: the card was committed 2026-09-26 13:01:42 and this module
+// 21:46:40 the SAME DAY, eight hours apart, by two sessions neither of which had
+// read the other. Both then shipped (both are ancestors of `origin/production`).
+// This header used to open "THE RULING (the owner delegated the decision
+// explicitly)" — true about the delegation, and the reason nothing pointed
+// anywhere for a day. ⛔ Do not re-describe the card's rule below; cite it.
+//
+// WHAT EACH ONE OWNS, so the next reader does not have to re-derive it:
+//
+//   CARD 33 §2 owns THE CEILING — the longest a panel may stay silent, plus the
+//     obligation past it ("anything older must state its as-of ON THE SURFACE").
+//     It is a MAXIMUM on silence: its own word for the shape is "ceiling". It
+//     therefore permits anything TIGHTER and mandates no silence at all, which
+//     is the whole reason this module's floor is not a competing rule.
+//   THIS MODULE owns THE IMPLEMENTATION, in time units — the two constants
+//     below, and the DERIVATION of the card's ceiling from S11 instead of a
+//     second statement of it (`oneTradingSessionMs`).
+//
+// ⛔ EDIT EITHER AND THE OTHER GOES RED. `freshnessAge.test.js` §8 reads the
+// card's ceiling sentence out of the file named above and asserts this module's
+// derived ceiling is still that ceiling — so it fails if the card's sentence is
+// edited away, if this citation rots, or if any cadence's threshold is let past
+// the derived session.
+//
+// THE CONTRACT THIS MODULE IMPLEMENTS (not a second ruling — the mechanics of
+// obeying that one, with two numbers the card does not set):
 //
 //     A panel must show its age when the value is older than TWICE the cadence
-//     it was fetched at — never less than 60 seconds, and never more than one
-//     trading session.
+//     it was fetched at — never less than 60 seconds, and never past the card's
+//     ceiling, which is one trading session as S11 measures it.
 //
 //     thresholdMs = clamp(AGE_CADENCE_MULTIPLE x cadenceMs,
 //                         AGE_FLOOR_MS,
-//                         one trading session as S11 reports it)
+//                         CARD 33 §2's ceiling, as S11 reports it)
 //     mustShowAge <=> (now - asOf) > thresholdMs        // strictly greater
 //
 // ⭐ WHY TWICE ITS OWN CADENCE AND NOT AN ABSOLUTE NUMBER. A single absolute
@@ -27,7 +60,8 @@
 // ⭐ WHY A ONE-TRADING-SESSION CAP. So nothing daily-or-slower escapes
 // labelling entirely. A daily panel's 2x cadence is 48 hours, which would let a
 // breadth row from Tuesday render unlabelled on Thursday. With the cap it says
-// so.
+// so. ⛔ THE CAP IS NOT THIS FILE'S NUMBER TO CHOOSE — it is CARD 33 §2's
+// ceiling, cited at the top, DERIVED below from S11 and never restated here.
 //
 // ⭐ WHY THE RULING IS TIGHT RATHER THAN GENEROUS — the asymmetry that decides
 // every edge in this file: an UNLABELLED STALE NUMBER CAN COST A MEMBER MONEY;
@@ -100,6 +134,14 @@
 // provenance census (`panelAdoption.measure.test.js`) measures 519
 // non-adopting panels under `pages/**` with 204 of them in one directory. A
 // wiring pass over that is not a ride-along.
+//
+// ⛔⛔ SO THE CITATION RAIL GUARDS A RULE NOBODY RENDERS YET, AND THAT IS NOT
+// ADOPTION BEING PROVED. `components/screener/reachable.test.js:727-746` parks
+// this module BY NAME, names TERM-059 as its adoption, and carries the expiry
+// 2026-11-30 (`reachable.test.js:805`). Until a panel imports this file, every
+// assertion tying CARD 33 §2 to this module is a statement about this
+// authority's arithmetic and about the card's text — never evidence that a
+// member has ever been shown an age.
 //
 // ⚠️ THAT NUMBER WAS RE-RUN, NOT QUOTED. `D-PAGES` reports examined=525
 // adopting=6 not-adopting=519, with 204 of the 519 in
