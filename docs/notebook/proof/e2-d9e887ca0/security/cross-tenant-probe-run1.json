@@ -1,0 +1,2464 @@
+{
+ "tool": "cross_tenant_probe",
+ "started": "2026-09-27T17:17:59-0500",
+ "base": "http://127.0.0.1:8216",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T17-14-03.md",
+ "rows": [
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/versions",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/versions",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"versions\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/versions/{version_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/versions/13b75066a4cf4aca9d0bd96cf1c0cce2",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/export",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/export",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/export/notes/{note_id}",
+   "path": "/api/j2/export/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/backlinks",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/backlinks",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"count\":0,\"notes\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/related-from",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/related-from",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"count\":0,\"notes\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/properties",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/properties",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/facts",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/facts",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"facts\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/evidence",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/evidence",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"evidence\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/thesis-summary",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/thesis-summary",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/reviews",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/reviews",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/documents",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/documents",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/excerpts",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/excerpts",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"excerpts\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/evidence-candidates",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/evidence-candidates",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"candidates\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/trade-ref/resolve",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/trade-ref/resolve",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/unlinked-mentions",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/unlinked-mentions",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"title\":null,\"count\":0,\"notes\":[],\"skipped\":null}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/share",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/share",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"share\":null}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/publish?note_id={note_id}",
+   "path": "/api/j2/publish?note_id=5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"publications\":[],\"shares\":[],\"note\":{\"noteId\":\"5c034924f43046a4b9b894ec4ea5d9a5\",\"exists\":false,\"publishable\":false,\"folderId\":null,\"folderName\":null}}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-templates/{template_id}",
+   "path": "/api/j2/note-templates/705c1ac5080846e8ba2acfda98ce4606",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes?savedViewId={view_id}",
+   "path": "/api/j2/notes?savedViewId=643f24d3825e4838b0098129f0122551",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/link-targets?ids={note_id}",
+   "path": "/api/j2/notes/link-targets?ids=5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"targets\":{}}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/by-folders?ids={folder_id}",
+   "path": "/api/j2/notes/by-folders?ids=318a36315fe44d55bdbc21f1c35d83f3",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"byFolder\":{\"318a36315fe44d55bdbc21f1c35d83f3\":[]}}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/switcher?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/switcher?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"hasMore\":false,\"prefixExhausted\":true}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"total\":0,\"limit\":100,\"offset\":0}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/tag-members?tag=E2MARK734a2e012086",
+   "path": "/api/j2/notes/tag-members?tag=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"total\":0}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-folders",
+   "path": "/api/j2/note-folders",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"folders\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/saved-views",
+   "path": "/api/j2/saved-views",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"savedViews\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/property-defs",
+   "path": "/api/j2/property-defs",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"propertyDefs\":[{\"id\":\"builtin:ticker\",\"name\":\"Ticker\",\"type\":\"text\",\"source\":\"financial_derived\"},{\"id\":\"builtin:sector\",\"name\":\"Sector\",\"type\":\"text\",\"source"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/inbox",
+   "path": "/api/j2/inbox",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"captures\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-templates",
+   "path": "/api/j2/note-templates",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"templates\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/graph",
+   "path": "/api/j2/notes/graph",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"nodes\":[{\"id\":\"f109a9eb60b64411b742b3d3128a523e\",\"title\":\"B note\",\"folderId\":null,\"updatedAt\":\"2026-09-27T22:18:01.041251+00:00\",\"degree\":0}],\"edges\":[],\"trun"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notebook/home",
+   "path": "/api/j2/notebook/home",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"continueWorking\":[],\"favorites\":[],\"activeTheses\":[],\"openPositionResearch\":[],\"needsReview\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/documents/search?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/documents/search?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"results\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/excerpts/search?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/excerpts/search?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"results\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/personal/tokens",
+   "path": "/api/j2/personal/tokens",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"tokens\":[]}"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "GET",
+   "route": "IMAGE",
+   "path": "/api/j2/notes/attachments/f1043051-aba0-4ad3-a643-48bd49b83253/5c034924f43046a4b9b894ec4ea5d9a5/inline/c414cd0e204de974f73753c7e28d7638.png",
+   "status": 403,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/versions",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/versions",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"versions\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/versions/{version_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/versions/13b75066a4cf4aca9d0bd96cf1c0cce2",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/export",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/export",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/export/notes/{note_id}",
+   "path": "/api/j2/export/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/backlinks",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/backlinks",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"count\":0,\"notes\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/related-from",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/related-from",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"count\":0,\"notes\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/properties",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/properties",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/facts",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/facts",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"facts\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/evidence",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/evidence",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"evidence\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/thesis-summary",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/thesis-summary",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/reviews",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/reviews",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/documents",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/documents",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/excerpts",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/excerpts",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"excerpts\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/evidence-candidates",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/evidence-candidates",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"candidates\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/trade-ref/resolve",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/trade-ref/resolve",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/unlinked-mentions",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/unlinked-mentions",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"title\":null,\"count\":0,\"notes\":[],\"skipped\":null}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/{note_id}/share",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/share",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"share\":null}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/publish?note_id={note_id}",
+   "path": "/api/j2/publish?note_id=5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"publications\":[],\"shares\":[],\"note\":{\"noteId\":\"5c034924f43046a4b9b894ec4ea5d9a5\",\"exists\":false,\"publishable\":false,\"folderId\":null,\"folderName\":null}}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-templates/{template_id}",
+   "path": "/api/j2/note-templates/705c1ac5080846e8ba2acfda98ce4606",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes?savedViewId={view_id}",
+   "path": "/api/j2/notes?savedViewId=643f24d3825e4838b0098129f0122551",
+   "status": 404,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/link-targets?ids={note_id}",
+   "path": "/api/j2/notes/link-targets?ids=5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"targets\":{}}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/by-folders?ids={folder_id}",
+   "path": "/api/j2/notes/by-folders?ids=318a36315fe44d55bdbc21f1c35d83f3",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"byFolder\":{\"318a36315fe44d55bdbc21f1c35d83f3\":[]}}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/switcher?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/switcher?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"hasMore\":false,\"prefixExhausted\":true}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"total\":0,\"limit\":100,\"offset\":0}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/tag-members?tag=E2MARK734a2e012086",
+   "path": "/api/j2/notes/tag-members?tag=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"notes\":[],\"total\":0}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-folders",
+   "path": "/api/j2/note-folders",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"folders\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/saved-views",
+   "path": "/api/j2/saved-views",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"savedViews\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/property-defs",
+   "path": "/api/j2/property-defs",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"propertyDefs\":[{\"id\":\"builtin:ticker\",\"name\":\"Ticker\",\"type\":\"text\",\"source\":\"financial_derived\"},{\"id\":\"builtin:sector\",\"name\":\"Sector\",\"type\":\"text\",\"source"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/inbox",
+   "path": "/api/j2/inbox",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"captures\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/note-templates",
+   "path": "/api/j2/note-templates",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"templates\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/graph",
+   "path": "/api/j2/notes/graph",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"nodes\":[],\"edges\":[],\"truncated\":false}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notebook/home",
+   "path": "/api/j2/notebook/home",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"continueWorking\":[],\"favorites\":[],\"activeTheses\":[],\"openPositionResearch\":[],\"needsReview\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/documents/search?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/documents/search?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"results\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/notes/excerpts/search?q=E2MARK734a2e012086",
+   "path": "/api/j2/notes/excerpts/search?q=E2MARK734a2e012086",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"results\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "/api/j2/personal/tokens",
+   "path": "/api/j2/personal/tokens",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY",
+   "body_head": "{\"tokens\":[]}"
+  },
+  {
+   "who": "ADMIN",
+   "kind": "read",
+   "method": "GET",
+   "route": "IMAGE",
+   "path": "/api/j2/notes/attachments/f1043051-aba0-4ad3-a643-48bd49b83253/5c034924f43046a4b9b894ec4ea5d9a5/inline/c414cd0e204de974f73753c7e28d7638.png",
+   "status": 403,
+   "marker_in_body": false,
+   "verdict": "REFUSED",
+   "body_head": null
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "POST",
+   "route": "/api/j2/notes/batch/export",
+   "path": "/api/j2/notes/batch/export",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "POST",
+   "route": "/api/j2/notes/enrichment/scan",
+   "path": "/api/j2/notes/enrichment/scan",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY"
+  },
+  {
+   "who": "B",
+   "kind": "read",
+   "method": "POST",
+   "route": "/api/j2/notes/import/check",
+   "path": "/api/j2/notes/import/check",
+   "status": 200,
+   "marker_in_body": false,
+   "verdict": "ANSWERED-EMPTY"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PUT",
+   "route": "/api/j2/notes/{note_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PATCH",
+   "route": "/api/j2/notes/{note_id}/lock",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/lock",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PATCH",
+   "route": "/api/j2/notes/{note_id}/tags",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/tags",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PATCH",
+   "route": "/api/j2/notes/{note_id}/archive",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/archive",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/favorite",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/favorite",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"note not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/embeds",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/embeds",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"note not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/evidence",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/evidence",
+   "status": 400,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Note not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/reviews",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/reviews",
+   "status": 400,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Thesis not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/versions/{version_id}/restore",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/versions/13b75066a4cf4aca9d0bd96cf1c0cce2/restore",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/notes/{note_id}/hero",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/hero",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/share",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/share",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/notes/{note_id}/share",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/share",
+   "status": 200,
+   "marker_in_body": false,
+   "body_head": "{\"revoked\":false}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/publish/{slug}/refresh",
+   "path": "/api/j2/publish/3xpYgAD2VsY6aDONXoz0qw/refresh",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PATCH",
+   "route": "/api/j2/publish/{slug}",
+   "path": "/api/j2/publish/3xpYgAD2VsY6aDONXoz0qw",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/publish/{slug}",
+   "path": "/api/j2/publish/3xpYgAD2VsY6aDONXoz0qw",
+   "status": 200,
+   "marker_in_body": false,
+   "body_head": "{\"revoked\":false}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/publish/notes/{note_id}",
+   "path": "/api/j2/publish/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/publish/folders/{folder_id}",
+   "path": "/api/j2/publish/folders/318a36315fe44d55bdbc21f1c35d83f3",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PUT",
+   "route": "/api/j2/note-folders/{folder_id}",
+   "path": "/api/j2/note-folders/318a36315fe44d55bdbc21f1c35d83f3",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/note-folders/{folder_id}",
+   "path": "/api/j2/note-folders/318a36315fe44d55bdbc21f1c35d83f3",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PATCH",
+   "route": "/api/j2/note-templates/{template_id}",
+   "path": "/api/j2/note-templates/705c1ac5080846e8ba2acfda98ce4606",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/note-templates/{template_id}",
+   "path": "/api/j2/note-templates/705c1ac5080846e8ba2acfda98ce4606",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/note-templates",
+   "path": "/api/j2/note-templates",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PUT",
+   "route": "/api/j2/saved-views/{view_id}",
+   "path": "/api/j2/saved-views/643f24d3825e4838b0098129f0122551",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/saved-views/{view_id}",
+   "path": "/api/j2/saved-views/643f24d3825e4838b0098129f0122551",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "PUT",
+   "route": "/api/j2/property-defs/{property_id}",
+   "path": "/api/j2/property-defs/9e177e2d699146e0bd0fd31356b81ff8",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/property-defs/{property_id}",
+   "path": "/api/j2/property-defs/9e177e2d699146e0bd0fd31356b81ff8",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/inbox/{capture_id}",
+   "path": "/api/j2/inbox/a0b3629dc66b4495af2226dff14c8d32",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"capture not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/evidence/{evidence_id}",
+   "path": "/api/j2/evidence/51595965846e4c8394d18eafc7da7c70",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/personal/tokens/{token_id}",
+   "path": "/api/j2/personal/tokens/d1e5a34805d3aaca1c48645580e14a55",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"That token wasn't found. It may already be revoked.\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/capture/connections/{token_id}",
+   "path": "/api/j2/capture/connections/d1e5a34805d3aaca1c48645580e14a55",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/batch",
+   "path": "/api/j2/notes/batch",
+   "status": 200,
+   "marker_in_body": false,
+   "body_head": "{\"op\":\"trash\",\"results\":[{\"id\":\"5c034924f43046a4b9b894ec4ea5d9a5\",\"status\":\"not_found\"}],\"changed\":0,\"unchanged\":0,\"failed\":1}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes",
+   "path": "/api/j2/notes",
+   "status": 400,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"folder not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/import/confirm",
+   "path": "/api/j2/notes/import/confirm",
+   "status": 400,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"destination folder not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/images",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/images",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/writing-help/stream",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/writing-help/stream",
+   "status": 422,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Writing help works on a selection or on the whole note.\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/ask/stream",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/ask/stream",
+   "status": 422,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Empty question.\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/notes/{note_id}/restore",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5/restore",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "B",
+   "kind": "write",
+   "method": "DELETE",
+   "route": "/api/j2/notes/{note_id}",
+   "path": "/api/j2/notes/5c034924f43046a4b9b894ec4ea5d9a5",
+   "status": 404,
+   "marker_in_body": false,
+   "body_head": "{\"detail\":\"Not found\"}"
+  },
+  {
+   "who": "A-bearer",
+   "kind": "write",
+   "method": "POST",
+   "route": "/api/j2/personal/notes/{note_id}/append (B's note)",
+   "status": 404,
+   "marker_landed_in_B_note": false,
+   "verdict": "REFUSED"
+  }
+ ],
+ "objects": {
+  "note": {
+   "status": 200,
+   "id": "5c034924f43046a4b9b894ec4ea5d9a5"
+  },
+  "version": {
+   "count": 1,
+   "id": "13b75066a4cf4aca9d0bd96cf1c0cce2"
+  },
+  "folder": {
+   "status": 200,
+   "id": "318a36315fe44d55bdbc21f1c35d83f3"
+  },
+  "template": {
+   "status": 200,
+   "id": "705c1ac5080846e8ba2acfda98ce4606"
+  },
+  "view": {
+   "status": 200,
+   "id": "643f24d3825e4838b0098129f0122551"
+  },
+  "property": {
+   "status": 200,
+   "id": "9e177e2d699146e0bd0fd31356b81ff8"
+  },
+  "capture": {
+   "status": 200,
+   "id": "a0b3629dc66b4495af2226dff14c8d32"
+  },
+  "evidence": {
+   "status": 200,
+   "id": "51595965846e4c8394d18eafc7da7c70",
+   "detail": "{\"evidence\":{\"id\":\"51595965846e4c8394d18eafc7da7c70\",\"noteId\":\"5c034924f43046a4b9b894ec4ea5d9a5\",\"targetType\":\"note\",\"targetId\":\"5c034924f43046a4b9b894ec4ea5d9a5\",\"stance\":\"supports\",\"caption\":\"ev E2M"
+  },
+  "image": {
+   "status": 200,
+   "url": "/api/j2/notes/attachments/f1043051-aba0-4ad3-a643-48bd49b83253/5c034924f43046a4b9b894ec4ea5d9a5/inline/c414cd0e204de974f73753c7e28d7638.png"
+  },
+  "share": {
+   "status": 200,
+   "token": "MZ6EAzSZvzgG7S-Ln5j9zTQFUhDfiCdq"
+  },
+  "publication": {
+   "status": 200,
+   "slug": "3xpYgAD2VsY6aDONXoz0qw"
+  },
+  "personal_token": {
+   "status": 200,
+   "id": "d1e5a34805d3aaca1c48645580e14a55",
+   "keys": [
+    "expiresAt",
+    "label",
+    "scopes",
+    "token",
+    "tokenId"
+   ]
+  },
+  "b_note": {
+   "status": 200,
+   "id": "f109a9eb60b64411b742b3d3128a523e"
+  }
+ },
+ "controls": {
+  "owner_sees_own_objects": {
+   "note": true,
+   "version": true,
+   "folder": true,
+   "template": true,
+   "view": true,
+   "property": true,
+   "capture": true,
+   "evidence": true,
+   "image": true
+  },
+  "bearer_works_on_own_note": 200,
+  "anonymous_can_see_a_2xx": {
+   "status": 200,
+   "marker": true
+  },
+  "planted_leak_flagged": true,
+  "planted_tamper_flagged": true
+ },
+ "anonymous": [
+  {
+   "method": "GET",
+   "path": "/api/admin/notebook-slo",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/admin/notebook-slo/digest",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/admin/notebook-slo/run",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/notebook-soak",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/notebook-telemetry",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/ask/stream",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/capture",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/capture/authorize",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/capture/connections",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/capture/connections/{token_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/capture/destinations",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/capture/token",
+   "status": 400,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/evidence/{evidence_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/excerpts/{excerpt_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/excerpts/{excerpt_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/export/notebook",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/export/notes/{note_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/facts/{fact_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/facts/{fact_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/inbound-email",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/inbound-email/address",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/inbound-email/address",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/inbox",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/inbox",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/inbox/{capture_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/link-preview",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/note-folders",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/note-folders",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/note-folders/{folder_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/note-folders/{folder_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/note-templates",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/note-templates",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/note-templates/{template_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/note-templates/{template_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/note-templates/{template_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notebook-validation-report",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notebook/home",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/attachments/gc",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/backlinks",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/batch",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/batch/export",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/by-folders",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/by-trade-ref",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/connectors/obsidian/ingest",
+   "status": 503,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/connectors/obsidian/redeem",
+   "status": 422,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/notes/connectors/sources/{source_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/sources/{source_id}/log",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/connectors/sources/{source_id}/sync",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/status",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/notes/connectors/{provider}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/{provider}/callback",
+   "status": 400,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/connectors/{provider}/connect",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/{provider}/folders",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/connectors/{provider}/sources",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/daily",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/documents/search",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/documents/{document_id}/pages/{page_number}/text",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/enrichment/scan",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/excerpts/search",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/export",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/favorites",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/folder-counts",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/graph",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/import/check",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/import/confirm",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/link-targets",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/recents",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/research/{symbol}/summary",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/sector-theme-facets",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/switcher",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/tag-members",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/tags",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/tasks",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/notes/{note_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/notes/{note_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/notes/{note_id}/archive",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/ask/stream",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/attachments",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/backlinks",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/documents",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/embeds",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/evidence",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/evidence",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/evidence-candidates",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/excerpts",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/excerpts",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/export",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/facts",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/facts",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/facts/{fact_id}/insert",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/notes/{note_id}/favorite",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/favorite",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/notes/{note_id}/hero",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/hero",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/images",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/notes/{note_id}/lock",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/opened",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/properties",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/related-from",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/restore",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/reviews",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/reviews",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/notes/{note_id}/share",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/share",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/share",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/notes/{note_id}/tags",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/thesis-summary",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/trade-ref/resolve",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/unlinked-mentions",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/versions",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/{note_id}/versions/{version_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/versions/{version_id}/restore",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/writing-help/autofill",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/notes/{note_id}/writing-help/stream",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/onboarding/sample-notebook",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/onboarding/sample-notebook",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/onboarding/sample-notebook",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/personal/daily/append",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/personal/notes",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/personal/notes/{note_id}/append",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/personal/tokens",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/personal/tokens",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/personal/tokens/{token_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/property-defs",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/property-defs",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/property-defs/{property_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/property-defs/{property_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/publish",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/publish/folders/{folder_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/publish/notes/{note_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/publish/{slug}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PATCH",
+   "path": "/api/j2/publish/{slug}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/publish/{slug}/refresh",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/att/{sub}/{filename}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/saved-views",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/saved-views",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "DELETE",
+   "path": "/api/j2/saved-views/{view_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "PUT",
+   "path": "/api/j2/saved-views/{view_id}",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/share/links",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}/att/{sub}/{filename}",
+   "status": 404,
+   "public_token_route": true,
+   "verdict": "REFUSED"
+  },
+  {
+   "method": "POST",
+   "path": "/api/j2/telemetry",
+   "status": 401,
+   "public_token_route": false,
+   "verdict": "REFUSED"
+  }
+ ],
+ "errors": [],
+ "nonce": "294f458d684141c477d1295b77c6ecec",
+ "marker": "E2MARK734a2e012086",
+ "accounts": {
+  "A_paid": true,
+  "B_paid": true,
+  "admin_ok": true
+ },
+ "state_before": {
+  "note": {
+   "title": "A note E2MARK734a2e012086",
+   "folderId": null,
+   "tags": [],
+   "locked": false,
+   "archivedAt": null,
+   "deletedAt": null,
+   "heroImageUrl": null
+  },
+  "note_ok": 200,
+  "folder": [
+   "A folder E2MARK734a2e012086"
+  ],
+  "template": "A template E2MARK734a2e012086",
+  "views": [
+   "A view E2MARK734a2e012086"
+  ],
+  "props": [
+   "ApropE2MARK734a2e012086",
+   "Confidence",
+   "Industry",
+   "Linked Trade",
+   "Research Type",
+   "Review Date",
+   "Sector",
+   "Theme",
+   "Thesis Status",
+   "Ticker"
+  ],
+  "inbox": 1,
+  "evidence": 1,
+  "share_live": true,
+  "publication_live": 200,
+  "tokens": 1,
+  "favorite": false
+ },
+ "state_after": {
+  "note": {
+   "title": "A note E2MARK734a2e012086",
+   "folderId": null,
+   "tags": [],
+   "locked": false,
+   "archivedAt": null,
+   "deletedAt": null,
+   "heroImageUrl": null
+  },
+  "note_ok": 200,
+  "folder": [
+   "A folder E2MARK734a2e012086"
+  ],
+  "template": "A template E2MARK734a2e012086",
+  "views": [
+   "A view E2MARK734a2e012086"
+  ],
+  "props": [
+   "ApropE2MARK734a2e012086",
+   "Confidence",
+   "Industry",
+   "Linked Trade",
+   "Research Type",
+   "Review Date",
+   "Sector",
+   "Theme",
+   "Thesis Status",
+   "Ticker"
+  ],
+  "inbox": 1,
+  "evidence": 1,
+  "share_live": true,
+  "publication_live": 200,
+  "tokens": 1,
+  "favorite": false
+ },
+ "write_verdict": "INTACT",
+ "write_diff": {},
+ "anonymous_route_count": 121,
+ "summary": {
+  "instrument": "OK",
+  "foreign_reads": 77,
+  "leaks": 0,
+  "tamper": false,
+  "write_diff": {},
+  "anonymous_routes": 149,
+  "anonymous_2xx_not_by_design": 0,
+  "not_run": 0,
+  "inconclusive": 0
+ }
+}
