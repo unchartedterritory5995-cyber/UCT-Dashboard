@@ -178,8 +178,15 @@ plus nightly, about 3 days — and `j2_attachments_backup` keeps up to 14 days o
 tarballs (never fewer than the newest 3). Rewriting snapshots on every deletion was ruled out
 (plan D15); instead:
 
-1. **The deletion writes a TOMBSTONE** (`api/services/account_tombstones.py`, called at the end
-   of `purge_user_data`): a row in `account_tombstones` (so every LATER snapshot carries it) and
+1. **The deletion writes a TOMBSTONE, as its FIRST write** (`api/services/account_tombstones.py`;
+   both admin delete doors record it before the broker purge, through
+   `auth._record_deletion_tombstone_or_refuse`, and `purge_user_data` records it before its first
+   DELETE when called alone). ⛔ If it cannot be recorded, NOTHING is deleted: the door answers 500
+   with a sentence and the account stays. If a delete fails AFTER it, the tombstone stays and a
+   restore's replay finishes the intended deletion. ⚰️ It used to be written at the END of
+   `purge_user_data`, so a purge that raised skipped it while the account was still deleted
+   (wave 10 fix round 1; `tests/test_account_deletion_tombstone_first.py`). It is a row in
+   `account_tombstones` (so every LATER snapshot carries it) and
    an object `authdb/tombstones/<user_id>.json` in the backups' own bucket (so a restore of an
    EARLIER snapshot — even after losing the volume — still learns of it). The id and the time,
    nothing else. The off-site write happens only while `AUTHDB_BACKUP_ENABLED=1` (armed on

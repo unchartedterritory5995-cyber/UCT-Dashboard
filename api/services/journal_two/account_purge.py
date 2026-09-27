@@ -152,15 +152,35 @@ _DIRECT_USER_TABLES = (
 # to keep.
 
 
-def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
-    """Delete every row across the Journal 2.0 / Notebook table family for
-    one `user_id`, plus their on-disk attachment tree, and record the deletion's
-    TOMBSTONE (wave 10, R-9) so no restore of an older backup brings them back.
+def purge_user_data(user_id: str, conn: sqlite3.Connection, *,
+                    tombstone: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Record the deletion's TOMBSTONE (wave 10, R-9) FIRST, then delete every row
+    across the Journal 2.0 / Notebook table family for one `user_id`, plus their
+    on-disk attachment tree.
+
+    ⛔⛔ THE TOMBSTONE COMES BEFORE ANY DELETE (wave 10 10C fix round 1). Recorded
+    last, any exception in the purge skipped it while the caller still deleted the
+    account -- and every older backup then brought the member back on restore. Now:
+      * no tombstone  -> nothing is deleted; the report says `aborted` and why, and
+        the caller must not delete the account either;
+      * tombstone, then a failed delete -> the tombstone stays, so a restore's replay
+        finishes the deletion that was intended (correct, not merely safe).
+    `tombstone` is the caller's own already-recorded result (the admin endpoints record
+    it before their broker purge, which is also a delete); None records it here.
 
     Best-effort per table — one bad table can never abort the rest. Returns
     a report so a caller can distinguish "purged clean" from "purged with
     errors" rather than a bare boolean.
     """
+    from api.services import account_tombstones
+    tomb = tombstone if tombstone is not None else account_tombstones.record_tombstone(user_id, conn)
+    if not tomb.get("recorded"):
+        why = f"tombstone: {tomb.get('why')}"
+        log.warning("journal_two account purge ABORTED for %s -- %s", user_id, why)
+        return {"ok": False, "aborted": True, "user_id": user_id, "rows_deleted": {},
+                "total_rows_deleted": 0, "attachment_dirs_removed": 0,
+                "errors": [why + " -- nothing was deleted"], "tombstone": tomb}
+
     report = purge_user_rows(user_id, conn)
     errors = report["errors"]
 
@@ -185,16 +205,9 @@ def purge_user_data(user_id: str, conn: sqlite3.Connection) -> dict[str, Any]:
         errors.append(f"attachments: {e}")
         log.warning("journal_two attachment purge failed for %s: %s", user_id, e)
 
-    # ⛔⛔ THE TOMBSTONE (R-9). The live purge above is immediate; the BACKUPS still hold
-    # this member. The tombstone -- a row here and an object beside the backups -- is
-    # what makes every restore delete them again. Never raises (a failed off-site write
-    # is left pending and pushed by the next backup run); a row that could not even be
-    # recorded is an error the caller sees.
-    from api.services import account_tombstones
-    tomb = account_tombstones.record_tombstone(user_id, conn)
-    if not tomb.get("recorded"):
-        errors.append(f"tombstone: {tomb.get('why')}")
-
+    # The tombstone (R-9) was recorded before the first delete above: the live purge is
+    # immediate, the BACKUPS still hold this member, and the tombstone -- a row here and
+    # an object beside the backups -- is what makes every restore delete them again.
     return {
         **report,
         "ok": not errors,
