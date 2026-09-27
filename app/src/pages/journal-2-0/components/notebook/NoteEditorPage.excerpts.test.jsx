@@ -141,6 +141,15 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
     // from a document deleted the attachment chip that document came in on.
     // The chip must still be there after the excerpt lands beside it.
     expect(document.querySelector('a[data-type="attachmentChip"]')).toBeTruthy()
+
+    // ⭐ Wave 10 (10D, R-16, study task T6): a page-cited passage reaching the note is a
+    // capture — ONE capture_used {current, excerpt}, and never the passage or the page.
+    const captures = fetchMock.mock.calls
+      .filter(([u]) => u === '/api/j2/telemetry')
+      .map(([, o]) => JSON.parse(o.body))
+      .filter((body) => body.event === 'capture_used')
+    expect(captures).toEqual([{ event: 'capture_used', props: { target: 'current', widget: 'excerpt' } }])
+    expect(JSON.stringify(captures)).not.toMatch(/margins|report|doc1/)
   })
 
   // ⚰️ WAVE P5 — SAVING A PASSAGE HAS TO REACH THE PICKER THAT OFFERS IT.
@@ -247,6 +256,9 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
 
     await waitFor(() => expect(screen.getByText("Couldn't save that excerpt. Your note is unchanged.")).toBeInTheDocument())
     expect(document.querySelector('[data-document-excerpt]')).toBeNull()
+    // Wave 10 (10D): a failed excerpt is not a capture.
+    expect(fetchMock.mock.calls.filter(([u, o]) => u === '/api/j2/telemetry'
+      && JSON.parse(o.body).event === 'capture_used')).toEqual([])
   })
 })
 

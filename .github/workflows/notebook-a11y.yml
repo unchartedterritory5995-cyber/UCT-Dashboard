@@ -1,8 +1,28 @@
-# promotion-gate: no — ADVISORY until it has been SEEN RED ONCE AND SEEN GREEN ONCE in CI
-#   (ruling D-A2). Only then may it be promoted to `yes`. There is no local proof that
-#   this workflow runs -- a GitHub runner cannot be exercised from this box -- so its
-#   FIRST CI RUN is the proof, and that run's URL belongs in the promotion commit.
+# promotion-gate: yes — PROMOTED 2026-09-27 (wave 10, lane 10D) after being SEEN RED ONCE AND
+#   SEEN GREEN ONCE in CI (ruling D-A2), on a throwaway branch (a11y-proof/w10d-red-green, base
+#   a6c446877, deleted after both runs):
+#     RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36294366772
+#           commit 8540d9ef3 planted ONE unnamed <button> in PublishFolderSheet.jsx; the rail
+#           failed on exactly it: `axe found 1 violation(s) ... [critical] button-name ...
+#           target: button[data-a11y-proof="planted"]` (a11y/axeHarness.js:127).
+#     GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36294512061
+#           commit e367518c4 reverted it; "Notebook accessibility rails" passed.
+#   A red here now REFUSES promoting a master commit to production (tools/promotion_gate.py).
 #   Added 2026-09-26, wave 8 lane 8A (A7).
+#
+# ⛔ IF THIS JOB GOES RED ON A MASTER COMMIT AND THE RED IS A FLAKE, NOTHING RETRIES IT.
+#   promote-production.yml runs only when "master deploy gate" COMPLETES, reads this job's
+#   verdict then, and refuses — so that commit (a Notebook revert-and-push rollback included;
+#   the kill-switch variable is unaffected) sits unpromoted until somebody does both steps:
+#     1. Re-run the failed job:  gh run rerun <run-id> --failed
+#        (or Actions -> "Notebook accessibility" -> the red run -> "Re-run failed jobs").
+#     2. Once it is green, promote that commit by hand — re-running this job alone does not
+#        re-trigger promotion:
+#          gh workflow run promote-production.yml -f sha=<the master commit sha>
+#        (or Actions -> "promote to production" -> "Run workflow" with that sha).
+#   A red that reproduces on the re-run is NOT a flake: fix it, never re-run until green.
+#   (Wave 10 10D fix round 1, review M-11. The one observed flake — `window is not defined`
+#   from an autosave landing after teardown — was fixed by 97ef46b96 / landPendingAutosave.)
 # ─── NOTEBOOK ACCESSIBILITY, IN CI ───────────────────────────────────────────
 #
 # Runs every Notebook accessibility rail in app/src/pages/journal-2-0/a11y/: axe-core

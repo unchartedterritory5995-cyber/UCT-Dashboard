@@ -5,7 +5,7 @@
 // The undo assertions compare the WHOLE document text, never "the dictated
 // words are gone": a Ctrl+Z that also took the member's typing with it would
 // pass a presence check.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
 import { buildExtensions } from './tiptap'
@@ -158,5 +158,32 @@ describe('the slash menu\'s "Dictate" item', () => {
     // it bubbles (like the Image item's event), so it reaches window only
     // through this editor's own DOM — its target is this editor, never window
     for (const t of onWindow) expect(t).toBe(editor.view.dom)
+  })
+})
+
+// ⭐ Wave 10 (10D, R-16): dictated words that LANDED are counted — how many, never which.
+describe('dictation_used — a landed dictation counts its words, and nothing it said', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const telemetry = (fn) => fn.mock.calls
+    .filter(([u]) => u === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('five dictated words send ONE dictation_used {words: 5}', () => {
+    const fetchFn = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchFn)
+    make()
+    expect(insertDictation(editor, '  buy   the NVDA dip   today ')).toBe(true)
+    expect(telemetry(fetchFn)).toEqual([{ event: 'dictation_used', props: { words: 5 } }])
+    expect(JSON.stringify(telemetry(fetchFn))).not.toMatch(/NVDA|dip|buy/)
+  })
+
+  it('nothing to insert, or a locked editor, sends nothing', () => {
+    const fetchFn = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchFn)
+    make()
+    expect(insertDictation(editor, '   ')).toBe(false)
+    editor.setEditable(false)
+    expect(insertDictation(editor, 'words')).toBe(false)
+    expect(telemetry(fetchFn)).toEqual([])
   })
 })

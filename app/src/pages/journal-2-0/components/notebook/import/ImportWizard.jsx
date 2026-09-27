@@ -28,6 +28,7 @@ import useJ2NoteFolders from '../../../hooks/useJ2NoteFolders'
 import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
 import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 
 // ---------------------------------------------------------------------------
 // Best-effort client-side content hash — used ONLY to estimate the
@@ -257,6 +258,9 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const [dragOver, setDragOver] = useState(false)
 
   const [sourceLabel, setSourceLabel] = useState('')
+  // Wave 10 (10D, R-16): WHICH adapter read the files, for `import_used` — its id
+  // (a closed list, the registry's own), never the label or anything the files said.
+  const sourceIdRef = useRef('')
   const [docs, setDocs] = useState([])
   const [docStatus, setDocStatus] = useState({})
   const [warnings, setWarnings] = useState([])
@@ -303,6 +307,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
     setGuideOpen(false)
     setDragOver(false)
     setSourceLabel('')
+    sourceIdRef.current = ''
     setDocs([])
     setDocStatus({})
     setWarnings([])
@@ -412,6 +417,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setDocStatus(status)
       setWarnings([...expandWarnings, ...parseWarnings, ...checkWarnings])
       setSourceLabel(adapter.label)
+      sourceIdRef.current = adapter.id
       setExcludedFolders(new Set())
       setExcludedNotes(new Set())
       setStep('preview')
@@ -768,6 +774,13 @@ export default function ImportWizard({ open, onClose, onImported }) {
       if (cancelled()) return
       setSummaryResult(result)
       setStep('summary')
+      // Wave 10 (10D, R-16): the import finished — the adapter and three counts.
+      trackNotebookEvent(NOTEBOOK_EVENTS.IMPORT_USED, {
+        source: sourceIdRef.current,
+        created: result?.created,
+        updated: result?.updated,
+        failed: Array.isArray(result?.failures) ? result.failures.length : undefined,
+      })
       onImported?.()
     } catch (err) {
       if (cancelled()) return

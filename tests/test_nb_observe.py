@@ -260,19 +260,61 @@ def test_the_config_served_reader_counts_BY_IDENTITY_and_excludes_the_rig():
 # ---------------------------------------------------------------------------
 
 RUNNER_DIR = pathlib.Path(r"C:\Users\Patrick\uct-q1-observe")
+SOAK_DOC = pathlib.Path(__file__).resolve().parents[1] / "docs" / "notebook" / "soak-30day.md"
 
 
-@pytest.mark.parametrize("name", ["nb_observe.py", "nb_gate.py"])
+def _p5_copied_files() -> list[str]:
+    """The copied files, READ from the soak runbook's P5 row — never retyped.
+
+    ⚰️ This rail was typed as `["nb_observe.py", "nb_gate.py"]` while P5 names
+    FOUR (`window_check.py` and `nb_soak.py` run from the same directory), so two
+    running copies had no rail at all. An unreadable P5 row returns a sentinel
+    name that fails BY NAME rather than collecting nothing."""
+    import re
+    try:
+        row = next(ln for ln in SOAK_DOC.read_text(encoding="utf-8").splitlines()
+                   if ln.startswith("| P5 |"))
+    except (OSError, StopIteration):
+        return ["<P5 row unreadable in docs/notebook/soak-30day.md>"]
+    names = sorted(set(re.findall(r"`([a-z_]+\.py)`", row)))
+    return names or ["<P5 row names no copied file>"]
+
+
+P5_COPIED = _p5_copied_files()
+
+
+def test_the_p5_read_found_every_copied_file():
+    # Non-vacuity: the parametrised rail below is only as wide as this read.
+    assert {"nb_observe.py", "nb_gate.py", "window_check.py", "nb_soak.py"} <= set(P5_COPIED), P5_COPIED
+
+
+def test_CONTROL_the_comparison_is_blind_to_line_endings_and_sees_content():
+    """The comparison is `nb_soak.drift_line` — the soak roll-up's OWN DRIFT
+    authority, the one that pages on this exact question — never a second copy
+    of its rule. Proven both ways, or a CR-blind check that can never fail would
+    read as green."""
+    soak = _load("nb_soak")
+    lf = b"a = 1\nb = 2\n"
+    assert soak.drift_line("x.py", lf.replace(b"\n", b"\r\n"), lf)["state"] == "equal"
+    assert soak.drift_line("x.py", b"a = 1\nb = 3\n", lf)["state"] == "DRIFT"
+
+
+@pytest.mark.parametrize("name", P5_COPIED)
 def test_the_deployed_copy_matches_the_repo_or_the_drift_is_named(name):
-    """⛔ BOTH copied files, not just the sampler.
+    """⛔ EVERY copied file, not just the sampler.
 
     ⚰️ 2026-09-13: this rail covered `nb_observe.py` alone, and `nb_gate.py` had
     ALREADY drifted — the deployed Sunday gate still carried the FOUR-doors
     attribution text a day after the repo learned there are seven. The gate would
     have printed a stale list of families for an operator to rule out, at 17:05,
     on the one run that decides keep-or-revert. A rail that covers one of two
-    copied files reports coverage it does not have."""
-    import hashlib
+    copied files reports coverage it does not have.
+
+    ⭐ CONTENT, NOT BYTES (wave 10, lane 10D). This compared RAW sha256, so it
+    was green only because this box checks out CRLF (`core.autocrlf=true`) and
+    the copies were taken from a CRLF checkout: on an LF checkout every copy read
+    as drifted with identical content. F-2 was measured CR-stripped; the rail now
+    asks the same question the soak roll-up asks, through the same function."""
     repo = TOOLS / name
     deployed = RUNNER_DIR / name
     if not deployed.exists():
@@ -283,13 +325,15 @@ def test_the_deployed_copy_matches_the_repo_or_the_drift_is_named(name):
             "the runner directory has its .cmd but not its .py — a half-deployed "
             "sampler is worse than none")
         return
-    h = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
-    assert h(repo) == h(deployed), (
-        f"⛔ THE LIVE COPY IS NOT THIS FILE. `tools/{name}` has been edited "
-        "and the deployed copy at\n"
-        f"  {deployed}\n"
-        "still runs the old code every two hours. Copy it across and re-run this test; "
-        "the repo edit alone changes nothing about what is measured."
+    soak = _load("nb_soak")
+    line = soak.drift_line(name, deployed.read_bytes(), repo.read_bytes())
+    assert line["state"] == "equal", (
+        f"⛔ THE LIVE COPY IS NOT THIS FILE. `tools/{name}` (raw sha256 "
+        f"{line['repo'][:12]}) differs in CONTENT from the deployed copy at\n"
+        f"  {deployed}  (raw sha256 {line['copy'][:12]})\n"
+        "which still runs the old code on its schedule. Refresh it (P5, "
+        "docs/notebook/soak-30day.md) and re-run this test; the repo edit alone "
+        "changes nothing about what is measured."
     )
 
 
