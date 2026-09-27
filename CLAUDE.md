@@ -2377,6 +2377,43 @@ lane was read correctly only because the VERDICT line exists and was read from t
 FILE. **A rule that fixes the pipe and leaves the semicolon has fixed the example,
 not the defect.**
 
+### ⛔⛔ AND A FIFTH SHAPE: A GREP WHOSE TARGET MOVED STILL EXITS 0 — READ THE CONTENT AT THE LINE
+
+> **An exit code tells you the command SUCCEEDED, never that it found the thing you
+> NAMED. A verification that re-runs a grep and checks only its status confirms
+> whatever the grep happens to hit today.**
+
+⚰️ Measured 2026-09-27, sweeping roadmap §9's twelve verification rows against a tree
+**661 commits** newer than the one they were written at. **Two of the stale rows still
+exit 0**, and both still print a plausible line number:
+
+* **V9** greps `hour=9, minute=5 | head -1` to show the wire watchdog could not fire.
+  The trigger moved to `minute=35` in `6c6f540c8`, an ancestor of `origin/production`.
+  The grep now matches **`:5991` — an entirely unrelated job**, exits 0, and reads as a
+  confirmation of a state the product left five commits and one production deploy ago.
+* **V10** greps for a futures workaround deleted by `ed0b0f1b9`. Its first hit today is
+  the **deletion comment**, whose own text says the roadmap item *"was written against
+  this code as if it were live."* The check now succeeds by matching the sentence
+  explaining that its subject is gone.
+
+⭐ **THIS IS NOT THE PIPE TRAP ABOVE.** There is no pipe eating a status and no `echo`
+at the end — the grep genuinely succeeded. The defect is that **success was never the
+question.** The question was *"is this specific thing still here?"*, and only reading the
+CONTENT at the matched line answers it.
+
+⛔ **So a re-verification must assert on what it FOUND, never on whether it found
+something.** Print the matched line, compare it to what the row claims, and treat a
+match at an unexpected line number as a MISS. A cited `file:line` is a dated claim like
+any other: line numbers in this repo drift constantly, and a drifted one that still
+resolves is more dangerous than one that does not, because it answers.
+
+⭐ **The companion finding, worth as much as the trap:** four of §9's rows were stale
+**because the product got better** — rung zero built, cohorts shipped, the watchdog
+re-timed, a phantom workaround deleted. **A verification row records a defect, so
+shipping the fix is exactly what makes it stale.** Staleness in a verification section is
+therefore the EXPECTED steady state, not an anomaly — which is why it needs a scheduled
+re-read rather than a reader's suspicion.
+
 
 ## ⛔⛔ A FRESH WORKTREE, AND THE JUNCTION THAT DELETED A LIVE `node_modules`
 
