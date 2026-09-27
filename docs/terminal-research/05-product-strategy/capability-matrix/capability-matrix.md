@@ -437,7 +437,7 @@ treating it as one is the feature-count anti-pattern N7 (§0.1).
 | **BRK-06** | **Programmatic egress — general data API, agent-addressable surface, published export** (X2) | Unusual Whales (221 REST/WS paths, **MCP server**, `/skill.md` with a whitelisted endpoint list, MCP builder prompts) · Finviz Elite (Excel export + API) · Market Chameleon (CSV/Excel, 25 per rolling 24h) · TradingView (Export chart data as CSV) | **FLAG-GATED and narrow** — a member personal API ships at `/api/j2/personal` (notes only) behind `NOTEBOOK_PERSONAL_API_ENABLED`, **flag state not read**; an ICS calendar feed ships; **MCP server and skill file grep-verified ABSENT** | **JTBD-X08** *"Take a view out of the product and into a post, a doc or a chat"* → `Tool: screenshots, and four other products' exports` | NO | ⚠️ egress of vendor data is **R-class** — §8 |
 | **BRK-07** | **Per-surface status disclosure a member reads before asking** (S12) | Gödel (BETA pills on the docs index; a two-column *"In Gödel today / Working on"* strip **a prospect reads before paying**) · SpotGamma (numbered "how to trade with this" checklist per analytic surface) | **ADMIN-MOUNTED / internal only** — `feature_flag_index.py` + `flag_ledger_audit.py` run the internal half; *"that ledger is not member-facing"*; `user_tags` is written and read by no gate — item 10's only **absent·absent** row | **JTBD-X09** *"Find out what a surface can do, and whether it is finished"* → `Tool: asking in Discord` | NO | none |
 | **BRK-08** | **Dealer-positioning vocabulary published with a base rate** (A11 · A10) | SpotGamma (a fixed named level set — Call Wall, Put Wall, Volatility Trigger™, Hedge Wall, Zero Gamma — plus per-surface how-to and level files auto-installed into six other charting products) · Unusual Whales (Periscope: Gamma/Vanna/Charm + `max-pain`, `nope`) | **MEMBER-SERVING, differently shaped** — GEX, dealer positioning and dark pool ship and are named *"the genuine differentiator"*; what is absent is the **fixed named vocabulary** and, per item 10, *"a regime with two authorities cannot have one vocabulary"* — **two regime classifiers** ship | **JTBD-O04** *"Know where dealers will defend a level today"* → `Tool: UCT + SpotGamma + Unusual Whales Periscope` | NO | Schwab-sourced chains — **U leaning R** (§8) |
-| **BRK-09** ⚠️ **[INFERRED, NOT EVIDENCED — CARD 30: excluded from any roadmap top until RG-15's n=0 coverage re-read; re-read first, build second.]** | **Transcript & filing retrieval at measured coverage** (A6) | AlphaSense (`NEAR(n)`/`PHRASE(n)`, section-scoped search, filing-to-filing blacklining, highlight-to-verify) · Quartr (delivery SLAs) · TradingView (Documents tab, *filings supplied by Quartr*) | ⛔ **MEMBER-SERVING machinery over a corpus measured EMPTY** — a Quartr-class stack ships (full text, historical quarters, word-timed audio, FTS5 cross-corpus search, keyword alerts, TTS) at gate `paid`, and the coverage monitor read **`transcript: null (n=0)`** | **JTBD-E04 / JTBD-P04** research reading; no `Tool:` line names an external transcript product, so the break-out is **inferred, not evidenced** — see the row note | NO | ⚠️ FMP transcripts: display **R/LA**, storage **U**, **AI processing U — "the sharpest AI row"** |
+| **BRK-09** ⭐ **[RECUT 2026-09-27 ON MEASUREMENT. ⚰️ This cell said "INFERRED, NOT EVIDENCED — CARD 30: excluded from any roadmap top until RG-15's n=0 coverage re-read; re-read first, build second." The re-read happened and refuted its own premise, so **the CARD 30 exclusion is LIFTED** and the **corpus half is MEASURED**, no longer inferred. ⚠️ The break-out *itself* stays **INFERRED on the jobs side** — still no `Tool:` line naming an external transcript product (see the task column) — which is a separate claim this measurement does not touch. Evidence: `10-roadmap/evidence/2026-09-27-transcript-corpus-refutation-0105Z/results.md`.]** | **Transcript & filing retrieval at measured coverage** (A6) | AlphaSense (`NEAR(n)`/`PHRASE(n)`, section-scoped search, filing-to-filing blacklining, highlight-to-verify) · Quartr (delivery SLAs) · TradingView (Documents tab, *filings supplied by Quartr*) | ⭐ **MEMBER-SERVING machinery over a BROAD but SHALLOW corpus, with a keyword index instead of a query language** — a Quartr-class stack ships (full text, historical quarters, word-timed audio, FTS5 cross-corpus search, keyword alerts, TTS) at gate `paid`, and the corpus is **POPULATED: 2,207 transcripts / 2,188 symbols / 15,502,995 words / 128.7 MB, span 2026-07-23 → 2026-09-24** (measured live on production 2026-09-27 01:05Z; `api/routers/earnings_intel.py:479-491`). What is really absent is **DEPTH** — 2,207/2,188 = **≈ 1.01 calls per symbol, roughly one quarter per company**, not the multi-year history the AlphaSense/Quartr comparison implies — and the **operator language**: §2.2's `FT-058` / `FT-059` / `FT-060`, *"we have FTS5, not an operator language"*. ⚰️ **This cell said "a corpus measured EMPTY … the coverage monitor read `transcript: null (n=0)`."** Both halves were wrong: the count is 2,207, and that monitor field **cannot report anything but n=0** by construction (row note (ii)), so it never evidenced emptiness. ⚠️ The 2,207 is the cross-company SEARCH corpus (`/data/transcript_index.db`); the member panel reads FMP live instead — PROVEN for the search corpus, strong-but-INDIRECT for the exact bytes that panel renders | **JTBD-E04 / JTBD-P04** research reading; no `Tool:` line names an external transcript product, so the break-out is **inferred, not evidenced** — see the row note | NO | ⚠️ FMP transcripts: display **R/LA**, storage **U**, **AI processing U — "the sharpest AI row"** |
 | **BRK-10** | **Macro/event calibration — the trailing reliability of a print's implied move** (A5) | Market Chameleon (*"The options market overestimated AAPL stocks earnings move 77% of the time in the last 13 quarters"* — a scored per-ticker calibration) · Bloomberg `EVTS` (staging by time relative to the print) | **PARTIAL — forward only** — we compute and display the forward implied/expected move (item 10 calls our inline per-name expected move *"a more direct answer… than anything I could verify on the terminal"*); the **trailing calibration** of that number is absent | **JTBD-W04** → `Tool: Market Chameleon` | NO | ⚠️ needs multi-year IV/straddle history — same feed as LCQ-01 |
 
 ### 2.1 Row notes — the mechanism, and the half of each row that could be wrong
@@ -523,10 +523,27 @@ missed and nearly did miss here: `api/routers/earnings_intel.py` serves
 `TranscriptSearchAll.jsx` — *"Search EVERY indexed transcript, not the one on screen"*, with FTS5
 server-side snippets — plus `PlayableTranscript.jsx` and `KeywordAlerts.jsx`. The capability ledger's
 row **D6** describes all of this accurately, including the caveat below; **D6 is a ledger cell that is
-exactly right** (§7.3). (ii) **The corpus was measured empty.** The provider-coverage monitor read
-`transcript: null (n=0)` on 2026-09-02 (`02-data-providers/railway-flag-state.md:49`), and RG-15
-records the open action as **still `planned`**. Item 10's A6 row therefore reads *"coverage measured
-n=0"* and calls it *"the harshest row in this file"*. (iii) **`TRANSCRIPT_INDEX_ENABLED` — flag state not
+exactly right** (§7.3). (ii) ⚰️ **THIS SUB-FACT SAID: *"The corpus was measured empty."*** — **REFUTED
+2026-09-27**, and the error was the INFERENCE, not the observation. The monitor did read
+`transcript: null (n=0)` on 2026-09-02 (`02-data-providers/railway-flag-state.md:49`) and RG-15 did
+sit at `planned`; what does not follow is that the corpus was empty. ⭐ Measured live on
+production 2026-09-27 01:05Z it holds **2,207 transcripts / 2,188 symbols / 15,502,995 words /
+128.7 MB, span 2026-07-23 → 2026-09-24** (`GET /api/admin/transcript-index-status`,
+`api/routers/earnings_intel.py:479-491` — an endpoint this tree named but never read).
+⛔⛔ And that coverage field **cannot report anything but n=0**: `_transcript_rate` is a
+warm-only in-process cache peek that `continue`s on an absent key
+(`api/services/provider_coverage_monitor.py:473-490`), so its denominator is *symbols whose AI
+summary happens to be in this OS process's memory*; `_evaluate_field` returns `None` on
+`sample <= 0` (`:326-327`); `_recent_baseline` selects `WHERE observed IS NOT NULL` (`:252`) so no
+baseline ever forms and the drop detector never arms; and the self-heal is gated
+`if heal and missing` inside `if defect:` (`:802-806`). n=0 is therefore **the expected reading of
+a healthy system**, which the module states itself, on purpose, at `:46-50`. ⚠️ The
+defect is in the READING, not the code — do not write it up as a code defect. **What survives
+is DEPTH (≈ 1.01 calls per symbol) and the operator language (§2.2's `FT-058` / `FT-059`
+/ `FT-060`) — never emptiness.** Item 10's A6 row and the *"harshest row in this file"* line
+inherit this correction **through this table**, which owns the claim; the ~12 documents that repeat
+the old wording were deliberately left unedited rather than made twelve authorities over one fact.
+Evidence: `10-roadmap/evidence/2026-09-27-transcript-corpus-refutation-0105Z/results.md`. (iii) **`TRANSCRIPT_INDEX_ENABLED` — flag state not
 read.** ⭐ **This is the one row where the §0.2 fourth fact — whether the store holds rows — is the whole
 row**, and it is the aggregation thesis's worst case: a capability you built, surfaced, paid for and
 cannot serve reads to a member as *absent*, so they open AlphaSense anyway. ⚠️ **Why the break-out is
@@ -1153,9 +1170,18 @@ product running and any such column would be an adjective.
    `VITE_PINE_MEMBER_PANE_ENABLED`, `NOTEBOOK_PERSONAL_API_ENABLED`, `TRANSCRIPT_INDEX_ENABLED`,
    `FRED_API_KEY` presence, `WISDOM_INGEST_ENABLED`. **Each would change a row's state, not its
    existence.**
-2. ⛔ **BRK-09's corpus size is unmeasured** and is the row's whole substance. RG-15's action — re-read
-   `/api/admin/provider-coverage` after a market-hours cycle — is still `planned` 24 days on. **This is
-   the highest-value unblocked measurement in the file.**
+2. ⚰️ **THIS ITEM SAID: *"BRK-09's corpus size is unmeasured"*** and is the row's whole
+   substance, naming a re-read of `/api/admin/provider-coverage` as *"the highest-value unblocked
+   measurement in the file."* ✅ **MEASURED 2026-09-27 01:05Z — and the prescribed
+   instrument was the wrong one.** The corpus is **2,207 transcripts / 2,188 symbols / 15,502,995
+   words / 128.7 MB**, from `GET /api/admin/transcript-index-status`
+   (`api/routers/earnings_intel.py:479-491`) — which had already shipped on a **mounted** admin
+   panel beside the very coverage row it refutes
+   (`app/src/components/admin/DataPipelineHealthPanel.jsx:207` and `:213`; packet Y, `085253963`).
+   ⛔ The `provider-coverage` `transcript` field cannot report anything but n=0 by construction,
+   so no number of re-reads of it could have answered this. §2's BRK-09 row is recut on
+   measurement; the evidence is
+   `10-roadmap/evidence/2026-09-27-transcript-corpus-refutation-0105Z/results.md`.
 3. **No competitor was observed running.** Every competitor cell is vendor documentation. Market
    Chameleon was *"observed logged out only"*, so its backtest **numbers** were never seen, only its
    structure; SpotGamma's published hit rates (*"the Call Wall has held in 83% of daily sessions"*)

@@ -69,7 +69,7 @@ the job's own kill switch → the trading-day check → the durable claim
 | Page key | Meaning |
 |---|---|
 | `wisdom_job_failed:<job_id>` | the run raised (for a chain: at least one step failed, after every step ran) |
-| `wisdom_job_missed:<job_id>` | an ENABLED job has not succeeded for 2 × `expected_every_s` (non-trading days excluded for trading-day jobs); once per episode, cleared by the next ok |
+| `wisdom_job_missed:<job_id>` | an ENABLED job has not succeeded for 2 × `expected_every_s` (non-trading days excluded for trading-day jobs) — **or for ONE period measured from pod boot if it has no success on record at all**; once per episode, cleared by the next ok |
 | `wisdom_capture_p1:<dataset>` | a dataset captured `zero` / `missing` rows on a trading day (S-A) |
 
 **Catch-up:** `wisdom_core_catchup` runs every 300 s and re-runs a cron slot the in-memory
@@ -137,7 +137,7 @@ Wave 1 ships chains before some packages exist.
 |---|---|
 | `wisdom_job_failed:wisdom_daily_chain` / `weekly_chain` / `monthly_packet` | Open **Jobs → Chains**, read the failed step's `reason`. Fix or switch off that package's flag. Catch-up re-runs the slot (only unfinished steps) every 30 min inside the grace window; after it, see §5.1. |
 | `wisdom_job_failed:<package job>` | `GET /api/admin/wisdom/core/runs?job_id=<id>` → `error`. The package's own section of CONTRACTS §6 names its public function; rerun on demand once fixed (§5.1). |
-| `wisdom_job_missed:<job_id>` | The job is enabled but has not succeeded for two periods. Check the heartbeat's `last_status`: `skipped` with a reason (switch off, not a trading day) means config, not an outage; `failed` means read the run; no heartbeat at all means the scheduler never registered it (boot log `[startup] wisdom jobs:`). |
+| `wisdom_job_missed:<job_id>` | The job is enabled but has not succeeded for two periods — **or, if it has never succeeded at all, for one period since this pod booted** (`_staleness_window` in `registry.py` owns both clocks and says why). Check the heartbeat's `last_status`: `skipped` with a reason (switch off, not a trading day) means config, not an outage; `failed` means read the run; no heartbeat at all means the scheduler never registered it (boot log `[startup] wisdom jobs:`). ⭐ And that last case is now **sharper than it reads**: the registry beats on failure too, so no heartbeat after one period means the job never ran, not that it ran and failed. |
 | `wisdom_capture_p1:<dataset>` | A dataset had zero/missing rows on a trading day. Compare its row count with `trailing_median` on **Capture health**; a source that changed shape or a vendor outage is the usual cause. Data that was not captured is gone — the archive exists because these sources overwrite or purge (D12). Record the gap in the ledger. |
 
 **Kill a job without a deploy:** unset or set `0` on its switch (or the master switch for all of
