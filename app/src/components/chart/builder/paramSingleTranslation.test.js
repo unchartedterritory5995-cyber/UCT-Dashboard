@@ -71,6 +71,31 @@ describe('C2D.1 — the option is inert on the saved computation', () => {
   }
 })
 
+/** Walk a locator and assert it lands on a LITERAL.
+ *
+ *  ⭐ 2026-09-26 — TWO SHAPES, AND ONLY TWO: a `{type:'num'}` node, or the bare bar
+ *  count in an OFFSET node's own `value` field — exactly the pair
+ *  `param_manifest.py::_literal_value` and `paramEdit.literalValueOf` accept. The
+ *  second arrived when a pivot's `rightbars` began to be located at its
+ *  confirmation shift as well as its argument (a shift is a bare number on the node,
+ *  which cannot carry a tag of its own). ⛔ The parent is checked, not just the key:
+ *  a locator into any other bare number is still a failure here. */
+function expectLiteralAt(root, astPath, label) {
+  let parent
+  let node = root
+  for (const step of astPath) {
+    parent = node
+    node = node === undefined ? undefined : node[step]
+  }
+  if (typeof node === 'number') {
+    expect(parent && parent.type, `${label}: a bare number outside an offset node`).toBe('offset')
+    expect(astPath[astPath.length - 1], label).toBe('value')
+    expect(Number.isInteger(node) && node >= 1, `${label}: a shift of ${node}`).toBe(true)
+    return
+  }
+  expect(node, label).toMatchObject({ type: 'num' })
+}
+
 describe('C2D.1 — every locator resolves against the tree that is SAVED', () => {
   for (const name of COMPLEX) {
     it(name, () => {
@@ -89,12 +114,10 @@ describe('C2D.1 — every locator resolves against the tree that is SAVED', () =
       for (const [pid, entry] of Object.entries(manifest)) {
         expect(entry.locators.length, `${pid} has locators`).toBeGreaterThan(0)
         for (const loc of entry.locators) {
-          let node = trees[loc.treeIndex]
+          const node = trees[loc.treeIndex]
           expect(node, `${pid}: tree ${loc.treeIndex}`).toBeTruthy()
-          for (const step of loc.astPath) node = node === undefined ? undefined : node[step]
           // ⛔ THE ASSERTION THE OLD SHAPE COULD NOT PASS.
-          expect(node, `${pid} @ ${loc.treeIndex}.${loc.astPath.join('.')}`)
-            .toMatchObject({ type: 'num' })
+          expectLiteralAt(node, loc.astPath, `${pid} @ ${loc.treeIndex}.${loc.astPath.join('.')}`)
           checked += 1
         }
       }
@@ -220,9 +243,7 @@ describe('C2D.1 — print/parse does not move a locator', () => {
       expect(re.ok).toBe(true)
       expect(astHash(re.ast)).toBe(astHash(o.ast))
       for (const loc of locs) {
-        let node = re.ast
-        for (const step of loc.astPath) node = node === undefined ? undefined : node[step]
-        expect(node).toMatchObject({ type: 'num' })
+        expectLiteralAt(re.ast, loc.astPath, loc.astPath.join('.'))
         checked += 1
       }
     })

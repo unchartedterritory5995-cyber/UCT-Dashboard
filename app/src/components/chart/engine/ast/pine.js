@@ -1740,9 +1740,22 @@ function pivotAtConfirmation(name, args) {
       + 'as a plain whole number' }
   }
   const call = cCall(name, [src, left, right])
-  return Number(right.value) === 0
-    ? call
-    : { type: 'offset', value: Number(right.value), args: [call] }
+  if (Number(right.value) === 0) return call
+  const shifted = { type: 'offset', value: Number(right.value), args: [call] }
+  // ⭐⭐ 2026-09-26 — `rightbars` LIVES IN TWO PLACES, SO ITS PARAMETER TAG MUST TOO.
+  // It is the pivot's own argument (the tagged `num` above, which the manifest
+  // already locates) AND the confirmation shift — a bare number on this node, which
+  // the manifest could not see. So an edit to the input rewrote the pivot's window
+  // and left the shift at the author's default: `pivothigh(high, 5, 7)[5]`, a pivot
+  // drawn two bars from where it was confirmed, with nothing on screen saying so.
+  // Tagging the node too puts both uses under one parameter, and `paramEdit` moves
+  // them atomically or refuses the edit (a shift must stay ≥ 1 bar). Non-enumerable,
+  // so no tree, hash or persisted copy changes by a byte.
+  if (right.__uctParamId !== undefined) {
+    Object.defineProperty(shifted, '__uctParamId',
+      { value: right.__uctParamId, enumerable: false, configurable: true })
+  }
+  return shifted
 }
 
 /** The sole argument of `year(timenow)` and its four siblings, resolved to an
@@ -5131,6 +5144,14 @@ export class Resolver {
     /** Bound input names that reached an `int` slot on this run — collected so a
      *  caller can refuse them rather than hand back a half-applied knob. */
     this.windowBoundInputs = new Set()
+    /** ⭐ 2026-09-26 — bound input names that reached a plot's `offset=` on this
+     *  run. The displacement is folded to a whole number here, before there is a
+     *  chart, so the input cannot ALSO be an identifier the chart binds later:
+     *  moving it per instance would move nothing. Collected for the same reason
+     *  as `windowBoundInputs` — the caller refuses the knob BY NAME — and kept
+     *  as its OWN set because the sentence the member reads is different: this
+     *  input lands in a displacement, not a window. */
+    this.displacementBoundInputs = new Set()
     /** ⭐⭐ TRACK F (DEC-006) — the shared, per-`translatePine` (NOT
      *  per-Resolver) parameter-identity table: `{ counter, byNode: Map<node,
      *  entry>, metadata: entry[] }`, or `null` for every existing caller —
@@ -8557,7 +8578,9 @@ export class Resolver {
       // ⚠️ RESOLVED HERE, because `built` above lives inside the expansion branch
       // and this gate sits outside it. Same call, same order — spelled out rather
       // than reached for, so the two cannot quietly become different lists.
-      const resolved = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      const resolvedRaw = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      const resolved = (namespacedName === 'ta.pivothigh' || namespacedName === 'ta.pivotlow')
+        ? this.foldPivotBars(resolvedRaw) : resolvedRaw
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
       // sentence about ARITY rather than about pivots. ⚰️ This site used to
@@ -8790,7 +8813,8 @@ export class Resolver {
       // unshifted meaning exactly as before.
       if ((bare === 'pivothigh' || bare === 'pivotlow') && args.length === 2
           && !args.some((a) => a && a.name)) {
-        const resolvedArgs = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+        const resolvedArgs = this.foldPivotBars(
+          args.map((a) => this.resolve(a.value !== undefined ? a.value : a)))
         const shifted = pivotAtConfirmation(bare, resolvedArgs)
         if (shifted) return shifted
       }
@@ -8936,6 +8960,35 @@ export class Resolver {
       out.push(resolved)
     }
     return cCall(key, out)
+  }
+
+  /** A pivot's resolved arguments with its two BAR COUNTS folded as window lengths.
+   *
+   *  ⭐⭐ 2026-09-26 — THE SAME FOLD AN `int` SLOT GETS, FOR THE ONE BUILDER THAT
+   *  BYPASSES `resolveTableCall`. `pivotAtConfirmation` needs `rightbars` as a
+   *  number at build time (it becomes the `offset` node's bar count), and both
+   *  counts are `int` slots of `pivothigh`/`pivotlow` in the table. In declare
+   *  mode an input arrives as an IDENTIFIER, so `ta.pivothigh(lb, rb)` refused
+   *  with *"write it as a plain whole number"* about a script that already wrote
+   *  one through an input — measured at the member door on 6 of the 11
+   *  `pine:plot-offset` scripts, the wall directly behind that one.
+   *
+   *  ⛔ ONLY A DECLARED INPUT IS TOUCHED, AND IT IS RECORDED AS WINDOW-BOUND before
+   *  the fold erases it — so the caller refuses that knob BY NAME, with the window
+   *  sentence (true: a pivot's bar counts are its window), exactly as it does for
+   *  `sma(close, len)`. Anything else passes through unchanged, so the default
+   *  (non-declare) path is byte-identical and `pivotAtConfirmation`'s own refusal
+   *  still answers a count that is genuinely not a whole number. */
+  foldPivotBars(resolvedArgs) {
+    if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
+    const from = resolvedArgs.length - 2
+    return resolvedArgs.map((node, i) => {
+      if (i < from) return node
+      const declared = declaredInputNames(node)
+      if (!declared.size) return node
+      for (const n of declared) this.windowBoundInputs.add(n)
+      return foldWindow(node)
+    })
   }
 
   /** `input.int(14, "RSI Length")` → `14`.
@@ -13609,9 +13662,22 @@ function translatePineResult(source, opts = {}) {
       // the value on display there would be a FUTURE bar's, which has no node,
       // while the author's computed value at each bar is exactly what the
       // undisplaced tree says.
-      const shift = foldDisplacement(resolver, seriesArg)
+      const {
+        shift, paramId: shiftParamId, displaceFrom, displaceParams,
+      } = foldDisplacement(resolver, seriesArg)
       const base = resolver.resolve(seriesArg.value)
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
+      // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
+      // THAT INPUT'S PARAMETER ID, on the OFFSET NODE (a bare number cannot hold a
+      // property). `pineParamManifest` turns it into a locator ending at `'value'`
+      // — the shape `param_manifest.py::_literal_value` has accepted since v1 —
+      // so a member's edit moves the displacement with the rest of the input's
+      // uses instead of leaving it at the author's default. Non-enumerable, like
+      // every other tag: `astHash` and every persisted copy never see it.
+      if (shift > 0 && shiftParamId !== undefined) {
+        Object.defineProperty(ast, '__uctParamId',
+          { value: shiftParamId, enumerable: false, configurable: true })
+      }
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
       // Asked ONCE each, because both answers are needed twice below.
@@ -13668,14 +13734,22 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        inputsFolded: [...resolver.usedInputs.values()].map((e) => (
+        inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
           // THIS resolution — the reader sees only the folded formula, where the
           // literal has already replaced the identifier, so it is not recoverable
           // downstream. A consumer that tried would be guessing.
-          e.name && resolver.windowBoundInputs.has(e.name)
-            ? { ...e, windowBound: true } : e)),
+          // ⭐ `displacementBound` is the same fact for a plot's `offset=` — the
+          // folded displacement is a number on the tree or the row, so the name
+          // is gone from both by the time a reader looks.
+          if (!e.name) return e
+          const w = resolver.windowBoundInputs.has(e.name)
+          const d = resolver.displacementBoundInputs.has(e.name)
+          return (w || d)
+            ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+            : e
+        }),
         // ⛔⛔ A COLUMN THAT READS NO BAR IS SCAFFOLDING TOO, and it arrives the
         // moment `plotshape` becomes an output. `03-rsi-directional-momentum-
         // scanner` guards four of its signals behind `input.bool` toggles that
@@ -13718,6 +13792,14 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
+      // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
+      // definition-parameter edit moves the drawing too. Non-enumerable, like
+      // `_bareRole`: it is a hand-off to one reader, not part of the row's shape.
+      if (shift < 0) {
+        Object.defineProperty(row, '_displaceFrom', { value: displaceFrom, enumerable: false })
+        Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
+      }
       Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
     } catch (err) {
       row = {
@@ -15331,9 +15413,52 @@ export function treeYieldsBool(node, table = TABLE) {
  *  ⛔ A DISPLACEMENT THAT DOES NOT REDUCE TO A CONSTANT REFUSES. One that depends
  *  on a COLUMN is a per-bar shift — neither a node nor a presentation constant —
  *  and there is nothing honest to do with it. */
+/** Every parameter id tagged anywhere inside a resolved tree. */
+function paramIdsIn(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.__uctParamId !== undefined) out.add(String(node.__uctParamId))
+  for (const a of (node.args || [])) paramIdsIn(a, out)
+  return out
+}
+
+/** A resolved displacement as `scale * <one parameter> + add`, or null.
+ *
+ *  ⭐ 2026-09-26 — WHY THIS EXISTS: a NEGATIVE displacement is drawn from the
+ *  plot row (`displace`), not from the tree, so a definition-parameter edit —
+ *  which rewrites tree literals — cannot reach it. For the shapes the corpus
+ *  actually writes (`-len`, `-n - 1`, `-displacement + 1`) the displacement is
+ *  an affine function of ONE input with a ±1 slope, so the row can carry that
+ *  relation and `paramEdit` recomputes the displacement from the new value.
+ *  ⛔ Anything else — two inputs, a product, a call — answers null, and the
+ *  caller withholds the parameter rather than let an edit half-apply. */
+function affineDisplacement(node) {
+  if (!node || typeof node !== 'object') return null
+  if (node.type === 'num') {
+    if (!Number.isFinite(Number(node.value))) return null
+    return node.__uctParamId !== undefined
+      ? { param: String(node.__uctParamId), scale: 1, add: 0 }
+      : { param: null, scale: 0, add: Number(node.value) }
+  }
+  if (node.type !== 'op') return null
+  const args = node.args || []
+  if (node.name === 'u-' && args.length === 1) {
+    const a = affineDisplacement(args[0])
+    return a && { param: a.param, scale: -a.scale, add: -a.add }
+  }
+  if ((node.name === '+' || node.name === '-') && args.length === 2) {
+    const a = affineDisplacement(args[0])
+    const b = affineDisplacement(args[1])
+    if (!a || !b) return null
+    if (a.param && b.param) return null
+    const sign = node.name === '-' ? -1 : 1
+    return { param: a.param || b.param, scale: a.scale + sign * b.scale, add: a.add + sign * b.add }
+  }
+  return null
+}
+
 function foldDisplacement(resolver, seriesArg) {
   const node = seriesArg.offsetNode
-  if (!node) return 0
+  if (!node) return { shift: 0, paramId: undefined, displaceFrom: null, displaceParams: [] }
   let folded
   try {
     folded = resolver.resolve(node)
@@ -15341,11 +15466,46 @@ function foldDisplacement(resolver, seriesArg) {
     throw new PineRefusal('pine:plot-offset', REFUSALS['pine:plot-offset'],
       locate(seriesArg.offsetTok))
   }
-  let value = NaN
-  if (folded && folded.type === 'num') value = Number(folded.value)
-  else if (folded && folded.type === 'op' && folded.name === 'u-'
-           && (folded.args || []).length === 1 && folded.args[0].type === 'num') {
-    value = -Number(folded.args[0].value)
+  // ⭐⭐ 2026-09-26 — PINE'S `offset` IS A SIMPLE INT, SO FOLD IT THE WAY A
+  // WINDOW IS FOLDED. The member door translates with `declareInputs`, which
+  // hands back an input as an IDENTIFIER (`series` leaf carrying its default)
+  // so a chart can bind it later. The old reader accepted only a bare `num` or
+  // `u-` over one, so `offset = -rightbars` refused at the member door on
+  // exactly the scripts it already translated everywhere else — measured: 11
+  // corpus scripts, every one an input or arithmetic on inputs.
+  //
+  // ⛔ `constantValueOf` IS THE ONE FOLD, NOT A NEW READER. It already reduces a
+  // declared input to its `inputDefault` (which is the MEMBER'S value when
+  // `inputValues` overrode it — `resolveInput` folds the override first), `u-`,
+  // arithmetic and pointwise calls, and returns null for anything that reads a
+  // bar. So `displacement - 1` folds to 25 as Pine computes it, and
+  // `close > open ? 1 : 2` still refuses below.
+  //
+  // ⛔⛔ AND THE INPUT IS RECORDED BEFORE THE FOLD ERASES IT. The displacement is
+  // a number in the tree (or on the row) from here on; an input that fed it
+  // cannot also be a per-instance knob the chart binds, because moving that knob
+  // would move nothing here — the half-applied trap `windowBoundInputs` exists
+  // for, arriving by a second slot.
+  for (const n of declaredInputNames(folded)) resolver.displacementBoundInputs.add(n)
+  const constant = constantValueOf(folded)
+  const value = constant === null ? NaN : Number(constant)
+  // ⭐ THE PARAMETER TAG RIDES OUT ONLY FOR A BARE PASS-THROUGH — `offset = len`,
+  // where the displacement IS the input's own value — exactly `foldWindow`'s
+  // rule. `len - 1` is a computed function of the input; there is no way to
+  // rewrite it from a later edit to the folded number, so it stays untagged.
+  const paramId = folded && typeof folded === 'object' && folded.type === 'num'
+    ? folded.__uctParamId : undefined
+  if (constant !== null && !Number.isInteger(value)) {
+    // ⛔ A CONSTANT THAT IS NOT A WHOLE NUMBER IS A DIFFERENT FACT from one this
+    // translator could not know, and gets its own sentence. It DID fold — to a
+    // fraction — and Pine's `offset` is a simple int, so the script as written
+    // is refused by Pine too; the sentence below would send the member looking
+    // for a timeframe flag that is not there.
+    throw new PineRefusal('pine:plot-offset',
+      `${REFUSALS['pine:plot-offset']} — it folds to ${value}, and a displacement `
+      + 'counts whole bars (Pine\'s `offset` is an int). TO UNBLOCK: round it '
+      + 'yourself, e.g. `math.round(...)`, to the number of bars you mean.',
+      locate(seriesArg.offsetTok))
   }
   if (!Number.isInteger(value)) {
     // ⭐⭐ AND IT NAMES WHAT WOULD CHANGE THE ANSWER. `12-ichimoku-clouds` writes
@@ -15365,7 +15525,16 @@ function foldDisplacement(resolver, seriesArg) {
       + 'bars you mean.',
       locate(seriesArg.offsetTok))
   }
-  return value
+  // ⭐ THE PARAMETER RELATION, for a displacement drawn from the row. Only a
+  // ±1-slope function of ONE tagged input is carried; `displaceParams` names
+  // every parameter the displacement reads so a caller can withhold the ones
+  // the relation cannot express.
+  const fit = affineDisplacement(folded)
+  const displaceFrom = fit && fit.param && Math.abs(fit.scale) === 1
+    // `+ 0` normalises a `-0` (from `u-` over a zero constant) — a stored `-0` would
+    // round-trip through JSON as `0` and read as a different document.
+    ? { param: fit.param, scale: fit.scale, add: fit.add + 0 } : null
+  return { shift: value, paramId, displaceFrom, displaceParams: [...paramIdsIn(folded)] }
 }
 
 /** The argument a screener reads. `plot(series, title, …)` and

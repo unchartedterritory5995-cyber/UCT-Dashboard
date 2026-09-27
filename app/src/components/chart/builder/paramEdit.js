@@ -47,6 +47,18 @@
 // `foldDisplacement` to tag the OFFSET NODE OBJECT itself and this module to
 // special-case an astPath whose last step is the literal `'value'` key
 // against a bare number rather than a `{type:'num'}` object.
+//
+// ⭐ 2026-09-26 — HALF OF THAT PASS HAS LANDED, FOR PLOT DISPLACEMENT ONLY.
+// (The paragraph above named `foldDisplacement` as the builder of `close[n]`;
+// it is not — it folds a plot's `offset=`. `close[n]` is the resolver's `offset`
+// arm, and it is STILL untagged.) A positive `plot(x, offset = len)` whose
+// displacement is `len`'s bare value now tags its offset node, the manifest
+// locator ends at `'value'`, and `replaceLiteralAt` below writes it. ⚠️ A
+// COMPUTED displacement (`offset = len - 1`) stays untagged, exactly as a
+// computed window does in `foldWindow` — and so, when `len` ALSO appears
+// tagged elsewhere, an edit moves that use and not the displacement. That
+// half-applied case predates this change (it is the same for `sma(close,
+// len / 2)` beside a bare `len`) and is recorded, not fixed, here.
 
 import { printFormula } from '../engine/ast/pine.js'
 import { parseFormula, astHash } from '../engine/ast/parse.js'
@@ -186,6 +198,21 @@ function replaceLiteralAt(node, path, value) {
       throw new Error(`paramEdit: astPath expects an object at key ${JSON.stringify(head)}, got ${typeof node}`)
     }
     const leaf = node[head]
+    // ⭐ 2026-09-26 — THE OFFSET-NODE SHAPE: `{type:'offset', value: N, args}`
+    // holds its bar count as a BARE number in its own `value` field, and a plot
+    // displacement's locator ends there (`pineParamManifest` emits `[..., 'value']`).
+    // Only that exact shape is accepted — an offset node, the `value` key, a finite
+    // number already there — so a tampered locator into any other bare number still
+    // refuses below. ⛔ The value must stay a whole number of bars ≥ 1: an offset
+    // node only ever stands for a RIGHTWARD displacement (a leftward one is a future
+    // bar and lives on the row as presentation, never in the tree), so an edit to 0
+    // or below is a different translation, not a new literal — re-paste the script.
+    if (node.type === 'offset' && head === 'value' && typeof leaf === 'number') {
+      if (!Number.isInteger(value) || value < 1) {
+        throw new Error(`paramEdit: a plot displacement must stay a whole number of bars of at least 1, got ${JSON.stringify(value)}`)
+      }
+      return { ...node, value }
+    }
     if (!isPlainObject(leaf) || leaf.type !== 'num') {
       throw new Error(`paramEdit: astPath's final position is not a {type:'num'} node (got ${JSON.stringify(leaf)})`)
     }
@@ -307,7 +334,16 @@ export function applyParamEdit(definition, paramId, newValue) {
   const updatedByTreeIndex = new Map()
   const updatedFormulaByTreeIndex = new Map()
   for (const loc of locators) {
-    const tree = getTree(definition, loc.treeIndex)
+    // ⛔⛔ 2026-09-26 — TWO LOCATORS IN ONE TREE MUST COMPOSE. This read the ORIGINAL
+    // tree for every locator, so each mutation started from the unedited tree and
+    // the LAST one written won: `sma(close, len) - sma(close, len * 2)` edited to 21
+    // saved `sma(close, 14) - sma(close, 21 * 2)` — one use moved, one left at the
+    // default, and a formula nobody wrote. The multi-TREE rails could not see it
+    // (one locator per tree); a pivot's `rightbars`, now located at both its argument
+    // and its confirmation shift, is what made it unmissable.
+    const tree = updatedByTreeIndex.has(loc.treeIndex)
+      ? updatedByTreeIndex.get(loc.treeIndex)
+      : getTree(definition, loc.treeIndex)
     if (tree === undefined) {
       // ⛔ A DETACHED LOCATOR IS NOT AN ERROR HERE — `param_manifest.py`'s own
       // `reconcile()` already marks the WHOLE parameter `partially_detached`/
@@ -339,6 +375,34 @@ export function applyParamEdit(definition, paramId, newValue) {
     return { ok: false, error: `paramEdit: ${entry.title || paramId} — every locator is detached; nothing to update` }
   }
 
+  // ⭐⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT THAT IS A FUNCTION OF THIS PARAMETER
+  // MOVES WITH IT. It lives on the plot (`plots[].displace`), not in a tree, so no
+  // locator reaches it; `plots[].displaceFrom` records `scale * value + add` and it
+  // is recomputed here, in the same atomic edit. Without this an edit to a pivot's
+  // `rightbars` moved the pivot and its confirmation shift and left the MARKER drawn
+  // at the old distance — a drawing that disagrees with its own maths.
+  // ⛔ A displacement that would turn rightward is refused whole: that is a bar
+  // offset in the tree, a different translation, not a new number on the plot.
+  let plots = definition.plots
+  if (Array.isArray(plots) && plots.some((p) => p && p.displaceFrom && p.displaceFrom.param === paramId)) {
+    const next = []
+    for (const p of plots) {
+      const f = p && p.displaceFrom
+      if (!f || f.param !== paramId) { next.push(p); continue }
+      const d = f.scale * newValue + f.add
+      if (!Number.isInteger(d) || d > 0) {
+        return { ok: false, error: `paramEdit: ${entry.title || paramId} = ${newValue} would draw `
+          + `\`${p.key}\` ${d} bars to the RIGHT; a rightward displacement is a different translation — `
+          + 'change it in the script and paste it again' }
+      }
+      const moved = { ...p }
+      if (d === 0) delete moved.displace
+      else moved.displace = d
+      next.push(moved)
+    }
+    plots = next
+  }
+
   const compute = { ...definition.compute }
   const hasMultiTree = isPlainObject(compute.trees)
   if (hasMultiTree) {
@@ -364,5 +428,5 @@ export function applyParamEdit(definition, paramId, newValue) {
     compute.source = updatedFormulaByTreeIndex.get(null)
   }
 
-  return { ok: true, definition: { ...definition, compute } }
+  return { ok: true, definition: { ...definition, compute, ...(plots !== definition.plots ? { plots } : {}) } }
 }
