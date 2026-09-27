@@ -75,6 +75,10 @@ CONVERTED = {
     "api/auth_surface_check.py",
     "api/flow_backup.py",
     "api/flow_gap_autofill.py",
+    # Notebook wave 10 lane 10D: the Notebook save-SLO pager. It was written against the
+    # literal `DISCORD_WEBHOOK_URL` read and converted at the Notebook's L1b integration,
+    # so it never shipped as a literal reader (it would have broken the pinned roster below).
+    "api/services/journal_two/notebook_slo.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -413,6 +417,45 @@ def test_WIRE_flow_backup_integrity_alert(monkeypatch, blank_ops):
     assert body == json.dumps({"content": "flow.db integrity_check failed"}).encode()
     assert headers == {"Content-Type": "application/json",
                        "User-Agent": "uct-flow-backup/1"}
+
+
+class _HttpxPost:
+    """Records `httpx.post(url, json=..., timeout=...)` -- the Notebook pager's transport."""
+
+    def __init__(self):
+        self.posts = []
+
+    def __call__(self, url, json=None, timeout=None, **_kw):
+        self.posts.append((url, json))
+
+        class _R:
+            status_code = 204
+        return _R()
+
+
+def test_WIRE_notebook_slo_pager_posts_to_todays_channel_with_the_same_body(monkeypatch, blank_ops):
+    import httpx
+
+    from api.services.journal_two import notebook_slo
+
+    post = _HttpxPost()
+    monkeypatch.setattr(httpx, "post", post)
+    assert notebook_slo._post_discord("Notebook save STALL") == "discord"
+    assert post.posts == [(TODAY, {"content": "Notebook save STALL"})]
+
+
+def test_WIRE_notebook_slo_pager_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """The control: a pager that still read the literal would post to TODAY here."""
+    import httpx
+
+    from api.services.journal_two import notebook_slo
+
+    post = _HttpxPost()
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+    assert notebook_slo._post_discord("page") == "discord"
+    assert post.posts[0][0] == OPS_ONLY
 
 
 def test_WIRE_flow_gap_autofill_alert(monkeypatch, blank_ops):
