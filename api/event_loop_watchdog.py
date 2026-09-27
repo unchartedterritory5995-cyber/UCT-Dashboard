@@ -21,7 +21,9 @@ responsiveness / lag. Consecutive misses are counted. If the loop fails to
 service the probe for ``WATCHDOG_WEDGE_SEC`` (default 30s) across enough
 consecutive checks, and the kill is armed, it declares a wedge and:
 
-  1. best-effort Discord alert (``DISCORD_WEBHOOK_URL``) with last-lag telemetry;
+  1. best-effort Discord alert with last-lag telemetry, to the OPS-class
+     destination (``DISCORD_OPS_WEBHOOK_URL``, falling back to
+     ``DISCORD_WEBHOOK_URL`` while that is unset — TERM-011 step 3);
   2. best-effort flush stdout + dump a stack trace of ALL threads to the logs
      (``faulthandler.dump_traceback``) so the post-mortem survives the restart;
   3. ``os._exit(1)`` — Railway restarts the container. With the deploy-survival
@@ -59,6 +61,11 @@ import math
 import os
 import threading
 import time
+
+# ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader. MODULE level, not
+# inside the wedge path: an ImportError raised while looking up somewhere to report
+# a wedged event loop would silence the alarm. At import it fails loudly, at boot.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 
 # ---------------------------------------------------------------------------
 # Config defaults (all env-overridable)
@@ -420,7 +427,14 @@ def start_watchdog(loop: asyncio.AbstractEventLoop | None = None) -> bool:
             _state["started_at"] = time.time()
             _state["running"] = True
 
-        webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+        # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+        # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+        # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+        # that stood here returned. Same channel, same bytes; proved at the wire in
+        # tests/test_alert_destination.py.
+        # ⚠️ Captured ONCE per start and handed to the thread, exactly as the literal
+        # read was. That is unchanged behaviour, not a new capture.
+        webhook = _ops_webhook()
         _thread = threading.Thread(
             target=_run,
             args=(check_sec, wedge_sec, enabled, observe, webhook),
