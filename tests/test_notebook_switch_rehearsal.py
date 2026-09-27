@@ -18,6 +18,7 @@ from __future__ import annotations
 import ast
 import datetime as dt
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -297,3 +298,37 @@ def test_check_record_refuses_an_empty_read(t, tmp_path, capsys):
     assert out.count("NOTEBOOK_DOOR_GUARD = unknown-only") == 1
     assert "railway variable delete NOTEBOOK_OFFLINE_DEFAULT_ON --service web" in out
     assert '--set "J2_SHARE_LINKS_ENABLED=1"' in out
+
+
+# ── the switch values reach the SANDBOX CHILD, never this process's environment ──────────────
+
+def test_a_boot_launcher_sets_the_values_in_the_child_and_runs_the_real_launcher(t, tmp_path):
+    values = {"J2_SHARE_LINKS_ENABLED": "0", "NOTEBOOK_OFFLINE_DEFAULT_ON": None}
+    src = t.launcher_source(values, real=tmp_path / "real_launcher.py")
+    (tmp_path / "real_launcher.py").write_text(
+        "import json, os, sys\n"
+        "json.dump({'share': os.environ.get('J2_SHARE_LINKS_ENABLED'),"
+        " 'offline': os.environ.get('NOTEBOOK_OFFLINE_DEFAULT_ON'), 'argv': sys.argv[1:]},"
+        " open(os.environ['W10C_LAUNCHER_PROBE'], 'w'))\n", encoding="utf-8")
+    gen = tmp_path / "boot.launcher.py"
+    gen.write_text(src, encoding="utf-8")
+    probe = tmp_path / "probe.json"
+    import json as _json
+    import subprocess
+    env = {**os.environ, "W10C_LAUNCHER_PROBE": str(probe), "NOTEBOOK_OFFLINE_DEFAULT_ON": "1"}
+    subprocess.run([sys.executable, str(gen), "--data-dir", "X", "--port", "1"], env=env, check=True)
+    got = _json.loads(probe.read_text(encoding="utf-8"))
+    assert got == {"share": "0", "offline": None, "argv": ["--data-dir", "X", "--port", "1"]}
+
+
+def test_the_tool_writes_no_environment_of_its_own(t):
+    """The bridges rail's rule for a tool that imports api, restated at the call site."""
+    tree = ast.parse(TOOL.read_text(encoding="utf-8"))
+    writes = [n.lineno for n in ast.walk(tree)
+              if isinstance(n, ast.Subscript) and isinstance(n.ctx, ast.Store)
+              and ast.unparse(n.value) == "os.environ"]
+    calls = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Call)
+             and ast.unparse(n.func) in ("os.environ.pop", "os.environ.update", "os.environ.setdefault",
+                                         "os.putenv")]
+    assert writes == [] and calls == [], (writes, calls)
+    assert "SET = " in t.launcher_source({"X": "1"}), "the child's launcher is where the values go"
