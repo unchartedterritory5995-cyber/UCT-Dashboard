@@ -120,6 +120,12 @@ _J2_TELEMETRY_EVENTS = {
     # both are here — never retyped.
     "note_open_ms", "save_failed", "conflict_forked", "ask_used",
     "capture_used", "search_used", "switcher_used",
+    # Wave 10 (lane 10D, ruling R-16) — "every core action" is the user study's
+    # T1-T10 plus export, import, save_success, share, publish, writing help and
+    # dictation; bulk_used is T5. Same client door, same arrival schema below.
+    # The task -> event table is CORE_ACTION_EVENTS in notebookTelemetry.js.
+    "save_success", "export_used", "import_used", "share_used", "publish_used",
+    "writing_help_used", "dictation_used", "bulk_used",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -168,6 +174,47 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
         "rank": "num",
         "picked": "bool",
         "mode": ("title", "recent", "favorite", "create"),
+    },
+    # Wave 10 (10D, R-16). ⛔ `bulk_used.op` must stay NOTE_BATCH_OPS (railed:
+    # tests/test_notebook_telemetry_events.py), `import_used.source` the importer
+    # registry's adapter ids and `export_used.format` EXPORT_FORMATS + png/print
+    # (railed client-side, notebookTelemetry.doors.test.jsx).
+    "save_success": {
+        "door": ("editor", "outbox"),
+        "queued": "bool",
+    },
+    "export_used": {
+        "format": ("md", "html", "json", "docx", "png", "print"),
+        "scope": ("note", "selection", "notebook"),
+        "count": "num",
+    },
+    "import_used": {
+        "source": ("uct-export", "evernote", "notion", "obsidian", "logseq", "keep", "file"),
+        "created": "num",
+        "updated": "num",
+        "failed": "num",
+    },
+    "share_used": {
+        "action": ("create", "copy", "revoke"),
+    },
+    "publish_used": {
+        "action": ("publish", "unpublish", "copy"),
+        "kind": ("note", "folder"),
+        "door": ("editor", "sidebar"),
+    },
+    "writing_help_used": {
+        "action": ("summarize", "rewrite", "continue", "translate", "autofill"),
+        "scope": ("selection", "whole", "property"),
+        "replaced": "bool",
+    },
+    "dictation_used": {
+        "words": "num",
+    },
+    "bulk_used": {
+        "op": ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
+               "archive", "unarchive", "renameTag"),
+        "changed": "num",
+        "failed": "num",
     },
 }
 

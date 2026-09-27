@@ -14,6 +14,10 @@ import { openNotebookDb } from './offline/notebookDb'
 import { freshLastNote } from './captureTargets'
 import { kickSnapshotWarm } from './embedArchive'
 import { CAPTURE_TARGETS } from './captureTargets'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+
+/** captureTargets key -> `capture_used.target`. A key not here is not a notebook capture. */
+export const CAPTURE_TELEMETRY_TARGET = Object.freeze({ note: 'current', newNote: 'new', inbox: 'inbox' })
 
 // Stage A member-validation instrumentation (decision-log "Stage A→B gate"
 // entry, 2026-09-06) — fires once per genuine capture, from the one function
@@ -98,6 +102,14 @@ export async function sendCaptureToJournal(
   try {
     const result = await t.run(attrs, { widgetId, label: name })
     _logCaptureSaved(widgetId, target, !!tradeRef)
+    // Wave 10 (10D, R-16, study tasks T2/T6): `capture_used` — declared in wave 6 and fired
+    // from no door until now. Where it went (a closed word) and what KIND of thing it was;
+    // a target that is not a notebook destination (copyChartLink) is not a capture.
+    const where = CAPTURE_TELEMETRY_TARGET[target]
+    if (where) {
+      trackNotebookEvent(NOTEBOOK_EVENTS.CAPTURE_USED,
+        { target: where, widget: widgetId === 'chart' ? 'chart' : 'widget' })
+    }
     return result
   } catch {
     return 'Capture failed — try again'

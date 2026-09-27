@@ -20,6 +20,15 @@
  * An instrument that can break the thing it measures is worse than none.
  *
  * Call sites are wired by the owning lanes, not here — see the wave-6 F report.
+ *
+ * ⭐ WAVE 10 (lane 10D, ruling R-16): "every core action" is a NAMED list — the
+ * user study's tasks T1-T10 plus export, import, save_success, share, publish,
+ * writing_help_used and dictation_used. The eight events below the line are
+ * that list's missing half (`bulk_used` is T5's bulk move/tag), and each fires
+ * from its door on SUCCESS only. Which event carries which task is the table in
+ * `CORE_ACTION_EVENTS` below, railed by notebookTelemetry.doors.test.jsx.
+ * ⚰️ `capture_used`, `search_used` and `switcher_used` were declared in wave 6
+ * and fired from NO door until wave 10 — declared is not wired.
  */
 
 export const NOTEBOOK_EVENTS = Object.freeze({
@@ -30,6 +39,40 @@ export const NOTEBOOK_EVENTS = Object.freeze({
   CAPTURE_USED: 'capture_used',
   SEARCH_USED: 'search_used',
   SWITCHER_USED: 'switcher_used',
+  SAVE_SUCCESS: 'save_success',
+  EXPORT_USED: 'export_used',
+  IMPORT_USED: 'import_used',
+  SHARE_USED: 'share_used',
+  PUBLISH_USED: 'publish_used',
+  WRITING_HELP_USED: 'writing_help_used',
+  DICTATION_USED: 'dictation_used',
+  BULK_USED: 'bulk_used',
+})
+
+/**
+ * R-16's core actions, each with the event(s) that count it. The study tasks
+ * are `docs/notebook/user-study-kit.md` §4. ⛔ A task maps to what fires when it
+ * SUCCEEDS; T3 (formatting) and T9 (the phone) are note edits, so the save that
+ * lands them is their event.
+ */
+export const CORE_ACTION_EVENTS = Object.freeze({
+  'T1 start a note': ['note_open_ms', 'save_success'],
+  'T2 save a passage with its source': ['capture_used', 'save_success'],
+  'T3 heading, checklist, highlight': ['save_success'],
+  'T4 find a note by title': ['switcher_used', 'search_used'],
+  'T5 bulk move and tag': ['bulk_used'],
+  'T6 attach a PDF and excerpt a page': ['capture_used'],
+  'T7 ask the notebook, insert the answer': ['ask_used'],
+  'T8 offline sentence survives': ['save_success', 'save_failed'],
+  'T9 add a line on the phone': ['save_success'],
+  'T10 get the note out': ['export_used', 'share_used'],
+  export: ['export_used'],
+  import: ['import_used'],
+  save_success: ['save_success'],
+  share: ['share_used'],
+  publish: ['publish_used'],
+  writing_help_used: ['writing_help_used'],
+  dictation_used: ['dictation_used'],
 })
 
 const OTHER = 'other'
@@ -74,6 +117,42 @@ export const EVENT_SCHEMAS = Object.freeze({
     rank: num,
     picked: bool,
     mode: oneOf('title', 'recent', 'favorite', 'create'),
+  },
+  save_success: {
+    door: oneOf('editor', 'outbox'),
+    queued: bool,
+  },
+  export_used: {
+    format: oneOf('md', 'html', 'json', 'docx', 'png', 'print'),
+    scope: oneOf('note', 'selection', 'notebook'),
+    count: num,
+  },
+  import_used: {
+    source: oneOf('uct-export', 'evernote', 'notion', 'obsidian', 'logseq', 'keep', 'file'),
+    created: num,
+    updated: num,
+    failed: num,
+  },
+  share_used: {
+    action: oneOf('create', 'copy', 'revoke'),
+  },
+  publish_used: {
+    action: oneOf('publish', 'unpublish', 'copy'),
+    kind: oneOf('note', 'folder'),
+    door: oneOf('editor', 'sidebar'),
+  },
+  writing_help_used: {
+    action: oneOf('summarize', 'rewrite', 'continue', 'translate', 'autofill'),
+    scope: oneOf('selection', 'whole', 'property'),
+    replaced: bool,
+  },
+  dictation_used: {
+    words: num,
+  },
+  bulk_used: {
+    op: oneOf('move', 'addTag', 'removeTag', 'favorite', 'unfavorite', 'trash', 'restore', 'archive', 'unarchive', 'renameTag'),
+    changed: num,
+    failed: num,
   },
 })
 

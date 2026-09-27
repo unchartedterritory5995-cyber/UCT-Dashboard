@@ -2115,3 +2115,36 @@ describe('FolderSidebar — Best matches (wave 10, R-5)', () => {
     expect(best()).toBeNull()
   })
 })
+
+// ⭐ Wave 10 (10D, R-16, study task T4): the search panel's `search_used` — declared in wave 6
+// and fired from no door until now; the FIELD reading behind the search-latency SLO. Once
+// the debounced search has settled: the true match count, the filter count, the mode word and
+// a duration. Never the query.
+describe('search_used — a settled search counts itself, and never the query', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+
+  it('typing a query sends ONE search_used when its results settle', () => {
+    const fetchFn = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchFn)
+    useJ2NotesMock.mockImplementation((opts) => (opts && 'q' in opts && opts.enabled
+      ? { notes: [{ id: 'n1', title: 'hit' }], total: 7, isLoading: false, isValidating: false, error: null }
+      : { notes: [], isLoading: false, isValidating: false, error: null }))
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'my private nvda query' } })
+    const telemetry = () => fetchFn.mock.calls
+      .filter(([u]) => u === '/api/j2/telemetry')
+      .map(([, init]) => JSON.parse(init.body))
+    expect(telemetry()).toEqual([])            // still debouncing: nothing was asked yet
+    act(() => { vi.advanceTimersByTime(300) })
+    const sent = telemetry()
+    expect(sent).toHaveLength(1)
+    expect(sent[0].event).toBe('search_used')
+    const { ms, ...rest } = sent[0].props
+    expect(rest).toEqual({ results: 7, filters: 0, mode: 'text' })
+    expect(Number.isFinite(ms) && ms >= 0).toBe(true)
+    expect(JSON.stringify(sent)).not.toMatch(/private|nvda|query/)
+  })
+})

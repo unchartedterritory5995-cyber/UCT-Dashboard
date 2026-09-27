@@ -1719,6 +1719,9 @@ export default function NoteEditorPage({
       ed.chain().focus().insertContentAt(ed.state.selection.to, {
         type: 'documentExcerpt', attrs: { excerptId: excerpt.id },
       }).run()
+      // Wave 10 (10D, R-16, study task T6): a page-cited passage from a PDF reached the
+      // note. A kind word and a destination — never the passage or the page.
+      trackNotebookEvent(NOTEBOOK_EVENTS.CAPTURE_USED, { target: 'current', widget: 'excerpt' })
       await refreshExcerpts()
       // ⛔ WAVE P5 — and the EVIDENCE PICKER's list, which is a different
       // subscription. Without this the passage a member just saved is
