@@ -1,0 +1,330 @@
+{
+  "tool": "notebook_w10d_browser_check",
+  "base": "http://127.0.0.1:8214",
+  "data_dir": "C:\\data-w10d",
+  "started_utc": "2026-09-27T05:00:51+00:00",
+  "sandbox_env": {
+    "J2_SHARE_LINKS_ENABLED": "1",
+    "NOTEBOOK_PUBLISH_ENABLED": "1",
+    "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "steps": [
+    {
+      "step": "save",
+      "driven": true
+    },
+    {
+      "step": "writing help",
+      "driven": false,
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Writing help\").get_by_role(\"button\", name=\"Write it\", exact=True)\n"
+    },
+    {
+      "step": "dictation",
+      "driven": false,
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first\n    - locator resolved to <div tabindex=\"0\" translate=\"no\" contenteditable=\"true\" aria-label=\"Note body\" class=\"tiptap ProseMirror _proseEditor_q8loi_359\">\u2026</div>\n  - attempting click action\n    2 \u00d7 wait"
+    },
+    {
+      "step": "export",
+      "driven": false,
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"button[aria-haspopup=\\\"menu\\\"]\").filter(has_text=\"Export\").first\n    - locator resolved to <button type=\"button\" aria-haspopup=\"menu\" aria-expanded=\"false\" class=\"_chromeBtn_q8loi_1405 _trigger_8kkze_13\" title=\"Download this"
+    },
+    {
+      "step": "share+publish",
+      "driven": false,
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"button[aria-haspopup=\\\"dialog\\\"]\").filter(has_text=\"Share\").first\n    - locator resolved to <button type=\"button\" aria-expanded=\"false\" aria-haspopup=\"dialog\" class=\"_chromeBtn_q8loi_1405\" title=\"Share a link to this note or"
+    },
+    {
+      "step": "switcher",
+      "driven": true
+    },
+    {
+      "step": "search",
+      "driven": false,
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[aria-label=\\\"Search notes\\\"]\").first\n    - locator resolved to <button role=\"tab\" type=\"button\" data-tour=\"search\" title=\"Search notes\" aria-selected=\"false\" aria-label=\"Search notes\" class=\"_sbHeaderBtn_16pe0_95 \">\u2026</butto"
+    },
+    {
+      "step": "import",
+      "driven": true
+    }
+  ],
+  "rows": [
+    {
+      "row": "provision: a paid, verified member + the sandbox admin",
+      "result": "PASS"
+    },
+    {
+      "row": "writing_help_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "dictation_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "export_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "share_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "publish_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "switcher_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "search_used counted once",
+      "result": "FAIL",
+      "count": 0
+    },
+    {
+      "row": "import_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "save_success counted (every landed autosave is one)",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "each stubbed model answer was requested exactly once by its door",
+      "result": "FAIL",
+      "served": {
+        "writing_help_stream": 0,
+        "transcribe": 0
+      }
+    },
+    {
+      "row": "the forced SLO run writes ONE page row, save_success, delivered to the local log",
+      "result": "PASS",
+      "pages": 1,
+      "state": "breach"
+    },
+    {
+      "row": "no latency SLO reached the pager",
+      "result": "PASS"
+    }
+  ],
+  "stubs": {
+    "why": "no model key in the sandbox; the model call and the server's writing-help and transcription routes are NOT exercised by these two rows",
+    "routes": {
+      "**/writing-help/stream": "writing_help_stream",
+      "**/api/voice/transcribe": "transcribe"
+    },
+    "served": {
+      "writing_help_stream": 0,
+      "transcribe": 0
+    }
+  },
+  "member_flags": {
+    "paid_equiv": true,
+    "j2_share_links_enabled": true,
+    "notebook_publish_enabled": true,
+    "notebook_writing_help_enabled": true
+  },
+  "counts_before": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 0,
+    "export_used": 0,
+    "import_preset_used": 0,
+    "import_used": 0,
+    "note_open_ms": 0,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 0,
+    "notebook_offline_opt_in": 0,
+    "notebook_tab_visit": 0,
+    "publish_used": 0,
+    "reflection_saved": 0,
+    "save_failed": 0,
+    "save_success": 0,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 0,
+    "share_used": 0,
+    "surface_visit": 0,
+    "switcher_used": 0,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 0
+  },
+  "counts_after": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 0,
+    "export_used": 0,
+    "import_preset_used": 0,
+    "import_used": 1,
+    "note_open_ms": 1,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 2,
+    "notebook_offline_opt_in": 1,
+    "notebook_tab_visit": 2,
+    "publish_used": 0,
+    "reflection_saved": 0,
+    "save_failed": 0,
+    "save_success": 1,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 0,
+    "share_used": 0,
+    "surface_visit": 0,
+    "switcher_used": 1,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 0
+  },
+  "delta": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 0,
+    "export_used": 0,
+    "import_preset_used": 0,
+    "import_used": 1,
+    "note_open_ms": 1,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 2,
+    "notebook_offline_opt_in": 1,
+    "notebook_tab_visit": 2,
+    "publish_used": 0,
+    "reflection_saved": 0,
+    "save_failed": 0,
+    "save_success": 1,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 0,
+    "share_used": 0,
+    "surface_visit": 0,
+    "switcher_used": 1,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 0
+  },
+  "save_failed_posts": {
+    "n": 25,
+    "statuses": [
+      200
+    ]
+  },
+  "slo_run": {
+    "evaluated_at": "2026-09-27 05:05:28",
+    "window_hours": 24,
+    "slos": {
+      "save_success": {
+        "state": "breach",
+        "value": 0.038461538461538464,
+        "objective": 0.995,
+        "n": 26,
+        "succeeded": 1,
+        "failed": 25,
+        "min_n": 20
+      },
+      "ask_latency": {
+        "state": "insufficient",
+        "value": null,
+        "objective": 30000,
+        "n": 0,
+        "p50": null,
+        "min_n": 5
+      },
+      "search_latency": {
+        "state": "insufficient",
+        "value": null,
+        "objective": 1000,
+        "n": 0,
+        "p50": null,
+        "min_n": 20
+      }
+    },
+    "pages": [
+      {
+        "slo": "save_success",
+        "delivered": "log"
+      }
+    ]
+  },
+  "slo_page_rows": [
+    {
+      "created_at": "2026-09-27 05:05:28",
+      "kind": "page",
+      "slo": "save_success",
+      "state": "breach",
+      "value": 0.038461538461538464,
+      "objective": 0.995,
+      "n": 26,
+      "window_hours": 24,
+      "delivered": "log",
+      "detail": "\ud83d\udd34 **Notebook SLO breach \u2014 save_success**: 0.0385 vs objective >= 0.995 over 26 final save outcomes in 24 h (25 gave up). Read /api/admin/notebook-slo."
+    }
+  ],
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T00-00-52.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-09-27 00:01:02",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-09-27 00:02:30",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-09-27 00:04:24",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-09-27 00:05:38",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T00-00-52.md",
+  "launcher_page_lines": [
+    "2026-09-27 00:05:28,456 WARNING api.services.journal_two.notebook_slo: [notebook-slo] PAGE (no DISCORD_WEBHOOK_URL, logged only): \ud83d\udd34 **Notebook SLO breach \u2014 save_success**: 0.0385 vs objective >= 0.995 over 26 final save outcomes in 24 h (25 gave up). Read /api/admin/notebook-slo."
+  ],
+  "finished_utc": "2026-09-27T05:06:09+00:00"
+}
