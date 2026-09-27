@@ -171,7 +171,11 @@ describe('⭐⭐ the group-B vendor readings, finally pinned', () => {
     // ⚠️ Its zero-argument form already agrees with the vendor by construction:
     // `computeVWAP` averages `(h + l + c) / 3`, and the capture's verdict for
     // `ta.vwap()` is `hlc3`.
-    expect(lastOf('plot(ta.vwap - ta.vwap(hlc3))')).toBe('pine:arity')
+    // ⭐ 2026-09-27: the capture's verdict IS the ruling for the one source it
+    // measured — `ta.vwap(hlc3)` now reads back as `vwap()`, so the difference is
+    // exactly 0. An ARBITRARY source is still the unruled half and still refuses.
+    expect(lastOf('plot(ta.vwap - ta.vwap(hlc3))')).toBe(0)
+    expect(lastOf('plot(ta.vwap - ta.vwap(close))')).toBe('pine:arity')
     expect(READINGS['ta.vwap_no_arg_default'].verdict).toBe('hlc3')
   })
 })

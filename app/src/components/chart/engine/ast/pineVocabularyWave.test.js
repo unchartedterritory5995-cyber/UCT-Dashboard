@@ -122,3 +122,37 @@ describe('clock(time) is the bare clock field — Pine-reference-pinned, capture
     expect(t.refusal.message).toMatch(/`month\(timenow\)`/)
   })
 })
+
+describe('a screener column the budget refuses is refused at the translate door (pine:budget)', () => {
+  // Reached once `ta.vwap(hlc3)` translated: `26-spy-to-es-qqq-to-nq` wraps the
+  // session-long `vwap()` in `sma(…, 3)`, which translated on the SCREENER lane
+  // and then could not be saved (doorScorecard: "every script that translates can
+  // be SAVED"). The guard is this module's; the reason is budget.js's.
+  const screener = (src) => translatePine(src, { strict: false })
+
+  it("screener lane: wrapping the session-long vwap refuses by name, with the budget's own reason", () => {
+    const t = screener(`${V6}plot(ta.sma(ta.vwap, 3))`)
+    expect(t.ok).toBe(false)
+    expect(t.mode).toBe('screener')
+    expect(t.refusal.guard).toBe('pine:budget')
+    expect(t.refusal.message).toMatch(/nothing can be wrapped around it/)
+  })
+
+  it('the chart pane lane (strict / host) is untouched — the chart owns its window', () => {
+    const t = tr(`${V6}plot(ta.sma(ta.vwap, 3))`)
+    expect(t.mode).toBe('host')
+    expect(t.ok).toBe(true)
+    expect(t.outputs[t.selected].formula).toBe('sma(vwap(), 3)')
+  })
+
+  it("an over-long plain window is NOT this guard's (it is a wider change, not taken here)", () => {
+    const t = screener(`${V6}plot(ta.sma(close, 1000))`)
+    const guards = [t.refusal, ...(t.outputs || []).map((o) => o.refusal)].filter(Boolean).map((r) => r.guard)
+    expect(guards).not.toContain('pine:budget')
+  })
+
+  it('the control: the bare session vwap, and an ordinary window, still translate on the screener lane', () => {
+    expect(screener(`${V6}plot(ta.vwap)`).ok).toBe(true)
+    expect(screener(`${V6}plot(ta.sma(close, 3))`).ok).toBe(true)
+  })
+})

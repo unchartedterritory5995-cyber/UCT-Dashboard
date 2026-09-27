@@ -1078,10 +1078,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:builtin"
+        "pine:function"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:function"
       ]
     },
     {

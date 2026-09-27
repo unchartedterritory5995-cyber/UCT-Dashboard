@@ -99,8 +99,12 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn } from './interpret.js'
 import { memberNumber } from './memberValue.js'
+// ⭐ The budget's own verdict, asked at the translate door (see the row builder
+// in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
+// `parse.js`, neither of which imports this file.
+import { checkBudget } from './budget.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -412,6 +416,12 @@ export const REFUSALS = Object.freeze({
     + 'so several price series cannot be matched onto it by position',
   'pine:roundtrip':
     'the translator wrote formula text it could not read back, so it emitted none',
+  // ⭐ 2026-09-27. A column that translates and that the engine's compute budget
+  // would then refuse. Declared here so the guard is this module's; the REASON
+  // that follows it is `budget.js`'s own sentence, never a second copy.
+  'pine:budget':
+    'this column translates, but the engine would refuse to compute it, so it is '
+    + 'not offered',
 })
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
@@ -14000,6 +14010,44 @@ function translatePineResult(source, opts = {}) {
       }
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
+      // ⭐⭐ A COLUMN THE BUDGET WILL REFUSE IS REFUSED HERE, IN THE BUDGET'S OWN
+      // WORDS (2026-09-27). Translating a tree `checkBudget` rejects reports a
+      // success no door downstream honours — `doorScorecard`'s "every script that
+      // translates can be SAVED". The guard is this module's (`pine:budget`, so
+      // the corpora's guard census can name it); the REASON is `budget.js`'s own
+      // sentence, not a second copy: one authority over what the budget allows.
+      // ⭐ NARROWED TO ONE CAUSE, BY MEASUREMENT: a window or offset wrapped around
+      // a SESSION-anchored call (`vwap()`), the case the budget's own sentence names
+      // ("nothing can be wrapped around it"). The reach, measured over
+      // `tests/fixtures/pine`, `pine_community`, `pine_oos` and the 266 committed
+      // scripts, both lanes: `26-spy-to-es-qqq-to-nq`'s `sma(vwap(), 3)` — reachable
+      // once `ta.vwap(hlc3)` translated. A plain over-long window (e.g.
+      // `volume-spikes…`'s lookback 1000 > 960) is NOT taken here: that is a wider
+      // change to the screener lane with its own census, not this wave's.
+      // ⛔ ONLY AGAINST THE SHIPPED MANIFEST. `budget.js` measures lookback off the
+      // shipped table, so a caller translating against its OWN manifest (`opts.table`,
+      // the "a function the manifest gains is callable" rail) would be judged by a
+      // table that does not declare its names.
+      // ⛔⛔ AND ONLY ON THE SCREENER LANE (`strict` off → `mode: 'screener'`). The
+      // screener SAVES under this budget; the chart pane (`strict` → `mode: 'host'`)
+      // does not — measured: a blanket check here detached two scripts the member
+      // door attaches today (`volume-spikes-growing-volume…` at lookback 1000 > 960,
+      // and `liquidity-pools__fa7b28e733`), which is an over-refusal at the member
+      // door, not a correction.
+      // ⛔ THE SESSION TEST RUNS FIRST, AND THE MEASURE IS GUARDED. A tree with no
+      // session anchor is never measured here at all; and a tree the budget cannot
+      // MEASURE (a folded zero window — the C10 seam `pine.window.test.js` pins)
+      // is not a budget refusal: it keeps meeting the engine's own refusal later,
+      // exactly as before. Measured: an unguarded `checkBudget` here turned four
+      // such trees into `pine:statement` refusals.
+      if (table === TABLE && opts.strict !== true && sessionAnchoredIn(ast).length > 0) {
+        let overBudget = { ok: true }
+        try { overBudget = checkBudget(ast) } catch { overBudget = { ok: true } }
+        if (!overBudget.ok && overBudget.guard === 'budget:lookback') {
+          throw new PineRefusal('pine:budget',
+            `${REFUSALS['pine:budget']} — ${overBudget.error}`, locate(out.tok))
+        }
+      }
       // Asked ONCE each, because both answers are needed twice below.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)

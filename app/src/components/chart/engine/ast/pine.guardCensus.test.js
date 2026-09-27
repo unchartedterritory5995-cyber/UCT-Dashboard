@@ -132,7 +132,12 @@ describe('the Pine guard census, by name', () => {
 // ⛔ THE METRIC DID NOT MOVE: 266 / 31 / 44, re-derived. Nothing is unlocked
 // end to end; what changed is WHICH guard fires first, which is exactly what
 // this census measures and why it is worth keeping.
+// ⭐ 2026-09-27 (vocabulary wave): `pine:arity` JOINS THIS LIST. Its only corpus
+// firing was `26-spy-to-es-qqq-to-nq`'s `ta.vwap(input_vwap_source)` (default
+// `hlc3`), which now translates to `vwap()` — and that script's `sma(vwap(), 3)`
+// column then meets the new `pine:budget` guard, which is therefore exercised.
 const EXPECTED_UNEXERCISED = [
+  'pine:arity',
   'pine:character',
   'pine:collection',
   'pine:colour-value',
