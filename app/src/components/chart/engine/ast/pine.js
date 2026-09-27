@@ -119,6 +119,7 @@ import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
+  GETTER_PROPS as OBJECT_GETTER_PROPS,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -12253,11 +12254,113 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
+  // ─── ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())` ───
+  //
+  // ⚰️ MEASURED AGAINST TRADINGVIEW 2026-09-27: Zero-Lag MA Trend Levels draws
+  // its 8 trend-break labels from `switch` arms guarded by exactly that, and a
+  // getter is object state the V2 graph cannot hold (see `findGetter`), so every
+  // label was refused. The RUNTIME holds the register — so, like `na(l)`'s
+  // liveness lift below, the getter is lifted out of the tree: the getter-FREE
+  // parts stay ONE canonical tree each, and only the conjuncts that reach a
+  // getter are structured as `LIVE_GUARD_KINDS` (objectProgram.js), evaluated
+  // per bar by `objectRuntime`.
+  //
+  // ⛔ WHAT LIFTS, EXACTLY: a getter on a DECLARED drawing register, in either
+  // spelling (`b.get_top()` / `box.get_top(b)`), standing as a WHOLE operand of
+  // `ta.crossover`/`ta.crossunder` or of `<`, `<=`, `>`, `>=`, under any mix of
+  // `and`/`or`/`not`. A getter anywhere else (inside arithmetic, on a list
+  // element, in a coordinate, in a loop body) keeps the guard unreadable —
+  // dropped and counted, never guessed.
+  const OBJECT_NS = new Set(OBJECT_NAMESPACES)
+  const GETTER_NAME_RE = /\.get_[a-z0-9_]+$/
+  const regFamily = (name) => {
+    const d = collected.decls.get(name)
+    return d && d.kind !== 'coll' ? d.family : null
+  }
+  /** Is an object getter written anywhere in this parse subtree? */
+  const hasObjectGetter = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return false
+    if (node.type === 'method' && /^get_/.test(String(node.name || ''))) return true
+    if (node.type === 'call' && GETTER_NAME_RE.test(String(node.name || ''))) {
+      const head = String(node.name).slice(0, String(node.name).lastIndexOf('.'))
+      if (OBJECT_NS.has(head) || collected.decls.has(head)) return true
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
+      if (hasObjectGetter(node[k], depth + 1)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (hasObjectGetter(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+      }
+    }
+    return false
+  }
+  /** A getter on a declared register → `{v:'get', target, prop}`, else null. */
+  const getterRef = (node) => {
+    if (!node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    const dot = name.lastIndexOf('.')
+    if (dot <= 0) return null
+    const head = name.slice(0, dot)
+    const method = name.slice(dot + 1)
+    const args = node.args || []
+    let regName = null
+    if (OBJECT_NS.has(head)) {
+      if (args.length !== 1 || args[0].name) return null
+      const a = args[0].value
+      if (!a || a.type !== 'name' || regFamily(a.name) !== head) return null
+      regName = a.name
+    } else {
+      if (args.length !== 0) return null
+      regName = head
+    }
+    const fam = regFamily(regName)
+    const prop = fam && regId.has(regName) ? (OBJECT_GETTER_PROPS[fam] || {})[method] : null
+    return prop ? { v: 'get', target: { r: 'reg', id: regId.get(regName) }, prop } : null
+  }
+  /** A getter-free node → its interned tree; a bare getter → its `get` ref. */
+  const liveOperand = (node) => {
+    const g = getterRef(node)
+    if (g) return g
+    if (hasObjectGetter(node)) return null
+    const ast = canonicalOf(node)
+    return ast ? internTree(ast) : null
+  }
+  const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
+  /** A guard expression that reads a getter → its live reference, or null. */
+  const liftLive = (node) => {
+    if (!node) return null
+    if (!hasObjectGetter(node)) return liveOperand(node)
+    if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
+      const a = liftLive(node.arg)
+      return a ? { v: 'bool', op: 'not', args: [a] } : null
+    }
+    if (node.type === 'binary' && ['and', '&&', 'or', '||'].includes(node.op)) {
+      const a = liftLive(node.left)
+      const b = liftLive(node.right)
+      return a && b ? { v: 'bool', op: node.op === 'and' || node.op === '&&' ? 'and' : 'or', args: [a, b] } : null
+    }
+    if (node.type === 'binary' && ['<', '<=', '>', '>='].includes(node.op)) {
+      const a = liveOperand(node.left)
+      const b = liveOperand(node.right)
+      return a && b ? { v: 'cmp', op: node.op, args: [a, b] } : null
+    }
+    if (node.type === 'call' && CROSS_DIR[node.name] && (node.args || []).length === 2
+        && !node.args.some((x) => x.name)) {
+      const a = liveOperand(node.args[0].value)
+      const b = liveOperand(node.args[1].value)
+      return a && b ? { v: 'cross', dir: CROSS_DIR[node.name], args: [a, b] } : null
+    }
+    return null
+  }
+
   const guardOf = (guards) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
     let requiresEmpty = null
+    /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
+    const liveParts = []
     for (const g of guards) {
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
@@ -12299,6 +12402,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (naRef && regId.has(naRef.name)) {
         if (g.negate ? naRef.negated : !naRef.negated) requiresEmpty = regId.get(naRef.name)
         else requiresLive = regId.get(naRef.name)
+        continue
+      }
+      // ⭐⭐ A CONDITION THAT READS A GETTER — lifted, never folded into a tree.
+      // ⛔ Not inside a counted loop: a body op runs several times a bar, and a
+      // crossing observed "once per bar" has no single answer there.
+      if (hasObjectGetter(node)) {
+        if (loopIds.length) return undefined
+        const live = liftLive(node)
+        if (!live) return undefined
+        liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [live] } : live)
         continue
       }
       const ast = canonicalOf(node)
@@ -12363,9 +12476,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ...(requiresLive ? { requiresLive } : {}),
       ...(requiresEmpty ? { requiresEmpty } : {}),
     }
-    if (acc === null) return { when: null, extra }
-    const ref = internTree(acc)
-    return ref === null ? undefined : { when: ref, extra }
+    const ref = acc === null ? null : internTree(acc)
+    if (acc !== null && ref === null) return undefined
+    if (!liveParts.length) return { when: ref, extra }
+    // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
+    const parts = ref ? [ref, ...liveParts] : liveParts
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra }
   }
 
   const namedOrPositional = (args, order) => {
