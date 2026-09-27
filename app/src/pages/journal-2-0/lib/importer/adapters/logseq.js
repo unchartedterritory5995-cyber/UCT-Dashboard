@@ -24,7 +24,10 @@
  *  - only `pages/` and `journals/` notes are read; `logseq/` housekeeping and
  *    `.recycle/` (Logseq's deleted pages) are skipped silently;
  *  - page properties (`title::`, `tags::`, `alias::` in the leading lines)
- *    feed the title and tags; EVERY `key:: value` line is then removed;
+ *    feed the title and tags, and those lines are removed; so are Logseq's
+ *    own bookkeeping lines (`id::`, `collapsed::`, `card-*`, `logseq.*` --
+ *    `INTERNAL_KEYS`); every OTHER `key:: value` line is the member's data
+ *    and stays as written (review M-7);
  *  - `TODO` / `DOING` / `NOW` / `LATER` / `WAIT` / `WAITING` / `IN-PROGRESS`
  *    bullets become unticked task items, `DONE` ticked;
  *  - a journal's title is its date (`2026-09-22`) and so is its createdAt;
@@ -42,7 +45,28 @@ const CONFIG_RE = /(^|\/)logseq\/config\.edn$/i
 const NOTE_RE = /^(pages|journals)\/.+\.md$/i
 const JOURNAL_RE = /^journals\/(\d{4})_(\d{2})_(\d{2})\.md$/i
 const HOUSEKEEPING_RE = /^(logseq|\.recycle)\//i
-const PROPERTY_RE = /^\s*(?:[-*+]\s+)?([A-Za-z][A-Za-z0-9_-]*)::(?:\s+(.*))?\s*$/
+const PROPERTY_RE = /^\s*(?:[-*+]\s+)?([A-Za-z][A-Za-z0-9_.-]*)::(?:\s+(.*))?\s*$/
+// ⛔ ONLY Logseq's own bookkeeping is removed (review M-7). A property line
+// can carry the member's own data -- `entry:: 120`, `stop:: 98.5`,
+// `thesis:: ...` -- and removing every `key:: value` line dropped it silently.
+// These keys hold no member-authored text: a block's id, its fold state and
+// heading/colour flags, flashcard scheduling (`card-*`), PDF-highlight
+// anchors (`hl-*`), query-table settings and Logseq's namespaced `logseq.*`.
+// Every other property line stays in the note as the text it was written as.
+// (A page's leading `title::` / `tags::` / `alias::` are not lost either: they
+// become the note's title, tags and link names -- see `pageProperties`.)
+const INTERNAL_KEYS = new Set([
+  'id', 'collapsed', 'heading', 'background-color', 'icon', 'public', 'filters',
+  'exclude-from-graph-view', 'ls-type', 'query-table', 'query-properties',
+  'query-sort-by', 'query-sort-desc', 'created-at', 'updated-at',
+])
+const INTERNAL_PREFIXES = ['logseq.', 'card-', 'hl-']
+const CONSUMED_PAGE_KEYS = new Set(['title', 'tags', 'alias'])
+
+function isInternalKey(key) {
+  const k = key.toLowerCase()
+  return INTERNAL_KEYS.has(k) || INTERNAL_PREFIXES.some((p) => k.startsWith(p))
+}
 const FENCE_RE = /^\s*(```|~~~)/
 const OPEN_TASK_RE = /^(\s*[-*+]\s+)(?:TODO|DOING|NOW|LATER|WAIT|WAITING|IN-PROGRESS)\s+/
 const DONE_TASK_RE = /^(\s*[-*+]\s+)DONE\s+/
@@ -186,13 +210,20 @@ function splitRefs(value) {
     .filter(Boolean)
 }
 
-/** Property lines out, task markers to checkboxes, `[[Page]]` to a path link -- never inside code fences. */
+/**
+ * Logseq's bookkeeping property lines out (and a page's leading title/tags/
+ * alias, which became the note's title, tags and names), task markers to
+ * checkboxes, `[[Page]]` to a path link -- never inside code fences. A
+ * property line that is the MEMBER's (`entry:: 120`) stays as written.
+ */
 export function rewriteNote(text, byName) {
   const out = []
   let inFence = false
+  let leading = true            // still in the page-properties block at the top
   for (const line of text.split('\n')) {
     if (FENCE_RE.test(line)) {
       inFence = !inFence
+      leading = false
       out.push(line)
       continue
     }
@@ -200,7 +231,13 @@ export function rewriteNote(text, byName) {
       out.push(line)
       continue
     }
-    if (PROPERTY_RE.test(line)) continue
+    const prop = PROPERTY_RE.exec(line)
+    if (prop) {
+      const key = prop[1].toLowerCase()
+      if (isInternalKey(key) || (leading && CONSUMED_PAGE_KEYS.has(key))) continue
+    } else if (line.trim()) {
+      leading = false
+    }
     let l = line.replace(OPEN_TASK_RE, '$1[ ] ').replace(DONE_TASK_RE, '$1[x] ')
     l = l.replace(LINK_RE, (whole, target) => {
       const path = byName.get(target.trim().toLowerCase())

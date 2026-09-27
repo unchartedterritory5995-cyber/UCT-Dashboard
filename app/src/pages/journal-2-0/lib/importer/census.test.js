@@ -168,7 +168,12 @@ const EXPECT = {
     expect(notes.some((x) => x.bodyPlain.includes('OLD backup copy'))).toBe(false)
     const page = byTitle(notes, 'Setups/VCP')
     expect(page.bodyPlain).toContain('Tightening contractions into a pivot.')
-    expect(page.bodyPlain).not.toMatch(/::/)
+    // review M-7: the member's OWN properties stay (a page one and a block one)…
+    expect(page.bodyPlain).toContain('timeframe:: daily')
+    expect(page.bodyPlain).toContain('entry:: 120')
+    // …Logseq's bookkeeping goes, and so do the page properties that became
+    // the title, tags and link names
+    expect(page.bodyPlain).not.toMatch(/\b(id|collapsed|title|tags|alias)::|logseq\.order-list-type/)
     expect(page.tags).toEqual(['setup', 'swing'])
     expect(taskItems(page.bodyJson)).toEqual([
       { text: 'Backtest the last ten', checked: false },

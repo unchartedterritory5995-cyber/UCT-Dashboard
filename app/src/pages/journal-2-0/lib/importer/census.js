@@ -187,7 +187,7 @@ export const IMPORT_CENSUS = [
     format:
       'Nothing to pick. On Logseq\'s newer database version, use the ••• menu → Export graph → "Export as standard Markdown (no block properties)" instead.',
     watch:
-      "Logseq's own backup copies (in logseq/bak) are skipped, so nothing imports twice. Page properties like tags:: become tags, TODO and DONE become checkboxes, and journals are titled by their date.",
+      "Logseq's own backup copies (in logseq/bak) are skipped, so nothing imports twice. Page properties like tags:: become tags, TODO and DONE become checkboxes, and journals are titled by their date. Your own properties (like entry:: 120) stay in the note as text; Logseq's bookkeeping lines (id::, collapsed::) are left out.",
   },
   {
     id: 'joplin',
