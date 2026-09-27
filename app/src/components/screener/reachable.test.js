@@ -299,6 +299,38 @@ const AWAITING_A_DECISION = {
     'S4 CP1 divergence detector — read-only, mounts nothing BY APPROVED SCOPE '
     + '(2026-09-13); reached only by its own rail. R-29. Mount, retire, or '
     + 'delete it; then drop this entry.',
+  // ── TERM-029 GEX ASSUMPTION COPY — UNIMPORTED ON PURPOSE (2026-09-26) ────
+  //
+  // The dealer-positioning assumption behind every GEX number is disclosed today
+  // only as a native `title=` on the Naive/Trade-Aware toggle
+  // (pages/OptionsFlow.jsx:4424), which never opens on touch and sits a long way
+  // from the figures whose SIGN it changes. TERM-029 moves it to the number.
+  //
+  // ⛔ THE RENDER HALF LANDS IN A PARTNER-OWNED FILE. `pages/OptionsFlow.jsx` is
+  // co-edited by Ravi and its GEX numbers are styled with inline `style={{}}`
+  // objects, so the wiring is className hooks plus the additive mobile CSS layer
+  // and it needs an ack first. This module is the half that needs no ack: the
+  // copy, in the non-partner `optionsFlow/` lane that
+  // docs/OPTIONS-FLOW-NOTE-FOR-RAVI.md:14-25 points at, pinned byte-identical to
+  // the partner file's own string by gexAssumption.test.js so the two cannot
+  // drift into disagreeing about what the product claims.
+  //
+  // ⚠️ It is ALSO deliberately safer here than inlined there:
+  // optionsFlow/wiring.guard.test.js records that OptionsFlow.jsx is edited
+  // through the GitHub web UI, and that twice on 2026-07-25 a save from a
+  // long-open tab landed as a stale-buffer commit that silently reverted
+  // committed work. Copy held in this module survives that; copy inlined there
+  // does not, and nothing goes red when it disappears.
+  //
+  // Expiry: the ack lands and the label is wired at the Total GEX tile and the
+  // GEX Summary row — then this module has importers and this entry goes. Or
+  // TERM-029 is dropped, and the module goes with it. Do not leave it looking
+  // shipped.
+  'app/src/pages/optionsFlow/gexAssumption.js':
+    'TERM-029 — the GEX assumption copy, held OUTSIDE the partner-owned '
+    + 'OptionsFlow.jsx until Ravi acks the className-hook wiring. Pinned to that '
+    + "file's own title string by its rail. Wire it, or drop TERM-029 and delete "
+    + 'it; then drop this entry.',
   // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
   //
   // The owner removed the per-control percentile bands and the basis note from
@@ -745,6 +777,11 @@ const AWAITING_A_DECISION = {
  * always "decide these modules", never "find out what broke".
  */
 const PARKING_EXPIRES = {
+  // ⚠️ SHORT ON PURPOSE. This one is not waiting on a build, it is waiting on one
+  // person to answer one message about a partner-owned file. A two-month expiry
+  // would let "we asked Ravi" sit unchallenged for two months, which is the
+  // documented-but-not-bounded shape this register exists to refuse.
+  'TERM-029 GEX ASSUMPTION COPY — UNIMPORTED ON PURPOSE (2026-09-26)': '2026-10-31',
   'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
   "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
   // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
