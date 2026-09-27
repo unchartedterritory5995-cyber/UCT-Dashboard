@@ -206,9 +206,18 @@ tarballs (never fewer than the newest 3). Rewriting snapshots on every deletion 
 ⚠️ Stated, not hidden: (a) a volume lost between a deletion whose off-site write failed and the
 next successful backup loses that tombstone with the volume; (b) the Privacy page's "up to 7
 days" sentence names the ACCOUNT DATABASE copies — attachment tarballs are kept up to 14 days
-(owner/legal decision whether to shorten `J2_ATTACHMENT_BACKUP_RETAIN_DAYS` or word the page);
+(decided 2026-09-26: the Privacy page and the 14-day setting both stay as they are);
 (c) tombstones are never pruned — a member id is the least data that can honour an erasure
-against a copy still held. Rails: `tests/test_account_tombstones.py` (the resurrected-user rail
+against a copy still held; (d) **one known exception to "snapshots expire": `authdb/archive/`.**
+`tools/archive_authdb_backup.py` is a one-shot, owner-run tool (2026-07-17, `05b890ee3`, no
+programmatic caller) that keeps the newest pre-pattern-purge backup as
+`authdb/archive/pre_pattern_purge_<ts>.db.gz`. `authdb_backup._prune` lists only
+`authdb/backup/`, so an archive is **never pruned**, and there is no archive restore path: the
+drill refuses to `--write-restored` a snapshot older than `MAX_AGE_HOURS`, so an archive
+restore would be done by hand, and it MUST then run `account_tombstones.replay_on_db` on the
+restored file before it serves anyone. Whether such an object exists was not listed (it needs
+one bucket listing), and keeping or deleting it is an open owner decision; until then it is kept.
+Wave 10 lane 10C report, item 7. Rails: `tests/test_account_tombstones.py` (the resurrected-user rail
 drills a snapshot taken BEFORE a deletion and asserts the member is gone from the restored copy).
 
 ## Verification method

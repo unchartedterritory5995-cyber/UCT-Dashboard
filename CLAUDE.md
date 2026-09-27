@@ -972,6 +972,37 @@ the hub is `position: fixed`, so that is null while it is plainly on screen. Mea
 attribute, the computed `display`, and a non-zero box, and keep a fixture that must read SHOWING or
 the checker passes by answering "no" to everything.
 
+#### A second synthetic account — `bench@uctintelligence.internal`, MEMBER role (2026-09-26)
+
+**Why a second one.** `smoke@` is an **admin**, and an admin skips checks a member hits: email
+verification, plan gates, the member side of a door such as the personal API or Email to Notebook. A
+walk that has to prove "a member can do this" cannot run as an admin and mean it. `bench@` exists for
+exactly those walks (wave 10, lane 10D's personal-API walk; the email-in walk).
+
+**It is not a loosening of the rule above.** An automated production tool still signs in only as a
+synthetic `@uctintelligence.internal` account, never as a member or the owner. `smoke@` stays the
+admin one; `bench@` is the member one. **Every rule for `smoke@` applies unchanged**: it never holds
+real data, whatever a run creates that run removes (trash through the product's own `DELETE`, a soft
+delete), it runs only in its own Playwright context and never in the owner's Chrome, and its
+credentials never reach the repo, a log, a commit or a chat.
+
+| | |
+|---|---|
+| Email | `bench@uctintelligence.internal` |
+| User id | `4453bdf9-8925-481b-8f2d-6797d2d94022` |
+| Role | `member` — NOT in `ADMIN_EMAILS`, on purpose |
+| Plan | `pro`, `status='comped'`, no Stripe ids (`comp_user_access`) |
+| `email_verified` | `1` — set at provisioning, because a member must be verified to use the product and the domain cannot receive the mail |
+| Credentials | `BENCH_EMAIL` / `BENCH_PASSWORD` in `HKCU\Environment` (User scope) |
+
+**How it was created:** the same pod-side pattern as `smoke@` — the app's own `create_user` and
+`comp_user_access` in the web pod, after a `VACUUM INTO` backup
+(`/data/backups/auth-2026-09-26-pre-bench-account.db`); then an admin `reset-password` and a
+sign-in check. 30 users after. ⚠️ On this box `railway` resolves to npm's `railway.CMD`, which runs
+through `cmd.exe`, and `cmd.exe` consumed the `|` inside a `railway ssh` argument ("The system cannot
+find the path specified", nothing reached the pod). A script that passes arguments containing `|`
+must call `node_modules/@railway/cli/bin/railway.exe` directly.
+
 ### The G0 trace mirror is LIVE — `data-hub-trace`, admin-only, since 2026-09-12
 
 `PR #108` merged as `d899489124`; `web` is serving `59388e52c`, of which that commit is an
@@ -3757,7 +3788,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 in build, 2026-09-26
+### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 Phase I LIVE (#203 `c6a8a9d3a`, #204 `2ab637644`, #205 `4f708a0d2`), Phases II–III in build, 2026-09-27
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3781,7 +3812,7 @@ PASS; it also carried the H14 fix for the single-note export's Latin-1 header). 
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
 round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
 (worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
-`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-b` / `-c`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-a` / `-b` / `-c` / `-d`). Two H14 hotfixes shipped ahead of it: #203 (`c6a8a9d3a`: note-body depth cap, Word intake, a time/size budget on PDF text extraction) and #204 (`2ab637644`: every note write's compare-and-set takes `BEGIN IMMEDIATE`). **Phase I LIVE as #205 (`4f708a0d2`, web booted 2026-09-27 ~04:56Z, tagged `notebook-wave10-L1a-tip2-2026-09-26`)**: lanes 10B (touch Undo/Redo, table column resize and sort, `.xlsx` documents, Best matches, property autofill, ten more importers) and 10C (an unbuildable body refused at create and at import -- NOT yet on the PUT save path, a queued follow-up -- tombstone-first account deletion with replay on restore, the restore drill's attachment sampling, the switch-rehearsal tool), plus the phone fix for the Journal header's More and Log Trade menus (clipped since 2026-09-22; verified tappable on production at 390 px). ⚠️ The a11y job's fixture uses a per-render SWR cache: a recipe that types must end with `landPendingAutosave()` (`app/src/pages/journal-2-0/a11y/fixtures.jsx`) or its autosave is flushed after the cache is torn down and a retry outlives the test. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
