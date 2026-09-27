@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2016,
+  "passed": 2006,
+  "failed": 9,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 208.0,
+  "failed_files": [
+    "tests/test_closed_table_citations.py",
+    "tests/test_cold_fetch_pool_protection.py",
+    "tests/test_concept_vocabulary.py",
+    "tests/test_definition_concierge.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "9 failed, 2006 passed, 1 skipped, 246 warnings in 208.00s (0:03:27)",
+  "ok": true
+}
