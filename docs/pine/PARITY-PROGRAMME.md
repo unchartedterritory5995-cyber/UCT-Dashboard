@@ -20,6 +20,134 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐⭐ 2026-09-26 — THE `pine:no-output` 33, TRACED TO CAUSES (branch `pine/object-pass-no-output`)
+
+> The road-to-100% table below called this row *"object-pass coverage, not a
+> ruling"*. It is — but it is not ONE gap, and closing the largest cause
+> completes almost nothing on its own. Measured, not estimated; every number here
+> is `memberPaneDefinition` with `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1` over the
+> 266 committed scripts, on master `9310ae0b0` and on this branch.
+
+### What the object pass actually did with the 33
+
+**31 of the 33 contain a drawing call; the object pass COLLECTED ops for 30 of
+them, and not one create survived.** A census row naming a token is not a cause; each
+family below was reproduced by a minimal Pine snippet before it was counted.
+Primary cause = the reason for the majority of that script's drops.
+
+| family | n | minimal repro | next wall once served | built |
+|---|---|---|---|---|
+| **F1 — drawing inside a user function body** | **14** | `f(y) =>` / `    label.new(bar_index, y, "x")` / `f(high)` → `y` undefined, dropped | the body's OWN `var` state (fvg-detector, power-of-3), session clock, object getters (rsi-swing), `request.*` (mtf-watchlist, correlation-matrix), comma-joined statements (correlation-matrix), UDT receivers (methods: ipda, mgi) | **yes** |
+| F4 — drawings in arrays / UDT fields / `for … in` | 6 | `for l in lines` / `    l.delete()` → loop-blocked | runtime lane (collections, UDTs) | no |
+| F2 — guard reads `var` state or a block value | 3 | `var float x = na` / `if c` / `    x := high` / `if x > 0` / `    label.new(…)` → guard refuses `pine:reassign` | runtime lane (RC-L) | no |
+| F3 — session clock `time(session)` | 3 | `if time("", "0930-1600")` / `    label.new(…)` → `pine:function time` | exchange timezone + session parsing (vendor-measured, `r11-time-session`) | no |
+| F7 — a built-in the table lacks | 3 | `dayofweek(time)`; `ta.barssince(c)` unbounded; `ta.pivothigh(h, len, len)` with an input `len` | one vendor ruling per name | partly — `int` (F7′); the input-length pivot clears via F9 |
+| F8 — no drawing at all | 2 | `barcolor(c ? color.yellow : na)` only; `alert()` only | not an object-pass gap (a `barcolor` output family; an alert-only script draws nothing in Pine either) | no |
+| F6 — object getter in a coordinate | 1 | `line.new(label.get_x(l), …)` → `pine:drawing` | getters read object state, which the pure V2 graph cannot hold by design | no |
+| F10 — text feature | 1 | `str.format` / text-value | text channel | no |
+
+Secondary families, found while tracing and built because they complete scripts:
+
+| family | n (corpus) | minimal repro | built |
+|---|---|---|---|
+| **F5 — a drawing variable's history, `line.delete(sup[1])`** | 291 dropped deletes / 24 scripts | `sup = line.new(…)` / `line.delete(sup[1])` → `delete:target` | **yes** |
+| **F7′ — `int(x)` where x is whole-or-`na` every bar** | contraction-box | `box.new(left = int(c ? bar_index - 5 : na), …)` | **yes** |
+| **F9 — an object tree reads an input the pane document never declared** | 16 door-attached scripts had a tree refused this way (measured on this branch before the fix) | objects-only script reading `input.int` in a coordinate → reader: `unknown name` | **yes** |
+
+### ⚰️ F1 WAS A SILENT MISTRANSLATION, NOT ONLY A GAP
+
+`collectObjectOps` walked a function DEFINITION's body as top-level code. So
+`f() => label.new(…)` behind `if close > open` drew a label on EVERY bar, and a
+function never called at all drew one too — both `ok: true`. Measured: kept ops
+from inside function bodies in **31 scripts, 6 of them attaching at the door**
+(`dual-view-htf-candlestick-patterns` carried 19). The fix (`objectFnInline.js`)
+inlines the body at each CALL SITE — per-call-site `var` registers, parameters
+bound by argument substitution, the call's guards on every op, the returned
+handle copied into the caller — and refuses by name (a counted drop, never an
+`unsupported` note) for: a drawing METHOD, a call inside an expression, `var x =
+f()`, a wrong arity, and a CONDITIONAL call whose body reads history (Pine only
+advances a function's history on the bars it runs; the columnar model evaluates
+every bar).
+
+### Completion — what reaches the door AND is drawn in full
+
+"Draws complete" = attaches, the object program has zero drops/loop-blocks/
+unsupported/getters, `objectReaderFor` fails no tree, the runtime runs `ok`, and
+the RENDERER keeps ≥ 1 object (`paintObjects` + `layoutTables` counters).
+
+| | master | this branch |
+|---|---|---|
+| attach at the door (flag ON, as shipped) | 53 | **62** |
+| attach at the door (flag OFF) | 29 | **33** |
+| draws complete | 1 | **5** |
+| attaches but loses part of its drawing (program drops, reader refuses, or renderer keeps 0) | 36 | 41 |
+| attaches on plots while its objects are all lost | 4 | 4 |
+| **the 33 `pine:no-output`: completed** | — | **1** (`contraction-box-doji-lines`) |
+
+Completed on this branch: `contraction-box-doji-lines` (F1+F7′),
+`fibonacci-pivot-points-cc` (F5), `makuchaku039s-trade-tools-fair-value-gaps`
+(F9 — a CLEAN program whose 50 boxes all painted at NaN), `position-size-calculator`
+(F1 — its labels were lost inside a function), plus the one master already had
+(`inside-bar-range-mother-candle-…`).
+
+Newly attaching at the door, by family: **F1** — `contraction-box-doji-lines`,
+`fair-value-gap__1048fa103a`, `rsi-swing-indicator`; **F9** —
+`average-day-range-adr-pivots`, `extrapolated-pivot-connector`, `heat-map-seasons`,
+`high-low-open-mid-ranges`, `ict-killzones-pivots-tfo`, `liquidity-pools`,
+`market-structure-by-leviathan`, `price-action-as-in-book-…`. Four of them —
+`extrapolated-pivot-connector`, `heat-map-seasons`, `liquidity-pools`,
+`price-action-as-in-book-…` — attach with the flag OFF too (door OFF 29 → 33).
+⚠️ F9's door moves come from `memberInputTranslation`'s early return:
+when NO output survived the declare-every-input probe it returned that probe itself
+(outputs refused, object trees reading undeclared names) instead of the plain,
+fold-every-input translation the rest of the function already falls back to. So it
+also rescues PLOTS that died only because an input was declared into a window
+(`ta.pivothigh(h, len, len)`), not just drawings.
+
+⛔ **Two scripts stop attaching, and both were drawing a mistranslation:**
+`ict-killzone-index-version` (its one op was a `line.new` from a helper body,
+unconditional every bar, `y1` reading the helper's PARAMETER `price` as a free
+series) and `volumized-order-blocks-flux-charts` (one `box.new` from a function
+body, every bar, `na` corners). Both are now refused by name.
+
+### ⛔⛔ NEEDS AN OWNER RULING — the objects-only door admits PARTIAL drawings
+
+`paneGate`'s objects-only branch admits a `pine:objects-only` verdict, and in
+the host lane `pine:objects-only` means exactly *"draws, and dropped ≥ 1 op"* —
+a clean object-only program is `ok: true` via `objectOnlyCleanWin`, whose own
+comment says *"NO PARTIAL CREDIT"*. So the door admits precisely the programs
+the translator refuses to call clean. **40 of master's 53 attachments lose part or all of
+their drawing** (36 + 4 above); this branch moves 10 more scripts from a loud
+refusal to a partial attachment (e.g. `rsi-swing-indicator` attaches and the renderer
+keeps 0 of its objects).
+Under a gate that admitted only complete drawings the door would read **13 on
+master, 17 here** (plots-only scripts included). Not changed here: it would take
+40 scripts off master's door, and "zero lost" was a hard constraint of this job.
+
+### What was deliberately NOT built, and why
+
+- **F2/F4 (state, collections, UDTs)** — the runtime lane's purpose; the object
+  lane (`buildObjectLane`) builds 1 of the 33 today (`market-structure-by-leviathan`).
+- **F3 session clock** — needs the symbol's exchange timezone and a session
+  grammar; a guess draws sessions at the wrong hours.
+- **F6 getters** — the V2 graph is pure by construction.
+- **Methods that draw** — a method dispatches on its receiver's TYPE; this reader
+  has no type system. Refused by name (304 refused calls in `mgi-levels-suite` alone).
+- **The objects-only door's partial admissions** — owner ruling above.
+
+### Verification on this branch
+
+- Engine suite (`npm run test:engine`), failing-test NAMES diffed against a
+  baseline run on a separate `origin/master` worktree: **no new failures**. Three
+  runtime `*.measure.test.js` files timed out once under full-suite load and pass
+  alone on both trees (~5 s each).
+- Builder suite: no new failures.
+- 17 mutations, each reverting exactly one layer, all red; restored from captured
+  bytes and sha256-verified (never `git checkout`).
+
+
+---
+
 ## ⭐⭐⭐ 2026-09-23 — DECISIONS 5 AND 6, RULED (both delegated: *"You decide both of those"*)
 
 ### 5. What "100%" is a percentage OF — **212, NOT 266**
