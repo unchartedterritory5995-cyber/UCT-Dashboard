@@ -742,6 +742,33 @@ something they have not. That is the single highest-value line in step 5.
 
 ## 6. THE ONE UNKNOWN THAT SHOULD BE READ BEFORE ANY OF THIS LANDS
 
+> ✅✅ **BOTH UNKNOWNS WERE READ ON 2026-09-27 AND BOTH ARE SETTLED.** Taken from the `web`
+> service's own configuration; the read returned **285 variables**, so each "absent" below is an
+> ANSWER rather than a failed query.
+>
+> **Q1 — `DISCORD_ALERT_WEBHOOK` and `DISCORD_WEBHOOK_URL` ARE THE SAME DESTINATION.**
+> ⭐ Compared **by sha256 digest, so neither value was ever printed, logged or written down** —
+> the question is "are these equal", which a digest answers without anyone handling a credential.
+> They are equal. Consequences, in the order §6 asks them:
+> * Rows **7** and **8** **move nothing** — `ops_webhook()` re-derives the destination those two
+>   modules already reach under a different variable name. The conversion is destination-neutral.
+> * Rows **4** and **5** are removing the member's copy from **the single ops room**, not from one
+>   of two. The member keeps their own delivery (bell / email); what goes away is ops-channel noise.
+> * The spec's **contradiction 4** — *"two variables, one claimed channel"* — is settled: it is
+>   **one channel with two names**, so `DISCORD_ALERT_WEBHOOK` is currently redundant with
+>   `DISCORD_WEBHOOK_URL`. ⚠️ Recorded as a finding; retiring one of them is nobody's task yet.
+>
+> **Q2 — all three new variables are ABSENT from `web`** (absent, not blank):
+> `DISCORD_OPS_WEBHOOK_URL`, `DISCORD_BUSINESS_WEBHOOK_URL`, `OPS_ALERT_EMAIL_TO`.
+> ⭐ Every *"no day-one change"* statement in §4 rested on this, and it was PROSE in two places
+> (`admin_api_health.py:47-51`'s comment and the ledger's silence). It is now a measurement.
+> Steps 3 and 4 are therefore inert in production as claimed, and the step-6 conversions are safe
+> to land without an owner ruling.
+>
+> ⚠️ **This is a DATED reading, like everything else here.** A variable set tomorrow makes every
+> line above stale, and nothing in the tree will notice. Re-read before citing it.
+
+
 ❓ **Do `DISCORD_ALERT_WEBHOOK` and `DISCORD_WEBHOOK_URL` point at the same Discord channel?**
 
 It is one read from the pod (or a comparison of the two webhook IDs), and it decides:
