@@ -236,14 +236,19 @@ could not be measured on v5 at all. Rail: `surfaces/NotebookSurface.gate.test.js
 **The production half is the controller's, in ONE off-hours window**, and it starts from what
 production HOLDS, never from this file or the ledger:
 
-```sh
-railway variables --service web --kv > notebook-switch-record-<UTC>.txt      # read-only
-python tools/notebook_switch_rehearsal.py --check-record notebook-switch-record-<UTC>.txt
+```powershell
+# read-only; the full --kv (every secret on web) stays in the pipe -- only the Notebook keys
+# reach disk, in TEMP, never the checkout (the tool refuses a path inside the repository)
+railway variables --service web --kv | python tools/notebook_switch_rehearsal.py --check-record - --save-record "$env:TEMP\notebook-switch-record-<UTC>.txt"
 # -> prints the ONE OFF command and the RESTORE (deletes first, then ONE --set) from the record
 python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect off --set-at <UTC>
-python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect on \
-    --recorded notebook-switch-record-<UTC>.txt --set-at <UTC>
+python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect on --recorded "$env:TEMP\notebook-switch-record-<UTC>.txt" --set-at <UTC>
+Remove-Item "$env:TEMP\notebook-switch-record-<UTC>.txt"      # the record is done with
 ```
+
+⚰️ This block said `railway variables --service web --kv > notebook-switch-record-<UTC>.txt`,
+run from the checkout: every production secret on `web` written into a file the public
+repository does not ignore (wave 10 10C review, fixed in fix round 1).
 
 `--verify` is GET-only after the sign-in, refuses any account but
 `smoke@uctintelligence.internal` for production, and proves a NEW BOOT from `/api/health`'s

@@ -332,3 +332,49 @@ def test_the_tool_writes_no_environment_of_its_own(t):
                                          "os.putenv")]
     assert writes == [] and calls == [], (writes, calls)
     assert "SET = " in t.launcher_source({"X": "1"}), "the child's launcher is where the values go"
+
+
+# ── step 0 records ONLY the window's Notebook keys, OUTSIDE the checkout (fix round 1 item 5) ─
+
+_KV = ("STRIPE_SECRET_KEY=sk_live_PLANTED_SECRET\nPUSH_SECRET=planted-push-secret\n"
+       "J2_SHARE_LINKS_ENABLED=1\nNOTEBOOK_PUBLISH_ENABLED=1\nNOTEBOOK_DOOR_GUARD=unknown-only\n"
+       "NOTEBOOK_PERSONAL_API_ENABLED=1\nANTHROPIC_API_KEY=sk-ant-PLANTED\n")
+
+
+def test_step_zero_pipes_the_kv_and_saves_outside_the_checkout(t, table):
+    _, modes = t.capability_table()
+    text = t.production_text(table, modes, ["J2_SHARE_LINKS_ENABLED"])
+    step0 = next(ln for ln in text.splitlines() if "railway variables --service web --kv" in ln)
+    assert "--kv |" in step0 and "--check-record -" in step0 and "--save-record" in step0, step0
+    assert ">" not in step0.replace("<UTC>", ""), (
+        "the --kv output is redirected to a file -- every web secret on disk")
+    assert t.RECORD_PATH.startswith("$env:TEMP\\"), t.RECORD_PATH
+    assert f'Remove-Item "{t.RECORD_PATH}"' in text, "no deletion step for the record"
+    assert text.count(t.RECORD_PATH) >= 3            # saved, verified against, deleted
+
+
+def test_the_saved_record_holds_only_notebook_keys(t, tmp_path, monkeypatch, capsys):
+    import io
+    dest = tmp_path / "outside" / "rec.txt"
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_KV))
+    assert t.main(["--check-record", "-", "--save-record", str(dest)]) == 0
+    saved = dest.read_text(encoding="utf-8")
+    out = capsys.readouterr().out
+    for secret in ("PLANTED", "planted-push-secret", "STRIPE", "PUSH_SECRET", "ANTHROPIC"):
+        assert secret not in saved, f"{secret} reached the record"
+        assert secret not in out, f"{secret} reached the terminal"
+    assert "J2_SHARE_LINKS_ENABLED=1" in saved and "NOTEBOOK_PERSONAL_API_ENABLED=1" in saved
+    assert "NOTEBOOK_DOOR_GUARD" not in saved, "a key the window does not touch was recorded"
+
+
+def test_a_record_path_inside_the_repository_is_refused(t, monkeypatch, capsys):
+    import io
+    inside = REPO / "tests" / "_w10c_record_must_not_exist.txt"
+    monkeypatch.setattr(sys, "stdin", io.StringIO(_KV))
+    try:
+        assert t.main(["--check-record", "-", "--save-record", str(inside)]) == 3
+        assert not inside.exists()
+        assert "inside the repository" in capsys.readouterr().out
+    finally:
+        if inside.exists():
+            inside.unlink()

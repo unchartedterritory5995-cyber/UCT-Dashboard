@@ -716,9 +716,32 @@ def summarize(boots: list[dict]) -> str:
 
 # ── the production window (printed, never run) ──────────────────────────────────────────────
 
+#: Where step 0 writes the record: the operator's TEMP, never the checkout (the review found the
+#: old `> notebook-switch-record-<UTC>.txt` wrote EVERY web secret into a public repo's working
+#: tree, not gitignored). PowerShell spelling, the shell this window runs in.
+RECORD_PATH = r"$env:TEMP\notebook-switch-record-<UTC>.txt"
+
+
+def save_record(record: dict[str, str], table: dict[str, bool], dest: Path) -> list[str]:
+    """Write ONLY the window's Notebook keys to `dest`, which must be outside the repository.
+    -> the names written. Raises ValueError for a path inside the repository."""
+    target = Path(dest).resolve()
+    try:
+        target.relative_to(REPO.resolve())
+    except ValueError:
+        pass
+    else:
+        raise ValueError(f"{target} is inside the repository -- the record goes outside the checkout")
+    names = sorted(k for k in record if k in table)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("".join(f"{k}={record[k]}\n" for k in names), encoding="utf-8")
+    return names
+
+
 def production_text(table: dict[str, bool], modes: list[str], armed: list[str]) -> str:
     keys = off_set(table, None, armed)
     t = "tools/notebook_switch_rehearsal.py"
+    n_keys = len(table)
     skipped = "\n".join(f"  {k}: {why}" for k, why in not_rehearsed(table, modes).items()
                         if k not in keys)
     # the doors --verify reads, from the same table it reads them from (never a typed list)
@@ -728,11 +751,12 @@ redeploys (82-119 s /api/* blip each, docs/runbooks/deploy-windows.md). Nothing 
 10C. Each step in its own call; read each result before the next (H15: a failing verify after the
 RESTORE is answered by re-running the restore, then reporting -- never by diagnosing first).
 
-0. RECORD (read-only; never restarts):
-     railway variables --service web --kv > notebook-switch-record-<UTC>.txt
-     python {t} --check-record notebook-switch-record-<UTC>.txt
-   It prints the exact OFF command and the exact RESTORE from what production HOLDS -- the record
-   outranks the ledger. The ledger today predicts this OFF set:
+0. RECORD (read-only; never restarts). ONLY the Notebook keys reach disk, and OUTSIDE the checkout:
+     railway variables --service web --kv | python {t} --check-record - --save-record "{RECORD_PATH}"
+   The full --kv output (every secret on web) passes through the pipe into memory and nowhere
+   else; the tool keeps the {n_keys} Notebook keys by name ({', '.join(sorted(table))}) and REFUSES a
+   --save-record path inside the repository. It prints the exact OFF command and the exact RESTORE
+   from what production HOLDS -- the record outranks the ledger. The ledger today predicts this OFF set:
      {', '.join(keys)}
    and NOTEBOOK_DOOR_GUARD (a MODE, never turned off here) is printed for the owner's intent question:
    the ledger measured `unknown-only` on web 2026-09-24 and records no intent (feature_flags.json).
@@ -751,10 +775,13 @@ RESTORE is answered by re-running the restore, then reporting -- never by diagno
    redeploy), then ONE --set (its redeploy boots with both). Note the UTC time as SET_ON_AT.
 
 4. VERIFY RESTORED:
-     python {t} --verify {PROD} --expect on --recorded notebook-switch-record-<UTC>.txt --set-at <SET_ON_AT>
+     python {t} --verify {PROD} --expect on --recorded "{RECORD_PATH}" --set-at <SET_ON_AT>
 
 5. LEDGER, same docs push: each key's note in docs/feature_flags.json gets
    "rehearsed OFF <SET_OFF_AT> .. restored <SET_ON_AT> (wave 10, R-11)".
+
+6. DELETE THE RECORD (it names production's Notebook values; nothing else needs it):
+     Remove-Item "{RECORD_PATH}"
 
 NOT switched in this window, each with its reason (the repo's gate index, never a typed list):
 {skipped}
@@ -828,7 +855,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", default="docs/notebook/evidence/wave10-10c/switch-rehearsal")
     ap.add_argument("--only", default="", help="comma-separated boot names (default: every boot)")
     ap.add_argument("--print-production", action="store_true")
-    ap.add_argument("--check-record", default="")
+    ap.add_argument("--check-record", default="", help="a recorded --kv file, or - for stdin")
+    ap.add_argument("--save-record", default="",
+                    help="with --check-record: write ONLY the Notebook keys here (outside the repository)")
     ap.add_argument("--verify", default="")
     ap.add_argument("--expect", choices=("off", "on"), default="off")
     ap.add_argument("--recorded", default="")
@@ -845,10 +874,21 @@ def main(argv: list[str] | None = None) -> int:
         print(production_text(table, modes, armed))
         return 0
     if args.check_record:
-        record = read_record(Path(args.check_record).read_text(encoding="utf-8", errors="replace"))
+        text = (sys.stdin.read() if args.check_record == "-"
+                else Path(args.check_record).read_text(encoding="utf-8", errors="replace"))
+        record = read_record(text)
+        del text  # the full --kv output, every secret on web: held in memory, dropped here
         if not record:
             print("REFUSED: the record holds no KEY=VALUE lines -- an empty read is a failed read")
             return 3
+        if args.save_record:
+            try:
+                names = save_record(record, table, Path(args.save_record))
+            except ValueError as e:
+                print(f"REFUSED: {e}")
+                return 3
+            print(f"record saved: {len(names)} Notebook key(s) -> {args.save_record} "
+                  "(delete it after step 4)")
         print(check_record_text(record, table, modes, armed, ledger))
         return 0
     if args.verify:

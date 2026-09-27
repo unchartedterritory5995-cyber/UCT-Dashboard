@@ -100,11 +100,12 @@ redeploys (82-119 s /api/* blip each, docs/runbooks/deploy-windows.md). Nothing 
 10C. Each step in its own call; read each result before the next (H15: a failing verify after the
 RESTORE is answered by re-running the restore, then reporting -- never by diagnosing first).
 
-0. RECORD (read-only; never restarts):
-     railway variables --service web --kv > notebook-switch-record-<UTC>.txt
-     python tools/notebook_switch_rehearsal.py --check-record notebook-switch-record-<UTC>.txt
-   It prints the exact OFF command and the exact RESTORE from what production HOLDS -- the record
-   outranks the ledger. The ledger today predicts this OFF set:
+0. RECORD (read-only; never restarts). ONLY the Notebook keys reach disk, and OUTSIDE the checkout:
+     railway variables --service web --kv | python tools/notebook_switch_rehearsal.py --check-record - --save-record "$env:TEMP\notebook-switch-record-<UTC>.txt"
+   The full --kv output (every secret on web) passes through the pipe into memory and nowhere
+   else; the tool keeps the 10 Notebook keys by name (J2_SHARE_LINKS_ENABLED, NOTEBOOK_ASK_INSERT_ON, NOTEBOOK_ATTACHMENTS_ON, NOTEBOOK_CONFLICT_UX_ON, NOTEBOOK_OFFLINE_DEFAULT_ON, NOTEBOOK_OFFLINE_READ_ON, NOTEBOOK_ONBOARDING_ENABLED, NOTEBOOK_PERSONAL_API_ENABLED, NOTEBOOK_PUBLISH_ENABLED, NOTEBOOK_WRITING_HELP_ENABLED) and REFUSES a
+   --save-record path inside the repository. It prints the exact OFF command and the exact RESTORE
+   from what production HOLDS -- the record outranks the ledger. The ledger today predicts this OFF set:
      NOTEBOOK_OFFLINE_DEFAULT_ON, NOTEBOOK_ASK_INSERT_ON, NOTEBOOK_WRITING_HELP_ENABLED, J2_SHARE_LINKS_ENABLED, NOTEBOOK_PUBLISH_ENABLED, NOTEBOOK_ONBOARDING_ENABLED
    and NOTEBOOK_DOOR_GUARD (a MODE, never turned off here) is printed for the owner's intent question:
    the ledger measured `unknown-only` on web 2026-09-24 and records no intent (feature_flags.json).
@@ -123,10 +124,13 @@ RESTORE is answered by re-running the restore, then reporting -- never by diagno
    redeploy), then ONE --set (its redeploy boots with both). Note the UTC time as SET_ON_AT.
 
 4. VERIFY RESTORED:
-     python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect on --recorded notebook-switch-record-<UTC>.txt --set-at <SET_ON_AT>
+     python tools/notebook_switch_rehearsal.py --verify https://uctintelligence.com --expect on --recorded "$env:TEMP\notebook-switch-record-<UTC>.txt" --set-at <SET_ON_AT>
 
 5. LEDGER, same docs push: each key's note in docs/feature_flags.json gets
    "rehearsed OFF <SET_OFF_AT> .. restored <SET_ON_AT> (wave 10, R-11)".
+
+6. DELETE THE RECORD (it names production's Notebook values; nothing else needs it):
+     Remove-Item "$env:TEMP\notebook-switch-record-<UTC>.txt"
 
 NOT switched in this window, each with its reason (the repo's gate index, never a typed list):
   COMPASS_NOTES_TOOL_ENABLED: no read-only surface: it acts only inside a Compass chat turn
