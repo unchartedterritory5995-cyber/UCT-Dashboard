@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 2082,
+  "passed": 2078,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 661.4,
+  "failed_files": [
+    "tests/test_plain_text_parity.py",
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 2078 passed, 2 skipped, 19 warnings in 661.40s (0:11:01)",
+  "ok": true
+}
