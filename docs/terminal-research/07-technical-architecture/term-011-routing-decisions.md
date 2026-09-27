@@ -799,6 +799,28 @@ something they have not. That is the single highest-value line in step 5.
 >
 > ⚠️ **This is a DATED reading, like everything else here.** A variable set tomorrow makes every
 > line above stale, and nothing in the tree will notice. Re-read before citing it.
+>
+> ⭐ **WIDENED TO ALL SEVEN SERVICES while step 6's mechanical half was landing, independently,
+> and it agrees.** The block above reads `web`; the same comparison was run across `web`, `worker`,
+> `flow-worker`, `bars-api`, `chart-renderer`, `terminal-next-monitor` and `breadth-v2-runner`
+> (again with no value printed — sha256 digests plus the **webhook id** in the URL path, which is
+> the channel-bound half). Two additions worth having, because the converted producers do not all
+> run on `web`:
+> * **`DISCORD_OPS_WEBHOOK_URL`, `DISCORD_BUSINESS_WEBHOOK_URL` and `OPS_ALERT_EMAIL_TO` are absent
+>   on ALL SEVEN**, not just `web`. That matters for step 3's `chart_health_alerts` (which runs
+>   wherever `emit` is called) and for `flow-worker`'s converted posters, whose inertness `web`
+>   alone cannot establish.
+> * **`DISCORD_ALERT_WEBHOOK` exists on exactly two services — `web` and `flow-worker` — and is
+>   byte-equal to `DISCORD_WEBHOOK_URL` on both.** `DISCORD_WEBHOOK_URL` is additionally set on
+>   `worker` and `terminal-next-monitor` with the same digest. So "one channel with two names" is
+>   true per service and not only in aggregate, and there is no service where the pair disagrees.
+>
+> ⛔ **Two independent readings agreeing is not corroboration on its own** — they share an input
+> (the same Railway configuration), and CLAUDE.md's own lesson is that agreement between
+> instruments is evidence about what they SHARE. What makes rows 7 and 8 safe is not the
+> agreement; it is that the property is now pinned by a test
+> (`test_rows_7_and_8_no_longer_consult_DISCORD_ALERT_WEBHOOK`), so the day the configuration
+> changes is a red run rather than a silent relocation.
 
 
 ❓ **Do `DISCORD_ALERT_WEBHOOK` and `DISCORD_WEBHOOK_URL` point at the same Discord channel?**
