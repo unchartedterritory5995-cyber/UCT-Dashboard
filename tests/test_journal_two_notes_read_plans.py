@@ -16,7 +16,15 @@ measured at 50k notes):
     EXISTS was answered from `idx_j2_note_embeds_user_sym` once per note: 717 ms at
     10k, ~14.8 s at 50k;
   * the tasks read (`?view=tasks`) starts from the task-bearing partial index,
-    never from every live note's body.
+    never from every live note's body, and reads the task index beside it (wave 10);
+  * a search maps its full-text matches to NOTE ROWIDS through the covering
+    `idx_j2_notes_fts_map_rowid_note`, never through j2_notes' TEXT key (wave 10);
+  * the backlinks look each note up in the covering `idx_j2_notes_id_live`, never its
+    row; the relevance order reads its candidates from the NARROW covering
+    `idx_j2_notes_switcher_live`, and its page's total comes from that same read, with
+    no second COUNT (wave 10);
+  * the document search ranks on the FTS table ALONE and joins + snippets only the
+    ranked pages, answering exactly what the one-pass read answers (wave 10).
 Each rail was mutation-proved against the defect it names (see the lane-I report).
 """
 from __future__ import annotations
@@ -110,6 +118,7 @@ def test_the_live_cover_index_exists_after_ensure_schema(conn):
     assert "idx_j2_notes_live_cover" in names
     assert "idx_j2_notes_live_tasks" in names
     assert "idx_j2_notes_live_folder_title" in names
+    assert "idx_j2_notes_id_live" in names          # wave 10: the backlinks' covering lookups
 
 
 def test_folder_counts_are_served_from_a_live_covering_index_alone(conn):
@@ -130,9 +139,25 @@ def test_a_folders_rows_are_walked_in_title_order_not_sorted(conn):
     assert not any("TEMP B-TREE FOR ORDER BY" in s for s in steps), steps
 
 
-def test_the_tags_route_makes_ONE_tag_pass_and_it_is_served_from_the_cover_index(conn):
+def test_the_tags_route_makes_ONE_tag_pass_over_the_tag_index_and_parses_no_note(conn):
     # It made four whole-library json_each passes (two groupings, the nested rows,
-    # the parents' recount); at 50k notes that was ~1 s p95. One pass, covered.
+    # the parents' recount); at 50k notes that was ~1 s p95. Wave 7 made it one
+    # covered json_each pass; wave 10 reads the tag index (db.py j2_note_tag_index)
+    # instead: grouped off its covering index, the live notes from a live covering
+    # index, and no note's `tags` parsed at all.
+    plans = _plans(conn, lambda c: notes_svc.tag_counts_and_tree(U, conn=c))
+    tag = [(s, st) for s, st in plans if "j2_note_tag_index" in s]
+    assert len(tag) == 1, [s for s, _ in plans]
+    assert not [s for s, _ in plans if "json_each" in s], [s for s, _ in plans]
+    sql, steps = tag[0]
+    assert any("COVERING INDEX idx_j2_note_tag_index_tag" in s for s in steps), steps
+    assert any("COVERING INDEX idx_j2_notes_live_" in s for s in steps), steps
+
+
+def test_before_the_tag_index_is_built_the_tags_route_makes_one_covered_json_each_pass(conn):
+    # The fallback (db.py `_ensure_note_tag_index` never finished) is the wave-7 pass.
+    conn.execute("DELETE FROM j2_schema_builds WHERE name = ?", (j2db._NOTE_TAG_INDEX_BUILD,))
+    conn.commit()
     plans = _plans(conn, lambda c: notes_svc.tag_counts_and_tree(U, conn=c))
     j2 = [(s, st) for s, st in plans if "json_each" in s]
     assert len(j2) == 1, [s for s, _ in plans]
@@ -159,8 +184,10 @@ def test_the_symbol_filters_carry_no_correlated_sidecar_subquery(conn, kwargs):
 
 def test_symbol_backlinks_start_from_the_symbol_set_not_from_every_note(conn):
     for sql, steps in _plans(conn, lambda c: notes_svc.get_symbol_backlinks(U, "AMD", conn=c)):
-        # the notes table is entered by primary key from the set, never walked
-        assert not any(s.startswith("SCAN n") or ("SEARCH n USING" in s and "(id=?)" not in s)
+        # the notes table is entered by its key, `id`, from the set, never walked. (Wave 10: the
+        # lookup is now `idx_j2_notes_id_live`, which also takes user_id/deleted_at as equality
+        # terms -- "(id=? AND ...)" -- so the check is that `id` LEADS the search.)
+        assert not any(s.startswith("SCAN n") or ("SEARCH n USING" in s and "(id=?" not in s)
                        for s in steps), steps
 
 
@@ -194,12 +221,109 @@ def test_the_search_boxs_relevance_order_ranks_in_ONE_match_pass(conn):
     assert len(notes_svc.list_notes(U, q="breakout", sort="relevance", conn=conn)) == 6
 
 
+@pytest.mark.parametrize("sort", ["updated", "relevance"])
+def test_a_search_maps_its_matches_to_note_rowids_through_the_covering_index_alone(conn, sort):
+    """Wave 10 (lane 10A): FTS rowid -> NOTE ROWID in one read of
+    `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`. The wave-7 hop went
+    FTS rowid -> `note_id` TEXT -> j2_notes' TEXT key (`sqlite_autoindex_j2_notes_1`)
+    -> rowid: three lookups per match, 49 ms of a common term's set at 50k notes
+    against 19 ms now (docs/notebook/perf-budgets.md §7). Every statement that maps
+    the MATCH must read the map from that covering index and never enter j2_notes by
+    its TEXT key."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    rec = Recorder(conn)
+    rows, total = notes_svc.list_and_count_notes(U, q="breakout", sort=sort, conn=rec)
+    assert len(rows) == total == 6          # non-vacuity: the search really matches
+    hops = [(s, p) for s, p in rec.statements if "j2_notes_fts_map m" in s and "MATCH" in s]
+    assert hops, [s for s, _ in rec.statements]
+    for sql, params in hops:
+        steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+        assert any("COVERING INDEX idx_j2_notes_fts_map_rowid_note" in s for s in steps), (sql, steps)
+        assert not any("sqlite_autoindex_j2_notes_1" in s for s in steps), (sql, steps)
+        assert "note_rowid" in sql and "m.note_id" not in sql, sql
+
+
+def test_symbol_backlinks_read_no_note_row(conn):
+    """Wave 10 (lane 10A): every note the symbol set names is looked up in the covering
+    `idx_j2_notes_id_live (id, user_id, deleted_at, updated_at, title)`. Through the id
+    autoindex each lookup read the note's ROW for those columns -- behind the body's
+    overflow pages -- 5,000 times for one ticker at 50k (count 24 -> 7 ms, list 32 -> 14 ms,
+    perf-budgets.md §7)."""
+    plans = _plans(conn, lambda c: notes_svc.get_symbol_backlinks(U, "AMD", conn=c))
+    entered = [(sql, steps) for sql, steps in plans if "JOIN j2_notes n" in sql]
+    assert len(entered) == 2, [s for s, _ in plans]      # non-vacuity: the count AND the list
+    for sql, steps in entered:
+        assert any("SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=?" in s for s in steps), steps
+    assert notes_svc.get_symbol_backlinks(U, "AMD", conn=conn)["count"] == 6
+
+
+def test_a_documents_pages_are_found_by_user_and_document_not_by_user_alone(conn):
+    """Wave 10 (lane 10A, clause 14b): the editor's per-note document list asks
+    `document_text_state` once per document, and its pages read is `document_id = ? AND
+    user_id = ?`. Without statistics the planner took the one-column
+    `idx_j2_note_document_pages_user (user_id)` and walked every page the member owns, per
+    document: 819 ms for a note with 50 documents in a 10,000-document library. The
+    two-column `idx_j2_note_document_pages_user_doc` wins the tie (11 ms at 1,000)."""
+    from api.services.journal_two import document_ocr
+    ts = "2026-09-01T00:00:00+00:00"
+    for d in range(3):
+        conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name, status,"
+                     " page_count, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                     (f"d{d}", U, "n1", f"/a/{d}.pdf", f"{d}.pdf", "ready", 2, ts))
+        for p in (1, 2):
+            conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                         " VALUES (?,?,?,?)", (f"d{d}", U, p, "page text"))
+    conn.commit()
+    plans = _plans(conn, lambda c: document_ocr.document_text_state(c, U, "d1"))
+    pages = [(s, st) for s, st in plans if "FROM j2_note_document_pages WHERE" in s]
+    assert len(pages) == 1, [s for s, _ in plans]
+    assert any("idx_j2_note_document_pages_user_doc (user_id=? AND document_id=?)" in s
+               for s in pages[0][1]), pages[0][1]
+    assert document_ocr.document_text_state(conn, U, "d1")["pages_total"] == 2   # non-vacuity
+
+
+def test_the_relevance_candidates_are_read_from_the_narrow_covering_index(conn):
+    """Wave 10 (lane 10A): the relevance order reads (rowid, updated_at) for EVERY row its
+    filter admits -- the member's whole live range -- so the index's width is its cost.
+    `title` is selected so that the covering index is `idx_j2_notes_switcher_live`, about
+    half the width of `idx_j2_notes_live_cover`, which the planner otherwise took."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    plans = _plans(conn, lambda c: notes_svc.list_notes(U, q="breakout", sort="relevance", conn=c))
+    cand = [(s, st) for s, st in plans if s.startswith(notes_svc._RELEVANCE_CANDIDATES_SQL)]
+    assert len(cand) == 1, [s for s, _ in plans]
+    assert any("COVERING INDEX idx_j2_notes_switcher_live" in s for s in cand[0][1]), cand[0][1]
+
+
+def test_a_relevance_page_takes_its_true_total_from_the_ranked_read(conn):
+    """Wave 10 (lane 10A): the relevance read admits exactly the rows `count_notes` counts
+    over the same WHERE (it must, to order them), so `list_and_count_notes` answers the
+    total from it and runs no second COUNT over the library -- and the answer is the same
+    number the separate count gives."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'"
+                 " WHERE id != 'n5'")
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id = 'n0'")
+    conn.commit()
+    rec = Recorder(conn)
+    rows, total = notes_svc.list_and_count_notes(U, q="breakout", sort="relevance", conn=rec)
+    counts = [s for s, _ in rec.statements if "COUNT(*)" in s.upper() and "FROM J2_NOTES" in s.upper()]
+    assert counts == [], counts
+    assert total == notes_svc.count_notes(U, q="breakout", conn=conn) == len(rows) == 4
+    # control: the updated-order page still counts with its own COUNT (its read is a page)
+    rec2 = Recorder(conn)
+    notes_svc.list_and_count_notes(U, q="breakout", conn=rec2)
+    assert [s for s, _ in rec2.statements if "COUNT(*)" in s.upper()], "non-vacuity: the COUNT probe sees nothing"
+
+
 def test_the_tasks_read_starts_from_the_task_bearing_partial_index(conn):
     now = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)
     plans = _plans(conn, lambda c: note_tasks.list_tasks(U, now=now, conn=c))
     main = [st for s, st in plans if "taskItem" in s]
     assert main, "the tasks read no longer names taskItem -- update this rail with it"
     assert any("idx_j2_notes_live_tasks" in s for s in main[0]), main[0]
+    # wave 10: each candidate's tasks come from the task index by primary key
+    assert any("j2_note_task_digest" in s for s in main[0]), main[0]
 
 
 def test_the_trash_order_breaks_deleted_at_ties_by_id(conn):
@@ -275,3 +399,120 @@ def test_the_snippet_page_filter_keeps_the_MATCH_only_plan(conn):
     for s in fts:
         m = re.search(r"VIRTUAL TABLE INDEX \d+:(\S*)", s)
         assert m and m.group(1).startswith("M") and "=" not in m.group(1), steps
+
+
+# ── the document search (wave 10, lane 10A, clause 14b) ───────────────────────
+
+
+def _seed_documents(conn, pages):
+    """`pages`: [(user, note_id, doc_id, page_number, text)]. The FTS triggers index them."""
+    ts = "2026-09-01T00:00:00+00:00"
+    seen = set()
+    for user, note, doc, pno, text in pages:
+        if doc not in seen:
+            seen.add(doc)
+            conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name,"
+                         " status, page_count, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                         (doc, user, note, f"/a/{doc}.pdf", f"{doc}.pdf", "ready", 1, ts))
+        conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                     " VALUES (?,?,?,?)", (doc, user, pno, text))
+    conn.commit()
+
+
+def test_the_document_search_ranks_on_the_fts_table_alone(conn):
+    """The one-pass read joined the document, the note (whose `deleted_at` sits past its body,
+    on an overflow page) and the page, and built a snippet, for EVERY matching page before its
+    sort kept twenty: 134 ms p50 for a common term over 10,000 documents. The rank now comes
+    from the FTS table alone, and only the ranked pages are joined and snippeted (47 ms)."""
+    from api.services.journal_two import document_search as ds
+    _seed_documents(conn, [(U, f"n{i % 6}", f"d{i}", 1, f"guidance reiterated page {i}")
+                           for i in range(12)])
+    rec = Recorder(conn)
+    hits = ds.search_document_pages(U, "guidance", limit=5, conn=rec)
+    assert len(hits) == 5 and all("<mark>" in h["snippet"] for h in hits), hits   # non-vacuity
+    fts = [(s, p) for s, p in rec.statements if "j2_note_document_pages_fts" in s and "MATCH" in s]
+    assert fts[0][0] == ds._RANKED_SQL, [s for s, _ in fts]
+    assert " JOIN " not in fts[0][0].upper() and "LIMIT" in fts[0][0].upper()
+    assert len(fts) == 2, [s for s, _ in fts]           # the ranked read, then the ranked pages
+    sql, params = fts[1]
+    assert "snippet(" in sql and "IN (" in sql and "ORDER BY" not in sql.upper(), sql
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    scan = [s for s in steps if "j2_note_document_pages_fts VIRTUAL TABLE INDEX" in s]
+    assert scan and all("=" not in s.split(":")[-1] for s in scan), steps   # MATCH-only, no rowid seek
+
+
+def test_the_document_search_falls_back_to_the_exact_read_when_the_trash_takes_the_window(conn):
+    """The ranked read cannot see the Trash. When trashed notes' pages take more of the ranked
+    window than its slack, the live pages below it must still be found -- by the exact
+    one-pass read -- rather than an empty or short page being returned."""
+    from api.services.journal_two import document_search as ds
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id = 'n0'")
+    # the trashed note's pages are indexed FIRST, so they lead every tie of the rank
+    trashed = [(U, "n0", f"t{i}", 1, "zzqfallback") for i in range(5)]
+    live = [(U, "n1", f"l{i}", 1, "zzqfallback") for i in range(3)]
+    _seed_documents(conn, trashed + live)
+    rec = Recorder(conn)
+    hits = ds.search_document_pages(U, "zzqfallback", limit=2, conn=rec)
+    assert [h["document_id"] for h in hits] == ["l0", "l1"], hits
+    ordered = [s for s, _ in rec.statements if "ORDER BY bm25" in s and " JOIN " in s]
+    assert ordered, "the exact one-pass read never ran"
+    # control: with room in the window, the fast path answers and the one-pass read does not run
+    rec2 = Recorder(conn)
+    got = [h["document_id"] for h in ds.search_document_pages(U, "zzqfallback", limit=8, conn=rec2)]
+    assert got == ["l0", "l1", "l2"]
+    assert not [s for s, _ in rec2.statements if "ORDER BY bm25" in s and " JOIN " in s]
+
+
+@pytest.mark.parametrize("limit", [1, 2, 3, 5, 8, 20, 50])
+def test_the_document_search_answers_exactly_what_the_one_pass_read_answers(conn, limit):
+    """Differential: the two-read search against the exact one-pass read (`_one_pass`, the
+    definition), over pages with distinct and TIED scores, a trashed note, a missing note and
+    another member's pages, for common, rare, absent and trash-only terms."""
+    from api.services.journal_two import document_search as ds
+    from api.services.journal_two.notes_search import fts_match_expr
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id IN ('n2', 'n4')")
+    ts = "2026-09-01T00:00:00+00:00"
+    conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, created_at, updated_at)"
+                 " VALUES ('o1', 'other', 'o1', '{}', '', ?, ?)", (ts, ts))
+    pages = []
+    for i in range(40):
+        words = " ".join(["guidance"] * (1 + i % 4)) + f" reiterated filler {'x ' * (i % 7)}"
+        pages.append((U, f"n{i % 6}", f"d{i}", 1 + i % 3, words + (" trashonly" if i % 6 in (2, 4) else "")))
+    pages += [(U, "gone", "dg", 1, "guidance reiterated")]           # a note that does not exist
+    pages += [("other", "o1", f"o{i}", 1, "guidance reiterated") for i in range(10)]
+    _seed_documents(conn, pages)
+    for q in ("guidance", "guidance reiterated", "reiterated filler", "trashonly", "absentterm"):
+        got = ds.search_document_pages(U, q, limit=limit, conn=conn)
+        want = ds._one_pass(conn, fts_match_expr(q), U, limit)
+        assert got == want, (q, limit, [h["document_id"] for h in got], [h["document_id"] for h in want])
+    assert ds.search_document_pages(U, "guidance", limit=limit, conn=conn), "non-vacuity"
+    assert ds.search_document_pages(U, "trashonly", limit=limit, conn=conn) == []
+
+
+def test_the_relevance_pass_ranks_only_the_searching_members_matches(conn):
+    """Fix round 1 (review M-4): the FTS table holds every member's notes, and the ranked
+    pass held every member's matches in Python before the outer WHERE dropped them -- a
+    cost that grew with the platform's library, which a one-member benchmark cannot see.
+    The pass now tests each match against the member's rowids, and the test must stay a
+    LOOKUP: pushed into the map's index seek (`note_rowid=?`) it probes every member rowid
+    for every match."""
+    ts = "2026-09-01T00:00:00+00:00"
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    for i in range(4):
+        conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, ticker,"
+                     " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                     (f"o{i}", "u2", "breakout", '{"type":"doc"}', "breakout over the pivot", "[]", None, ts, ts))
+    conn.commit()
+    rec = Recorder(conn)
+    rows = notes_svc.list_notes(U, q="breakout", sort="relevance", conn=rec)
+    assert sorted(r["id"] for r in rows) == [f"n{i}" for i in range(6)]
+    ranked = [(s, p) for s, p in rec.statements if s == notes_svc._RELEVANCE_RANKED_SQL]
+    assert len(ranked) == 1, [s for s, _ in rec.statements]
+    sql, params = ranked[0]
+    assert U in params
+    got = conn.execute(sql, params).fetchall()
+    member = {r[0] for r in conn.execute("SELECT rowid FROM j2_notes WHERE user_id = ?", (U,))}
+    assert len(got) == 6 and {r[0] for r in got} <= member              # u2's four never ranked
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    seek = [s for s in steps if "idx_j2_notes_fts_map_rowid_note" in s]
+    assert seek and all("note_rowid=?" not in s for s in seek), steps   # a lookup, never a seek
