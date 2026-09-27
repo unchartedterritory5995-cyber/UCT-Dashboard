@@ -1,0 +1,125 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+...........s............................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 56%]
+........................................................................ [ 59%]
+..........s.............[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+................................................ [ 61%]
+........................................................................ [ 64%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 81%]
+........................................................................ [ 84%]
+............................................................
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  store rows @ h  : 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+........ [ 87%]
+...................................................................F.... [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 95%]
+........................................................................ [ 98%]
+......................................                                   [100%]
+=================================== FAILURES ===================================
+_ test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too] _
+
+j2_client = <starlette.testclient.TestClient object at 0x7eff944355b0>
+case = {'doc': {'content': [{'content': [{'text': 'a', 'type': 'text'}], 'type': 'paragraph'}, {'content': [{'type': {...}}, ... 'doc'}, 'expected': 'a b c', 'name': "an unknown node's child whose type is not a string is unknown too", 'pm': False}
+
+    @pytest.mark.parametrize("case", NON_STRING_TYPE_CASES, ids=[c["name"] for c in NON_STRING_TYPE_CASES])
+    def test_create_and_update_answer_200_and_store_the_unknown_nodes_text(j2_client, case):
+        r = j2_client.post("/api/j2/notes", json={"title": "n3", "bodyJson": case["doc"]})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"This note has a piece of text the editor can't open (an empty or malformed text node), so it wasn't saved. Remove that piece or give it some text, then try again."}
+E       assert 400 == 200
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+tests/test_plain_text_parity.py:152: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmp13jfc7ou.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:501: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_paywall_gate_free_tier.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_paywall_gate_free_tier.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1340: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_perf_harness.py:465: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_wave8_walk.py:627: could not import 'playwright._impl._helper': No module named 'playwright'
+FAILED tests/test_plain_text_parity.py::test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too] - AssertionError: {"detail":"This note has a piece of text the editor can't open (an empty or malformed text node), so it wasn't saved. Remove that piece or give it some text, then try again."}
+assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+1 failed, 2555 passed, 2 skipped, 19 warnings in 656.34s (0:10:56)

@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2009,
+  "passed": 1980,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 22,
+  "wall_s": 117.68,
+  "failed_files": [
+    "tests/test_ast_scalars.py",
+    "tests/test_audit_sandbox_env.py",
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_bars_server_timing.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 1980 passed, 22 skipped, 1 xfailed, 107 warnings in 117.68s (0:01:57)",
+  "ok": true
+}
