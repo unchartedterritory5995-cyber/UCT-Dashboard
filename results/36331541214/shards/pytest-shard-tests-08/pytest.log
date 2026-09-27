@@ -1,0 +1,183 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  6%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+................................................................s....... [ 31%]
+........................................................................ [ 34%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+...............................................................s........ [ 44%]
+........................................................................ [ 48%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 69%]
+........................................................................ [ 72%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+....
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  store rows @ h  : 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+................................................................ [ 82%]
+...........F............................................................ [ 86%]
+........................................................................ [ 89%]
+........................................................................ [ 93%]
+........................................................F............... [ 96%]
+....................................................................     [100%]
+=================================== FAILURES ===================================
+_ test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too] _
+
+j2_client = <starlette.testclient.TestClient object at 0x7efea6973bf0>
+case = {'doc': {'content': [{'content': [{'text': 'a', 'type': 'text'}], 'type': 'paragraph'}, {'content': [{'type': {...}}, ... 'doc'}, 'expected': 'a b c', 'name': "an unknown node's child whose type is not a string is unknown too", 'pm': False}
+
+    @pytest.mark.parametrize("case", NON_STRING_TYPE_CASES, ids=[c["name"] for c in NON_STRING_TYPE_CASES])
+    def test_create_and_update_answer_200_and_store_the_unknown_nodes_text(j2_client, case):
+        r = j2_client.post("/api/j2/notes", json={"title": "n3", "bodyJson": case["doc"]})
+>       assert r.status_code == 200, r.text
+E       AssertionError: {"detail":"This note has a piece of text the editor can't open (an empty or malformed text node), so it wasn't saved. Remove that piece or give it some text, then try again."}
+E       assert 400 == 200
+E        +  where 400 = <Response [400 Bad Request]>.status_code
+
+tests/test_plain_text_parity.py:152: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpxl03unce.db
+________ test_every_sha_cited_in_every_program_doc_resolves_against_git ________
+
+tool = <module 'verify_doc_shas' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/verify_doc_shas.py'>
+
+    def test_every_sha_cited_in_every_program_doc_resolves_against_git(tool):
+        _found, bad, _phantom = tool.scan(_ROOT)
+        if bad:
+            lines = []
+            for sha, sites in bad:
+                for rel, line in sites:
+                    lines.append(f"  {sha}  ->  {rel}:{line}")
+>           pytest.fail(
+                "SHA(s) cited in program docs that git cannot resolve.\n"
+                "Resolve each one before it is written, or add it to FOREIGN_REPO "
+                "(another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a "
+                "reason, in tools/verify_doc_shas.py:\n" + "\n".join(lines))
+E           Failed: SHA(s) cited in program docs that git cannot resolve.
+E           Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+E             0e4fb56a8  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+E             217ae7230  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_6.md:24
+E             37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+E             4e04f43f0  ->  docs/terminal-research/00-program-control/RESUME.md:439
+E             551c8c444  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:599
+E             551c8c444  ->  docs/terminal-research/RESUME-HERE.md:259
+E             56f06c223  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:652
+E             56f06c223  ->  docs/terminal-research/RESUME-HERE.md:71
+E             5c0513b1a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:684
+E             5c0513b1a  ->  docs/terminal-research/RESUME-HERE.md:259
+E             5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+E             6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:114
+E             7bb86978b  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+E             a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+E             b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:113
+E             d30c4202a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:727
+E             d30c4202a  ->  docs/terminal-research/RESUME-HERE.md:259
+E             de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+E             de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:464
+E             f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+
+tests/test_program_doc_shas_resolve.py:84: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_note_sync_router.py::test_start_initial_sync_never_raises_into_a_successful_connect
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/note_sync.py:501: RuntimeWarning: coroutine '_start_initial_sync.<locals>._run' was never awaited
+    log.warning("[note_sync] no event loop; initial sync for %s deferred to the scheduler", source_id)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_notebook_flag_parse.py: 2 warnings
+tests/test_notebook_flag_table_form.py: 8 warnings
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_paywall_gate_free_tier.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_paywall_gate_free_tier.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/polygon_options.py:68: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    today = datetime.utcnow().date().isoformat()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:190: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1340: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_perf_harness.py:465: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_wave8_walk.py:627: could not import 'playwright._impl._helper': No module named 'playwright'
+FAILED tests/test_plain_text_parity.py::test_create_and_update_answer_200_and_store_the_unknown_nodes_text[an unknown node's child whose type is not a string is unknown too] - AssertionError: {"detail":"This note has a piece of text the editor can't open (an empty or malformed text node), so it wasn't saved. Remove that piece or give it some text, then try again."}
+assert 400 == 200
+ +  where 400 = <Response [400 Bad Request]>.status_code
+FAILED tests/test_program_doc_shas_resolve.py::test_every_sha_cited_in_every_program_doc_resolves_against_git - Failed: SHA(s) cited in program docs that git cannot resolve.
+Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+  0e4fb56a8  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+  217ae7230  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_6.md:24
+  37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+  4e04f43f0  ->  docs/terminal-research/00-program-control/RESUME.md:439
+  551c8c444  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:599
+  551c8c444  ->  docs/terminal-research/RESUME-HERE.md:259
+  56f06c223  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:652
+  56f06c223  ->  docs/terminal-research/RESUME-HERE.md:71
+  5c0513b1a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:684
+  5c0513b1a  ->  docs/terminal-research/RESUME-HERE.md:259
+  5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+  6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:114
+  7bb86978b  ->  docs/terminal-research/00-program-control/LEDGER.md:4797
+  a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+  b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:113
+  d30c4202a  ->  docs/terminal-research/10-roadmap/2026-09-23-one-week-execution-roadmap.md:727
+  d30c4202a  ->  docs/terminal-research/RESUME-HERE.md:259
+  de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+  de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:464
+  f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+2 failed, 2080 passed, 2 skipped, 19 warnings in 645.27s (0:10:45)
