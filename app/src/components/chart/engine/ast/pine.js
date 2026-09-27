@@ -12846,6 +12846,18 @@ function translatePineResult(source, opts = {}) {
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
   const unfoldable = new Map()
+  /** ⛔⛔ H14 (2026-09-27) — A FUNCTION NAME DEFINED TWICE IS AN OVERLOAD, AND
+   *  THIS ENGINE HAS NO OVERLOAD RESOLUTION. Pine picks among same-named
+   *  definitions by the TYPES of the arguments; `env` keys a function by its
+   *  NAME alone, so the later body silently replaced the earlier for every call.
+   *  ⚰️ MEASURED on production `1f4d7a309`: `f(int x) => x * 10` beside
+   *  `f(float x) => x + 1` translated `f(bar_index)` to `barindex + 1` — a wrong
+   *  number, drawn without a word. A different ARITY already refused
+   *  (`pine:arity`, against whichever body won), so only the same-arity case was
+   *  silent. Until type-directed resolution exists the name refuses by name on
+   *  EVERY definition after the first — a script that defines an overload and
+   *  never calls it is untouched, because a refusal only lands on use. */
+  const definedFunctions = new Set()
 
   /** ⛔ `at` IS A LOCATOR, NEVER A TOKEN THIS FUNCTION PICKED. When a binding
    *  fails to parse, the refusal that comes back ALREADY points at the offending
@@ -13192,6 +13204,24 @@ function translatePineResult(source, opts = {}) {
         if (!nameTok || !params) {
           throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(toks[arrow]))
         }
+        if (definedFunctions.has(nameTok.value)) {
+          // ⛔ OVERWRITE, never `markOpaque`'s keep-the-first: a FIRST definition
+          // that folded left a live `fn` binding, and the whole defect is that
+          // binding answering calls meant for a different overload.
+          env.set(nameTok.value, {
+            kind: 'opaque',
+            guard: 'pine:function-def',
+            isFunction: true,
+            message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
+              + 'than once (an overload), and this engine would apply one body to every call',
+            at: locate(nameTok),
+          })
+          notes.push({ ...fromError(new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more than once (an overload)`,
+            locate(nameTok))), code: 'pine:function-def' })
+          continue
+        }
+        definedFunctions.add(nameTok.value)
         const fnEnv = new Map(env)
         params.forEach((p, k) => fnEnv.set(p, { kind: 'param', index: k, name: p }))
         // ⭐ THE FUNCTION IS IN ITS OWN SCOPE, AND THAT IS SO RECURSION SAYS SO.
