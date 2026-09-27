@@ -1,0 +1,13 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\run3\uct-auto.sandbox.log; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\run3\uct-auto.integrity.md
+  H1         20 samples  p50 36.6 ms  p95 71.6 ms
+  H2         20 samples  p50 97.2 ms  p95 150.1 ms
+  H2-full    20 samples  p50 115.2 ms  p95 207 ms
+  H3         20 samples  p50 237.8 ms  p95 290.4 ms
+  H3-full    20 samples  p50 247.4 ms  p95 299 ms
+  H4         20 samples  p50 261.6 ms  p95 302.3 ms
+  H5         20 samples  p50 194.2 ms  p95 212.1 ms
+  H6        180 samples  p50 10.8 ms  p95 17 ms
+  H7        180 samples  p50 30.1 ms  p95 34.2 ms
+  H8       INCONCLUSIVE -- the op raised TimeoutError: Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(".ProseMirror").first to be visible
+  H9          5 samples  p50 408 ms  p95 432 ms
+VERDICT: INCONCLUSIVE -- 1 of 11 op(s): H8 (summary: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-7f8d9791c\run3\uct-auto.json)

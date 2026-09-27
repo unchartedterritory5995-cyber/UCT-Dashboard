@@ -1,0 +1,254 @@
+{
+ "tip": "90e6a35d3",
+ "base": "http://127.0.0.1:8206",
+ "started": "2026-09-26T03:39:40.506697+00:00",
+ "run_start_utc": "2026-09-26T03:37:40Z",
+ "steps": [
+  {
+   "step": "admin (hubtest@local.dev, the sandbox's ADMIN_EMAILS) signed up or in",
+   "ok": true,
+   "at": "2026-09-26T03:39:47.013001+00:00"
+  },
+  {
+   "step": "P1 provisioned the facilitator guide's way: comp-access + verify-email => paid_equiv",
+   "ok": true,
+   "at": "2026-09-26T03:39:47.454952+00:00",
+   "comp": 200,
+   "verify": 200,
+   "email_domain": "example.com (a made-up address, never @uctintelligence.internal)",
+   "notebook_keys": {
+    "notebook_offline_default_on": true,
+    "notebook_offline_read_on": false,
+    "notebook_conflict_ux_on": false,
+    "notebook_attachments_on": false,
+    "notebook_ask_insert_on": false,
+    "notebook_writing_help_enabled": false,
+    "notebook_door_guard": "full"
+   }
+  },
+  {
+   "step": "pre-flight T8 (kit \u00a75): notebook_offline_default_on is true on /api/auth/me",
+   "ok": true,
+   "at": "2026-09-26T03:39:47.455757+00:00",
+   "value": true
+  },
+  {
+   "step": "pre-flight T1 (kit \u00a75): notebook_onboarding_enabled is ABSENT at this base (PLANNED, wave 8)",
+   "ok": true,
+   "at": "2026-09-26T03:39:47.456132+00:00",
+   "keys": [
+    "notebook_ask_insert_on",
+    "notebook_attachments_on",
+    "notebook_conflict_ux_on",
+    "notebook_door_guard",
+    "notebook_offline_default_on",
+    "notebook_offline_read_on",
+    "notebook_writing_help_enabled"
+   ]
+  },
+  {
+   "step": "T1 core",
+   "ok": false,
+   "at": "2026-09-26T03:40:33.477773+00:00",
+   "error": "Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"+ New note\", exact=True) to be visible\n",
+   "trace": "out, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"+ New note\", exact=True) to be visible\n\n"
+  },
+  {
+   "step": "import the study notebook",
+   "ok": false,
+   "at": "2026-09-26T03:41:06.118323+00:00",
+   "error": "Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n",
+   "trace": "         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n\n"
+  },
+  {
+   "step": "T2 core",
+   "ok": false,
+   "at": "2026-09-26T03:41:54.904475+00:00",
+   "error": "Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n",
+   "trace": "    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n\n"
+  },
+  {
+   "step": "T4 core",
+   "ok": false,
+   "at": "2026-09-26T03:42:42.532577+00:00",
+   "error": "Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"+ New note\", exact=True) to be visible\n",
+   "trace": "out, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"+ New note\", exact=True) to be visible\n\n"
+  },
+  {
+   "step": "T6 core",
+   "ok": false,
+   "at": "2026-09-26T03:43:30.145200+00:00",
+   "error": "Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n",
+   "trace": "    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n\n"
+  },
+  {
+   "step": "T8 core",
+   "ok": false,
+   "at": "2026-09-26T03:44:17.799538+00:00",
+   "error": "Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n",
+   "trace": "    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 45000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").or_(get_by_text(\"Something went wrong on this page\")).first\n\n"
+  },
+  {
+   "step": "seeded activity through the product's own doors: telemetry, the client-error beacon, the notes door",
+   "ok": true,
+   "at": "2026-09-26T03:44:18.797545+00:00",
+   "seeded": {
+    "organic P1": [
+     200,
+     200,
+     200,
+     200,
+     200
+    ],
+    "synthetic smoke@": [
+     200,
+     200
+    ],
+    "unknown internal ghost@": [
+     200
+    ],
+    "client error on /journal/notebook": [
+     200,
+     {
+      "ok": true,
+      "enabled": true,
+      "stored": 1,
+      "dropped": 0,
+      "invalid": 0
+     }
+    ],
+    "a sync-conflict note through the notes door": 200
+   }
+  },
+  {
+   "step": "GET /api/admin/notebook-soak as the admin, IN THE BROWSER: every seeded figure lands in its own population, never summed; aggregates only (no email, title or body text in the response)",
+   "ok": false,
+   "at": "2026-09-26T03:44:18.959856+00:00",
+   "status": 200,
+   "split": {
+    "save_failed organic": 0,
+    "save_failed synthetic": 0,
+    "offline opt-in unknown_internal": 0,
+    "conflict_forked organic by_door.outbox": 0,
+    "blocked-baseline organic": 0,
+    "client errors organic": 1,
+    "conflicted copies offline_layer organic": 1,
+    "identities editing organic": 1
+   },
+   "leaks": [],
+   "config_served": {
+    "organic": "0/0",
+    "synthetic": "0/0",
+    "rig_owner": "0/0",
+    "unknown_internal": "0/0",
+    "unresolved": "0/0"
+   },
+   "identities_editing": {
+    "organic": 1,
+    "synthetic": 0,
+    "rig_owner": 0,
+    "unknown_internal": 0,
+    "unresolved": 0
+   },
+   "note_open_ms": {
+    "organic": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "synthetic": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "rig_owner": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "unknown_internal": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    },
+    "unresolved": {
+     "n": 0,
+     "p50_ms": null,
+     "p95_ms": null
+    }
+   },
+   "exposure_basis": "j2_notes.updated_at holds only a note's LAST edit: a day's figure is a lower bound, and the 2-hourly sidecar carries the day-by-day series; the window totals are exact when `until` is now",
+   "screenshots": [
+    "screenshots/soak-0-endpoint-as-admin-in-the-browser.jpg"
+   ]
+  },
+  {
+   "step": "the same read as a MEMBER is refused",
+   "ok": true,
+   "at": "2026-09-26T03:44:19.083805+00:00",
+   "status": 403,
+   "body": "{\"detail\":\"Admin access required\"}",
+   "screenshots": [
+    "screenshots/soak-1-same-read-as-a-member-403.jpg"
+   ]
+  },
+  {
+   "step": "a malformed `since` is a 400 with a sentence",
+   "ok": true,
+   "at": "2026-09-26T03:44:19.151066+00:00",
+   "status": 400,
+   "body": "{\"detail\":\"`since` is not an ISO 8601 timestamp (for example 2026-10-01T14:00:00Z).\"}",
+   "screenshots": [
+    "screenshots/soak-2-malformed-since-400.jpg"
+   ]
+  },
+  {
+   "step": "the observer's SOAK_JS read the sandbox through the signed-in page and appended ONE sidecar line with figures + the from-the-start `cumulative`; a read that cannot be taken is `skipped`",
+   "ok": true,
+   "at": "2026-09-26T03:44:20.610350+00:00",
+   "sidecar_lines": 1,
+   "interval": {
+    "since": "2026-09-26T01:44:19Z",
+    "until": "2026-09-26T03:44:19Z"
+   },
+   "cumulative_identities": {
+    "organic": 1,
+    "synthetic": 0,
+    "rig_owner": 0,
+    "unknown_internal": 0,
+    "unresolved": 0
+   },
+   "q1_optin_cell": "2026-09-26 03:44:18 \u00b7 organic 1 \u00b7 synthetic 0 \u00b7 rig/owner 0 \u00b7 \u26d4 UNKNOWN INTERNAL 1",
+   "q1_config_served": "0/0 \u2014 no member reported",
+   "q1_conflicts": 0,
+   "a_blank_page_read_is": "Error: Page.evaluate: TypeError: Failed to execute 'fetch' on 'Window': Failed to parse URL from /api/admin/notebook-soak?since"
+  },
+  {
+   "step": "tools/nb_soak.py rolled the sandbox evidence up; the dashboard renders in the browser",
+   "ok": true,
+   "at": "2026-09-26T03:44:22.994408+00:00",
+   "rc": 0,
+   "verdict": "INCONCLUSIVE",
+   "stdout_line": "2026-09-26 03:44 UTC soak INCONCLUSIVE \u00b7 day 0.0/30 (+0.0 unobserved) \u00b7 organic 1/5 \u00b7 edit-days 1/100 \u00b7 active 1/20 \u00b7 reasons 5 \u00b7 alerts 0 \u00b7 drift 0",
+   "alert_state_written": false,
+   "screenshots": [
+    "screenshots/soak-3-dashboard-rendered.jpg"
+   ]
+  }
+ ],
+ "route_fallbacks": [],
+ "page_errors": [],
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8206 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T22-36-26.md (identity be7d4529096f..., data dir C:\\data-9c)",
+  "nonce": "be7d4529096f969d22836fcd258df00f"
+ },
+ "chromium": "145.0.7632.6",
+ "finished": "2026-09-26T03:44:23.127137+00:00",
+ "summary": {
+  "pass": 9,
+  "fail": 7,
+  "route_fallbacks": 0,
+  "page_errors": 0
+ }
+}

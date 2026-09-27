@@ -252,8 +252,16 @@ function trackedModules() {
  *  and seven others were each imported by exactly one live, green test and by no
  *  screen — a blanket test-only exemption would have excused every one of them.
  *  These four markers say "this file's JOB is to support tests", which is a
- *  property of where it lives, not of who happens to import it today. */
-const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$/
+ *  property of where it lives, not of who happens to import it today.
+ *
+ *  ⭐ Wave 8, lane 8A: the Notebook's accessibility RAIL directory,
+ *  `pages/journal-2-0/a11y/`, holds nothing but rails and their support (the
+ *  axe harness, the fixture network, the surface manifest, the CSS audits) --
+ *  its job is to test. Named by its FULL path, never a bare `a11y/`, so a real
+ *  UI helper in some future `components/a11y/` is still judged like any other
+ *  module (control: 'the Notebook a11y rail directory is test infrastructure,
+ *  and nothing else is'). */
+const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$|(^|[\\/])pages[\\/]journal-2-0[\\/]a11y[\\/]/
 
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
@@ -291,6 +299,16 @@ const AWAITING_A_DECISION = {
     'S4 CP1 divergence detector — read-only, mounts nothing BY APPROVED SCOPE '
     + '(2026-09-13); reached only by its own rail. R-29. Mount, retire, or '
     + 'delete it; then drop this entry.',
+  // ✅ TERM-029 IS WIRED — its parking block was removed on 2026-09-26, the same
+  // day it was written, in the change that gave `optionsFlow/gexAssumption.js` a
+  // real importer. `optionsFlow/GexAssumptionNote.jsx` reads the copy and is
+  // mounted twice in `pages/OptionsFlow.jsx` — at the Total GEX card and at the
+  // GEX Summary row — so the module is reachable and needs no entry here. The
+  // matching `PARKING_EXPIRES` row went with it. Rail:
+  // `optionsFlow/gexAssumptionMount.guard.test.jsx`. Recorded as a line rather
+  // than silently deleted because a parked note outliving its reason is exactly
+  // what this register refuses, and the next reader should be able to see that
+  // this one did not.
   // ── FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25) ────
   //
   // The owner removed the per-control percentile bands and the basis note from
@@ -706,6 +724,26 @@ const AWAITING_A_DECISION = {
   // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
   // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
   // and its expiry were deleted in that commit, as the block's own text said.)
+  // ── TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER (2026-09-26) ───
+  //
+  // `freshnessAge.js` is TERM-006 / RM-N03's ruling — "a panel must show
+  // its age when the value is older than TWICE the cadence it was fetched at,
+  // never less than 60 seconds and never more than one trading session" — as
+  // one exported authority plus ONE place for its constants. It is
+  // deliberately landed WITH NO CONSUMER: adoption is TERM-059, and the
+  // provenance census (`provenance/panelAdoption.measure.test.js`) measured
+  // 519 non-adopting panels under `pages/**` with 204 of them in one
+  // directory, so a wiring pass is its own scoped decision rather than a
+  // ride-along. Its only importer is `freshnessAge.test.js`, which this walk
+  // cannot see because it starts from App.jsx — the same reason
+  // `focusDivergence.js` sits at the top of this register.
+  // Expiry: TERM-059 wires the first panel (drop this entry then — and
+  // `freshnessAge.test.js`'s own "no consumer yet" rail goes red in the same
+  // commit, by design), or the ruling is withdrawn and the module deleted.
+  'app/src/components/provenance/freshnessAge.js':
+    'TERM-006 age authority — the ruling plus its rails, landed with NO '
+    + 'consumer BY DECISION; adoption is TERM-059. Wire it, or delete it; do '
+    + 'not leave it looking shipped.',
   }
 
 /**
@@ -737,6 +775,11 @@ const AWAITING_A_DECISION = {
  * always "decide these modules", never "find out what broke".
  */
 const PARKING_EXPIRES = {
+  // ⚠️ The TERM-029 row lived here for one day. It was deliberately given the
+  // shortest expiry in this table because it was waiting on a person, not a
+  // build — and it came out on 2026-09-26 when the wiring landed and the block
+  // it dated was removed from AWAITING_A_DECISION. The short expiry was never
+  // tested by time; do not read its absence as evidence the mechanism works.
   'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
   "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
   // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
@@ -759,6 +802,7 @@ const PARKING_EXPIRES = {
   //
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
+  'TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER (2026-09-26)': '2026-11-30',   // landed 2026-09-26 with the authority itself; TERM-059 resolves it
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
@@ -880,6 +924,16 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       .filter((k) => !tracked.has(path.join(ROOT, k)))
     expect(untrackedButKnown, 'git does not track files this rail already records as '
       + 'committed — the tracked set is wrong, not the allow-list').toEqual([])
+  })
+
+  it('the Notebook a11y rail directory is test infrastructure, and nothing else is', () => {
+    const rel = (...p) => path.join(...p)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'axeHarness.js'))).toBe(true)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'fixtures.jsx'))).toBe(true)
+    // a sibling component directory, and an a11y directory anywhere else, are NOT
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'components', 'notebook', 'NoteGraphView.jsx'))).toBe(false)
+    expect(TEST_INFRA.test(rel('components', 'a11y', 'SkipLink.jsx'))).toBe(false)
+    expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'lib', 'graphNavigation.js'))).toBe(false)
   })
 
   it('and nothing committed is connected to nothing', () => {

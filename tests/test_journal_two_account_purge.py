@@ -44,6 +44,7 @@ _ENUM_OVERRIDES: dict[str, dict[str, str]] = {
     "j2_profile_suggestions": {"source_type": "chat", "status": "pending"},
     "j2_broker_accounts": {"status": "active"},
     "j2_broker_dup_flags": {"status": "pending"},
+    "j2_note_publications": {"kind": "note"},
 }
 
 
@@ -137,6 +138,11 @@ def _seed_full_manifest(conn, user_id: str, tag: str) -> dict[str, str]:
     # first index or search (wave 7 lane H, H3).
     from api.services.journal_two import note_semantic as nsem
     nsem.ensure_semantic_schema(conn)
+    # j2_note_publications, likewise: note_publish.py self-ensures it on the first
+    # publish or public read (wave 8 lane 8B, B4). ⚰️ 8B listed it in the manifest
+    # without this line, and both manifest rails went red on the landing tree.
+    from api.services.journal_two import note_publish as npub
+    npub.ensure_publish_schema(conn)
 
     for table in ap._DIRECT_USER_TABLES:
         _insert_minimal_row(conn, table, user_id, tag)

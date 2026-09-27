@@ -1,0 +1,277 @@
+{
+ "wave": 8,
+ "errors": [],
+ "checks": {
+  "W2_share_links": {
+   "verdict": "PASS",
+   "note_id": "ee8276083cc941418460917d9dbc7970",
+   "token": "76NWrowpB8EesT-wcYpGVvJjXchiCw70",
+   "public": {
+    "url": "/share/n/76NWrowpB8EesT-wcYpGVvJjXchiCw70",
+    "html_status": 200,
+    "html_headers": {
+     "cache-control": "no-cache, no-store, must-revalidate",
+     "referrer-policy": "no-referrer",
+     "x-robots-tag": "noindex, nofollow"
+    },
+    "meta": {
+     "robots": "noindex, nofollow",
+     "referrer": "no-referrer"
+    },
+    "dom_leaks": [],
+    "payloads": [
+     {
+      "url": "/api/auth/preferences",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/watchlists?include_prebuilt=0",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/me",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/accounts",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/settings",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/shared/76NWrowpB8EesT-wcYpGVvJjXchiCw70",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": true
+     },
+     {
+      "url": "/api/j2/shared/76NWrowpB8EesT-wcYpGVvJjXchiCw70/att/inline/18c73a729d317fb0d1f0f6affe815159.png",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "content-security-policy": "default-src 'none'",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "image/png"
+      },
+      "leaks": [],
+      "matched": true
+     }
+    ],
+    "fmp_image_rendered": true,
+    "shot": "r115837-w2-stranger-share.png",
+    "title_rendered": true,
+    "own_words_rendered": true,
+    "massive_is_neutral_line": true,
+    "massive_symbol_in_text": false,
+    "linked_note_text": true,
+    "payload_leaks": [],
+    "api_headers_ok": true,
+    "api_headers": {
+     "x-content-type-options": "nosniff",
+     "cache-control": "no-store, private"
+    },
+    "image_headers_ok": true
+   },
+   "revoke": {
+    "sentence": "This link is no longer available.",
+    "api": 404,
+    "is_dead_sentence": true
+   },
+   "trash_restore": {
+    "mint_again": 200,
+    "live_before_trash": 200,
+    "after_trash": 404,
+    "after_trash_detail": "Not found",
+    "trashed_page_shows_gone": true,
+    "after_restore": 200
+   },
+   "needles_searched": 8
+  },
+  "W11_integrity": {
+   "verdict": "PASS",
+   "reason": null,
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_window_errors_excluded": 0,
+   "fences": [],
+   "client_error_beacons_unforced": 0,
+   "beacon_kinds": [],
+   "boundary_beacons_unforced": [],
+   "route_fallback_sightings": [],
+   "sandbox_integrity_status": "CLEAN",
+   "sandbox_integrity_checkpoints": [
+    "pre-boot (baseline): CLEAN",
+    "post-boot (+15s): CLEAN",
+    "shutdown: CLEAN"
+   ],
+   "sandbox_integrity_required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "shutdown"
+   ],
+   "sandbox_integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md",
+   "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md",
+   "shutdown_waited_s": 11.67
+  }
+ },
+ "tip": "220354a6b",
+ "base": "http://127.0.0.1:8228",
+ "port": 8228,
+ "run": "r115837",
+ "only": "W2_,W11",
+ "data_dir": "C:\\data-w8walk-w2",
+ "instrument": {
+  "file": "tools\\notebook_wave8_walk.py",
+  "sha256": "7afdd8deb696e61fcb81b428e37e7cc8a9ea42b5bc909fa30e138755959855c5"
+ },
+ "brief_mismatches": [
+  {
+   "check": "W2",
+   "brief": "a note holding an FMP/Finnhub figure (a financial fact)",
+   "product": "no FMP or Finnhub FACT can be captured today: fact_registry holds one FMP type, analyst_price_target_consensus, with active=False, and no Finnhub type; the FMP figure a note can hold is the fundamentals widget (vendor fmp, SHOWN), with its archived image",
+   "source": "api/services/journal_two/fact_registry.py FACT_TYPES; api/services/journal_two/public_note_payload.py MARKET_DATA_VENDORS"
+  }
+ ],
+ "instrument_notes": [],
+ "password_source": "W8WALK_PASSWORD",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8228 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md (identity cb42af8aada8..., data dir C:\\data-w8walk-w2)",
+  "nonce": "cb42af8aada807c27eb850c985c01bab",
+  "base": "http://127.0.0.1:8228",
+  "integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md"
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "w8walk@local.dev": 200
+ },
+ "verify_email_status": {
+  "w8walk@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "gates": {
+  "walk_process_env": {
+   "J2_SHARE_LINKS_ENABLED": "1",
+   "NOTEBOOK_PUBLISH_ENABLED": "1",
+   "NOTEBOOK_ONBOARDING_ENABLED": "1"
+  },
+  "walk_process_keys_blank": {
+   "ANTHROPIC_API_KEY": true,
+   "OPENAI_API_KEY": true
+  },
+  "observed_from_sandbox": {
+   "j2_share_links_enabled": true,
+   "notebook_publish_enabled": true,
+   "notebook_onboarding_enabled": true,
+   "GET /api/j2/onboarding/sample-notebook": 200,
+   "GET /api/j2/share/links": 200,
+   "GET /api/j2/publish": 200,
+   "launcher: startup lines naming notebook": [
+    "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+    "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+   ]
+  }
+ },
+ "config": {
+  "export_cap_bytes": 2500000,
+  "export_cap_source": "NOTE_EXPORT_MAX_ATTACHMENT_BYTES (walk env)",
+  "axe_path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w8\\app\\node_modules\\axe-core\\axe.min.js",
+  "axe_sha256": "c24f097bd2f451d4f933e8bc7d8d539f8672a2ebcb5cc9f9f3eec8ca9470a0c1",
+  "axe_pinned": "4.13.0"
+ },
+ "sandbox_integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 11:57:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 11:58:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 11:59:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md",
+  "launcher_log_agrees": true,
+  "shutdown_waited_s": 11.67
+ },
+ "launcher_excerpts": {
+  "startup_gate_lines": [
+   "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+   "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+  ],
+  "shared_root_blocked": [
+   "A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to"
+  ],
+  "integrity_lines": [
+   "[pre-boot] shared data root baseline: 62 db files hashed (sha256)",
+   "[post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).",
+   "[shutdown] Massive WS consumer stop: clean",
+   "[shutdown] Bullflow SSE worker stop: clean",
+   "[shutdown] cache snapshot saved: 678 entries, 4085 KB",
+   "[shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-220354a6b\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T11-57-43.md"
+  ]
+ },
+ "pref_writes": []
+}

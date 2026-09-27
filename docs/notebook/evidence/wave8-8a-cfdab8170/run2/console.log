@@ -1,0 +1,168 @@
+PASS sandbox identity answers (the server IS the 8A sandbox)
+PASS signup (sandbox-only account)
+PASS login
+PASS account is the sandbox admin (ADMIN_EMAILS)
+PASS fixture notes created
+PASS Tab from the top of the page reaches the Notebook's skip link
+PASS S1 skip link (visible only when focused): a 'Skip to notes list' focus visible
+PASS S1 sidebar stop 01: button 'Hide folders panel' focus visible
+PASS S1 sidebar stop 02: button 'Show folders' focus visible
+PASS S1 sidebar stop 03: button 'Search notes' focus visible
+PASS S1 sidebar stop 04: button 'Collapse Recents' focus visible
+PASS S1 sidebar stop 05: button 'SR pass 8A' focus visible
+PASS S1 sidebar stop 06: button 'Weekly plan 8A' focus visible
+PASS S1 sidebar stop 07: button 'Add thesis starter views' focus visible
+PASS S1 sidebar stop 08: button 'All notes10' focus visible
+PASS S1 sidebar stop 09: button 'Unfiled5' focus visible
+PASS S1 sidebar stop 10: button 'Archived0' focus visible
+PASS S1 sidebar stop 11: button 'Trash2' focus visible
+PASS S1 sidebar stop 12: button 'Expand Theses 8A' focus visible
+PASS S1 sidebar stop 13: button 'Theses 8A' focus visible
+PASS S1 sidebar stop 14: button 'Rename Theses 8A' focus visible
+PASS S1 sidebar stop 15: button 'Add subfolder to Theses 8A' focus visible
+PASS S1 sidebar stop 16: button 'Delete Theses 8A' focus visible
+PASS S1 sidebar stop 17: button 'Expand Theses 8A 020910' focus visible
+PASS S1 sidebar stop 18: button 'Theses 8A 020910' focus visible
+PASS S1 sidebar stop 19: button 'Rename Theses 8A 020910' focus visible
+PASS S1 sidebar stop 20: button 'Add subfolder to Theses 8A 020910' focus visible
+PASS S1 sidebar stop 21: button 'Delete Theses 8A 020910' focus visible
+PASS S1 sidebar stop 22: button '+ New folder' focus visible
+PASS the skip link is the FIRST focusable element of the tab
+PASS S1 pane heading after the skip link: h2 'All notes' focus visible
+PASS S1 list stop 01: select 'Sort notes' focus visible
+PASS S1 list stop 02: button 'List view' focus visible
+PASS S1 list stop 03: button 'Table view' focus visible
+PASS S1 list stop 04: button 'Board view' focus visible
+PASS S1 list stop 05: button 'Calendar view' focus visible
+PASS S1 list stop 06: button 'Graph view' focus visible
+PASS S1 list stop 07: button 'Timeline view' focus visible
+PASS S1 list stop 08: button 'Tasks view' focus visible
+PASS S1 list stop 09: button 'Save this view' focus visible
+PASS S1 list stop 10: button 'Import' focus visible
+PASS S1 list stop 11: button 'Export' focus visible
+PASS S1 list stop 12: button 'Open today's daily note (Ctrl+Alt+D)' focus visible
+PASS S1 list stop 13: button 'Templates' focus visible
+PASS S1 list stop 14: button '+ New note' focus visible
+PASS S1 list stop 15: input 'Select Delete me too 8A' focus visible
+PASS S1 list stop 16: button 'Delete me too 8Anow' focus visible
+PASS S1 list stop 17: input 'Select Delete me 8A' focus visible
+PASS S1 list stop 18: button 'Delete me 8Anow' focus visible
+PASS S1 list stop 19: input 'Select Lonely note 8A' focus visible
+PASS S1 list stop 20: button 'Lonely note 8Anow' focus visible
+PASS S1 list stop 21: input 'Select SR pass 8A' focus visible
+PASS S1 list stop 22: button 'SR pass 8Anow#semis-8a' focus visible
+PASS S1 list stop 23: input 'Select AMD thesis 8A' focus visible
+PASS S1 list stop 24: button 'AMD thesis 8Anow#semis-8a' focus visible
+PASS S1 list stop 25: input 'Select Weekly plan 8A' focus visible
+PASS S1 list stop 26: button 'Weekly plan 8Anow' focus visible
+PASS S1 list stop 27: input 'Select SR pass 8A' focus visible
+PASS S1 list stop 28: button 'SR pass 8A3m#semis-8a' focus visible
+PASS S1 list stop 29: input 'Select Lonely note 8A' focus visible
+PASS S1 list stop 30: button 'Lonely note 8A3m' focus visible
+PASS S1 list back stop 01: input 'Select Lonely note 8A' focus visible
+PASS S1 list back stop 02: button 'SR pass 8A3m#semis-8a' focus visible
+PASS S1 list back stop 03: input 'Select SR pass 8A' focus visible
+PASS S1 list back stop 04: button 'Weekly plan 8Anow' focus visible
+PASS S1 list view: every interactive node has a role and a name
+PASS S1 list view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S1 list view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 Table view toggle: button 'Table view' focus visible
+PASS S2 Table view: every interactive node has a role and a name
+PASS S2 Table view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 Table view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 Board view toggle: button 'Board view' focus visible
+PASS S2 Board view: every interactive node has a role and a name
+PASS S2 Board view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 Board view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 Calendar view toggle: button 'Calendar view' focus visible
+PASS S2 Calendar view: every interactive node has a role and a name
+PASS S2 Calendar view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 Calendar view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 Timeline view toggle: button 'Timeline view' focus visible
+PASS S2 Timeline view: every interactive node has a role and a name
+PASS S2 Timeline view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 Timeline view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 Tasks view toggle: button 'Tasks view' focus visible
+PASS S2 Tasks view: every interactive node has a role and a name
+PASS S2 Tasks view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 Tasks view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S2 List view toggle: button 'List view' focus visible
+PASS S2 List view: every interactive node has a role and a name
+PASS S2 List view: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S2 List view: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S3 Show as list: aria-pressed true and a table of notes
+PASS S3 Show as list toggle (pressed): button 'Show as list' focus visible
+PASS S3 graph list stop 01: button 'AMD thesis 8A' focus visible
+PASS S3 graph list stop 02: button 'SR pass 8A' focus visible
+PASS S3 graph list stop 03: button 'AMD thesis 8A' focus visible
+PASS S3 graph list stop 04: button 'SR pass 8A' focus visible
+PASS S3 graph list stop 05: button 'Delete me 8A' focus visible
+PASS S3 graph list stop 06: button 'Delete me too 8A' focus visible
+PASS S3 graph list mode: every interactive node has a role and a name
+PASS S3 graph list mode: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S3 graph list mode: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S3 graph canvas focused: canvas 'Note graph: 10 notes, 4 links' focus visible
+PASS S3 canvas keys: Home then an arrow are spoken in the live region
+PASS S3 graph canvas: every interactive node has a role and a name
+PASS S3 graph canvas: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S3 graph canvas: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S3 Enter on the canvas opens the selected note, focus in its title
+PASS S4 note opened by Enter: title field: input 'Note title' focus visible
+PASS S4 editor stop 01: input 'Subtitle' focus visible
+PASS S4 editor stop 02: button 'Add property' focus visible
+PASS S4 editor stop 03: button 'Add a row above' focus visible
+PASS S4 editor stop 04: button 'Add a row below' focus visible
+PASS S4 editor stop 05: button 'Delete this row' focus visible
+PASS S4 editor stop 06: button 'Add a column to the left' focus visible
+PASS S4 editor stop 07: button 'Add a column to the right' focus visible
+PASS S4 editor stop 08: button 'Delete this column' focus visible
+PASS S4 editor stop 09: button 'Header row' focus visible
+PASS S4 editor stop 10: button 'Delete table' focus visible
+PASS S4 editor stop 11: div 'Note body' focus visible
+PASS S4 Tab reaches the note body
+PASS S4 in a table, Alt+F10 moves focus to the table toolbar: button 'Add a row above' focus visible
+PASS S4 Escape from the table toolbar hands focus back to the cell
+PASS S4 note editor: every interactive node has a role and a name
+PASS S4 note editor: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 note editor: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 find field: input 'Find in note' focus visible
+PASS S4 find bar open: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 find bar open: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 Escape closes find and focus is back in the note
+PASS S4 colour menu: focus inside: button 'Default text color' focus visible
+PASS S4 colour menu open: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 colour menu open: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 colour menu closed: focus on its button: button 'Text color and highlight' focus visible
+PASS S4 outline open: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 outline open: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 outline closed: focus on its button: button 'Outline' focus visible
+PASS S4 slash menu open: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 slash menu open: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 Escape in the slash menu leaves focus in the note
+PASS S4 Ask open: focus in the question field: input 'Your question about This note' focus visible
+PASS S4 Ask panel open: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S4 Ask panel open: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S4 Ask closed: focus on its toggle: button 'Ask a question about this note' focus visible
+PASS S5 Save view opens with its name field focused (typing lands)
+PASS S5 Save view name field: input 'Name' focus visible
+PASS S5 Save view dialog: every interactive node has a role and a name
+PASS S5 Save view dialog: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S5 Save view dialog: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S5 Save view closed: focus back on its opener: button 'Save this view' focus visible
+PASS S6 ConfirmModal open: button 'Delete' focus visible
+PASS S6 ConfirmModal: every interactive node has a role and a name
+PASS S6 ConfirmModal: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S6 ConfirmModal: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S6 delete from All notes: focus on the NEXT row if it is on screen, else the pane heading
+PASS S6 focus after the delete from All notes: h2 'Research home' focus visible
+PASS S6b delete from a folder list: focus on the NEXT row (or the heading when it was last)
+PASS S6b focus after the delete from a folder: button 'AMD thesis 8Anow#semis-8a' focus visible
+PASS S7 import wizard: every interactive node has a role and a name
+PASS S7 import wizard: axe 4.13.0 in the browser, 0 violations (D-A5 page exclusions)
+PASS S7 import wizard: color-contrast measured in the browser (dark + light) -- RECORDED
+PASS S7 import closed: focus back on Import: button 'Import' focus visible
+PASS no uncaught page errors during the pass
+{
+ "steps": 164,
+ "failed": []
+}

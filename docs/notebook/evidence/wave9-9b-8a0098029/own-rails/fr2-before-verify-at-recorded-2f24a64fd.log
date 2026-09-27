@@ -1,0 +1,6 @@
+checked against 2f24a64fd: CODE 130, FLAG 11, MEASURE 8, RECORD 22, RULING 11, TEST 15, WALK 38
+  FAIL RECORD docs/notebook/competitive-gap-ledger.md:142 no longer holds "⚰️ was: see G-044 ⟶ **DUPLICATE of G-044 — tracked there** (2026-09-26, controll"
+  FAIL RECORD docs/notebook/competitive-gap-ledger.md:448 no longer holds "BLOCKED (owner)** — a person on a real device every release, or an Automate purc"
+  FAIL RECORD docs/notebook/competitive-gap-ledger.md:428 no longer holds "OPEN** — not built"
+  FAIL RECORD docs/notebook/competitive-gap-ledger.md:418 no longer holds "PARTIAL** — add/delete rows and columns and the header row DONE (wave 6); resize"
+VERIFY: FAIL (4)

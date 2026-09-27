@@ -1,0 +1,26 @@
+S=84a1ee9ca5e6d37d39e20b060b3230ce7be4a9d3
+S parent 78a40b9c1a3e8d74477d7eb51de672706e577083
+diff --git a/api/services/journal_two/note_shares.py b/api/services/journal_two/note_shares.py
+index 936074553..53acfd0ea 100644
+--- a/api/services/journal_two/note_shares.py
++++ b/api/services/journal_two/note_shares.py
+@@ -61,6 +61,7 @@ def _now_iso() -> str:
+     return _iso(_now())
+ 
+ 
++# scratch (fix round 2 pin proof): an unrelated edit that moves the next line down
+ def enabled() -> bool:
+     """The share gate, read PER CALL through the one Notebook flag parse.
+ 
+HEAD form (S = HEAD after the move): rev 84a1ee9ca5e6d37d39e20b060b3230ce7be4a9d3: 235 citations checked, 1 problem(s)
+    CODE api/services/journal_two/note_shares.py:64 no longer holds "def enabled() -> bool:"
+pinned form: rev 330a08964: 235 citations checked, 0 problem(s)
+--- CLI: --verify --rev S (the human's HEAD question, after the move)
+checked against 84a1ee9ca5e6d37d39e20b060b3230ce7be4a9d3: CODE 130, FLAG 11, MEASURE 8, RECORD 22, RULING 11, TEST 15, WALK 38
+  FAIL CODE api/services/journal_two/note_shares.py:64 no longer holds "def enabled() -> bool:"
+VERIFY: FAIL (1)
+exit=1
+--- CLI: --verify (pinned)
+checked against 330a08964 (the revision the scorecard records): CODE 130, FLAG 11, MEASURE 8, RECORD 22, RULING 11, TEST 15, WALK 38
+VERIFY: PASS
+exit=0

@@ -81,6 +81,7 @@ from api.routers import journal_two as journal_two_router
 # note id. Pinned by tests/test_main_router_order.py.
 from api.routers import notebook_insights as notebook_insights_router
 from api.routers import client_errors as client_errors_router
+from api.routers import notebook_soak as notebook_soak_router
 from api.routers import notebook_link_preview as notebook_link_preview_router
 from api.routers import hub_planned_trades as hub_planned_trades_router
 from api.routers import capture_auth as capture_auth_router
@@ -94,6 +95,15 @@ from api.routers import notebook_inbound_email as notebook_inbound_email_router
 # request by the router's own dependency). Its stream path is exempted from
 # gzip in _is_gzip_exempt below, or no event ever reaches the editor.
 from api.routers import notebook_writing_help as notebook_writing_help_router
+# Wave 8 seam S8-2 (controller wiring): the five note-share routes MOVED out of
+# journal_two into notebook_shares (same paths, handlers and flag checks), and three
+# stub routers lanes 8B/8C fill without touching this file. notebook_shares MUST be
+# mounted BEFORE journal_two -- tests/test_notebook_share_routes.py asks the real app
+# that each share path is served exactly once and answered first by that router.
+from api.routers import notebook_shares as notebook_shares_router
+from api.routers import notebook_publish as notebook_publish_router
+from api.routers import notebook_export as notebook_export_router
+from api.routers import notebook_onboarding as notebook_onboarding_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -2483,9 +2493,31 @@ def register_wire_watchdog_job(scheduler):
 
     The wire runs on the owner's laptop — if the machine is off/asleep on a
     trading day, NOTHING alerts (the engine's own publish gate only fires when
-    the engine RUNS). This job runs on Railway at 9:05 AM ET on weekdays: if
+    the engine RUNS). This job runs on Railway at 9:35 AM ET on weekdays: if
     the served wire_data still carries a pre-today date, fire a Discord ops
     alert. Disable with WIRE_WATCHDOG_ENABLED=0.
+
+    ⚰️⚰️ IT RAN AT 9:05 AND COULD NOT FIRE FOR THE CASE IT NAMES. `expected`
+    comes from `engine.expected_wire_date()`, which rolls back one day while the
+    clock is before 09:30 ET ("give it until 9:30 before expecting today's run").
+    So at 09:05 `expected` was YESTERDAY, a wire that missed this morning is
+    dated yesterday, and `yesterday < yesterday` is False — the alert stayed
+    silent, and because this job runs ONCE it stayed silent all day. It could
+    only fire at TWO days stale.
+
+    ⭐ The fix is the minute, not the rule: `expected_wire_date` is deliberately
+    ONE COPY shared with /api/leadership, the breadth payload and the exposure
+    payload, and its own docstring warns that two implementations "would drift
+    into two different answers on the same day". Re-timing this job past 09:30
+    touches one caller; changing the shared rule would move the member-facing
+    freshness boundary on every surface that reads it.
+
+    ⛔ So the scheduled minute is load-bearing and is NOT a free parameter: it
+    must sit after `expected_wire_date`'s 09:30 rollback boundary. The rail is
+    `tests/test_wire_watchdog_fires.py`, which derives this trigger's hour and
+    minute from this file by AST and asserts the comparison actually fires for a
+    one-day-stale payload — with a control pinning the old 09:05 behaviour so
+    the regression cannot come back quietly.
     """
     import os
     if os.environ.get("WIRE_WATCHDOG_ENABLED", "1") != "1":
@@ -2513,7 +2545,9 @@ def register_wire_watchdog_job(scheduler):
             print(f"[scheduler] wire watchdog error: {e}")
 
     scheduler.add_job(_check,
-                      trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=5, timezone=_ET),
+                      # ⛔ 9:35, NOT 9:05 — must be AFTER expected_wire_date()'s
+                      # 09:30 rollback, or this guard cannot fire. See docstring.
+                      trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=35, timezone=_ET),
                       id="wire_freshness_watchdog", max_instances=1,
                       replace_existing=True)
     return True
@@ -8737,6 +8771,9 @@ app.include_router(alerts_router.router)
 # (lane F's report; rail tests/test_main_router_order.py).
 app.include_router(notebook_insights_router.router)
 app.include_router(client_errors_router.router)
+# Wave 9 lane 9C (controller wiring): GET /api/admin/notebook-soak -- the soak's
+# one admin read (ruling D-9C2). Must precede the SPA catch-all like every /api route.
+app.include_router(notebook_soak_router.router)
 app.include_router(notebook_link_preview_router.router)
 # Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.
 # Mounted beside the other pre-journal_two Notebook routers; no path here can
@@ -8744,7 +8781,17 @@ app.include_router(notebook_link_preview_router.router)
 # the family is kept together and the mount is railed by name
 # (tests/test_main_router_order.py).
 app.include_router(notebook_writing_help_router.router)
+# Wave 8 seam S8-2: the share routes' own router, BEFORE journal_two (same family,
+# same pre-journal_two slot; tests/test_notebook_share_routes.py +
+# tests/test_main_router_order.py).
+app.include_router(notebook_shares_router.router)
 app.include_router(journal_two_router.router)
+# Wave 8 seam S8-2: three STUB routers (prefix, no routes yet) for lanes 8B/8C --
+# /api/j2/publish*|published* (8B), /api/j2/export (8C), /api/j2/onboarding (8C).
+# Outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_publish_router.router)
+app.include_router(notebook_export_router.router)
+app.include_router(notebook_onboarding_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)
@@ -11014,6 +11061,42 @@ class _ImmutableStaticFiles(StaticFiles):
         return response
 
 DIST = os.path.join(os.path.dirname(__file__), "..", "app", "dist")
+
+# ── Wave 8 seam S8-4: public-note pages -- noindex, and no Referer out of them ──
+# A share link (`/share/n/<token>`) and a published page (`/p/...`) are client routes, so
+# the SPA catch-all below answers them with index.html like every other page. That
+# response gets two headers, for those paths and no others:
+#   * X-Robots-Tag: noindex, nofollow -- ruling D-B10: wave 8 is ALWAYS noindex, no
+#     toggle. It is set by PATH, so the HTML cannot differ per publication.
+#   * Referrer-Policy: no-referrer -- ruling D-B1: the token is the credential and it
+#     rides the path, so a click out must not hand the URL to another site.
+# ⛔ ONE FACT IN TWO LANGUAGES: these prefixes ARE `SHARED_NOTE_PATH` (lib/noteShareLink.js)
+# and `PUBLISHED_PATH` (lib/notePublishLink.js). tests/test_public_note_headers.py parses
+# both files and fails if this tuple stops equalling them. The match is by path SEGMENT:
+# a bare startswith("/p") would also mark /pricing and /portfolio-heat.
+# ⚠️ robots.txt must NOT disallow these paths: a crawler that may not fetch a page never
+# sees its noindex.
+PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
+PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+
+
+def is_public_note_path(full_path: str) -> bool:
+    """Is this SPA path a public note page (a share link or a published page)?"""
+    path = "/" + (full_path or "").lstrip("/")
+    return any(path == p or path.startswith(p + "/") for p in PUBLIC_NOTE_PATH_PREFIXES)
+
+
+def spa_index_response(full_path: str):
+    """The SPA catch-all's response: index.html, never cached, plus the public-note
+    headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
+    it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
+    (tests/test_public_note_headers.py pins that by AST)."""
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    if is_public_note_path(full_path):
+        headers.update(PUBLIC_NOTE_HEADERS)
+    return FileResponse(os.path.join(DIST, "index.html"), headers=headers)
+
+
 if os.path.exists(DIST):
     app.mount("/assets", _ImmutableStaticFiles(directory=os.path.join(DIST, "assets")), name="assets")
 
@@ -11181,9 +11264,8 @@ if os.path.exists(DIST):
     # check all use, so `authorUrl: https://uctintelligence.com` was reported
     # as "not reachable" while the same URL served 200 to every GET. Starlette
     # runs the same handler for both; h11 drops the body on a HEAD response.
+    # Wave 8 seam S8-4: the response (and the public-note headers) is built by
+    # spa_index_response, above the DIST guard.
     @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
     def spa_fallback(full_path: str):
-        return FileResponse(
-            os.path.join(DIST, "index.html"),
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
-        )
+        return spa_index_response(full_path)

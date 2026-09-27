@@ -1,0 +1,149 @@
+{
+ "tip": "646e87341",
+ "export": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export",
+ "data_dir": "C:\\data-9c",
+ "port": 8206,
+ "events": [
+  {
+   "t": "23:30:36",
+   "msg": "launcher started",
+   "pid": 44140,
+   "cmd": [
+    "C:\\Python314\\python.exe",
+    "-u",
+    "-c",
+    "<_SHIM>",
+    "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\soak_sandbox_boot.py",
+    "--data-dir",
+    "C:\\data-9c",
+    "--port",
+    "8206",
+    "--host",
+    "127.0.0.1"
+   ]
+  },
+  {
+   "t": "23:30:45",
+   "msg": "integrity log",
+   "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md"
+  },
+  {
+   "t": "23:31:21",
+   "msg": "/api/health",
+   "healthy": true
+  },
+  {
+   "t": "23:31:21",
+   "msg": "soak router mount line",
+   "line": "[9C] mounted ['/api/admin/notebook-soak'] from api/routers/notebook_soak.py AHEAD of the SPA catch-all"
+  },
+  {
+   "t": "23:33:39",
+   "msg": "checkpoints before the browser",
+   "line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN; 61 db files hashed; log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md"
+  },
+  {
+   "t": "23:35:31",
+   "msg": "browser check finished",
+   "rc": 0
+  },
+  {
+   "t": "23:35:31",
+   "msg": "CTRL_BREAK sent to the launcher's process group"
+  },
+  {
+   "t": "23:35:39",
+   "msg": "shutdown checkpoint written; waiting for the process to exit"
+  },
+  {
+   "t": "23:36:39",
+   "msg": "launcher stopped",
+   "how": "terminated 60 s AFTER its shutdown checkpoint was written (the launcher's finally ran; the process lingered on background threads)"
+  },
+  {
+   "t": "23:36:39",
+   "msg": "final integrity",
+   "line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 61 db files hashed; log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md"
+  }
+ ],
+ "data_dir_existed_before": true,
+ "data_dir_reused": "created 2026-09-25 23:03:30, after 2026-09-25 23:03:14 (an earlier run of this lane); a NEW participant account keeps T1 on an empty account",
+ "integrity_before_browser": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 23:30:44",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 23:31:46",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 23:33:39",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "stop": "terminated 60 s AFTER its shutdown checkpoint was written (the launcher's finally ran; the process lingered on background threads)",
+ "integrity_final": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9C\\export\\docs\\plans\\joystick\\sandbox-runs\\2026-09-25T23-30-37.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-25 23:30:44",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-25 23:31:46",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-25 23:33:39",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-25 23:35:38",
+    "root": "C:\\data",
+    "db_files": 61,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "browser_rc": 0
+}

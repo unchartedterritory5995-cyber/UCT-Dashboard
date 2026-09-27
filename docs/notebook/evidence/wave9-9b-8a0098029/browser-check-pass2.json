@@ -1,0 +1,185 @@
+{
+ "lane": "9B",
+ "pass": 2,
+ "tip": "8a0098029",
+ "base": "http://127.0.0.1:8205",
+ "run": "f2",
+ "started_utc": "2026-09-26T20:43:39.438335+00:00",
+ "integrity_log": "export-8a0098029/docs/plans/joystick/sandbox-runs/2026-09-26T15-30-24.md",
+ "instrument": "Playwright Chromium (sync API), desktop 1280x800",
+ "checks": {
+  "B21_folders_nested": {
+   "rows": [
+    "G-020"
+   ],
+   "verdict": "PASS",
+   "parent": "Parent f2",
+   "child": "Child f2",
+   "server_nested": true,
+   "screenshot": "B21-folders.png"
+  },
+  "B22_trash_restore": {
+   "rows": [
+    "G-001"
+   ],
+   "verdict": "PASS",
+   "restored_get": 200,
+   "screenshots": [
+    "B22-trash.png",
+    "B22-restored.png"
+   ]
+  },
+  "B23_version_restore": {
+   "rows": [
+    "G-002"
+   ],
+   "verdict": "PASS",
+   "versions_listed": 2,
+   "restored": true,
+   "screenshots": [
+    "B23-history.png",
+    "B23-restored.png"
+   ]
+  },
+  "B24_template_picker": {
+   "rows": [
+    "G-026"
+   ],
+   "verdict": "PASS",
+   "picker_buttons": [
+    "×",
+    "Blank note / An empty page — structure it your way.",
+    "BEFORE THE OPEN / Daily Game Plan / Regime, levels, scenarios, and your risk budget for the day.",
+    "AFTER THE CLOSE / Post-Market Debrief / Grade the day against the morning plan in five minutes.",
+    "SUNDAY OR MONDAY PREMARKET / Weekly Plan / Context, focus, A+ setups, and the risk plan for the week.",
+    "THE WEEKEND LOOK-BACK / Weekly Review / Patterns, leaks, and the ONE commitment for next week.",
+    "STARTING A NEW INVESTMENT THESIS / Long/Short Thesis / Bull case, bear case, catalysts, risks, and what would prove you wrong.",
+    "AFTER A TRADE CLOSES / Trade Post-Mortem / Setup, execution, and the lesson — while it’s fresh.",
+    "WHILE A POSITION IS OPEN / Swing Position Log / A dated block per day the position is alive — thesis, stop, action.",
+    "BEFORE A REPORT YOU CARE ABOUT / Earnings Play Plan / The report, the play, and sizing for binary risk.",
+    "WHEN IT GOES SIDEWAYS / Tilt Log / Three fields, sixty seconds. Naming it is the win.",
+    "Documenting a setup? / Build it in My Playbook — annotated charts, entry criteria, linked notes. →"
+   ],
+   "template_headings": [
+    "Bull case",
+    "Bear case",
+    "Key assumptions",
+    "Catalysts",
+    "Risks",
+    "What would prove me wrong"
+   ],
+   "screenshots": [
+    "B24-templates.png",
+    "B24-thesis-note.png"
+   ]
+  },
+  "B25_saved_view": {
+   "rows": [
+    "G-025"
+   ],
+   "verdict": "PASS",
+   "view": "My table f2",
+   "table_pressed_on_fresh_page": "false",
+   "table_pressed_after_reopen": "true",
+   "screenshot": "B25-saved-view.png"
+  },
+  "B26_image_caption_align": {
+   "rows": [
+    "G-133"
+   ],
+   "verdict": "PASS",
+   "align_buttons": [
+    "Align the image left",
+    "Center the image",
+    "Align the image right",
+    "Make the image full width"
+   ],
+   "data_align_after_center": "center",
+   "center_pressed": "true",
+   "data_align_after_caption": "center",
+   "caption": "Setup chart f2",
+   "screenshot": "B26-image.png"
+  },
+  "B27_relation_property": {
+   "rows": [
+    "G-158"
+   ],
+   "verdict": "PASS",
+   "target_shows_source": 1,
+   "screenshots": [
+    "B27-relation.png",
+    "B27-backlink.png"
+   ]
+  },
+  "B28_widget_insert": {
+   "rows": [
+    "G-034"
+   ],
+   "verdict": "PASS",
+   "palette_buttons": [
+    "✕",
+    "Chart\nFrozen snapshot — your chart settings and drawings",
+    "MTF stack\nThree frozen charts, top-down: D · 1h · 15m",
+    "Before / after\nHalf-width pair: window ending a date vs now"
+   ],
+   "dom_embeds": 2,
+   "saved_body_has_widget": true,
+   "screenshots": [
+    "B28-palette.png",
+    "B28-inserted.png"
+   ],
+   "note": "the sandbox has no market-data keys: the embed node is asserted, not its chart data"
+  },
+  "B29_pdf_upload_preview_search": {
+   "rows": [
+    "G-036",
+    "G-036b",
+    "G-113"
+   ],
+   "verdict": "PASS",
+   "screenshots": [
+    "B29-preview.png",
+    "B29-doc-search.png"
+   ],
+   "chip": true,
+   "preview_dialog": true,
+   "preview_canvases": 1,
+   "document_search_found": true
+  },
+  "B30_live_research_tab": {
+   "rows": [
+    "G-112",
+    "G-075"
+   ],
+   "verdict": "PASS",
+   "section_headings": [
+    "NOTES"
+   ],
+   "url": "/research/NVDA?section=research",
+   "screenshot": "B30-research-my-research.png"
+  },
+  "B31_ask_scope_label": {
+   "rows": [
+    "G-122"
+   ],
+   "verdict": "PASS",
+   "scope_chip": "Asking: This note",
+   "screenshot": "B31-ask-scope.png",
+   "note": "the scope is visible text before any question; no model key, so no answer was requested"
+  }
+ },
+ "errors": [],
+ "pageerrors": [],
+ "admin_signup_or_login": 200,
+ "member": {
+  "email_domain": "local.dev",
+  "signup": 200,
+  "comp": 200,
+  "verify": 200,
+  "paid_equiv": true
+ },
+ "finished_utc": "2026-09-26T20:44:22.456687+00:00",
+ "summary": {
+  "PASS": 11
+ }
+}

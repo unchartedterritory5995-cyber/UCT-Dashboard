@@ -1,0 +1,58 @@
+{
+ "probeVersion": "uct-bench-probe/1",
+ "app": "uct-sandbox-auto",
+ "op": "H1",
+ "kind": "open",
+ "status": "COMPLETE",
+ "mode": "first",
+ "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1
+ },
+ "capturedAt": "2026-09-26T20:15:39.371Z",
+ "samples": [
+  71.6,
+  38.1,
+  35.9,
+  34.9,
+  36,
+  36.6,
+  34.8,
+  34.2,
+  33.7,
+  35.2
+ ],
+ "invalid": [],
+ "selfTest": {
+  "ok": true,
+  "ms": 201.2,
+  "version": "uct-bench-probe/1",
+  "delayMs": 200,
+  "window": [
+   195,
+   260
+  ],
+  "at": "2026-09-26T20:15:38.303Z",
+  "invalid": []
+ },
+ "press": [
+  0.7,
+  1.1,
+  0.5,
+  0.5,
+  0.5,
+  0.6,
+  0.7,
+  0.7,
+  0.7,
+  0.7
+ ],
+ "reps": 10,
+ "attempts": 10,
+ "ignored": 0,
+ "target": {
+  "marker": "zzqbsmallfirstcbashq"
+ }
+}

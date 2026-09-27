@@ -29,6 +29,7 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
+import { PUBLISHED_ROUTE, PUBLISHED_NOTE_ROUTE } from './pages/journal-2-0/lib/notePublishLink'
 import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // The formula share link's route pattern. ⛔ DERIVED, never retyped: the Copy
 // button in `SharePanel` builds its URL from this same module. Before it existed
@@ -84,6 +85,8 @@ const MyStocksHub = lazyPage('/calendar/mystocks', () => import('./pages/calenda
 const Screener = lazyPage('/screener', () => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
+// Wave 8 seam S8-4: the far end of a published note (lane 8B builds it; a stub today).
+const PublishedPage = lazy(() => import('./pages/journal-2-0/PublishedPage'))
 const SharedFormula = lazy(() => import('./pages/formulas/SharedFormula'))
 const FormulaReference = lazy(() => import('./pages/formulas/FormulaReference'))
 const FormulaLibrary = lazy(() => import('./pages/formulas/FormulaLibrary'))
@@ -465,6 +468,17 @@ export default function App() {
                 so the whole public surface has an env kill-switch.
                 Rail: journal-2-0/sharedNote.route.test.jsx. */}
             <Route path={SHARED_NOTE_ROUTE} element={<SharedNotePage />} />
+
+            {/* The far end of a PUBLISHED note or folder (wave 8 seam S8-4; lane 8B
+                builds the page) — the share link's posture exactly: public by
+                definition, OUTSIDE AuthGuard, NOT behind PreLaunchGate, paths
+                DERIVED from notePublishLink.js. The server pair is flag-gated
+                (NOTEBOOK_PUBLISH_ENABLED, dark), and the SPA HTML under
+                PUBLISHED_PATH carries noindex + no-referrer (api/main.py,
+                tests/test_public_note_headers.py).
+                Rail: journal-2-0/publishedNote.route.test.jsx. */}
+            <Route path={PUBLISHED_ROUTE} element={<PublishedPage />} />
+            <Route path={PUBLISHED_NOTE_ROUTE} element={<PublishedPage />} />
 
             {/* The far end of a public TRACK-RECORD share link — same posture:
                 token IS the credential, OUTSIDE AuthGuard, NOT behind

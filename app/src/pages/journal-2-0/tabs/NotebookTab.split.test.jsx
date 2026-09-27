@@ -15,6 +15,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom'
  */
 const track = vi.hoisted(() => ({ live: {}, maxLive: {}, mounts: {} }))
 const bp = vi.hoisted(() => ({ desktop: true }))
+// The list's notes: empty unless a test gives it rows (M-5 needs rows to open from).
+const list = vi.hoisted(() => ({ notes: [] }))
 
 vi.mock('../../../hooks/useBreakpoint', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -22,8 +24,8 @@ vi.mock('../../../hooks/useBreakpoint', async (importOriginal) => ({
 }))
 vi.mock('../hooks/useJ2Notes', () => ({
   default: () => ({
-    notes: [], isLoading: false, error: null, refresh: vi.fn(),
-    mutate: vi.fn(), total: 0, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
+    notes: list.notes, isLoading: false, error: null, refresh: vi.fn(),
+    mutate: vi.fn(), total: list.notes.length, hasMore: false, loadMore: vi.fn(), isLoadingMore: false,
   }),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
@@ -55,6 +57,8 @@ vi.mock('../components/notebook/NoteEditorPage', async () => {
           <button key={id} type="button" onClick={(e) => go(id, e)}>{`link ${id}`}</button>
         ))}
         <button type="button" onClick={onBack}>editor back</button>
+        {/* the real editor closes itself this way after a delete (wave 8, 8A) */}
+        <button type="button" onClick={() => onBack({ trashed: noteId })}>editor delete</button>
         {noteMenu?.({ id: noteId, title: `Note ${noteId}` }, { refresh() {} })}
       </div>
     )
@@ -83,6 +87,7 @@ const editors = () => screen.getAllByTestId('note-editor').map((e) => e.getAttri
 
 beforeEach(() => {
   bp.desktop = true
+  list.notes = []
   for (const k of Object.keys(track)) track[k] = {}
   global.fetch = vi.fn(async (url) => {
     const u = String(url)
@@ -148,12 +153,47 @@ describe('two notes, side by side', () => {
     expect(params().has('side')).toBe(false)
   })
 
+  // ⛔ Wave 8 final-review fix M-5. A delete used to leave a focus plan ("the
+  // row after the deleted one") even in split view, where the side note stays
+  // open and the pane never empties -- so the plan waited for some LATER,
+  // unrelated close and sent focus to that stale row.
+  it('M-5: a delete in split view leaves no focus plan for a later, unrelated close', async () => {
+    list.notes = ['n1', 'n2', 'n3'].map((id) => ({
+      id, title: `Note ${id}`, subtitle: '', tags: [], folderId: null, excerpt: '',
+      updatedAt: '2026-09-20T15:00:00Z', createdAt: '2026-09-01T15:00:00Z',
+    }))
+    // a folder, so the list (and its rows) is what the pane shows again once it empties
+    renderAt('?folder=f1')
+    // n1 is opened from the list, whose rows read n1, n2, n3
+    const row = await waitFor(() => {
+      const el = document.querySelector('[data-note-card-id="n1"]')
+      if (!el) throw new Error('no row yet')
+      return el
+    })
+    fireEvent.click(row.matches('button') ? row : row.querySelector('button'))
+    await waitFor(() => expect(editors()).toEqual(['n1']))
+    // n3 beside it, through the editor's own link
+    fireEvent.click(within(mainPane()).getByRole('button', { name: 'link n3' }), { ctrlKey: true })
+    await waitFor(() => expect(editorIn(sidePane())).toBe('n3'))
+    // n1 is deleted: n3 becomes the one note, and the pane never empties
+    fireEvent.click(within(mainPane()).getByRole('button', { name: 'editor delete' }))
+    await waitFor(() => expect(editors()).toEqual(['n3']))
+    // later, n3 (never opened from a row) closes
+    document.activeElement?.blur?.()
+    fireEvent.click(within(mainPane()).getByRole('button', { name: 'editor back' }))
+    await waitFor(() => expect(screen.queryAllByTestId('note-editor')).toEqual([]))
+    // -> the pane heading; never n2, the row the DELETE had planned for n1
+    await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'))
+    expect(document.activeElement.getAttribute('data-note-card-id')).toBeNull()
+  })
+
   it('the note menu opens a note beside, from the Notebook’s own search', async () => {
     renderAt('?note=n1')
     fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { target: { value: 'th' } })
     // n1 is the note already open, so the search never offers it.
-    const list = await screen.findByRole('listbox', { name: 'Notes to open beside' })
+    // Wave 8 (8A): a named LIST of buttons, no longer a listbox (axe nested-interactive).
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
     expect(within(list).queryByText('One')).toBeNull()
     fireEvent.click(within(list).getByRole('button', { name: 'Three' }))
     await waitFor(() => expect(sidePane()).not.toBeNull())

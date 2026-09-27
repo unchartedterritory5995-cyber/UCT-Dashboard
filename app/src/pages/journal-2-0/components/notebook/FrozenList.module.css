@@ -53,7 +53,7 @@
 .price { min-width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
 .chg { min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
 .up { color: var(--gain); }
-.down { color: var(--loss); }
+.down { color: var(--danger-ink); }
 
 .empty {
   padding: 16px 12px;

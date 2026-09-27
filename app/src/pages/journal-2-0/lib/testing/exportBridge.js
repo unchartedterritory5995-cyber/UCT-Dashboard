@@ -69,6 +69,23 @@ export function exportSelection(library) {
   return JSON.parse(last)
 }
 
+/**
+ * Wave 8 lane 8C: the REAL HTML / JSON / Word exporters (tools/format_export_bridge.py ->
+ * notes_export_formats.py), every job a rail file needs from ONE spawn. Jobs and answers are
+ * the bridge's own docstring; the answer is its LAST stdout line.
+ */
+export function exportFormatsMany(jobs) {
+  const script = path.join(REPO_ROOT, 'tools', 'format_export_bridge.py')
+  const r = spawnSync('python', [script], { input: JSON.stringify(jobs), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
+  if (r.status !== 0) throw new Error(`format_export_bridge.py failed (exit ${r.status}): ${r.stderr}`)
+  const last = r.stdout.trim().split(/\r?\n/).pop()
+  const { answers } = JSON.parse(last)
+  if (!Array.isArray(answers) || answers.length !== jobs.length) {
+    throw new Error(`format_export_bridge.py answered ${Array.isArray(answers) ? answers.length : 'no list'} for ${jobs.length} jobs`)
+  }
+  return answers
+}
+
 /** Lane F's task extractor (note_tasks.extract_tasks) over `doc`: one entry per taskItem. */
 export function extractTasks(doc) {
   const script = path.join(REPO_ROOT, 'tools', 'note_tasks_bridge.py')

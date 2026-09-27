@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import AiSearchWidget from '../../../charts/widgets/AiSearchWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The AI-search journal renderer: the REAL AiSearchWidget under the frozen
@@ -24,7 +25,9 @@ export default function AiSearchEmbed({ attrs, height = 320 }) {
     [params.thread],
   )
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <AiSearchWidget chrome={false} readOnly initialThread={thread} onThread={null} />
       </WorkspaceContext.Provider>

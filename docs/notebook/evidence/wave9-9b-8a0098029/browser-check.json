@@ -1,0 +1,419 @@
+{
+ "lane": "9B",
+ "tip": "8a0098029",
+ "base": "http://127.0.0.1:8205",
+ "run": "r195856",
+ "started_utc": "2026-09-26T19:58:56.283448+00:00",
+ "integrity_log": "export-8a0098029/docs/plans/joystick/sandbox-runs/2026-09-26T14-58-03.md",
+ "instrument": "Playwright Chromium (sync API), desktop 1280x800 unless a check says otherwise",
+ "checks": {
+  "B01_slash_menu": {
+   "rows": [
+    "G-143",
+    "G-129",
+    "G-130",
+    "G-132",
+    "G-134",
+    "G-136",
+    "G-139",
+    "G-142",
+    "G-162",
+    "G-165"
+   ],
+   "verdict": "PASS",
+   "options": [
+    "Heading 1",
+    "Heading 2",
+    "Heading 3",
+    "Heading 4",
+    "Heading 5",
+    "Heading 6",
+    "Bullet list",
+    "Numbered list",
+    "Quote",
+    "Code block",
+    "Divider",
+    "Table",
+    "2 columns",
+    "3 columns",
+    "Table of contents",
+    "Checklist",
+    "Callout",
+    "Toggle",
+    "Inline math",
+    "Math block",
+    "Emoji",
+    "Image",
+    "Dictate",
+    "Writing help",
+    "Chart",
+    "MTF stack",
+    "Before / after",
+    "Price"
+   ],
+   "screenshot": "B01-slash-menu.png"
+  },
+  "B02_code_math_callout": {
+   "rows": [
+    "G-129",
+    "G-130",
+    "G-132",
+    "G-030"
+   ],
+   "verdict": "PASS",
+   "hljs_spans": 10,
+   "katex_nodes": 2,
+   "callout_style_controls": 1,
+   "screenshot": "B02-code-math-callout.png"
+  },
+  "B03_table_toolbar": {
+   "rows": [
+    "G-134"
+   ],
+   "verdict": "PASS",
+   "toolbar_buttons": [
+    "Add a row above",
+    "Add a row below",
+    "Delete this row",
+    "Add a column to the left",
+    "Add a column to the right",
+    "Delete this column",
+    "Header row",
+    "Delete table"
+   ],
+   "resize_handles": 0,
+   "sort_controls": [],
+   "note": "add/delete rows and columns + header row present; resize handles 0, sort controls 0 (the row records both as not built)",
+   "screenshot": "B03-table-toolbar.png"
+  },
+  "B04_drag_outline_stats": {
+   "rows": [
+    "G-135",
+    "G-136",
+    "G-137"
+   ],
+   "verdict": "PASS",
+   "grip_count": 1,
+   "outline_text": "OUTLINE\nH2\nHow a base forms\nH2\nSizing the position\nH3\nThe same sum as code\nH2\nConnected notes",
+   "stats_text": "186 words · 1 min read",
+   "screenshot": "B04-drag-outline-stats.png"
+  },
+  "B05_typing_features": {
+   "rows": [
+    "G-131",
+    "G-138",
+    "G-139",
+    "G-140",
+    "G-142"
+   ],
+   "verdict": "PASS",
+   "rocket_options": 1,
+   "date_chips": 1,
+   "columns_nodes": 1,
+   "after_replace": "gamma beta gamma 🚀 Tomorrow \n\n\n\n\n\n\n\n\n",
+   "colour_swatches": 14,
+   "screenshots": [
+    "B05-emoji-date-columns.png",
+    "B05-find-replace.png",
+    "B05-text-colour.png"
+   ]
+  },
+  "B06_link_paste": {
+   "rows": [
+    "G-141"
+   ],
+   "verdict": "PASS",
+   "offer_text": "Link\nPreview card\nEmbed",
+   "label": "a dispatched paste event (an ENGINE test of the paste path, not a real clipboard)",
+   "screenshot": "B06-link-paste.png"
+  },
+  "B07_touch_no_undo": {
+   "rows": [
+    "G-144",
+    "G-159",
+    "G-162"
+   ],
+   "verdict": "PASS",
+   "finding": "NO undo or redo control among the note page buttons at 390px touch (G-144 OPEN confirmed)",
+   "undo_redo_controls": [],
+   "scan_buttons": 1,
+   "mic_buttons": 1,
+   "button_count": 71,
+   "label": "Chromium touch emulation, not a device",
+   "screenshot": "B07-touch-390.png"
+  },
+  "B08_quick_switcher": {
+   "rows": [
+    "G-145",
+    "G-031",
+    "G-102"
+   ],
+   "verdict": "PASS",
+   "opened_url": "http://127.0.0.1:8205/journal/notebook?note=cfe2485ca16d4375b034d509cad3f83c",
+   "screenshot": "B08-switcher.png"
+  },
+  "B09_list_views_bulk": {
+   "rows": [
+    "G-146",
+    "G-021",
+    "G-149",
+    "G-154",
+    "G-022",
+    "G-147"
+   ],
+   "verdict": "PASS",
+   "view_modes": [
+    "List view",
+    "Table view",
+    "Board view",
+    "Calendar view",
+    "Graph view",
+    "Timeline view",
+    "Tasks view"
+   ],
+   "bulk_export_formats": [
+    "Markdown",
+    "Web page (HTML)",
+    "JSON",
+    "Word (.docx)"
+   ],
+   "nested_tag_seen": true,
+   "graph_list_toggle": 1,
+   "graph_canvas": 1,
+   "graph_label": "Note graph: 21 notes, 0 links",
+   "screenshots": [
+    "B09-bulk-export.png",
+    "B09-nested-tags.png",
+    "B09-timeline.png",
+    "B09-tasks.png",
+    "B09-graph.png"
+   ]
+  },
+  "B10_unlinked_mentions": {
+   "rows": [
+    "G-148"
+   ],
+   "verdict": "PASS",
+   "section": "UNLINKED MENTIONS (1)",
+   "screenshot": "B10-unlinked.png"
+  },
+  "B11_organise": {
+   "rows": [
+    "G-150",
+    "G-151",
+    "G-155",
+    "G-156"
+   ],
+   "verdict": "PASS",
+   "organise_buttons": [
+    "Lock",
+    "Archive",
+    "Save as template",
+    "Open a note beside…"
+   ],
+   "contenteditable_when_locked": "false",
+   "archived_left_default_list": true,
+   "daily_url": "http://127.0.0.1:8205/journal/notebook?note=6bfd71dc1b584d3bbfca2e34daf30945",
+   "screenshots": [
+    "B11-locked.png",
+    "B11-archived.png",
+    "B11-today.png"
+   ]
+  },
+  "B12_split_view": {
+   "rows": [
+    "G-152"
+   ],
+   "verdict": "PASS",
+   "editors_mounted": 2,
+   "screenshot": "B12-split.png"
+  },
+  "B13_share_publish_export": {
+   "rows": [
+    "G-080",
+    "G-167",
+    "G-169"
+   ],
+   "verdict": "PASS",
+   "share_url_path": "/share/n/dbX…",
+   "publish_url_path": "/p/wpB…",
+   "stranger_share_status": 200,
+   "stranger_published_status": 200,
+   "export_menu": [
+    "Markdown\nPlain-text files with your folders, tags and attachments. Opens in Obsidian and any Markdown app, and imports back into UCT.",
+    "Web page (HTML)\nEach note as a page that opens in any browser, offline, with its images, tables and formatting.",
+    "JSON\nEvery note exactly as stored, with nothing left out. The format to bring your notes back into UCT with no loss.",
+    "Word (.docx)\nEach note as a Word document with its headings, lists, tables and images. Blocks Word has no match for become plain text."
+   ],
+   "screenshots": [
+    "B13-share-sheet.png",
+    "B13-export-menu.png",
+    "B13-stranger-share.png",
+    "B13-stranger-published.png"
+   ]
+  },
+  "B14_onboarding_help": {
+   "rows": [
+    "G-171",
+    "G-172"
+   ],
+   "verdict": "PASS",
+   "sample_offer_buttons": 1,
+   "support_notebook_mentions": 6,
+   "screenshots": [
+    "B14-tour.png",
+    "B14-first-run.png",
+    "B14-support.png"
+   ]
+  },
+  "B15_writing_help": {
+   "rows": [
+    "G-165"
+   ],
+   "verdict": "PASS",
+   "actions_seen": [
+    "Summarize",
+    "Rewrite",
+    "Continue",
+    "Translate"
+   ],
+   "autofill_seen": false,
+   "note": "no model key in the sandbox: the panel and its actions are confirmed, not an AI answer",
+   "screenshot": "B15-writing-help.png"
+  },
+  "B16_offline_open_tab": {
+   "rows": [
+    "G-082",
+    "G-083"
+   ],
+   "verdict": "PASS",
+   "offline_note_rendered": true,
+   "offline_banner_count": 1,
+   "label": "context.set_offline in an open tab; no reload (a cold start is OUT by D6)",
+   "screenshot": "B16-offline.png"
+  },
+  "B17_older_rows": {
+   "rows": [
+    "G-002",
+    "G-033",
+    "G-036",
+    "G-101",
+    "G-110",
+    "G-075"
+   ],
+   "verdict": "PASS",
+   "screenshots": [
+    "B17-link-menu.png",
+    "B17-load-error.png",
+    "B17-research-home.png",
+    "B17-research-NVDA.png"
+   ],
+   "version_history_button": 1,
+   "attach_file_button": 1,
+   "note_link_menu_offers_target": true,
+   "research_home_continue_working": true,
+   "ticker_workspace_text": "UCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nMod"
+  },
+  "B20_more_older_rows": {
+   "rows": [
+    "G-023",
+    "G-024",
+    "G-013",
+    "G-014",
+    "G-032",
+    "G-103",
+    "G-105"
+   ],
+   "verdict": "PASS",
+   "screenshots": [
+    "B20-favorite-find-ask.png",
+    "B20-delete-modal.png",
+    "B20-search-snippets.png",
+    "B20-date-filter.png"
+   ],
+   "favorite_pressed": "true",
+   "sidebar_has_favorites_and_recents": true,
+   "find_bar": 1,
+   "ask_close_has_svg": true,
+   "delete_modal": 1,
+   "search_marks": 2,
+   "date_filter_label": 1
+  },
+  "B18_dark_doors_answer_404": {
+   "rows": [
+    "G-085",
+    "G-044",
+    "G-161",
+    "G-160"
+   ],
+   "verdict": "PASS",
+   "probes": {
+    "/api/j2/personal/tokens": 404,
+    "/api/j2/inbound-email/address": 404
+   },
+   "auth_payload_flags": {
+    "notebook_offline_default_on": true,
+    "notebook_offline_read_on": false,
+    "notebook_conflict_ux_on": false,
+    "notebook_attachments_on": false,
+    "notebook_ask_insert_on": true,
+    "notebook_writing_help_enabled": true,
+    "j2_share_links_enabled": true,
+    "notebook_publish_enabled": true,
+    "notebook_onboarding_enabled": true,
+    "notebook_door_guard": "full"
+   },
+   "note": "the gates production has DARK are unset in this sandbox, as in production; a 404 is the dark answer"
+  },
+  "B19_axe_editor_and_list": {
+   "rows": [
+    "G-168"
+   ],
+   "verdict": "PASS",
+   "axe": {
+    "editor": {
+     "version": "4.13.0",
+     "violations": []
+    },
+    "list": {
+     "version": "4.13.0",
+     "violations": []
+    }
+   },
+   "note": "whole page, WCAG 2.0-2.2 A/AA tags, no rule excluded (stricter than the wave-8 D-A5 page exclusion)"
+  }
+ },
+ "errors": [],
+ "pageerrors": [],
+ "admin_signup_or_login": 200,
+ "member_main": {
+  "email_domain": "local.dev",
+  "signup": 200,
+  "comp": 200,
+  "verify": 200,
+  "paid_equiv": true,
+  "flags": {
+   "notebook_offline_default_on": true,
+   "notebook_offline_read_on": false,
+   "notebook_conflict_ux_on": false,
+   "notebook_attachments_on": false,
+   "notebook_ask_insert_on": true,
+   "notebook_writing_help_enabled": true,
+   "j2_share_links_enabled": true,
+   "notebook_publish_enabled": true,
+   "notebook_onboarding_enabled": true
+  }
+ },
+ "seeded": {
+  "old_oldest": "cfe2485ca16d4375b034d509cad3f83c",
+  "rich": "b069ec79bb6a4155b24de1bb02458f39",
+  "target": "6bfd71dc1b584d3bbfca2e34daf30945",
+  "mention": "bdb95c0510e045c9a8aec2fd54e94350",
+  "tagged": "52f29f6f685342e1a4786a55d450c32e",
+  "task": "e5e36f531b9545a88cbd50ce56a599ea"
+ },
+ "finished_utc": "2026-09-26T20:00:15.519293+00:00",
+ "summary": {
+  "PASS": 20
+ }
+}

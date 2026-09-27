@@ -1,0 +1,12 @@
+[
+ {
+  "at": "16:19:23",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "16:19:26",
+  "step": "seeded",
+  "api_total": 992
+ }
+]

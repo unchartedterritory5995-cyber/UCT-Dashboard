@@ -1,0 +1,40 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F                                                                        [100%]
+================================== FAILURES ===================================
+_____________ test_every_cited_file_line_still_holds_its_fragment _____________
+
+    def test_every_cited_file_line_still_holds_its_fragment():
+        """tools/parity_scorecard.py --verify, offline, AT THE REVISION THE SCORECARD RECORDS: every
+        CODE/RULING/RECORD/MEASURE file:line holds its quoted fragment, every WALK check carries its
+        verdict, every TEST log carries its totals line, every flag RECORD matches master's ledger at
+        be9ca78b6. Pinned, so a later unrelated edit never reds it; `--verify --rev HEAD` is the human's
+        question "has the code moved since?". A revision not in this clone fails as unverifiable."""
+        text, rev = _written_at()
+        counts, problems = psc.verify(text, rev=rev)
+>       assert not problems, problems
+E       AssertionError: ['CODE api/services/journal_two/note_shares.py:64 no longer holds "def enabled() -> bool:"']
+E       assert not ['CODE api/services/journal_two/note_shares.py:64 no longer holds "def enabled() -> bool:"']
+
+tests\test_parity_scorecard.py:251: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 784 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 16 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_every_cited_file_line_still_holds_its_fragment
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_every_cited_file_line_still_holds_its_fragment
+1 failed, 801 warnings in 3.62s

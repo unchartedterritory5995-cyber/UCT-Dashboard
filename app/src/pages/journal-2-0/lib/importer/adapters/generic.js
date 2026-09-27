@@ -1,5 +1,6 @@
 import MarkdownIt from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
+import { uctMarkdown } from '../markdownExtensions'
 import { extractFrontmatter, frontmatterDates } from '../frontmatter'
 import { reportIgnoredFiles } from './reportIgnored'
 
@@ -10,7 +11,9 @@ import { reportIgnoredFiles } from './reportIgnored'
 let _md
 function getMd() {
   if (!_md) {
-    _md = new MarkdownIt({ html: true, linkify: true }).use(taskLists)
+    // `uctMarkdown` (wave 8, 8C, C5): `$…$` / `$$` math, `==…==` highlight, and image alts
+    // that keep every character (../markdownExtensions.js).
+    _md = new MarkdownIt({ html: true, linkify: true }).use(taskLists).use(uctMarkdown)
   }
   return _md
 }

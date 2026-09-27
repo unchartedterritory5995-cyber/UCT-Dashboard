@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import AlertsWidget from '../../../charts/widgets/AlertsWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The alerts journal renderer: the REAL AlertsWidget under the frozen
@@ -21,7 +22,9 @@ export default function AlertsEmbed({ attrs, height = 320 }) {
   )
   const opts = useMemo(() => ({ settings: params.settings || null }), [params.settings])
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <AlertsWidget
           color="A"

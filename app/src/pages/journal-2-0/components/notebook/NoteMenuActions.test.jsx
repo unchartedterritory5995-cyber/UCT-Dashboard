@@ -198,7 +198,8 @@ describe('Open a note beside, in the note menu', () => {
     render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={onOpenBeside} besideExclude={['n2']} />)
     fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { target: { value: 'th' } })
-    const list = await screen.findByRole('listbox', { name: 'Notes to open beside' })
+    // Wave 8 (8A): a named LIST of buttons, no longer a listbox (axe nested-interactive).
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
     expect(String(global.fetch.mock.calls[0][0])).toMatch(/^\/api\/j2\/notes\/switcher\?q=th/)
     expect(within(list).queryByText('This note')).toBeNull()
     expect(within(list).queryByText('Already beside')).toBeNull()

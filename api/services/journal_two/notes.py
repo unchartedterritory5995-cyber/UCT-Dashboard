@@ -697,7 +697,44 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
         raise NoteValidationError(
             "This note is too long to save as one page. "
             "Split it into two or more notes and try again.")
+    # ⛔ Wave 10 (10C): never STORE a note no door can serve back -- see MAX_BODY_DEPTH.
+    if _json_depth_exceeds(raw, MAX_BODY_DEPTH):
+        raise NoteValidationError(TOO_DEEP_BODY_DETAIL)
     return raw
+
+
+# ⛔⛔ THE DEEPEST BODY A NOTE ROUTE CAN ANSWER WITH — MEASURED, NOT CHOSEN (wave 10,
+# lane 10C, an H14 finding). FastAPI's response serialiser refuses a payload nested
+# past its own ceiling ("Circular reference detected (depth exceeded)"), so a body
+# deeper than this was STORED by every write door and then answered 500 on the POST
+# that created it and on EVERY GET after -- a note the member could never open again
+# (24 nested bullets is enough). Measured 2026-09-26 through the real router: a body
+# of JSON depth 97 reads back 200, depth 99 reads 500
+# (docs/notebook/evidence/wave10-10c/deep-nesting-probe-output.txt).
+# ⛔ Refusing at the DEPTH the reader can serve is the whole point, so the rail
+# (tests/test_notes_body_depth_cap.py) posts a body AT this cap and reads it back
+# through the real router: if the serialiser's ceiling ever drops below it, that rail
+# goes red rather than notes going unreadable. Notes already stored deeper than this
+# still 500 on read -- that half is the router's (the 10C report names it).
+MAX_BODY_DEPTH = 97
+
+TOO_DEEP_BODY_DETAIL = (
+    "This note has too many lists, quotes or toggles nested inside each other to "
+    "open. Move part of it out a level, then try again.")
+
+
+def _json_depth_exceeds(obj: Any, cap: int) -> bool:
+    """True when `obj` nests dicts/lists more than `cap` deep (the outermost counts 1).
+    Iterative, and stops at the first level past the cap."""
+    stack = [(obj, 1)]
+    while stack:
+        x, d = stack.pop()
+        if isinstance(x, (dict, list)):
+            if d > cap:
+                return True
+            children = x.values() if isinstance(x, dict) else x
+            stack.extend((v, d + 1) for v in children if isinstance(v, (dict, list)))
+    return False
 
 
 def _extract_first_image(body_json: Any) -> str | None:

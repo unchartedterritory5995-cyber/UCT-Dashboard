@@ -1,0 +1,30 @@
+# /charts idle React commits: LIVE TAPE or LOOP? -- 2026-09-25, 13:5x-14:1x ET, production build 7878374fb
+# Actor: smoke account (creds from env, never printed), fresh Playwright contexts, 1440x900, the rig's own
+# DevTools-hook commit counter installed before the app boots, three 5-second idle samples after a 12 s settle.
+
+## The readings that raised the question (tools/postdeploy_client_smoke.py, COMMIT_CEILING = 60 per 5 s idle)
+02:40Z  pod 7e0ab34c2  after hours       /charts  11 commits   PASS
+16:25Z  pod d199ea601  market open       /charts  51 commits   PASS "stable but NOISY"
+17:41Z  pod 7878374fb  market, 206 s     /charts  63 commits   "RENDER LOOP" (run forced with --allow-cold; inadmissible)
+17:53Z  pod 7878374fb  market, 933 s     /charts  86 commits   "RENDER LOOP" (admissible run; every navigation PASS, /charts 377 ms)
+
+## Experiment 1 -- WRONG ARM, recorded so nobody repeats it
+A control (app's normal feeds)                          : [73, 75, 66]  canvases 15
+B "feeds off" via uct.barsPush.enabled=0 + uct.ssePool.disabled=1 : [80, 88, 77]  canvases 15
+-> those two keys do not remove live data: they re-route it (pool -> legacy per-instance SSE; bars push -> Finnhub poll).
+   The arm measured a DIFFERENT delivery path of the same tape. Its "NOT the feeds" verdict is withdrawn.
+
+## Experiment 2 -- the real arm: the tape removed at the NETWORK (page.route abort on /api/stream/**, /api/live-prices**, /api/snapshot**)
+A control (feeds ON)  : [86, 67, 88]  canvases 15
+B tape BLOCKED (net)  : [10, 10,  5]  canvases 15
+VERDICT: LIVE DATA -- commits track the feeds (max A 88, max B 10). Same build, same minute, same board.
+
+## What it means
+- The commits are the live tape repainting five chart widgets (15 canvases) at ~15 commits/s during the session.
+  A loop does not care whether the network delivers ticks; this does. The 2026-09-10 loop the ceiling exists for
+  ran ~4,500 commits per SECOND (~22,500 per 5 s) and froze navigation; here navigation passed everywhere.
+- COMMIT_CEILING = 60 per 5 s was calibrated after hours (screener idle: 7). It cannot distinguish a live-market
+  /charts board (60-90) from a loop (thousands) -- the same defect class the tool already fixed once for
+  MUTATIONS (MUTATION_NOISY vs MUTATION_CEILING). Recalibration: commits > 60 -> reported as live-data NOISY;
+  commits > 600 (120/s, 7x today's max live reading, 37x below the real loop) -> RENDER LOOP.
+- CP2 (the change under test) touches no file /charts imports; this reading was never about it.

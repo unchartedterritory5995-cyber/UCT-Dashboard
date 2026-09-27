@@ -1,0 +1,23 @@
+FAIL sandbox identity answers
+PASS owner signup
+PASS owner login
+PASS owner payload carries both gates ON
+PASS owner notes created
+PASS editor shows Share for a paid member with the gates on
+PASS owner minted a 7-day link, published the note and the folder
+PASS axe: the Share popover (every section open)
+PASS Settings lists the link and both pages
+PASS axe: Settings -> Sharing & publishing
+FAIL stranger reads the share link
+FAIL axe: the shared note page
+PASS stranger reads the published note
+FAIL axe: the published note page
+PASS stranger reads the folder index
+PASS axe: the published folder index
+PASS a folder note links to its sibling's PUBLIC page and back to the folder
+PASS public API JSON carries the three headers
+PASS after revoke the share link is gone
+PASS an expired link reads as unavailable
+PASS after unpublish the published page is gone
+FAIL a burst past 60/min gets 429 with a sentence and the public headers
+PASS on a phone every popover control is at least 44px tall

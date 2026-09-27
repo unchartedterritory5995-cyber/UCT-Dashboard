@@ -77,6 +77,8 @@ export default function ShareTargetPage() {
   // out" (the R2 ruling in AuthGuard). Same splash, never a bounce.
   if (loading || (!user && authTransient)) return <BrandSplash label="Signing you in" />
 
+  // Wave 8 (8A): this page renders OUTSIDE the app Layout, so it carries its own
+  // main landmark (role="main"); a screen reader's "jump to main" lands on the card.
   if (!user) {
     // ⛔⛔ `next` NAMES THE ROUTE AND CARRIES NOTHING ELSE (privacy gate,
     // 2026-09-08). It used to append the whole share, which duplicated the
@@ -87,7 +89,7 @@ export default function ShareTargetPage() {
     // refuses anything not starting with a single `/`, so this stays same-site.
     const next = SHARE_ROUTE
     return (
-      <div className={styles.page}>
+      <div className={styles.page} role="main">
         <div className={styles.card}>
           <h1 className={styles.title}>
             <UIcon name="journal" size={20} /> Sign in to save this
@@ -124,7 +126,7 @@ export default function ShareTargetPage() {
   // honest outcome, and it is the one place this door tells them anything.
   if (!isPaid) {
     return (
-      <div className={styles.page}>
+      <div className={styles.page} role="main">
         <div className={styles.card}>
           <h1 className={styles.title}>
             <UIcon name="lock" size={20} /> Notebook is part of a paid plan

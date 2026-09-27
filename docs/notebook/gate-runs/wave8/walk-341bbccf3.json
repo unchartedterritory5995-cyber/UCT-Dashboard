@@ -1,0 +1,1171 @@
+{
+ "wave": 8,
+ "errors": [],
+ "checks": {
+  "W1_onboarding": {
+   "verdict": "PASS",
+   "tour_steps_in_source": [
+    "Welcome to your Notebook",
+    "Folders and tags",
+    "Search",
+    "New note",
+    "Views",
+    "Import",
+    "Ask your notebook",
+    "Export"
+   ],
+   "sidebar_step_titles": [
+    "Folders and tags",
+    "Search"
+   ],
+   "provision_tour_member": {
+    "comp": 200,
+    "verify": 200,
+    "me": 200,
+    "paid_equiv": true,
+    "user_id": "cf319e4c-167b-4e56-931c-250a1d4658a2"
+   },
+   "tour_shot": "r122915-w1-tour-step1.png",
+   "auto_start": {
+    "titles": [
+     "Welcome to your Notebook",
+     "Folders and tags",
+     "Search"
+    ],
+    "progress": [
+     "STEP 1 OF 3",
+     "STEP 2 OF 3",
+     "STEP 3 OF 3"
+    ],
+    "anchors": [
+     {
+      "anchor": "first-run",
+      "inView": true,
+      "hit": true,
+      "box": [
+       575,
+       290,
+       456,
+       78
+      ]
+     },
+     {
+      "anchor": "sidebar",
+      "inView": true,
+      "hit": true,
+      "box": [
+       84,
+       135,
+       260,
+       621
+      ]
+     },
+     {
+      "anchor": "search",
+      "inView": true,
+      "hit": true,
+      "box": [
+       169,
+       144,
+       28,
+       28
+      ]
+     }
+    ],
+    "every_available_step_in_order": true,
+    "progress_total_matches": true,
+    "every_anchor_on_screen": true
+   },
+   "pref_after_done": {
+    "v": 1,
+    "state": "done",
+    "step": "search"
+   },
+   "absent_after_reload_done": true,
+   "reopened_at": "Welcome to your Notebook",
+   "focus_after_escape": null,
+   "pref_after_dismiss": {
+    "v": 1,
+    "state": "dismissed",
+    "step": "first-run"
+   },
+   "absent_after_reload_dismiss": true,
+   "collapsed_sidebar": {
+    "titles": [
+     "Welcome to your Notebook"
+    ],
+    "anchors": [
+     {
+      "anchor": "first-run",
+      "inView": true,
+      "hit": true,
+      "box": [
+       456,
+       290,
+       456,
+       78
+      ]
+     }
+    ],
+    "sidebar_steps_skipped": true,
+    "sidebar_steps_shown_when_open": true,
+    "every_anchor_on_screen": true
+   },
+   "help_take_the_tour": {
+    "question": "How do I get started with the Notebook?",
+    "url": "http://127.0.0.1:8228/journal/notebook",
+    "opened_at": "Welcome to your Notebook"
+   },
+   "notebook_tour_writes": {
+    "count": 10,
+    "statuses": [
+     200
+    ],
+    "states": [
+     "started",
+     "started",
+     "started",
+     "done",
+     "started",
+     "dismissed",
+     "started",
+     "done",
+     "started",
+     "dismissed"
+    ]
+   },
+   "sample_added": {
+    "status": 200,
+    "welcomeNoteId": "d58b79a933f64178b64d1a9babedb498",
+    "url_opens_welcome": true,
+    "folder_visible": true,
+    "ids": 5,
+    "active": 5
+   },
+   "sample_shot": "r122915-w1-sample-welcome.png",
+   "sample_removed": {
+    "strip_gone": true,
+    "active_after": [],
+    "ids": 5,
+    "all_in_trash": true
+   },
+   "refusal_api": {
+    "status": 409,
+    "detail": "You already have notes, so we didn't add the sample. You can import notes instead.",
+    "is_server_sentence": true
+   },
+   "provision_race_member": {
+    "comp": 200,
+    "verify": 200,
+    "me": 200,
+    "paid_equiv": true,
+    "user_id": "7a1f05f3-f254-4fc2-9615-f7943b08ca25"
+   },
+   "refusal_ui": {
+    "text": "You already have notes, so we didn't add the sample. If you can't see them, look in Trash or Archive.",
+    "is_client_sentence": true
+   }
+  },
+  "W2_share_links": {
+   "verdict": "PASS",
+   "note_id": "81162fbd2fde49ff905988ebc1d844ea",
+   "token": "m-bA2mzhpNG_tRz2GshLiigsxAJb8qwz",
+   "public": {
+    "url": "/share/n/m-bA2mzhpNG_tRz2GshLiigsxAJb8qwz",
+    "html_status": 200,
+    "html_headers": {
+     "cache-control": "no-cache, no-store, must-revalidate",
+     "referrer-policy": "no-referrer",
+     "x-robots-tag": "noindex, nofollow"
+    },
+    "meta": {
+     "robots": "noindex, nofollow",
+     "referrer": "no-referrer"
+    },
+    "dom_leaks": [],
+    "payloads": [
+     {
+      "url": "/api/watchlists?include_prebuilt=0",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/preferences",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/me",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/settings",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/accounts",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/shared/m-bA2mzhpNG_tRz2GshLiigsxAJb8qwz",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": true
+     },
+     {
+      "url": "/api/j2/shared/m-bA2mzhpNG_tRz2GshLiigsxAJb8qwz/att/inline/5915bb9a2c4ae38cf580e7e09e02e151.png",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "content-security-policy": "default-src 'none'",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "image/png"
+      },
+      "leaks": [],
+      "matched": true
+     }
+    ],
+    "fmp_image_rendered": true,
+    "shot": "r122915-w2-stranger-share.png",
+    "title_rendered": true,
+    "own_words_rendered": true,
+    "massive_is_neutral_line": true,
+    "massive_symbol_in_text": false,
+    "linked_note_text": true,
+    "payload_leaks": [],
+    "api_headers_ok": true,
+    "api_headers": {
+     "x-content-type-options": "nosniff",
+     "cache-control": "no-store, private"
+    },
+    "image_headers_ok": true
+   },
+   "revoke": {
+    "sentence": "This link is no longer available.",
+    "api": 404,
+    "is_dead_sentence": true
+   },
+   "trash_restore": {
+    "mint_again": 200,
+    "live_before_trash": 200,
+    "after_trash": 404,
+    "after_trash_detail": "Not found",
+    "trashed_page_shows_gone": true,
+    "after_restore": 200
+   },
+   "needles_searched": 8
+  },
+  "W3_publish": {
+   "verdict": "PASS",
+   "note_id": "3c84703eccdc45d4a696ee845ba7615c",
+   "folder_id": "f3f2523296b348e08674be4eeefe2ea6",
+   "paste": {
+    "offer_seen": true,
+    "saved_as_link_in_body": true,
+    "node_types_saved": [
+     "doc",
+     "link",
+     "linkPreview",
+     "paragraph",
+     "text"
+    ]
+   },
+   "note_page": {
+    "url": "/p/KOuRgoepaBeRN4WV0oVEow",
+    "html_status": 200,
+    "html_headers": {
+     "cache-control": "no-cache, no-store, must-revalidate",
+     "referrer-policy": "no-referrer",
+     "x-robots-tag": "noindex, nofollow"
+    },
+    "meta": {
+     "robots": "noindex, nofollow",
+     "referrer": "no-referrer"
+    },
+    "dom_leaks": [],
+    "payloads": [
+     {
+      "url": "/api/watchlists?include_prebuilt=0",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/preferences",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/me",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/settings",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/accounts",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/published/KOuRgoepaBeRN4WV0oVEow",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": true
+     }
+    ],
+    "ready": null,
+    "anchors_naming_other_note": [],
+    "own_words_rendered": true,
+    "card_title_shown": false,
+    "pasted_url_text_shown": false,
+    "other_note_id_in_visible_text": false,
+    "in_app_link_text": "in-app link",
+    "in_app_link_text_shown": true,
+    "payload_leaks": [],
+    "shot": "r122915-w3-stranger-note.png",
+    "api_headers_ok": true,
+    "public_json_direct": {
+     "status": 200,
+     "in_app_link_text_in_json": true,
+     "other_note_id_in_json": false
+    }
+   },
+   "folder_page": {
+    "url": "/p/Lpb_J59SBnPJLYX8-LXo1Q",
+    "html_status": 200,
+    "html_headers": {
+     "cache-control": "no-cache, no-store, must-revalidate",
+     "referrer-policy": "no-referrer",
+     "x-robots-tag": "noindex, nofollow"
+    },
+    "meta": {
+     "robots": "noindex, nofollow",
+     "referrer": "no-referrer"
+    },
+    "dom_leaks": [],
+    "payloads": [
+     {
+      "url": "/api/watchlists?include_prebuilt=0",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/preferences",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/auth/me",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/settings",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/accounts",
+      "status": 401,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": false
+     },
+     {
+      "url": "/api/j2/published/Lpb_J59SBnPJLYX8-LXo1Q",
+      "status": 200,
+      "headers": {
+       "x-robots-tag": "noindex, nofollow",
+       "cache-control": "no-store, private",
+       "x-content-type-options": "nosniff",
+       "referrer-policy": "no-referrer",
+       "content-type": "application/json"
+      },
+      "leaks": [],
+      "matched": true
+     }
+    ],
+    "ready": null,
+    "lists_note": true,
+    "payload_leaks": []
+   },
+   "after_unpublish": {
+    "note": "This page is no longer available.",
+    "folder": "This page is no longer available."
+   },
+   "dead_sentence": "This page is no longer available."
+  },
+  "W4_export_formats": {
+   "verdict": "PASS",
+   "title": "Walk W4 — export 📈 r122915",
+   "per_format": {
+    "md": {
+     "status": 200,
+     "bytes": 175,
+     "saved_as": "Walk W4 — export 📈 r122915-20260926.md",
+     "disposition_name": "Walk W4 — export 📈 r122915-20260926.md",
+     "saved_is_disposition": true,
+     "saved_starts_with_title": true,
+     "ext_ok": true
+    },
+    "html": {
+     "status": 200,
+     "bytes": 2600,
+     "saved_as": "Walk W4 — export 📈 r122915-20260926.html",
+     "disposition_name": "Walk W4 — export 📈 r122915-20260926.html",
+     "saved_is_disposition": true,
+     "saved_starts_with_title": true,
+     "ext_ok": true,
+     "html_has_text": true
+    },
+    "json": {
+     "status": 200,
+     "bytes": 867,
+     "saved_as": "Walk W4 — export 📈 r122915-20260926.json",
+     "disposition_name": "Walk W4 — export 📈 r122915-20260926.json",
+     "saved_is_disposition": true,
+     "saved_starts_with_title": true,
+     "ext_ok": true
+    },
+    "docx": {
+     "status": 200,
+     "bytes": 3023,
+     "saved_as": "Walk W4 — export 📈 r122915-20260926.docx",
+     "disposition_name": "Walk W4 — export 📈 r122915-20260926.docx",
+     "saved_is_disposition": true,
+     "saved_starts_with_title": true,
+     "ext_ok": true,
+     "docx_valid": true
+    }
+   },
+   "autosave_window": {
+    "word_in_export": true,
+    "seconds_last_keystroke_to_file_saved": 0.23,
+    "put_before_export": true,
+    "request_order": [
+     "PUT",
+     "GET"
+    ],
+    "status": 200
+   },
+   "webp_word": {
+    "status": 200,
+    "seconds": 0.92,
+    "bytes": 2162444,
+    "media_count": 2,
+    "media_total": 2158002,
+    "cap": 2500000,
+    "within_cap": true,
+    "docx_valid": true,
+    "not_included": [
+     "/api/j2/notes/attachments/9c861d1f-3c4f-4b28-9b0b-0e6de7fef233/a31ba1e01c01452ab4dbd18bb60c5490/inline/daf4e3e2439953349e0597164a6bc1db.webp -- left out: export attachment size cap reached",
+     "/api/j2/notes/attachments/9c861d1f-3c4f-4b28-9b0b-0e6de7fef233/a31ba1e01c01452ab4dbd18bb60c5490/inline/017107169818f1be67e72dd7b929906d.webp -- left out: export attachment size cap reached"
+    ],
+    "left_out_for_cap": 2
+   }
+  },
+  "W5_accessibility": {
+   "verdict": "PASS",
+   "reason": null,
+   "serious_by_surface": {
+    "note_list": [],
+    "editor": [],
+    "share_sheet": [],
+    "settings_sharing_card": [],
+    "public_page": []
+   },
+   "scans": {
+    "note_list": {
+     "version": "4.13.0",
+     "theme": "oled",
+     "violations": [],
+     "scoped_elements": 1,
+     "serious": []
+    },
+    "editor": {
+     "version": "4.13.0",
+     "theme": "oled",
+     "violations": [],
+     "scoped_elements": 1,
+     "serious": []
+    },
+    "share_sheet": {
+     "version": "4.13.0",
+     "theme": "oled",
+     "violations": [],
+     "scoped_elements": 1,
+     "serious": []
+    },
+    "settings_sharing_card": {
+     "version": "4.13.0",
+     "theme": "oled",
+     "violations": [],
+     "scoped_elements": 1,
+     "serious": []
+    },
+    "public_page": {
+     "version": "4.13.0",
+     "theme": "oled",
+     "violations": [],
+     "scoped_elements": 0,
+     "serious": []
+    }
+   },
+   "focus": {
+    "existing_note_open": {
+     "on_heading": true,
+     "active": {
+      "tag": "H2",
+      "editable": false,
+      "landmark": true,
+      "noteTitle": false,
+      "text": "Walk W5 note r122915",
+      "label": null,
+      "popup": null,
+      "role": null,
+      "inPane": true
+     },
+     "takes_text": false
+    },
+    "new_note": {
+     "on_title": true,
+     "active": {
+      "tag": "INPUT",
+      "editable": false,
+      "landmark": false,
+      "noteTitle": true,
+      "text": "",
+      "label": "Note title",
+      "popup": null,
+      "role": null,
+      "inPane": true
+     }
+    },
+    "create_link": {
+     "to_copy_link": true,
+     "active": {
+      "tag": "BUTTON",
+      "editable": false,
+      "landmark": false,
+      "noteTitle": false,
+      "text": "Copy link",
+      "label": null,
+      "popup": null,
+      "role": null,
+      "inPane": false
+     }
+    },
+    "revoke": {
+     "to_create_link": true,
+     "active": {
+      "tag": "BUTTON",
+      "editable": false,
+      "landmark": false,
+      "noteTitle": false,
+      "text": "Create link",
+      "label": null,
+      "popup": null,
+      "role": null,
+      "inPane": false
+     }
+    },
+    "escape": {
+     "sheet_closed": true,
+     "to_opener": true,
+     "active": {
+      "tag": "BUTTON",
+      "editable": false,
+      "landmark": false,
+      "noteTitle": false,
+      "text": "Share",
+      "label": null,
+      "popup": "dialog",
+      "role": null,
+      "inPane": true
+     }
+    }
+   }
+  },
+  "W6_offline_onboarding": {
+   "verdict": "PASS",
+   "tour_chunk": "assets/NotebookTour-BvL4-shz.js",
+   "member_with_notes": {
+    "tour_chunk_requests": 0,
+    "inside_notebook": {
+     "note_id": "ac595364128a45f88dd2c1d74e6af14b",
+     "note_opened": true,
+     "offline_banner_shown": true,
+     "editor_text": "Accessibility body wrbccmbf.",
+     "unread_note_says_so_in_the_pane": true,
+     "no_reload": true,
+     "no_route_fallback": true
+    },
+    "journal_to_notebook": {
+     "rendered": true,
+     "no_reload": true,
+     "no_route_fallback": true,
+     "failed_chunk_requests": [],
+     "failed_api_requests": 18
+    },
+    "offline_reload": {
+     "threw": "Page.reload: net::ERR_INTERNET_DISCONNECTED\nCall log:\n  - waiting for navigation until \"load\"\n",
+     "url": "http://127.0.0.1:8228/journal/notebook",
+     "notebook_present": false
+    }
+   },
+   "provision_first_run_member": {
+    "comp": 200,
+    "verify": 200,
+    "me": 200,
+    "paid_equiv": true,
+    "user_id": "0f379bb4-8d1e-4619-954a-afde60a65779"
+   },
+   "first_run_tour_chunk_fails": {
+    "attempts": 2,
+    "attempt_urls": [
+     "/assets/NotebookTour-BvL4-shz.js",
+     "/assets/NotebookTour-BvL4-shz.js?chunk-retry=1790443896092"
+    ],
+    "no_reload": true,
+    "first_run_screen_still_shown": true,
+    "no_route_fallback": true,
+    "no_tour_card": true
+   }
+  },
+  "W7_lazy_chunk_retry": {
+   "verdict": "PASS",
+   "chunk": "assets/NoteTasksView-DuScIxQd.js",
+   "route_calls": 2,
+   "aborted": 1,
+   "let_through": 1,
+   "chunk_requests_seen": 2,
+   "chunk_request_urls": [
+    "/assets/NoteTasksView-DuScIxQd.js",
+    "/assets/NoteTasksView-DuScIxQd.js?chunk-retry=1790443899636"
+   ],
+   "retry_param": "chunk-retry",
+   "retry_request_carried_param": true,
+   "view_mounted": true,
+   "no_reload": true,
+   "document_loads_after_click": 0,
+   "ms_click_to_reload": null,
+   "reload_flag_after": null,
+   "url_before": "/journal/notebook?view=all",
+   "url_after": "/journal/notebook?view=all",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "no_route_fallback": true,
+   "pressed": "true"
+  },
+  "W8_notices_and_bulk_trash": {
+   "verdict": "PASS",
+   "widths": {
+    "1200": {
+     "stack": true,
+     "notices": [
+      "bulk-notice",
+      "bulk-undo-notice"
+     ],
+     "undo": {
+      "inViewport": true,
+      "hitsItself": true,
+      "hitWhat": "BUTTON._bulkNoticeBtn_1q0nu_1007"
+     },
+     "hubShowing": false,
+     "stackOverlapsHub": null,
+     "stackBox": [
+      451,
+      664,
+      749,
+      776
+     ],
+     "w": 1200,
+     "undo_click": "ok",
+     "undo_restored": true
+    },
+    "820": {
+     "stack": true,
+     "notices": [
+      "bulk-notice",
+      "bulk-undo-notice"
+     ],
+     "undo": {
+      "inViewport": true,
+      "hitsItself": true,
+      "hitWhat": "BUTTON._bulkNoticeBtn_1q0nu_1007"
+     },
+     "hubShowing": false,
+     "stackOverlapsHub": null,
+     "stackBox": [
+      246,
+      954,
+      574,
+      1156
+     ],
+     "w": 820,
+     "undo_click": "ok",
+     "undo_restored": true
+    },
+    "390-touch-admin": {
+     "stack": true,
+     "notices": [
+      "bulk-notice",
+      "bulk-undo-notice"
+     ],
+     "undo": {
+      "inViewport": true,
+      "hitsItself": true,
+      "hitWhat": "BUTTON._bulkNoticeBtn_1q0nu_1007"
+     },
+     "hubShowing": true,
+     "stackOverlapsHub": false,
+     "stackBox": [
+      39,
+      482,
+      351,
+      684
+     ],
+     "w": 390,
+     "undo_click": "ok",
+     "undo_restored": true
+    }
+   },
+   "bulk_trash_40": {
+    "selected": 40,
+    "ms_to_undo_notice": 3940,
+    "in_trash": 40,
+    "restored": 40,
+    "ms_undo_to_all_restored": 624
+   },
+   "phone_hub_showing": true,
+   "note": "the phone case is the admin's (the joystick shows at rollout stage 1 for admins only); `stackOverlapsHub` null means no hub was showing to overlap"
+  },
+  "W9_daily_template_pref": {
+   "verdict": "PASS",
+   "pref_key": "notebook_daily_template",
+   "template_id": "ce30d5e45c22497bb604f67f37b4fb6a",
+   "template_status": 200,
+   "write_status": 200,
+   "write_body": {
+    "ok": true
+   },
+   "select_after_reload": "ce30d5e45c22497bb604f67f37b4fb6a",
+   "stored_value": "ce30d5e45c22497bb604f67f37b4fb6a"
+  },
+  "W10_touch_emulation_open": {
+   "verdict": "PASS",
+   "label": "EMULATION (Chromium touch emulation) -- NOT a device result; the real Android/iOS check (no soft keyboard on open) stays an owner-device item",
+   "focused": {
+    "tag": "H2",
+    "editable": false,
+    "landmark": true,
+    "noteTitle": false,
+    "text": "Walk W10 note r122915",
+    "label": null,
+    "popup": null,
+    "role": null,
+    "inPane": true
+   },
+   "takes_text": false
+  },
+  "W11_integrity": {
+   "verdict": "PASS",
+   "reason": null,
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "deliberate_window_errors_excluded": 0,
+   "fences": [
+    {
+     "why": "W6: an offline document reload (deliberate)",
+     "errors_from": 0,
+     "beacons_from": 0,
+     "errors_to": 0,
+     "beacons_to": 0
+    },
+    {
+     "why": "W6: a first-run member's tour chunk refused (deliberate)",
+     "errors_from": 0,
+     "beacons_from": 0,
+     "errors_to": 0,
+     "beacons_to": 1
+    },
+    {
+     "why": "W7: one lazy chunk aborted once (deliberate)",
+     "errors_from": 0,
+     "beacons_from": 1,
+     "errors_to": 0,
+     "beacons_to": 1
+    }
+   ],
+   "client_error_beacons_unforced": 0,
+   "beacon_kinds": [],
+   "boundary_beacons_unforced": [],
+   "route_fallback_sightings": [],
+   "sandbox_integrity_status": "CLEAN",
+   "sandbox_integrity_checkpoints": [
+    "pre-boot (baseline): CLEAN",
+    "post-boot (+15s): CLEAN",
+    "post-prewarm (+120s): CLEAN",
+    "shutdown: CLEAN"
+   ],
+   "sandbox_integrity_required": [
+    "pre-boot (baseline)",
+    "post-boot (+15s)",
+    "shutdown"
+   ],
+   "sandbox_integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md",
+   "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md",
+   "shutdown_waited_s": 10.01
+  }
+ },
+ "tip": "341bbccf3",
+ "base": "http://127.0.0.1:8228",
+ "port": 8228,
+ "run": "r122915",
+ "only": null,
+ "data_dir": "C:\\data-w8walk-341",
+ "instrument": {
+  "file": "tools\\notebook_wave8_walk.py",
+  "sha256": "a92d44f47634f82108c3980f6230828df371dc8b3f43fb5aabea8d1b777134f9"
+ },
+ "brief_mismatches": [
+  {
+   "check": "W2",
+   "brief": "a note holding an FMP/Finnhub figure (a financial fact)",
+   "product": "no FMP or Finnhub FACT can be captured today: fact_registry holds one FMP type, analyst_price_target_consensus, with active=False, and no Finnhub type; the FMP figure a note can hold is the fundamentals widget (vendor fmp, SHOWN), with its archived image",
+   "source": "api/services/journal_two/fact_registry.py FACT_TYPES; api/services/journal_two/public_note_payload.py MARKET_DATA_VENDORS"
+  },
+  {
+   "check": "W3",
+   "brief": "an in-app ?note=<id> link CARD pasted into the note",
+   "product": "a card is fetched by the SANDBOX server from the pasted address, and the only address the reducer treats as in-app is the production host (_OWN_HOSTS); this walk contacts no production host, so the card is stored through the API in the card's own shape, and the pasted in-app LINK is driven for real through the clipboard",
+   "source": "api/services/journal_two/public_note_payload.py _OWN_HOSTS / _kept_urls; LinkPasteMenu.jsx 'Preview card'"
+  },
+  {
+   "check": "W6",
+   "brief": "offline, reload -> the Notebook renders (served from the durable copy)",
+   "product": "index.html is served no-store and the app registers no caching service worker, so an offline DOCUMENT reload is the browser's own offline page by construction; it is measured and recorded. And an offline note opens from what the TAB already read (useJ2Note is an SWR read with no store behind it; the durable copy supplies unsent words on top of a server copy, never a note by itself), so after any document load a note unread in that tab shows its own load-error card. The verdict rests on the reachable paths. (Controller ruling, 2026-09-26, after the run on 220354a6b: the brief's offline-RELOAD expectation is struck -- no caching service worker by charter, plan decision D6 -- and W6 is judged on the in-page offline paths)",
+   "source": "api/main.py spa_index_response; app/src/main.jsx; hooks/useJ2Notes.js useJ2Note; NoteEditorPage.jsx `if (!note)`"
+  }
+ ],
+ "instrument_notes": [
+  "W3: the in-app address is the production URL shape (https://uctintelligence.com/journal/notebook?note=<id>) written as TEXT into sandbox data; nothing fetches it (the 'Preview card' press is never made)"
+ ],
+ "password_source": "W8WALK_PASSWORD",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8228 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md (identity a0a8f018a19c..., data dir C:\\data-w8walk-341)",
+  "nonce": "a0a8f018a19c687cf34849c0de3c373e",
+  "base": "http://127.0.0.1:8228",
+  "integrity_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md"
+ },
+ "admin_login_ok": true,
+ "comp_status": {
+  "w8walk@local.dev": 200
+ },
+ "verify_email_status": {
+  "w8walk@local.dev": 200
+ },
+ "account": {
+  "role": "member",
+  "plan": "pro",
+  "paid_equiv": true
+ },
+ "gates": {
+  "walk_process_env": {
+   "J2_SHARE_LINKS_ENABLED": "1",
+   "NOTEBOOK_PUBLISH_ENABLED": "1",
+   "NOTEBOOK_ONBOARDING_ENABLED": "1"
+  },
+  "walk_process_keys_blank": {
+   "ANTHROPIC_API_KEY": true,
+   "OPENAI_API_KEY": true
+  },
+  "observed_from_sandbox": {
+   "j2_share_links_enabled": true,
+   "notebook_publish_enabled": true,
+   "notebook_onboarding_enabled": true,
+   "GET /api/j2/onboarding/sample-notebook": 200,
+   "GET /api/j2/share/links": 200,
+   "GET /api/j2/publish": 200,
+   "launcher: startup lines naming notebook": [
+    "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+    "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+   ]
+  }
+ },
+ "config": {
+  "export_cap_bytes": 2500000,
+  "export_cap_source": "NOTE_EXPORT_MAX_ATTACHMENT_BYTES (walk env)",
+  "axe_path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w8\\app\\node_modules\\axe-core\\axe.min.js",
+  "axe_sha256": "c24f097bd2f451d4f933e8bc7d8d539f8672a2ebcb5cc9f9f3eec8ca9470a0c1",
+  "axe_pinned": "4.13.0"
+ },
+ "fences": [
+  {
+   "why": "W6: an offline document reload (deliberate)",
+   "errors_from": 0,
+   "beacons_from": 0,
+   "errors_to": 0,
+   "beacons_to": 0
+  },
+  {
+   "why": "W6: a first-run member's tour chunk refused (deliberate)",
+   "errors_from": 0,
+   "beacons_from": 0,
+   "errors_to": 0,
+   "beacons_to": 1
+  },
+  {
+   "why": "W7: one lazy chunk aborted once (deliberate)",
+   "errors_from": 0,
+   "beacons_from": 1,
+   "errors_to": 0,
+   "beacons_to": 1
+  }
+ ],
+ "sandbox_integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 12:28:25",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 12:29:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-26 12:31:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 12:32:17",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "launcher_log_names": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md",
+  "launcher_log_agrees": true,
+  "shutdown_waited_s": 10.01
+ },
+ "launcher_excerpts": {
+  "startup_gate_lines": [
+   "[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)",
+   "[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)"
+  ],
+  "shared_root_blocked": [
+   "A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to"
+  ],
+  "integrity_lines": [
+   "[pre-boot] shared data root baseline: 62 db files hashed (sha256)",
+   "[post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).",
+   "[post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).",
+   "[shutdown] Massive WS consumer stop: clean",
+   "[shutdown] Bullflow SSE worker stop: clean",
+   "[shutdown] cache snapshot saved: 949 entries, 4609 KB",
+   "[shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w8walk\\tree-341bbccf3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T12-28-20.md"
+  ]
+ },
+ "pref_writes": [
+  {
+   "who": "walk",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"sidebar\"}",
+   "status": 200,
+   "t": 1790443758.199
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443759.471
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"sidebar\"}",
+   "status": 200,
+   "t": 1790443760.045
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"search\"}",
+   "status": 200,
+   "t": 1790443760.127
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"done\",\"step\":\"search\"}",
+   "status": 200,
+   "t": 1790443760.186
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443768.397
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443768.845
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443780.175
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"done\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443780.455
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443783.893
+  },
+  {
+   "who": "w8tourr122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443784.118
+  },
+  {
+   "who": "w8racer122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"started\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443853.843
+  },
+  {
+   "who": "w8racer122915@local.dev",
+   "key": "notebook_tour",
+   "value": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}",
+   "status": 200,
+   "t": 1790443854.027
+  },
+  {
+   "who": "walk",
+   "key": "notebook_daily_template",
+   "value": "ce30d5e45c22497bb604f67f37b4fb6a",
+   "status": 200,
+   "t": 1790443921.352
+  }
+ ]
+}

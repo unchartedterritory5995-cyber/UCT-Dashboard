@@ -24,6 +24,7 @@ import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { AuthContext } from '../../../context/AuthContext'
 import { useOutboxDrain } from '../lib/offline/useOutboxDrain'
 import { useBlockedNotes } from '../lib/offline/useBlockedNotes'
+import { notebookFlag } from '../lib/offline/notebookFlags'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
@@ -48,6 +49,7 @@ import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
+import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -100,6 +102,34 @@ const NoteTimelineView = lazyView(() => import('../components/notebook/NoteTimel
 const NoteTasksView = lazyView(() => import('../components/notebook/NoteTasksView'), 'tasks')
 const ImportWizard = lazyDialog(() => import('../components/notebook/import/ImportWizard'), 'import')
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')
+// Wave 9 (lane 9D, D2): the sidebar's Publish-folder confirmation, fetched on its first open.
+const PublishFolderSheet = lazyDialog(() => import('../components/notebook/PublishFolderSheet'), 'publish folder')
+
+// ── Wave 9 (lane 9D, D2): the folder Publish door ────────────────────────────
+// FolderSidebar renders `extraFolderActions` as `{id, label, onSelect(folder)}` buttons named
+// `${label} ${folder.name}` (its wave-8 extension point); it is NOT edited (ruling D-9D3).
+/** The action's label, and the first word of its accessible name. */
+const PUBLISH_FOLDER_ACTION = 'Publish'
+/** No actions: one frozen array, so a render with the gate off hands FolderSidebar the same value. */
+const NO_FOLDER_ACTIONS = Object.freeze([])
+/**
+ * The button FolderSidebar rendered for this action on `folder`, to hand focus back to when the
+ * sheet closes. `onSelect` gets the folder, not the event: after a keyboard press or a Chromium
+ * click the button IS the focused element; Safari does not focus a clicked button, so it is found
+ * by the name FolderSidebar gives it.
+ */
+function folderActionButton(label, folder) {
+  const name = `${label} ${folder.name}`
+  const active = typeof document !== 'undefined' ? document.activeElement : null
+  if (active?.getAttribute?.('aria-label') === name) return active
+  return [...document.querySelectorAll('button[aria-label]')].find((b) => b.getAttribute('aria-label') === name) || null
+}
+
+// Wave 8 seam S8-3: the first-run tour (lane 8C builds it in onboarding/NotebookTour.jsx).
+// Its own chunk, outside the Notebook's first-open closure (dispatch-plan R9). ⛔ Final-review
+// fix I-2: NotebookTourGate (static, small) decides whether the chunk is fetched AT ALL -- only
+// when the tour is about to show -- and loads it through `lazyLeaf` inside a boundary that
+// renders nothing, so a failed chunk can neither reload the page nor take the Notebook down.
 
 // Folders panel resize bounds (px).
 const SB_MIN = 190
@@ -168,6 +198,24 @@ export default function NotebookTab() {
   // reason to take the Notebook down.
   const auth = useContext(AuthContext)
   const drain = useOutboxDrain({ accountId: auth?.user?.id, excludeNoteId: noteId })
+
+  // Wave 9 (lane 9D, D2): "Publish" on every folder row — only while the publish gate is
+  // LATCHED on (`notebookFlag`, as SharingCard and the editor's Share door read it; a tab that
+  // has not heard from the server reads as off) and for a paid member, the same pair the Share
+  // door requires: the server answers a free member 402, and a door whose only result is a
+  // refusal is not offered. Selecting it opens a confirmation (ruling D-9D1), never a publish.
+  const publishOn = notebookFlag('notebook_publish_enabled') === true && auth?.isPaid === true
+  const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
+  const extraFolderActions = useMemo(() => (publishOn ? [{
+    id: 'publish',
+    label: PUBLISH_FOLDER_ACTION,
+    icon: 'globe',
+    onSelect: (folder) => setPublishFolder({
+      id: folder.id, name: folder.name, opener: folderActionButton(PUBLISH_FOLDER_ACTION, folder), open: true,
+    }),
+  }] : NO_FOLDER_ACTIONS), [publishOn])
+  // Closing keeps the folder (and its button) until the sheet has handed focus back.
+  const closePublishFolder = useCallback(() => setPublishFolder((f) => (f ? { ...f, open: false } : f)), [])
 
   // Wave Q1 — and the member has to be able to SEE it. A blocked entry is
   // honest on the open note and was completely silent everywhere else: the
@@ -428,6 +476,11 @@ export default function NotebookTab() {
   const {
     notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes, total: allNotesTotal,
   } = useJ2Notes({ sort: 'title' })
+  // Wave 8 seam S8-3: "is this member new?" is derived ONCE, here, and handed to both the
+  // first-run screen (ResearchHome) and the tour, so the two can never disagree about it.
+  // `notesKnown` is false while the count is loading -- when `hasAnyNotes` also reads false.
+  const hasAnyNotes = allNotesTotal > 0
+  const notesKnown = allNotesTotal !== undefined
 
   // Live folder-tree updates without waiting on a refetch: drop a just-created
   // note in immediately, and reflect the title as it's typed.
@@ -456,6 +509,14 @@ export default function NotebookTab() {
   const viewParam = searchParams.get('view')
   const viewAll = viewParam === 'all' || viewParam === 'tasks'
   const isHome = !noteId && !hasActiveFilters && !viewAll && !isTrashView
+  // Wave 8 (8A): the pane heading's words -- what the member is looking at.
+  const paneHeading = isTrashView ? 'Trash'
+    : isArchiveView ? 'Archived notes'
+      : isHome ? 'Research home'
+        : activeView?.name ? `Saved view: ${activeView.name}`
+          : tag ? `Notes tagged ${tag}`
+            : folderId ? 'Notes in this folder'
+              : 'All notes'
   // A one-shot INSTRUCTION, applied then stripped (the same arrive-and-strip
   // pattern as `?folder=`/`?ticker=` above): it selects the Tasks mode and
   // becomes the explicit All-notes state, so the switcher, a reload and Back
@@ -521,6 +582,21 @@ export default function NotebookTab() {
   }, [sideParam, noteId, setSearchParams])
   const mainPaneRef = useRef(null)
   const sidePaneRef = useRef(null)
+  // ── Wave 8 (8A, A4): focus always has somewhere to go ──────────────────────
+  // ⛔ When the note pane empties, the element that held focus is gone with it,
+  // and a keyboard member is dropped at the top of the page. Three places to
+  // land, in order: the row a delete leaves NEXT, the row the note was opened
+  // from, and -- when there is no such row -- the heading of what the pane now
+  // shows (`paneHeadingRef`, visually hidden until it takes focus).
+  const mainRef = useRef(null)
+  const paneHeadingRef = useRef(null)
+  // { id, order } -- the note last opened and the row order it was opened from
+  const openedFromRef = useRef(null)
+  // what the NEXT emptying of the pane should focus: { rowId } | { heading: true }
+  const paneFocusPlanRef = useRef(null)
+  // where an explicit open puts focus once the note loads: { id, to: 'title' | 'landmark' }
+  // (final-review fix I-1: an existing note lands on its heading, a new one in its title)
+  const [openFocus, setOpenFocus] = useState(null)
   // A refusal is said IN the pane it points at, and focus goes there.
   const [paneNotice, setPaneNotice] = useState(null) // { pane: 'main'|'side', text }
   useEffect(() => {
@@ -540,11 +616,31 @@ export default function NotebookTab() {
   // pass nothing and behave exactly as before.
   // Wave 6: `task` opens the note AT one of its checklist items (`?task=`, read
   // by the editor — lib/noteTasks.js); any other open drops a stale one.
-  const openNote = (note, target = null, { task = null } = {}) => {
+  // Final-review fix I-1: `fresh` marks a note the member just MADE (createNote
+  // below) -- the one open whose next act is typing its title.
+  const openNote = (note, target = null, { task = null, fresh = false } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
     setPaneNotice(null)
+    // Wave 8 (8A): remember where this note was opened FROM (the rows on
+    // screen, in order) so the way back -- or a delete -- can put focus on a
+    // row. Focus goes to the note -- its heading for a note that exists, its
+    // title for one just made -- unless the open aims somewhere inside the
+    // note (a task, a page, an excerpt), which is where it goes.
+    // ⛔ Final-review fix I-1: never the title of an EXISTING note -- a live
+    // caret there took a reader's Space as a title edit, and raised a phone's
+    // keyboard on every open.
+    const rows = mainRef.current
+      ? [...mainRef.current.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
+      : []
+    openedFromRef.current = { id: note.id, order: [...new Set(rows)] }
+    // M-5: a plan left by an earlier delete (split view keeps the side note
+    // open, so the pane never emptied and the plan was never spent) belongs to
+    // THAT open, not this one.
+    paneFocusPlanRef.current = null
+    const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
+    setOpenFocus(inside ? null : { id: note.id, to: fresh ? 'title' : 'landmark' })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -561,7 +657,22 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
   }
-  const closeNote = () => {
+  const closeNote = (opts) => {
+    // Wave 8 (8A): the editor closes itself after a delete with
+    // `{ trashed: id }` (every other caller passes nothing, or a click event).
+    // The deleted note's row is gone, so focus goes to the row AFTER it in
+    // the order it was opened from, or to the pane heading when it was last.
+    const trashed = opts && typeof opts === 'object' && typeof opts.trashed === 'string' ? opts.trashed : null
+    if (trashed) {
+      const order = openedFromRef.current?.id === trashed ? openedFromRef.current.order : []
+      const at = order.indexOf(trashed)
+      const nextId = at >= 0 ? order[at + 1] : undefined
+      // M-5: only when the pane will EMPTY. With a note beside it, that note
+      // stays open (below), the pane never empties, and a plan made here would
+      // wait for some later, unrelated close and send focus to a stale row.
+      if (!sideId) paneFocusPlanRef.current = nextId ? { rowId: nextId } : { heading: true }
+      openedFromRef.current = null
+    }
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
       // Wave 6 item 7: with a note open beside it, closing this one (the
@@ -574,6 +685,50 @@ export default function NotebookTab() {
     refresh()
     refreshAll()
     refreshSidebarCounts()
+  }
+
+  // Wave 8 (8A): the pane just emptied (Back, a delete, anything that drops
+  // `?note=`). ⛔ Only when focus was LOST with it -- a member who clicked a
+  // folder in the sidebar is holding focus there on purpose, and taking it
+  // away from them is the opposite defect.
+  const prevPaneNoteRef = useRef(noteId)
+  useEffect(() => {
+    const was = prevPaneNoteRef.current
+    prevPaneNoteRef.current = noteId
+    if (!was || noteId) return
+    const plan = paneFocusPlanRef.current || (openedFromRef.current ? { rowId: openedFromRef.current.id } : { heading: true })
+    paneFocusPlanRef.current = null
+    const active = document.activeElement
+    if (active && active !== document.body && document.contains(active)) return
+    focusPaneTarget(plan)
+  }, [noteId])
+
+  /** A row by note id (a card is a button; a table row holds one), else the
+   *  pane heading. */
+  function focusPaneTarget(plan) {
+    const root = mainRef.current
+    if (plan?.rowId && root) {
+      const row = [...root.querySelectorAll('[data-note-card-id]')]
+        .find((el) => el.getAttribute('data-note-card-id') === plan.rowId)
+      const target = row && (row.matches('button, a[href], [tabindex]')
+        ? row
+        : row.querySelector('button, a[href], [tabindex]:not([tabindex="-1"])'))
+      if (target) { target.focus(); return }
+    }
+    paneHeadingRef.current?.focus()
+  }
+
+  // The skip link's target: the note's title (or its pane, while it loads), or
+  // the heading of whatever the pane shows.
+  const skipToPane = (e) => {
+    e.preventDefault()
+    if (noteId) {
+      // M-6: the editor's own hook on its title input, never the input's label.
+      const title = mainPaneRef.current?.querySelector('[data-note-title]')
+      ;(title || mainPaneRef.current)?.focus()
+      return
+    }
+    paneHeadingRef.current?.focus()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -924,6 +1079,9 @@ export default function NotebookTab() {
   }
 
   const titleOf = (id) => titleById.get(id) || null
+  // Fix I-3: Research Home names a held sample note -- from the list on screen, else the
+  // all-notes page the sidebar already holds (the home screen shows no list of its own).
+  const titleOfAnyNote = (id) => titleOf(id) || allNotes.find((n) => n.id === id)?.title?.trim() || null
   const startBulk = () => {
     if (bulkBusyRef.current) return false
     bulkBusyRef.current = true
@@ -1094,7 +1252,10 @@ export default function NotebookTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bulkBusy, undoNotice])
 
-  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false } = {}) => {
+  // Wave 9 (lane 9D, D1): `format` is the member's choice in the bulk bar's Export
+  // panel (`EXPORT_FORMATS[].id`), carried to the request, to the sentence that names
+  // it, and through a confirmed "Export anyway" (its `args`).
+  const exportSelection = async (ids = selection.selectedIds, { acceptUnchecked = false, format } = {}) => {
     if (!ids.length || !startBulk()) return
     try {
       // ⛔ A note whose words the server does not have yet would export WITHOUT
@@ -1110,9 +1271,9 @@ export default function NotebookTab() {
       const send = rest.filter((id) => !checked.unsent.has(id) && !unchecked.includes(id))
       let count = 0
       let skipped = 0
-      if (send.length) ({ count, skipped } = await exportSelectedNotes(send))
-      const said = describeExport({ count, skipped, blocked, unsent }, { titleOf })
-      const offer = describeUnchecked('export', unchecked, { titleOf })
+      if (send.length) ({ count, skipped } = await exportSelectedNotes(send, format))
+      const said = describeExport({ count, skipped, blocked, unsent, format }, { titleOf })
+      const offer = describeUnchecked('export', unchecked, { titleOf, args: { format } })
       const saidAnything = count || skipped || blocked.length || unsent.length
       setBulkNotice(offer
         ? { ...offer, message: [saidAnything ? said.message : '', offer.message].filter(Boolean).join(' ') }
@@ -1131,7 +1292,7 @@ export default function NotebookTab() {
   const runAnyway = (anyway) => {
     if (!anyway || bulkBusyRef.current) return
     setBulkNotice(null)
-    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true })
+    if (anyway.op === 'export') exportSelection(anyway.ids, { acceptUnchecked: true, format: anyway.args?.format })
     // N1 (wave 6 fix round 2): `anyway.args`/`anyway.ctx` are the op's OWN —
     // dropping them to `{}` is exactly N1 (a `renameTag` retry with no
     // `{from, to}` 400s at the server, and its own success sentence would
@@ -1162,7 +1323,8 @@ export default function NotebookTab() {
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
-      openNote(created)
+      // I-1: the one open that lands in the title -- the member made this note.
+      openNote(created, null, { fresh: true })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -1302,6 +1464,12 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
+      {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
+          folder tree, straight to the note or the list. Visually hidden until
+          it takes focus. */}
+      <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
+        {noteId ? 'Skip to note' : 'Skip to notes list'}
+      </a>
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
@@ -1430,6 +1598,7 @@ export default function NotebookTab() {
             isHome={isHome}
             onSelectAllNotes={selectAllNotes}
             onRenameTag={onRenameTag}
+            extraFolderActions={extraFolderActions}
           />
         </div>
       </div>
@@ -1442,7 +1611,17 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}>
+      <div
+        ref={mainRef}
+        id="notebook-pane"
+        className={`${styles.main} ${noteId ? styles.mainNote : ''} ${sideId ? styles.mainSplit : ''}`}
+      >
+        {/* Wave 8 (8A, A4): what the pane shows, as a heading -- the landing
+            place for the skip link and for focus when a delete leaves no row
+            after it. Visually hidden until it takes focus. */}
+        {!noteId && (
+          <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
+        )}
         {noteId ? (
           <>
           {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
@@ -1468,6 +1647,10 @@ export default function NotebookTab() {
                 noteId={noteId}
                 onBack={closeNote}
                 showBack={false}
+                // Wave 8 (8A; final-review fix I-1): an explicit open lands on
+                // the note's heading, or in the title of a note just made.
+                openFocus={openFocus?.id === noteId ? openFocus.to : null}
+                onOpenFocused={() => setOpenFocus(null)}
                 onTitleChange={updateTreeNoteTitle}
                 // Wave 6 (lane E), I1: the note menu's organisation actions.
                 // The editor (lane D's NoteEditorPage.jsx) renders
@@ -1564,7 +1747,10 @@ export default function NotebookTab() {
             onCreateNote={() => createNote()}
             onCreateThesis={() => handlePick(getTemplate('thesis'))}
             onImport={() => setImportOpen(true)}
-            hasAnyNotes={allNotesTotal > 0}
+            hasAnyNotes={hasAnyNotes}
+            // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
+            blockedNoteIds={blockedNoteIds}
+            titleOf={titleOfAnyNote}
           />
         ) : (
           <>
@@ -1580,6 +1766,9 @@ export default function NotebookTab() {
               className={styles.sortSelect}
               value={sort}
               onChange={(e) => setSort(e.target.value)}
+              // Wave 8 (8A, axe select-name): a select with no name is read as
+              // "combo box, Recently updated" with nothing saying what it orders.
+              aria-label="Sort notes"
             >
               <option value="updated">Recently updated</option>
               <option value="created">Recently created</option>
@@ -1603,7 +1792,7 @@ export default function NotebookTab() {
             </button>
           )}
           {!isShelfView && (
-            <div className={styles.viewModeWrap}>
+            <div className={styles.viewModeWrap} data-tour="view-switcher">
               {/*
                 ⛔ ONE BUTTON, RENDERED FIVE TIMES — not five buttons. These were
                 five hand-written blocks and every one of them was missing
@@ -1664,6 +1853,7 @@ export default function NotebookTab() {
               className={styles.importBtn}
               onClick={() => setImportOpen(true)}
               aria-haspopup="dialog"
+              data-tour="import"
             >
               <UIcon name="upload" size={16} gold={false} />
               Import
@@ -1701,6 +1891,7 @@ export default function NotebookTab() {
               className="btn btn-primary btn-sm"
               onClick={() => createNote()}
               disabled={creating}
+              data-tour="new-note"
             >
               + New note
             </button>
@@ -1779,7 +1970,7 @@ export default function NotebookTab() {
             onRemoveTag={(t) => runBulk('removeTag', { tag: t }, { tag: t })}
             onFavorite={() => runBulk('favorite')}
             onUnfavorite={() => runBulk('unfavorite')}
-            onExport={() => exportSelection()}
+            onExport={(format) => exportSelection(selection.selectedIds, { format })}
             onTrash={() => runBulk('trash')}
             onRestore={() => runBulk('restore')}
             onArchive={() => runBulk('archive')}
@@ -1988,6 +2179,19 @@ export default function NotebookTab() {
           </>
         )}
       </div>
+      {/* Wave 9 (lane 9D, D2): mounted OUTSIDE the pane's branches. The folder tree it opens
+          from is on screen on the home page, beside an open note and over the list alike; a
+          sheet mounted inside the list branch would make the action a dead button everywhere
+          else. */}
+      <PublishFolderSheet
+        open={Boolean(publishFolder?.open)}
+        folder={publishFolder}
+        returnFocusTo={publishFolder?.opener || null}
+        onClose={closePublishFolder}
+      />
+      {notebookFlag('notebook_onboarding_enabled') === true && (
+        <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
+      )}
     </div>
     </SplitViewContext.Provider>
   )

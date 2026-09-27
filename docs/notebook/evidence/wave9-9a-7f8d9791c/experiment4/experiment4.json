@@ -1,0 +1,666 @@
+[
+ {
+  "at": "15:53:56",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "15:54:00",
+  "step": "seeded",
+  "api_total": 992
+ },
+ {
+  "at": "15:54:32",
+  "step": "G1",
+  "via": "_drive",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "url_now": "/journal/notebook?view=all",
+  "trace": [
+   {
+    "k": "replaceState",
+    "url": "undefined",
+    "ev": "message",
+    "t": 123,
+    "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:70641)"
+   },
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=4dfa7b5b319b4c0e8ceb478d3ff055f1",
+    "ev": null,
+    "t": 1386,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   },
+   {
+    "k": "popstate",
+    "t": 1677,
+    "url": "?view=all"
+   }
+  ],
+  "requests": [
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes/folder-counts"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes?sort=updated&limit=1&deleted=true"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes/favorites"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes/connectors/status"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes?sort=updated"
+   ],
+   [
+    0.55,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.36,
+    "POST",
+    "/api/j2/notes"
+   ],
+   [
+    1.39,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.43,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1"
+   ],
+   [
+    1.43,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/documents"
+   ],
+   [
+    1.43,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/excerpts"
+   ],
+   [
+    1.45,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    1.51,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/trade-ref/resolve"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/properties"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/thesis-summary"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/facts"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/evidence-candidates"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/backlinks"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/related-from"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/unlinked-mentions"
+   ],
+   [
+    1.52,
+    "POST",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1/opened"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    1.73,
+    "PUT",
+    "/api/j2/notes/4dfa7b5b319b4c0e8ceb478d3ff055f1"
+   ]
+  ]
+ },
+ {
+  "at": "15:55:04",
+  "step": "G2",
+  "via": "_drive",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "url_now": "/journal/notebook?view=all",
+  "trace": [
+   {
+    "k": "replaceState",
+    "url": "undefined",
+    "ev": "message",
+    "t": 225,
+    "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:70641)"
+   },
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=42b833b8848347e18022686e688ff556",
+    "ev": null,
+    "t": 1508,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   },
+   {
+    "k": "popstate",
+    "t": 1820,
+    "url": "?view=all"
+   }
+  ],
+  "requests": [
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes/folder-counts"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes?sort=updated&limit=1&deleted=true"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes/favorites"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes/connectors/status"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes?sort=updated"
+   ],
+   [
+    0.65,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.47,
+    "POST",
+    "/api/j2/notes"
+   ],
+   [
+    1.51,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.55,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556"
+   ],
+   [
+    1.55,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/documents"
+   ],
+   [
+    1.55,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/excerpts"
+   ],
+   [
+    1.58,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/trade-ref/resolve"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/properties"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/thesis-summary"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/facts"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/evidence-candidates"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/backlinks"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/related-from"
+   ],
+   [
+    1.65,
+    "GET",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/unlinked-mentions"
+   ],
+   [
+    1.65,
+    "POST",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556/opened"
+   ],
+   [
+    1.73,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    1.88,
+    "PUT",
+    "/api/j2/notes/42b833b8848347e18022686e688ff556"
+   ]
+  ]
+ },
+ {
+  "at": "15:55:36",
+  "step": "G3",
+  "via": "_drive",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "url_now": "/journal/notebook?view=all",
+  "trace": [
+   {
+    "k": "replaceState",
+    "url": "undefined",
+    "ev": "message",
+    "t": 126,
+    "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:70641)"
+   },
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=92b52700477b4288a34f343d185dcc26",
+    "ev": null,
+    "t": 1516,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   },
+   {
+    "k": "popstate",
+    "t": 1852,
+    "url": "?view=all"
+   }
+  ],
+  "requests": [
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes/folder-counts"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes?sort=updated&limit=1&deleted=true"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes/favorites"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes/connectors/status"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes?sort=updated"
+   ],
+   [
+    0.58,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.49,
+    "POST",
+    "/api/j2/notes"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.57,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26"
+   ],
+   [
+    1.57,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/documents"
+   ],
+   [
+    1.57,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/excerpts"
+   ],
+   [
+    1.6,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/trade-ref/resolve"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/properties"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/thesis-summary"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/facts"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/evidence-candidates"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/backlinks"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/related-from"
+   ],
+   [
+    1.67,
+    "GET",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/unlinked-mentions"
+   ],
+   [
+    1.67,
+    "POST",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26/opened"
+   ],
+   [
+    1.73,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    1.93,
+    "PUT",
+    "/api/j2/notes/92b52700477b4288a34f343d185dcc26"
+   ]
+  ]
+ },
+ {
+  "at": "15:55:38",
+  "step": "G4",
+  "via": "inline",
+  "ok": true,
+  "error": null,
+  "url_now": "/journal/notebook?note=11403f5c66394d61bcf46fb14e23bb5c",
+  "trace": [
+   {
+    "k": "replaceState",
+    "url": "undefined",
+    "ev": "message",
+    "t": 113,
+    "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:8:70641)"
+   },
+   {
+    "k": "pushState",
+    "url": "/journal/notebook?note=11403f5c66394d61bcf46fb14e23bb5c",
+    "ev": null,
+    "t": 1462,
+    "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8208/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8208/assets/NotebookTab-mUeEYykl.js:3:163873)"
+   }
+  ],
+  "requests": [
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes/folder-counts"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes?sort=updated&limit=1&deleted=true"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes/favorites"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes/recents"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes/connectors/status"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes?sort=updated"
+   ],
+   [
+    0.63,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.43,
+    "POST",
+    "/api/j2/notes"
+   ],
+   [
+    1.47,
+    "GET",
+    "/api/j2/notes?sort=title"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/documents"
+   ],
+   [
+    1.52,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/excerpts"
+   ],
+   [
+    1.55,
+    "GET",
+    "/api/j2/notes/tags"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/trade-ref/resolve"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/properties"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/thesis-summary"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/facts"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/evidence-candidates"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/backlinks"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/related-from"
+   ],
+   [
+    1.62,
+    "GET",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/unlinked-mentions"
+   ],
+   [
+    1.62,
+    "POST",
+    "/api/j2/notes/11403f5c66394d61bcf46fb14e23bb5c/opened"
+   ],
+   [
+    1.72,
+    "GET",
+    "/api/j2/notes/recents"
+   ]
+  ]
+ }
+]

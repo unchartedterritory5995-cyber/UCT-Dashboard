@@ -19,6 +19,7 @@ would resemble one fake member, and the count exists to size REAL ones.
 from __future__ import annotations
 
 import datetime
+import json
 import os
 import pathlib
 import sys
@@ -82,7 +83,12 @@ RIG_AND_OWNER = ("unchartedterritory5995@gmail.com",)
 SYNTHETIC_MEMBERS = (
     "smoke@uctintelligence.internal",            # the post-deploy client smoke
     "member-smoke@uctintelligence.internal",     # T-12's independent-member view
+    "bench@uctintelligence.internal",            # D-9A3's head-to-head benchmark
 )
+# ⛔⛔ ONE FACT IN TWO FILES. `api/services/journal_two/notebook_populations.py`
+# carries these three lists for the soak's server read; this copy runs outside
+# every worktree and cannot import `api`. tests/test_notebook_populations.py
+# reads THIS file by AST and asserts the two are equal -- change both or neither.
 
 # !!!! AN UNKNOWN ADDRESS ON OUR OWN INTERNAL DOMAIN IS FLAGGED, NOT COUNTED AS
 # ORGANIC. `.internal` is reserved (RFC 8375) and unroutable, so nobody outside
@@ -328,18 +334,209 @@ NOTES_JS = """async () => {
 }"""
 
 
+# =============================================================================
+# WAVE 9 (9C) — THE 30-DAY SOAK'S SIDECAR. One JSON line per run, never a column.
+# =============================================================================
+# !!!! THE Q1 TABLE DOES NOT CHANGE. `nb_gate` names every header cell through
+# `_COLUMNS` and an unknown cell turns the whole verdict INCOMPLETE, so a soak
+# figure added as a column would make every soak Sunday unreadable. The soak's
+# figures go to a SEPARATE file, one JSON line per run, beside the log.
+# tests/test_nb_observe.py pins HEADER and row() byte-for-byte.
+#
+# * The line carries the interval it read, the figures `GET
+# /api/admin/notebook-soak` returned for it, and -- when the read could not be
+# taken -- `"skipped": "<reason>"` and NO figures. !! A failed read is never
+# written as zeros: zeros are a clean interval, and a read that failed is an
+# UNOBSERVED one. `tools/nb_soak.py` reads a skipped line as exactly that.
+#
+# * INTERVALS TILE. `since` is the previous successful line's `until`, so a run
+# that fails loses no server-side event: the next good read covers the gap. The
+# fallback, with no usable previous line, is the trailing two hours.
+#
+# * NB_SOAK_START (ISO UTC, set in the soak job's environment) adds a SECOND read
+# from the soak's first minute, kept as `cumulative`. `j2_notes.updated_at` holds
+# only a note's LAST edit, so "who has edited anything since the soak opened" is
+# EXACT from one read taken now, while the day-by-day series needs the sampler.
+_soak_env = os.environ.get("NB_SOAK_SAMPLES", "").strip()
+SOAK_SAMPLES = pathlib.Path(_soak_env) if _soak_env else LOG.parent / "soak-samples.jsonl"
+SOAK_START_ENV = "NB_SOAK_START"
+SOAK_INTERVAL = datetime.timedelta(hours=2)
+# The endpoint refuses a window over 45 days; a catch-up read stops a day short.
+SOAK_MAX_READ = datetime.timedelta(days=44)
+
+SOAK_JS = """async ({since, until}) => {
+  const q = new URLSearchParams({since, until});
+  const r = await fetch('/api/admin/notebook-soak?' + q.toString(), {credentials:'include'});
+  if (!r.ok) return {err: 'HTTP ' + r.status};
+  const ct = r.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) return {err: 'not JSON (deploy blip?)'};
+  return {body: await r.json()};
+}"""
+
+
+def utc_now() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def _iso(dt: datetime.datetime) -> str:
+    return dt.astimezone(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_iso(value) -> datetime.datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        dt = datetime.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt.replace(tzinfo=datetime.timezone.utc) if dt.tzinfo is None else dt
+
+
+def next_soak_since(path: pathlib.Path, now: datetime.datetime) -> tuple[datetime.datetime, bool]:
+    """`(since, clamped)` for this run's read. PURE apart from reading `path`.
+
+    The newest SUCCESSFUL line's `interval.until`, so intervals tile and a failed
+    run loses no server event. With no usable line — a new file, only skipped
+    lines, a stamp in the future — the trailing two hours. A gap longer than the
+    endpoint can read in one request is clamped to `SOAK_MAX_READ`, and says so.
+    """
+    fallback = now - SOAK_INTERVAL
+    last = None
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    except OSError:
+        lines = []
+    for ln in reversed(lines):
+        try:
+            rec = json.loads(ln)
+        except ValueError:
+            continue
+        if not isinstance(rec, dict) or rec.get("skipped") or "figures" not in rec:
+            continue
+        last = _parse_iso((rec.get("interval") or {}).get("until"))
+        if last is not None:
+            break
+    if last is None or last >= now:
+        return fallback, False
+    if now - last > SOAK_MAX_READ:
+        return now - SOAK_MAX_READ, True
+    return last, False
+
+
+def soak_sample_line(row_at: str, since: datetime.datetime, until: datetime.datetime,
+                     result, *, clamped: bool = False, cumulative=None,
+                     now: datetime.datetime | None = None) -> dict:
+    """The one JSON line this run appends. PURE, so a rail drives every branch.
+
+    ⛔⛔ A READ THAT FAILED IS `skipped`, NEVER ZEROS. Anything but a dict with a
+    dict `body` — an HTTP error, a non-JSON page mid-deploy, an evaluate that
+    threw, nothing at all — writes the reason and no `figures` key.
+    """
+    line = {
+        "at": _iso(now or utc_now()),
+        "row_at": row_at,
+        "interval": {"since": _iso(since), "until": _iso(until)},
+    }
+    if clamped:
+        line["interval"]["clamped"] = True
+    if not isinstance(result, dict):
+        line["skipped"] = "no reading"
+        return line
+    if result.get("err"):
+        line["skipped"] = str(result["err"])[:200]
+        return line
+    body = result.get("body")
+    if not isinstance(body, dict):
+        line["skipped"] = "the read returned no JSON object"
+        return line
+    line["figures"] = body
+    if cumulative is not None:
+        line["cumulative"] = cumulative
+    return line
+
+
+def cumulative_from(result, since: datetime.datetime, until: datetime.datetime,
+                    clamped: bool) -> dict:
+    """The part of a from-the-start read the roll-up needs, or why it is missing."""
+    head = {"since": _iso(since), "until": _iso(until)}
+    if clamped:
+        head["clamped"] = True
+    if not isinstance(result, dict) or result.get("err") or not isinstance(result.get("body"), dict):
+        why = (result or {}).get("err") if isinstance(result, dict) else None
+        return {**head, "skipped": str(why or "no reading")[:200]}
+    ex = result["body"].get("exposure") or {}
+    return {**head,
+            "identities_editing": ex.get("identities_editing"),
+            "notes_edited": ex.get("notes_edited"),
+            "speed": result["body"].get("speed")}
+
+
+def append_soak_sample(line: dict, path: pathlib.Path | None = None) -> None:
+    """⛔⛔ APPEND ONLY — `append()`'s law. The sidecar is opened in append mode
+    and nothing already in it is read back, rewritten or truncated. A file whose
+    last line was cut short (a killed run) gets a newline first, so the new line
+    never fuses with the old one."""
+    path = path or SOAK_SAMPLES
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lead = ""
+    if path.exists() and path.stat().st_size:
+        with path.open("rb") as fh:
+            fh.seek(-1, os.SEEK_END)
+            if fh.read(1) != b"\n":
+                lead = "\n"
+    with path.open("a", encoding="utf-8", newline="\n") as fh:
+        fh.write(lead + json.dumps(line, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+def soak_read(page, since: datetime.datetime, until: datetime.datetime):
+    """One read through the rig's signed-in page, or `{err}` — never raises."""
+    try:
+        return page.evaluate(SOAK_JS, {"since": _iso(since), "until": _iso(until)})
+    except Exception as e:                                   # noqa: BLE001
+        return {"err": f"{type(e).__name__}: {str(e)[:120]}"}
+
+
+def soak_start(now: datetime.datetime):
+    """`(start, clamped)` from NB_SOAK_START, or None when the job does not set it."""
+    start = _parse_iso(os.environ.get(SOAK_START_ENV, ""))
+    if start is None or start >= now:
+        return None
+    if now - start > SOAK_MAX_READ:
+        return now - SOAK_MAX_READ, True
+    return start, False
+
+
 def main() -> int:
     wc.use_profile(wc.resolve_profile())
     at = et_now()
+    # ── the soak sidecar: ONE line per run, whatever happens below ──────────
+    now = utc_now()
+    soak_since, soak_clamped = next_soak_since(SOAK_SAMPLES, now)
+    soak_done: list = []
+
+    def soak_record(result, cumulative=None) -> None:
+        """Exactly one sidecar line per run — and never at the Q1 row's expense:
+        the row is always appended FIRST, and a sidecar failure only prints."""
+        if soak_done:
+            return
+        soak_done.append(True)
+        try:
+            append_soak_sample(soak_sample_line(at, soak_since, now, result, clamped=soak_clamped,
+                                                cumulative=cumulative, now=now))
+        except Exception as e:                               # noqa: BLE001
+            print(f"soak sidecar NOT written: {type(e).__name__}: {e}")
+
     try:
         released, held = wc.profile_lock_released(timeout=5)
         if not released:
             append(row(at, "—", "—", "—", "—", "—", "—", "—",
                        f"**SKIPPED** — rig profile busy ({', '.join(held)})"))
+            soak_record({"err": f"rig profile busy ({', '.join(held)})"})
             print("SKIPPED: profile busy")
             return 0
     except Exception as e:                                   # noqa: BLE001
         append(row(at, "—", "—", "—", "—", "—", "—", "—", f"**SKIPPED** — {type(e).__name__}"))
+        soak_record({"err": f"rig profile lock unreadable ({type(e).__name__})"})
         return 0
 
     from playwright.sync_api import sync_playwright
@@ -434,8 +631,17 @@ def main() -> int:
                 append(row(at, "—", "—", "—", "—", "—", "—", len(errors),
                            "**SKIPPED** — production unreachable (HTTP 5xx, deploy in flight); "
                            "not a finding, and not evidence of a clean interval either"))
+                soak_record({"err": "production unreachable (HTTP 5xx, deploy in flight)"})
                 print(f"{at}  SKIPPED - production 5xx")
                 return 0
+
+            # ⭐ WAVE 9 — the soak read, in the SAME signed-in page, AFTER every
+            # Q1 read so it can never change what those reads saw.
+            soak = soak_read(page, soak_since, now)
+            cumulative = None
+            start = soak_start(now)
+            if start is not None and isinstance(soak, dict) and not soak.get("err"):
+                cumulative = cumulative_from(soak_read(page, start[0], now), start[0], now, start[1])
 
             reasons = []
             if errors or http_fail:
@@ -483,17 +689,23 @@ def main() -> int:
                        if unk.get("identities") else ""))
             append(row(at, cell,
                        total, served_txt, blocked, conflicts, 0, len(errors), flag))
+            soak_record(soak, cumulative)
             print(f"{at}  organic={org.get('identities')} synthetic={syn.get('identities')} rig={rig.get('identities')} total={total} config-served={served_txt} "
                   f"blocked={blocked} conflicts={conflicts} errors={len(errors)} {flag}")
     except Exception as e:                                   # noqa: BLE001
         append(row(at, "—", "—", "—", "—", "—", "—", "—",
                    f"**SKIPPED** — {type(e).__name__}: {str(e)[:80]}"))
+        soak_record({"err": f"{type(e).__name__}: {str(e)[:80]}"})
         traceback.print_exc()
     finally:
         try:
             wc.teardown()
         except Exception:                                    # noqa: BLE001
             pass
+        # ⛔ A run that reached none of the records above still leaves ONE line:
+        # a sidecar with a hole where a run should be is the silence this file
+        # exists to prevent. (A no-op when a line was already written.)
+        soak_record({"err": "the run ended before the soak read"})
     return 0
 
 

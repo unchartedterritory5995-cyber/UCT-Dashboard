@@ -1,0 +1,389 @@
+{
+ "tool": "tools/notebook_bench_uct.py",
+ "git_head": "b049fe25a5032ec31768dc7481d44eb5f5e6d2d1",
+ "base": "http://127.0.0.1:8096",
+ "app": "uct-sandbox-auto",
+ "certifying": false,
+ "note": "a lane acceptance run and per-release cross-check: NOT certification evidence and NOT the UCT column of the head-to-head (ruling D-9A3)",
+ "corpus": {
+  "dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\corpus-live",
+  "generator_version": "notebook-bench-corpus/1",
+  "seed": 20260926,
+  "total_notes": 992,
+  "verified": true
+ },
+ "machine": {
+  "available_mbytes_before": 13696.0,
+  "floor_mbytes": 4608.0,
+  "box_state": "FREE",
+  "box_load": "load: QUIET \u2014 0 marked processes outside our own tree at 2026-09-26T16:26:28",
+  "lock": {
+   "acquired": true,
+   "path": "C:\\ProgramData\\uct\\gate-box.lock",
+   "run_id": "notebook-bench-uct-20260926T162630",
+   "reclaimed": null,
+   "released": true
+  },
+  "hostname": "DESKTOP-1NPCBSM",
+  "python": "3.14.0",
+  "available_mbytes_after": 13722.0
+ },
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-b049fe25a\\run5\\uct-auto.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 16:26:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 16:27:15",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-26 16:29:07",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 16:30:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\notebook\\evidence\\wave9-9a-b049fe25a\\run5\\uct-auto.integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w9\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T16-26-32.md"
+ },
+ "self_test": {
+  "ok": true,
+  "ms": 201.1,
+  "readings": [
+   {
+    "ok": true,
+    "ms": 201.1,
+    "where": "step 0, before any timing (R-HON)"
+   },
+   {
+    "ok": true,
+    "ms": 200.4,
+    "where": "H1 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 206.9,
+    "where": "H1 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 200.8,
+    "where": "H2 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.2,
+    "where": "H2 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 207.1,
+    "where": "H2-full round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201,
+    "where": "H2-full round 2"
+   },
+   {
+    "ok": true,
+    "ms": 201.8,
+    "where": "H3 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.3,
+    "where": "H3 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 207.1,
+    "where": "H3-full round 1"
+   },
+   {
+    "ok": true,
+    "ms": 200.7,
+    "where": "H3-full round 2"
+   },
+   {
+    "ok": true,
+    "ms": 201,
+    "where": "H4 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 207.9,
+    "where": "H4 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 204.7,
+    "where": "H5 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 214.7,
+    "where": "H5 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 204.8,
+    "where": "H6 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 204.9,
+    "where": "H6 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 204.4,
+    "where": "H6 round 3"
+   },
+   {
+    "ok": true,
+    "ms": 205.9,
+    "where": "H7 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 203.4,
+    "where": "H7 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 212.6,
+    "where": "H7 round 3"
+   },
+   {
+    "ok": true,
+    "ms": 204.5,
+    "where": "H8 round 1"
+   },
+   {
+    "ok": true,
+    "ms": 201.8,
+    "where": "H8 round 2"
+   },
+   {
+    "ok": true,
+    "ms": 202.1,
+    "where": "H9 round 1, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 216,
+    "where": "H9 round 2, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 201.9,
+    "where": "H9 round 3, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 201.1,
+    "where": "H9 round 4, after the reload"
+   },
+   {
+    "ok": true,
+    "ms": 216.2,
+    "where": "H9 round 5, after the reload"
+   }
+  ]
+ },
+ "count": {
+  "manifest": 992,
+  "api_total": 992,
+  "ui_total": 992
+ },
+ "chromium": "145.0.7632.6",
+ "page_errors": [],
+ "failure": null,
+ "per_op": {
+  "H1": {
+   "op": "H1",
+   "kind": "open",
+   "n": 20,
+   "p50_ms": 36.8,
+   "p95_ms": 81.4,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H1__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H1__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H2": {
+   "op": "H2",
+   "kind": "open",
+   "n": 20,
+   "p50_ms": 119.2,
+   "p95_ms": 204.8,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H2__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H2__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H2-full": {
+   "op": "H2-full",
+   "kind": "open",
+   "n": 20,
+   "p50_ms": 122.4,
+   "p95_ms": 192.6,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H2-full__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H2-full__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H3": {
+   "op": "H3",
+   "kind": "open",
+   "n": 20,
+   "p50_ms": 264.1,
+   "p95_ms": 313.2,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H3__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H3__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H3-full": {
+   "op": "H3-full",
+   "kind": "open",
+   "n": 20,
+   "p50_ms": 268.5,
+   "p95_ms": 362.6,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H3-full__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H3-full__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H4": {
+   "op": "H4",
+   "kind": "search",
+   "n": 20,
+   "p50_ms": 259.1,
+   "p95_ms": 304.9,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H4__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H4__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H5": {
+   "op": "H5",
+   "kind": "search",
+   "n": 20,
+   "p50_ms": 203.9,
+   "p95_ms": 238.4,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H5__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H5__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H6": {
+   "op": "H6",
+   "kind": "typing",
+   "n": 180,
+   "p50_ms": 11.1,
+   "p95_ms": 17.8,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H6__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H6__r2.json",
+    "uct-auto-dumps/uct-sandbox-auto__H6__r3.json"
+   ],
+   "invalid": {}
+  },
+  "H7": {
+   "op": "H7",
+   "kind": "typing",
+   "n": 180,
+   "p50_ms": 32.2,
+   "p95_ms": 38,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H7__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H7__r2.json",
+    "uct-auto-dumps/uct-sandbox-auto__H7__r3.json"
+   ],
+   "invalid": {}
+  },
+  "H8": {
+   "op": "H8",
+   "kind": "paste",
+   "n": 10,
+   "p50_ms": 38.7,
+   "p95_ms": 52.4,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H8__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H8__r2.json"
+   ],
+   "invalid": {}
+  },
+  "H9": {
+   "op": "H9",
+   "kind": "cold",
+   "n": 5,
+   "p50_ms": 416,
+   "p95_ms": 428,
+   "status": "MEASURED",
+   "reason": null,
+   "dumps": [
+    "uct-auto-dumps/uct-sandbox-auto__H9__r1.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r2.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r3.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r4.json",
+    "uct-auto-dumps/uct-sandbox-auto__H9__r5.json"
+   ],
+   "invalid": {}
+  }
+ }
+}

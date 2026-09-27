@@ -17,12 +17,56 @@ import lazyWithRetry, { isChunkLoadError } from '../../../utils/lazyWithRetry'
 
 export const RETRY_WAIT_MS = 400
 
+// ⚰️ WAVE-8 WALK W7: "ask again" with `load()` NEVER REFETCHED in Chromium. A failed dynamic
+// `import()` is remembered in the module map for that URL, so calling the same `() => import(...)`
+// a second time rejects at once without a request -- measured in a real Chromium: one request,
+// then `lazyWithRetry`'s reload 595 ms later and the member's chosen view lost, while this file
+// promised the opposite. The retry therefore imports the failed chunk under a NEW specifier (the
+// same file with a `chunk-retry` query), which the module map has never seen. Chromium and
+// Firefox name the chunk's URL in the error; Safari does not, so there the retry is `load()`
+// again, as before. The chunk's own imports resolve to the same shared files, and its CSS was
+// already attached by Vite's preload on the first attempt.
+export const CHUNK_RETRY_PARAM = 'chunk-retry'
+const CHUNK_URL = /((?:https?:\/\/[^\s'"()]+)?\/[^\s'"()?#]+\.m?js)(?![\w])/i
+
+/** The same-origin chunk URL a failed dynamic import names in its message, or null. */
+export function failedChunkUrl(err, origin = globalThis.location?.origin) {
+  const m = CHUNK_URL.exec(String(err?.message ?? err ?? ''))
+  if (!m || !origin) return null
+  let url
+  try { url = new URL(m[1], origin) } catch { return null }
+  return url.origin === origin ? url : null
+}
+
+/** `failedChunkUrl` with a `chunk-retry` query the module map has never seen, as a string. */
+export function retrySpecifier(err, stamp = Date.now(), origin = globalThis.location?.origin) {
+  const url = failedChunkUrl(err, origin)
+  if (!url) return null
+  url.searchParams.set(CHUNK_RETRY_PARAM, String(stamp))
+  return url.href
+}
+
+/** The importer the retry uses. A property, so a rail can swap it (jsdom cannot fetch a chunk). */
+export const chunkRetry = {
+  importUrl: (specifier) => import(/* @vite-ignore */ specifier),
+}
+
 export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS) {
   return load().catch((err) => {
     // Only a failed FETCH is worth asking for again. A module that loaded and then threw is a
     // bug, and a second evaluation would throw the same way.
     if (!isChunkLoadError(err)) throw err
-    return new Promise((resolve) => setTimeout(resolve, waitMs)).then(() => load())
+    const specifier = retrySpecifier(err)
+    return new Promise((resolve) => setTimeout(resolve, waitMs)).then(() => {
+      if (!specifier) return load()
+      return chunkRetry.importUrl(specifier).then((mod) => {
+        // Every caller hands a plain `() => import('./X')` of a default export. A module with no
+        // `default` would mean a loader that maps its import; then the original failure stands
+        // and takes its usual path, rather than a view that renders `undefined`.
+        if (mod && 'default' in mod) return mod
+        throw err
+      })
+    })
   })
 }
 

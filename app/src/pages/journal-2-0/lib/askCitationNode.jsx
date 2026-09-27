@@ -23,8 +23,9 @@ export const askCitationStaleKey = new PluginKey('askCitationStale')
  *
  * ⛔ G-064 final fix wave (I1) — a chip with NO claim (`null`) is UNKNOWN, not
  * edited, and is skipped. A public share serves every chip reduced to `{ n }`
- * (note_shares._reduce_ask_citations, spec §7.5), so a shared chip has no
- * claim to compare. When the attribute defaulted to `''` instead, `''` never
+ * (the one public reducer, `public_note_payload.NODE_POLICY`'s `askCitation`
+ * row: `citation-n` on a share link; a published page drops the chip -- spec
+ * §7.5), so a shared chip has no claim to compare. When the attribute defaulted to `''` instead, `''` never
  * equalled a paragraph with any text, and every chip on every shared note read
  * "[n · edited]". `buildAskInsertNode` always writes a STRING claim (a
  * chip-only paragraph's is the real value `''`), so every real insert is still

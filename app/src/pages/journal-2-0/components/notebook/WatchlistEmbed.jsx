@@ -1,4 +1,5 @@
 import FrozenList from './FrozenList'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * Watchlist journal renderer: the captured LIST (owner-approved payload
@@ -12,7 +13,9 @@ export default function WatchlistEmbed({ attrs, height = 320 }) {
   const n = Array.isArray(params.rows) ? params.rows.length
     : Array.isArray(params.symbols) ? params.symbols.length : 0
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <FrozenList
         title={params.watchName || 'Watchlist'}
         subtitle={`${n} symbols`}

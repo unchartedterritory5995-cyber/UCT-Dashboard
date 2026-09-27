@@ -17,6 +17,14 @@ from api import chart_edge_token
 from api.limiter import limiter
 from api.routers.waitlist import coming_soon_mode
 from api.services import totp_service
+# Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /
+# falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.
+from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on
+# S12 rung zero (TERM-068 / RM-N11): the request-time cohort gate. The STORE is
+# `api/services/rollout.py`; this is the half that answers per request, and it is
+# where the kill switch is read. `_access_payload`'s `cohorts` field is its only
+# caller today.
+from api.services import rollout_gate
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -138,6 +146,14 @@ NOTEBOOK_FLAGS = {
     # `notebook_writing_help_enabled` (the one derivation, above); the route
     # reads the same variable per request (journal_two/writing_help.py).
     "NOTEBOOK_WRITING_HELP_ENABLED": False,  # enablement  — unset means OFF
+    # Wave 8 seam S8-1. ⛔ Ruling D-B9: both sharing gates stay OFF until the
+    # owner records legal sign-off in the ledger's `owner_decision` — nothing
+    # here may default either of them on. The payload key of the first is
+    # `j2_share_links_enabled` (the one derivation, above); its route gate is
+    # `note_shares.enabled()`, which reads through the same `flag_on`.
+    "J2_SHARE_LINKS_ENABLED": False,         # enablement  — unset means OFF (share links, lane 8B)
+    "NOTEBOOK_PUBLISH_ENABLED": False,       # enablement  — unset means OFF (publish-to-web, lane 8B)
+    "NOTEBOOK_ONBOARDING_ENABLED": False,    # enablement  — unset means OFF (tour + sample notebook, lane 8C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
@@ -165,10 +181,6 @@ NOTEBOOK_MODE_FLAGS = {
     "NOTEBOOK_DOOR_GUARD": (DOOR_GUARD_FULL, (DOOR_GUARD_FULL, DOOR_GUARD_UNKNOWN_ONLY)),
 }
 
-_TRUTHY = ("1", "true", "yes", "on")
-_FALSY = ("0", "false", "no", "off")
-
-
 def _notebook_flag_key(env_name: str) -> str:
     """The payload key for a Notebook capability's Railway variable.
 
@@ -182,15 +194,12 @@ def _notebook_flags() -> dict:
     """Every Notebook capability flag, read from the environment PER REQUEST."""
     out = {}
     for env_name, default_on in NOTEBOOK_FLAGS.items():
-        raw = os.environ.get(env_name)
-        if raw is None:
-            value = default_on
-        else:
-            v = raw.strip().lower()
-            # ⛔ An unrecognised value takes the DEFAULT, never the opposite of
-            # it. A typo'd "flase" must not kill a shipped wave.
-            value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
-        out[_notebook_flag_key(env_name)] = value
+        # ⛔ THE ONE PARSE (wave 8, S8-1). An unrecognised value takes the
+        # DEFAULT, never the opposite of it — a typo'd "flase" must not kill a
+        # shipped wave. The route gates call the same `flag_on`, so the payload
+        # and the route cannot disagree about one variable
+        # (tests/test_notebook_flag_parse.py).
+        out[_notebook_flag_key(env_name)] = flag_on(env_name, default_on)
     # ⛔ THE MODE KEYS RIDE THE SAME PAYLOAD AND THE SAME DERIVATION. A second
     # helper for the second name would be the drift `_notebook_flag_key` exists
     # to prevent; only the PARSE differs, because the value is not a boolean.
@@ -292,6 +301,27 @@ def _access_payload(user: dict, plan: str) -> dict:
         },
         "paid_equiv": bool(is_paid_plan or trial_active),
         "billing": {"annual_available": annual_available()},
+        # ── S12 rollout cohorts (TERM-068 / RM-N11 rung zero) ───────────────
+        # ⭐ THE ONE THING THE CLIENT COULD NOT KNOW. The cohort store has
+        # shipped since 2026-09-12 and every gate over it was server-side, so a
+        # browser had no way to tell it was in a dark run — which is why a
+        # cohort could gate an API but never a surface.
+        #
+        # ⛔ NOT A COHORT STORE AND NOT A SECOND AUTHORITY OVER MEMBERSHIP.
+        # Membership is `user_tags` written by `tools/rollout_cohort.py`; this
+        # field only REPORTS. ⛔ Never `user_preferences` — a member writes
+        # their own, so a preference-backed entitlement is self-grantable.
+        #
+        # ⛔⛔ THE KILL SWITCH IS EVALUATED FIRST, PER COHORT. This is the
+        # EFFECTIVE list, so `TERMINAL_NEXT_ENABLED=false` empties it for a
+        # member who IS tagged, without one tag being touched: "turning a
+        # feature off" is never "emptying a table". A cohort with no registered
+        # kill switch is never reported at all.
+        #
+        # ⛔ READ PER REQUEST, like every flag below it, and it NEVER RAISES —
+        # this payload is the universal auth path (signup, login, /me), so an
+        # exception here is a LOGIN OUTAGE rather than a dark surface.
+        "cohorts": rollout_gate.client_cohorts(user.get("id")),
         # ── Joystick hub preview kill switch (Phase 2.5) ────────────────────
         # ⭐ READ AT REQUEST TIME, NOT AT IMPORT. That is the whole point: flipping
         # HUB_PREVIEW_ENABLED=false in Railway must hide the hub for everyone
@@ -946,6 +976,18 @@ def post_feedback(req: FeedbackRequest, user: dict = Depends(get_current_user)):
         raise HTTPException(400, "Message is required")
     result = submit_feedback(user["id"], user["email"], req.page, req.message.strip(), req.rating)
     return result
+
+
+@router.get("/admin/request-ip-probe")
+def admin_request_ip_probe(request: Request, user: dict = Depends(get_current_user)):
+    """Admin-only: the forwarding facts THIS request arrived with (peer, the forwarding
+    headers verbatim, the hop Railway reports and whether it is Cloudflare's, and what
+    `client_ip` derives today). A measurement for the Cloudflare-origin hardening in
+    `api/services/request_ip.py`, read once through the domain and once at the Railway
+    origin; it echoes only the caller's own request and writes nothing."""
+    _require_admin(user)
+    from api.services.request_ip import describe
+    return describe(request)
 
 
 @router.get("/admin/feedback")
@@ -2133,6 +2175,20 @@ _PREFERENCE_KEYS = {
     "joystick_hub": "joystick_hub",
     "multichart_state": _PREF_OPAQUE,
     "news_widget_settings": _PREF_OPAQUE,
+    # ⚰️ Notebook wave 6 lane E (#193, live 2026-09-26 01:18 CT) shipped the daily
+    # note's template choice (`lib/dailyNote.js` DAILY_TEMPLATE_PREF, also read by
+    # `note_personal_api.py`) WITHOUT this row: every choice answered 400 "Unknown
+    # preference key" in production, measured as the smoke account 2026-09-26
+    # ~14:00Z. `test_every_key_the_client_writes_is_still_accepted` was red on
+    # master the whole time; the landing ran only the Python rails its own diff
+    # touched, and this one reads a JS writer. Run it before any `setPref(` lands.
+    "notebook_daily_template": _PREF_OPAQUE,
+    # Wave 8: the sample-notebook strip and the first-run tour each write one
+    # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
+    # the server answered 400 "Unknown preference key" and neither ever
+    # persisted — the tour reopened on every visit.
+    "notebook_sample": _PREF_OPAQUE,
+    "notebook_tour": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

@@ -298,6 +298,7 @@ export default function AskPanel({
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={`Ask a question about ${spec.label.toLowerCase()}`}
+          data-ask-toggle
         >
           <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
           Ask

@@ -24,7 +24,7 @@
   font-size: 16px; line-height: 1.45;
   color: inherit;
   background: var(--color-input-bg, rgba(255, 255, 255, 0.04));
-  border: 1px solid var(--border);
+  border: 1px solid var(--field-edge);
   border-radius: 6px;
 }
 .textarea { resize: vertical; min-height: 44px; }

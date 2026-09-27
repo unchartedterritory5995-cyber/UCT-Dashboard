@@ -1,5 +1,6 @@
 import { generateJSON } from '@tiptap/core'
 import { buildExtensions, extractPlainText } from '../tiptap'
+import { heldBody } from './uctJson'
 
 const BANNED_TAGS = new Set(['SCRIPT', 'IFRAME', 'FORM', 'OBJECT', 'EMBED', 'STYLE', 'LINK', 'META'])
 
@@ -22,8 +23,25 @@ export function sanitizeHtml(html) {
   })
   mapCheckboxLists(doc)
   mapCalloutsAndToggles(doc)
+  mapMathCode(doc)
   rewriteImportLinks(doc)
   return doc.body.innerHTML
+}
+
+// Wave 8 lane 8C: our web-page export writes a formula as its TeX in `<code class="math">`
+// (a display equation inside a `<pre>`, ruling D-C2). Here that becomes the math node's own
+// HTML (`mathNodes.js` parses `span|div[data-type=…-math][data-latex]`), so a formula
+// re-imports as a formula, not as a code span holding its source.
+export function mapMathCode(doc) {
+  doc.querySelectorAll('code.math').forEach((code) => {
+    const latex = code.textContent || ''
+    const pre = code.parentElement?.tagName === 'PRE' && code.parentElement.children.length === 1
+      ? code.parentElement : null
+    const el = doc.createElement(pre ? 'div' : 'span')
+    el.setAttribute('data-type', pre ? 'block-math' : 'inline-math')
+    el.setAttribute('data-latex', latex)
+    ;(pre || code).replaceWith(el)
+  })
 }
 
 // The adapters (Notion/Obsidian) emit `<a data-import-link="<targetKey>">` for
@@ -116,6 +134,10 @@ export function mapCheckboxLists(doc) {
 
 let _ext
 export function htmlToNote(html) {
+  // A body the importer already holds (a note from our own JSON export) is answered with
+  // that body, never re-derived from HTML it does not have (`uctJson.js::heldBody`).
+  const held = heldBody(html)
+  if (held) return { bodyJson: held, bodyPlain: extractPlainText(held) }
   _ext = _ext || buildExtensions()
   const bodyJson = generateJSON(sanitizeHtml(html), _ext)
   return { bodyJson, bodyPlain: extractPlainText(bodyJson) }

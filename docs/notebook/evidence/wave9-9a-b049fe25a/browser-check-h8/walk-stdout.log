@@ -1,0 +1,16 @@
+PASS sandbox healthy {}
+PASS corpus seeded through import/confirm {"notes": 992}
+PASS All notes open {}
+PASS probe pasted (DevTools paste equivalent) {"version": "uct-bench-probe/1"}
+PASS await __uctBench.selfTest() {"ms": 211.2, "window": [195, 260]}
+FAIL __uctBench.check('zzqbpasteendcbashq') prints absent {"printed": false}
+PASS Ctrl+A, Ctrl+C in paste-payload.html; the UCT page reads text/html {"clipboard": ["text/plain:38137", "text/html:147328"]}
+PASS console line: __uctBench.arm('paste', {"endMarker": "zzqbpasteendcbashq", "reps": 5, "timeoutMs": 15000}) {"printed": "[uctBench] armed paste for 5 reps; target absent now"}
+PASS rep 1: + New note, body, Ctrl+V, landed, All notes {"url": "/journal/notebook?view=all"}
+PASS rep 2: + New note, body, Ctrl+V, landed, All notes {"url": "/journal/notebook?view=all"}
+PASS rep 3: + New note, body, Ctrl+V, landed, All notes {"url": "/journal/notebook?view=all"}
+PASS rep 4: + New note, body, Ctrl+V, landed, All notes {"url": "/journal/notebook?view=all"}
+PASS rep 5: + New note, body, Ctrl+V, landed, All notes {"url": "/journal/notebook?view=all"}
+PASS copy(__uctBench.dump('uct', 'H8')) saved {"status": "COMPLETE", "samples": [40.6, 22, 20.6, 20.7, 21.5], "invalid": [], "refused": null}
+PASS no page errors {"errors": []}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-b049fe25a\browser-check-h8\integrity.md

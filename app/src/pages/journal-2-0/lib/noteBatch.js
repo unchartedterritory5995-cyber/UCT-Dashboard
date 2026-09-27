@@ -56,6 +56,9 @@ import { settleNoteWrites } from './offline/settleNoteWrite'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
 import { noteHasUnsentWork } from './offline/noteHasUnsentWork'
 import { openNotebookDb } from './offline/notebookDb'
+import {
+  DEFAULT_EXPORT_FORMAT, EXPORT_FORMATS, saveResponse,
+} from '../components/notebook/export/exportFormats'
 
 /** Ops that write the note row — refused for a blocked note. Favourites live
  *  in their own table and never touch the note, so they are allowed. So are
@@ -132,13 +135,20 @@ export async function checkUnsentWork(ids, { connect = openNotebookDb, timeoutMs
 }
 
 /**
- * @returns {Promise<{op, results: Array<{id, status, updatedAt?, error?}>,
- *                    changed: number, unchanged: number, failed: number}>}
- * @throws Error(message) when the request itself was refused (a 400/401/5xx):
- *         nothing was written, so there is nothing to land.
+ * THE pre-check a note-writing door runs before it sends anything: which of `ids`
+ * are `blocked` (a retired outbox entry; every note-writing op refuses it),
+ * `unsent` (words still on their way; `UNSENT_REFUSED_OPS` refuse it),
+ * `unchecked` (the device could not be asked; held back unless the member
+ * CONFIRMED going ahead, `acceptUnchecked`), and which may be sent.
+ *
+ * ⛔ Wave 8 final review, fix I-3: exported so the sample notebook's "Remove it"
+ * (a trash door of its own, `DELETE /api/j2/onboarding/sample-notebook`) asks
+ * exactly what the bulk trash asks, rather than a second copy of the rule that
+ * could drift from this one.
+ * @returns {Promise<{blocked: string[], unsent: string[], unchecked: string[], send: string[]}>}
  */
-export async function runNoteBatch({
-  ids, op, args = {}, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
+export async function precheckNoteBatch({
+  ids, op, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
 } = {}) {
   const isBlocked = (id) => NOTE_WRITING_OPS.has(op) && Boolean(blockedNoteIds?.has?.(id))
   const checked = UNSENT_REFUSED_OPS.has(op)
@@ -158,6 +168,21 @@ export async function runNoteBatch({
     else if (checked.unchecked.has(id) && !acceptUnchecked) unchecked.push(id)
     else send.push(id)
   }
+  return { blocked, unsent, unchecked, send }
+}
+
+/**
+ * @returns {Promise<{op, results: Array<{id, status, updatedAt?, error?}>,
+ *                    changed: number, unchanged: number, failed: number}>}
+ * @throws Error(message) when the request itself was refused (a 400/401/5xx):
+ *         nothing was written, so there is nothing to land.
+ */
+export async function runNoteBatch({
+  ids, op, args = {}, blockedNoteIds = null, connect, timeoutMs, acceptUnchecked = false,
+} = {}) {
+  const { blocked, unsent, unchecked, send } = await precheckNoteBatch({
+    ids, op, blockedNoteIds, connect, timeoutMs, acceptUnchecked,
+  })
   let body = { op, results: [] }
   if (send.length) {
     const res = await fetch('/api/j2/notes/batch', {
@@ -478,13 +503,22 @@ export function joinUndo(prev, undo) {
   return { undo: { ...undo, ids }, earlier: ids.length - undo.ids.length }
 }
 
+/** The member-facing name of an export format — `EXPORT_FORMATS`' own label, the ONE
+ *  vocabulary the Export dialog and each note's Export menu read (wave 9, lane 9D). */
+export function exportFormatLabel(format = DEFAULT_EXPORT_FORMAT) {
+  return EXPORT_FORMATS.find((f) => f.id === format)?.label || null
+}
+
 /**
  * The sentence after "Export selected": what went into the zip, and each note
- * that did not, BY NAME and why.
+ * that did not, BY NAME and why. ⛔ The format is named from `EXPORT_FORMATS`
+ * (wave 9, D1): a Word export never says "Markdown". An id the list does not
+ * know says only "a zip" rather than inventing a name.
  */
-export function describeExport({ count = 0, skipped = 0, blocked = [], unsent = [] }, { titleOf = () => null } = {}) {
+export function describeExport({ count = 0, skipped = 0, blocked = [], unsent = [], format = DEFAULT_EXPORT_FORMAT }, { titleOf = () => null } = {}) {
   const parts = []
-  if (count) parts.push(`Exported ${plural(count, 'note')} as a Markdown zip.`)
+  const label = exportFormatLabel(format)
+  if (count) parts.push(`Exported ${plural(count, 'note')} as a ${label ? `${label} ` : ''}zip.`)
   if (skipped) parts.push(`${skipped} could not be exported — they are in the Trash or no longer exist.`)
   const left = [
     ...blocked.map((id) => [id, FAILURE_WORDS.blocked]),
@@ -502,13 +536,22 @@ export function describeExport({ count = 0, skipped = 0, blocked = [], unsent = 
   return { message: parts.join(' '), tone: left.length ? 'partial' : 'ok' }
 }
 
+/** The selection export route, in `format` — the SAME `format=` parameter the format
+ *  routes take (`api/routers/notebook_export.py`), and the same ids. */
+export function selectionExportUrl(format = DEFAULT_EXPORT_FORMAT) {
+  return `/api/j2/notes/batch/export?format=${encodeURIComponent(format)}`
+}
+
 /**
- * Download the selected notes as one Markdown zip, through the same export
- * the whole-notebook dialog uses (the server gathers per-note exports).
- * @returns {Promise<{count: number, skipped: number}>}
+ * Download the selected notes as one zip in `format` (Markdown, a web page, JSON or
+ * Word — `EXPORT_FORMATS`), through the SAME archive writer the whole-notebook export
+ * uses. ⛔ The file is saved by `saveResponse`, which names it with
+ * `filenameFromDisposition`: the RFC 5987 `filename*` first, so the name the server
+ * chose arrives whole (wave 9, D1).
+ * @returns {Promise<{count: number, skipped: number, format: string}>}
  */
-export async function exportSelectedNotes(ids) {
-  const res = await fetch('/api/j2/notes/batch/export', {
+export async function exportSelectedNotes(ids, format = DEFAULT_EXPORT_FORMAT) {
+  const res = await fetch(selectionExportUrl(format), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
@@ -521,20 +564,10 @@ export async function exportSelectedNotes(ids) {
     const detail = await res.json().then((b) => b?.detail).catch(() => null)
     throw new Error(detail ? String(detail) : `The export could not be prepared (server answered ${res.status}).`)
   }
-  const blob = await res.blob()
-  const disposition = res.headers.get('content-disposition') || ''
-  const filename = (/filename="([^"]+)"/.exec(disposition) || [])[1] || 'notebook-selection.zip'
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 0)
+  await saveResponse(res, 'notebook-selection.zip')
   return {
     count: Number(res.headers.get('x-export-count') ?? ids.length),
     skipped: Number(res.headers.get('x-export-skipped') ?? 0),
+    format,
   }
 }

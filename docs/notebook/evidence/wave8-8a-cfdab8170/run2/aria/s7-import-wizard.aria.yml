@@ -1,0 +1,13 @@
+- dialog:
+  - text: Import notes
+  - button "Close": ×
+  - paragraph: Or connect an app — your notes stay in sync automatically
+  - button "Connect Roam Research"
+  - button "Connect Craft"
+  - paragraph: Drop your export here
+  - paragraph: A zip, a folder, or individual files — Notion, Obsidian, Evernote, Craft, Roam, or plain Markdown / Text / HTML / Word.
+  - button "Choose files"
+  - button "Choose a folder"
+  - button "Files to import"
+  - button "Folder to import"
+  - button "How do I get my export file?"

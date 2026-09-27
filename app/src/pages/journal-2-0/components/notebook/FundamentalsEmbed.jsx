@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import FundamentalsWidget from '../../../charts/widgets/FundamentalsWidget'
 import { frozenWorkspaceValue } from './frozenWorkspace'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * The fundamentals journal renderer: the REAL FundamentalsWidget under the
@@ -24,7 +25,9 @@ export default function FundamentalsEmbed({ attrs, height = 320 }) {
   }), [params.symbol, params.data, params.company, params.settings])
   const opts = useMemo(() => ({ view: params.view }), [params.view])
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <WorkspaceContext.Provider value={value}>
         <FundamentalsWidget
           color="A"

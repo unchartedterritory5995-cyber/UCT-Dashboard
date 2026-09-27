@@ -2,12 +2,66 @@
 """
 Stores alerts in memory (TTLCache) and optionally fires Discord webhooks.
 
-Alert types:
-    regime_change  — market phase transition (e.g. Markup → Distribution)
-    stop_hit       — UCT20 position hit -6% hard stop
-    scanner_match  — new high-conviction scanner candidate (score >= 80)
-    ep_resolved    — entry point candidate stopped or hit target
-    exposure_shift — exposure rating moved 20+ points
+⭐ THE BROADCAST ALERT TYPES, AND WHETHER EACH CAN REACH A MEMBER TODAY
+──────────────────────────────────────────────────────────────────────
+⚰️ This list named five types with no status column at all, so it read as five
+shipping features. THREE OF THE FIVE CANNOT REACH A MEMBER. That is what was
+wrong — not, in the end, the code: a reader who believes five types are live
+spends planning on two emitters nothing calls and one type with no
+implementation, and nothing in the repo contradicted them.
+
+⛔ THE STATUS COLUMN IS A CONTRACT, NOT PROSE.
+``tests/test_alerts_broadcast_type_reachability.py`` DERIVES each status from
+this repo's own source — the emitters in this file, and their call sites outside
+``tests/`` — and fails BY NAME when a row and the code disagree. Wire one of
+these up and the row must move, or the rail goes red.
+
+    regime_change  [LIVE]            — market phase transition (e.g. Markup → Distribution)
+    stop_hit       [NOT WIRED]       — UCT20 position hit -6% hard stop
+    scanner_match  [NOT WIRED]       — new high-conviction scanner candidate (score >= 80)
+    ep_resolved    [NOT IMPLEMENTED] — entry point candidate stopped or hit target
+    exposure_shift [LIVE]            — exposure rating moved 20+ points
+
+  LIVE            — an ``alert_*`` emitter at the bottom of this file, with at
+                    least one caller outside ``tests/``. Both live ones are
+                    called from ``api/routers/push.py`` on a wire push.
+  NOT WIRED       — the emitter exists and works; NOTHING outside ``tests/``
+                    calls it. Kept on purpose — see below — not deleted.
+  NOT IMPLEMENTED — there is no emitter. What exists is a ``_TYPE_SEVERITY`` row
+                    and a bell glyph in ``AlertBell.jsx``, and BOTH ARE INERT:
+                    ``_TYPE_SEVERITY.get(type, SEVERITY_INFO)`` already returns
+                    INFO for an unknown type, so that row changes no behaviour,
+                    and the icon map is a per-row lookup
+                    (``TYPE_ICONS[a.type] || 'bell'``) with no legend and no
+                    filter list — nothing in the UI advertises this type to a
+                    member, so nobody is being promised a feature.
+
+⭐ WHY THE TWO NOT-WIRED EMITTERS STAY, AND THE PART WORTH KNOWING BEFORE YOU
+DELETE EITHER: **the member is already told about both, in a different
+vocabulary.** ``kind="stop_hit"`` and ``kind="scanner_match"`` are LIVE insight
+kinds — ``awareness/rules.py`` fires the first at importance 10, and
+``voice_proactive_service.py`` the second — rendered as "At Stop" and "Scanner"
+in ``CompassTodayTile.jsx``. So each of those two words is simultaneously a dead
+ALERT type here and a live INSIGHT kind two modules away. Deleting these
+emitters would not remove ``stop_hit`` from the product: it would leave the word
+live, leave the severity row and the bell glyph orphaned, and leave this list
+unable to say anything true about either. They are a half-product missing only
+its notification wire, not dead weight.
+
+⚠️ ``alert_scanner_match`` additionally carries a privacy rail:
+``tests/test_alerts_privacy.py::test_a_broadcast_alert_reaches_every_member``
+uses it as the representative BROADCAST producer to prove the 2026-08-06 scoping
+fix did not over-scope and silence the market-wide feed. Deleting the emitter
+means editing that rail — a bad trade for four lines.
+
+⚠️ AND THIS TABLE IS THE BROADCAST FAMILY, NOT "the alert types". ``add_alert``
+accepts any string; the live private/system types live elsewhere —
+``price_alert`` and ``document_arrival`` (``watchlist_alert_service``),
+``wire_missed`` (the watchdog in ``api/main.py``), ``exposure_gate``,
+``notebook_task_reminder``, plus whatever ``deliver_alert_payload``'s ``source``
+argument carries at runtime. A status above is therefore about a LITERAL
+producer, and the rail says so in its own docstring: a dynamic
+``add_alert(source, …)`` is not something source-reading can settle.
 
 ⭐ TWO AUDIENCES, ONE FUNCTION — the scoping contract (2026-08-06)
 ──────────────────────────────────────────────────────────────────
@@ -22,11 +76,13 @@ member's alerts.
 purpose:
 
   • ``user_id=None`` → **BROADCAST**. Visible to every logged-in member. This is
-    the honest shape for the callers that genuinely have no user:
-    ``regime_change``, ``scanner_match``, ``exposure_shift``, ``ep_resolved``,
-    ``stop_hit`` and the wire watchdog in ``api/main.py``. Forcing a user id on
-    them would either break them or silently attribute a market-wide event to
+    the honest shape for the callers that genuinely have no user: every type in
+    the table above, plus the wire watchdog in ``api/main.py``. Forcing a user id
+    on them would either break them or silently attribute a market-wide event to
     one arbitrary account.
+    ⛔ The five names are deliberately NOT re-listed here. They were, and that
+    made this paragraph a SECOND authority over the same value — the copy that
+    goes stale first, because nothing fails when it does. One table, one rail.
 
   • ``user_id="…"`` → **PRIVATE**. Visible only to that member. Every caller on
     the member delivery path already HAS the id — ``watchlist_alert_service``

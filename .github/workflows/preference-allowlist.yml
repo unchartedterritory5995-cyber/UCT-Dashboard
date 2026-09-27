@@ -1,0 +1,54 @@
+# promotion-gate: no — ADVISORY. A red here names a `setPref(` key with no allow-list row; it
+#   must never hold a promotion (ruling D-A2's rule: a new workflow is advisory until it has
+#   been seen red once and green once in CI).
+# preference allow-list — every key the client writes must be one the server accepts.
+#
+# ⚰️ WHY THIS EXISTS (2026-09-26). `POST /api/auth/preferences` refuses any key missing from
+# `api/routers/auth.py` `_PREFERENCE_KEYS` with 400 "Unknown preference key", and the client's
+# `setPref(` fails quietly, so the member's choice simply never saves. That shipped three times:
+# the Screener's column presets / favourites / chips (2-5 days), the Watchlists performance
+# columns, and the Notebook's daily-note template (wave 6, #193, ~13 hours in production).
+# `tests/test_preference_key_validation.py::test_every_key_the_client_writes_is_still_accepted`
+# derives every key the client writes from `app/src` and drives each at the real endpoint — it
+# names the missing key exactly. It was RED on master for the whole daily-template window
+# because no landing ran it: it is a Python rail about a JavaScript writer, so the carry-over
+# tool's Python floor never owed it and the six-shard gate (vitest) never ran it.
+#
+# This job runs it on every PR and master push that can change either side. It is not a
+# required check; a red here on a PR is the signal that a `setPref(` key needs its row.
+name: preference allow-list
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'app/src/**'
+      - 'api/routers/auth.py'
+      - 'tests/test_preference_key_validation.py'
+      - '.github/workflows/preference-allowlist.yml'
+  pull_request:
+    paths:
+      - 'app/src/**'
+      - 'api/routers/auth.py'
+      - 'tests/test_preference_key_validation.py'
+      - '.github/workflows/preference-allowlist.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  allowlist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt pytest
+
+      - name: Every key the client writes is accepted by the server
+        run: python -m pytest tests/test_preference_key_validation.py -q -p no:cacheprovider

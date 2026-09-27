@@ -1,0 +1,30 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+=================================== ERRORS ====================================
+______________ ERROR collecting tests/test_gap_ledger_summary.py ______________
+tests\test_gap_ledger_summary.py:28: in <module>
+    gls = _load()
+tests\test_gap_ledger_summary.py:24: in _load
+    spec.loader.exec_module(mod)
+<frozen importlib._bootstrap_external>:762: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+tools\gap_ledger_summary.py:68: in <module>
+    @dataclass
+C:\Python314\Lib\dataclasses.py:1370: in dataclass
+    return wrap(cls)
+C:\Python314\Lib\dataclasses.py:1360: in wrap
+    return _process_class(cls, init, repr, eq, order, unsafe_hash,
+C:\Python314\Lib\dataclasses.py:1003: in _process_class
+    and _is_type(type, cls, dataclasses, dataclasses.KW_ONLY,
+C:\Python314\Lib\dataclasses.py:762: in _is_type
+    ns = sys.modules.get(cls.__module__).__dict__
+E   AttributeError: 'NoneType' object has no attribute '__dict__'. Did you mean: '__dir__'?
+=========================== short test summary info ===========================
+ERROR tests/test_gap_ledger_summary.py - AttributeError: 'NoneType' object ha...
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.25s

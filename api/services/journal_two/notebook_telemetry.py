@@ -53,6 +53,16 @@ def _ms_of(details: Any) -> float | None:
     return float(v)
 
 
+# ⭐ PUBLIC NAMES FOR TWO HELPERS ANOTHER READ REUSES (wave 9, lane 9C). The
+# 30-day soak's server read (`notebook_soak.py`) reports the same p50/p95 over
+# the same `ms` prop, split by population. It calls THESE — the very function
+# objects `event_counts` uses — so the two reads cannot compute a percentile or
+# parse a duration two different ways. Additive only: `event_counts` is
+# unchanged, and tests/test_notebook_soak.py pins both `is` identities.
+percentile = _percentile
+ms_of = _ms_of
+
+
 def event_counts(events: Iterable[str], conn=None) -> dict[str, Any]:
     """`{"windows": {"7": {event: {...}}, "30": {...}}}` — every event present,
     zero-filled, so an event that never fired reads as 0 and not as missing."""

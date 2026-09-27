@@ -2332,9 +2332,20 @@ NOTE_BATCH_EXPORT_MAX = 500
 @router.post("/notes/batch/export")
 def notes_batch_export_endpoint(
     payload: dict[str, Any],
+    format: str | None = Query(default=None),  # noqa: A002 -- the public query name
     user: dict = Depends(get_current_user),
 ) -> StreamingResponse:
-    """The SELECTED notes as one Markdown zip — `{ids}`.
+    """The SELECTED notes as one zip — `{ids}`, in `?format=md|html|json|docx`
+    (absent is Markdown, exactly the archive this route has always sent).
+
+    ⛔ Wave 9 lane 9D (D1, ruling D-9D2): the format is the SAME parameter the
+    format routes take, checked by THEIR function (`notebook_export._format_or_422`
+    -- imported, never a copy of its 422 sentence) and decided BEFORE the export
+    slot is taken, so a refused request never costs another member the slot. It
+    goes straight to the one builder's `fmt=`, and the file name goes out through
+    the ONE `notes_export.content_disposition` (the RFC 5987 `filename*` the
+    client reads first). Trashed and foreign notes are skipped, counted and listed
+    in EXPORT_ISSUES.txt in every format, exactly as for Markdown.
 
     ⛔ REUSES THE EXISTING EXPORT, NEVER A SECOND MARKDOWN WRITER: this calls
     `notes_export.build_selection_export_to_tempfile` — the SAME archive
@@ -2360,28 +2371,28 @@ def notes_batch_export_endpoint(
     A note that is not the member's, or is in the trash, is not exported
     and is listed in EXPORT_ISSUES.txt — and counted in `X-Export-Skipped`
     so the client can say so without opening the zip."""
-    from api.services.journal_two.notes_export import (
-        acquire_export_slot, build_selection_export_to_tempfile, release_export_slot,
-        stream_export_file,
-    )
+    from api.routers.notebook_export import _format_or_422
+    from api.services.journal_two import notes_export
 
+    fmt = _format_or_422(format)
     ids = _parse_batch_ids((payload or {}).get("ids"), cap=NOTE_BATCH_EXPORT_MAX)
-    if not acquire_export_slot():
+    if not notes_export.acquire_export_slot():
         raise HTTPException(
             status_code=429,
             detail="An export is already running. Please wait a moment and try again.",
         )
     try:
-        tmp_path, filename, exported, skipped = build_selection_export_to_tempfile(user["id"], ids)
+        tmp_path, filename, exported, skipped = notes_export.build_selection_export_to_tempfile(
+            user["id"], ids, fmt=fmt)
     except Exception:
-        release_export_slot()
+        notes_export.release_export_slot()
         raise
 
     return StreamingResponse(
-        stream_export_file(tmp_path),
+        notes_export.stream_export_file(tmp_path),
         media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": notes_export.content_disposition(filename),
             "X-Export-Count": str(exported),
             "X-Export-Skipped": str(len(skipped)),
             "Access-Control-Expose-Headers": "X-Export-Count, X-Export-Skipped",
@@ -2952,66 +2963,9 @@ def get_ticker_research_summary_endpoint(
     return ticker_research.get_ticker_research_summary(user["id"], symbol)
 
 
-# ── Note share links (post-v1; screener-share idiom: token IS the credential).
-# ⛔ ALL FIVE endpoints are flag-gated (J2_SHARE_LINKS_ENABLED, default OFF →
-# 404, nothing reachable) — owner-side (mint/status/revoke) AND the public
-# read pair alike. Until 2026-09-22 only the public pair checked the flag;
-# the owner-side three relied entirely on the frontend's separate `isAdmin`
-# gate (NoteEditorPage.jsx) to keep the Share button from ever being clicked
-# while the mechanism is off. That was inert (an admin-minted token still
-# 404s on public resolution while the flag is off) but was the one place this
-# design leaned on a second gate doing work the backend could do on its own —
-# competitive audit finding Collaboration F2, 2026-09-22.
-from api.services.journal_two import note_shares
-
-
-@router.get("/notes/{note_id}/share")
-def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"share": note_shares.get_share(user["id"], note_id)}
-
-
-@router.post("/notes/{note_id}/share")
-def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    share = note_shares.create_share(user["id"], note_id)
-    if share is None:
-        raise HTTPException(status_code=404, detail="note not found")
-    return {"share": share}
-
-
-@router.delete("/notes/{note_id}/share")
-def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"revoked": note_shares.revoke_share(user["id"], note_id)}
-
-
-@router.get("/shared/{token}")
-def resolve_shared_note_endpoint(token: str) -> dict[str, Any]:
-    """PUBLIC — no auth by design (a link that only opens for people with an
-    account is not sharing). The token is the credential; the payload is
-    sanitized; the flag is the master switch."""
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    payload = note_shares.resolve_share(token)
-    if payload is None:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"note": payload}
-
-
-@router.get("/shared/{token}/att/{sub}/{filename}")
-def serve_shared_attachment_endpoint(token: str, sub: str, filename: str) -> Any:
-    """PUBLIC image proxy for a shared note — images only, token-scoped to
-    exactly that note's directory, path-traversal guarded downstream."""
-    if not note_shares.enabled():
-        raise HTTPException(status_code=404, detail="Not found")
-    path = note_shares.resolve_share_attachment(token, sub, filename)
-    if path is None:
-        raise HTTPException(status_code=404, detail="Not found")
-    return FileResponse(str(path))
+# ── Note share links: MOVED to api/routers/notebook_shares.py (wave 8, seam S8-2).
+# Same paths, same handlers, same flag checks; that router is mounted BEFORE this one
+# in api/main.py. tests/test_notebook_share_routes.py fails if a share route comes back here.
 
 
 @router.get("/inbox")

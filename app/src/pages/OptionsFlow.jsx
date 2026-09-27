@@ -55,6 +55,10 @@ import FlowIcon from "./optionsFlow/FlowIcon";
 // PACKET-AA CP2 (2026-09-25): the one mount for the AI print explainer. Additive only --
 // a new import, a new <th>, a new <td>; no existing element or inline style is touched.
 import FlowExplainButton from "./optionsFlow/FlowExplainButton";
+// TERM-029 (2026-09-26): the GEX dealer-positioning assumption, at the number.
+// Additive only -- this import and two <GexAssumptionNote/> mounts; every string,
+// style and ruling lives in optionsFlow/GexAssumptionNote.jsx + gexAssumption.js.
+import GexAssumptionNote from "./optionsFlow/GexAssumptionNote";
 import { parseExpiry as _explainParseExpiry, computeDTE as _explainComputeDTE } from "./optionsFlow/flowCompute";
 import {
   P,
@@ -4497,6 +4501,7 @@ export default function OptionsFlowDashboard() {
                     <div style={{ fontSize:10, color:P.dm, marginBottom:3, textTransform:"uppercase", letterSpacing:1 }}>Total GEX</div>
                     <div style={{ fontSize:18, fontWeight:900, color:gexData.totalGex>0?P.bu:P.be }}>{fmtGex(gexData.totalGex)}</div>
                     <div style={{ fontSize:10, color:P.dm, marginTop:3 }}>{(gexData.warnings ? gexData.warnings.below_danger_active : (gexData.zeroGamma && gexData.spot < gexData.zeroGamma)) ? <><FlowIcon name="warning"/> Below danger line</> : gexData.totalGex > 0 ? "Safety net ON" : "Safety net OFF"}</div>
+                    <GexAssumptionNote adjusted={gexData.adjusted} />
                   </div>
                 </div>
 
@@ -5137,6 +5142,7 @@ export default function OptionsFlowDashboard() {
                             })()}
                           </div>
                         )}
+                        <GexAssumptionNote adjusted={gexData.adjusted} />
                       </div>
                       <div style={{ position:"relative", padding:"0 4px" }}>
                         <div style={{ position:"relative", height:20, borderRadius:8, background:"linear-gradient(90deg, "+P.be+"33 0%, "+P.be+"33 20%, #1a2035 20%, #1a2035 40%, "+P.bu+"33 40%)" }}>

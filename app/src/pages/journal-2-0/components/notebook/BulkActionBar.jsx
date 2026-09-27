@@ -1,7 +1,8 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import TagSuggestInput from './TagSuggestInput'
+import { EXPORT_FORMATS } from './export/exportFormats'
 import styles from './BulkActionBar.module.css'
 
 /** "Parent / Child" for every folder, sorted by that path. */
@@ -43,6 +44,13 @@ export const UNFILED_VALUE = '__unfiled__'
  * `role="group"`, not "toolbar": a toolbar promises roving arrow-key focus, and
  * this bar is Tab-only (review N4).
  *
+ * ⛔ EXPORT OFFERS EVERY FORMAT (wave 9, lane 9D, D1). "Export selected" opens a
+ * panel below the bar — the SAME disclosure idiom as Tags (`aria-expanded` +
+ * `aria-controls`, native buttons inside, Tab-only) — listing `EXPORT_FORMATS`,
+ * the ONE vocabulary the Export dialog and each note's Export menu read, each
+ * with what it keeps. Choosing one calls `onExport(<format id>)`. Escape closes
+ * the panel and hands focus back to the button that opened it.
+ *
  * ⛔ It never reports outcomes itself. The sentence that says what happened
  * (and the Undo after a trash) is rendered by NotebookTab, OUTSIDE this bar,
  * because the bar unmounts the moment the selection empties — a message owned
@@ -67,6 +75,7 @@ export default function BulkActionBar({
   onRemoveTag,
   onFavorite,
   onUnfavorite,
+  /** Called with the chosen format's id (`EXPORT_FORMATS[].id`). */
   onExport,
   onTrash,
   onRestore,
@@ -76,9 +85,12 @@ export default function BulkActionBar({
   const { folders } = useJ2NoteFolders()
   const folderOptions = useMemo(() => folderPathOptions(folders), [folders])
   const [tagsOpen, setTagsOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
   const [moveChoice, setMoveChoice] = useState('')
   const tagPanelId = useId()
+  const exportPanelId = useId()
+  const exportToggleRef = useRef(null)
   // A chosen folder that has since been deleted is no choice at all.
   const moveTarget = moveChoice === UNFILED_VALUE || folderOptions.some((f) => f.id === moveChoice)
     ? moveChoice : ''
@@ -98,6 +110,44 @@ export default function BulkActionBar({
     onAddTag(t)
     setTagDraft('')
   }
+
+  // One panel at a time: opening Export closes Tags, and the other way round.
+  const toggleExport = () => {
+    setExportOpen((o) => !o)
+    setTagsOpen(false)
+  }
+  const chooseExport = (format) => {
+    if (busy) return
+    setExportOpen(false)
+    onExport(format)
+  }
+  const onExportPanelKeyDown = (e) => {
+    if (e.key !== 'Escape') return
+    // The panel's own Escape: it must not also reach the page's "Esc clears the
+    // selection" (NotebookTab skips an Esc already marked handled).
+    e.preventDefault()
+    e.stopPropagation()
+    setExportOpen(false)
+    exportToggleRef.current?.focus()
+  }
+
+  const exportButton = (
+    <button
+      ref={exportToggleRef}
+      type="button"
+      className={styles.action}
+      aria-expanded={exportOpen}
+      aria-controls={exportPanelId}
+      onClick={toggleExport}
+      disabled={busy}
+    >
+      <UIcon name="download" size={14} gold={false} />
+      {/* "selected", not bare "Export": the toolbar above already has an
+          Export that downloads the WHOLE notebook. */}
+      Export selected
+      <UIcon name="chevronDown" size={12} gold={false} />
+    </button>
+  )
 
   return (
     <div className={styles.bar} role="group" aria-label="Actions for the selected notes">
@@ -136,10 +186,7 @@ export default function BulkActionBar({
               <UIcon name="library" size={14} gold={false} />
               Unarchive
             </button>
-            <button type="button" className={styles.action} onClick={onExport} disabled={busy}>
-              <UIcon name="download" size={14} gold={false} />
-              Export selected
-            </button>
+            {exportButton}
             <button type="button" className={`${styles.action} ${styles.danger}`} onClick={onTrash} disabled={busy}>
               <UIcon name="trash" size={14} gold={false} />
               Move to Trash
@@ -181,7 +228,7 @@ export default function BulkActionBar({
               className={styles.action}
               aria-expanded={tagsOpen}
               aria-controls={tagPanelId}
-              onClick={() => setTagsOpen((o) => !o)}
+              onClick={() => { setTagsOpen((o) => !o); setExportOpen(false) }}
               disabled={busy}
             >
               <UIcon name="tag" size={14} gold={false} />
@@ -195,12 +242,7 @@ export default function BulkActionBar({
               <UIcon name="star-fill" size={14} gold={false} />
               Unfavorite
             </button>
-            <button type="button" className={styles.action} onClick={onExport} disabled={busy}>
-              <UIcon name="download" size={14} gold={false} />
-              {/* "selected", not bare "Export": the toolbar above already has an
-                  Export that downloads the WHOLE notebook. */}
-              Export selected
-            </button>
+            {exportButton}
             <button type="button" className={styles.action} onClick={onArchive} disabled={busy}>
               <UIcon name="library" size={14} gold={false} />
               Archive
@@ -213,6 +255,32 @@ export default function BulkActionBar({
         )}
         {busy && <span className={styles.busy} role="status">Working…</span>}
       </div>
+
+      {!trashView && exportOpen && (
+        <div
+          id={exportPanelId}
+          className={styles.tagPanel}
+          role="group"
+          aria-labelledby={`${exportPanelId}-label`}
+          onKeyDown={onExportPanelKeyDown}
+        >
+          <span id={`${exportPanelId}-label`} className={styles.removeLabel}>Export the selected notes as</span>
+          {EXPORT_FORMATS.map((f) => (
+            <div key={f.id} className={styles.removeRow}>
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => chooseExport(f.id)}
+                disabled={busy}
+                aria-describedby={`${exportPanelId}-${f.id}`}
+              >
+                {f.menuLabel}
+              </button>
+              <span id={`${exportPanelId}-${f.id}`} className={styles.hint}>{f.keeps}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {!trashView && !archiveView && tagsOpen && (
         <div id={tagPanelId} className={styles.tagPanel}>

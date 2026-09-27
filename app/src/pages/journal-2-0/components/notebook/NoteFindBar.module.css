@@ -30,7 +30,8 @@
   width: 200px;
   background: transparent;
   border: none;
-  outline: none;
+  /* Wave 8 (8A): no `outline: none` -- the app-wide :focus-visible ring is
+     the only thing that shows a keyboard user the find field has focus. */
   font-size: 13px;
   color: var(--text-bright);
 }

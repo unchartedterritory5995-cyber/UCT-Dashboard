@@ -60,7 +60,8 @@ export default function DocumentPreviewSheet({
     >
       <div className={styles.bar}>
         <span className={styles.name}>{name || 'Document'}</span>
-        <div className={styles.actions}>
+        {/* Wave 8 (8A): the sheet's own controls, as one named group. */}
+        <div className={styles.actions} role="group" aria-label="Document actions">
           <a
             className={styles.actionLink}
             href={href}

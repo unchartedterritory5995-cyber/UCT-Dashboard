@@ -1,0 +1,22 @@
+- heading "All notes" [level=2]
+- combobox "Sort notes":
+  - option "Recently updated" [selected]
+  - option "Recently created"
+  - option "Title"
+- button "List view"
+- button "Table view"
+- button "Board view"
+- button "Calendar view"
+- button "Graph view" [pressed]
+- button "Timeline view"
+- button "Tasks view"
+- button "Import"
+- button "Export"
+- button "Today"
+- button "Templates"
+- button "+ New note"
+- text: 10 notes 4 links 4 unlinked
+- button "Show as list"
+- 'application "Note graph: 10 notes, 4 links"'
+- paragraph: Arrow keys move to the nearest note in that direction. Home and End go to the first and last note by title. Enter opens the selected note. Escape clears the selection. Show as list gives the same notes as a table.
+- text: SR pass 8A, 2 links Showing 10 of 10 notes

@@ -1,0 +1,11 @@
+  [H1] 2 dump(s)
+  [H2] 2 dump(s)
+  [H2-full] 2 dump(s)
+  [H3] 2 dump(s)
+  [H3-full] 2 dump(s)
+  [H4] 2 dump(s)
+  [H5] 2 dump(s)
+  [H6] 3 dump(s)
+  [H7] 3 dump(s)
+  [H8] 0 dump(s) -- rep 2: '+ New note' was clicked and no note opened within 15 s (the URL stayed 'view=all'); nothing was pasted
+  [H9] 5 dump(s)

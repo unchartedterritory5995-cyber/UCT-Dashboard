@@ -43,6 +43,18 @@ _KEYS = {
         "DISCORD_WEBHOOK_URL",
         "STRIPE_SECRET_KEY",
         "STRIPE_WEBHOOK_SECRET",
+        # TERM-011 / RM-N09 step 1 -- the ops/business routing destinations.
+        # NAMED, UNREAD: they are set on no service, nothing routes by them yet
+        # (api/services/alert_routing.py is a resolver with no caller), and they
+        # are here because "a variable that is not in this list is a variable
+        # nobody can check without Railway". Blank is how each is turned off --
+        # never removed (feedback_kill_switch_never_a_delete).
+        "DISCORD_OPS_WEBHOOK_URL",
+        "DISCORD_BUSINESS_WEBHOOK_URL",
+        # A DELIVERY-ONLY address var, deliberately NOT ADMIN_EMAILS: an address
+        # in ADMIN_EMAILS is promoted to role=admin on signup and on login, so
+        # adding one there to receive a page would grant it production admin.
+        "OPS_ALERT_EMAIL_TO",
     ],
     "feature_flags": [
         "TWITTERAPI_IO_ENABLED",
@@ -50,6 +62,10 @@ _KEYS = {
         "WORKER_ENABLED",
         "FUNDAMENTALS_MONITOR_ENABLED",
         "PROVIDER_COVERAGE_MONITOR_ENABLED",
+        # Kill switch, so UNSET IS ON -- read per call in
+        # alert_routing.routing_enabled(). Reported here so "off on purpose" can
+        # be told apart from "nobody set it" without a Railway read.
+        "ALERT_ROUTING_ENABLED",
     ],
 }
 

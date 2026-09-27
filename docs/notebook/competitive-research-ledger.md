@@ -101,3 +101,25 @@ were added to the gap ledger as new rows, not retrofitted into Phase Zero/One's
 text. One major finding — the account-deletion FK gap — is now recorded as
 **RESOLVED** in the gap ledger, the most consequential status change since Phase
 One's research.
+
+---
+
+## Wave 9 — Lane 9B parity re-score (2026-09-26)
+
+Every competitor cell in `docs/notebook/parity-scorecard.md` §A traces to one of these rows.
+Method, written because the discarded passes above (R03, R04, R05, R07, R10) were model
+summaries that invented facts: **no model summarised any page.** Each page was fetched once
+by a script (`curl`-style GET with a browser User-Agent), its raw bytes hashed (sha256) and
+its visible text extracted; a quote was then cut from that text by hand and a second script
+refused any quote not present verbatim (whitespace-normalised) or longer than 25 words. The
+scorecard's "Citations index" lists every URL with its fetch time and sha256 prefix, so the
+controller's 10% re-fetch control (ruling D-9B3) is mechanical. Raw pages were kept in the
+lane's scratch directory, not committed (they are the vendors' pages, not ours).
+
+| ID | Product/Domain | Pass Type | Scenario | Source Classes | Date | Outcome | Confidence | Scorecard Section |
+|---|---|---|---|---|---|---|---|---|
+| R12 | Notion | Official help-centre fetch, `https://www.notion.com/help/<slug>` | 49 help articles covering the wave-9 inventory (editor blocks, databases and views, search, sharing, publishing, export/import, offline, AI, API, security, onboarding) | B (official help) | 2026-09-26 (19:21:11–19:21:58 UTC) | **Valid, kept** — 49 of 49 HTTP 200; quotes cut from the extracted text | B | §A, Citations index |
+| R13 | Obsidian | Official help fetch; text read from Obsidian's own publish host (`publish-01.obsidian.md/access/<site id>/<page>.md`), which the client-side `obsidian.md/help/<permalink>` pages render; the public URL is taken from each page's own `permalink` | 63 help pages (formatting, callouts, tags, properties, core plugins, Bases, Sync, Publish, Web Clipper, import, URI, iOS) | B (official help) | 2026-09-26 (19:21:59–19:22:34 UTC) | **Valid, kept** — 63 of 63 HTTP 200 (two pages, Outline and Footnotes view, are short but complete) | B | §A, Citations index |
+| R14 | Evernote | Official marketing / plan / release-notes fetch on `evernote.com` | 18 pages: compare plans, features, tasks, web clipper, sync, document scanning, release notes, what's new, security, templates, AI pages, integrations, MCP, privacy, documents storage | B (official product pages) | 2026-09-26 (19:22:35–19:22:48 UTC) | **Valid, kept, partial** — 17 HTTP 200; `https://evernote.com/features/note-taking` HTTP 404 (nothing cited from it). Marketing pages state capabilities, not limits, so many Evernote cells read `not verified` | B–C | §A, Citations index |
+| R15 | Evernote help centre | Official help fetch, `https://help.evernote.com/hc/en-us/articles/208313748` | the help centre, as the Evernote analogue of R12/R13 | — | 2026-09-26 (~19:17 UTC) | **Failed, logged** — a Cloudflare challenge page ("Just a moment...") to the scripted fetch, and HTTP 403 through the WebFetch tool; nothing from help.evernote.com is cited anywhere | F (nothing obtained) | §A (every "help.evernote.com refused" cell) |
+| R16 | All three | Local verification of the quote bank against R12–R14's extracted text (no network) | 132 quotes checked verbatim and for length before the scorecard was written | A (mechanical check of our own artifact) | 2026-09-26 | **Valid, kept** — 0 failures at write time. Before that, the check refused three drafts: one Obsidian quote written from memory that was not verbatim on the page (the Command palette sentence, replaced by the page's own sentence) and two over 25 words (Slash commands, Page preview, shortened to a prefix). Recorded because it is the failure mode R03–R10 were discarded for, caught by the instrument this time | A | §A |

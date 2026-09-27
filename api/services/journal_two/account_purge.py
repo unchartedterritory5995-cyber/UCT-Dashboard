@@ -80,6 +80,10 @@ _DIRECT_USER_TABLES = (
     "j2_capture_auth_codes",
     "j2_public_profiles",
     "j2_note_shares",
+    # Wave 8 (lane 8B, publish-to-web) — the member's public pages. Self-ensured by
+    # note_publish.py (never db.py), so on a pod where publishing never ran this is a
+    # "no such table" no-op. A page whose member is gone must not keep serving.
+    "j2_note_publications",
     # Note connectors / Obsidian sync
     "j2_note_connectors",
     "j2_note_sources",

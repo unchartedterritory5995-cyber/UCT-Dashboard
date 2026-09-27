@@ -17,6 +17,8 @@
   line-height: 1.6;
   color: var(--text);
 }
-.body :global(.ProseMirror) {
+/* Wave 8 (8A): a mouse click on the read-only preview draws no ring; a
+   keyboard focus still does (the app-wide :focus-visible rule). */
+.body :global(.ProseMirror):focus:not(:focus-visible) {
   outline: none;
 }

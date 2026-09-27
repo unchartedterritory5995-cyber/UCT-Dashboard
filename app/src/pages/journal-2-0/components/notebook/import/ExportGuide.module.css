@@ -58,7 +58,7 @@
   align-items: flex-start;
   gap: 6px;
   font-size: 12.5px;
-  color: var(--ut-gold-bright);
+  color: var(--ut-gold); /* 8A, A5: -bright does not follow the light theme (1.4:1 there) */
   line-height: 1.5;
 }
 .lineWarn svg {

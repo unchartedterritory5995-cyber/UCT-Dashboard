@@ -42,6 +42,14 @@ export default function NoteLinkView({ node }) {
       ? '…'
       : target.title
 
+  // Wave 8 (8A): what a screen reader hears. The chip's visible text stays its
+  // name when it names the note; the states whose text alone misleads get a
+  // sentence -- "…" while loading read as "ellipsis", and a trashed chip's
+  // title and badge ran together ("NVDA thesisTrashed").
+  const spoken = target.status === 'loading'
+    ? 'Linked note, loading'
+    : trashed ? `Linked note ${target.title}, in Trash` : undefined
+
   return (
     <NodeViewWrapper as="span" className={styles.wrap} data-note-link>
       <button
@@ -49,6 +57,7 @@ export default function NoteLinkView({ node }) {
         className={`${styles.chip} ${unavailable ? styles.chipUnavailable : ''} ${trashed ? styles.chipTrashed : ''}`}
         onClick={onClick}
         disabled={unavailable}
+        aria-label={spoken}
         contentEditable={false}
         title={trashed ? `${target.title} (in Trash)` : unavailable ? 'This note is no longer available' : `Open "${target.title}"`}
       >

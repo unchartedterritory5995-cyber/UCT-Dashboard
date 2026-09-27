@@ -1,0 +1,45 @@
+{
+ "probeVersion": "uct-bench-probe/1",
+ "app": "uct-sandbox-auto",
+ "op": "H4",
+ "kind": "search",
+ "status": "COMPLETE",
+ "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/145.0.7632.6 Safari/537.36",
+ "viewport": {
+  "width": 1280,
+  "height": 800,
+  "dpr": 1
+ },
+ "capturedAt": "2026-09-26T21:28:42.436Z",
+ "samples": [
+  312.1,
+  259.8,
+  257.7,
+  252.8,
+  258.8,
+  260.3,
+  263.5,
+  264.6,
+  262.8,
+  259.1
+ ],
+ "invalid": [],
+ "selfTest": {
+  "ok": true,
+  "ms": 207.9,
+  "version": "uct-bench-probe/1",
+  "delayMs": 200,
+  "window": [
+   195,
+   260
+  ],
+  "at": "2026-09-26T21:28:32.754Z",
+  "invalid": []
+ },
+ "reps": 10,
+ "attempts": 10,
+ "ignored": 0,
+ "target": {
+  "marker": "Early willow notebook 0002"
+ }
+}

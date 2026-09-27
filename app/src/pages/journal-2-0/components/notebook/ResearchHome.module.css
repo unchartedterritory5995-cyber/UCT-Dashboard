@@ -96,9 +96,9 @@
   padding: 2px 7px;
   border-radius: 999px;
 }
-.status_active { color: var(--gain); background: var(--gain-bg); }
+.status_active { color: var(--success-ink); background: var(--gain-bg); }
 .status_watching { color: var(--text-muted); background: rgba(152, 160, 170, 0.14); }
-.status_invalidated { color: var(--loss); background: var(--loss-bg); }
+.status_invalidated { color: var(--danger-ink); background: var(--loss-bg); }
 .status_closed { color: var(--text-muted); background: rgba(152, 160, 170, 0.1); }
 .chipMuted {
   font-size: 11px;
@@ -171,6 +171,72 @@
   }
   .rowMeta {
     flex-wrap: wrap;
+  }
+}
+
+/* Wave 8 lane 8C (C3): the sample notebook's strip and its messages. Small, one line, and
+   dismissible -- the sample is practice material, not the page. */
+.sampleStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.sampleStripText {
+  min-width: 0;
+}
+.sampleStripAction {
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--ut-gold);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.sampleStripAction:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.sampleStripDismiss {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.sampleStripAction:focus-visible,
+.sampleStripDismiss:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+  border-radius: var(--radius-sm, 4px);
+}
+.sampleNote {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.sampleError {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--danger-ink);
+}
+@media (max-width: 1024px) {
+  .sampleStripAction,
+  .sampleStripDismiss {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
   }
 }
 

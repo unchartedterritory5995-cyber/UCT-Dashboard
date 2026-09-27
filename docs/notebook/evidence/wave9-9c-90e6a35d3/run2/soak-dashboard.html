@@ -1,0 +1,174 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Soak dashboard (sandbox)</title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:1100px;margin:24px auto;color:#111}table{border-collapse:collapse;margin:8px 0}td,th{border:1px solid #bbb;padding:3px 8px}code{background:#f2f2f2;padding:0 3px}</style></head><body><h1>Notebook 30-day soak — dashboard</h1>
+<p>VERDICT: <strong>INCONCLUSIVE</strong></p>
+<ul>
+<li>generated: 2026-09-26 04:08 UTC</li>
+<li>window: 2026-09-26 04:04 UTC → 2026-10-26 04:04 UTC (30 days + 0.0 unobserved) · production SHA at start: <code>90e6a35d3</code></li>
+<li>days observed: 0.0 · unobserved: 0.0 · elapsed: 0.0</li>
+<li>observation rows: 1 · soak reads: 1</li>
+<li>alerts: desktop only — SUPPRESSED this run</li>
+</ul>
+<h2>Why this is not a PASS</h2>
+<ul>
+<li>exposure floor: 1 organic identities of 5 (exact, from the soak's first minute)</li>
+<li>exposure floor: 4 organic note-edit-days of 100</li>
+<li>exposure floor: 1 active days of 20</li>
+<li>2 fork(s) on 2026-09-26 not attributed (add <code>- FORK 2026-09-26: ATTRIBUTED — why</code>)</li>
+<li>window open: 30.0 day(s) to go (ends 2026-10-26 04:04 UTC)</li>
+</ul>
+<h2>Exposure floor (D-9C1)</h2>
+<table>
+<thead>
+<tr>
+<th>measure</th>
+<th>now</th>
+<th>floor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>organic identities</td>
+<td>1</td>
+<td>5</td>
+</tr>
+<tr>
+<td>organic note-edit-days</td>
+<td>4</td>
+<td>100</td>
+</tr>
+<tr>
+<td>active days</td>
+<td>1</td>
+<td>20</td>
+</tr>
+</tbody>
+</table>
+<p>Identities: exact, from the soak's first minute. A day's note edits are the largest figure any two-hour read reported for it (<code>j2_notes.updated_at</code> keeps only a note's last edit, so each read is a lower bound).</p>
+<h2>Integrity signals, by population</h2>
+<table>
+<thead>
+<tr>
+<th>signal</th>
+<th>organic</th>
+<th>synthetic</th>
+<th>rig/owner</th>
+<th>unknown internal</th>
+<th>unresolved</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>conflict_forked events</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>offline-layer conflicted copies</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>connector conflicted copies (lower bound)</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>blocked-baseline events</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>Notebook-page client errors</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>save_failed (all reasons)</td>
+<td>1</td>
+<td>1</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>Anonymous Notebook-page client errors: 0. Mini-canary runs in the window: 0.</p>
+<p>Forks by ET day (organic conflict events + offline copies + trigger-2 rises): 2026-09-26: 2</p>
+<h2>Config served (latest read, by identity)</h2>
+<p>organic 0/0 · synthetic 0/0 · rig_owner 0/0 · unknown_internal 0/0 · unresolved 0/0</p>
+<h2>Field speed — field: network + device (reported, never paged)</h2>
+<p>Basis: whole soak (cumulative read).</p>
+<table>
+<thead>
+<tr>
+<th>event</th>
+<th>n</th>
+<th>p50 ms</th>
+<th>p95 ms</th>
+<th>budget p95 ms</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>note_open_ms</td>
+<td>1</td>
+<td>116</td>
+<td>116</td>
+<td>300</td>
+<td></td>
+</tr>
+<tr>
+<td>search_used</td>
+<td>1</td>
+<td>64</td>
+<td>64</td>
+<td>100</td>
+<td></td>
+</tr>
+<tr>
+<td>ask_used</td>
+<td>1</td>
+<td>910</td>
+<td>910</td>
+<td>no budget set</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2>Sunday verdicts</h2>
+<p>none due yet</p>
+<h2>Restore drills (one PASS per 7-day block)</h2>
+<p>no full week elapsed yet</p>
+<h2>Incidents</h2>
+<p>none filed</p>
+<h2>Unobserved intervals (each extends the window)</h2>
+<p>none</p>
+<h2>Heartbeats</h2>
+<ul>
+<li>scheduled task: not checked</li>
+<li>rig sign-in: no standing SIGN-IN REQUIRED row</li>
+<li>admin read (C5): OK at 2026-09-26 04:08 UTC</li>
+</ul>
+<h2>Running copies vs the repo</h2>
+<ul>
+<li>equal <code>nb_observe.py</code> — copy <code>055b795f0f71</code> · repo <code>055b795f0f71</code></li>
+<li>equal <code>nb_gate.py</code> — copy <code>a843e4f37c27</code> · repo <code>a843e4f37c27</code></li>
+<li>equal <code>window_check.py</code> — copy <code>76c0a9a5cb7f</code> · repo <code>76c0a9a5cb7f</code></li>
+<li>equal <code>nb_soak.py</code> — copy <code>adcc40b32208</code> · repo <code>adcc40b32208</code></li>
+</ul>
+</body></html>

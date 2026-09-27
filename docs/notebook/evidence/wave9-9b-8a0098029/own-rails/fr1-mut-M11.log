@@ -1,0 +1,37 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...........F..                                                           [100%]
+================================== FAILURES ===================================
+_____________ test_every_cited_file_line_still_holds_its_fragment _____________
+
+    def test_every_cited_file_line_still_holds_its_fragment():
+        """tools/parity_scorecard.py --verify, offline: every CODE/RULING/RECORD/MEASURE file:line still
+        holds its quoted fragment, every WALK check still carries its verdict, every TEST log still carries
+        its totals line, every flag RECORD still matches master's ledger at be9ca78b6. When the code moves,
+        this goes red by name: re-read the citation, never trust it."""
+        counts, problems = psc.verify()
+        assert counts['CODE'] > 100 and counts['WALK'] > 20 and counts['TEST'] > 5 and counts['RECORD'] > 10, counts
+>       assert not problems, problems
+E       AssertionError: ['RECORD docs/notebook/competitive-gap-ledger.md:50 no longer holds "DONE — owner-accepted 2026-09-22.** Patrick reviewed the Railway infrastructure-"']
+E       assert not ['RECORD docs/notebook/competitive-gap-ledger.md:50 no longer holds "DONE — owner-accepted 2026-09-22.** Patrick reviewed the Railway infrastructure-"']
+
+tests\test_parity_scorecard.py:230: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 686 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 14 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_every_cited_file_line_still_holds_its_fragment
+1 failed, 13 passed, 701 warnings in 1.07s

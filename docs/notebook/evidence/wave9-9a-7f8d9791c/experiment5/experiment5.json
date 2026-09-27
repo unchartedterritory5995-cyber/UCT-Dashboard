@@ -1,0 +1,231 @@
+[
+ {
+  "at": "15:58:41",
+  "step": "sandbox healthy",
+  "ok": true
+ },
+ {
+  "at": "15:58:44",
+  "step": "seeded",
+  "api_total": 992
+ },
+ {
+  "at": "15:59:16",
+  "step": "W1",
+  "ok": false,
+  "error": "Locator.wait_for: Timeout 30000ms exceeded. | Call log: | - waiting for locator(\".ProseMirror\").first to be visible",
+  "url_now": "/journal/notebook?view=all",
+  "n_frames": 1,
+  "top_navApi": [
+   {
+    "k": "navigate",
+    "type": "replace",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+    "t": 133,
+    "frame": "top"
+   },
+   {
+    "k": "navigate",
+    "type": "push",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?note=6b42291ebf7540d0b956bb8f258aeb4b",
+    "t": 1493,
+    "frame": "top"
+   },
+   {
+    "k": "navigate",
+    "type": "traverse",
+    "userInitiated": true,
+    "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+    "t": 1773,
+    "frame": "top"
+   }
+  ],
+  "frames": [
+   {
+    "url": "http://127.0.0.1:8209/journal/notebook?view=all",
+    "main": true,
+    "trace": [
+     {
+      "k": "replaceState",
+      "url": "undefined",
+      "ev": "message",
+      "t": 133,
+      "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:70641)"
+     },
+     {
+      "k": "pushState",
+      "url": "/journal/notebook?note=6b42291ebf7540d0b956bb8f258aeb4b",
+      "ev": null,
+      "t": 1493,
+      "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:163873)"
+     },
+     {
+      "k": "popstate",
+      "t": 1773,
+      "url": "?view=all"
+     }
+    ],
+    "navApi": [
+     {
+      "k": "navigate",
+      "type": "replace",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+      "t": 133,
+      "frame": "top"
+     },
+     {
+      "k": "navigate",
+      "type": "push",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?note=6b42291ebf7540d0b956bb8f258aeb4b",
+      "t": 1493,
+      "frame": "top"
+     },
+     {
+      "k": "navigate",
+      "type": "traverse",
+      "userInitiated": true,
+      "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+      "t": 1773,
+      "frame": "top"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "at": "15:59:20",
+  "step": "W2",
+  "ok": true,
+  "error": null,
+  "url_now": "/journal/notebook?note=bfb0549798d846849de0618dcf51f415",
+  "n_frames": 1,
+  "top_navApi": [
+   {
+    "k": "navigate",
+    "type": "replace",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+    "t": 525,
+    "frame": "top"
+   },
+   {
+    "k": "navigate",
+    "type": "push",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?note=bfb0549798d846849de0618dcf51f415",
+    "t": 3388,
+    "frame": "top"
+   }
+  ],
+  "frames": [
+   {
+    "url": "http://127.0.0.1:8209/journal/notebook?note=bfb0549798d846849de0618dcf51f415",
+    "main": true,
+    "trace": [
+     {
+      "k": "replaceState",
+      "url": "undefined",
+      "ev": "message",
+      "t": 524,
+      "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:70641)"
+     },
+     {
+      "k": "pushState",
+      "url": "/journal/notebook?note=bfb0549798d846849de0618dcf51f415",
+      "ev": null,
+      "t": 3388,
+      "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:163873)"
+     }
+    ],
+    "navApi": [
+     {
+      "k": "navigate",
+      "type": "replace",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+      "t": 525,
+      "frame": "top"
+     },
+     {
+      "k": "navigate",
+      "type": "push",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?note=bfb0549798d846849de0618dcf51f415",
+      "t": 3388,
+      "frame": "top"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "at": "15:59:22",
+  "step": "W3",
+  "ok": true,
+  "error": null,
+  "url_now": "/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538",
+  "n_frames": 1,
+  "top_navApi": [
+   {
+    "k": "navigate",
+    "type": "replace",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+    "t": 96,
+    "frame": "top"
+   },
+   {
+    "k": "navigate",
+    "type": "push",
+    "userInitiated": false,
+    "dest": "http://127.0.0.1:8209/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538",
+    "t": 1354,
+    "frame": "top"
+   }
+  ],
+  "frames": [
+   {
+    "url": "http://127.0.0.1:8209/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538",
+    "main": true,
+    "trace": [
+     {
+      "k": "replaceState",
+      "url": "undefined",
+      "ev": "message",
+      "t": 95,
+      "stack": "at history.<computed> [as replaceState] (<anonymous>:9:59) | at e0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38468) | at t0 (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:37551) | at Xv (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:17442) | at ff (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:47902) | at Rf (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:8:70641)"
+     },
+     {
+      "k": "pushState",
+      "url": "/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538",
+      "ev": null,
+      "t": 1354,
+      "stack": "at history.<computed> [as pushState] (<anonymous>:9:59) | at N (http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:38746) | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:9:49028 | at http://127.0.0.1:8209/assets/vendor-react-cFHfmPl1.js:11:21740 | at qe (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:154716) | at hn (http://127.0.0.1:8209/assets/NotebookTab-mUeEYykl.js:3:163873)"
+     }
+    ],
+    "navApi": [
+     {
+      "k": "navigate",
+      "type": "replace",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?view=all",
+      "t": 96,
+      "frame": "top"
+     },
+     {
+      "k": "navigate",
+      "type": "push",
+      "userInitiated": false,
+      "dest": "http://127.0.0.1:8209/journal/notebook?note=d6eaa68f24ae439086c1999c39c65538",
+      "t": 1354,
+      "frame": "top"
+     }
+    ]
+   }
+  ]
+ }
+]

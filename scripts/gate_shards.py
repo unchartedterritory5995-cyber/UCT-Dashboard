@@ -420,6 +420,12 @@ GATE_READ_PATHS = (
     "api/services/journal_two/inbound_email.py",
     "api/services/journal_two/note_daily.py",
     "api/services/journal_two/note_personal_api.py",
+    # wave 8 added two (named by this rail on the wave-8 landing tree, 2026-09-26): the same door
+    # ledger (rail 5) now keys the sample-notebook door by its path, and
+    # `onboarding/sampleNotebook.test.js` reads the sample's JSON with fs (built from path
+    # segments, which is why the derivation rail names only the .py).
+    "api/services/journal_two/sample_notebook.py",
+    "api/services/journal_two/sample_notebook.json",
     # the Pine translator's own corpus + parity/lookback rails read these —
     # directories are whole-tree entries (same idiom as app/src above), the
     # rest are individual files `tests/test_the_read_set_covers_...` named

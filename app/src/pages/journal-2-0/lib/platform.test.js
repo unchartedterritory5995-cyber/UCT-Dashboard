@@ -1,7 +1,7 @@
 // Wave 5 fix round 1 (S7 + N2) — the Notebook's ONE answer to "is this a Mac?",
 // and the chords that depend on it.
 import { describe, it, expect, afterEach } from 'vitest'
-import { altKeyLabel, chordText, isMacPlatform, isReplaceChord, modKeyLabel, replaceChordKeys } from './platform'
+import { altKeyLabel, chordText, homeEndKeys, isMacPlatform, isReplaceChord, modKeyLabel, replaceChordKeys } from './platform'
 
 const setPlatform = (value) => Object.defineProperty(navigator, 'platform', { value, configurable: true })
 afterEach(() => { delete navigator.platform })
@@ -28,6 +28,18 @@ describe('labels a member reads', () => {
     setPlatform('Win32')
     expect([modKeyLabel(), altKeyLabel()]).toEqual(['Ctrl', 'Alt'])
     expect(chordText(replaceChordKeys())).toBe('Ctrl+H')
+  })
+})
+
+describe('homeEndKeys (wave 8, lane 8A): Home and End as the member presses them', () => {
+  it('on a Mac, which has neither key: Fn with the left and right arrows', () => {
+    setPlatform('MacIntel')
+    expect(homeEndKeys()).toEqual({ home: ['Fn', '←'], end: ['Fn', '→'] })
+  })
+
+  it('elsewhere: the keys themselves', () => {
+    setPlatform('Win32')
+    expect(homeEndKeys()).toEqual({ home: ['Home'], end: ['End'] })
   })
 })
 

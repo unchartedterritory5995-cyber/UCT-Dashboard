@@ -1,0 +1,1672 @@
+
+  [pre-boot] shared data root baseline: 62 db files hashed (sha256)
+  [pre-boot] integrity log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\plans\joystick\sandbox-runs\2026-09-26T16-13-20.md
+  [pre-boot] sandbox identity: f0458a52e800a0349b505ce0a0129276 (served at /__uct_sandbox_identity)
+
+  --------------------------------------------------------------------
+  HUB SANDBOX
+  --------------------------------------------------------------------
+  Data dir     : C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6
+  Admin        : hubtest@local.dev
+  URL          : http://localhost:8210
+  Path pins    : 87 env vars, DERIVED by AST from api/**
+  Kill-list    : 35 scheduler / outbound flags
+  Guard mode   : enforce
+  Shared roots : c:\data (writes RAISE)
+  --------------------------------------------------------------------
+
+  A 'SHARED-ROOT WRITE BLOCKED' banner below means the app tried to
+  reach live data and was stopped. Report it; do not ignore it.
+
+2026-09-26 16:13:32,958 INFO api.services.cap_universe: [cap-universe] loaded 3640 symbols
+2026-09-26 16:13:32,959 INFO api.routers.ticker_search: [ticker-search] loaded 3640 tickers from cap_universe
+2026-09-26 16:13:33,014 WARNING api.services.email_service: [email] RESEND_API_KEY not set — emails disabled
+2026-09-26 16:13:34,353 INFO api.liveflow_worker: [liveflow] no user blocklist file at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\liveflow_user_blocklist.json — seeded with 0 defaults: []
+2026-09-26 16:13:34,360 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-09-26 16:13:34,360 INFO api.liveflow_worker: [liveflow] ticker baselines loaded into worker memory (0 tickers)
+INFO:     Started server process [48592]
+INFO:     Waiting for application startup.
+[startup] access-log redaction armed for ['/journal/share']
+[startup] anyio thread limiter set to 64
+[startup] cache snapshot restored: 0/0 entries (age Nones)
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\auth.db
+[startup] tweets.db initialized
+[startup] desk.db initialized
+[startup] catalysts.db initialized
+[startup] wire_feedback.db initialized
+[startup] modelbook.db initialized
+[startup] news_catalysts.db initialized
+[startup] stock_brief.db initialized
+[startup] charts_layouts.db initialized
+[startup] user_definitions.db initialized
+[startup] education.db initialized
+2026-09-26 16:13:37,333 INFO api.main: community store ready
+2026-09-26 16:13:37,398 INFO api.main: alert_taxonomy: 8 trigger type(s) registered -- catalyst-match, document-arrival, event-proximity, indicator-condition, position-risk, price-level, regime-change, scan-membership-change (all DARK beyond document-arrival). A type appears here when its CP3 is signed, not when its module is written.
+2026-09-26 16:13:37,401 INFO api.main: rollout: cohort 's7-dark' seeded from role 'admin' (0 new tag rows)
+[startup] wisdom.db ready (migrations applied this boot: 27)
+2026-09-26 16:13:37,434 INFO api.main: chat presence broadcaster started
+2026-09-26 16:13:37,441 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+[startup] ticker baselines loaded (0 tickers)
+2026-09-26 16:13:37,471 INFO api.main: [startup] quarantined 0 bars from existing cache
+2026-09-26 16:13:37,516 INFO api.main: [startup] indicator alert evaluator started
+2026-09-26 16:13:37,524 INFO api.main: [startup] awareness regime_snapshots schema ready
+[startup] j2-ocr: flag=0 binary=absent version=none active=False max_concurrency=1
+2026-09-26 16:13:37,538 INFO api.main: [startup] alert_durability schema ready
+2026-09-26 16:13:37,538 INFO api.main: [startup] priority audit scheduled (~30s after boot)
+2026-09-26 16:13:37,538 INFO api.main: [startup] hot tier warm scheduled (~45s after boot)
+2026-09-26 16:13:37,549 INFO api.main: [cold-start-guard] boot preload started for 394 resource(s) (2 hand-registered + 392 derived from the manifest)
+2026-09-26 16:13:37,550 INFO api.services.cap_universe: [cap-universe-etfs] loaded 100 symbols
+2026-09-26 16:13:37,551 INFO api.main: [startup] dashboard warm scheduled (~20s after boot); calendar-enrichment re-warm every 240s (under the 300s TTL)
+2026-09-26 16:13:37,552 INFO api.main: [startup] rs-rankings warm scheduled (~120s after boot)
+2026-09-26 16:13:37,552 INFO api.main: [startup] industry-map prewarm scheduled (~75s after boot)
+2026-09-26 16:13:37,553 INFO api.main: [startup] darkpool prewarm scheduled (~60s after boot)
+2026-09-26 16:13:37,553 INFO api.main: [startup] scanner-preset warm scheduled (~30s after boot); re-warm every 50s during market hours, 300s off-hours
+2026-09-26 16:13:37,553 INFO api.main: [startup] ticker-meta name-heal scheduled (one-shot)
+2026-09-26 16:13:37,553 INFO api.main: [startup] deploy smoke audit scheduled
+2026-09-26 16:13:37,554 INFO api.main: [startup] breadth numeric projection: {'ran': True, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\.breadth_numeric_v1', 'before': {'rows': 0, 'sha256': 'e3b0c44298fc1c14'}, 'numeric_rows_before': 0, 'backup': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\backups\\breadth_monitor-2026-09-26-161337-pre-numeric.db', 'backup_bytes': 24576, 'to_write': 0, 'after': {'rows': 0, 'sha256': 'e3b0c44298fc1c14'}, 'numeric_rows_after': 0, 'written': 0, 'ms': 11.5, 'source_table_unchanged': True}
+2026-09-26 16:13:37,555 INFO api.main: [startup] bars_continuous_audit started
+2026-09-26 16:13:37,556 INFO api.services.bars_wal_checkpointer: [bars-wal] checkpointer started (interval=20s, truncate_hwm=2000 frames)
+2026-09-26 16:13:37,559 INFO api.services.bars_reconciliation: [reconcile] disabled (RECONCILE_ENABLED=0)
+2026-09-26 16:13:37,559 INFO api.main: [startup] bars_reconciliation started
+2026-09-26 16:13:37,560 INFO api.services.fundamentals_monitor: [fund-monitor] disabled (FUNDAMENTALS_MONITOR_ENABLED=0)
+2026-09-26 16:13:37,560 INFO api.main: [startup] fundamentals_monitor started
+2026-09-26 16:13:37,560 ERROR api.services.bars_continuous_audit: [continuous_audit] bars store unhealthy: schema-missing (no such table: ohlcv)
+2026-09-26 16:13:37,561 INFO api.services.bars_continuous_audit: [continuous_audit] 1hr priority sweep
+2026-09-26 16:13:37,565 INFO api.services.provider_coverage_monitor: [coverage-monitor] disabled (PROVIDER_COVERAGE_MONITOR_ENABLED=0)
+2026-09-26 16:13:37,565 INFO api.main: [startup] provider_coverage_monitor started
+2026-09-26 16:13:37,565 INFO api.main: [startup] disk_watchdog started (warn=75.0% crit=90.0% every 1800s)
+2026-09-26 16:13:37,565 INFO api.main: [startup] realtime_candle reconciliation_worker scheduled
+2026-09-26 16:13:37,566 INFO api.main: [startup] liveflow_worker (Bullflow) NOT started — retired 2026-08-29; live flow is served by the Massive rail
+2026-09-26 16:13:37,572 ERROR api.services.bars_sqlite: [sqlite] integrity smoke probe failed: no such table: ohlcv
+[startup] bars.db FAILED integrity smoke probe (0.01s) -- pulling fresh snapshot from R2
+2026-09-26 16:13:37,573 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\bars.db: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\bars.db'
+2026-09-26 16:13:37,573 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\bars.db-wal: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\bars.db-wal'
+2026-09-26 16:13:37,574 WARNING api.services.data_sync: [data_sync] force_resync: could not remove C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\bars.db-shm: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\bars.db-shm'
+2026-09-26 16:13:37,574 ERROR api.services.data_sync: [data_sync] force_resync: no installable remote snapshot; recreating an empty schema so reads degrade to cache-miss refetch instead of 'no such table' until reboot
+[sqlite-migration] Applied purge_tf60_2f42e55: deleted 0 rows
+[sqlite-migration] Applied purge_tf60_3cbe1cf_src_cap: deleted 0 rows
+[sqlite-migration] Applied purge_intraday_pagination_v1: deleted 0 rows
+[startup] SQLite bar store ready
+[startup] .tf60_purged_2f42e55: purged 0 tf=60 disk-cache files
+[startup] .tf60_purged_3cbe1cf_src_cap: purged 0 tf=60 disk-cache files
+[startup] bars.db restore from R2 FAILED
+[startup] fmp_tz_heal: removed 0 intraday rows from last 14d; next chart load on each ticker refills clean
+[startup] fmp_tz_heal: cleared 0 in-memory bars cache entries
+[startup] strict_gt_heal_v2: removed 0 intraday rows from last 14d (companion to >= filter relaxation)
+[startup] strict_gt_heal_v2: cleared 0 in-memory bars cache entries
+[startup] intraday_heal_v3_60day: removed 0 intraday rows from last 60d
+[startup] intraday_heal_v3_60day: cleared 0 in-memory bars cache entries
+[startup] weekly_close_date_heal: removed 0 weekly rows; next chart load on each ticker refills with Friday-dated candles
+[startup] weekly_key_purge: scheduled (background)
+[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=7 weekly_dating=friday-close heal_weekly_close=ran-once reconciliation_worker=off
+[startup] bars-push-rail: stream_bars_enabled=off keyed_dispatch=on single_writer_arbitration=on delivering_recency=120s/300s_hysteresis heartbeat=named watchdog_renotify=10s idle_sleep=250ms status_endpoint=/api/admin/bars-stream-status (frontend rollout% in StockChart.BARS_PUSH_ROLLOUT_PCT)
+2026-09-26 16:13:37,596 INFO api.services.bars_continuous_audit: [continuous_audit] 24hr universe sweep
+2026-09-26 16:13:37,598 INFO api.auth_surface_check: [startup] auth-surface: service=web mutating_routes=105 ungated=0 delegated=0 middleware_gated=17 OK
+[startup] trade-condition-filter: enabled=off (env TRADE_CONDITION_FILTER_ENABLED) applied_to=massive_push+finnhub authoritative_rules=loading|fallback
+[startup] Memory pre-warm skipped (USE_REMOTE_BARS=1); cache populates lazily after snapshot pull
+[startup] USE_REMOTE_BARS=1 -- skipping in-process prewarmer/seeder; pulling snapshot from worker via R2
+[startup] Loaded wire_data from volume (date=2026-01-02)
+2026-09-26 16:13:37,599 INFO api.main: [startup] breadth reconstructed side: {'ran': True, 'marker': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\.breadth_reconstructed_v1', 'before': {'dates': 0, 'settled': 0, 'sha256': 'e3b0c44298fc1c14'}, 'rows_before': 0, 'backup': 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w9A\\sbx-exp6\\backups\\breadth_daily_ohlc-2026-09-26-161337-pre-reconstructed.db', 'backup_bytes': 32768, 'candidate_dates': 0, 'built': 0, 'after': {'dates': 0, 'settled': 0, 'sha256': 'e3b0c44298fc1c14'}, 'concurrently_written': [], 'concurrently_written_count': 0, 'rows_after': 0, 'ms': 24.2, 'settled_history_unchanged': True, 'stale_after': 0}
+2026-09-26 16:13:37,601 INFO api.services.ticker_names_prewarm: [ticker-names-prewarm] disabled via env
+[startup] ticker-names prewarm scheduled
+[startup] ticker-logos prewarm scheduled
+[startup] ticker-search index build scheduled
+2026-09-26 16:13:37,604 INFO api.main: [startup] breadth reconstructed rebuild_stale: {'stale': 0, 'built': 0}
+[startup] index-bars warm loop scheduled
+[startup] breadth-bars warm loop scheduled
+[startup] logo_hires_v1: upgrade scheduled (~90s after boot)
+[startup] Initial snapshot already current (0.0s) -- cache warm[startup] R2 initial snapshot pull started (background thread)
+
+[startup] S3 periodic puller started (20-min cadence; mode=newer-wins-merge)
+[startup] hot-set push loop started (web -> R2, 2-min cadence)
+2026-09-26 16:13:37,738 INFO api.services.ticker_search_index: [ticker_search_index] built 3640 rows
+[startup] breadth self-heal armed (boot pass + watch loop)
+[deep-cache] Skipped (set DEEP_CACHE_ENABLED=1 to enable).
+2026-09-26 16:13:39,234 INFO api.services.theme_db: [themes] overlay GC skipped (engine tables absent): no such table: engine_memberships
+2026-09-26 16:13:39,242 INFO api.services.theme_db: [themes] Seeded v4.22.0 — 112 themes, 2029 memberships
+[startup] No persisted theme data — will compute on first request
+2026-09-26 16:13:39,298 WARNING api.services.vendor_socket_guard: [finnhub] REFUSING to open the live finnhub socket: this process is not running on Railway, and the production API key allows roughly ONE connection. A local run steals that slot from production and kicks the live site off its own feed (this happened 2026-08-10 and cost a session of live charts). Set ALLOW_LOCAL_VENDOR_SOCKETS=1 if you really do want this process on the live feed.
+2026-09-26 16:13:39,304 INFO api.daily_tracker: [tracker] No history file found at C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\contract_history.json — starting fresh.
+2026-09-26 16:13:39,304 INFO api.daily_tracker: [tracker] Snapshot scheduler task created.
+[startup] Top Flow tracker: 0 active, 0 archived.
+[startup] Watchlist tracker: 0 saved days.
+2026-09-26 16:13:39,321 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=82262919598786: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,321 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=263212063478037: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,321 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=45873918139974: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=260883058653479: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=80791767513138: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193467074160361: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=267239076625528: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=259635970298456: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,322 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=164919788607070: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,323 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=137611096038897: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,323 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=70502309616397: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,323 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=99335749032422: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,323 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=85881977722879: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,324 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=131131896967495: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,325 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=229078840933249: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,325 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=193923953788978: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,325 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=144853339379747: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,326 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=35237434383150: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,327 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=123227148862910: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,328 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=159025302660056: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,328 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=606597191911: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,329 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=113314011518325: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,329 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=110621240287509: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,329 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=214960259611021: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,330 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=63690873482139: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,330 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=54966116250052: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,330 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=67127492078784: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,331 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=19749962190216: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,331 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=93878891872809: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,331 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=62668201351833: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,334 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=68122778754676: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,334 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=27830523386444: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,334 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=114071905895624: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,334 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=90399119643365: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,335 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=217923498866998: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,335 WARNING api.services.voice_embeddings_service: [voice_embeddings] embed failed kind=kb_chunk id=50767805576432: OPENAI_API_KEY is not set
+2026-09-26 16:13:39,336 INFO api.services.voice_kb_service: [voice_kb] index_corpus: {'indexed': 0, 'skipped': 0, 'errors': 36}
+[startup] COT table empty -- seeding from CFTC historical archive (background)...
+2026-09-26 16:13:39,347 INFO api.services.cot_service: COT: downloading 2017 data (https://www.cftc.gov/files/dea/history/deacot2017.zip)...
+2026-09-26 16:13:39,376 INFO api.services.scheduler_lock: [scheduler-lock] fcntl unavailable — granting (dev mode)
+2026-09-26 16:13:40,284 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,295 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,303 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,304 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,336 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] indicator alert shadow lane OFF (set ALERT_SHADOW_ENABLED=1 to soak the closed lane)
+2026-09-26 16:13:40,339 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,347 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] alert bars freshness scheduled (every 60s, armed groups only)
+2026-09-26 16:13:40,348 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool Massive ingest scheduled (weekdays 19:20 ET)
+2026-09-26 16:13:40,353 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (Mon-Sat 11:45 ET, gated)
+2026-09-26 16:13:40,383 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,384 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool intraday poller scheduled (weekdays every 3m, 7-16 ET)
+2026-09-26 16:13:40,388 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,388 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool tiered warm(12m) + snapshot fast-lane(5m) scheduled (gated)
+2026-09-26 16:13:40,402 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,403 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1
+[startup] nightly side-heal job skip: No module named 'api.nightly_side_heal'
+2026-09-26 16:13:40,421 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,421 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,421 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,422 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,422 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,423 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,423 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,424 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,424 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,425 INFO api.main: [startup] breadth-live pre-open warm scheduled (weekdays 9:05 ET)
+2026-09-26 16:13:40,425 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,426 INFO api.main: [startup] breadth dividend sweep scheduled (daily 4:40 ET)
+2026-09-26 16:13:40,426 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,426 INFO api.main: [startup] breadth-live intraday sampler scheduled (weekdays 9-16 ET, 1/min)
+2026-09-26 16:13:40,434 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,434 INFO api.main: [startup] breadth OHLC intraday aggregation scheduled (weekdays 17:15 ET)
+2026-09-26 16:13:40,548 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,549 INFO api.main: [startup] breadth history backfill tick scheduled (every 12 min, gated on floor marker)
+2026-09-26 16:13:40,549 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,549 INFO api.main: [startup] breadth forward seal scheduled (every 30 min, inert while dark)
+2026-09-26 16:13:40,549 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,549 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,549 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] logo miss-retry scheduled (daily 3:25am ET)
+2026-09-26 16:13:40,597 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,597 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,597 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,598 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,598 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,599 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,599 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,600 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,600 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,600 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,600 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,601 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,601 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,601 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] wisdom jobs registered: 14 (wisdom_core_catchup, wisdom_core_watchdog, wisdom_capture_detections, wisdom_capture_morning, wisdom_capture_themes, wisdom_capture_tweets, wisdom_capture_eod, wisdom_capture_late, wisdom_sources_discord_listener, wisdom_sources_twitter_listener, wisdom_extract_reap, wisdom_daily_chain, wisdom_weekly_chain, wisdom_monthly_packet)
+2026-09-26 16:13:40,611 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,611 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,611 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,612 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,613 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,613 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,629 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,630 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,646 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] signature sweep scheduled (weekdays 20:05 ET)
+2026-09-26 16:13:40,731 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] bars split-repair sweep scheduled (cron[hour='2', minute='30'] ET, 500 tickers/run)
+2026-09-26 16:13:40,732 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,733 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-index-close: discord_index_close=cron[day_of_week='mon-fri', hour='15', minute='45'] + discord_index_close_retry=cron[day_of_week='mon-fri', hour='15', minute='58'] armed=off webhook=UNSET(posts nothing)
+2026-09-26 16:13:40,733 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord-chart hot-warm scheduled (every 60s, 20s cycle budget)
+2026-09-26 16:13:40,738 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,744 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,744 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] discord render ops scheduled (flow warm every 120s, smoke +240s, /flow daily line 16:25 ET)
+2026-09-26 16:13:40,745 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz poll scheduled (every 60s)
+2026-09-26 16:13:40,782 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,783 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,783 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,784 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,784 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,784 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,784 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] buzz digest scheduled (mon-fri ET): 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30
+2026-09-26 16:13:40,785 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] theme_index re-warm scheduled (every 15m)
+2026-09-26 16:13:40,854 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] pattern-vision: on model=claude-opus-4-8[code] cost_hard_cap=$10.0[default] max_per_run=150[default] active_set_only=on:84[resolved] skip_if_stable=on[force_default] confirmed_only=on[api_default]
+2026-09-26 16:13:40,873 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,874 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] substack poll job registered (hourly + Sunday burst)
+2026-09-26 16:13:40,874 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[scheduler] desk article audit registered (09:10 ET)
+2026-09-26 16:13:40,899 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,900 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,903 INFO api.services.cot_service: COT: 2017 — 2613 records parsed
+2026-09-26 16:13:40,903 INFO api.services.cot_service: COT: downloading 2018 data (https://www.cftc.gov/files/dea/history/deacot2018.zip)...
+2026-09-26 16:13:40,907 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,908 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,909 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[mrr] Snapshot recorded for 2026-09-26: MRR=$0, subs=0
+2026-09-26 16:13:40,929 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,929 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,929 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_premarket' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_proactive_after_hours' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'awareness_engine_scan' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] S7 document-arrival alerts PAUSED (set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)
+[startup] S7 price-level DARK comparison OFF (set ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED=1 to start the dark run)
+[startup] S7 event-proximity DARK comparison OFF (set ALERT_TAXONOMY_EVENT_PROXIMITY_DARK_ENABLED=1 to start the dark run)
+[startup] S7 position-risk DARK comparison OFF (set ALERT_TAXONOMY_POSITION_RISK_DARK_ENABLED=1 to start the dark run)
+[startup] S7 scan-membership-change DARK comparison OFF (set ALERT_TAXONOMY_SCAN_MEMBERSHIP_DARK_ENABLED=1 to start the dark run)
+[startup] S7 catalyst-match DARK comparison OFF (set ALERT_TAXONOMY_CATALYST_MATCH_DARK_ENABLED=1 to start the dark run)
+[startup] S7 regime-change DARK comparison OFF (set ALERT_TAXONOMY_REGIME_CHANGE_DARK_ENABLED=1 to start the dark run)
+[startup] S7 indicator-condition DARK comparison OFF (set ALERT_TAXONOMY_INDICATOR_CONDITION_DARK_ENABLED=1 to start the dark run)
+[startup] D2 dual-compute warm reader OFF (set D2_DUAL_COMPUTE_WARM_READER_ENABLED=1 to start it)
+[startup] Compass automation PAUSED -- skipping job 'compass_daily_focus' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'voice_nightly_consolidate' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-09-26 16:13:40,933 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,933 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:40,953 INFO api.oi_snapshots: [oi-snapshot] DB initialized (path=C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\e5af7430-5c97-49c2-9846-4da28941d38c\scratchpad\w9A\sbx-exp6\oi_snapshots.db)
+[startup] naaim series seed: {'ok': True, 'accepted': 134, 'refused': 0, 'reasons': {}, 'first': '2023-11-29', 'last': '2026-06-17', 'count': 134}
+2026-09-26 16:13:42,033 INFO api.services.cot_service: COT: 2018 — 2763 records parsed
+2026-09-26 16:13:42,034 INFO api.services.cot_service: COT: downloading 2019 data (https://www.cftc.gov/files/dea/history/deacot2019.zip)...
+[darkpool_db] darkpool_trades upload: 5190 inserted, 49 dupes, 0 errors / 5239 total
+[startup] Darkpool DB seeded/merged: +5,190 new, 49 dupes, 0 skipped-invalid (5,239 in file)
+[startup] breadth-sentiment seed: {'ok': True, 'seeded': 15897, 'csv_rows': 15897}
+2026-09-26 16:13:42,551 INFO api.main: [breadth-series-warm] {'ok': False, 'reason': 'flag off'}
+2026-09-26 16:13:43,190 INFO api.services.cot_service: COT: 2019 — 2755 records parsed
+2026-09-26 16:13:43,191 INFO api.services.cot_service: COT: downloading 2020 data (https://www.cftc.gov/files/dea/history/deacot2020.zip)...
+2026-09-26 16:13:44,423 INFO api.services.cot_service: COT: 2020 — 2748 records parsed
+2026-09-26 16:13:44,423 INFO api.services.cot_service: COT: downloading 2021 data (https://www.cftc.gov/files/dea/history/deacot2021.zip)...
+[startup] cboe refresh: ingested={'VIX9D': 3955, 'VIX3M': 4281, 'VIX6M': 4712, 'VVIX': 5112, 'VXN': 4287, 'RVX': 4278, 'SKEW': 9235} errors={}
+[startup] Flow DB seeded stocks: 21,589 rows from flow-data.csv (1 dates)
+2026-09-26 16:13:45,409 INFO api.services.cot_service: COT: 2021 — 2888 records parsed
+2026-09-26 16:13:45,409 INFO api.services.cot_service: COT: downloading 2022 data (https://www.cftc.gov/files/dea/history/deacot2022.zip)...
+[startup] Flow DB seeded indexes: 16,203 rows from Indexes-data.csv (1 dates)
+2026-09-26 16:13:45,550 INFO api.dealer_positioning: [dealer_positioning] init_db done
+[startup] dealer_positioning table initialized
+[scheduler] OI snapshot cron NOT registered here (MASSIVE_WS_ENABLED!=1 — runs on flow-worker)
+2026-09-26 16:13:45,550 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Compass automation PAUSED -- skipping job 'compass_eod_recap' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Compass automation PAUSED -- skipping job 'compass_weekly_email_digest' (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+2026-09-26 16:13:45,551 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,551 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,551 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,551 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,551 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,552 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-09-26 16:13:45,552 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] Fundamentals reporters warm scheduled -- every 15 min in earnings windows
+2026-09-26 16:13:45,552 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] cache snapshot scheduled -- every 3 min + on shutdown
+2026-09-26 16:13:45,552 INFO apscheduler.scheduler: Adding job tentatively -- it will be properly scheduled when the scheduler starts
+[startup] malloc_trim scheduled -- every 10 min
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ocr_requeue_abandoned" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "post_daily_heartbeat" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "run_signal_cycle" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "post_premarket_brief" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "run_scheduled_refresh" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "sweep_silent_alerts" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "run_scheduled_sweep" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-26 16:13:45,553 INFO apscheduler.scheduler: Added job "scheduled_run" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "roll_session" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "scheduled_warm" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "scheduled_scanner" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "run_eod_summary" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "job" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ipo_maintenance_job" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "refresh_from_current" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "refresh_if_stale" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_narrative_prewarm_job" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ticker_types_sync" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._of_etf_reconcile" to job store "default"
+2026-09-26 16:13:45,554 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_daily_warm" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_dividends_refresh" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_live_sample" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_ohlc_intraday_agg" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_history_backfill_tick" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._breadth_forward_seal_tick" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cot_daily_catchup" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "cleanup_expired_sessions" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "register_logo_miss_retry_job.<locals>._run" to job store "default"
+2026-09-26 16:13:45,555 INFO apscheduler.scheduler: Added job "wisdom_core_catchup" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_core_watchdog" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_detections" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_morning" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_themes" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_tweets" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_eod" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_capture_late" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_sources_discord_listener" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_sources_twitter_listener" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_extract_reap" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_daily_chain" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_weekly_chain" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "wisdom_monthly_packet" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_scan_sweep" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_finviz_universe" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_earnings_dates" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_opt_flow_pull" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_insider_capture" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_screener_jobs.<locals>._run_live_tier" to job store "default"
+2026-09-26 16:13:45,556 INFO apscheduler.scheduler: Added job "register_wire_watchdog_job.<locals>._check" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_run_bars_split_repair_sweep" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "register_discord_index_close_job.<locals>._run" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_discord_chart_hot_warm" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_discord_flow_hot_warm" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_discord_render_smoke" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_discord_flow_daily_stats" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_poll" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "_buzz_digest" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "lifespan.<locals>._theme_index_prewarm" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "register_pattern_vision_jobs.<locals>._run" to job store "default"
+2026-09-26 16:13:45,557 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "poll_all" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._article_audit" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "warm_week_previews" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "warm_reported_analyses" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>.<lambda>" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "run_weekly_deep" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._check_churn_risk" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "record_mrr_snapshot" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "run_daily_digests" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "run_weekly_digests" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_bar_refresh" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._nightly_flow_prune" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._ssetf_nightly" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "purge_expired" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "lifespan.<locals>._compass_health_email_job" to job store "default"
+2026-09-26 16:13:45,558 INFO apscheduler.scheduler: Added job "_run_patterns_track_outcomes" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "_run_patterns_recompute_stats" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "_run_patterns_leaders_scan" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "_run_patterns_universe_scan" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "_run_patterns_prune" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "lifespan.<locals>._fundamentals_reporters_warm_job" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "lifespan.<locals>._cache_snapshot_job" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Added job "lifespan.<locals>._malloc_trim_job" to job store "default"
+2026-09-26 16:13:45,559 INFO apscheduler.scheduler: Scheduler started
+[startup] COT scheduler running -- Fridays at 3:50 PM ET (retries 4:15, 4:45); daily catchup at 6 PM ET
+[startup] Session cleanup scheduled -- daily at 3:00 AM ET
+[startup] Churn risk check scheduled -- daily at 9:00 AM ET
+[startup] MRR snapshot scheduled -- daily at 11:59 PM ET
+[startup] Compass automation PAUSED -- all scheduled Compass/voice jobs skipped; manual surfaces unaffected (set COMPASS_AUTOMATION_ENABLED=1 to resume)
+[startup] Pattern engine jobs scheduled -- outcomes (4h interval), stats (06:00 UTC daily), universe scan (1h interval)
+2026-09-26 16:13:45,560 INFO api.massive_ws_worker: [massive-ws] disabled via MASSIVE_WS_ENABLED=0
+[startup] Massive WS consumer not started (disabled or no MASSIVE_API_KEY)
+2026-09-26 16:13:45,560 WARNING api.massive_flatfiles_worker: [massive-ff] MASSIVE_S3_ACCESS_KEY/SECRET not set -- not registering scheduler jobs
+[startup] Massive Flat Files cron NOT registered (disabled or no S3 keys)
+2026-09-26 16:13:45,573 INFO api.flow_gap_autofill: [gap-fill] disabled (FLOW_GAP_AUTOFILL_ENABLED != 1)
+2026-09-26 16:13:45,573 INFO api.flow_backup: [flow-backup] disabled (FLOW_BACKUP_ENABLED != 1)
+2026-09-26 16:13:45,573 INFO api.j2_attachments_backup: [j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)
+2026-09-26 16:13:45,576 INFO api.services.journal_two.excursion_jobs: [j2-excursion] disabled (EXCURSION_ENGINE_ENABLED != 1)
+2026-09-26 16:13:45,576 INFO apscheduler.scheduler: Added job "run_weekly_sweep" to job store "default"
+[startup] j2 books audit registered (Sun 09:30 ET)
+2026-09-26 16:13:45,578 INFO apscheduler.scheduler: Added job "register_trash_purge_job.<locals>._job" to job store "default"
+[startup] j2 trash purge registered (03:20 ET daily)
+2026-09-26 16:13:45,578 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-09-26 16:13:45,578 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+2026-09-26 16:13:45,579 INFO apscheduler.scheduler: Added job "register_task_reminder_job.<locals>._boundary.<locals>.body" to job store "default"
+[startup] notebook task reminders registered (07:00 + 09:00 ET, boot catch-up)
+2026-09-26 16:13:45,580 INFO apscheduler.scheduler: Added job "sweep_job" to job store "default"
+[startup] notebook semantic sweep registered (every 15 min; dark unless NOTEBOOK_SEMANTIC_SEARCH_ENABLED)
+[watchdog] dark — WATCHDOG_ENABLED and WATCHDOG_OBSERVE both off; not starting (set WATCHDOG_OBSERVE=1 to gather a lag baseline).
+2026-09-26 16:13:45,581 INFO api.daily_tracker: [tracker] Snapshot scheduler started.
+2026-09-26 16:13:45,581 INFO api.daily_tracker: [tracker] Next snapshot at 2026-09-28 16:30 ET (170174 seconds from now).
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8210 (Press CTRL+C to quit)
+2026-09-26 16:13:45,816 INFO api.flow_backup: [flow-backup] flow.db integrity OK (ok)
+INFO:     127.0.0.1:52110 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52147 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52122 - "GET /api/health HTTP/1.1" 200 OK
+2026-09-26 16:13:46,330 INFO api.services.cot_service: COT: 2022 — 3248 records parsed
+2026-09-26 16:13:46,330 INFO api.services.cot_service: COT: downloading 2023 data (https://www.cftc.gov/files/dea/history/deacot2023.zip)...
+2026-09-26 16:13:46,776 WARNING api.services.email_service: [email] Skipping email to hubtest@local.dev (Resend not configured)
+INFO:     127.0.0.1:52157 - "POST /api/auth/signup HTTP/1.1" 200 OK
+2026-09-26 16:13:47,000 WARNING api.services.email_service: [email] Skipping email to w9bench@local.dev (Resend not configured)
+INFO:     127.0.0.1:52157 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "POST /api/auth/admin/comp-access HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "POST /api/auth/admin/verify-email HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/auth/me HTTP/1.1" 200 OK
+2026-09-26 16:13:47,118 INFO api.services.cot_service: COT: 2023 — 3413 records parsed
+2026-09-26 16:13:47,118 INFO api.services.cot_service: COT: downloading 2024 data (https://www.cftc.gov/files/dea/history/deacot2024.zip)...
+INFO:     127.0.0.1:52157 - "POST /api/j2/notes/import/confirm HTTP/1.1" 200 OK
+2026-09-26 16:13:47,947 INFO api.services.cot_service: COT: 2024 — 3450 records parsed
+2026-09-26 16:13:47,947 INFO api.services.cot_service: COT: downloading 2025 data (https://www.cftc.gov/files/dea/history/deacot2025.zip)...
+[warm] dashboard cache warmed: snapshot
+[warm] dashboard cache warmed: movers
+INFO:     127.0.0.1:52157 - "POST /api/j2/notes/import/confirm HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/notes?limit=1 HTTP/1.1" 200 OK
+2026-09-26 16:13:49,162 INFO api.services.cot_service: COT: 2025 — 3289 records parsed
+2026-09-26 16:13:49,162 INFO api.services.cot_service: COT: downloading 2026 data (https://www.cftc.gov/files/dea/history/deacot2026.zip)...
+[warm] dashboard cache warmed: news
+[warm] dashboard cache warmed: theme-performance
+[warm] dashboard cache warmed: leadership
+[warm] dashboard cache warmed: breadth
+INFO:     127.0.0.1:62919 - "GET /journal/notebook?view=all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/index-D-c0q2go.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/index-DXC3IMMp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/GlobalAddPositionProvider-CiSxfKMD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/AddPositionModal-C_Nz1KUx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/useJ2Settings-CcTMqIZY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/useJ2Accounts-Db2B4n8e.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/useJ2SelectedAccount-DBJkaop5.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/ModalShell-cNsm7dP-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/ModalShell.module-BBDh_wSF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/InterventionBanner-C_wQb4AA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/Toast-Pb1MpXQT.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/VoiceInputButton-BK7M9MgG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/index-DK5Ffez4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/ContextPopover-B2QTiObS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/JournalLayout-CL_A8OTK.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/ContextPopover-CCmZUJdU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/useLongPress-7REY2IAY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/ShortcutCheatSheet-Dx0u1hGn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/GlobalVoiceLayer-f1ZIoQev.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/CompassOrb-l0p4ziJs.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/ShortcutCheatSheet-DeF6BbX-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/JournalLayout-BIPdeI3K.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/JournalLayout-Crk83zWG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/NewAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/NewAccountModal-ByBsN5TI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/platform-Bx76oUM1.js HTTP/1.1" 200 OK
+[theme-perf] Computation done — 1 themes persisted to disk
+INFO:     127.0.0.1:62919 - "GET /assets/useJ2AccountComparison-kgkIumhF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/format-D4AQN_X2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/useJ2Positions-cNNkjhNN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/AddTradeModal-BIDRsX5S.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/JournalLayout.module-Dw2Sf9Kx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/calculations-D1FU6tq6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/TagChipPicker-B0ydLkYN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/indicatorRegistry-CBn-mg6W.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/readAloudProgress-DWtCuYlC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/GlobalVoiceLayer-ScnxOaGi.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/CompassOrb-BBeJPGEc.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/askInsert-CuaB5GuX.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/tiptap-oN1UfRTF.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/FolderSidebar-BpIi6z4y.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/auth/avatar/b1f3faf2-a9d4-4721-b150-f73f8e1c348a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/NotebookTab-BDxN_IQA.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/NotebookSurface-BStOlK1U.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/NotebookTab-mUeEYykl.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/FolderSidebar-BpnTURls.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/ConfirmModal-DLIxJHFw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/tiptap-W29wPPCF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/askInsert-DrWogvMh.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/lazyChunk-CvxcaDHL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/CapturedSourceSheet-LnWTdDmL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /assets/RsBadge-BlqwN3hv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/useDurableNote-D2a1zuGg.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/CollapsibleSection-J4ds5wyF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /assets/TranscriptPanel-u0JKD4JP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /assets/UnreadableNoteNotice-CIG-bqSf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /assets/fontFamilies-BFcQTEuQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /assets/tourControl-D0TqODih.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /assets/useNoteConnectors-CHyblMf3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/j2/notes/connectors/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:52828 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/accounts/cf9d45a2-664d-4e35-8fd9-1e54c88b58fe/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/positions?account_id=cf9d45a2-664d-4e35-8fd9-1e54c88b58fe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/voice/settings HTTP/1.1" 200 OK
+2026-09-26 16:13:49,951 INFO api.services.cot_service: COT: 2026 — 2370 records parsed
+INFO:     127.0.0.1:56115 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+2026-09-26 16:13:50,045 INFO api.services.cot_service: COT: initial seed complete — 29537 records inserted (708 unmapped markets ignored)
+[startup] COT initial seed complete -- 29537 records inserted
+INFO:     127.0.0.1:56115 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+2026-09-26 16:13:50,340 INFO api.services.engine: prewarm: disabled via EARNINGS_PREWARM_ENABLED=0 (no tokens spent)
+[warm] dashboard cache warmed: earnings
+INFO:     127.0.0.1:56115 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62919 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52828 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51664 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55202 - "POST /api/j2/notes/35cf5b697605433282ded9918953c643/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55367 - "GET /api/j2/notes/35cf5b697605433282ded9918953c643/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56115 - "PUT /api/j2/notes/35cf5b697605433282ded9918953c643 HTTP/1.1" 200 OK
+[substack] article bodies: fetched=8 reconverted=0 deferred=68 refused=0
+2026-09-26 16:13:56,033 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 20, 2026' with 69 tickers
+2026-09-26 16:13:56,055 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 13, 2026' with 44 tickers
+2026-09-26 16:13:56,075 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — September 6, 2026' with 83 tickers
+2026-09-26 16:13:56,096 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 30, 2026' with 90 tickers
+2026-09-26 16:13:56,118 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 23, 2026' with 74 tickers
+2026-09-26 16:13:56,139 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 16, 2026' with 62 tickers
+2026-09-26 16:13:56,160 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 9, 2026' with 46 tickers
+2026-09-26 16:13:56,182 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — August 2, 2026' with 74 tickers
+2026-09-26 16:13:56,203 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — July 19, 2026' with 57 tickers
+2026-09-26 16:13:56,226 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — July 12, 2026' with 59 tickers
+2026-09-26 16:13:56,248 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — July 5, 2026' with 38 tickers
+2026-09-26 16:13:56,271 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sunday Scans — June 28, 2026' with 63 tickers
+[substack] sunday-scans watchlists reconciled — created/rebuilt 12, retired 0, 12 issues kept
+[dormant] self-heal rebuilt active set (0 active)
+2026-09-26 16:13:57,559 INFO api.main: [dashboard-warm] flow-tape ok
+2026-09-26 16:13:57,559 INFO api.main: [dashboard-warm] movers ok
+2026-09-26 16:13:57,747 INFO api.main: [dashboard-warm] themes ok
+2026-09-26 16:13:57,748 INFO api.main: [dashboard-warm] news ok
+INFO:     127.0.0.1:58014 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+2026-09-26 16:13:57,755 INFO api.main: [dashboard-warm] breadth ok
+2026-09-26 16:13:57,755 INFO api.main: [dashboard-warm] breadth-live {'ok': False, 'reason': 'reference levels unavailable'}
+2026-09-26 16:13:57,755 INFO api.main: [dashboard-warm] breadth-live ok
+2026-09-26 16:14:00,011 INFO apscheduler.executors.default: Running job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-26 16:14:00 CDT)" (scheduled at 2026-09-26 16:14:00-05:00)
+2026-09-26 16:14:00,013 INFO apscheduler.executors.default: Job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-26 16:24:00 CDT)" executed successfully
+2026-09-26 16:14:01,665 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-09-26 16:14:02,144 INFO api.routers.calendar: Calendar: live-window supplement added 318 reporters (2026-09-28 -> 2026-10-02)
+2026-09-26 16:14:02,850 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 35 across 5 uncovered days
+2026-09-26 16:14:02,850 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-09-26 16:14:02,863 INFO api.main: [dashboard-warm] calendar ok
+2026-09-26 16:14:02,869 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-26 16:14:02,891 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-26 16:14:02,896 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-26 16:14:03,069 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-09-26 16:14:03,210 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"User is unable to access this feature - https://bit.ly/yahoo-finance-api-feedback"}}}
+2026-09-26 16:14:04,351 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Bull & Bear ETFs' with 72 tickers
+2026-09-26 16:14:04,377 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Sector SPDRs' with 11 tickers
+2026-09-26 16:14:04,403 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Broad Market & Index' with 12 tickers
+2026-09-26 16:14:04,427 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Industry & Thematic ETFs' with 36 tickers
+2026-09-26 16:14:04,452 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Country & Region ETFs' with 20 tickers
+2026-09-26 16:14:04,479 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Commodities' with 18 tickers
+2026-09-26 16:14:04,504 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Bonds & Rates' with 20 tickers
+2026-09-26 16:14:04,529 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Crypto ETFs' with 12 tickers
+2026-09-26 16:14:04,553 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Factor & Smart-Beta ETFs' with 10 tickers
+2026-09-26 16:14:04,580 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 500' with 503 tickers
+2026-09-26 16:14:04,605 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 100' with 98 tickers
+2026-09-26 16:14:04,739 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Nasdaq 100' with 102 tickers
+2026-09-26 16:14:04,763 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Dow 30' with 30 tickers
+2026-09-26 16:14:04,791 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P MidCap 400' with 396 tickers
+2026-09-26 16:14:04,823 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P SmallCap 600' with 600 tickers
+2026-09-26 16:14:04,867 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Russell 2000' with 1921 tickers
+2026-09-26 16:14:04,892 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'UCT Thematic Indexes' with 112 tickers
+2026-09-26 16:14:04,916 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'MA Breadth' with 7 tickers
+2026-09-26 16:14:04,939 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Momentum Breadth' with 15 tickers
+2026-09-26 16:14:04,965 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Highs & Lows' with 10 tickers
+2026-09-26 16:14:04,988 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Score & Regime' with 12 tickers
+2026-09-26 16:14:04,993 INFO api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] startup catch-up (overlay age=None) — refreshing
+  [post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-26 16:14:07,630 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3640 universe, 3640 to warm, 0 already cached
+INFO:     127.0.0.1:56482 - "GET /journal/notebook?view=all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/index-DXC3IMMp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/index-D-c0q2go.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/useJ2Accounts-Db2B4n8e.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/useJ2Settings-CcTMqIZY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/useJ2SelectedAccount-DBJkaop5.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/AddPositionModal-C_Nz1KUx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/GlobalAddPositionProvider-CiSxfKMD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/ModalShell.module-BBDh_wSF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/ModalShell-cNsm7dP-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/VoiceInputButton-BK7M9MgG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/Toast-Pb1MpXQT.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/InterventionBanner-C_wQb4AA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/index-DK5Ffez4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/useLongPress-7REY2IAY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/ContextPopover-CCmZUJdU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/JournalLayout-CL_A8OTK.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/ShortcutCheatSheet-Dx0u1hGn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/ContextPopover-B2QTiObS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/ShortcutCheatSheet-DeF6BbX-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/NewAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/JournalLayout-BIPdeI3K.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/CompassOrb-l0p4ziJs.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/GlobalVoiceLayer-f1ZIoQev.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/JournalLayout-Crk83zWG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/useJ2AccountComparison-kgkIumhF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/NewAccountModal-ByBsN5TI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/platform-Bx76oUM1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/format-D4AQN_X2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/useJ2Positions-cNNkjhNN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/AddTradeModal-BIDRsX5S.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/calculations-D1FU6tq6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/TagChipPicker-B0ydLkYN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/JournalLayout.module-Dw2Sf9Kx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/GlobalVoiceLayer-ScnxOaGi.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/indicatorRegistry-CBn-mg6W.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/readAloudProgress-DWtCuYlC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/CompassOrb-BBeJPGEc.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/askInsert-CuaB5GuX.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/tiptap-oN1UfRTF.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/FolderSidebar-BpIi6z4y.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/NotebookTab-BDxN_IQA.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/auth/avatar/b1f3faf2-a9d4-4721-b150-f73f8e1c348a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/NotebookSurface-BStOlK1U.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/NotebookTab-mUeEYykl.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/FolderSidebar-BpnTURls.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/ConfirmModal-DLIxJHFw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/tiptap-W29wPPCF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/askInsert-DrWogvMh.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/CapturedSourceSheet-LnWTdDmL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/lazyChunk-CvxcaDHL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/RsBadge-BlqwN3hv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/TranscriptPanel-u0JKD4JP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /assets/useDurableNote-D2a1zuGg.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /assets/CollapsibleSection-J4ds5wyF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /assets/UnreadableNoteNotice-CIG-bqSf.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /assets/fontFamilies-BFcQTEuQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /assets/tourControl-D0TqODih.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /assets/useNoteConnectors-CHyblMf3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:56482 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/j2/notes/connectors/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/j2/accounts/cf9d45a2-664d-4e35-8fd9-1e54c88b58fe/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/positions?account_id=cf9d45a2-664d-4e35-8fd9-1e54c88b58fe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52157 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51031 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52261 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56482 - "GET /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "POST /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52159 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62569 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-09-26 16:14:10,922 INFO api.services.watchlist_prebuilt_refresh: [prebuilt-refresh] liquid=100 delisted=69 (ADGI,AMBC,AMEH,ANGIV,APGE,ATAI,ATUS,AVB,AXL,BF-B,BH-A,BIGC,BOMN,BRK-B,BRKS,CDXC,COEP,COMM,CRD-A,CRNX,EA,ELY,EQR,EXPI,FBHS,FBRX,GEF-B,GMRE,GPS,HEAR,HLX,HM,HONAV,ISSC,JCOM,KFS,LANC,LC,LEG,LNDC,MDV,MEG,MOG-A,MPW,NCR,OSTK,PCYG,PFHC,PTSI,PX,RCII,RMAX,SBT,SCVL,SEAS,SPX,SRM,SWM,TALK,THAR,THRD,TOI,TPX,TWO,VIX,VSNTV,WBS,WUFI,ZI) index={'s&p 500': 503, 's&p 100': 98, 'nasdaq 100': 102, 'dow 30': 30, 's&p midcap 400': 396, 's&p smallcap 600': 599, 'russell 2000': 1938} days=2026-09-25,2026-09-24,2026-09-23,2026-09-22,2026-09-21
+2026-09-26 16:14:11,043 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 500' with 501 tickers
+2026-09-26 16:14:11,101 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P 100' with 97 tickers
+2026-09-26 16:14:11,153 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Nasdaq 100' with 102 tickers
+2026-09-26 16:14:11,217 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P MidCap 400' with 391 tickers
+2026-09-26 16:14:11,428 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'S&P SmallCap 600' with 587 tickers
+INFO:     127.0.0.1:62569 - "PUT /api/j2/notes/f53d8d84f55340659e0cdb0e7fe11229 HTTP/1.1" 200 OK
+2026-09-26 16:14:12,160 INFO api.services.watchlist_prebuilt: [prebuilt] seeded 'Russell 2000' with 1895 tickers
+2026-09-26 16:14:12,227 ERROR yfinance: HTTP Error 401: {"finance":{"result":null,"error":{"code":"Unauthorized","description":"Invalid Crumb"}}}
+2026-09-26 16:14:12,552 INFO api.main: [startup] theme_index prewarm: 0 themes warmed
+2026-09-26 16:14:16,040 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 44, 'fresh': 0}
+INFO:     127.0.0.1:51932 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+2026-09-26 16:14:19,044 INFO api.main: [scanner-warm] presets warm (0 still building)
+2026-09-26 16:14:19,271 INFO index_bars: [index_bars] warm pass done: {'fetched': 49, 'fresh': 0, 'failed': 0}
+2026-09-26 16:14:20,479 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-26 16:14:21,396 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: ARDDF"}}}
+2026-09-26 16:14:22,542 INFO api.main: [startup] hot tier warmed: 0 entries
+[breadth-heal] boot pass: 0 healed of last 10
+2026-09-26 16:14:27,105 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-09-26 16:14:28,704 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 10 across 5 uncovered days
+2026-09-26 16:14:28,704 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-09-26 16:14:29,340 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-09-26 16:14:29,472 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 22 across 5 uncovered days
+2026-09-26 16:14:29,473 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-09-26 16:14:29,678 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+INFO:     127.0.0.1:56799 - "GET /journal/notebook?view=all HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /fonts/instrument-sans-v4-latin.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /fonts/instrument-sans-v4-latin-tab.woff2 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/index-D-c0q2go.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/index-DXC3IMMp.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/vendor-react-cFHfmPl1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/vendor-swr-_43fCvjP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/useJ2Accounts-Db2B4n8e.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/AddPositionModal-C_Nz1KUx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/GlobalAddPositionProvider-CiSxfKMD.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/useJ2SelectedAccount-DBJkaop5.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/useJ2Settings-CcTMqIZY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/disciplineGuards-BETme5OJ.js HTTP/1.1" 200 OK
+2026-09-26 16:14:29,866 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 12 across 5 uncovered days
+INFO:     127.0.0.1:60927 - "GET /assets/ModalShell-cNsm7dP-.css HTTP/1.1" 200 OK
+2026-09-26 16:14:29,868 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+INFO:     127.0.0.1:61205 - "GET /assets/InterventionBanner-DEh6uiOt.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/AddPositionModal-D22yQG8W.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/ModalShell.module-BBDh_wSF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/Toast-B2CVyuZT.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/GlobalAddPositionProvider-BxtpbEMG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/InterventionBanner-C_wQb4AA.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/compassScope-BdtmPm2h.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/VoiceInputButton-BK7M9MgG.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/Toast-Pb1MpXQT.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/compass-mark-DvndB-rt.png HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/index-DK5Ffez4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/ShortcutCheatSheet-Dx0u1hGn.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/ContextPopover-CCmZUJdU.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/ContextPopover-B2QTiObS.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/useLongPress-7REY2IAY.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/JournalLayout-CL_A8OTK.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/NewAccountModal-Dq2de4K8.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/JournalLayout-Crk83zWG.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/JournalLayout-BIPdeI3K.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/GlobalVoiceLayer-f1ZIoQev.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/ShortcutCheatSheet-DeF6BbX-.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/CompassOrb-l0p4ziJs.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/AddTradeModal-BIDRsX5S.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/platform-Bx76oUM1.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/useJ2AccountComparison-kgkIumhF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/useJ2Positions-cNNkjhNN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/NewAccountModal-ByBsN5TI.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/format-D4AQN_X2.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/JournalLayout.module-Dw2Sf9Kx.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/readAloudProgress-DWtCuYlC.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/indicatorRegistry-CBn-mg6W.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/GlobalVoiceLayer-ScnxOaGi.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/TagChipPicker-B0ydLkYN.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/calculations-D1FU6tq6.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/auth/avatar/b1f3faf2-a9d4-4721-b150-f73f8e1c348a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/CompassOrb-BBeJPGEc.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/askInsert-CuaB5GuX.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/tiptap-oN1UfRTF.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/FolderSidebar-BpIi6z4y.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/CapturedSourceSheet-cVOA7qsQ.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/RsBadge-C3U6yPu9.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/TranscriptPanel-CJ3-x0Bi.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/CollapsibleSection-C6X1gx7M.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/UnreadableNoteNotice-ljOSuQZK.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/NotebookTab-BDxN_IQA.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/NotebookSurface-BStOlK1U.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/NotebookTab-mUeEYykl.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/FolderSidebar-BpnTURls.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/documentProvenance-BdzAm6ny.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/ConfirmModal-DLIxJHFw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/tiptap-W29wPPCF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/askInsert-DrWogvMh.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/index-Vcq4gwWv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/index-C7yKKq-w.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/calendar-DXn8k2S0.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/captureSafety-CEs8hJU4.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/lazyChunk-CvxcaDHL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/CapturedSourceSheet-LnWTdDmL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /assets/RsBadge-BlqwN3hv.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /assets/TranscriptPanel-u0JKD4JP.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/useDurableNote-D2a1zuGg.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /assets/CollapsibleSection-J4ds5wyF.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /assets/UnreadableNoteNotice-CIG-bqSf.js HTTP/1.1" 200 OK
+2026-09-26 16:14:30,212 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+INFO:     127.0.0.1:65356 - "GET /assets/fontFamilies-BFcQTEuQ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /assets/tourControl-D0TqODih.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /assets/useNoteConnectors-CHyblMf3.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+2026-09-26 16:14:30,236 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+INFO:     127.0.0.1:56799 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes/connectors/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/j2/positions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/positions?account_id=cf9d45a2-664d-4e35-8fd9-1e54c88b58fe HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/accounts/cf9d45a2-664d-4e35-8fd9-1e54c88b58fe/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65356 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/notes/5805e04eda464e3b9b118a33ead71402/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "POST /api/j2/notes/5805e04eda464e3b9b118a33ead71402/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+2026-09-26 16:14:32,087 WARNING api.services.earnings_preview_warm: [earn-warm:preview] COVERAGE 0/405 (0%) is below the 80% floor — names a reader can see are opening cold. Check the artifacts (/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), not this pass's submitted count.
+2026-09-26 16:14:32,087 INFO api.services.earnings_preview_warm: [earn-warm:preview] candidates=182 tracked=6 submitted=182 recent=0 board=405 covered=0 companions=405 dropped_by_topn=0
+2026-09-26 16:14:32,093 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-26 16:14:32,113 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+2026-09-26 16:14:32,161 INFO api.services.member_interest: member_interest position syms failed: no such column: sym
+INFO:     127.0.0.1:61205 - "PUT /api/j2/notes/5805e04eda464e3b9b118a33ead71402 HTTP/1.1" 200 OK
+2026-09-26 16:14:33,883 WARNING api.services.earnings_preview_warm: [earn-warm:analysis] COVERAGE 0/405 (0%) is below the 80% floor — names a reader can see are opening cold. Check the artifacts (/data/earnings_ai_cache, stock_brief.db, news_catalysts.db), not this pass's submitted count.
+2026-09-26 16:14:33,883 INFO api.services.earnings_preview_warm: [earn-warm:analysis] candidates=0 tracked=0 submitted=0 recent=0 board=405 covered=0 companions=405 dropped_by_topn=0
+2026-09-26 16:14:33,883 INFO api.main: [dashboard-warm] earnings-previews ok
+INFO:     127.0.0.1:61205 - "POST /api/j2/notes HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56405 - "GET /api/j2/notes/fe9cf45fe51841f982295b4e0f6bd17c/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61205 - "GET /api/j2/notes/fe9cf45fe51841f982295b4e0f6bd17c HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60927 - "GET /api/j2/notes/fe9cf45fe51841f982295b4e0f6bd17c/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56799 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /api/j2/notes/fe9cf45fe51841f982295b4e0f6bd17c/facts HTTP/1.1" 200 OK
+2026-09-26 16:14:35,114 ERROR asyncio: Exception in callback _ProactorBasePipeTransport._call_connection_lost()
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost()>
+Traceback (most recent call last):
+  File "C:\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+INFO:     Shutting down
+2026-09-26 16:14:35,464 INFO api.services.stock_brief.service: stock_brief profile generated for CCL
+2026-09-26 16:14:36,319 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:36,356 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:36,356 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:36,361 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:36,361 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:36,405 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:36,417 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:36,452 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+[darkpool_agg] prewarm: cold windows [1, 5, 20, 60, 90, None] — building in background
+[darkpool_agg] days=90 all=False rows=4516 tickers=1250 dates=3 took=90ms
+2026-09-26 16:14:37,771 INFO api.services.bars_sanitize: [d5-cp4-dual-compute] CCL outcome=FMP_ONLY fmp=2 d5=0
+[darkpool_agg] days=60 all=False rows=4516 tickers=1250 dates=3 took=98ms
+[darkpool_agg] days=20 all=False rows=4516 tickers=1250 dates=3 took=76ms
+2026-09-26 16:14:38,243 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+[darkpool_agg] days=5 all=False rows=4516 tickers=1250 dates=3 took=94ms
+[darkpool_agg] days=1 all=False rows=1674 tickers=727 dates=1 took=37ms
+[darkpool_agg] days=None all=True rows=4516 tickers=1250 dates=3 took=86ms
+[darkpool_agg] prewarm complete
+2026-09-26 16:14:39,051 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:39,126 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:39,156 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:39,195 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:39,226 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:39,226 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:39,836 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:40,359 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" (scheduled at 2026-09-26 16:14:40.347529-05:00)
+2026-09-26 16:14:40,362 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" executed successfully
+2026-09-26 16:14:40,640 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" (scheduled at 2026-09-26 16:14:40.629312-05:00)
+2026-09-26 16:14:40,641 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-26 16:14:40,641 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" executed successfully
+2026-09-26 16:14:40,735 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 17:15:40 EDT)" (scheduled at 2026-09-26 17:14:40.733911-04:00)
+2026-09-26 16:14:40,736 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 17:15:40 EDT)" executed successfully
+2026-09-26 16:14:40,751 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" (scheduled at 2026-09-26 16:14:40.745741-05:00)
+2026-09-26 16:14:40,753 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set — cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-26 16:14:40,753 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" executed successfully
+2026-09-26 16:14:41,507 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:41,544 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:14:41,592 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:41,630 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:41,739 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:41,739 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:41,811 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:41,812 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:42,583 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:14:42,627 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:44,256 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:44,256 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:44,304 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:44,304 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:44,395 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:44,395 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:44,448 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:44,448 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:44,470 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:44,470 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:45,068 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:45,068 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:45,075 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 250/3640 warmed=163 failed=87
+2026-09-26 16:14:46,668 INFO api.services.stock_brief.service: stock_brief profile generated for MU
+2026-09-26 16:14:46,757 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:46,757 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:46,788 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:46,788 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:46,906 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:46,906 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:46,970 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:46,970 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:47,086 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:47,441 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:47,441 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,204 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,283 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:49,283 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,420 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,440 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,686 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:49,686 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:49,941 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:49,941 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:50,539 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-26 16:14:51,588 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:51,588 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:51,611 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:51,840 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:51,840 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:52,011 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:52,011 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:52,118 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:52,415 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:52,415 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:52,567 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+2026-09-26 16:14:52,567 INFO api.services.industry_map: [industry_map] prewarm bulk complete — 0 rows
+2026-09-26 16:14:53,282 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:14:54,053 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:54,053 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:54,229 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:54,355 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:54,355 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:54,496 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:54,496 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:54,752 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:54,873 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:56,263 INFO api.services.stock_brief.service: stock_brief profile generated for AEHR
+2026-09-26 16:14:56,521 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:56,521 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:56,677 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:56,677 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:56,813 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:56,813 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TAOFF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:56,813 WARNING api.services.engine: FMP quarterly history failed for TAOFF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:56,884 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for TDRRF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:14:56,885 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:56,885 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:56,885 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TDRRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:56,885 WARNING api.services.engine: FMP quarterly history failed for TDRRF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:59,525 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,588 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,588 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for KMX: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:59,588 WARNING api.services.engine: FMP quarterly history failed for KMX: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:59,598 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for AIR: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:14:59,598 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:59,598 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,598 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for AIR: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:59,598 WARNING api.services.engine: FMP quarterly history failed for AIR: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:59,601 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for CCL: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:14:59,601 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:59,601 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,601 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CCL: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:59,602 WARNING api.services.engine: FMP quarterly history failed for CCL: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:59,602 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:14:59,602 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,602 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BAGFF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:59,603 WARNING api.services.engine: FMP quarterly history failed for BAGFF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:14:59,667 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:14:59,667 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CNXC: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:14:59,668 WARNING api.services.engine: FMP quarterly history failed for CNXC: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,073 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:02,073 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,106 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,118 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,118 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CSSPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:02,118 WARNING api.services.engine: FMP quarterly history failed for CSSPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,124 WARNING api.services.engine: FMP quarterly history failed for CNIKF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,128 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for GNFTF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:02,128 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:02,128 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,129 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for GNFTF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:02,129 WARNING api.services.engine: FMP quarterly history failed for GNFTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,148 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for CBGPF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:02,148 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:02,149 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,149 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CBGPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:02,149 WARNING api.services.engine: FMP quarterly history failed for CBGPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,163 WARNING api.services.engine: FMP quarterly history failed for CRFCF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:02,289 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for BRTX: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:02,289 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:02,289 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:02,290 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BRTX: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:02,290 WARNING api.services.engine: FMP quarterly history failed for BRTX: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,531 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,536 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,536 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,536 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for GSISF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:04,536 WARNING api.services.engine: FMP quarterly history failed for GSISF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,572 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for IPW: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:04,572 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,572 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,572 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for IPW: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:04,572 WARNING api.services.engine: FMP quarterly history failed for IPW: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,574 WARNING api.services.engine: FMP quarterly history failed for GRRMF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,699 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NBTX: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:04,699 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,699 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,699 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NBTX: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:04,700 WARNING api.services.engine: FMP quarterly history failed for NBTX: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,712 WARNING api.services.engine: FMP quarterly history failed for PENG: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,712 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:15:04,713 WARNING api.services.earnings_estimates: FMP get_grades_historical failed for PENG: local FMP budget exhausted for /stable/grades-historical
+2026-09-26 16:15:04,713 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,744 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,744 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,744 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for HBBHF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:04,744 WARNING api.services.engine: FMP quarterly history failed for HBBHF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,824 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for LTSRF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:04,824 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:04,824 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:04,824 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for LTSRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:04,824 WARNING api.services.engine: FMP quarterly history failed for LTSRF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:04,880 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-26 16:15:06,939 INFO api.services.stock_brief.service: stock_brief profile generated for BLLN
+2026-09-26 16:15:07,141 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,141 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,194 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,194 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,238 WARNING api.services.engine: FMP quarterly history failed for OFSTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:07,269 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NSRCF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:07,269 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,269 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,269 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NSRCF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:07,269 WARNING api.services.engine: FMP quarterly history failed for NSRCF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:07,429 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for TMQ: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:07,429 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,429 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,429 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TMQ: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:07,429 WARNING api.services.engine: FMP quarterly history failed for TMQ: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:07,474 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for AURWF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:07,474 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,474 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,474 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for AURWF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:07,474 WARNING api.services.engine: FMP quarterly history failed for AURWF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:07,483 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ZENA: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:07,484 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:07,484 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:07,484 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ZENA: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:07,484 WARNING api.services.engine: FMP quarterly history failed for ZENA: local FMP budget exhausted for /stable/earnings
+[sqlite-index] built idx_ohlcv_daily_bydate in 0.0s
+2026-09-26 16:15:07,615 INFO api.services.ticker_logos: [logo-hires] starting: 246 cached logos to upgrade
+2026-09-26 16:15:09,016 INFO api.services.stock_brief.service: stock_brief profile generated for PENG
+2026-09-26 16:15:10,306 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,306 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,315 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,315 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,356 WARNING api.services.engine: FMP quarterly history failed for CYMHF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:10,387 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,387 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,387 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for AZMTF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:10,387 WARNING api.services.engine: FMP quarterly history failed for AZMTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:10,425 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for BELMF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:10,425 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,425 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,425 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BELMF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:10,425 WARNING api.services.engine: FMP quarterly history failed for BELMF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:10,564 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:15:10,565 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for BIYA: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:10,565 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,565 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,565 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BIYA: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:10,565 WARNING api.services.engine: FMP quarterly history failed for BIYA: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:10,713 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:15:10,715 WARNING api.services.earnings_estimates: FMP get_grades_historical failed for DAL: local FMP budget exhausted for /stable/grades-historical
+2026-09-26 16:15:10,715 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,844 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for FNCJF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:10,844 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:10,844 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:10,845 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for FNCJF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:10,845 WARNING api.services.engine: FMP quarterly history failed for FNCJF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:13,198 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,199 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,202 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,203 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,245 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ITMPF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:13,245 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,245 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,245 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ITMPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:13,245 WARNING api.services.engine: FMP quarterly history failed for ITMPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:13,249 WARNING api.services.engine: FMP quarterly history failed for GSGTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:13,388 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NAMM: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:13,388 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,388 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,388 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NAMM: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:13,388 WARNING api.services.engine: FMP quarterly history failed for NAMM: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:13,503 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:15:13,503 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NVYAF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:13,503 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,503 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,503 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NVYAF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:13,503 WARNING api.services.engine: FMP quarterly history failed for NVYAF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:13,852 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:13,852 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:13,852 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for MMMRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:13,852 WARNING api.services.engine: FMP quarterly history failed for MMMRF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:15,591 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-26 16:15:15,591 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-26 21:15:15 UTC], next run at: 2026-09-26 21:15:15 UTC)" (scheduled at 2026-09-26 21:15:15.578950+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': True, 'day': '2026-09-26', 'enabled': True, 'members': 0, 'delivered': 0, 'already_sent': 0, 'in_flight': 0, 'failed': 0, 'marked': True}
+2026-09-26 16:15:15,602 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-26 21:15:15 UTC], next run at: 2026-09-26 21:15:15 UTC)" executed successfully
+2026-09-26 16:15:15,984 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:15,984 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:15,987 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ORMNF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:15,987 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:15,987 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:15,987 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ORMNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:15,987 WARNING api.services.engine: FMP quarterly history failed for ORMNF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:16,011 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:16,011 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:16,011 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for REGRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:16,011 WARNING api.services.engine: FMP quarterly history failed for REGRF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:16,026 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:16,026 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:16,026 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PLIXF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:16,026 WARNING api.services.engine: FMP quarterly history failed for PLIXF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:16,028 WARNING api.services.engine: FMP quarterly history failed for ORRCF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:16,321 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for REZZF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:16,321 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:16,321 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:16,321 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for REZZF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:16,321 WARNING api.services.engine: FMP quarterly history failed for REZZF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:16,349 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:16,349 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:16,349 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for STTDF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:16,349 WARNING api.services.engine: FMP quarterly history failed for STTDF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:17,398 INFO api.services.stock_brief.service: stock_brief profile generated for DAL
+2026-09-26 16:15:18,353 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:15:18,397 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:18,397 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:18,400 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:18,400 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:18,400 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TLIH: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:18,401 WARNING api.services.engine: FMP quarterly history failed for TLIH: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:18,436 WARNING api.services.engine: FMP quarterly history failed for SXLXF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:18,438 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:18,438 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:18,439 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TWRFF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:18,439 WARNING api.services.engine: FMP quarterly history failed for TWRFF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:21,263 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,307 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,328 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for JBL: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:21,329 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:21,329 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,329 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for JBL: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:21,329 WARNING api.services.engine: FMP quarterly history failed for JBL: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:21,348 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for YRD: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:21,348 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:21,349 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,349 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for YRD: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:21,349 WARNING api.services.engine: FMP quarterly history failed for YRD: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:21,349 WARNING api.services.engine: FMP quarterly history failed for FDS: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:21,367 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,367 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CALM: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:21,367 WARNING api.services.engine: FMP quarterly history failed for CALM: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:21,428 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for MU: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:21,428 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:21,429 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:21,429 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for MU: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:21,429 WARNING api.services.engine: FMP quarterly history failed for MU: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:22,346 INFO api.services.stock_brief.service: stock_brief profile generated for ASML
+2026-09-26 16:15:22,728 WARNING api.services.engine: earnings JSON salvaged (Extra data: line 2 column 1 (char 736)): kept ['bullets', 'preview']
+2026-09-26 16:15:24,095 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:24,096 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,106 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:24,106 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,147 WARNING api.services.engine: FMP quarterly history failed for CKHGF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:24,171 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for BSET: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:24,171 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:24,171 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,171 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BSET: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:24,171 WARNING api.services.engine: FMP quarterly history failed for BSET: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:24,185 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,185 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PRGS: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:24,185 WARNING api.services.engine: FMP quarterly history failed for PRGS: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:24,190 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for DTGI: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:24,190 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:24,190 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,190 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for DTGI: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:24,190 WARNING api.services.engine: FMP quarterly history failed for DTGI: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:24,244 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for CTW: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:24,244 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:24,244 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:24,244 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CTW: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:24,244 WARNING api.services.engine: FMP quarterly history failed for CTW: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:26,940 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:26,940 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:26,943 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:26,943 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:26,977 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NHLPF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:26,977 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:26,977 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:26,977 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NHLPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:26,977 WARNING api.services.engine: FMP quarterly history failed for NHLPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:26,981 WARNING api.services.engine: FMP quarterly history failed for DTSS: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:27,015 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NWWDF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:27,015 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:27,015 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:27,015 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NWWDF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:27,015 WARNING api.services.engine: FMP quarterly history failed for NWWDF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:27,018 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:27,018 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:27,018 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for FLES: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:27,018 WARNING api.services.engine: FMP quarterly history failed for FLES: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:27,023 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NTRBW: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:27,023 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:27,023 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:27,023 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NTRBW: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:27,023 WARNING api.services.engine: FMP quarterly history failed for NTRBW: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:27,914 INFO api.services.stock_brief.service: stock_brief profile generated for TSM
+2026-09-26 16:15:29,892 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:29,892 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:29,921 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:29,921 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:29,921 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ARDDF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:29,921 WARNING api.services.engine: FMP quarterly history failed for ARDDF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:29,936 WARNING api.services.engine: FMP quarterly history failed for PDIYF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:29,938 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ARRNF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:29,938 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:29,938 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:29,938 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ARRNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:29,938 WARNING api.services.engine: FMP quarterly history failed for ARRNF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:29,950 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:29,950 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:29,950 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for BTGGF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:29,950 WARNING api.services.engine: FMP quarterly history failed for BTGGF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:30,004 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ZEOX: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:30,004 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:30,004 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:30,004 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ZEOX: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:30,004 WARNING api.services.engine: FMP quarterly history failed for ZEOX: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:30,470 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/profile2)
+2026-09-26 16:15:30,691 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:15:30,732 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:30,732 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:30,772 WARNING api.services.engine: FMP quarterly history failed for CNONF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:30,871 INFO api.services.stock_brief.service: stock_brief profile generated for SLB
+2026-09-26 16:15:32,811 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:32,811 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:32,826 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:32,826 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:32,826 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for EMSNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:32,826 WARNING api.services.engine: FMP quarterly history failed for EMSNF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:32,829 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ENEVF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:32,829 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:32,829 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:32,829 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ENEVF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:32,829 WARNING api.services.engine: FMP quarterly history failed for ENEVF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:32,833 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for EXSPF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:32,833 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:32,833 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:32,833 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for EXSPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:32,833 WARNING api.services.engine: FMP quarterly history failed for EXSPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:32,853 WARNING api.services.engine: FMP quarterly history failed for DTPKF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:32,863 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:32,863 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:32,863 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CODMF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:32,863 WARNING api.services.engine: FMP quarterly history failed for CODMF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:33,588 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:33,588 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:33,588 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for FYIRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:33,588 WARNING api.services.engine: FMP quarterly history failed for FYIRF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:35,547 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 500/3640 warmed=322 failed=178
+2026-09-26 16:15:35,579 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/earnings)
+2026-09-26 16:15:35,624 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:35,624 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:35,629 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:35,630 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:35,631 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for PINWF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:35,632 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:35,632 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:35,632 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PINWF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:35,632 WARNING api.services.engine: FMP quarterly history failed for PINWF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:35,641 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for NVYTF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:35,641 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:35,642 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:35,642 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NVYTF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:35,642 WARNING api.services.engine: FMP quarterly history failed for NVYTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:35,646 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:35,646 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:35,646 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for HWKDF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:35,646 WARNING api.services.engine: FMP quarterly history failed for HWKDF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:35,665 WARNING api.services.engine: FMP quarterly history failed for GNYPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:35,711 WARNING api.services.engine: FMP quarterly history failed for MMDDF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:36,233 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:36,233 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:36,234 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for REEEF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:36,234 WARNING api.services.engine: FMP quarterly history failed for REEEF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:37,556 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-26 16:15:37,556 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-26 16:15:38,456 INFO api.services.stock_brief.service: stock_brief profile generated for GLXY
+2026-09-26 16:15:38,788 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:38,789 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:38,841 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:38,842 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:38,842 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TGMGF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:38,842 WARNING api.services.engine: FMP quarterly history failed for TGMGF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:38,862 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:38,862 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:38,862 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for WHGPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:38,862 WARNING api.services.engine: FMP quarterly history failed for WHGPF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:39,279 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:39,279 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:39,280 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for THCBF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:39,280 WARNING api.services.engine: FMP quarterly history failed for THCBF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:40,254 INFO api.services.bars_sanitize: [d5-cp4-dual-compute] OKLO outcome=BOTH_EMPTY fmp=0 d5=0
+2026-09-26 16:15:40,361 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-26 16:16:40 CDT)" (scheduled at 2026-09-26 16:15:40.347529-05:00)
+2026-09-26 16:15:40,366 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-26 16:16:40 CDT)" executed successfully
+2026-09-26 16:15:40,640 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-26 16:16:40 CDT)" (scheduled at 2026-09-26 16:15:40.629312-05:00)
+2026-09-26 16:15:40,640 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-26 16:15:40,641 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-26 16:16:40 CDT)" executed successfully
+2026-09-26 16:15:40,747 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 17:16:40 EDT)" (scheduled at 2026-09-26 17:15:40.733911-04:00)
+2026-09-26 16:15:40,748 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-26 17:16:40 EDT)" executed successfully
+2026-09-26 16:15:40,749 INFO apscheduler.executors.default: Running job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-26 17:15:40 EDT)" (scheduled at 2026-09-26 17:15:40.738640-04:00)
+2026-09-26 16:15:40,750 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-26 16:15:40 CDT)" (scheduled at 2026-09-26 16:15:40.745741-05:00)
+2026-09-26 16:15:40,757 INFO apscheduler.executors.default: Job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-26 17:17:40 EDT)" executed successfully
+2026-09-26 16:15:40,757 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set — cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-26 16:15:40,759 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-26 16:16:40 CDT)" executed successfully
+2026-09-26 16:15:42,451 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:42,496 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:42,496 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for MKC: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:42,496 WARNING api.services.engine: FMP quarterly history failed for MKC: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:42,501 WARNING api.services.engine: FMP quarterly history failed for AYI: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:42,519 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ANGO: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:42,519 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:42,519 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:42,520 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ANGO: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:42,520 WARNING api.services.engine: FMP quarterly history failed for ANGO: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:42,559 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:42,559 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NKE: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:42,560 WARNING api.services.engine: FMP quarterly history failed for NKE: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:43,778 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:43,819 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:43,819 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:43,862 WARNING api.services.engine: FMP quarterly history failed for HDGHF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:45,332 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:45,332 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:45,375 WARNING api.services.engine: FMP quarterly history failed for PBK: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:45,384 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:45,384 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PDLMF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:45,384 WARNING api.services.engine: FMP quarterly history failed for PDLMF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:45,406 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for PKE: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:45,406 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:45,406 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:45,406 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PKE: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:45,407 WARNING api.services.engine: FMP quarterly history failed for PKE: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:45,434 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for HUBG: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:45,434 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:45,434 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:45,435 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for HUBG: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:45,435 WARNING api.services.engine: FMP quarterly history failed for HUBG: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:46,043 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-26 16:15:46,629 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:46,630 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:46,695 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for VLUTF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:46,695 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:46,695 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:46,695 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for VLUTF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:46,695 WARNING api.services.engine: FMP quarterly history failed for VLUTF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:48,140 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:48,140 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:48,140 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CMCXF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:48,140 WARNING api.services.engine: FMP quarterly history failed for CMCXF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:48,154 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for TORO: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:48,155 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:48,155 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:48,155 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TORO: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:48,155 WARNING api.services.engine: FMP quarterly history failed for TORO: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:48,178 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:48,178 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:48,178 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for USSHF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:48,178 WARNING api.services.engine: FMP quarterly history failed for USSHF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:48,199 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:48,199 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:48,200 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for FOBIF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:48,200 WARNING api.services.engine: FMP quarterly history failed for FOBIF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:48,377 INFO api.services.stock_brief.service: stock_brief profile generated for GM
+2026-09-26 16:15:49,072 INFO api.services.stock_brief.service: stock_brief profile generated for KO
+2026-09-26 16:15:51,446 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,462 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:51,462 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,495 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ENLV: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:51,496 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:51,497 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,497 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ENLV: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:51,497 WARNING api.services.engine: FMP quarterly history failed for ENLV: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:51,507 WARNING api.services.engine: FMP quarterly history failed for JDWPY: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:51,522 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,523 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for CASIF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:51,523 WARNING api.services.engine: FMP quarterly history failed for CASIF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:51,543 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for OGGFF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:51,543 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:51,544 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,544 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for OGGFF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:51,544 WARNING api.services.engine: FMP quarterly history failed for OGGFF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:51,571 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for KARNF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:51,572 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:51,572 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:51,572 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for KARNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:51,573 WARNING api.services.engine: FMP quarterly history failed for KARNF: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:51,676 INFO api.services.stock_brief.service: stock_brief profile generated for DHR
+2026-09-26 16:15:54,683 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:54,683 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:54,867 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:54,867 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:54,956 INFO api.main: [dashboard-warm] enrichment ok
+2026-09-26 16:15:54,957 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/calendar/earnings)
+2026-09-26 16:15:54,958 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-09-15: local FMP budget exhausted for /stable/earnings-calendar
+2026-09-26 16:15:54,959 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-09-16: local FMP budget exhausted for /stable/earnings-calendar
+2026-09-26 16:15:54,959 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-09-17: local FMP budget exhausted for /stable/earnings-calendar
+2026-09-26 16:15:54,959 WARNING api.routers.calendar: Calendar range: FMP fetch failed for 2026-09-18: local FMP budget exhausted for /stable/earnings-calendar
+2026-09-26 16:15:54,962 INFO api.main: [dashboard-warm] flow-curated ok
+2026-09-26 16:15:55,009 WARNING api.services.econ_calendar_fmp: [econ-fmp] typed fetch failed: local FMP budget exhausted for /stable/economic-calendar
+2026-09-26 16:15:55,010 INFO api.routers.calendar: Calendar: econ loaded — FF 0 events / 0 days, FMP filled 0 across 5 uncovered days
+2026-09-26 16:15:55,011 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set — bulk refresh skipped
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-26 16:15:58,028 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,056 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,070 WARNING api.services.engine: FMP quarterly history failed for BNTC: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:58,074 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,074 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for KMTS: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:58,074 WARNING api.services.engine: FMP quarterly history failed for KMTS: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:58,097 WARNING api.services.engine: FMP quarterly history failed for UROY: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:58,291 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ABAT: local FMP budget exhausted for /stable/grades-consensus
+2026-09-26 16:15:58,291 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:15:58,291 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,291 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ABAT: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:58,292 WARNING api.services.engine: FMP quarterly history failed for ABAT: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:58,309 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,309 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PLAY: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:58,309 WARNING api.services.engine: FMP quarterly history failed for PLAY: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:58,411 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:15:58,411 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for RLGT: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-26 16:15:58,411 WARNING api.services.engine: FMP quarterly history failed for RLGT: local FMP budget exhausted for /stable/earnings
+2026-09-26 16:15:59,392 INFO api.services.rs_ranking: [rs_ranking] Cached 3620 RS rankings
+2026-09-26 16:15:59,395 INFO api.main: [rs-rankings] warmed: 3620 entries
+2026-09-26 16:16:00,005 INFO apscheduler.executors.default: Running job "wisdom_extract_reap (trigger: cron[minute='16,46'], next run at: 2026-09-26 17:46:00 EDT)" (scheduled at 2026-09-26 17:16:00-04:00)
+2026-09-26 16:16:00,014 INFO apscheduler.executors.default: Job "wisdom_extract_reap (trigger: cron[minute='16,46'], next run at: 2026-09-26 17:46:00 EDT)" executed successfully
+2026-09-26 16:16:00,223 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/recommendation)
+2026-09-26 16:16:00,223 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/stock/price-target)
+2026-09-26 16:16:00,412 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/161 syms; week-2 5 day(s)/7 syms
+2026-09-26 16:16:07,982 INFO api.services.stock_brief.service: stock_brief profile generated for IBM
+2026-09-26 16:16:10,374 INFO api.services.stock_brief.service: stock_brief profile generated for SAP
+2026-09-26 16:16:12,680 INFO api.services.stock_brief.service: stock_brief profile generated for CORZ
+2026-09-26 16:16:14,891 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:16:23,191 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 750/3640 warmed=498 failed=252
+2026-09-26 16:16:25,842 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:16:30,123 INFO api.services.stock_brief.service: stock_brief profile generated for GNS
+2026-09-26 16:16:31,060 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set — Finnhub call skipped (/company-news)
+2026-09-26 16:16:33,031 INFO api.services.stock_brief.service: stock_brief profile generated for ADXN

@@ -18,6 +18,7 @@ import {
   UNCHECKED_SENTENCE, checkUnsentWork, describeBatch, describeExport, describeUnchecked, exportSelectedNotes,
   holdsUnsentWork, joinUndo, runNoteBatch, undoFor,
 } from './noteBatch'
+import { EXPORT_FORMATS } from '../components/notebook/export/exportFormats'
 import { BLOCKED_TITLE } from './offline/unsyncedCopy'
 import { __resetNotebookFlags, latchNotebookFlags } from './offline/notebookFlags'
 import { installKeyRange } from './offline/__fixtures__/fakeIndexedDb'
@@ -163,26 +164,58 @@ describe('describeBatch — the sentence a member reads', () => {
 })
 
 describe('exportSelectedNotes', () => {
-  it('posts the ids, downloads the zip, and reports what the server counted', async () => {
+  /** A download the module hands to the browser: the anchor's `download` name is recorded. */
+  function stubDownload(headers) {
     const created = []
     vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:x'), revokeObjectURL: vi.fn() })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function () { created.push(this.download) })
-    const headers = { 'content-disposition': 'attachment; filename="uct-notebook-selection-20260923.zip"', 'x-export-count': '2', 'x-export-skipped': '1' }
     const fetchFn = vi.fn(async () => ({
       ok: true, status: 200, blob: async () => new Blob(['zip']), headers: { get: (k) => headers[k.toLowerCase()] ?? null },
     }))
     vi.stubGlobal('fetch', fetchFn)
+    return { created, click, fetchFn }
+  }
+
+  it('posts the ids with the format it was given, downloads the zip, and reports what the server counted', async () => {
+    const { created, click, fetchFn } = stubDownload({
+      'content-disposition': 'attachment; filename="uct-notebook-selection-20260923.zip"', 'x-export-count': '2', 'x-export-skipped': '1',
+    })
     const out = await exportSelectedNotes(['n1', 'n2', 'n3'])
-    expect(fetchFn.mock.calls[0][0]).toBe('/api/j2/notes/batch/export')
+    expect(fetchFn.mock.calls[0][0]).toBe('/api/j2/notes/batch/export?format=md')     // absent format: Markdown, said
+    expect(fetchFn.mock.calls[0][1].method).toBe('POST')
     expect(JSON.parse(fetchFn.mock.calls[0][1].body)).toEqual({ ids: ['n1', 'n2', 'n3'] })
-    expect(out).toEqual({ count: 2, skipped: 1 })
+    expect(out).toEqual({ count: 2, skipped: 1, format: 'md' })
     expect(created).toEqual(['uct-notebook-selection-20260923.zip'])
+    click.mockRestore()
+  })
+
+  it.each(EXPORT_FORMATS.map((f) => [f.id]))('sends the %s choice as the same format= the format routes take', async (id) => {
+    const { click, fetchFn } = stubDownload({ 'content-disposition': 'attachment; filename="x.zip"' })
+    const out = await exportSelectedNotes(['n1'], id)
+    expect(fetchFn.mock.calls[0][0]).toBe(`/api/j2/notes/batch/export?format=${id}`)
+    expect(out.format).toBe(id)
+    click.mockRestore()
+  })
+
+  it('names the file from filename* first (the ONE reader, filenameFromDisposition), so a name outside Latin-1 arrives whole', async () => {
+    const real = 'Plan \u2014 NVDA\u2019s reclaim.zip'
+    const { created, click } = stubDownload({
+      'content-disposition': `attachment; filename="Plan _ NVDA_s reclaim.zip"; filename*=UTF-8''${encodeURIComponent(real)}`,
+    })
+    await exportSelectedNotes(['n1'], 'docx')
+    expect(created).toEqual([real])
     click.mockRestore()
   })
 
   it('a busy export slot is said in plain words', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) })))
     await expect(exportSelectedNotes(['n1'])).rejects.toThrow(/already running/)
+  })
+
+  it("a refused format is the server's own sentence, as it stands", async () => {
+    const sentence = "That export format isn't available. Choose Markdown, Web page (HTML), JSON or Word."
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 422, json: async () => ({ detail: sentence }) })))
+    await expect(exportSelectedNotes(['n1'], 'pdf')).rejects.toThrow(sentence)
   })
 })
 
@@ -451,6 +484,28 @@ describe('describeExport — every note left out is named', () => {
   it('nothing exported says so', () => {
     expect(describeExport({ count: 0, unsent: ['u'] }, { titleOf: (id) => titles[id] }).message)
       .toBe('1 note was not included: "Sending one" is still syncing — try again in a moment.')
+  })
+})
+
+describe('describeExport — the sentence names the format the member chose (wave 9, D1)', () => {
+  it.each(EXPORT_FORMATS.map((f) => [f.id, f.label]))('%s is said as its EXPORT_FORMATS label, %s', (id, label) => {
+    expect(describeExport({ count: 2, format: id }).message).toBe(`Exported 2 notes as a ${label} zip.`)
+  })
+
+  it('⛔ a Word export never says "Markdown" (and neither does a web page or JSON)', () => {
+    for (const id of ['docx', 'html', 'json']) {
+      expect(describeExport({ count: 1, format: id }).message).not.toMatch(/Markdown/)
+    }
+    expect(describeExport({ count: 1, format: 'docx' }).message).toBe('Exported 1 note as a Word (.docx) zip.')
+  })
+
+  it('an unknown id invents no name', () => {
+    expect(describeExport({ count: 1, format: 'pdf' }).message).toBe('Exported 1 note as a zip.')
+  })
+
+  it('the skipped count is said the same way in every format (trashed or no longer there)', () => {
+    expect(describeExport({ count: 1, skipped: 2, format: 'json' }).message)
+      .toBe('Exported 1 note as a JSON zip. 2 could not be exported — they are in the Trash or no longer exist.')
   })
 })
 

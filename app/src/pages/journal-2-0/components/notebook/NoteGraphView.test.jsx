@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { render, screen, fireEvent, act, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { expectNoAxeViolations } from '../../a11y/axeHarness'
 
 /**
  * ⛔ THE LOAD-BEARING TEST IN THIS FILE IS `hovering costs ONE repaint`.
@@ -19,6 +21,7 @@ vi.mock('swr', () => ({
 }))
 
 import NoteGraphView from './NoteGraphView'
+import { GRAPH_VIEW_KEY, nearestInDirection } from '../../lib/graphNavigation'
 
 // ── a recording 2d context, because jsdom has no canvas ────────────────────
 // ⛔ THE LOG IS RESET IN beforeEach, NEVER IN makeCtx. A re-running layout effect
@@ -30,26 +33,30 @@ let ctxLog
 function makeCtx() {
   ctxLog.contexts += 1
   let pending = null
-  return {
+  const ctx = {
     canvas: null,
     setTransform: vi.fn(),
-    clearRect: () => { ctxLog.clears += 1 },
+    clearRect: () => { ctxLog.clears += 1; ctxLog.strokes.push('frame') },
     beginPath: () => { pending = null },
     moveTo: vi.fn(),
     lineTo: () => { ctxLog.lines += 1 },
-    stroke: vi.fn(),
+    // Wave 8 (8A): a stroke records what it drew and in what, so the keyboard
+    // selection ring can be found in a frame. 'frame' marks each clearRect.
+    stroke: () => { ctxLog.strokes.push({ style: ctx.strokeStyle, width: ctx.lineWidth, arc: pending }) },
     arc: (x, y, r) => { pending = { x, y, r }; ctxLog.arcs.push(pending) },
     fill: vi.fn(),
     setLineDash: vi.fn(),
     fillText: (t, x, y) => { ctxLog.texts.push({ t, x, y }) },
     measureText: () => ({ width: 10 }),
   }
+  return ctx
 }
 
 const RECT = { left: 0, top: 0, width: 820, height: 560 }
 
 beforeEach(() => {
-  ctxLog = { arcs: [], clears: 0, texts: [], lines: 0, contexts: 0 }
+  ctxLog = { arcs: [], clears: 0, texts: [], lines: 0, contexts: 0, strokes: [] }
+  window.localStorage.removeItem(GRAPH_VIEW_KEY)
   swrKeys.length = 0
   swrResult = { data: { nodes: [], edges: [], truncated: false }, isLoading: false }
 
@@ -62,7 +69,7 @@ beforeEach(() => {
   vi.stubGlobal('cancelAnimationFrame', () => {})
 })
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
 /** Where the last draw actually put each node. */
 function drawnNodes(count) {
@@ -490,5 +497,300 @@ describe('NoteGraphView', () => {
     // A member's mental map of their own graph has to survive a reload, so the
     // seed is a ring by index and never Math.random().
     expect(b).toEqual(a)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Wave 8, lane 8A (ruling D-A3): a picture nobody can operate is not a view.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The strokes of the LAST frame (everything after the final clearRect). */
+function lastFrameStrokes() {
+  const i = ctxLog.strokes.lastIndexOf('frame')
+  return ctxLog.strokes.slice(i + 1)
+}
+/** The selection ring is the one stroke drawn wider than 1px. */
+const ringsIn = (strokes) => strokes.filter((s) => s.width > 1)
+
+const live = (container) => container.querySelector('[data-graph-live]').textContent
+
+// Titles out of data order on purpose, and one lower-case: Home/End and the
+// list's rows are ordered by localeCompare, which is not data order and not a
+// byte sort ('alpha' sorts before 'Mid').
+const KEY_GRAPH = {
+  isLoading: false,
+  data: {
+    nodes: [
+      { id: 'z', title: 'Zeta', degree: 1 },
+      { id: 'a', title: 'alpha', degree: 2 },
+      { id: 'm', title: 'Mid', degree: 1 },
+    ],
+    edges: [
+      { source: 'a', target: 'z', weight: 1 },
+      { source: 'a', target: 'm', weight: 1 },
+    ],
+    truncated: false,
+  },
+}
+
+describe('the canvas is operable from the keyboard', () => {
+  it('is focusable, has a role, and describes its own keys', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    expect(canvas.tabIndex).toBe(0)
+    expect(canvas.getAttribute('role')).toBe('application')
+    const described = document.getElementById(canvas.getAttribute('aria-describedby'))
+    expect(described).not.toBeNull()
+    for (const key of ['Arrow keys', 'Home', 'End', 'Enter', 'Escape', 'Show as list']) {
+      expect(described.textContent).toContain(key)
+    }
+    // The live region exists BEFORE anything is said into it: a region that
+    // arrives with its text already in place is not announced.
+    const region = container.querySelector('[data-graph-live]')
+    expect(region.getAttribute('aria-live')).toBe('polite')
+    expect(region.textContent).toBe('')
+  })
+
+  it('⛔ H14: every key press costs ONE frame and never re-runs the simulation', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    const settled = drawnNodes(3).map((n) => ({ x: n.x, y: n.y }))
+    let before = ctxLog.clears
+    expect(before).toBeGreaterThan(50) // the simulation really ran
+
+    canvas.focus()
+    for (const key of ['Home', 'End', 'ArrowLeft', 'Escape']) {
+      fireEvent.keyDown(canvas, { key })
+      // ⛔ EXACTLY ONE more frame per press. A re-simulation is the whole
+      // tick budget, on a freshly acquired drawing context.
+      expect(ctxLog.clears - before, `frames for ${key}`).toBe(1)
+      expect(ctxLog.contexts).toBe(1)
+      expect(drawnNodes(3).map((n) => ({ x: n.x, y: n.y })), `moved on ${key}`).toEqual(settled)
+      before = ctxLog.clears
+    }
+  })
+
+  it('a key that changes nothing draws nothing', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    fireEvent.keyDown(canvas, { key: 'Home' })
+    const before = ctxLog.clears
+    fireEvent.keyDown(canvas, { key: 'Home' }) // already there
+    fireEvent.keyDown(canvas, { key: 'x' }) // not a graph key
+    expect(ctxLog.clears - before).toBe(0)
+  })
+
+  it('Home and End go to the first and last note BY TITLE, and say so politely', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    fireEvent.keyDown(canvas, { key: 'Home' })
+    expect(live(container)).toBe('alpha, 2 links')
+    fireEvent.keyDown(canvas, { key: 'End' })
+    expect(live(container)).toBe('Zeta, 1 link') // ONE link, not "1 links"
+  })
+
+  it('the first arrow, with nothing selected, lands on the first note by title', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    fireEvent.keyDown(container.querySelector('canvas'), { key: 'ArrowDown' })
+    expect(live(container)).toBe('alpha, 2 links')
+  })
+
+  it('an arrow moves to the note the direction rule picks over the DRAWN positions', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    // the drawn positions, in data order (z, a, m)
+    const [z, a, m] = drawnNodes(3)
+    const placed = [{ id: 'z', ...z }, { id: 'a', ...a }, { id: 'm', ...m }]
+    const title = { z: 'Zeta', a: 'alpha', m: 'Mid' }
+    const DIRS = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+    let moved = 0
+    for (const key of Object.keys(DIRS)) {
+      fireEvent.keyDown(canvas, { key: 'Home' }) // back to alpha each time
+      const want = nearestInDirection(placed, placed[1], DIRS[key])
+      fireEvent.keyDown(canvas, { key })
+      // nothing that way -> the selection stays on alpha
+      expect(live(container), key).toMatch(new RegExp(`^${want ? title[want.id] : 'alpha'},`))
+      if (want) moved += 1
+    }
+    // non-vacuity: two other notes exist, so SOME direction reaches one
+    expect(moved).toBeGreaterThan(0)
+  })
+
+  it('paints the selection as a ring around the selected note, and Escape clears it', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    expect(ringsIn(lastFrameStrokes())).toHaveLength(0)
+
+    fireEvent.keyDown(canvas, { key: 'Home' }) // alpha, data index 1
+    const alpha = drawnNodes(3)[1]
+    const rings = ringsIn(lastFrameStrokes())
+    expect(rings).toHaveLength(1)
+    expect(rings[0].arc.x).toBe(alpha.x)
+    expect(rings[0].arc.y).toBe(alpha.y)
+    expect(rings[0].arc.r).toBeGreaterThan(alpha.r) // OUTSIDE the node, not over it
+    expect(rings[0].style).toBeTruthy()
+
+    fireEvent.keyDown(canvas, { key: 'Escape' })
+    expect(ringsIn(lastFrameStrokes())).toHaveLength(0)
+    expect(live(container)).toBe('')
+  })
+
+  it('Enter opens the selected note, and nothing when nothing is selected', () => {
+    const onOpenNote = vi.fn()
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView onOpenNote={onOpenNote} />)
+    const canvas = container.querySelector('canvas')
+    fireEvent.keyDown(canvas, { key: 'Enter' })
+    expect(onOpenNote).not.toHaveBeenCalled()
+    fireEvent.keyDown(canvas, { key: 'End' })
+    fireEvent.keyDown(canvas, { key: 'Enter' })
+    expect(onOpenNote).toHaveBeenCalledTimes(1)
+    expect(onOpenNote).toHaveBeenCalledWith('z')
+  })
+
+  it('an arrow never scrolls the page; a chord with Ctrl/Alt/Cmd passes through', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    const canvas = container.querySelector('canvas')
+    // fireEvent returns false when the handler called preventDefault
+    expect(fireEvent.keyDown(canvas, { key: 'ArrowDown' })).toBe(false)
+    fireEvent.keyDown(canvas, { key: 'Escape' })
+    expect(fireEvent.keyDown(canvas, { key: 'ArrowDown', ctrlKey: true })).toBe(true)
+    expect(fireEvent.keyDown(canvas, { key: 'Home', metaKey: true })).toBe(true)
+    expect(live(container)).toBe('')
+  })
+})
+
+describe('nearestInDirection -- "right" means right', () => {
+  const from = { id: 'o', x: 0, y: 0 }
+  it('prefers a note straight ahead over a nearer one off to the side', () => {
+    const ahead = { id: 'ahead', x: 100, y: 0 }
+    const side = { id: 'side', x: 60, y: 55 } // nearer (81px), ~42 degrees off
+    expect(nearestInDirection([from, ahead, side], from, [1, 0]).id).toBe('ahead')
+  })
+  it('among notes on the axis, the nearer wins', () => {
+    const near = { id: 'near', x: 0, y: 40 }
+    const far = { id: 'far', x: 0, y: 90 }
+    expect(nearestInDirection([from, far, near], from, [0, 1]).id).toBe('near')
+  })
+  it('never moves backwards or to a note level with it; nothing ahead is null', () => {
+    const behind = { id: 'behind', x: -50, y: 0 }
+    const level = { id: 'level', x: 0, y: 30 }
+    expect(nearestInDirection([from, behind, level], from, [1, 0])).toBeNull()
+  })
+  it('screen up is negative y', () => {
+    const up = { id: 'up', x: 5, y: -40 }
+    const down = { id: 'down', x: 5, y: 40 }
+    expect(nearestInDirection([from, up, down], from, [0, -1]).id).toBe('up')
+  })
+})
+
+describe('"Show as list" -- the same graph as a table', () => {
+  const toggle = () => screen.getByRole('button', { name: 'Show as list' })
+  const rowTitles = () => screen.getAllByRole('rowheader').map((th) => th.textContent)
+
+  it('is a real toggle button, pressed state and all, and it is remembered', () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    expect(toggle().tagName).toBe('BUTTON')
+    expect(toggle()).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(toggle())
+    expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('canvas')).toBeNull()
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(window.localStorage.getItem(GRAPH_VIEW_KEY)).toBe('list')
+  })
+
+  it('opens in list mode when this browser chose it last time', () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    render(<NoteGraphView />)
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('⛔ a storage that throws means canvas mode -- and the toggle still works', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked') })
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked') })
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    expect(container.querySelector('canvas')).not.toBeNull()
+    fireEvent.click(toggle())
+    expect(screen.getByRole('table')).toBeInTheDocument()
+  })
+
+  it('every node renders exactly once, sorted by title (locale compare)', () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    render(<NoteGraphView />)
+    expect(rowTitles()).toEqual(['alpha', 'Mid', 'Zeta'])
+  })
+
+  it('each row carries the link count and its linked notes as buttons', () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    render(<NoteGraphView />)
+    const alphaRow = screen.getByRole('rowheader', { name: 'alpha' }).closest('tr')
+    const cells = within(alphaRow).getAllByRole('cell')
+    expect(cells[0].textContent).toBe('2')
+    expect(within(cells[1]).getAllByRole('button').map((b) => b.textContent)).toEqual(['Mid', 'Zeta'])
+    const zetaRow = screen.getByRole('rowheader', { name: 'Zeta' }).closest('tr')
+    expect(within(zetaRow).getAllByRole('cell')[1].textContent).toBe('alpha')
+  })
+
+  it('a title opens its note on click AND on Enter; a linked note opens that note', async () => {
+    const user = userEvent.setup()
+    const onOpenNote = vi.fn()
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    render(<NoteGraphView onOpenNote={onOpenNote} />)
+    await user.click(within(screen.getByRole('rowheader', { name: 'Mid' })).getByRole('button'))
+    expect(onOpenNote).toHaveBeenLastCalledWith('m')
+    within(screen.getByRole('rowheader', { name: 'Zeta' })).getByRole('button').focus()
+    await user.keyboard('{Enter}')
+    expect(onOpenNote).toHaveBeenLastCalledWith('z')
+    const alphaRow = screen.getByRole('rowheader', { name: 'alpha' }).closest('tr')
+    await user.click(within(alphaRow).getByRole('button', { name: 'Mid' }))
+    expect(onOpenNote).toHaveBeenLastCalledWith('m')
+    expect(onOpenNote).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps the truncation sentence, word for word', () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = { ...KEY_GRAPH, data: { ...KEY_GRAPH.data, truncated: true } }
+    render(<NoteGraphView />)
+    expect(screen.getByText('showing the 3 most recently edited — older notes are not drawn')).toBeInTheDocument()
+  })
+
+  it('going back to the canvas draws it again (a new canvas is a new layout)', () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView />)
+    expect(ctxLog.clears).toBe(0) // nothing was drawn in list mode
+    fireEvent.click(toggle())
+    expect(container.querySelector('canvas')).not.toBeNull()
+    expect(ctxLog.clears).toBeGreaterThan(50)
+    expect(drawnNodes(3)).toHaveLength(3)
+  })
+
+  it('axe finds 0 violations in list mode', async () => {
+    window.localStorage.setItem(GRAPH_VIEW_KEY, 'list')
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView onOpenNote={() => {}} />)
+    await expectNoAxeViolations(container)
+  })
+
+  it('axe finds 0 violations on the keyboard canvas with a note selected', async () => {
+    swrResult = KEY_GRAPH
+    const { container } = render(<NoteGraphView onOpenNote={() => {}} />)
+    fireEvent.keyDown(container.querySelector('canvas'), { key: 'Home' })
+    await expectNoAxeViolations(container)
   })
 })

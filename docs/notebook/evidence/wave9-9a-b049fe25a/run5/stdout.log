@@ -1,0 +1,13 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-b049fe25a\run5\uct-auto.sandbox.log; log: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-b049fe25a\run5\uct-auto.integrity.md
+  H1         20 samples  p50 36.8 ms  p95 81.4 ms
+  H2         20 samples  p50 119.2 ms  p95 204.8 ms
+  H2-full    20 samples  p50 122.4 ms  p95 192.6 ms
+  H3         20 samples  p50 264.1 ms  p95 313.2 ms
+  H3-full    20 samples  p50 268.5 ms  p95 362.6 ms
+  H4         20 samples  p50 259.1 ms  p95 304.9 ms
+  H5         20 samples  p50 203.9 ms  p95 238.4 ms
+  H6        180 samples  p50 11.1 ms  p95 17.8 ms
+  H7        180 samples  p50 32.2 ms  p95 38 ms
+  H8         10 samples  p50 38.7 ms  p95 52.4 ms
+  H9          5 samples  p50 416 ms  p95 428 ms
+VERDICT: MEASURED -- all 11 ops (summary: C:\Users\Patrick\uct-worktrees\notebook-w9\docs\notebook\evidence\wave9-9a-b049fe25a\run5\uct-auto.json); a lane acceptance run, not the head-to-head's UCT column (D-9A3)

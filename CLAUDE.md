@@ -1,5 +1,25 @@
 # CLAUDE.md
 
+> ⛔⛔ **THIS COPY IS BEHIND THE `_merge-master` WORKTREE'S, AND TWO OF ITS CLAIMS ARE ACTIVELY
+> DANGEROUS.** This is a docs branch based on an older master, so staleness is expected — but the
+> harness auto-loads THIS file into any agent working in this worktree, including one whose brief
+> names the other worktree explicitly. Measured 2026-09-26: eight recorded facts behind.
+> **Read the `_merge-master` worktree's `CLAUDE.md` for anything you are about to act on.**
+>
+> The two that would cause harm if believed:
+>
+> 1. ⚰️ **It says `app/src/hooks/useTapeFeed.js` was DELETED.** Master records it **RESTORED** by
+>    `06d3a6318` (*"revert(web): restore useTapeFeed.js — it was never mine to delete"*) and says
+>    **do not mount it and do not delete it** — it is in-flight, and guessing at its owner's
+>    intent has already been reverted once.
+> 2. ⚰️ **It says `DESK_PUBLIC_SHOWS` defaults to unlisted, so only Sunday Scans publishes
+>    publicly.** Master records the live value as **`*` — EVERY show uploads public, by owner
+>    decision 2026-08-19, reaffirmed 2026-09-13.** Believing the stale version is what triggered
+>    the 2026-09-13 escalation in which 27 videos were set unlisted and then restored.
+>
+> ⭐ Recorded here rather than by syncing the file, because a partial sync of a 380 KB document
+> onto a docs branch is its own hazard, and this warning is what an agent actually reads first.
+
 This file provides guidance to Claude Code when working in this repository.
 
 ## Project Overview
@@ -442,7 +462,13 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   instance doubles both) · the `api/limiter.py` Limiter's in-memory storage, which
   since wave 7 also holds the personal-API per-token limit (scope
   `notebook-personal-api`, key `personal-api:tok:<sha256 of the bearer>`, 30/minute
-  — a second process doubles a Shortcut's budget) · `note_ask._inflight` (the
+  — a second process doubles a Shortcut's budget), and since wave 8 the six public-sharing
+  scopes `notebook-share-{public,images,mint}` and `notebook-publish-{public,images,mint}`
+  (the rates are the constants at the top of `api/routers/notebook_shares.py` and
+  `notebook_publish.py`; public reads key on the client IP, mints on the member — a second
+  process doubles every one) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
+  process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
   `note_semantic._embedding_now` + `_query_cache` (wave 7 ruling D-H6: the armed meaning
   search's one-embed-in-flight-per-member valve and its query-vector cache — a second
@@ -3634,7 +3660,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–6 LIVE (#186 `2c3ed3093`, #193 `271a078b6`), wave 7 at its PR, waves 8–9 in build, 2026-09-26
+### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 in build, 2026-09-26
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3650,12 +3676,15 @@ own gate — plus lane I's performance budgets. Read it before touching that bra
 ✅ **Wave 5 LIVE** (#186, master `2c3ed3093`, 2026-09-25 21:25 CT) and **wave 6 LIVE**
 (#193, master `271a078b6`, web SUCCESS 2026-09-26 01:18 CT, fresh boot, ancestor of
 `origin/production`, `hub_nav_smoke --auth` PASS, production browser check of the new
-view controls with 0 page errors). Wave 6's final tip is tagged
+view controls with 0 page errors). ✅ **Wave 7 LIVE** (#196, master `f883e0996`, web
+SUCCESS 2026-09-26 08:04Z, fresh boot, ancestor of `origin/production`, `hub_nav_smoke --auth`
+PASS; it also carried the H14 fix for the single-note export's Latin-1 header). Its gates
+`NOTEBOOK_WRITING_HELP_ENABLED` and `COMPASS_NOTES_TOOL_ENABLED` were ARMED on web
+2026-09-26 08:13Z (see `docs/feature_flags.json`); the other wave-7 gates stay dark. Wave 6's final tip is tagged
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
-round-5 fixes). Wave 7 (`feat/notebook-w7`) carries both and master `271a078b6` by a
-tree-identical `-s ours` merge; wave 8 is `feat/notebook-w8` (worktree `notebook-w8`, its
-own `node_modules` since D-W4), wave 9's soak kit is `feat/notebook-w9c`. Landing order:
-wave 7 → the soak PR (9C) → wave 8. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
+(worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
+`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-b` / `-c`). Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064

@@ -32,7 +32,6 @@ import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
-import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import {
   useDurableNote, settleLandedSave, beginInFlightSave, endInFlightSave,
   recordLandedRevision, settleOwnerFork, SESSION_ID,
@@ -48,7 +47,10 @@ import {
 import { ownerReconcilePlan, LANDED, FORK } from '../../lib/offline/ownerReconcile'
 import { stampChartSettings } from '../../lib/widgetEmbedCore'
 import WidgetPalette from './WidgetPalette'
-import { sharedNoteUrl } from '../../lib/noteShareLink'
+// Wave 8 seam S8-3: the share controls (lane 8B) and the export group (lane 8C)
+// live in their own files so neither lane edits this one.
+import NoteShareControls from './NoteShareControls'
+import NoteExportControls from './NoteExportControls'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
@@ -422,7 +424,15 @@ export function NoteLinkedTradeChips({ noteId }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null }) {
+export default function NoteEditorPage({
+  noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
+  // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
+  // Notebook puts focus -- 'title' for a note the member just made (typing the
+  // title is the next act), 'landmark' for a note that already exists (the
+  // note's heading, which is not editable), null for an open aimed inside the
+  // note (a task, a page, an excerpt), which places focus itself.
+  openFocus = null, onOpenFocused = null,
+}) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
   // Diagnostic only -- never surfaced to the member (see the !note render
   // branch below for why raw fetch-error text doesn't belong in that UI).
@@ -541,10 +551,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // Only when the find bar's OWN input isn't already handling it (its
       // handler calls stopPropagation on Escape) -- this is the fallback
       // for Escape pressed while focus is elsewhere on the page.
-      setFindOpen(false)
-      setFindWithReplace(false)
-      editor?.commands.noteFindClear()
+      closeFind()
     }
+  }
+
+  // Wave 8 (8A, A4): closing find hands focus back to the note -- the caret
+  // where it was -- instead of dropping it with the bar that held it.
+  const closeFind = () => {
+    setFindOpen(false)
+    setFindWithReplace(false)
+    editor?.commands.noteFindClear()
+    editor?.commands.focus()
   }
 
   const onToggleFavorite = async () => {
@@ -605,8 +622,11 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const onVersionRestored = adoptServerCopy
 
   // ── Export + share (post-v1 round 2) ──────────────────────────────────────
+  // Wave 8 seam S8-3: the export buttons (PNG / Print / Markdown) and the share
+  // controls moved into NoteExportControls and NoteShareControls, behaviour
+  // unchanged. The editor keeps the column they rasterize and the message line
+  // they speak through.
   const columnRef = useRef(null)
-  const [exportBusy, setExportBusy] = useState(false)
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -622,6 +642,33 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // stale the moment the header wraps — review finding).
   const chromeRef = useRef(null)
   const pageRef = useRef(null)
+  // Wave 8 (8A, A4): focus has somewhere to land -- the note on an explicit
+  // open, the Ask toggle when Ask closes (see `askRowRef` below).
+  // ⛔⛔ Final-review fix I-1: an EXISTING note's open lands on the note's
+  // heading (`landmarkRef`, tabIndex -1), NEVER in the title input. With a live
+  // caret in the title, a reader's Space typed into the title and autosave wrote
+  // it, and a phone raised its keyboard over the note on every open. A heading
+  // takes no text: Space scrolls, and the screen reader says the note's name.
+  // Only a note the member just MADE focuses its title.
+  const titleInputRef = useRef(null)
+  const landmarkRef = useRef(null)
+  const openFocusDoneRef = useRef(false)
+  const askRowRef = useRef(null)
+  useEffect(() => {
+    if (!openFocus || openFocusDoneRef.current) return
+    const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
+    if (!target) return
+    openFocusDoneRef.current = true
+    target.focus({ preventScroll: true })
+    onOpenFocused?.()
+  }, [openFocus, isLoading, note, onOpenFocused])
+  /** Ask's panel lives in AskPanel; its toggle is the button that opened it.
+   *  Closing the panel unmounts what held focus, so focus goes back there.
+   *  M-6: found by the hook AskPanel puts on its own toggle, never by its
+   *  label -- a wording change must not silently break the way back. */
+  const focusAskToggle = () => {
+    askRowRef.current?.querySelector('[data-ask-toggle]')?.focus()
+  }
   useEffect(() => {
     const chrome = chromeRef.current
     const page = pageRef.current
@@ -637,86 +684,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
     const t = setTimeout(() => setChromeMsg(null), 2400)
     return () => clearTimeout(t)
   }, [chromeMsg])
-  const savePng = async () => {
-    if (exportBusy) return
-    setExportBusy(true)
-    setChromeMsg('rendering…')
-    try {
-      const ok = await exportNoteAsPng(columnRef.current, title)
-      setChromeMsg(ok ? 'PNG saved' : 'export failed')
-    } catch {
-      setChromeMsg('export failed')
-    } finally {
-      setExportBusy(false)
-    }
-  }
-  // Wave C: portable single-note export (directive §46-58) -- unlike PNG/
-  // Print above, this is a round-trippable .md/.zip a member can bring to
-  // another app, matching the full-notebook export's own format
-  // (build_single_note_export reuses that exact markdown+front-matter code
-  // path). A bare fetch+blob download, not the ExportDialog machinery: one
-  // note is bounded in size, so there's no multi-minute wait to progress-bar.
-  const downloadMarkdown = async () => {
-    if (exportBusy) return
-    setExportBusy(true)
-    setChromeMsg('preparing…')
-    try {
-      const res = await fetch(`/api/j2/notes/${noteId}/export`, { credentials: 'include' })
-      if (!res.ok) throw new Error(String(res.status))
-      const blob = await res.blob()
-      const cd = res.headers.get('content-disposition') || ''
-      const m = /filename="([^"]+)"/.exec(cd)
-      const filename = m ? m[1] : 'note.md'
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.rel = 'noopener'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 0)
-      setChromeMsg('downloaded')
-    } catch {
-      setChromeMsg('export failed')
-    } finally {
-      setExportBusy(false)
-    }
-  }
-  // Share links: admin-only surface while the owner evaluates (the server
-  // pair is additionally flag-gated). One active token per note; Unshare
-  // revokes it — a leaked link dies instantly.
-  const isAdmin = user?.role === 'admin'
-  const [share, setShare] = useState(null)
-  useEffect(() => {
-    if (!isAdmin || !noteId) return undefined
-    let alive = true
-    fetch(`/api/j2/notes/${noteId}/share`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : { share: null }))
-      .then((b) => { if (alive) setShare(b.share) })
-      .catch(() => {})
-    return () => { alive = false }
-  }, [isAdmin, noteId])
-  const copyShareLink = async () => {
-    try {
-      let s = share
-      if (!s) {
-        const res = await fetch(`/api/j2/notes/${noteId}/share`, { method: 'POST', credentials: 'include' })
-        if (!res.ok) throw new Error(String(res.status))
-        s = (await res.json()).share
-        setShare(s)
-      }
-      await navigator.clipboard.writeText(sharedNoteUrl(s.token))
-      setChromeMsg('Share link copied')
-    } catch {
-      setChromeMsg('share failed')
-    }
-  }
-  const unshare = async () => {
-    await fetch(`/api/j2/notes/${noteId}/share`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
-    setShare(null)
-    setChromeMsg('Link revoked')
-  }
   const saveTimerRef = useRef(null)
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
@@ -1814,7 +1781,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       } catch { /* private mode */ }
     },
     editorProps: {
-      attributes: { class: styles.proseEditor },
+      // Wave 8 (8A): TipTap makes the body role="textbox" with no name, so a
+      // screen reader announced a bare "edit text". It is the note's body.
+      attributes: { class: styles.proseEditor, 'aria-label': 'Note body' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         if (!items) return false
@@ -2807,7 +2776,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
-      onBack()
+      // Wave 8 (8A): say WHICH note went, so the list can put focus on the
+      // row after it (NotebookTab.closeNote).
+      onBack({ trashed: noteId })
       return
     }
     // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
@@ -3041,6 +3012,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
+      {/* Final-review fix I-1: where an existing note's open puts focus. A
+          heading, not a field, named by the note's title; visually hidden (the
+          title input below shows the same words), and the pane's ring shows
+          where focus went for a keyboard open (NotebookTab.module.css,
+          `.notePane:has([data-note-landmark]:focus-visible)`). */}
+      <h2 ref={landmarkRef} tabIndex={-1} className="sr-only" data-note-landmark>
+        {title.trim() || 'Untitled note'}
+      </h2>
       <Toast
         message={uploadToast?.message}
         tone={uploadToast?.tone}
@@ -3159,7 +3138,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
           </div>
         )}
-        <div className={styles.headerControls}>
+        <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
           <button
             type="button"
             className={styles.chromeBtn}
@@ -3181,6 +3160,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             getEditorDoc={() => editorRef.current?.state?.doc}
             onNavigate={jumpToCitation}
             onInsert={askInsertHere}
+            onClose={focusAskToggle}
           />
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
@@ -3210,24 +3190,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             History
           </button>
-          {isAdmin && (
-            <>
-              <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
-                title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
-                {share ? 'Copy link' : 'Share'}
-              </button>
-              {share && (
-                <button type="button" className={styles.chromeBtn} onClick={unshare}
-                  title="Revoke the public link — it stops working immediately">
-                  Unshare
-                </button>
-              )}
-            </>
-          )}
+          <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
+          {/* Wave 8 (8A): the header's select and inputs carry names -- a
+              placeholder vanishes once there is a value, and a select has none. */}
           <select
             className={styles.headerSelect}
             value={note.folderId || ''}
             onChange={(e) => onFolderChange(e.target.value)}
+            aria-label="Folder"
           >
             <option value="">Unfiled</option>
             {folders.map((f) => (
@@ -3237,6 +3207,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <input
             className={styles.headerInput}
             placeholder="Ticker"
+            aria-label="Ticker"
             defaultValue={note.ticker || ''}
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
@@ -3523,29 +3494,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             <UIcon name="rows" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             Outline
           </button>
-          <div className={styles.toolbarExports}>
+          <div className={styles.toolbarExports} data-tour="note-export">
             {/* Wave 5: word count + reading time (the selection's share while
                 text is selected). */}
             <NoteStats editor={editor} />
             {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-            {/* Export: PNG rasterizes the note column (charts included); Print
-                rides the browser's Save-as-PDF via the print stylesheet. */}
-            <button type="button" className={styles.chromeBtn} onClick={savePng} disabled={exportBusy}
-              title="Download this note as a PNG image">
-              PNG
-            </button>
-            <button type="button" className={styles.chromeBtn} onClick={printNote}
-              title="Print — or Save as PDF from the print dialog">
-              Print
-            </button>
-            {/* Wave C: portable markdown export -- unlike PNG/Print, this
-                round-trips back into this product (or Obsidian/any
-                markdown-aware app), matching the full-notebook export's
-                own format. */}
-            <button type="button" className={styles.chromeBtn} onClick={downloadMarkdown} disabled={exportBusy}
-              title="Download this note as portable Markdown — the same format the full notebook export uses">
-              Markdown
-            </button>
+            {/* Final review M-9: the four file formats are built from the server's copy, so
+                this editor's pending edits are sent first (the Save-as-template precedent). */}
+            <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg}
+              onBeforeExport={sendPendingEdits} />
           </div>
         </div>
       )}
@@ -3619,6 +3576,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             typing that `commitSave` then dropped. Rails: lib/jsxDuplicateProps.test.js,
             NoteEditorPage.unreadable.test.jsx. */}
         <input
+          ref={titleInputRef}
           className={styles.titleInput}
           readOnly={locked || unreadable}
           value={title}
@@ -3630,6 +3588,10 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             onTitleChange?.(noteId, v)
           }}
           placeholder="Title"
+          aria-label="Note title"
+          // M-6: the hook NotebookTab's skip link finds the title by -- never
+          // the label, whose wording is free to change.
+          data-note-title
         />
         <input
           className={styles.subtitleInput}
@@ -3642,6 +3604,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             scheduleAutosave()
           }}
           placeholder="Subtitle (optional)"
+          aria-label="Subtitle"
         />
 
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
@@ -3670,7 +3633,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           <NoteFindBar
             editor={editor}
             initialReplace={findWithReplace}
-            onClose={() => { setFindOpen(false); setFindWithReplace(false); editor?.commands.noteFindClear() }}
+            onClose={closeFind}
           />
         )}
 

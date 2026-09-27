@@ -69,6 +69,12 @@ def test_the_three_wave7_routers_are_mounted__by_source():
         assert alias in lines, f"{alias} is imported but never mounted"
 
 
+def test_the_wave9_soak_router_is_mounted__by_source():
+    # Wave 9 lane 9C: the soak's one admin read (ruling D-9C2).
+    lines = _include_router_lines()
+    assert "notebook_soak_router" in lines, "notebook_soak is imported but never mounted"
+
+
 def test_the_routes_resolve_and_tasks_precedes_the_note_id_wildcard__on_the_real_app():
     # Under pytest the repo-root conftest has already pinned every /data path to a sandbox
     # and armed the tripwire, so importing the app is safe here (it is NOT safe bare).
@@ -82,6 +88,48 @@ def test_the_routes_resolve_and_tasks_precedes_the_note_id_wildcard__on_the_real
     assert "/api/j2/notes/tasks" in paths, "notebook_insights' tasks route did not mount"
     assert "/api/j2/link-preview" in paths, "notebook_link_preview did not mount"
     assert any(p.startswith("/api/client-errors") for p in paths), "client_errors did not mount"
+    assert "/api/admin/notebook-soak" in paths, "notebook_soak did not mount"
     assert paths.index("/api/j2/notes/tasks") < paths.index("/api/j2/notes/{note_id}"), (
         "/api/j2/notes/tasks is shadowed by /api/j2/notes/{note_id}: a request for the tasks view "
         "would be answered as a note whose id is 'tasks'")
+
+
+# ── Wave 8 seam S8-2 ────────────────────────────────────────────────────────
+# The five share routes MOVED from journal_two into notebook_shares, which is mounted
+# BEFORE journal_two (the same pre-journal_two slot as the other Notebook routers), and
+# three STUB routers are mounted for lanes 8B/8C. A stub has no routes, so the real
+# app's route table cannot show it -- the source order is the only evidence it is
+# mounted at all, which is why that half is asked by AST.
+
+WAVE8_STUBS = ("notebook_publish_router", "notebook_export_router", "notebook_onboarding_router")
+
+
+def test_notebook_shares_is_mounted_before_journal_two__by_source_order():
+    lines = _include_router_lines()
+    assert "notebook_shares_router" in lines, f"notebook_shares mount not found; saw {sorted(lines)[:10]}..."
+    assert "journal_two_router" in lines, "journal_two mount not found"
+    assert lines["notebook_shares_router"] < lines["journal_two_router"], (
+        f"notebook_shares (line {lines['notebook_shares_router']}) must be mounted BEFORE "
+        f"journal_two (line {lines['journal_two_router']})")
+
+
+def test_the_three_wave8_stub_routers_are_mounted__by_source():
+    lines = _include_router_lines()
+    for alias in WAVE8_STUBS:
+        assert alias in lines, f"{alias} is imported but never mounted"
+
+
+def test_the_wave8_stub_prefixes_are_outside_the_note_id_wildcard():
+    """Mount order is free for the stubs ONLY because no path they can hold sits under
+    `/api/j2/notes/`, where journal_two's `/api/j2/notes/{note_id}` would answer first.
+    ⭐ Read from each router object, never typed -- a prefix changed later is re-checked."""
+    import importlib
+    for alias in WAVE8_STUBS:
+        mod = importlib.import_module("api.routers." + alias[: -len("_router")])
+        prefix = mod.router.prefix
+        assert prefix.startswith("/api/j2"), f"{alias}: unexpected prefix {prefix!r}"
+        assert not prefix.startswith("/api/j2/notes"), (
+            f"{alias} sits under /api/j2/notes ({prefix!r}) -- its mount order now matters")
+        for route in mod.router.routes:
+            assert not route.path.startswith("/api/j2/notes"), (
+                f"{alias} holds {route.path}, under /api/j2/notes -- mount it before journal_two")

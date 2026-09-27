@@ -1,4 +1,5 @@
 import FrozenList from './FrozenList'
+import { embedAutoCaption } from '../../lib/widgetEmbedCore'
 
 /**
  * Themes journal renderer: the captured LEADERBOARD (owner-approved payload
@@ -14,7 +15,9 @@ export default function ThemesEmbed({ attrs, height = 320 }) {
   const params = attrs?.params || {}
   const period = PERIOD_LABEL[params.period] || params.period || ''
   return (
-    <div style={{ height, overflow: 'hidden' }}>
+    // Wave 8 (8A): a figure named by the embed's own caption -- the same
+    // words its archived image uses for alt (embedAutoCaption).
+    <div style={{ height, overflow: 'hidden' }} role="figure" aria-label={embedAutoCaption(attrs)}>
       <FrozenList
         title={`Themes — ${period}`}
         subtitle={`${Array.isArray(params.rows) ? params.rows.length : 0} themes`}

@@ -76,9 +76,10 @@ read at CALL time so the conftest census pins it and a monkeypatch reaches it).
 Rows are kept `RETENTION_DAYS` (14) and pruned opportunistically on write.
 
 ⛔ THE STORE IS BOUNDED IN BYTES, and that bound — not the rate limit — is the
-real one against a caller rotating keys. `client_ip` trusts `CF-Connecting-IP`
-first, so a caller that reaches the origin directly can present a fresh address
-on every request and a per-key limit counts nothing. So:
+real one against a caller rotating keys. Since 2026-09-26 `client_ip` trusts
+`CF-Connecting-IP` only behind a Cloudflare edge, so a direct caller can no longer
+forge a fresh address per request -- but a caller with many real addresses still
+can, and a per-key limit alone would count little. So:
   * every field is capped in UTF-8 bytes; the caps plus the fixed columns sum
     under MAX_ROW_BYTES (8 KiB);
   * the table is hard-capped at MAX_ROWS (15,000) rows; every write deletes the
@@ -657,3 +658,40 @@ def summary(days: int = 1, limit: int = 50, now: float | None = None) -> dict[st
         "groups": [dict(g) for g in groups],
         "recent": [dict(r) for r in recent],
     }
+
+
+def count_by_user_for_page(prefix: str, since: float, until: float | None = None) -> dict[str | None, int]:
+    """EXACT count of stored reports whose page is `prefix` or lies under it,
+    per `user_id` (None = a report sent without a session), over
+    `since <= created_at < until` (epoch seconds; `until` defaults to now).
+
+    Wave 9 (lane 9C): the 30-day soak's server read splits Notebook-page
+    errors by population, and that needs a COUNT, not `summary()` — whose
+    groups stop at `limit` (≤ 200) rows, so a full page there is a cap, not a
+    count. This returns every group, and reads only the index-backed window.
+
+    ⛔ `prefix` is a REDUCED route (`scrub_page` stores nothing else): a
+    leading `/`, no trailing one. `/journal/notebook` matches that page and
+    `/journal/notebook/:id`, and NOT `/journal/notebooks`. LIKE wildcards in
+    the prefix are escaped, so the match is literal.
+
+    ⚠️ Rows older than `RETENTION_DAYS` are pruned on write, so a window
+    reaching further back than that is short by construction; the caller
+    reports that beside the figure rather than this function guessing.
+    """
+    if not isinstance(prefix, str) or not prefix.startswith("/") or (len(prefix) > 1 and prefix.endswith("/")):
+        raise ValueError("prefix must be a reduced route: a leading '/', no trailing '/'")
+    until = time.time() if until is None else until
+    literal = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT user_id, COUNT(*) AS n FROM client_errors"
+            " WHERE created_at >= ? AND created_at < ?"
+            " AND (page = ? OR page LIKE ? ESCAPE '\\')"
+            " GROUP BY user_id",
+            (float(since), float(until), prefix, literal + "/%"),
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["user_id"]: int(r["n"]) for r in rows}
