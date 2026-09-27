@@ -5,10 +5,19 @@ Directories: `tests/fixtures/vendor`
 ```
 capture                                      symbol/tf        plots  verdict       first divergence / reason
 -------------------------------------------- ---------------- ------ ------------- ----------------------------------------
+keltner-channels-bands-rddt-1d-2026-09-27    NYSE:RDDT D      7      INCONCLUSIVE  1 of 8 items could not be compared
+    Basis                                    MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 4.41e-16
+    Upper 1                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 4.78e-16
+    Lower 1                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 5.72e-16
+    Upper 2                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 4.49e-16
+    Lower 2                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 6.38e-16
+    Upper 3                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 5.38e-16
+    Lower 3                                  MATCH         cmp 612 ok 612 warm 0/0 steady 0/612 maxRel 7.35e-16
+    objects                                  INCONCLUSIVE  our object lane did not run: no result
 adx-14-2026-09-06                            AMEX:SPY D       1      DIVERGE       adx: bar 220 t=1778679000 value vendor=26.598480129458775 ours=26.598489308308835
     adx                                      DIVERGE       cmp 273 ok 39 warm 193/193 steady 41/80 maxRel 1.93e-1 — 41 steady-state bars disagree; first at bar 220 (value: vendor 26.598480129458775 vs ours 26.598489308308835) — scattered, last at bar 260
-atr-14-2026-09-06                            AMEX:SPY D       1      DIVERGE       atr14: bar 180 t=1644330600 value vendor=8.77494009272306 ours=8.774936243175715
-    atr14                                    DIVERGE       cmp 1314 ok 1120 warm 166/166 steady 28/1148 maxRel 2.50e-1 — 28 steady-state bars disagree; first at bar 180 (value: vendor 8.77494009272306 vs ours 8.774936243175715) — a CONVERGING PREFIX: bars 180..207 differ with |err| falling 3.85e-6 → 5.21e-7, then all 1120 later bars agree (the recursive-state-seeded-at-the-window signature)
+atr-14-2026-09-06                            AMEX:SPY D       1      DIVERGE       atr14: bar 180 t=1644330600 value vendor=8.77494009272306 ours=8.774936447265276
+    atr14                                    DIVERGE       cmp 1314 ok 1121 warm 166/166 steady 27/1148 maxRel 2.37e-1 — 27 steady-state bars disagree; first at bar 180 (value: vendor 8.77494009272306 vs ours 8.774936447265276) — a CONVERGING PREFIX: bars 180..206 differ with |err| falling 3.65e-6 → 5.31e-7, then all 1121 later bars agree (the recursive-state-seeded-at-the-window signature)
 ema-close20-2026-09-06                       AMEX:SPY D       1      DIVERGE       ema20: bar 100 t=1546266600 value vendor=254.9096484133421 ours=254.90952665266488
     ema20                                    DIVERGE       cmp 2012 ok 1876 warm 81/81 steady 55/1931 maxRel 1.41e-3 — 55 steady-state bars disagree; first at bar 100 (value: vendor 254.9096484133421 vs ours 254.90952665266488) — a CONVERGING PREFIX: bars 100..154 differ with |err| falling 1.22e-4 → 5.47e-7, then all 1876 later bars agree (the recursive-state-seeded-at-the-window signature)
 hma-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
@@ -33,10 +42,10 @@ stoch-k-14-2026-09-06                        AMEX:SPY D       1      MATCH      
     stochK                                   MATCH         cmp 287 ok 287 warm 0/0 steady 0/287 maxRel 2.18e-16
 wma-close20-2026-09-06                       AMEX:SPY D       1      MATCH         all 1 items agree
     wma20                                    MATCH         cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 0.00e+0
-seed-warmup-spy-12m-2026-09-21               SPY 12M          8      DIVERGE       N10_atr5: bar 4 t=1997-01-01 na vendor=13.96875 ours=na
+seed-warmup-spy-12m-2026-09-21               SPY 12M          8      MATCH         all 8 items agree
     N08_ema5_SEED_QUESTION_compare_to_N09_at MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.31e-16
     N09_sma5_THE_DISCRIMINATOR_FOR_N08       MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.31e-16
-    N10_atr5                                 DIVERGE       cmp 34 ok 4 warm 0/0 steady 30/34 maxRel 1.07e-1 — 30 steady-state bars disagree; first at bar 4 (na: vendor 13.96875 vs ours na) — persistent, last at bar 33
+    N10_atr5                                 MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.40e-16
     N11_rma_of_tr5_MUST_EQUAL_N10            MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.40e-16
     N12_sma_of_tr5_SEED_DISCRIMINATOR        MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.60e-16
     N13_stdev5_POPULATION_OR_SAMPLE          MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 9.91e-15
@@ -44,10 +53,10 @@ seed-warmup-spy-12m-2026-09-21               SPY 12M          8      DIVERGE    
     N06_change_close_bar0_is_the_reading     MATCH         cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 w2-warmup-spy-12m-2026-09-22                 SPY 12M          0      INCONCLUSIVE  refused on our side: member door refused (pine:role-order): this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `ta.cci` takes a SOURCE and this table reads the typical price from cci(series, series, series, int). Those are the same column when the source is `hlc3` and a DIFFERENT indicator otherwise, so only that source is taken — TO UNBLOCK: write `ta.cci(hlc3, …)`
 
-TOTAL 16 captures — MATCH 7 · DIVERGE 8 · INCONCLUSIVE 1
+TOTAL 17 captures — MATCH 8 · DIVERGE 7 · INCONCLUSIVE 2
 ```
 
-## Not comparable (80)
+## Not comparable (81)
 
 - `tests/fixtures/vendor/agen-1d-bars-2000-2026-09-13.json` — these are OUR bars (/api/bars), not the vendor's — a companion file, not a capture
 - `tests/fixtures/vendor/aroon-spy-1d-2026-09-10.json` — vendor built-in study — no Pine source exists to run on our side
@@ -72,6 +81,7 @@ TOTAL 16 captures — MATCH 7 · DIVERGE 8 · INCONCLUSIVE 1
 - `tests/fixtures/vendor/observations/ta-pvt-delta5-2026-09-06.json` — vendor.values holds 15 readings that are not one plotted number (named candidate readings) — no single plot to compare
 - `tests/fixtures/vendor/observations/ta-rising-oracle-ambiguity-v3-1-2026-09-05.json` — vendor.values holds 1 readings that are not one plotted number (named candidate readings) — no single plot to compare
 - `tests/fixtures/vendor/p1-top-unmeasured-spy-1d-2026-09-21.json` — no vendor OHLCV series together with per-bar study values and a script source
+- `tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json` — no vendor OHLCV series together with per-bar study values and a script source
 - `tests/fixtures/vendor/parity/adx-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
 - `tests/fixtures/vendor/parity/atr-14-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture
 - `tests/fixtures/vendor/parity/ema-close20-2026-09-06.json` — a derived parity table (uct_value vs vendor_value) produced from an observation, not a capture

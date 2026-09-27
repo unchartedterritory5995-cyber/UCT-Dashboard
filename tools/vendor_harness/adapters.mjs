@@ -117,6 +117,13 @@ export function detectFormat(json, basename) {
 /** vendor_truth.py observation → v1. */
 export function fromObservation(obs, { path = null } = {}) {
   const source = obs.script.source
+  // ⭐ THE PLOT IS NAMED BY WHAT THE PASTE LOWERS TO TODAY. `engine.formula` is
+  // the formula the observation was MEASURED against; when the translator has
+  // since moved on for a stated reason (`script.pasteLowersTo`, e.g. `ta.atr` →
+  // `atrPine` on 2026-09-27), the plot our door draws carries the new formula,
+  // and `vendorTruth.test.js` asserts the paste really produces it.
+  const lowered = obs.script && obs.script.pasteLowersTo
+  const selectorFormula = lowered && typeof lowered.formula === 'string' ? lowered.formula : obs.engine.formula
   const rows = obs.market.bars.map((b) => [Number(b.t), num(b.o), num(b.h), num(b.l), num(b.c), num(b.v)])
   const times = new Set(rows.map((r) => String(r[0])))
   const valueRows = Object.entries(obs.vendor.values)
@@ -138,7 +145,7 @@ export function fromObservation(obs, { path = null } = {}) {
     bars: { fields: BAR_FIELDS, timeUnit: 'unix-s', count: rows.length, rows },
     study: {
       title: declaredTitle(source),
-      plots: [{ id: 'plot_0', type: 'line', title: null, selector: { formula: obs.engine.formula } }],
+      plots: [{ id: 'plot_0', type: 'line', title: null, selector: { formula: selectorFormula } }],
     },
     plotValues: { fields: ['time', 'plot_0'], rows: valueRows },
     tolerance: Number.isInteger(obs.vendor.readDecimals) ? { readDecimals: obs.vendor.readDecimals } : null,

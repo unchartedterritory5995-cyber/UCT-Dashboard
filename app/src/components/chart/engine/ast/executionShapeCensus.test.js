@@ -67,6 +67,8 @@ const BARS = Array.from({ length: N }, (_, i) => ({
 const CARRIED_SHAPE = {
   ema: 'smoothCol — prev/count/sum',
   rma: 'smoothCol — prev/count/sum',
+  // ⭐ (2026-09-27) Pine's `ta.atr`: `rma`'s own carried cells over `ta.tr(true)`.
+  atrPine: 'carriedFn(rma) over trueRangeTrue — prev/count/sum',
   // ⭐⭐ MOVED HERE FROM `finiteWindow` ON 2026-09-08, AND THE CENSUS IS WHERE
   // THAT SHOWS. They read like windows over `n + 1` samples and are counters:
   // no window policy fits the vendor, because two identical windows in the

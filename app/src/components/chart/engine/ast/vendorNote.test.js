@@ -111,44 +111,60 @@ describe('a vendor note is DERIVED from the manifest, never listed', () => {
 })
 
 describe('the note follows the TREE a member will actually run', () => {
-  it('⭐⭐ a pasted `ta.atr(14)` surfaces the note', () => {
-    const r = inspectPine('//@version=5\nindicator("t")\nplot(ta.atr(14))\n')
+  // ⚰⚰ REWRITTEN 2026-09-27. This block used a pasted `ta.atr(14)` as its witness,
+  // because until then a paste lowered to the house `atr` and carried its
+  // divergence. It no longer does: Pine's `ta.atr` lands on `atrPine`, which runs
+  // Pine's own seed and MATCHES the vendor (Keltner RDDT from listing, SPY 12M),
+  // so a paste owes the member no sentence at all — and asserting that it does
+  // would be the note describing a difference that no longer exists. The walk is
+  // still over the TREE, so its witness is now a formula that really runs the
+  // house `atr`; the paste case asserts the silence instead.
+  const notesOf = (formula) => {
+    const p = parseFormula(formula)
+    expect(p.ok, formula).toBe(true)
+    return vendorNotesForTree(p.ast)
+  }
+
+  const PASTE_ATR = '//@version=5\nindicator("t")\nplot(ta.atr(14))\n'
+
+  it('⭐⭐ a pasted `ta.atr(14)` runs Pine’s seed and surfaces NO note', () => {
+    const r = inspectPine(PASTE_ATR)
     const out = r.outputs[r.selected]
-    expect(out.formula).toBe('atr(high, low, close, 14)')
-    expect(out.vendorNotes.map((v) => v.name)).toEqual(['atr'])
+    expect(out.formula).toBe('atrPine(high, low, close, 14)')
+    expect(out.vendorNotes).toEqual([])
+  })
+
+  it('⭐ the house `atr`, typed into a formula, is still owed its note', () => {
+    expect(notesOf('atr(high, low, close, 14)').map((v) => v.name)).toEqual(['atr'])
   })
 
   it('⛔ …even nested deep in an expression, because the walk is over the TREE', () => {
-    // A note keyed off the member's SOURCE TEXT would miss every name the
-    // translator expanded, renamed or composed — which is most of them. `ta.atr`
-    // becomes `atr(high, low, close, 14)`; a text match on the paste would be
-    // asking a question about a formula nobody is going to run.
-    const r = inspectPine('//@version=5\nindicator("t")\nplot(close + 2 * ta.atr(14))\n')
-    expect(r.outputs[r.selected].vendorNotes.map((v) => v.name)).toEqual(['atr'])
+    // A note keyed off SOURCE TEXT would miss every name reached by expansion,
+    // rename or composition — the walk asks about the formula that will run.
+    expect(notesOf('close + 2 * atr(high, low, sma(close, 3), 14)').map((v) => v.name))
+      .toEqual(['atr'])
   })
 
   it('⛔ three uses are ONE note — a divergence, not three problems', () => {
-    const r = inspectPine(
-      '//@version=5\nindicator("t")\nplot(ta.atr(14) + ta.atr(14) + ta.atr(14))\n')
-    expect(r.outputs[r.selected].vendorNotes).toHaveLength(1)
+    expect(notesOf('atr(high, low, close, 14) + atr(high, low, close, 5) + atr(high, low, close, 9)'))
+      .toHaveLength(1)
   })
 
   it('⛔ CONTROL — a script with no divergent function surfaces nothing', () => {
-    // Without this the walk could return every note for every tree and the four
+    // Without this the walk could return every note for every tree and the
     // assertions above would all still pass.
     const r = inspectPine('//@version=5\nindicator("t")\nplot(ta.sma(close, 20))\n')
     expect(r.outputs[r.selected].vendorNotes).toEqual([])
   })
 
-  it('⛔ …and a hand-typed formula gets the same answer as a pasted one', () => {
-    // One engine, three doors: the note is a property of the TREE, so a member
-    // who typed `atr(high, low, close, 14)` themselves is owed the same sentence
-    // as one who pasted Pine. A note reachable only through the importer would be
-    // a second class of member.
+  it('⛔ a typed house `atr` and a pasted `ta.atr` are DIFFERENT trees, and only one is owed a note', () => {
+    // One engine, three doors — and the note is a property of the TREE. They used
+    // to be the same tree, so the same answer; since the Pine spelling carries
+    // Pine's seed they are two entries with two answers, which is the point.
     const typed = parseFormula('atr(high, low, close, 14)')
-    expect(typed.ok).toBe(true)
-    const pasted = translatePine('//@version=5\nindicator("t")\nplot(ta.atr(14))\n')
-    expect(vendorNotesForTree(typed.ast))
-      .toEqual(vendorNotesForTree(pasted.outputs[0].ast))
+    const pasted = translatePine(PASTE_ATR)
+    expect(pasted.outputs[0].ast.name).toBe('atrPine')
+    expect(vendorNotesForTree(typed.ast).map((v) => v.name)).toEqual(['atr'])
+    expect(vendorNotesForTree(pasted.outputs[0].ast)).toEqual([])
   })
 })

@@ -3876,19 +3876,22 @@ export function buildRuntimeIr(source, opts = {}) {
         // claimed to cover the runtime-state route; it did not, and it could
         // not tell, because it asserted only that the script compiled.
         //
-        // ⛔ SEPARATELY, AND STILL OPEN: Pine defines `ta.atr(n)` as
-        // `ta.rma(ta.tr(true), n)`, and `tr(true)` is `high - low` on bar 0.
-        // The expression below uses a raw `close[1]`, which is `na` there, so
-        // this engine's ATR warm-up ends one bar late with a different seed.
-        // The 2026-09-21 vendor capture CANNOT settle which is right — it
-        // holds bars 8168..8467, where a seed difference has decayed to zero.
-        // Pinned in `atr.test.js`; do not change these numbers on the
-        // documentation alone.
+        // ✅ SETTLED 2026-09-27, AND THIS PATH WAS ALREADY RIGHT. Pine defines
+        // `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — measured at the vendor on
+        // two captures that reach bar 0 (SPY 12M; Keltner RDDT 1D from
+        // listing). `trueRangeAst` builds its true range from
+        // `nz(close[1], close)`, which on bar 0 is `max(h-l, |h-c|, |l-c|)` =
+        // `h - l` for any bar whose close lies inside its own range — so this
+        // desugar seeds on bar n-1 like the vendor. The COLUMNAR lane now does
+        // too, through `atrPine` (`interpret.js`), which is `rma` over
+        // `ta.tr(true)`. ⚰⚰ The paragraph here used to say the expression used a
+        // "raw `close[1]`" that is `na` on bar 0 — true of an earlier desugar,
+        // false of the one below since the request-path fix, and it outlived it.
         //
-        // ⛔ THE TRUE RANGE IS `na` ON BAR 0, deliberately: `close[1]` does not
-        // exist, `Math.max` propagates the NaN, and `smoothStep` HOLDS on a
-        // non-finite sample. That is what makes the warm-up land on the same bar
-        // as the shipped one, which starts its loop at `i = 1`.
+        // ⚠️ THE ONE CASE THE TWO SPELLINGS DIFFER: a malformed bar whose close
+        // lies OUTSIDE its own high/low, on bar 0 only. `ta.tr(true)` answers
+        // `h - l` there and `nz(close[1], close)` answers the larger gap. Not a
+        // reachable member value on real bars; recorded rather than "fixed".
         // ⭐⭐ `hour(time, "America/New_York")` IS THE `hour` COLUMN, and saying
         // so is what keeps one clock. `indicators.js::etClockAt` already serves
         // every ET field the columnar lane publishes; this routes the CALL form
