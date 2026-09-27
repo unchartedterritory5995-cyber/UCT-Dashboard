@@ -786,8 +786,15 @@ def test_the_refusal_names_THE_PRODUCER_and_not_this_modules_plumbing(monkeypatc
         ad.destination_for("both")
     text = str(raised.value)
     assert __name__ in text, f"the refusal did not name this module: {text}"
-    assert "alert_destination" not in text, (
+    # ⛔ THE PLUMBING'S FULL DOTTED NAME, NEVER THE BARE SUFFIX. This module is
+    # `tests.test_alert_destination`, which CONTAINS "alert_destination" — so the
+    # bare substring cannot tell "named the plumbing" from "named the producer",
+    # and a check that cannot distinguish the right answer from the wrong one is
+    # not a rail. The plumbing is `api.services.alert_destination`.
+    assert ad.__name__ not in text, (
         f"the refusal named the destination reader instead of the producer: {text}")
+    assert text.count(__name__) >= 1, (
+        f"CONTROL: the producer's own dotted name must still be present: {text}")
 
     with pytest.raises(ar.UnroutableAlert) as raised:
         ad.destination_for("both", producer="api/services/made_up.py:99")
