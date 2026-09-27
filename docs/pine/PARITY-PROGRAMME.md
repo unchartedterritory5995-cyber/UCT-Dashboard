@@ -20,6 +20,69 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-26 — `pine:plot-offset` (11) SIZED, AND IT WAS NOT A PINE GAP
+
+> Branch `pine/plot-offset-bound`. Every number below is `memberPaneDefinition`
+> over the 266 committed scripts, objects-only flag off/on, measured before and
+> after on the same tree (probe: the census `__probe_memberDoor.test.js`, never
+> committed).
+
+**What the 11 actually were.** Every offending `offset =` is an **input, or
+arithmetic on inputs** — no series, no timeframe flag:
+
+| script | line | offset expr | class | next wall (measured) | attaches |
+|---|---|---|---|---|---|
+| bolingger-bands-inside-bar-boxes | 47 | `offset` (`input.int(0)`) | input | `pine:reassign` (`IBStatus`, l.98) | n |
+| extrapolated-pivot-connector | 37 | `-length` (`input(100)`) | −input | `pine:arity` (pivot `rightbars` from an input) → cleared here | **y** |
+| multicator-table | 407 / 413 / 414 | `offset`; `-displacement + 1`; `displacement - 1` | input / arithmetic | `pine:state` (`lastPh`) | n |
+| multiple-mtf-moving-average-xdecow | 203 | `i_ma1_offset` (`input.int(0)`) | input | `pine:builtin` (`timeframe.in_seconds`) | n |
+| pivot-high-low-points | 11 | `-lb` (`input(5)`) | −input | `pine:offset-literal` (`high[mb]`, `mb = lb + rb + 1`) | n |
+| price-action-…-trendline | 42 | `-rightbars` (`input.int(5)`) | −input | `pine:arity` → cleared here | **y** |
+| support-and-resistance | 15 | `-left` (`input(10)`) | −input | `pine:role-order` (`valuewhen`) | n |
+| swing-points-and-liquidity-by-leviathan | 171 | `-swingSizeR` (`input.int(10)`) | −input | `pine:arity` → then `pine:offset-literal` (`high[swingSizeR]`) | n |
+| trend-lines-supports-and-resistances | 350 | `-pvtLength` (`input.int(20)`) | −input | `pine:arity` → cleared here | **y** |
+| trendlines | 25 | `-rightbars` (`input(15)`) | −input | `pine:arity` → then `pine:function-def` (`get_y`) | n |
+| wyckoff-accumulation-distribution | 83 | `offsetVal` = `-pivotLen` (`input.int(5)`) | −input (via a name) | `pine:arity` → then `pine:offset-literal` | n |
+
+⭐⭐ **THE WALL WAS THE MEMBER DOOR'S OWN MODE, NOT PINE.** `translatePine` without
+`declareInputs` already folded `offset = -prd` (`pine.displace.test.js`). The member
+door translates with `declareInputs`, which hands an input back as an IDENTIFIER, and
+the displacement reader accepted only a bare `num`. Same shape, one slot over: a
+pivot's `rightbars` (`pivotAtConfirmation`) refused the identifier too — that is the
+`pine:arity` wall six of the eleven hit next. **One defect class, two slots.**
+
+**The ruling applied (Pine's own semantics):** `offset` is a simple int, fixed from
+inputs/constants before the first bar. So it folds at translation through
+`constantValueOf` (declared input → its value; arithmetic; `u-`) — the author's
+default, or the member's value when the script is re-translated with `inputValues`.
+The input is recorded `displacementBound` and refused as a per-chart knob BY NAME,
+with its own sentence (not the window one). A positive displacement that is an
+input's bare value carries the parameter tag onto the offset node, so a definition
+edit moves it (locator `[..., 'value']`, the shape `param_manifest.py` accepted since
+v1). A series-dependent displacement still refuses; a fractional fold now says so.
+
+**Door, before → after:** off **29 → 33**, on **53 → 58**, **lost 0**. Newly attaching
+(on): `extrapolated-pivot-connector`, `price-action-as-in-book-fibonacci-…`,
+`trend-lines-supports-and-resistances` (the 11), plus `liquidity-pools` (was
+`pine:arity`, same pivot class) and `market-structure-by-leviathan` (was
+`pine:no-output`). `pine:plot-offset` at the door: **11 → 0**.
+
+**Two live defects found on the way, both fixed with rails:**
+1. ⛔ `paramEdit.applyParamEdit` read the ORIGINAL tree for every locator, so a
+   parameter used twice in one tree kept only the last write — measured on master:
+   `sma(close, len) - ema(close, len)` edited 14 → 21 saved `sma(close, 14) - ema(close, 21)`.
+2. ⛔ A pivot's `rightbars` is its argument AND its confirmation shift; only the
+   argument was tagged, so an edit moved the pivot's window and left the shift at the
+   default. Both now tagged (corpus locators 536 → 734, all from this).
+
+**Still open — owner/next-lane, not ruled here:** `pine:offset-literal` (`x[n]` with
+`n` an input, or `lb + rb + 1`) is the same class a third time (3 of the 11 land on
+it); its guard's own comments tie it to the forward-reference guarantee, so it wants
+its own ruling. A negative displacement is still not DRAWN on the member pane (`rows`
+never carry `displace`) — an axis-2 gap, not a build gap.
+
+---
+
 ## ⭐⭐⭐ 2026-09-23 — DECISIONS 5 AND 6, RULED (both delegated: *"You decide both of those"*)
 
 ### 5. What "100%" is a percentage OF — **212, NOT 266**
@@ -179,7 +242,7 @@ prioritise on today's corpus.
 | **16** | `pine:state` | lane | carried forward past the bounded accumulator — the runtime lane's purpose |
 | **15** | `pine:request` | **vendor-gated** | `OWNER-CAPTURE-PACKET.md`; cannot be cleared by code |
 | **12** | `pine:block` | lane | `if`/`switch` as a value — served in the runtime lane (RC-L) |
-| **11** | `pine:plot-offset` | unmeasured | no ruling on file; size it before planning it |
+| **11** | `pine:plot-offset` | ~~unmeasured~~ **SIZED 2026-09-26** | a member-door declare-mode fold gap, not Pine — see the 2026-09-26 section at the top (11 -> 0; +5 attach) |
 | **8** | `pine:reassign` | lane | `:=` — served in the runtime lane |
 | 7 / 5 / 5 | `collection` / `tuple` / `type` | vocabulary | |
 
@@ -218,7 +281,7 @@ without a human.
    is the only thing that makes "identical" checkable rather than asserted.
 3. **The object pass's 33** — the largest code-side row, and the one whose scripts
    most obviously WANT to be drawn.
-4. **Rule `plot-offset` (11)** — unmeasured; size it before it is planned.
+4. ~~**Rule `plot-offset` (11)** — unmeasured~~ — SIZED and fixed 2026-09-26 (section at the top).
 5. **Then** the lane work: clear the runtime lane's second walls so the 36
    `state`/`block`/`reassign` scripts actually land when the door opens.
 6. **Owner decision** on whether 100% means 212 or 266.
