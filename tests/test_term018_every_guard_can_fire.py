@@ -138,7 +138,19 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: a gate rail rather than one more row in a data file. Same reasoning as
 #: `test_the_default_in_source_is_ON_and_cannot_be_flipped_unnoticed`: pin the literal
 #: so it cannot be changed and the test "fixed" to match.
-DECLARED_UNOBSERVED_CEILING = 22
+#:
+#: ⚠️⚠️ 22 -> 24, TEMPORARILY, AND IT MUST GO BACK. TERM-011 / RM-N09 step 4 adds two
+#: guards to this sink (`_should_email_second_transport` and `_email_second_transport`,
+#: the second transport for `(OPS, critical)`). BOTH were mutation-proved red-before-green
+#: — 8 red and 7 red, counts and pins recorded in the two new `declared_unobserved` rows'
+#: `pending_observation` blocks — so they are NOT unmeasured debt. They are debt because
+#: CLAUSE 6 IS UNSATISFIABLE BEFORE THE COMMIT EXISTS: an observation may only cite a
+#: commit that is already an ancestor of HEAD, and the change carrying these guards is
+#: not committed yet. ⛔ THE PROMOTION IS OWED, NOT OPTIONAL: in the commit after step 4,
+#: move both `pending_observation` blocks into `observed` with the step-4 SHA and put this
+#: literal back to 22. A ceiling left loose is how a debt list stops meaning anything —
+#: `lesson_a_documented_workaround_is_not_a_recovery_path`.
+DECLARED_UNOBSERVED_CEILING = 24
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.

@@ -349,6 +349,56 @@
       "audit_rows": [],
       "audit_class": "NOT IN THE AUDIT",
       "why": "The transport, not a threshold - but it carries a real suppression (`if not webhook: return`) and the derivation cannot tell a transport guard from a threshold guard. Recorded as debt rather than excluded by hand, because an exclusion rule written by hand is the defect this programme documents."
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_should_email_second_transport",
+      "audit_rows": [],
+      "audit_class": "NOT IN THE AUDIT",
+      "why": "NEW in TERM-011 / RM-N09 step 4 - the gate for the second transport, (OPS, critical) only. DEBT ONLY BECAUSE CLAUSE 6 CANNOT BE SATISFIED BEFORE THE COMMIT EXISTS: the red-before-green mutation WAS taken, by the session that wrote this guard, and its counts are in `pending_observation` below. An observation may only cite a commit that is ALREADY an ancestor of HEAD, and an agent that may not commit cannot produce one - so this row is the honest state of the record, not an absence of evidence. PROMOTE IT in the commit AFTER the step-4 commit: move `pending_observation` into `observed` as a normal row (guard + in_population + audit_rows + what_the_guard_decides + predicate + observed_by + proof), set proof.commit to the step-4 SHA, delete this row, and put DECLARED_UNOBSERVED_CEILING back to 22 in tests/test_term018_every_guard_can_fire.py.",
+      "pending_observation": {
+        "in_population": true,
+        "what_the_guard_decides": "Whether an OPS CRITICAL reaches the second transport at all - and, load-bearingly, WITHOUT consulting the Discord channel's variables. `_should_page_discord` returns False when the webhook is blank, so a second leg that read the same fact would go silent in exactly the case spec section 6 step 4 exists for: 'With the primary channel's variable blanked, a CRITICAL still reaches the second channel' (backlog.md:586-587).",
+        "predicate": {
+          "file": "api/services/chart_health_alerts.py",
+          "scope": "_should_email_second_transport",
+          "pinned": "if not recipients_present:",
+          "mutation": "if not recipients_present or not _ops_webhook():"
+        },
+        "observed_by": [
+          "tests/test_ops_second_transport.py::test_ACCEPTANCE_with_the_PRIMARY_channel_BLANK_a_CRITICAL_still_reaches_the_SECOND_transport",
+          "tests/test_ops_second_transport.py::test_the_email_gate_CANNOT_be_gated_on_the_primary_channel",
+          "tests/test_ops_second_transport.py::test_neither_leg_SPENDS_the_others_cooldown"
+        ],
+        "proof": {
+          "commit": "PENDING - the step-4 commit, whose message carries the quote below",
+          "quote": "the second transport coupled to the primary channel (8 red)"
+        }
+      }
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_email_second_transport",
+      "audit_rows": [],
+      "audit_class": "NOT IN THE AUDIT",
+      "why": "NEW in TERM-011 / RM-N09 step 4 - the second transport itself (email, the shape of api/services/catalyst/health.py:99-108). Same reason as the row above: the mutation was taken and its count recorded, and clause 6 needs a SHA that cannot exist yet. Promote it the same way, in the same commit.",
+      "pending_observation": {
+        "in_population": true,
+        "what_the_guard_decides": "Whether the resolved recipients are actually sent to. It is the transport rather than a threshold, and - like `_page_discord` above - the derivation cannot tell those apart, so it is recorded rather than excluded by a hand-written rule.",
+        "predicate": {
+          "file": "api/services/chart_health_alerts.py",
+          "scope": "_email_second_transport",
+          "pinned": "for to in recipients:",
+          "mutation": "for to in ():"
+        },
+        "observed_by": [
+          "tests/test_ops_second_transport.py::test_ACCEPTANCE_with_the_PRIMARY_channel_BLANK_a_CRITICAL_still_reaches_the_SECOND_transport",
+          "tests/test_ops_second_transport.py::test_one_unroutable_address_does_not_SILENCE_the_rest",
+          "tests/test_ops_second_transport.py::test_the_second_transport_never_carries_a_WEBHOOK_VALUE"
+        ],
+        "proof": {
+          "commit": "PENDING - the step-4 commit, whose message carries the quote below",
+          "quote": "the second transport delivering to nobody (7 red)"
+        }
+      }
     }
   ]
 }
