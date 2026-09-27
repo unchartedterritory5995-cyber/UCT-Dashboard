@@ -1275,8 +1275,16 @@ describe('FolderSidebar — Wave J saved-excerpt search', () => {
     settle()
     expect(screen.getByText('1 document page')).toBeInTheDocument()
     expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
-    expect(screen.getByText('q3-deck.pdf · p.9')).toBeInTheDocument()
-    expect(screen.getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+    // Wave 10 (R-5): with two kinds of hit, "Best matches" lists both rows
+    // above the sections, so each row text now appears twice -- by design, the
+    // sections are KEPT. Each row is asserted inside its OWN section, which is
+    // what this rail is about.
+    const docSection = screen.getByText('1 document page').parentElement
+    const excerptSection = screen.getByText('1 saved excerpt').parentElement
+    expect(within(docSection).getByText('q3-deck.pdf · p.9')).toBeInTheDocument()
+    expect(within(docSection).queryByText('q3-deck.pdf · p.2')).toBeNull()
+    expect(within(excerptSection).getByText('q3-deck.pdf · p.2')).toBeInTheDocument()
+    expect(within(excerptSection).queryByText('q3-deck.pdf · p.9')).toBeNull()
   })
 
   // Same v1→Wave M transition as the document test above.
@@ -2000,5 +2008,110 @@ describe('Wave 6 split view: Ctrl/Cmd+click opens a note beside', () => {
     fireEvent.click(screen.getByText('Recently Opened'), { ctrlKey: true, shiftKey: true })
     expect(openToSide).not.toHaveBeenCalled()
     expect(onOpenNote).toHaveBeenCalled()
+  })
+})
+
+// ── Wave 10 lane 10B — R-5 / clause 13b: "Best matches", one ranked list over
+// the four sections, by reciprocal-rank fusion; the sections are KEPT.
+// Asserted by what the member reads: the rows' order, each row's kind label,
+// the count line, and that each section still renders its own list.
+// ─────────────────────────────────────────────────────────────────────────
+
+describe('FolderSidebar — Best matches (wave 10, R-5)', () => {
+  const settle = () => act(() => { vi.advanceTimersByTime(300) })
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  const NOTES = [
+    { id: 'n1', title: 'NVDA margins thesis', bodySnippet: 'gross <mark>margins</mark> hold', folderId: null, tags: [] },
+    { id: 'n2', title: 'AMD margins', bodySnippet: 'AMD <mark>margins</mark> lag', folderId: null, tags: [] },
+    { id: 'n3', title: 'Old margins memo', bodySnippet: 'a stale <mark>margins</mark> note', folderId: null, tags: [] },
+  ]
+  const PAGES = [
+    { documentId: 'd1', pageNumber: 34, noteId: 'n1', noteTitle: 'NVDA margins thesis', name: '10-K.pdf',
+      attachmentUrl: '/x.pdf', snippet: 'segment <mark>margins</mark> table' },
+    { documentId: 'd1', pageNumber: 35, noteId: 'n1', noteTitle: 'NVDA margins thesis', name: '10-K.pdf',
+      attachmentUrl: '/x.pdf', snippet: 'more <mark>margins</mark>' },
+  ]
+  const EXCERPTS = [
+    { excerptId: 'e1', noteId: 'n1', noteTitle: 'NVDA margins thesis', documentId: 'd1',
+      documentName: '10-K.pdf', pageNumber: 12, annotation: null, snippet: 'kept <mark>margins</mark> line' },
+  ]
+
+  function search({ notes = NOTES, pages = PAGES, excerpts = EXCERPTS, reviews = [], loading = {} } = {}) {
+    useJ2NotesMock.mockImplementation((opts) => {
+      if (!opts?.enabled) return { notes: [], isLoading: false, isValidating: false, error: null }
+      return { notes, isLoading: Boolean(loading.notes), isValidating: false, error: null,
+        total: notes.length, hasMore: false, loadMore: vi.fn(), isLoadingMore: false }
+    })
+    useDocumentSearchMock.mockReturnValue({ results: pages, isLoading: Boolean(loading.pages), error: null })
+    useExcerptSearchMock.mockReturnValue({ results: excerpts, isLoading: false, error: null })
+    useReviewSearchMock.mockReturnValue({ results: reviews, isLoading: false, error: null })
+    const onOpenNote = vi.fn()
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    fireEvent.click(screen.getByLabelText('Search notes'))
+    fireEvent.change(screen.getByPlaceholderText(/search notes/i), { target: { value: 'margins' } })
+    settle()
+    return onOpenNote
+  }
+  const best = () => screen.queryByRole('group', { name: 'Best matches' })
+  /** Each Best-matches row as "<kind label> | <title>", top to bottom. */
+  const bestRows = () => within(best()).getAllByRole('button').map((b) => {
+    const spans = b.querySelectorAll('span > span')
+    return `${spans[0]?.textContent} | ${spans[1]?.textContent}`
+  })
+
+  it('fuses the sections: every kind\'s best hit first, each row labelled with its kind', () => {
+    search()
+    expect(bestRows()).toEqual([
+      'Note | NVDA margins thesis',
+      'Saved excerpt | 10-K.pdf · p.12',
+      'Document page | 10-K.pdf · p.34',
+      'Note | AMD margins',
+      'Document page | 10-K.pdf · p.35',
+    ])
+  })
+
+  it('says honestly what it is: the top 5 of the results listed below', () => {
+    search()
+    expect(within(best()).getByText('Best matches · top 5 of the 6 results below')).toBeInTheDocument()
+  })
+
+  it('KEEPS the sections: each still lists and counts its own kind below', () => {
+    search()
+    expect(screen.getByText('Showing 3 of 3 notes')).toBeInTheDocument()
+    expect(screen.getByText('2 document pages')).toBeInTheDocument()
+    expect(screen.getByText('1 saved excerpt')).toBeInTheDocument()
+    // the third note is in its section even though Best matches left it out
+    const noteSection = screen.getByText('Showing 3 of 3 notes').parentElement
+    expect(within(noteSection).getByText('Old margins memo')).toBeInTheDocument()
+    expect(within(best()).queryByText('Old margins memo')).toBeNull()
+  })
+
+  it('a Best-matches row opens exactly what its section row opens (the page it named)', () => {
+    const onOpenNote = search()
+    fireEvent.click(within(best()).getByText('10-K.pdf · p.34'))
+    expect(onOpenNote).toHaveBeenCalledWith(
+      { id: 'n1' }, expect.objectContaining({ noteId: 'n1', documentId: 'd1', page: 34, depth: 'page' }))
+  })
+
+  it('a thesis review in Best matches carries its decision, not only its prose', () => {
+    search({ pages: [], excerpts: [], reviews: [{
+      reviewId: 'rv1', noteId: 'n7', noteTitle: 'NVDA thesis', ticker: 'NVDA', outcome: 'invalidated',
+      completedAt: '2026-03-20T00:00:00+00:00', reviewReason: 'manual', snippet: 'the <mark>margins</mark> call',
+    }] })
+    expect(within(best()).getByText(/Invalidated/)).toBeInTheDocument()
+  })
+
+  it('is absent with only ONE kind of hit (it would only repeat that section)', () => {
+    search({ pages: [], excerpts: [] })
+    expect(best()).toBeNull()
+    expect(screen.getByText('Showing 3 of 3 notes')).toBeInTheDocument()
+  })
+
+  it('is absent while any section is still searching (no rows moving under a thumb)', () => {
+    search({ loading: { pages: true } })
+    expect(best()).toBeNull()
   })
 })

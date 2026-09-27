@@ -1,8 +1,8 @@
 # UCT Notebook study — consent
 
-> **DRAFT — owner approval required.** This text is not used with any participant until the
-> owner has approved it (the same rule as the email-in Privacy sentence). The facilitator reads
-> it aloud or sends it before the session, and keeps the signed or emailed "I agree".
+> **Approved for use, 2026-09-26.** The facilitator reads it aloud or sends it before the
+> session, and keeps the signed or emailed "I agree". Any change to this text needs a fresh
+> approval before it is used with a participant.
 
 Thank you for helping us test the UCT Notebook. Please read this before we start. You can ask
 anything, and you can stop at any time.

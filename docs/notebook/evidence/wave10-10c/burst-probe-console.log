@@ -1,0 +1,14 @@
+sandbox identity: PROVEN -- http://127.0.0.1:8213 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10s2\docs\plans\joystick\sandbox-runs\2026-09-26T18-12-04.md (identity 8536c33e9a13..., data dir C:\data-w10c)
+  PASS         t12-shape #0: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         t12-shape #1: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         t12-shape #2: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         tag-mid-typing #0: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         tag-mid-typing #1: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         tag-mid-typing #2: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         two-tags-back-to-back #0: 409s=2 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         two-tags-back-to-back #1: 409s=2 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         two-tags-back-to-back #2: 409s=2 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         ticker-mid-typing #0: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         ticker-mid-typing #1: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+  PASS         ticker-mid-typing #2: 409s=1 unsettled=0 forks=0 save_failed_seen=False 
+BURST PROBE: 12 run(s), 0 FAIL, 0 INCONCLUSIVE, 15 409(s) observed in total

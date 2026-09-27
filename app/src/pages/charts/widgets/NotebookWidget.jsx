@@ -107,7 +107,7 @@ function NoteEditorInner({ note, update, journalUrl, onBack }) {
 
   return (
     <div className={styles.editorPane}>
-      {unreadable && <UnreadableNoteNotice />}
+      {unreadable && <UnreadableNoteNotice editor={editor} />}
       <input
         className={styles.editorTitle}
         readOnly={unreadable}

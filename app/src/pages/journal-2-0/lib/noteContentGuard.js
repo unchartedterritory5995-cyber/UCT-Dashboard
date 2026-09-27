@@ -37,7 +37,26 @@ import { SCHEMA_REFUSAL_DETAIL } from './notebookSchema'
  */
 export const UNREADABLE_NOTE_MESSAGE = SCHEMA_REFUSAL_DETAIL
 
-const unreadable = new WeakSet()
+/**
+ * ⛔⛔ WAVE 10 (lane 10C) — A NOTE THAT IS MERELY MALFORMED IS NOT "NEWER".
+ * The lock fires whenever the schema cannot BUILD the stored body, and two very
+ * different bodies do that: one holding a TYPE this bundle does not know (a newer
+ * bundle wrote it — reloading may fix it), and one whose every type is known but
+ * which is malformed (an empty text node, the wave-5 walk's case — reloading
+ * fixes nothing). The notice said "newer version of the app" for both, which sent
+ * a member with a damaged note to reload forever. The server now refuses such a
+ * body at the door (notes._body_build_problem); this is the sentence for the
+ * ones already stored.
+ */
+export const MALFORMED_NOTE_MESSAGE =
+  "Part of this note is stored in a form the editor can't open, so it is read-only to keep it safe. Nothing in it has been changed."
+
+/** Why a lock fired: a type this bundle does not know, or a body that is malformed. */
+export const UNREADABLE_NEWER = 'newer'
+export const UNREADABLE_MALFORMED = 'malformed'
+
+const unreadable = new WeakMap()   // editor -> reason
+const lockedLive = new Set()       // editors currently locked (pruned when destroyed)
 const listeners = new Set()
 let version = 0
 
@@ -53,14 +72,64 @@ export function canReadDocument(schema, content) {
   }
 }
 
+/**
+ * WHY `schema` cannot build `content`: `UNREADABLE_NEWER` when any node or mark
+ * TYPE in it is one the schema does not register, else `UNREADABLE_MALFORMED`.
+ * ⛔ Only meaningful once `canReadDocument` has answered false. Iterative — a
+ * stored body can be nested deeper than a recursive walk survives.
+ */
+export function unreadableReason(schema, content) {
+  const knownNode = (t) => Boolean(schema?.nodes?.[t])
+  const knownMark = (t) => Boolean(schema?.marks?.[t])
+  const stack = Array.isArray(content) ? [...content] : [content]
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    if (typeof node.type === 'string' && node.type && !knownNode(node.type)) return UNREADABLE_NEWER
+    if (Array.isArray(node.marks)) {
+      for (const m of node.marks) {
+        if (m && typeof m.type === 'string' && m.type && !knownMark(m.type)) return UNREADABLE_NEWER
+      }
+    }
+    if (Array.isArray(node.content)) stack.push(...node.content)
+  }
+  return UNREADABLE_MALFORMED
+}
+
 export function isUnreadable(editor) {
   return Boolean(editor) && unreadable.has(editor)
 }
 
+/** The reason `editor` was locked, or null when it is not locked. */
+export function unreadableReasonOf(editor) {
+  return (editor && unreadable.get(editor)) || null
+}
+
+/** The sentence for a lock `reason`. An unknown reason reads as the newer-version one. */
+export function unreadableMessageFor(reason) {
+  return reason === UNREADABLE_MALFORMED ? MALFORMED_NOTE_MESSAGE : UNREADABLE_NOTE_MESSAGE
+}
+
+/**
+ * The reason every LIVE locked editor agrees on, or null when there is none or
+ * they disagree. What a notice rendered WITHOUT its editor falls back to — exact
+ * on a page with one locked editor, and the newer-version sentence (the pre-wave-10
+ * behaviour) whenever it cannot be sure.
+ */
+export function unanimousUnreadableReason() {
+  const reasons = new Set()
+  for (const ed of [...lockedLive]) {
+    if (!ed || ed.isDestroyed) { lockedLive.delete(ed); continue }
+    reasons.add(unreadable.get(ed))
+  }
+  return reasons.size === 1 ? [...reasons][0] : null
+}
+
 /** Lock `editor`: read-only, and every write path's `isUnreadable` answers true. */
-export function markUnreadable(editor) {
+export function markUnreadable(editor, reason = UNREADABLE_NEWER) {
   if (!editor || unreadable.has(editor)) return
-  unreadable.add(editor)
+  unreadable.set(editor, reason === UNREADABLE_MALFORMED ? UNREADABLE_MALFORMED : UNREADABLE_NEWER)
+  lockedLive.add(editor)
   // setOptions, NOT setEditable — see the header. Safe inside the constructor:
   // setOptions returns early until the view exists, and the editable plugin
   // reads `options.editable` live.
@@ -77,7 +146,10 @@ export function noteContentGuardOptions() {
       // Fires for the initial document AND for a later insert that fails the
       // check. Only an initial document the schema cannot BUILD is the blanking
       // case; a failed insert simply does not insert (TipTap returns false).
-      if (!canReadDocument(editor.schema, editor.options.content)) markUnreadable(editor)
+      const content = editor.options.content
+      if (!canReadDocument(editor.schema, content)) {
+        markUnreadable(editor, unreadableReason(editor.schema, content))
+      }
     },
   }
 }
@@ -110,7 +182,7 @@ export const WHOLE_DOCUMENT_SWAP_META = 'uctWholeDocumentSwap'
 export function replaceDocument(editor, json, options) {
   if (!editor || editor.isDestroyed) return false
   if (!canReadDocument(editor.schema, json)) {
-    markUnreadable(editor)
+    markUnreadable(editor, unreadableReason(editor.schema, json))
     return false
   }
   const before = editor.state.doc

@@ -30,13 +30,21 @@ class _RecorderClient:
         self.deleted = []
 
     def upload_file(self, filename, bucket, key, ExtraArgs=None):
+        manifest = None
         with tarfile.open(filename, "r:gz") as tar:
             members = sorted(
                 m.name.replace("\\", "/") for m in tar.getmembers() if m.isfile()
             )
+            # Wave 10 (F-7): the manifest member, and each file's bytes, read while
+            # the temp file still exists.
+            names = [m.name for m in tar.getmembers() if m.isfile()]
+            blobs = {n.replace("\\", "/"): tar.extractfile(n).read() for n in names}
+        from api.j2_attachments_backup import MANIFEST_NAME
+        if MANIFEST_NAME in blobs:
+            manifest = json.loads(blobs[MANIFEST_NAME].decode("utf-8"))
         self.uploads.append(
             {"filename": filename, "bucket": bucket, "key": key,
-             "extra": ExtraArgs, "members": members}
+             "extra": ExtraArgs, "members": members, "manifest": manifest, "blobs": blobs}
         )
 
     def list_objects_v2(self, Bucket=None, Prefix=None):
@@ -101,10 +109,24 @@ def test_tarball_roundtrip(monkeypatch, tmp_path):
     assert up["key"].endswith(".tar.gz")
     assert (up["extra"] or {}).get("ContentType") == "application/gzip"
 
-    # the tarball actually carries the seeded files under relative arcnames
+    # the tarball actually carries the seeded files under relative arcnames --
+    # every user file, nothing skipped, and (wave 10, F-7) ONE more member: the manifest.
     assert "user1/2026-07-09/shot.png" in up["members"]
     assert "user2/2026-07-08/chart.webp" in up["members"]
-    assert len(up["members"]) == 2
+    user_files = [m for m in up["members"] if m != mod.MANIFEST_NAME]
+    assert len(user_files) == 2
+    assert mod.MANIFEST_NAME in up["members"]
+
+    # ⛔ The manifest describes EXACTLY what the tarball holds: every user file, with the
+    # size and sha256 of the bytes archived -- what the restore drill samples against.
+    import hashlib
+    m = up["manifest"]
+    assert m["count"] == 2 and len(m["files"]) == 2
+    for f in m["files"]:
+        blob = up["blobs"][f["path"]]
+        assert f["bytes"] == len(blob)
+        assert f["sha256"] == hashlib.sha256(blob).hexdigest()
+    assert sorted(f["path"] for f in m["files"]) == sorted(user_files)
 
     # marker persisted outside the tree, with the run record
     marker = Path(mod._marker_path())

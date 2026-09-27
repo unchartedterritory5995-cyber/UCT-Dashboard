@@ -22,3 +22,6 @@
 .body :global(.ProseMirror):focus:not(:focus-visible) {
   outline: none;
 }
+/* Wave 10 fix round 1 (review I-2): a resized table scrolls sideways inside its
+   own wrapper, never widening the version preview. */
+.body :global(.tableWrapper) { overflow-x: auto; max-width: 100%; }

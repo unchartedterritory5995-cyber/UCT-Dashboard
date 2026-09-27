@@ -3,6 +3,10 @@ import useNoteProperties from '../../hooks/useNoteProperties'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
+import {
+  AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
+  autofillCandidates, requestAutofill,
+} from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
 
 const NEW_PROPERTY_TYPES = [
@@ -34,7 +38,7 @@ const NEW_PROPERTY_TYPES = [
  * (checkpoint §25): a native control gets full keyboard/screen-reader
  * support for free, and nothing here needs a custom listbox.
  */
-export default function PropertiesSection({ noteId, updateNote, ticker }) {
+export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false }) {
   const { properties, isLoading, refresh } = useNoteProperties(noteId)
   // The Ticker/Sector/Industry/Theme/Trade rows are computed server-side
   // from the note's OWN ticker field (a DIFFERENT save path -- the header's
@@ -59,6 +63,21 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
   const [newPropOptions, setNewPropOptions] = useState('')
   const [saving, setSaving] = useState(null) // property id currently saving, for a subtle inline state
   const [error, setError] = useState(null)
+  // Wave 10 (G-165, R-3): Compass's SUGGESTED values -- held here, never in the
+  // note, until the member accepts one (lib/propertyAutofill.js says why).
+  // 'idle' | 'loading' | 'ready' | 'error'
+  const [suggestState, setSuggestState] = useState('idle')
+  const [suggestions, setSuggestions] = useState([])
+  const [suggestModel, setSuggestModel] = useState(null)
+  const [suggestError, setSuggestError] = useState(null)
+  const suggestAbortRef = useRef(null)
+  // A note switch drops the other note's suggestions (and any request still out).
+  useEffect(() => {
+    setSuggestState('idle')
+    setSuggestions([])
+    setSuggestError(null)
+    return () => suggestAbortRef.current?.abort()
+  }, [noteId])
 
   const visible = useMemo(
     () => properties.filter((p) => p.value !== null || manuallyShown.has(p.id)),
@@ -71,18 +90,139 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
 
   if (isLoading) return null
 
+  // The property door: ONE property, through the note's own `update` (which
+  // lands its revision). -> true when it saved.
   const setValue = async (propertyId, value) => {
     setSaving(propertyId)
     setError(null)
     try {
       await updateNote({ properties: { [propertyId]: value } })
       await refresh()
+      return true
     } catch (e) {
       setError(e.message || 'Could not save')
+      return false
     } finally {
       setSaving(null)
     }
   }
+
+  // -- Wave 10 (G-165): Suggest values ----------------------------------------
+  const canSuggest = autofillOn && autofillCandidates(properties).length > 0
+  const suggest = async () => {
+    suggestAbortRef.current?.abort()
+    const ctl = new AbortController()
+    suggestAbortRef.current = ctl
+    setSuggestState('loading')
+    setSuggestError(null)
+    setSuggestions([])
+    try {
+      const { suggestions: list, model } = await requestAutofill(noteId, { signal: ctl.signal })
+      if (ctl.signal.aborted) return
+      setSuggestions(list)
+      setSuggestModel(model)
+      setSuggestState('ready')
+    } catch (e) {
+      if (e?.name === 'AbortError') return
+      setSuggestError(e.message)
+      setSuggestState('error')
+    }
+  }
+  const closeSuggestions = () => {
+    suggestAbortRef.current?.abort()
+    setSuggestState('idle')
+    setSuggestions([])
+    setSuggestError(null)
+  }
+  const dropSuggestion = (propertyId) => {
+    setSuggestions((list) => {
+      const next = list.filter((x) => x.propertyId !== propertyId)
+      // The last one handled closes the panel -- an empty list here would
+      // otherwise read as "Compass found nothing".
+      if (!next.length) setSuggestState('idle')
+      return next
+    })
+  }
+  // ⛔ THE ONLY WRITE A SUGGESTION CAN CAUSE: the member's Accept, one
+  // property, through `setValue` (the door above). A failed save keeps the
+  // suggestion on screen with the door's own error beside it.
+  const acceptSuggestion = async (s) => {
+    // ⛔ STILL EMPTY? asked at ACCEPT time, not at Suggest time (review M-2).
+    // The member (or another tab) may have set this property while the
+    // suggestion sat on screen; a suggestion only ever fills an EMPTY
+    // property, so a value set since then wins and nothing is written. The
+    // freshest read is the one we fetch now; the render's list is the fallback.
+    let current = properties
+    try {
+      const fresh = await refresh()
+      if (Array.isArray(fresh?.properties)) current = fresh.properties
+    } catch { /* keep the render's list */ }
+    const now = current.find((p) => p.id === s.propertyId)
+    if (now && now.value != null) {
+      dropSuggestion(s.propertyId)
+      setError(autofillAlreadySetSentence(s.name))
+      return
+    }
+    const ok = await setValue(s.propertyId, s.value)
+    if (!ok) return
+    setManuallyShown((prev) => new Set(prev).add(s.propertyId))
+    dropSuggestion(s.propertyId)
+  }
+
+  // ⛔ `autofillOn` gates the PANEL too, not only the button (review M-4): a
+  // note locked while suggestions sat on screen must not keep an Accept. ONE
+  // mechanism, in the render (no reset effect beside it -- two would leave this
+  // one unprovable). Unlocked again, the panel the member left open returns;
+  // its Accept still asks whether the property is empty (M-2) before writing.
+  const autofillControls = autofillOn && (canSuggest || suggestState !== 'idle') && (
+    <>
+      {canSuggest && (
+        <button type="button" className={styles.addLink} onClick={suggest}
+          disabled={suggestState === 'loading'} aria-label="Suggest values with Compass">
+          <UIcon name="sparkle" size={11} gold={false} style={{ verticalAlign: '-1px', marginRight: 4 }} />
+          {suggestState === 'loading' ? 'Suggesting…' : 'Suggest values'}
+        </button>
+      )}
+      {(suggestState === 'ready' || suggestState === 'error') && (
+        <div className={styles.suggestPanel} role="region" aria-label="Suggested values">
+          <div className={styles.suggestHead}>
+            <span className={styles.suggestSource}>
+              {AUTOFILL_SOURCE_LABEL}{suggestModel ? ` · ${suggestModel}` : ''}
+            </span>
+            <button type="button" className={styles.suggestBtn} onClick={closeSuggestions}>Close</button>
+          </div>
+          {suggestState === 'error' ? (
+            <div className={styles.error} role="status">{suggestError}</div>
+          ) : suggestions.length === 0 ? (
+            <div className={styles.suggestNote} role="status">{AUTOFILL_NOTHING_SENTENCE}</div>
+          ) : (
+            <>
+              <p className={styles.suggestNote}>{AUTOFILL_NOT_SAVED}</p>
+              <ul className={styles.suggestList}>
+                {suggestions.map((s) => (
+                  <li key={s.propertyId} className={styles.suggestRow} data-suggestion={s.propertyId}>
+                    <span className={styles.suggestName}>{s.name}</span>
+                    <span className={styles.suggestValue}>{String(s.display ?? '')}</span>
+                    {s.evidence ? <q className={styles.suggestEvidence}>{s.evidence}</q> : null}
+                    <span className={styles.suggestActions}>
+                      <button type="button" className={styles.suggestBtn} disabled={saving === s.propertyId}
+                        onClick={() => acceptSuggestion(s)} aria-label={`Accept ${s.name}: ${String(s.display ?? '')}`}>
+                        Accept
+                      </button>
+                      <button type="button" className={styles.suggestBtn}
+                        onClick={() => dropSuggestion(s.propertyId)} aria-label={`Dismiss ${s.name}`}>
+                        Dismiss
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </>
+  )
 
   const addExisting = (propertyId) => {
     setManuallyShown((prev) => new Set(prev).add(propertyId))
@@ -130,6 +270,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           Add property
         </button>
+        {autofillControls}
       </div>
     )
   }
@@ -167,6 +308,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker }) {
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           Add property
         </button>
+        {autofillControls}
         {pickerOpen && (
           <div className={styles.picker}>
             {hidden.map((p) => (
