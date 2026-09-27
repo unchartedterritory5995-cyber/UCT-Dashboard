@@ -122,6 +122,21 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  /* Wave 10 follow-up F1: this row may shrink to the header and wrap its own
+     controls. Without it the row could never be narrower than its widest
+     control -- and the folder <select> below is as wide as its LONGEST folder
+     name. Measured in real Chromium at 390 px (walk row B9d) after an import
+     made "Imported from Files (Markdown, Text, HTML, Word)": the select ran
+     x 56-463, Share sat at x 338-409, and the app's <main> scroller grew to
+     463 px, with or without the voice hint. */
+  min-width: 0;
+  max-width: 100%;
+}
+/* ...and the folder select itself may be narrower than its longest option
+   (the chosen name shows truncated; the open list still shows every name). */
+.headerSelect {
+  min-width: 0;
+  max-width: 100%;
 }
 .headerSelect, .headerInput {
   background: var(--bg-surface);
