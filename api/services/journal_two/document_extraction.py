@@ -28,6 +28,7 @@ import logging
 import os
 import re
 import threading
+import time
 import uuid
 import zipfile
 from datetime import datetime, timezone
@@ -121,6 +122,20 @@ def image_docx_documents_enabled() -> bool:
 # this point is simply not attempted (page_count still reflects the PDF's
 # real page count where readable; only page TEXT is capped).
 _MAX_PAGES = 500
+
+# ⛔⛔ A PDF'S TEXT IS BOUNDED BY WHAT IT PRODUCES, NOT BY ITS SIZE (H14 hotfix,
+# 2026-09-26). A page can draw one text-carrying form XObject any number of times:
+# its content stream is `/X1 Do` repeated, which compresses to almost nothing, and
+# pypdf re-extracts the form's text on every draw. Measured with pypdf 6.15 on a
+# ~1 KB PDF: text grows linearly with the draws (5,000 draws -> 1,004,999 chars),
+# at ~1.1 ms of CPU per draw -- so a small upload could hold a CPU (and the GIL) in
+# the one web process for hours, or grow text into gigabytes with a larger form.
+# `_MAX_PAGES` bounds pages, not this. These three bound the WHOLE document; the
+# first one crossed stops extraction, keeps the pages already read (the same honest
+# truncation as `_MAX_PAGES`) and logs which budget stopped it.
+_PDF_MAX_FORM_DRAWS = 10_000        # form/image XObject draws across the document
+_PDF_MAX_TEXT_CHARS = 5_000_000     # characters of text produced across the document
+_PDF_MAX_SECONDS = 120.0            # wall clock for the whole document's extraction
 # Never more than this many extractions running at once, across all users on
 # this process. Two, not one: keeps a single large filing from starving every
 # other member's upload behind it, without opening the door to the kind of
@@ -160,6 +175,43 @@ def _normalize_page_text(text: str) -> str:
 
 # ── Extraction (pypdf) ───────────────────────────────────────────────────────
 
+class _PdfBudgetExceeded(Exception):
+    """Raised from pypdf's visitors when a document crosses a `_PDF_MAX_*` budget."""
+
+
+def _pdf_budget_visitors():
+    """(state, visitor_operand_before, visitor_text) sharing ONE budget per document.
+
+    pypdf calls `visitor_operand_before` for every operator, including those inside a
+    drawn form, and `visitor_text` for every piece of text it produces. Both raise
+    once the document is over a budget -- and keep raising, so an exception pypdf
+    swallows around a nested form still stops the next top-level operator."""
+    state = {"draws": 0, "chars": 0, "t0": time.monotonic(), "why": None}
+
+    def over(why: str) -> None:
+        state["why"] = why
+        raise _PdfBudgetExceeded(why)
+
+    def before(operator, operands, cm, tm) -> None:
+        if state["why"]:
+            raise _PdfBudgetExceeded(state["why"])
+        if operator == b"Do":
+            state["draws"] += 1
+            if state["draws"] > _PDF_MAX_FORM_DRAWS:
+                over(f"more than {_PDF_MAX_FORM_DRAWS} form draws")
+        if time.monotonic() - state["t0"] > _PDF_MAX_SECONDS:
+            over(f"more than {_PDF_MAX_SECONDS:.0f} s of extraction")
+
+    def text(t, cm, tm, font_dict, font_size) -> None:
+        if state["why"]:
+            raise _PdfBudgetExceeded(state["why"])
+        state["chars"] += len(t or "")
+        if state["chars"] > _PDF_MAX_TEXT_CHARS:
+            over(f"more than {_PDF_MAX_TEXT_CHARS} characters of text")
+
+    return state, before, text
+
+
 def extract_pdf_pages(data: bytes) -> tuple[list[str], int] | None:
     """Best-effort, per-page text extraction. Returns (pages, real_page_count)
     or None on total failure (corrupt, unreadable, or password-protected with
@@ -184,11 +236,19 @@ def extract_pdf_pages(data: bytes) -> tuple[list[str], int] | None:
                 return None
         real_page_count = len(reader.pages)
         pages: list[str] = []
+        budget, before, on_text = _pdf_budget_visitors()
         for i, page in enumerate(reader.pages):
-            if i >= _MAX_PAGES:
+            if i >= _MAX_PAGES or budget["why"]:
                 break
             try:
-                pages.append(_normalize_page_text(page.extract_text() or ""))
+                pages.append(_normalize_page_text(page.extract_text(
+                    visitor_operand_before=before, visitor_text=on_text) or ""))
+            except _PdfBudgetExceeded:
+                # The page that crossed the budget contributes nothing (its text
+                # is exactly what was unbounded); earlier pages are kept.
+                pages.append("")
+                log.warning("[doc-extract] pdf extraction stopped at page %s: %s",
+                            i, budget["why"])
             except Exception as e:  # noqa: BLE001 — one bad page, not the document
                 log.warning("[doc-extract] page %s failed: %s", i, e)
                 pages.append("")

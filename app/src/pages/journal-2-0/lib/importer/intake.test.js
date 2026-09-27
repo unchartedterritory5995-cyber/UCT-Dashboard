@@ -28,6 +28,19 @@ describe('expandArchives', () => {
       .rejects.toBeInstanceOf(ImportLimitError)
   })
 
+  // Wave 10 (10B, found by the R-18 census): a .docx starts with the zip magic
+  // bytes. It must reach its adapter WHOLE -- at the top level and inside a zip.
+  it('passes a Word document through whole instead of expanding it as an archive', async () => {
+    const docx = zipSync({ '[Content_Types].xml': strToU8('<Types/>'), 'word/document.xml': strToU8('<w:document/>') })
+    const outer = zipSync({ 'OneNote/Weekly review.docx': docx })
+    for (const drop of [[vf('Weekly review.docx', docx)], [vf('export.zip', outer)]]) {
+      const { files, warnings } = await expandArchives(drop)
+      expect(files.map((f) => f.path)).toEqual([drop[0].path === 'export.zip' ? 'OneNote/Weekly review.docx' : 'Weekly review.docx'])
+      expect(await files[0].bytes()).toEqual(docx)
+      expect(warnings).toEqual([])
+    }
+  })
+
   it('keeps a corrupt nested zip as a passthrough VFile and warns (same handling regardless of depth)', async () => {
     const corrupt = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4, 5, 6, 7, 8])
     const outer = zipSync({ 'inner.zip': corrupt })

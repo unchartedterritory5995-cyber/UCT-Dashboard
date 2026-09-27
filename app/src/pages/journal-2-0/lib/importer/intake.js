@@ -23,8 +23,19 @@ const DEFAULT_LIMITS = {
 
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04] // 'PK\x03\x04'
 
+// ⛔ Wave 10 (lane 10B, found by the R-18 census's OneNote fixture): a Word
+// document IS a zip -- .docx, like every Office Open XML / OpenDocument / EPUB
+// file, starts with the zip magic bytes. The magic-byte sniff below used to
+// explode every dropped .docx into `X.docx/word/document.xml`, `_rels/...` and
+// so on, the generic adapter then saw no .docx at all, and a Word import
+// produced NO notes plus a "not recognized" warning naming XML parts. A
+// document container is a FILE to its adapter, never an archive to expand.
+// (An explicit `.zip` name still always expands.)
+export const DOCUMENT_CONTAINER_EXT = /\.(docx|docm|dotx|dotm|xlsx|xlsm|pptx|pptm|odt|ods|odp|epub)$/i
+
 function looksLikeZip(vfile, bytes) {
   if (/\.zip$/i.test(vfile.path)) return true
+  if (DOCUMENT_CONTAINER_EXT.test(vfile.path)) return false
   if (!bytes || bytes.length < 4) return false
   return bytes[0] === ZIP_MAGIC[0] && bytes[1] === ZIP_MAGIC[1] && bytes[2] === ZIP_MAGIC[2] && bytes[3] === ZIP_MAGIC[3]
 }
