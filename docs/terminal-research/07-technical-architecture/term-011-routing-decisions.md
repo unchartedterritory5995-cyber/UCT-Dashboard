@@ -129,6 +129,38 @@ three weeks old and **no longer true**. Steps 1-3 are live.
 
 Recommended answers are filled in. Strike what you disagree with; everything unstruck is the ruling.
 
+> ✅✅ **RULED 2026-09-27, owner-delegated** (*"You determine and answer all of that"*, and earlier
+> *"you decide it because I am okay with whatever"*). **Nothing below is struck. All five open
+> rows are ACCEPTED as recommended**, and the reasoning is recorded so the ruling is reviewable
+> rather than merely asserted.
+>
+> * **#4 and #5 — BUSINESS, Discord leg removed, decided by `user_id`.** ⭐ The switch matters
+>   more than the verdict: `user_id` is the field that ALREADY decides broadcast-vs-private, so
+>   routing on it removes severity from the decision instead of adding a second thing that
+>   decides. ⛔ The ordering is part of the ruling: the two `"info"` severity lies are deleted
+>   **only after** the member path exists — delete them first and 200 personalised briefs land in
+>   the ops channel, which is the outcome the workaround was invented to prevent.
+>   ⭐ Safe to take now because the two webhooks were measured as ONE channel (§6): the removed
+>   leg is a copy in the single ops room, and the member keeps their bell and email.
+> * **#1 and #3 — BOTH, resolve twice, severity UNTOUCHED.** The class changes the destination;
+>   the severity does not move. `critical` also paints the member's 🚨 embed, so demoting it
+>   would quietly change what a MEMBER sees in order to fix where an OPERATOR reads — which is
+>   the severity-as-channel-control defect wearing a tidier hat.
+> * **#6 — BUSINESS, no Discord leg, and ⛔ NO `_TYPE_SEVERITY` ROW.** ⭐ **This corrects a worry
+>   I raised with the owner and got backwards.** I had said #6 was "a guard that pages nobody"
+>   and that fixing it would make it start paging — and separately that it ships inert. Both
+>   were wrong: `EXPOSURE_GATE_WATCH_ENABLED` is declared **armed on `web`** on a 2-minute
+>   weekday cron, and the correct fix is the one that adds NO paging at all. It is a MARKET
+>   event, not a system event: a member reads it and acts, an operator has nothing to fix.
+>   Classifying it BUSINESS makes the classification match what it already does, so it is a
+>   **no-op today** — the "it starts firing" risk existed only for the remedy the packet
+>   explicitly forbids.
+>
+> ⚠️ **What this ruling does NOT cover**, so nobody reads it as broader than it is: step 5's nine
+> posters (one of which must NOT be failed closed), step 7's `alerts.py:406`, and step 8 — which
+> is not reachable by building at all, only by a measured `fallback=0` over a full weekly cycle.
+
+
 ### 2a. The 13 BOTH rows (§4.3), in the order §6 step 6 asks for
 
 | # | the event | recommended ruling | reversible by |
