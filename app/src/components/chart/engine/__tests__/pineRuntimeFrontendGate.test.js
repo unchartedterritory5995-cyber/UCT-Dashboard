@@ -224,7 +224,10 @@ function namesModule(text, mod) {
  *  synthetic files — the same reason `importersMissingProducer` is. */
 export function liveLaneImporters(files, modules = LANE_MODULES, match = names) {
   return files
-    .filter((f) => !isTest(f.rel) && !/\.measure\./.test(f.rel))
+    // ⚠️ TEST INFRASTRUCTURE IS NOT A DOOR — the same rule `tools/pine_lane_
+    // reachability.mjs` applies. `__tests__/vendorHarness/ourSide.js` imports the
+    // document builder to grade it against the vendor, and no component reaches it.
+    .filter((f) => !isTest(f.rel) && !/\.measure\.|(^|\/)__tests__\/|(^|\/)__fixtures__\//.test(f.rel))
     .filter((f) => modules.some((m) => match(f.text, m)))
     .map((f) => f.rel)
     .sort()
@@ -235,6 +238,7 @@ describe('⭐⭐ the runtime lane is reachable ONLY through the gated member-doo
     const files = [
       { rel: 'components/x/Scan.jsx', text: 'import { execute } from "../engine/runtime/vm"' },
       { rel: 'components/x/scan.test.js', text: 'import { execute } from "../engine/runtime/vm"' },
+      { rel: 'components/x/__tests__/harness.js', text: 'import { execute } from "../engine/runtime/vm"' },
       { rel: 'components/x/Other.jsx', text: 'import y from "./indicators"' },
     ]
     expect(liveLaneImporters(files)).toEqual(['components/x/Scan.jsx'])
