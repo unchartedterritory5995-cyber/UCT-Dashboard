@@ -190,6 +190,23 @@ describe('⭐⭐ a member\'s value reaches EVERY fold — the window length too'
     expect(Array.from(dflt.columns.value)).not.toEqual(Array.from(five.columns.value))
   })
 
+  it('⭐ a knob reaches a HISTORY RING — the fold the frozen resolver owns', () => {
+    // ⚰️ The length case above reads through a COLUMN, which always saw member
+    // values — so it stayed green with `inputsReachEveryFold` switched off
+    // (mutation M7, 2026-09-27). A `[n]` on a `var` is sized by the FROZEN fold;
+    // this is the case that fails if member values stop there.
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+    const withInput = H + 'n = input.int(2)\nvar float x = 0.0\nx := x + close\nplot(x[n])\n'
+    const literal = H + 'n = 4\nvar float x = 0.0\nx := x + close\nplot(x[n])\n'
+    const spec = { value: { output: 0, call: 'plot', line: 6 } }
+    const knob = runtimeLaneColumns(docOf(withInput, spec, { inputs: { pine_n: 'n' } }), BARS, { pine_n: 4 }, CTX)
+    const four = runtimeLaneColumns(docOf(literal, spec), BARS, {}, CTX)
+    expect(knob.errors).toEqual({})
+    expect(Array.from(knob.columns.value)).toEqual(Array.from(four.columns.value))
+    const dflt = runtimeLaneColumns(docOf(withInput, spec, { inputs: { pine_n: 'n' } }), BARS, {}, CTX)
+    expect(Array.from(dflt.columns.value)).not.toEqual(Array.from(four.columns.value))
+  })
+
   it('a bool knob reaches the program as the number Pine folds it to', () => {
     vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
     const src = H + 'show = input.bool(true, "Show")\nvar float s = 0.0\ns := s + 1\nplot(show ? s : na)\n'
