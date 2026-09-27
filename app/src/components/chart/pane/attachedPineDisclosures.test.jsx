@@ -195,8 +195,9 @@ describe('⭐⭐ the member route — indicatorInstances on ChartPane', () => {
         requirementNote('window_dependent', 4633).note,
       ])
       // ⭐ RENDERED TEXT, NOT STATE: the partial-drawing sentence, as the member reads it.
+      // (8 of 17 since the call-site inliner — see memberPaneDefinition.test.js.)
       expect(items[0].textContent)
-        .toMatch(/^5 of 14 drawing elements in this script aren't supported yet/)
+        .toMatch(/^8 of 17 drawing elements in this script aren't supported yet/)
     })
     // ⛔ THE NUMBER IS THE ONE THE CHART REPORTED, not a placeholder. A badge that
     // says "an unknown number of bars" beside a chart holding 4,633 of them is
