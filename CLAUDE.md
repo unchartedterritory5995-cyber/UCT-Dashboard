@@ -5027,6 +5027,35 @@ Tag dots visible on: TickerPopup, ThemeTracker, CustomScan, Screener, OptionsFlo
   - 🎫 Support Ticket → navigates to `/support`
 - Backdrop click closes menu/form; Escape not wired (backdrop handles it)
 
+## Discord `/chart` + `/flow` renders — ops and speed (2026-09-25 → 09-27)
+
+The member-facing Discord charts and `/flow` cards. **Runbook and evidence:**
+`docs/discord-render/RENDER-OPS-2026-09-25.md` — read it before touching this path.
+
+- **`/flow` card = the Options Flow page's own product** (`DISCORD_FLOW_CARD_PAGE_ENABLED=1` on web,
+  `api/services/flow_card_from_page.py`); a labelled rollup answers if the page product cannot be had
+  in 45 s. Window buttons `1D · 5D · 20D · All` (`flowwin|T|W`) redraw the SAME message; the lit
+  button is the window actually SERVED (a widened card lights the wider one).
+- **Instruments** (all in `api/services/flow_card_ops.py`, each a default-ON kill switch, `0` on web to
+  stop): post-deploy smoke → **#render-smoke** 240 s after each web boot (D/W/60/5 charts, `5m fresh`
+  vs `last_closed_session()`, weekly = daily, a live `/flow`) — `DISCORD_RENDER_SMOKE_ENABLED`; daily
+  `/flow` outcome line 16:25 ET → #render-alerts from `/data/flow_card_stats.db` —
+  `DISCORD_FLOW_STATS_ENABLED`; `/flow` pre-warm of the hour's names in RTH — `DISCORD_FLOW_HOTWARM_ENABLED`.
+- **The master deploy gate runs the reply golden + render-ops rails** (`Discord render replies match
+  the golden`), GATING since 2026-09-26. The golden (`docs/discord-render/instruments/goldens/`) is
+  refreshed BY CAUSE, never re-blessed wholesale: explain every drifted path first.
+- ⭐ **A SLOW CHART NAMES ITS OWN CAUSE — read the timing line before theorising.** Every member render
+  logs `[discord-chart] timing SYM TF member <outcome> Ns: slot · gate · bars · quote · house`, and
+  `house timing … zones · renderer` when the house step is >= 3 s. ⚰️ 2026-09-26 two confident
+  theories about a 20 s View chart were both wrong; the line settled it in one click.
+- **Measured 2026-09-27:** a warm member chart is ~2.5 s (renderer ~2 s of it). Dark-pool levels are
+  cached 10 min per ticker and started BEFORE the bar fetch (`discord_chart_house.dark_pool_zones`,
+  2.8 s → overlapped). The plain mplfinance stand-in appears only after `fast_after_s()` = **8 s**
+  (was 3 s, which flashed it on most clicks; `DISCORD_CHART_FAST_AFTER_S` overrides).
+- ⚠️ **Open:** for a few minutes after each web deploy the 5,000-bar page pre-fetch runs cold (3–17 s)
+  and the single bars gate queues (13 s seen). Do NOT shrink below `PAGE_BARS` to fix it — measured
+  worse (blank charts) on 2026-08-26; needs its own session.
+
 ## Discord `/buzz` — ticker-mention board (LIVE in #main-chat, 2026-09-02)
 
 Counts ticker mentions in `#main-chat` and reports which names the room is

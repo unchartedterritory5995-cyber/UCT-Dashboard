@@ -56,3 +56,14 @@ so recorded no image. The stub now takes the class and hashes it by name (`membe
   run's exit-code annotation read as the control), so it is now **GATING**.
 - The wiring test now reads `api/main.py` by AST instead of importing it, so it runs on the gate's
   small install.
+
+## 2026-09-27 — View chart speed
+
+A member's View chart for SNDK (dark-pool levels on) got the plain stand-in: web spent ~20 s before
+calling the renderer (renderer: 1.84 s). Per-step timing (`3d1849c02`) was added first, then measured
+on a real click (GH): 5.0 s = bars 0.5 s + **dark-pool zones 2.8 s** (serial, uncached) + renderer 1.8 s.
+Fix (`25e80630c`): zones cached 10 min per ticker, one shared computation, started before the bar
+fetch; stand-in threshold 3 s -> 8 s. After: BFLY View chart **2.7 s**, smoke W/60/5 2.2-2.5 s.
+A dark-pool query-plan theory was measured and rejected before shipping (the real plan already used
+the (date, ticker) index). Open: the cold 5,000-bar pre-fetch after each deploy (3-17 s) and the
+single bars gate queueing - not shrunk below PAGE_BARS (measured worse 2026-08-26).
