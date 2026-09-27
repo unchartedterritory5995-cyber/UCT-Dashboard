@@ -6,7 +6,26 @@ Triggers (set by other modules):
   - New corruption pattern detected
 
 Alerts surface via /api/admin/bars/alerts (Plan 5 Task 7). Throttled (no
-duplicate alerts with the same key within 10 min).
+duplicate alerts with the same key AND SEVERITY within 10 min).
+
+⛔⛔ THE THROTTLE IS PER (KEY, SEVERITY), AND THE SEVERITY HALF IS THE FIX.
+It was per KEY alone, and `emit` returns on the throttle BEFORE
+`_should_page_discord` ever runs — so a WARNING emitted at t=0 swallowed the
+CRITICAL page for the same condition for the next 10 minutes. `bars_continuous_audit`
+emits `intraday_hotset_stale` at warning (>=0.08 of actively-viewed charts stale)
+and critical (>=0.20) under one key on a 5-minute cycle, so a freshness pipeline
+degrading past 8% and then past 20% inside one window paged NOBODY: the warning
+row went into the deque, the critical never reached the gate, and the operator
+learned about a broken pipeline from a warning in an admin feed they were not
+looking at. Escalation is precisely the event a page exists for.
+
+⭐ AND THE FLOOD BOUND IS UNCHANGED, WHICH IS WHY THIS IS SAFE. The throttle is
+not removed or widened: it still admits at most one emit per (key, severity) per
+`_THROTTLE_SEC`, so the deque is bounded by 3x (the number of severities) instead
+of 1x, and Discord is bounded by `_discord_last`, which remains keyed on the
+ALERT KEY ALONE — only criticals page, so a flapping metric oscillating across
+the 0.20 boundary still gets at most one page per key per `_DISCORD_COOLDOWN_SEC`.
+Trading a swallowed page for a flood would not have been a fix.
 
 CRITICAL alerts also PAGE Discord (2026-08-18, instant-origin Phase 0/2): the
 in-memory deque was admin-pull-only, so a bars-store problem paged no one — the
@@ -24,8 +43,15 @@ from typing import Optional
 
 _lock = threading.RLock()
 _alerts: deque = deque(maxlen=200)
-_throttle: dict[str, int] = {}  # alert_key -> last_emitted_ts
+#: ⛔ (alert_key, severity), NOT alert_key. See the module docstring: keyed on
+#: the alert_key alone, a warning silenced the critical page for the same
+#: condition. A severity is a DIFFERENT statement about the same condition and
+#: gets its own window.
+_throttle: dict[tuple[str, str], int] = {}  # (alert_key, severity) -> last_emitted_ts
 _THROTTLE_SEC = 600  # 10 min
+#: ⛔ KEYED ON alert_key ALONE, DELIBERATELY — this is the anti-flood bound, and
+#: only a CRITICAL ever reaches it, so a severity dimension here would be dead
+#: state that also tripled how often Discord can be paged for one condition.
 _discord_last: dict[str, int] = {}  # alert_key -> last Discord page ts
 _DISCORD_COOLDOWN_SEC = 1800  # 30 min per key for the page (deque throttle is separate)
 
@@ -69,13 +95,20 @@ def _page_discord(alert_key, message):
 
 def emit(alert_key: str, severity: str, message: str, metadata: Optional[dict] = None) -> bool:
     """Emit an alert if not throttled. Returns True if emitted. A CRITICAL alert
-    also pages Discord (fire-and-forget, own cooldown)."""
+    also pages Discord (fire-and-forget, own cooldown).
+
+    ⛔ THE THROTTLE IS PER (KEY, SEVERITY) AND THE ORDER BELOW IS WHY THAT MATTERS:
+    this returns on the throttle BEFORE `_should_page_discord` runs, so anything
+    the throttle swallows is also un-pageable. Per key alone, a warning at 0.09
+    silenced the critical page at 0.21 for the rest of the window.
+    """
     now = int(time.time())
     with _lock:
-        last = _throttle.get(alert_key, 0)
+        throttle_key = (alert_key, severity)
+        last = _throttle.get(throttle_key, 0)
         if now - last < _THROTTLE_SEC:
             return False
-        _throttle[alert_key] = now
+        _throttle[throttle_key] = now
         _alerts.appendleft({
             "alert_key": alert_key,
             "severity": severity,

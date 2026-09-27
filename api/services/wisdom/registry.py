@@ -25,6 +25,8 @@ log = logging.getLogger(__name__)
 
 PACKAGES = ("core", "capture", "sources", "extract", "evals", "publish")
 
+#: Import time. This is POD UPTIME, so `_staleness_window` is its ONE consumer and uses it
+#: only where no success is on record — measuring a job's staleness with it is G-33.
 _BOOT_WALL = time.time()
 _RUNNING_CLAIM_STALE_S = 6 * 3600
 _FAILED_RETRY_AFTER_S = 30 * 60
@@ -374,9 +376,41 @@ def catch_up(now: Optional[datetime] = None) -> dict:
     return {"ran": ran, "considered": considered}
 
 
+def _staleness_window(spec: JobSpec, last_ok: Optional[datetime], boot: datetime) -> tuple[datetime, int]:
+    """What a job's age is measured FROM, and how much of it is allowed. (reference, allowed_s)
+
+    ⛔⛔ STALENESS IS MEASURED FROM THE LAST SUCCESS, NEVER FROM `max(last_ok, boot)`.
+    Boot credit for a job that has succeeded before is credit for the POD being young,
+    and it scales with uptime instead of expiring: measured that way, tripping this
+    guard needed ~70 days of uninterrupted uptime for `wisdom_monthly_packet`
+    (expected_every_s = 35 days), 14 for the weekly chain and 2 for the dailies — on a
+    pod whose median life is minutes. So for the one case this guard exists for, a job
+    that is FAILING (last_ok older than this pod), the age it compared was pod uptime
+    and the guard could not fire at all. The tell was in the rail that covers it:
+    `tests/test_wisdom_skeleton.py` has to `monkeypatch.setattr(registry, "_BOOT_WALL",
+    time.time() - 10 * 86400)` to see it page once. CONTRACTS §2.1 states the check as
+    `last_ok_at` older than `2 x expected_every_s`, with no boot term at all.
+
+    ⭐ THE BOOT GRACE IS REAL AND IS KEPT — BOUNDED BY ONE PERIOD. A job with NO success
+    on record has no other clock, and on a pod that has just come up it may simply not
+    have reached its first slot; alarming about that is the failure the boot term was
+    added to avoid. It is therefore measured from boot and allowed ONE period: the time
+    by which its slot must have come round once. Two periods is the STALENESS threshold
+    (two missed successes); one period is the OPPORTUNITY threshold (one slot). Reusing
+    one number for both is what let the grace grow without limit.
+    """
+    if last_ok is not None:
+        return last_ok, 2 * spec.expected_every_s
+    return boot, spec.expected_every_s
+
+
 def watchdog(now: Optional[datetime] = None) -> dict:
     """Page once per episode when an ENABLED job has not succeeded for two of
-    its expected periods (non-trading days excluded for trading-day jobs)."""
+    its expected periods (non-trading days excluded for trading-day jobs).
+
+    A job with no success on record is measured from this pod's boot and allowed one
+    period instead — the bounded boot grace; `_staleness_window` owns both rules and
+    says why. Rails: tests/test_wisdom_watchdog_boot_grace.py."""
     from api.services.wisdom.core import flags, heartbeat, store, timeutil
 
     now = timeutil.to_et(now) if now is not None else timeutil.now_et()
@@ -392,8 +426,7 @@ def watchdog(now: Optional[datetime] = None) -> dict:
         checked += 1
         hb = beats.get(spec.job_id) or {}
         last_ok = timeutil.parse_iso(hb.get("last_ok_at"))
-        reference = max(last_ok, boot) if last_ok else boot
-        allowed = 2 * spec.expected_every_s
+        reference, allowed = _staleness_window(spec, last_ok, boot)
         if spec.trading_days_only:
             allowed += 86400 * timeutil.non_trading_days_between(reference.date(), now.date())
         age = (now - reference).total_seconds()

@@ -136,7 +136,7 @@ class JobSpec:
     trigger: dict                                 # {"kind": "cron", "day_of_week": ..., "hour": ..., "minute": ...}
                                                   # | {"kind": "interval", "seconds": N}
     enabled: Callable[[], bool]                   # the job's kill switch — a core.flags function
-    expected_every_s: int                         # watchdog pages after 2 missed periods while enabled
+    expected_every_s: int                         # the watchdog's period: 2 from the last success, 1 from boot (below)
     trading_days_only: bool = False
     due_key: Callable[[datetime], str | None] | None = None   # durable claim key, e.g. session date
     catch_up_grace_s: int = 0                     # >0: the core catch-up tick runs a missed due_key within this
@@ -168,6 +168,16 @@ class JobContext:
 - Core ships two jobs: `wisdom_core_catchup` (interval 300 s: runs due-but-unclaimed `catch_up_grace_s`
   jobs) and `wisdom_core_watchdog` (interval 300 s: pages `wisdom_job_missed:<job_id>` when an enabled job's
   `last_ok_at` is older than `2 × expected_every_s`, once per miss episode, stamped in `alerted_at`).
+
+**Staleness has two clocks, and the bullet above is only the first of them.**
+`_staleness_window(spec, last_ok, boot)` returns the `(reference, allowed_s)` pair the watchdog
+compares against, and it chooses by whether a success exists at all. A job that has succeeded
+before is measured from that success and allowed **two** periods — two missed successes. A job
+with **no success on record** has no such clock, so it is measured from this pod's boot and
+allowed **one** period: the window by which its slot must have come round once. The two numbers
+answer different questions — two periods is the staleness threshold, one is the opportunity
+threshold — and boot is never the reference for a job that HAS succeeded, because boot credit
+there is credit for the pod being young and grows with uptime instead of expiring.
 
 ### 2.2 main.py hooks (integrator, skeleton commit)
 
