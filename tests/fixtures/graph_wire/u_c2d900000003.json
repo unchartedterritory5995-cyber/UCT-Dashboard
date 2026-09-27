@@ -2903,7 +2903,7 @@
                   },
                   {
                     "type": "call",
-                    "name": "atr",
+                    "name": "atrPine",
                     "args": [
                       {
                         "type": "series",
@@ -3069,7 +3069,7 @@
                   },
                   {
                     "type": "call",
-                    "name": "atr",
+                    "name": "atrPine",
                     "args": [
                       {
                         "type": "series",
@@ -3255,7 +3255,7 @@
                                   },
                                   {
                                     "type": "call",
-                                    "name": "atr",
+                                    "name": "atrPine",
                                     "args": [
                                       {
                                         "type": "series",
@@ -3415,7 +3415,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -3617,7 +3617,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -3777,7 +3777,7 @@
                                           },
                                           {
                                             "type": "call",
-                                            "name": "atr",
+                                            "name": "atrPine",
                                             "args": [
                                               {
                                                 "type": "series",
@@ -3983,7 +3983,7 @@
                                   },
                                   {
                                     "type": "call",
-                                    "name": "atr",
+                                    "name": "atrPine",
                                     "args": [
                                       {
                                         "type": "series",
@@ -4143,7 +4143,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -4345,7 +4345,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -4505,7 +4505,7 @@
                                           },
                                           {
                                             "type": "call",
-                                            "name": "atr",
+                                            "name": "atrPine",
                                             "args": [
                                               {
                                                 "type": "series",
@@ -4711,7 +4711,7 @@
                                   },
                                   {
                                     "type": "call",
-                                    "name": "atr",
+                                    "name": "atrPine",
                                     "args": [
                                       {
                                         "type": "series",
@@ -4871,7 +4871,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -5073,7 +5073,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -5233,7 +5233,7 @@
                                           },
                                           {
                                             "type": "call",
-                                            "name": "atr",
+                                            "name": "atrPine",
                                             "args": [
                                               {
                                                 "type": "series",
@@ -5439,7 +5439,7 @@
                                   },
                                   {
                                     "type": "call",
-                                    "name": "atr",
+                                    "name": "atrPine",
                                     "args": [
                                       {
                                         "type": "series",
@@ -5599,7 +5599,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -5801,7 +5801,7 @@
                                       },
                                       {
                                         "type": "call",
-                                        "name": "atr",
+                                        "name": "atrPine",
                                         "args": [
                                           {
                                             "type": "series",
@@ -5961,7 +5961,7 @@
                                           },
                                           {
                                             "type": "call",
-                                            "name": "atr",
+                                            "name": "atrPine",
                                             "args": [
                                               {
                                                 "type": "series",
@@ -6022,16 +6022,16 @@
         ]
       }
     },
-    "treesHash": "sha256:4442b091e45f5d78d7e6c4148c5295f83af41a7103d48768dd592fc9f97735de",
+    "treesHash": "sha256:3411af86131b67075e3314f30379b3274faedb9083ee1251a3d521c34add6031",
     "scanPlot": "value",
     "sources": {
       "value": "(ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5",
-      "out2": "showBand ? (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) : 0 / 0",
-      "out3": "showBand ? (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) : 0 / 0",
-      "out4": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250) > 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250)[1] <= 0",
-      "out5": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250) < 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250)[1] >= 0",
-      "out6": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250) > 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250)[1] <= 0",
-      "out7": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250) < 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atr(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atr(high, low, close, 14) ? -1 : self, 250)[1] >= 0"
+      "out2": "showBand ? (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) : 0 / 0",
+      "out3": "showBand ? (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) : 0 / 0",
+      "out4": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250) > 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250)[1] <= 0",
+      "out5": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250) < 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250)[1] >= 0",
+      "out6": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250) > 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250)[1] <= 0",
+      "out7": "accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250) < 0 && accum(0, close > (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 + bandMult * atrPine(high, low, close, 14) ? 1 : close < (ema(close, 50) + sma(close, 50) + wma(close, 50) + hma(close, 50) + rma(close, 50)) / 5 - bandMult * atrPine(high, low, close, 14) ? -1 : self, 250)[1] >= 0"
     }
   },
   "meta": {

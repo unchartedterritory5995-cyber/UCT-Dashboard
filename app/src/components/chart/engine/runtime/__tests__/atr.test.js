@@ -23,6 +23,15 @@
 // ⛔⛔ AND IT IS MEASURED RATHER THAN ASSERTED. The case below runs both and
 // compares them bar by bar. An assertion that they "should" agree would pass on
 // the day someone changes one of them.
+//
+// ⚰⚰ AMENDED 2026-09-27. "One ATR" was the right instinct and the wrong
+// number: the house `computeATR` is Wilder's original (TR from bar 1, seed on
+// bar n) and Pine's `ta.atr` is `ta.rma(ta.tr(true), n)` (bar 0 counts as
+// `high - low`, seed on bar n-1). Both are measured at the vendor now. A Pine
+// spelling lands on `atrPine` (the table's own `rma` over `ta.tr(true)`); the
+// house column serves ThinkScript, PCF and the native indicators, unchanged.
+// The first block below therefore measures the Pine route against the VENDOR
+// rule and asserts the house column still DIFFERS at the seed.
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
@@ -65,29 +74,69 @@ const shippedAtr = (n) => {
   })
 }
 
-describe('⭐⭐ the runtime lane agrees with the shipped ATR', () => {
-  for (const n of [14, 5, 21]) {
-    it(`bar for bar at length ${n}`, () => {
-      const mine = runtimeAtr(n)
-      const theirs = shippedAtr(n)
+/** The vendor's rule written out by hand, independently of every engine
+ *  helper: `ta.tr(true)` counts bar 0 as `high - low`, the seed is the mean of
+ *  the first `n` true ranges and lands on bar `n-1`, Wilder's step after that.
+ *  Measured to the last bit on `keltner-channels-bands-rddt-1d-2026-09-27` and
+ *  `seed-warmup-spy-12m-2026-09-21` (`atrPine.vendor.test.js` pins those). */
+const vendorRuleAtr = (n) => {
+  const out = new Array(N).fill(NaN)
+  let s = NaN
+  let sum = 0
+  for (let i = 0; i < N; i += 1) {
+    const b = BARS[i]
+    const tr = i === 0 ? b.h - b.l
+      : Math.max(b.h - b.l, Math.abs(b.h - BARS[i - 1].c), Math.abs(b.l - BARS[i - 1].c))
+    if (i < n) { sum += tr; if (i === n - 1) { s = sum / n; out[i] = s } continue }
+    s = (s * (n - 1) + tr) / n
+    out[i] = s
+  }
+  return out
+}
 
-      // ⛔ NON-VACUITY FIRST. If the shipped one answered nothing, every
-      // comparison below is between two blanks and the rail proves nothing.
-      const answered = theirs.filter((v) => Number.isFinite(v)).length
-      expect(answered, 'the shipped ATR answered on no bar — this fixture cannot '
+describe('⭐⭐ a Pine `ta.atr` runs PINE’S seed — and the house `computeATR` stays Wilder’s', () => {
+  // ⚰⚰ THIS BLOCK USED TO ASSERT THE OPPOSITE: "the runtime lane agrees with the
+  // shipped ATR". The `+ s` route below is served by the COLUMNAR lane (measured
+  // by mutation, see the case further down), so it was the house `computeATR`
+  // measured against itself — and that is exactly why a Pine `ta.atr` carried
+  // Wilder's seed for as long as it did. Since 2026-09-27 the Pine spelling lands
+  // on `atrPine`; the house column is untouched and is asserted DIFFERENT here.
+  for (const n of [14, 5, 21]) {
+    it(`bar for bar at length ${n} — against the vendor rule, not against ourselves`, () => {
+      const mine = runtimeAtr(n)
+      const want = vendorRuleAtr(n)
+
+      // ⛔ NON-VACUITY FIRST. If the rule answered nothing, every comparison
+      // below is between two blanks and the rail proves nothing.
+      const answered = want.filter((v) => Number.isFinite(v)).length
+      expect(answered, 'the vendor rule answered on no bar — this fixture cannot '
         + 'distinguish anything').toBeGreaterThan(N / 2)
 
       for (let i = 0; i < N; i += 1) {
         const a = mine[i]
-        const b = theirs[i]
+        const b = want[i]
         if (!Number.isFinite(b)) {
-          expect(Number.isFinite(a), `bar ${i}: shipped is na, runtime answered ${a} `
+          expect(Number.isFinite(a), `bar ${i}: the vendor is na, we answered ${a} `
             + '— the warm-up landed on a different bar').toBe(false)
           continue
         }
-        expect(Number.isFinite(a), `bar ${i}: shipped answered ${b}, runtime is na`).toBe(true)
-        expect(Math.abs(a - b), `bar ${i}: runtime ${a} vs shipped ${b}`).toBeLessThan(1e-9)
+        expect(Number.isFinite(a), `bar ${i}: the vendor answers ${b}, we are na`).toBe(true)
+        expect(Math.abs(a - b), `bar ${i}: ours ${a} vs the vendor rule ${b}`).toBeLessThan(1e-9)
       }
+      // ⭐ The seed bar itself, by name: bar n-1, not bar n.
+      expect(Number.isFinite(mine[n - 1])).toBe(true)
+      expect(Number.isFinite(mine[n - 2])).toBe(false)
+    })
+
+    it(`⛔ CONTROL at length ${n} — the house computeATR is Wilder’s and DIFFERS at the seed`, () => {
+      // Without this, the case above would pass just as well if the Pine route
+      // had been pointed back at `computeATR` AND the rule helper had drifted
+      // to match it. The house column must stay one bar later, by ruling.
+      const house = shippedAtr(n)
+      expect(Number.isFinite(house[n - 1]), 'the house ATR moved its seed to bar n-1').toBe(false)
+      expect(Number.isFinite(house[n])).toBe(true)
+      const pine = runtimeAtr(n)
+      expect(Math.abs(pine[n] - house[n])).toBeGreaterThan(1e-9)
     })
   }
 
@@ -144,7 +193,7 @@ describe('⭐ where `ta.atr` now works', () => {
   })
 })
 
-describe('⛔⛔ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — ours differ', () => {
+describe('⭐⭐ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — and so do we (since 2026-09-27)', () => {
   // ⭐⭐ THE OPEN QUESTION, STATED PRECISELY SO NOBODY "FIXES" IT ON A GUESS.
   //
   // Pine's reference defines `ta.atr(length)` as `ta.rma(ta.tr(true), length)`.
@@ -176,7 +225,12 @@ describe('⛔⛔ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — ours d
     return Array.from(outputs[0])
   }
 
-  it.fails('⛔ KNOWN DEFECT — the identity does not hold in this engine', () => {
+  // ✅ CLOSED 2026-09-27 — the capture this block asked for exists
+  // (`keltner-channels-bands-rddt-1d-2026-09-27`, 631 bars from RDDT's listing,
+  // plus the SPY 12M seed capture), the Pine spelling was routed to `atrPine`,
+  // and the `it.fails` marker came off exactly as the paragraph above planned:
+  // the identity now HOLDS, so the two cases below are ordinary assertions.
+  it('⭐⭐ the identity holds — `ta.atr(5)` IS `ta.rma(ta.tr(true), 5)`, bar for bar', () => {
     const atr = series('plot(ta.atr(5))' + String.fromCharCode(10))
     const rma = series('plot(ta.rma(ta.tr(true), 5))' + String.fromCharCode(10))
     let maxDelta = 0
@@ -192,20 +246,17 @@ describe('⛔⛔ Pine DEFINES `ta.atr(n)` as `ta.rma(ta.tr(true), n)` — ours d
     expect(maxDelta).toBeLessThan(1e-9)
   })
 
-  // ⛔⛔ NON-VACUITY FOR THE `it.fails` ABOVE, AND IT IS NOT OPTIONAL.
-  // `it.fails` is satisfied by ANY throw — including a refusal, a lowering
-  // error, or a typo in the source string. That would make the marker report
-  // "the defect is still there" for a test that never computed anything.
-  // This measures the defect POSITIVELY: both series compute, they overlap on
-  // real bars, and they disagree. When the seed is fixed this goes RED first.
-  it('⛔ the defect is MEASURED, not merely expected — both compute and differ', () => {
+  // ⭐ AND THE WARM-UP LANDS ON THE SAME BAR — an identity over the overlap
+  // alone would pass if one side started a bar late and matched thereafter.
+  // (This case replaced "the defect is MEASURED — both compute and differ",
+  // which was the positive half of the old `it.fails` and went RED on the fix,
+  // exactly as it was written to.)
+  it('⭐ both first answer on bar n-1, and neither answers before it', () => {
     const atr = series('plot(ta.atr(5))' + String.fromCharCode(10))
     const rma = series('plot(ta.rma(ta.tr(true), 5))' + String.fromCharCode(10))
-    const overlap = atr.filter((v, i) => Number.isFinite(v) && Number.isFinite(rma[i])).length
-    expect(overlap).toBeGreaterThan(3)
-    const maxDelta = Math.max(...atr.map((v, i) => (
-      Number.isFinite(v) && Number.isFinite(rma[i]) ? Math.abs(v - rma[i]) : 0)))
-    expect(maxDelta).toBeGreaterThan(1e-9)
+    const first = (xs) => xs.findIndex((v) => Number.isFinite(v))
+    expect(first(atr)).toBe(4)
+    expect(first(rma)).toBe(4)
   })
 
   it('⛔ CONTROL — `ta.tr(true)` really is `high - low` on bar 0', () => {

@@ -183,8 +183,15 @@ describe('the argument roles this translator assumes are the roles the engine ru
 describe('the fail-closed default', () => {
   it('every multi-series table function without a measured order REFUSES', () => {
     // ⭐ DERIVED FROM THE MANIFEST, so a function added tomorrow is covered.
-    const measured = new Set(Object.values(PINE_CALL_SHAPES)
-      .map((s) => s.table.toLowerCase().replace(/_/g, '')))
+    // ⭐ BOTH ENDS OF A SHAPE ARE MEASURED: the table key it lands on AND the Pine
+    // spelling it claims. Since 2026-09-27 `atr` lands on `atrPine`, so the house
+    // `atr` key is no longer any shape's TARGET — but `ta.atr` is still governed
+    // by that shape (it refuses a 4-argument call at `pine:arity`, which is the
+    // shape's own measured signature), not by the generic role-order default.
+    const measured = new Set([
+      ...Object.values(PINE_CALL_SHAPES).map((s) => s.table),
+      ...Object.keys(PINE_CALL_SHAPES),
+    ].map((k) => k.toLowerCase().replace(/_/g, '')))
     // ⚰️⚰️ `valuewhen` WAS THE CASE THAT FORCED THE DISTINCTION THIS TEST USED
     // TO DRAW, AND IT NO LONGER BELONGS IN THIS SWEEP AT ALL (2026-09-20). It
     // has two `series` slots and no `PINE_CALL_SHAPES` entry, so it used to

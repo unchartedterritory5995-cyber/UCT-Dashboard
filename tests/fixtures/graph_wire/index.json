@@ -22,8 +22,8 @@
       "name": "mid_engagement__14-master-line-lite",
       "id": "u_c2d900000003",
       "band": "p95",
-      "v1Bytes": 41388,
-      "sentBytes": 41388,
+      "v1Bytes": 41532,
+      "sentBytes": 41532,
       "isGraph": false,
       "plots": 7
     },
@@ -31,8 +31,8 @@
       "name": "mid_engagement__22-rsi-levels-regime-map",
       "id": "u_c2d900000004",
       "band": "rsi-levels",
-      "v1Bytes": 2482816,
-      "sentBytes": 15425,
+      "v1Bytes": 2482920,
+      "sentBytes": 15429,
       "isGraph": true,
       "plots": 12
     },

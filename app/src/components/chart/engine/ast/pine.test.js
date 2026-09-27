@@ -299,7 +299,9 @@ describe('the Pine parity sweep — six functions, one order, one built-in', () 
     // could see that `atr` exists and takes four arguments, and had no way to know
     // WHICH three series to fill. The order is declared now, in the same
     // `PINE_CALL_SHAPES` row shape `ta.wpr` already used.
-    expect(formulaOf(wrap('ta.atr(14)'))).toBe('atr(high, low, close, 14)')
+    // (2026-09-27) onto `atrPine` — the same four-slot signature as the house
+    // `atr`, carrying Pine's own seed (bar 0's range = high - low, seed on bar n-1).
+    expect(formulaOf(wrap('ta.atr(14)'))).toBe('atrPine(high, low, close, 14)')
   })
 
   it('⭐ tr expands to the Pine reference manual`s own definition of it', () => {

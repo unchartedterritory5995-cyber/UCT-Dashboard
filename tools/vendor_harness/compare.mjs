@@ -54,6 +54,8 @@
 //   vendor's own display precision and the README's rule is "the tolerance in an
 //   observation states the vendor's own display precision, and nothing else".
 //   ⛔ NEVER WIDEN THESE TO MAKE A DELTA GO AWAY.
+import { isFillTarget } from './schema.mjs'
+
 export const REL_TOL = 1e-9
 export const ABS_TICK_FRACTION = 1e-6
 export const ABS_FLOOR_UNKNOWN_SCALE = 1e-12
@@ -133,6 +135,9 @@ export function vendorPlotRoles(capture) {
     const title = (p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null
     const rec = { ...p, title, column: idx + 1 }
     if (VALUE_TYPES.has(p.type)) value.push(rec)
+    // ⛔ A colorer on a FILLED AREA colours the fill, not a plot. v1 does not
+    // grade fills, so it is reported NOT COMPARED by name, never dropped.
+    else if (p.type === 'colorer' && isFillTarget(p.target)) notCompared.push({ ...rec, why: `fill colour (${p.target})` })
     else if (p.type === 'colorer') colorers.push(rec)
     else if (p.type === 'alertcondition') notDrawn.push(rec)
     else notCompared.push(rec)
@@ -156,7 +161,12 @@ export function vendorPlotRoles(capture) {
 //   ⛔  Anything else is UNMAPPED and its verdict is INCONCLUSIVE, loudly, with
 //       the reason. A mapping the harness had to guess is a comparison of two
 //       unrelated columns wearing one plot's name.
-const DEFAULT_TITLE = /^(plot( \d+)?)?$/i
+//
+// ⭐ TradingView's defaults are PER CALL, and all three are MEASURED: an untitled
+// `plot` is "Plot", an untitled `plotshape` is "Shapes", an untitled `plotchar`
+// is "Chars" (probe-default-colour-v{3,4,6}-rddt-1d-2026-09-27). Knowing only
+// "Plot" left every untitled marker UNMAPPED and its colour never compared.
+const DEFAULT_TITLE = /^((plot|shapes|chars)( \d+)?)?$/i
 
 export function mapPlots(vendorValuePlots, ourPlots) {
   const pairs = []
@@ -362,6 +372,17 @@ const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number'
 
 // ── ONE CAPTURE ──────────────────────────────────────────────────────────────
 
+/** TradingView keeps a plot's transparency (0..100) BESIDE an opaque colour;
+ *  fold it into the alpha so it compares with our `opacity`. ONE rule for the
+ *  static-colour path and the colorer path. */
+function withStyleTransparency(c, style) {
+  if (c && c.endsWith('ff') && style && Number.isFinite(style.transparency) && style.transparency > 0) {
+    const a = Math.round(((100 - style.transparency) / 100) * 255).toString(16).padStart(2, '0')
+    return `${c.slice(0, 7)}${a}`
+  }
+  return c
+}
+
 /** The vendor's per-bar colour for a value plot, or null when no colour was
  *  captured. A colorer's value is a palette INDEX (through `valToIndex` when the
  *  palette declares one); a plot with no colorer wears its style colour. */
@@ -379,9 +400,14 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
     const colorsTable = (statePal && statePal.colors) || (metaPal && metaPal.colors) || null
     if (!colorsTable) return { colors: null, measured: true, reason: `colorer ${colorer.id} names palette ${pid}, which the capture does not carry` }
     const v2i = (metaPal && metaPal.valToIndex) || (statePal && statePal.valToIndex) || null
+    // ⛔ THE PLOT'S OWN STYLE TRANSPARENCY APPLIES TO A COLORER'S COLOURS TOO.
+    // TradingView keeps the palette entries opaque and draws them at the plot's
+    // `transparency`. Measured 2026-09-27 on Cumulative Volume Delta's histogram
+    // (`transp=61`, palette `#FF5252`/`#4CAF50`, style transparency 61): folding
+    // it only on the static-colour path graded a correct `#ff525263` as wrong.
     const colorOf = (idx) => {
       const c = colorsTable[idx]
-      return normalizeColor(c && typeof c === 'object' ? c.color : c)
+      return withStyleTransparency(normalizeColor(c && typeof c === 'object' ? c.color : c), style)
     }
     const out = times.map((t) => {
       const row = rowsByTime.get(String(t))
@@ -394,13 +420,7 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
     return { colors: out, measured: true, reason: null }
   }
   if (style && typeof style.color === 'string') {
-    let c = normalizeColor(style.color)
-    // TradingView keeps a plot's transparency (0..100) BESIDE an opaque colour;
-    // fold it into the alpha so it compares with our `opacity`.
-    if (c && c.endsWith('ff') && Number.isFinite(style.transparency) && style.transparency > 0) {
-      const a = Math.round(((100 - style.transparency) / 100) * 255).toString(16).padStart(2, '0')
-      c = `${c.slice(0, 7)}${a}`
-    }
+    const c = withStyleTransparency(normalizeColor(style.color), style)
     return { colors: times.map(() => c), measured: c !== null, reason: c ? null : `unreadable style colour ${style.color}` }
   }
   return { colors: null, measured: false, reason: 'no colour captured for this plot' }
@@ -458,9 +478,30 @@ export function compareCapture(capture, ours, opts = {}) {
   for (const pair of map.pairs) {
     const v = pair.vendor
     const o = pair.ours
+    // ⭐ A SHAPE OR CHARACTER MARKER IS DRAWN OR IT IS NOT. TradingView reports a
+    // plotshape/plotchar series as 0 on a bar where the condition is false — and
+    // also during warm-up, where Pine's `and`/`or` read an `na` operand as false —
+    // while an engine that carries the `na` reports na. Both draw NOTHING. Measured
+    // 2026-09-27 (live captures): EngulfingCandle 16/631 and ATR Trailing
+    // Stoploss 1/631 bars were `vendor 0 vs ours na`, identical on the chart.
+    // ⛔ ONLY `shapes`/`chars`, and ONLY 0-vs-na: a marker on the wrong bar (1 vs 0,
+    // or 1 vs na) still diverges, and `arrows` carry a sign and are left alone.
+    const drawnOnly = v.type === 'shapes' || v.type === 'chars'
+    const notDrawn = (x) => (drawnOnly && x === 0 ? null : x)
+    // ⭐⭐ A NATIVE CAPTURE'S MISSING ROW IS AN ANSWER: every plot was `na`.
+    // TradingView's study store keeps a row only when at least one plot has a
+    // value. Measured live 2026-09-27 (probe-sparse-rows-rddt-1d-2026-09-27.json):
+    // `plot(bar_index % 2 == 0 ? na : close)` over 631 bars stored exactly the 315
+    // odd bars. So for a harness-v1 capture a bar with no row reads `na` on every
+    // plot — and QQE Signals (30 rows) / Trendlines (266 rows) become comparable
+    // instead of "a hole in what was read".
+    // ⛔ ADAPTED legacy formats keep the conservative reading: their row sets were
+    // assembled by other readers whose gaps may be genuine holes.
+    const sparseNative = !capture.adaptedFrom
     const vendorVals = times.map((t) => {
       const row = rowsByTime.get(String(t))
-      return row ? row[v.column] : undefined
+      if (row) return notDrawn(row[v.column])
+      return sparseNative ? null : undefined
     })
     if (!o.column) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
@@ -475,8 +516,17 @@ export function compareCapture(capture, ours, opts = {}) {
     else if (capture.warmup && Number.isInteger(capture.warmup.bars)) { warmupBars = capture.warmup.bars; warmupSource = `declared by the capture (${capture.warmup.source || 'unstated'})` }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
-    const r = comparePlot({ times, vendor: vendorVals, ours: o.column, vendorColors: vc.colors, ourColors, warmupBars, tol })
-    const pv = plotVerdict(r, { colorMeasured: vc.measured, colorResolvable: !!ourColors })
+    const oursCol = drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column
+    // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
+    // `display = display.none`) has no colour anyone sees, so its colour is not
+    // graded. Its VALUES still are — they feed alerts and other plots.
+    // ⛔ The colours are withheld from comparePlot itself, not only from the
+    // verdict: a stats block whose firstDivergence says "colour" for a plot whose
+    // colour was not graded names the wrong disagreement to whoever reads it.
+    const vStyle = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
+    const hiddenOnVendor = !!(vStyle && vStyle.display === 0)
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: hiddenOnVendor ? null : vc.colors, ourColors: hiddenOnVendor ? null : ourColors, warmupBars, tol })
+    const pv = plotVerdict(r, { colorMeasured: vc.measured && !hiddenOnVendor, colorResolvable: !!ourColors })
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
@@ -518,6 +568,20 @@ export function nonDefaultInputs(capture) {
 /** Objects: the LIVE set at the last bar on each side. */
 export function compareObjects(vendorObjs, ourObjs) {
   if (!vendorObjs) return { verdict: 'INCONCLUSIVE', reason: 'our side draws objects but the capture recorded none — re-capture with graphics' }
+  // ⭐ OUR SCRIPT HAS NO DRAWING PROGRAM AT ALL. That is an answer, not a missing
+  // one: if TradingView drew nothing either, the two agree; if it drew something,
+  // we are missing drawings — a DIVERGE, measured. (Measured 2026-09-27: every
+  // plot-only live capture read INCONCLUSIVE here while both sides drew zero.)
+  if (ourObjs && ourObjs.drawsObjects === false) {
+    const vc = vendorObjs.counts || {}
+    const vendorTotal = ['lines', 'labels', 'boxes', 'tables', 'tableCells', 'linefills']
+      .reduce((n, f) => n + (Number.isFinite(vc[f]) ? vc[f] : 0), 0)
+    const unreadable = Array.isArray(vendorObjs.unreadable) && vendorObjs.unreadable.length
+    if (unreadable) return { verdict: 'INCONCLUSIVE', reason: `our script draws no objects; the capture could not read ${vendorObjs.unreadable.join(', ')}` }
+    return vendorTotal === 0
+      ? { verdict: 'MATCH', reason: 'neither side draws an object' }
+      : { verdict: 'DIVERGE', reason: `TradingView holds ${vendorTotal} drawing object(s) at the last bar and our script has no drawing program` }
+  }
   if (!ourObjs || !ourObjs.ok) return { verdict: 'INCONCLUSIVE', reason: `our object lane did not run: ${(ourObjs && ourObjs.reason) || 'no result'}` }
   const families = ['lines', 'labels', 'boxes', 'tables', 'tableCells']
   const rows = []

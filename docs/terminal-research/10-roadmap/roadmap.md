@@ -349,6 +349,22 @@ permanently."* Under an attention thesis, **saying what we do not have is covera
 
 1. **`TERM-018` green**, with every band-1 guard observed red before green, an AST rail, and a
    control so it cannot pass for the wrong reason.
+   ⚰️⚰️ **“BAND-1 GUARD” IS NOT A DEFINED SET — THIS CLAUSE CANNOT BE DISCHARGED
+   MECHANICALLY AS WRITTEN. Recorded 2026-09-27; NOT resolved here, because it is a ruling.**
+   Measured: `backlog.md:298` defines the band by TICKET id — *“the id itself carries the band
+   — `TERM-001…010` are band 0, **`…011…018` band 1**”* — so band 1 is the eight
+   MEASUREMENT-FLOOR tickets (§2.3 of that file). **No guard carries a band anywhere in the
+   repo**: `term-018-guard-observations.json` classifies each guard by `audit_class`
+   (PROVEN 13 / FIREABLE 6 / PROVEN-FIREABLE 1 / UNKNOWN 1 / NOT-IN-THE-AUDIT 1), never by band.
+   ⭐ So the clause names a population that exists for TICKETS and not for GUARDS, and the two
+   readings give different answers: under *“the guards `TERM-018`’s own derivation defines”* the
+   count is 25 — **3 observed red-before-green, 22 declared debt under a shrinking ceiling** — so
+   a LITERAL reading is unmet while the **observed-or-counted-debt** shape that actually shipped
+   is met; under *“guards belonging to band-1 tickets”* the set has never been enumerated at all.
+   ⛔ **The gap is therefore in the CLAUSE, not in the work.** `18b2b009d` is an ancestor of
+   `origin/production`, 52 passed, with the AST rail and the control this clause also demands.
+   What is owed is one sentence saying which population counts — and if it is the 22, they are
+   a NUMBER in the file rather than a judgement, so the remaining distance is readable.
 2. **A p95 prints for both timeframes** on a pod ≥ 300 s old — CARD 16's replacement gate
    (p95 ≤ 250 ms per timeframe), with the tier mix reported **beside** it and never as pass/fail,
    and the one tier alarm kept: any `fetch`/`miss` share above ~10 % on intraday during **RTH**.

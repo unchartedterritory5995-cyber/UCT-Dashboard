@@ -314,7 +314,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # `time(<timeframe>)` one-argument form when it folds to "D". Bound via
     # the existing `series` clock-leaf mechanism -- no new node type,
     # argument kind or lookback form. The scalar half is untouched at 137.
-    assert len(ast_table.bar_names()) == 122, len(ast_table.bar_names())
+    # (2026-09-27) 122 -> 123: `atrPine`, Pine's `ta.atr` -- the table's own `rma`
+    # over `ta.tr(true)`, same signature as `atr`. No new node type, argument
+    # kind or lookback form. The scalar half is untouched at 137.
+    assert len(ast_table.bar_names()) == 123, len(ast_table.bar_names())
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
     # into the formula vocabulary (`manifest: promote 26 Wave-1 columns`). They
     # were shipped screener columns the whole time and were held out by an
@@ -357,7 +360,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 120 -> 121, the scalar half is untouched at 137; this is their sum.
     # 258 -> 259 (2026-09-20): `dayopentime`. The bar half moved 121 -> 122,
     # the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 259, f"the table declares {len(declared)} names, not 259"
+    # 259 -> 260 (2026-09-27): `atrPine`, Pine's `ta.atr`. The bar half moved 122 -> 123,
+    # the scalar half is untouched.
+    assert len(declared) == 260, f"the table declares {len(declared)} names, not 260"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

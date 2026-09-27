@@ -84,6 +84,24 @@ export const PALETTE_BY_VERSION = Object.freeze({
   6: Object.freeze({ ...V5, red: '#F23645', teal: '#089981', yellow: '#FDD835' }),
 })
 
+/** ⭐ The colour TradingView gives a `plot` / `plotshape` / `plotchar` that
+ *  names NO colour at all — neither `color=` nor a positional one.
+ *
+ *  MEASURED, not assumed: the study's own styleState on NYSE:RDDT 1D reads
+ *  `#2962FF` for a bare `plot(close)` at v3, v4 and v6 (captures
+ *  `probe-default-colour-v{3,4,6}-rddt-1d-2026-09-27`), and for the plot,
+ *  shape and char of the sparse-rows probe at v5. ⛔ It is NOT the version's
+ *  `color.blue` — v3's blue is `#0000FF` and v4's `#2196F3`, and neither is
+ *  what draws. Before this constant the engine drew such a plot in its own
+ *  row gold, which is a colour the author never saw. */
+export const DEFAULT_SERIES_COLOUR = '#2962FF'
+
+/** ⭐ v3 draws that default at 35% transparency (styleState `transparency: 35`
+ *  in the v3 probe; v4 and v6 read 0). Measured ONLY for the no-colour case —
+ *  an explicit v3 colour without `transp=` was not probed, so nothing here
+ *  claims what it does. */
+export const V3_DEFAULT_SERIES_OPACITY = 0.65
+
 /** The versions the vendor was actually probed at. */
 export const MEASURED_VERSIONS = Object.freeze(Object.keys(PALETTE_BY_VERSION).map(Number))
 

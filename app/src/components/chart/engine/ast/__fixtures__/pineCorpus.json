@@ -17,7 +17,7 @@
   "translates": true,
   "outputs": 10,
   "usable": 2,
-  "selectedFormula": "accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250) != accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250)[1] && accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atr(high, low, close, 14) ? -1 : self, 250) == 1",
+  "selectedFormula": "accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) != accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250)[1] && accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) == 1",
   "downstream": {
    "ok": true,
    "guard": null,
@@ -265,7 +265,7 @@
   "translates": true,
   "outputs": 1,
   "usable": 1,
-  "selectedFormula": "100 * atr(high, low, close, 14) / close",
+  "selectedFormula": "100 * atrPine(high, low, close, 14) / close",
   "downstream": {
    "ok": true,
    "guard": null,

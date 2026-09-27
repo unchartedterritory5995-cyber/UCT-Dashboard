@@ -174,6 +174,13 @@ plot(${n}(volume))
       // semantics by writing `ta.valuewhen(...)`, which is what this
       // roster's own `valuewhen` row above already covers.
       'valuewhenOccurrence',
+      // ⭐⭐ `atrPine` (2026-09-27) — the SAME shape as `valuewhenOccurrence`:
+      // reachable ONLY through Pine's own `ta.atr(n)` / v4 `atr(n)`, which the
+      // `atr` entry of `PINE_CALL_SHAPES` lands on it (Pine's seed: bar 0's range
+      // is high - low, seed on bar n-1). No real Pine script writes
+      // `atrPine(...)`, so the literal probe correctly finds no door; the house
+      // `atr` row above is reachable through ThinkScript and PCF as before.
+      'atrPine',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

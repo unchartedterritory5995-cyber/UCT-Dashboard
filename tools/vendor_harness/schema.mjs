@@ -96,6 +96,11 @@ export function verifyReceipt(capture) {
 }
 
 const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x)
+
+/** A TradingView filled-area id (`fill_0`, `fill_1`, …) — what a per-bar fill
+ *  colour's colorer plot targets. Exported so the comparator classifies with
+ *  the same rule the validator admits with. */
+export const isFillTarget = (id) => typeof id === 'string' && /^fill_\d+$/.test(id)
 const finiteOrNull = (x) => x === null || (typeof x === 'number' && Number.isFinite(x))
 
 /**
@@ -169,7 +174,11 @@ export function validateCapture(c) {
       plotIds = st.plots.map((p) => p && p.id)
       if (new Set(plotIds).size !== plotIds.length) errors.push('study.plots has duplicate ids')
       for (const p of st.plots) {
-        if (p && p.type === 'colorer' && p.target && !plotIds.includes(p.target)) {
+        // A colorer may colour a FILLED AREA (`fill(p1, p2, color=…)` with a
+        // per-bar colour): TradingView targets it at `fill_N`, an id from
+        // metaInfo().filledAreas, not from plots. Measured 2026-09-27 on the
+        // RVOL and Cumulative Volume Delta captures. Anything else still refuses.
+        if (p && p.type === 'colorer' && p.target && !plotIds.includes(p.target) && !isFillTarget(p.target)) {
           errors.push(`colorer ${p.id} targets ${p.target}, which is not a plot of this study`)
         }
       }

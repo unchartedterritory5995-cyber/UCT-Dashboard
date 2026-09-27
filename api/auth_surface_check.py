@@ -56,6 +56,11 @@ import os
 import threading
 import time
 
+# ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader. MODULE level: `_alert`
+# below reads the webhook BEFORE its try/except, so a lazy import there could raise
+# out of a function whose docstring promises it never raises.
+from api.services.alert_destination import ops_webhook as _ops_webhook
+
 logger = logging.getLogger(__name__)
 
 # Where flow-worker answers "do I gate my own mutating routes?". NOT under any
@@ -445,7 +450,12 @@ def build_vouch_router():
 
 def _alert(service: str, message: str) -> None:
     """Best-effort Discord alert. Never raises."""
-    webhook = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+    # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+    # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+    # that stood here returned. Same channel, same bytes; proved at the wire in
+    # tests/test_alert_destination.py.
+    webhook = (_ops_webhook() or "").strip()
     if not webhook:
         return
     try:

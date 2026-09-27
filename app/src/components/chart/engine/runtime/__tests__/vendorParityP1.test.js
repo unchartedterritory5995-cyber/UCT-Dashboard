@@ -160,7 +160,12 @@ describe('⭐⭐ `ta.atr` IS `ta.rma(ta.tr(true), n)` — exact at the vendor', 
   // EXACTLY 0 across 300 bars, so whatever it seeds `atr` with, it is the same
   // thing it seeds `rma` with. Ours are not, so at least one is wrong, and they
   // cannot both be right.
-  it.fails('⛔ KNOWN DEFECT — the identity does NOT hold in this engine', () => {
+  // ✅ FIXED 2026-09-27 — and the marker came off exactly as planned above. The
+  // seed was settled at bar 0 (SPY 12M; Keltner RDDT 1D from listing): Pine's
+  // `ta.atr` is `rma` over `ta.tr(true)`, so the Pine spelling now lands on
+  // `atrPine`, composed from this engine's own `rma`. It went RED as "expected to
+  // fail but passed" and is an ordinary assertion from here on.
+  it('⭐⭐ the identity HOLDS in this engine — `ta.atr(5)` is `ta.rma(ta.tr(true), 5)`', () => {
     const atr = runPine(`${HEAD}plot(ta.atr(5))\n`)
     const rma = runPine(`${HEAD}plot(ta.rma(ta.tr(true), 5))\n`)
     let maxDelta = 0

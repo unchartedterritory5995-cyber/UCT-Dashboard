@@ -56,7 +56,7 @@
           "A SECOND, VENDOR-FAITHFUL `atr` IS THE WORSE ANSWER. Two entries computing 'the ATR' is a second authority over one value — this repo's most repeated defect — and the member could not tell which one their formula got."
         ],
         "what_would_reopen_it": "A member reporting a visible mismatch against a TradingView chart; OR a scan surface whose fetch window is short enough that the one missing value matters (measured: on a 16-bar fetch we emit 2 values where the published definition emits 3 — the ALIGNMENT half never decays). Either would change the arithmetic of this decision, not just the mood.",
-        "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1."
+        "owed_to_the_member": "⛔ STILL OPEN. An accepted divergence is a sentence the product owes whoever pasted the script, and no surface says it yet. Tracked as X-VENDOR-1. ⭐ NARROWED 2026-09-27: a pasted Pine `ta.atr` now lands on `atrPine` and matches the vendor, so the paste box owes this sentence to nobody; it is still owed where the HOUSE `atr` is reached (a typed formula), and `closedTable.json::functions.atr.vendorNote` is that sentence."
       },
       "real_vendor_capture_2026_09_06": {
         "_": "Vendor Parity Tranche 2, Lane A, first batch (RSI+ATR). Does NOT alter `measured` or `decision` above — both remain the original spec-probe-derived evidence, verbatim. This is a SEPARATE, additional confirmation using real captured TradingView data, appended rather than overwritten.",
@@ -64,6 +64,20 @@
         "what_it_confirms": "Once past this capture's own seed-convergence lag (empirically measured, last disagreeing bar at index 169 of 1328 — see the observation's `_vendor_parity_warmup_bars_note`), UCT's atr(high,low,close,14) agrees with the real vendor's ta.atr(14) to ~1e-9 relative on 1,148 real, current-market steady-state bars. This directly re-confirms `why_keep_ours`'s 'THE DELTA IS INVISIBLE WHERE IT IS READ' claim with real vendor numbers for the first time (the original 0.23%-decaying-to-4e-12 figures were spec-probe-derived, not vendor-captured).",
         "what_it_does_not_confirm": "This capture's own window starts in 2021, decades after SPY's real ~1993 inception, so it CANNOT independently re-test the separate ALIGNMENT claim in `what_would_reopen_it` (one fewer emitted value at a symbol's true first-ever bar) — that claim is unchanged, untouched, and not retested here. Also: this capture's early bars (index 14-169) show a much LARGER (~25% relative at bar 14) delta than the adjudicated 0.23%-at-the-seed figure — measured and disclosed as a DIFFERENT effect (this capture's own window-truncation cold-start, confounding the smaller inherent bar-0/TR-definition difference), not a contradiction of the existing ruling. See `docs/superpowers/specs/universal-indicator-ecosystem/VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md` for the full decay curve.",
         "classification": "RULING CONFIRMED (steady-state half) by real vendor runtime; ALIGNMENT half remains UNTESTED by this capture, not reopened."
+      },
+      "narrowed_2026_09_27": {
+        "_": "⭐⭐ NARROWED, NOT REVERSED. This row is now about the HOUSE `atr` only — the formula language, ThinkScript `ATR`, PCF `ATR<n>` and the native ATR/ATR-bands indicators, which keep Wilder's original by the ruling above. A PASTED PINE `ta.atr(n)` / v4 `atr(n)` no longer reaches it: `pine.js::PINE_CALL_SHAPES.atr` lands on the table entry `atrPine`, which is `rma` over `ta.tr(true)` (bar 0 = high - low, seed = mean of the first n true ranges on bar n-1), with a Python twin `ast_interpret._fn_atr_pine`. So the member this row owed a sentence to — whoever pasted the script — is no longer served a different number, and the ALIGNMENT half (one fewer early value) is closed for that member too.",
+        "evidence": [
+          "tests/fixtures/vendor/harness/keltner-channels-bands-rddt-1d-2026-09-27.json — Pine v4 Keltner, bands ma ± k·atr(10), NYSE:RDDT 1D, all 631 bars from listing (startsAtBar0). Graded through the member door: Upper/Lower 1–3 went from a 137–147-bar CONVERGING PREFIX each (|err| 1.5e-1 → 1e-7, first at bar 19) to 612/612 MATCH each, maxRel ≤ 7.35e-16. Before/after in docs/pine/vendor-harness/live-summary-2026-09-27.md.",
+          "tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json — column N10_atr5 (ta.atr(5), SPY 12M from bar_index 0) went from DIVERGE 30/34 (ours na on bar 4) to MATCH 34/34, maxRel 4.4e-16.",
+          "the vendor seed by hand, from the Keltner capture's own bars: TR[0] = 57.8 − 45.05 = 12.75; ATR(10) on bar 9 = mean(TR[0..9]) = 8.78848; rma thereafter reproduces the vendor's first five band-implied ATRs (bars 19–23) to ≤ 2.7e-15."
+        ],
+        "rails": [
+          "tests/test_atr_pine_parity.py (Python lane, pinned to both captures' vendor numbers, house-atr control)",
+          "app/src/components/chart/engine/ast/atrPine.vendor.test.js (JS lane, the same two captures)",
+          "app/src/components/chart/engine/runtime/__tests__/atr.test.js (the Pine route against the vendor rule; the house column asserted to DIFFER at the seed)"
+        ],
+        "still_true_here": "The house `atr` keeps its one-bar-late seed and its vendorNote. `what_would_reopen_it` above still governs THAT column; a member typing `atr(high, low, close, n)` into a formula still gets Wilder's original, disclosed."
       }
     },
     {
@@ -162,6 +176,7 @@
         "of_bars": 1328,
         "note": "both converge to <1e-6 relative delta permanently by bar 180; see VENDOR_PARITY_TRANCHE_2_LANE_A_RSI_ATR_REPORT.md for the full per-checkpoint decay table"
       },
+      "separated_from_the_seed_2026_09_27": "⭐ THE TWO EFFECTS THIS ROW WARNS NOT TO CONFLATE ARE NOW MEASURED APART. On a capture that REACHES bar 0 (`harness/keltner-channels-bands-rddt-1d-2026-09-27`, RDDT from listing) there is no cold start, and once the Pine seed was fixed (`atrPine`, see `atr-tr-starts-at-bar-1.narrowed_2026_09_27`) every ATR band went to 0 mismatches — so the 137–147-bar prefix that capture showed was the SEED, not this row. On a capture that does NOT reach bar 0 (`atr-14-2026-09-06`, SPY from 2021) this row still holds and is untouched by that fix: re-graded through the member door after it, the ATR plot keeps a converging prefix (bars 180..206, 27 steady-state bars, |err| 3.65e-6 → 5.31e-7; it was bars 180..207 / 28 bars with Wilder's seed). ⛔ That prefix is the vendor's decades of prior smoothing against our fetch-local seed; no tolerance was widened to remove it, and none should be.",
       "observation_ids": [
         "rsi-close14-2026-09-06",
         "atr-14-2026-09-06"

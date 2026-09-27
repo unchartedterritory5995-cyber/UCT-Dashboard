@@ -72,7 +72,7 @@ describe('the typical-price adapters', () => {
     // `atr` and `wpr` fill their series implicitly from a measured order and take
     // no source at all; they must be untouched by a field added for two others.
     expect(formulaOf(screen('ta.atr(14) / close > 0.03')))
-      .toBe('atr(high, low, close, 14) / close > 0.03 ? 1 : 0')
+      .toBe('atrPine(high, low, close, 14) / close > 0.03 ? 1 : 0')
     expect(formulaOf(screen('ta.wpr(14) < -80')))
       .toBe('williamsR(high, low, close, 14) < -80 ? 1 : 0')
   })

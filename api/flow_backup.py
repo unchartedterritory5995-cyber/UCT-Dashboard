@@ -29,7 +29,9 @@ Env:
   FLOW_BACKUP_RETAIN_DAYS    prune backups older than this (default 14; newest >=3 always kept)
   FLOW_DB_PATH               source DB (default /data/flow.db)
   DATA_SYNC_ENDPOINT_URL / _ACCESS_KEY / _SECRET_KEY / _BUCKET / _REGION   R2 creds (reused)
-  DISCORD_WEBHOOK_URL        integrity-failure alert channel
+  DISCORD_OPS_WEBHOOK_URL    integrity-failure alert channel (TERM-011 step 3);
+                             falls back to DISCORD_WEBHOOK_URL while unset, which
+                             is today's channel and today's behaviour exactly
   PUSH_SECRET                bearer for POST /api/flow-backup/run
 """
 import gzip
@@ -46,6 +48,11 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import JSONResponse
+
+# ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader for the integrity
+# alert below. MODULE level, so an import problem surfaces at boot and not in the
+# middle of reporting a corrupt flow.db.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +149,12 @@ def _read_marker():
 
 def _post_discord(content: str) -> bool:
     """Best-effort Discord alert. Returns True iff the POST was attempted+ok."""
-    webhook = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+    # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+    # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+    # that stood here returned. Same channel, same bytes; proved at the wire in
+    # tests/test_alert_destination.py.
+    webhook = (_ops_webhook() or "").strip()
     if not webhook:
         return False
     try:

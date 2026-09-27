@@ -103,6 +103,20 @@ describe('a vendor observation still translates to the tree it recorded', () => 
       // while the tree is identical, and a canonicalisation change moves the
       // tree while the string is not.
       const formulas = usable.map((o) => o.formula)
+      // ⭐ A DECLARED, REASON-CARRYING MOVE — never a silent skip. When the
+      // translator has deliberately moved on (`script.pasteLowersTo`, e.g.
+      // `ta.atr` → `atrPine` on 2026-09-27) the paste must produce THAT formula
+      // and must no longer produce the recorded one; `engine` stays as the
+      // formula the observation was measured against (the house column's
+      // evidence), and `vendor_truth.py` keeps grading it.
+      const moved = obs.script.pasteLowersTo
+      if (moved) {
+        expect(moved.why, `${obs.id}: pasteLowersTo requires a reason`).toBeTruthy()
+        expect(moved.since).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+        expect(formulas).toContain(moved.formula)
+        expect(formulas).not.toContain(obs.engine.formula)
+        return
+      }
       expect(formulas).toContain(obs.engine.formula)
       expect(astHash(obs.engine.ast)).toBe(
         astHash(usable.find((o) => o.formula === obs.engine.formula).ast

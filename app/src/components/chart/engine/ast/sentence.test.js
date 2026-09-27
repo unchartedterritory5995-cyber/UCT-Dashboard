@@ -324,6 +324,12 @@ const FORMS = [
   { kind: 'call', name: 'rsi', parts: ['the ', 1, '-bar RSI of ', 0] },
   { kind: 'call', name: 'macd', parts: ['the ', 1, '/', 2, ' MACD line of ', 0] },
   { kind: 'call', name: 'atr', parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2] },
+  // ⭐ (2026-09-27) Pine's `ta.atr` — the same phrase plus the one thing that
+  // makes it a different number: bar 0's range is `{0} minus {1}`.
+  { kind: 'call',
+    name: 'atrPine',
+    parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2,
+            ', counting the first bar\'s range as ', 0, ' minus ', 1] },
   // ⛔ HAND-WRITTEN, like every form here. Deriving it from `closedTable`'s
   // `sentence` would make the oracle agree with the renderer by construction and
   // the round-trip would prove nothing — which is why declaring `adx` in the
@@ -1054,6 +1060,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:aroonUp',
       'function:atan',
       'function:atr',
+      // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
+      'function:atrPine',
       'function:avwap',
       'function:barssince',
       // ⭐ 97 -> 101: Vendor Parity Tranche 2, Lane B — `bbw`, `median`,
@@ -1163,7 +1171,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
-    expect(entries.length).toBe(122)
+    // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
+    expect(entries.length).toBe(123)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1179,7 +1188,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
-    expect(subjects.length).toBe(122)
+    // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
+    expect(subjects.length).toBe(123)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2358,7 +2368,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'deep_nest', 'cross', 'cross_under', 'volume_relative', 'lowest_of_low',
       'stdev_band', 'abs_change', 'min_max_envelope', 'strict_less', 'bounds_inclusive',
       'equality_and_negation', 'unary_minus', 'rsi_overbought', 'rsi_of_a_smoothed_series', 'macd_line',
-      'macd_signal_by_composition', 'atr_of_hlc', 'plus_di', 'minus_di', 'stoch_k',
+      'macd_signal_by_composition', 'atr_of_hlc',
+      // (2026-09-27) Pine's `ta.atr`, seeded from bar 0.
+      'atr_pine_seeded_from_bar_zero',
+      'plus_di', 'minus_di', 'stoch_k',
       'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14', 'donchian_upper',
       'donchian_middle', 'donchian_lower', 'ichimoku_tenkan', 'ichimoku_kijun', 'ichimoku_span_a',
       'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
@@ -2597,7 +2610,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 119 -> 120 (2026-09-20): `ceil` joined the bar vocabulary.
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
-    expect(sentences.length).toBe(CORPUS.cases.length + 122)
+    // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 123)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

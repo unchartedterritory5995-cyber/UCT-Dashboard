@@ -870,7 +870,7 @@
   },
   {
    "id": "10-atr-percent",
-   "source": "atr(high, low, close, 14) / close > 0.03 ? 1 : 0",
+   "source": "atrPine(high, low, close, 14) / close > 0.03 ? 1 : 0",
    "ast": {
     "type": "op",
     "name": "?:",
@@ -885,7 +885,7 @@
         "args": [
          {
           "type": "call",
-          "name": "atr",
+          "name": "atrPine",
           "args": [
            {
             "type": "series",

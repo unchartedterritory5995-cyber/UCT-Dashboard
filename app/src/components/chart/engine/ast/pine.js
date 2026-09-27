@@ -802,6 +802,13 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
  * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
  *
+ * ✅ CLOSED 2026-09-27 (PARITY-PROGRAMME §"THE ATR SEED — the host lane"): the
+ * `atr` shape below lands on `atrPine`, a table entry composed from the
+ * table's own `rma` over `ta.tr(true)`, with a Python twin (`_fn_atr_pine`) and
+ * the frozen artifacts regenerated. The Keltner RDDT capture went from a
+ * 137–147-bar converging prefix per band to 0 mismatches. The paragraph below
+ * is kept as the record of why it was not a one-line change.
+ *
  * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
  * Routing Pine to a separately-seeded column means declaring a name in
  * `closedTable.json`, which the PYTHON lane mirrors in
@@ -907,7 +914,14 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // understood. ⛔ Without this the translator could see that `atr` exists and
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
-  atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐⭐ (2026-09-27) AND IT LANDS ON `atrPine`, NOT ON THE HOUSE `atr`. The
+  // house column is Wilder's original (TR from bar 1, seed on bar n) and stays
+  // so for ThinkScript, PCF and the native indicators; Pine's `ta.atr` is
+  // `ta.rma(ta.tr(true), n)` — bar 0's range is `high - low` and the seed lands
+  // on bar n-1 — measured to the last bit on two vendor captures. Routing the
+  // Pine spelling to its own entry is the ruling on file ("Pine gets its own
+  // seeding"); see `closedTable.json::_functions_atr_convention`.
+  atr: { table: 'atrPine', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
   //
   // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
@@ -15273,6 +15287,52 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
+/**
+ * ⭐⭐ AN N-WAY COLOUR CHAIN, CARRIED AS A PALETTE AND AN INDEX.
+ *
+ * `close > ts ? color.green : close < ts ? color.red : color.black` is ATR
+ * Trailing Stoploss line 19-22, measured against TradingView 2026-09-27: its line
+ * is black on every bar where neither side holds, and a two-colour schema could
+ * only draw it gold. The same tree with every LEAF replaced by its position in a
+ * palette is an ordinary numeric ternary —
+ *
+ *     close > ts ? 0 : close < ts ? 1 : 2      palette [green, red, black]
+ *
+ * — which the resolver already canonicalises like any other series, so the chain
+ * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
+ *
+ * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
+ * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * readable branches would paint the unreadable ones a neighbour's colour.
+ * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
+ * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
+ * would carry the colour, not its position.
+ * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
+ * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ */
+function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+      return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
+    }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
+    if (!yes) return null
+    const no = colourIndexChain(node.no, env, ctx, depth + 1, acc)
+    if (!no) return null
+    return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
+  }
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  let idx = acc.palette.indexOf(hex)
+  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
+  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  return { tree: { type: 'number', value: idx }, acc }
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -15308,6 +15368,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
       || (n.type === 'call' && n.name === 'na'))
     if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
     const arity = staticColourArity(node, env)
+    // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
+    // answer so a chain the RESOLVER then refuses still reports its size.
+    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
+    if (chain && chain.acc.palette.length >= 2) {
+      const al = chain.acc.alphas
+      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
+      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -15388,19 +15456,53 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
       } : {}),
+      // ⭐ An N-way chain rides the same way a plot's does: palette + index.
+      ...(Array.isArray(pres.colorPalette) && pres.colorIndex
+        ? { colorPalette: pres.colorPalette, colorIndex: pres.colorIndex } : {}),
       // A conditional this lane could not carry — folded to one colour, or not
       // folded at all — says so rather than going quiet.
-      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+      ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
   }
   return out
 }
 
+/** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
+ *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
+ *  this door used to read names only — the colour was dropped and the row drew
+ *  in the engine's default, measured on a live capture.
+ *
+ *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
+ *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
+ *  per version; a script passing six positionals keeps the first five. Index 0
+ *  is the series itself and is never presentation. */
+const POSITIONAL_PRESENTATION = Object.freeze({
+  plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
+  plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
+  plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
+})
+
 function outputPresentation(args, ctx) {
   const pres = {}
-  const arg = (n) => args.find((a) => a.name === n)
+  const kind = ctx && ctx.kind
+  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? POSITIONAL_PRESENTATION[kind] : null
+  const positional = args.filter((a) => !a.name)
+  // ⭐ A NAMED argument wins; a positional one answers only where the signature
+  // places that name. Pine refuses both at once, so the order is never a choice
+  // between two values the author wrote.
+  const arg = (n) => {
+    const named = args.find((a) => a.name === n)
+    if (named || !signature) return named
+    const at = signature.indexOf(n)
+    return at > 0 ? positional[at] : undefined
+  }
 
+  // ⛔ NO COLOUR AT ALL STAYS ABSENT HERE. This function reports what the AUTHOR
+  // wrote ("absent is absent", `pine.presentation.test.js`); TradingView's
+  // default for a colourless plot is a RENDERING rule and is applied at the member
+  // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
@@ -15432,6 +15534,21 @@ function outputPresentation(args, ctx) {
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
+      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+      // refuses leaves the plot imported and `colorDynamicArity` saying why.
+      if (cond && cond.indexTree && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.indexTree)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorPalette = cond.palette.slice()
+          pres.colorIndex = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          delete pres.colorDynamicArity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
           const ast = ctx.resolver.resolve(cond.test)
@@ -15463,7 +15580,6 @@ function outputPresentation(args, ctx) {
   // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
   // as an unsupported plot style. The translator's own header said as much
   // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
-  const kind = ctx && ctx.kind
   const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
   if (isMarker) {
