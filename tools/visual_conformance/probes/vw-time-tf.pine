@@ -1,0 +1,53 @@
+//@version=6
+indicator("UCTPROBE_VW_TIME_TF", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `time(<tf>)` BEYOND "D", `timeframe.in_seconds`,
+//     AND WHAT `input.time` HANDS A SCRIPT ─────────────────────────────────────
+//
+// On disk (`r11-time-tf-spy-1d-2026-09-11.json`): on 1D, `time("W")` is the
+// FORMING week's open, never `na`, equal to the week's first daily bar's `time`.
+// Its per-bar rows were not kept, so a HOLIDAY-MONDAY week (is the weekly open
+// Tuesday's bar, or a Monday with no bar?) is unread, and "M", "3M", "12M" and
+// intraday periods were never asked. Seven corpus scripts refuse on a non-"D"
+// `time(tf)`; the commonest shape is `ta.change(time(tf)) != 0` (a new period).
+//
+//   T01–T06  `(time(tf) - time)` in DAYS for W, M, 3M, 12M, and the chart's own
+//            period (must be 0), plus `time("60")` on a daily chart;
+//   T07–T09  the new-period idiom `ta.change(time(tf)) != 0` for W, M, 3M;
+//   T10–T15  `timeframe.in_seconds(tf)` for "1", "60", "D", "W", "M", "12M"
+//            (Pine's reference gives M as 2628003 — a 30.4167-day month —
+//            confirm it rather than trust the constant);
+//   T16      `input.time`'s value at its default — the ms timestamp itself
+//            (`session-hilo__WM2g5GtC4h`'s `timestamp('18 May 2022 00:00 +0000')`),
+//            divided to days so it fits a plot;
+//   T17      `dayofweek` — to find the holiday-Monday weeks in the capture.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, ≥ 800 bars (must include Mondays that are holidays —
+// MLK, Presidents', Memorial, Labor Day), inputs at defaults. A 60m capture adds
+// the intraday-period rows (T06) at a boundary that is not midnight.
+
+plot(bar_index, "T00_bar_index_CONTROL")
+
+days(t) => na(t) ? -99999.0 : (t - time) / 86400000.0
+
+plot(days(time("W")),                "T01_timeW_minus_time_DAYS")
+plot(days(time("M")),                "T02_timeM_minus_time_DAYS")
+plot(days(time("3M")),               "T03_time3M_minus_time_DAYS")
+plot(days(time("12M")),              "T04_time12M_minus_time_DAYS")
+plot(days(time(timeframe.period)),   "T05_timeSelf_minus_time_MUST_BE_0")
+plot(days(time("60")),               "T06_time60_minus_time_DAYS")
+
+plot(ta.change(time("W")) != 0 ? 1 : 0,  "T07_newWeek")
+plot(ta.change(time("M")) != 0 ? 1 : 0,  "T08_newMonth")
+plot(ta.change(time("3M")) != 0 ? 1 : 0, "T09_newQuarter")
+
+plot(timeframe.in_seconds("1"),   "T10_in_seconds_1")
+plot(timeframe.in_seconds("60"),  "T11_in_seconds_60")
+plot(timeframe.in_seconds("D"),   "T12_in_seconds_D")
+plot(timeframe.in_seconds("W"),   "T13_in_seconds_W")
+plot(timeframe.in_seconds("M"),   "T14_in_seconds_M")
+plot(timeframe.in_seconds("12M"), "T15_in_seconds_12M")
+
+startTime = input.time(timestamp("18 May 2022 00:00 +0000"), "Start Date")
+plot(startTime / 86400000.0, "T16_input_time_default_DAYS")
+plot(dayofweek, "T17_dayofweek")
