@@ -1,0 +1,30 @@
+//@version=6
+indicator("UCTPROBE_DYN_HISTORY", overlay = false, max_bars_back = 5000)
+
+// ⭐⭐ `x[n]` WITH A PER-BAR `n`, OVER A VARIABLE THE SCRIPT PRODUCES.
+// `acc` counts bars, so on bar i it is i + 1 and every expectation is arithmetic:
+//     acc[k] == acc - k        whenever 0 <= k <= bar_index
+// Expectations are written into the plot titles; a capture is read row by row.
+
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+
+var float acc = 0.0
+acc := acc + 1
+int k = bar_index % 5
+plot(acc[k], "N02_acc_at_k_EXPECT_acc_minus_k_or_na_before_bar_k")              // N02
+plot(acc[bar_index], "N03_acc_at_bar_index_EXPECT_1")                           // N03
+plot(acc[bar_index + 1], "N04_acc_past_history_EXPECT_na")                      // N04
+
+// a loop counter as the offset — the corpus shape (`src[i]` inside `for`)
+float s = 0.0
+for i = 0 to 3
+    s := s + acc[i]
+plot(s, "N05_sum_acc_0_to_3_EXPECT_4acc_minus_6_from_bar_3")                    // N05
+
+// a function PARAMETER read at a dynamic offset — `_src[i]` in the corpus
+f(src, n) =>
+    float t = 0.0
+    for j = 0 to n
+        t := t + nz(src[j])
+    t
+plot(f(acc, 2), "N06_f_acc_2_EXPECT_3acc_minus_3_from_bar_2")                   // N06

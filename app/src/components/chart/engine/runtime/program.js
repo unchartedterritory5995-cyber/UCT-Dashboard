@@ -94,12 +94,13 @@ export const OP = Object.freeze({
   // like SuperTrend's `trend := trend[1]` is not an approximation, it is a
   // different indicator that still draws a line.
   READ_HIST_SLOT: 54,
-  // ── RESERVED (2F-2, declared with its reason) ──
-  // A history offset that is only known while the bar is running — `x[i + 1]`
-  // inside a loop. It cannot be admitted until the ring depth it may reach is
-  // statically bounded, because an offset past the ring would answer `na` where
-  // Pine answers a number: a silent wrong value, which is the one outcome this
-  // runtime refuses to trade for coverage. The front end refuses it BY NAME.
+  // ⭐⭐ IMPLEMENTED 2026-09-27 — a history offset only known while the bar is
+  // running (`x[i + 1]` inside a loop). The reason it was reserved — "an offset
+  // past the ring would answer `na` where Pine answers a number" — is answered by
+  // the RING, not by a bound: an entry marked `dynamic` is sized by the VM to the
+  // bar count before bar 0, so every offset a bar can ask for (0..bar) is in it
+  // and there is no "past the ring". a: history slot (frame-relative, as 54);
+  // pops the offset, then the LIVE value (answered for an offset of 0).
   READ_HIST_SLOT_DYN: 55,
   // ⭐⭐ THE TWO THAT ARE ADMISSIBLE TODAY, and the reason is the one written
   // above: the constraint on 55 is about a RING. A COLUMN and a price SERIES
@@ -247,12 +248,10 @@ export const OP = Object.freeze({
  *  opcode reaching the VM is a named error rather than a silent fallthrough. */
 export const IMPLEMENTED = Object.freeze(new Set([
   OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST,
-  // ⛔ THE TWO DYNAMIC READS ARE IMPLEMENTED; `READ_HIST_SLOT_DYN` IS NOT, AND
-  // THAT ASYMMETRY IS THE POINT. A column and a series are materialised, so any
-  // offset is answerable; a slot's past is a ring whose depth is fixed before
-  // bar 0, and an offset that may reach past it would answer `na` where Pine
-  // answers a number.
-  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN,
+  // ⭐ ALL THREE DYNAMIC READS ARE IMPLEMENTED. A column and a series are
+  // materialised; a slot read at a run-time offset goes through a DYNAMIC ring
+  // the VM sizes to the whole chart (see `READ_HIST_SLOT_DYN`).
+  OP.READ_HIST_DYN, OP.READ_SERIES_HIST_DYN, OP.READ_HIST_SLOT_DYN,
   OP.READ_CLOCK,
   OP.SESSION,
   OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG,
@@ -633,6 +632,19 @@ export function validateProgram(p) {
           `pc ${pc}: READ_HIST_SLOT reads \`${mainEntry.name}\`[${b2}] but its ring was `
           + `planned for depth ${mainEntry.depth} — the static demand analysis and the `
           + 'lowering disagree about how far back this program looks')
+      }
+    }
+    if (op === OP.READ_HIST_SLOT_DYN) {
+      // ⛔ THE RING MUST BE DYNAMIC. A fixed-depth ring read at a run-time offset
+      // is exactly the silent wrong value this opcode was reserved against; where
+      // the entry can be named (a main-frame read), it must say `dynamic`.
+      const maxHist = Math.max(p.history.length, 1)
+      if (a < 0 || a >= maxHist) {
+        throw new ProgramError(`pc ${pc}: READ_HIST_SLOT_DYN ${a} outside ${maxHist} history slots`)
+      }
+      if (!p.history.some((h) => h.dynamic === true)) {
+        throw new ProgramError(
+          `pc ${pc}: READ_HIST_SLOT_DYN needs a dynamic history ring and this program has none`)
       }
     }
     if (op === OP.CALL) {

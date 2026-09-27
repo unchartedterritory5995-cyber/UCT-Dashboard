@@ -323,10 +323,11 @@ describe('⭐⭐ the three offset tiers (§18) — measured, not assumed', () =>
     expect(out5[10]).toBe(BARS[7].c)
   })
 
-  it('⛔ a RUNTIME-DERIVED offset refuses by name rather than answering `na`', () => {
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`)
-    expect(r.guard).toBe('runtime:history-dynamic-offset')
-    expect(r.message).toMatch(/bounded/)
+  it('⭐ a RUNTIME-DERIVED offset reads a ring as deep as the chart (2026-09-27)', () => {
+    // ⚰️ This refused by name; it now executes through a DYNAMIC ring
+    // (`dynamicHistory.test.js`). x = close, so x[bar % 3] = close[bar - bar % 3].
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`)
+    for (let b = 0; b < N; b += 1) expect(out[b], `bar ${b}`).toBe(BARS[b - (b % 3)].c)
   })
 })
 

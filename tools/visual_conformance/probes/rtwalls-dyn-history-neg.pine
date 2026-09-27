@@ -1,0 +1,11 @@
+//@version=6
+indicator("UCTPROBE_DYN_HISTORY_NEG", overlay = false)
+
+// ⭐ WHAT DOES `x[n]` ANSWER WHEN `n` IS NEGATIVE AT RUN TIME? (A literal `x[-1]` does
+// not compile.) Alone in a file for the same reason as the `na` probe.
+// This engine answers `na` — it never reads a bar that has not happened.
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+var float acc = 0.0
+acc := acc + 1
+int kneg = bar_index % 2 == 0 ? -1 : 0
+plot(acc[kneg], "N02_acc_at_minus1_on_even_bars_na_or_ERROR")                   // N02

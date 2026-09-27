@@ -216,7 +216,10 @@ plot(a)
     // genuinely still a wall — the SAME shape one block down, where hoisting
     // would move the binding OUT of a branch and change the bars it runs on.
     ['history over an EXPRESSION inside a BRANCH', `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := (x + 1)[1]\nplot(y)\n`, 'runtime:history-expression'],
-    ['a history offset only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(x[bar_index % 3])\n`, 'runtime:history-dynamic-offset'],
+    // ⚰️ `x[bar_index % 3]` LIVED HERE UNTIL 2026-09-27, when a run-time offset
+    // over a variable began reading a DYNAMIC ring (`dynamicHistory.test.js`).
+    // What remains of the guard is a per-bar WINDOW LENGTH.
+    ['a window length only known while the bar runs', `${head}var x = 0.0\nx := close\nplot(ta.sma(x, bar_index % 3 + 2))\n`, 'runtime:history-dynamic-offset'],
     // ⚰️ `history over a FUNCTION-LOCAL value → runtime:history-function-local`
     // LIVED HERE UNTIL P7.2, which builds it (per-call-site rings, vendor-pinned
     // skipped-call semantics). What replaces it is the part of the family that is

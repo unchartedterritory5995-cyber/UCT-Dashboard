@@ -47,7 +47,10 @@ const refusalOf = (src) => {
 describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
   it('⭐⭐ a function PARAMETER used as a window length', () => {
     // The `artemis-oscillator-pro` / `machine-learning-moving-average` shape.
-    const r = refusalOf(`${head}g(src, len) =>\n    ta.sma(src, len)\nplot(g(close, 5))\n`)
+    // ⭐ 2026-09-27: the length argument is a PER-BAR value. A constant argument
+    // (`g(close, 5)`) now compiles through a call-site specialisation
+    // (`callSiteSpecialisation.test.js`); this sentence is about the one that cannot.
+    const r = refusalOf(`${head}g(src, len) =>\n    ta.sma(src, len)\nplot(g(close, bar_index % 3 + 2))\n`)
     expect(r.message, 'the member is still being told their script never defined it')
       .not.toContain('never given a value')
     // ⛔ IT NAMES THE NAME AND THE REASON, not just "unsupported".
@@ -73,7 +76,7 @@ describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
     // assertion above would stay green while it did.
     const r = refusalOf(`${head}g(src, len) =>
     ta.ema(src, len)
-plot(g(close, 5))
+plot(g(close, bar_index % 3 + 2))
 `)
     expect(r.message, 'the carried-state site still blames the member')
       .not.toContain('never given a value')

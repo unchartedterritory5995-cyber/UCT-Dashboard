@@ -249,8 +249,18 @@ export function execute(program, ctx, limits, opts) {
   // hops in a loop that runs once per bar per slot across 5,000 symbols.
   const histPlan = program.history
   const nHist = histPlan.length
+  // ⭐⭐ A DYNAMIC RING IS AS DEEP AS THE CHART (2026-09-27). An entry read at a
+  // run-time offset (`x[i]` in a loop) is sized here, before bar 0, to the bar
+  // count — so every offset a bar can ask for, 0..bar, is inside it and the "read
+  // past the ring" that kept `READ_HIST_SLOT_DYN` reserved cannot occur. It costs
+  // `bars` cells per such ring, which `HISTORY_VALUES` still bounds.
+  const histDepth = new Int32Array(nHist)
+  for (let i = 0; i < nHist; i += 1) {
+    histDepth[i] = histPlan[i].dynamic === true
+      ? Math.max(histPlan[i].depth, ctx.bars, 1) : histPlan[i].depth
+  }
   const histOffset = new Int32Array(nHist + 1)
-  for (let i = 0; i < nHist; i += 1) histOffset[i + 1] = histOffset[i] + histPlan[i].depth
+  for (let i = 0; i < nHist; i += 1) histOffset[i + 1] = histOffset[i] + histDepth[i]
   const histTotal = histOffset[nHist]
   budget.peak('HISTORY_SLOTS', nHist)
   budget.peak('HISTORY_VALUES', histTotal)
@@ -552,9 +562,26 @@ export function execute(program, ctx, limits, opts) {
           // reads at base 0 and an invocation reads at its SITE’s base, so one
           // compiled body serves every call site without sharing a ring.
           const hi = historyBase + a
-          const plan = histPlan[hi]
-          const cell = histOffset[hi] + ((committed - b) % plan.depth)
+          const cell = histOffset[hi] + ((committed - b) % histDepth[hi])
           stack[sp++] = hist[cell]
+          break
+        }
+        case OP.READ_HIST_SLOT_DYN: {
+          // ⭐ `x[n]` WITH `n` KNOWN ONLY NOW. The live value sits under the offset.
+          //   n = 0            → the live value (`x[0]` IS `x`, never the previous bar)
+          //   1 ≤ n ≤ committed → the ring (a dynamic ring holds every committed bar)
+          //   n > committed    → `na`: before the first bar, exactly as `READ_HIST_SLOT`
+          //   na, negative, fractional → `na`, never a clamp and never `n | 0` — the
+          //                      same three answers `READ_HIST_DYN` gives a column.
+          const n = stack[--sp]
+          const live = stack[--sp]
+          if (n === 0) { stack[sp++] = live; break }
+          if (!Number.isInteger(n) || n < 0 || n > committed) { stack[sp++] = NaN; break }
+          const hi = historyBase + a
+          // ⛔ A FIXED-DEPTH RING NEVER ANSWERS PAST ITSELF — belt to the lowering's
+          // braces: the front end only emits this over a dynamic entry.
+          if (n > histDepth[hi]) { stack[sp++] = NaN; break }
+          stack[sp++] = hist[histOffset[hi] + ((committed - n) % histDepth[hi])]
           break
         }
         case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
@@ -766,9 +793,8 @@ export function execute(program, ctx, limits, opts) {
           buf[span - 1] = live
           if (span > 1) {
             const hi = historyBase + w.historySlot
-            const plan = histPlan[hi]
             const off = histOffset[hi]
-            const depth = plan.depth
+            const depth = histDepth[hi]
             for (let k = 1; k < span; k += 1) {
               buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
             }
@@ -1021,7 +1047,7 @@ export function execute(program, ctx, limits, opts) {
         // and reading at `committed-back` is the off-by-one this comment exists
         // to stop somebody reintroducing: it is invisible on bar 0 and wrong on
         // every bar after.
-        const cell = histOffset[i] + (committed % plan.depth)
+        const cell = histOffset[i] + (committed % histDepth[i])
         // ⭐ THE LIVE VALUE IS READ FROM ITS OWN LIFETIME'S ARRAY. A history slot
         // names a `local` or a `persist`; the plan says which, so this never has
         // to guess and a local can never be silently promoted to a `var` (§21).

@@ -79,6 +79,10 @@ export const EXPR = Object.freeze({
   // there is no ring to overflow. History over a READ stays `HIST` with a
   // constant, because a slot's past lives in a ring of bounded depth and an
   // offset past it would answer `na` where Pine answers a number.
+  // ⭐⭐ 2026-09-27 — …UNLESS THE RING IS AS DEEP AS THE CHART. `of` may be a READ
+  // when its history entry is DYNAMIC (`history[i].dynamic`): the VM sizes that
+  // ring to the bar count before bar 0, so every offset a bar can ask for is in
+  // it and "past the ring" cannot happen. `slot` names the entry, as on `HIST`.
   HIST_DYN: 'histDyn',
   BINARY: 'binary',
   UNARY: 'unary',
@@ -372,12 +376,26 @@ export function validateIr(p) {
         // ring of bounded depth — an offset that may reach past it would answer
         // `na` where Pine answers a number, which is the silent wrong value the
         // reserved `READ_HIST_SLOT_DYN` opcode exists to keep refusing.
-        if (!e.of || (e.of.kind !== EXPR.COLUMN && e.of.kind !== EXPR.SERIES)) {
+        if (e.of && e.of.kind === EXPR.READ) {
+          // ⭐ A VARIABLE'S PAST, READ AT A RUN-TIME OFFSET — admissible ONLY through
+          // a history entry the front end marked DYNAMIC, whose ring the VM sizes to
+          // the whole chart. `slot` is frame-relative inside a function, exactly as
+          // on `HIST`, so only its range is checkable here.
+          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+            throw new IrError(
+              `${where}: a dynamic history read over a variable must name its history slot; `
+              + `got ${JSON.stringify(e.slot)} against ${(p.history || []).length}`)
+          }
+          if (!(p.history || []).some((h) => h.dynamic === true)) {
+            throw new IrError(
+              `${where}: a dynamic history read over a variable needs a DYNAMIC ring, and this `
+              + 'program declares none — a fixed-depth ring could be read past')
+          }
+        } else if (!e.of || (e.of.kind !== EXPR.COLUMN && e.of.kind !== EXPR.SERIES)) {
           throw new IrError(
-            `${where}: a dynamic history offset reads a COLUMN or a SERIES, got `
-            + `${JSON.stringify(e.of && e.of.kind)} — a variable's past lives in a ring `
-            + 'whose depth is fixed before bar 0, so an offset only known while the bar '
-            + 'is running could reach past it')
+            `${where}: a dynamic history offset reads a COLUMN, a SERIES or a variable with a `
+            + `dynamic ring, got ${JSON.stringify(e.of && e.of.kind)} — a variable's past in a `
+            + 'fixed-depth ring could be read past by an offset only known while the bar runs')
         }
         walkExpr(e.of, `${where}.of`)
         walkExpr(e.back, `${where}.back`)
@@ -736,6 +754,10 @@ export const histDyn = (of, back) => ({ kind: EXPR.HIST_DYN, of, back })
  *  bill nobody wants to pay (§16). */
 export const histSlot = (varSlot, historySlot, back) => (
   { kind: EXPR.HIST, of: read(varSlot), slot: historySlot, back })
+/** `x[n]` over a value the RUNTIME produces, where `n` is an EXPRESSION — through a
+ *  history entry marked `dynamic`, whose ring the VM sizes to the whole chart. */
+export const histSlotDyn = (varSlot, historySlot, back) => (
+  { kind: EXPR.HIST_DYN, of: read(varSlot), slot: historySlot, back })
 export const binary = (op, left, right) => ({ kind: EXPR.BINARY, op, left, right })
 export const unary = (op, of) => ({ kind: EXPR.UNARY, op, of })
 export const ternary = (test, a, b) => ({ kind: EXPR.TERNARY, test, then: a, else: b })
