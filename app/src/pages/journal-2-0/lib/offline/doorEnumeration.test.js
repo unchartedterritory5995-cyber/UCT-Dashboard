@@ -546,6 +546,13 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
  *     named in the wave-10 10C report) — a read defect, not a door.
  *   · A body ProseMirror cannot build (an empty text node) opened LOCKED — kept,
  *     not lost; now refused at the create doors (tests/test_notes_unbuildable_body_refused.py).
+ *   · Fix round 1 (H14, live on master until 45a13b171): the compare-and-set and the
+ *     append doors' read-modify-write were NOT atomic — the read ran in autocommit, so
+ *     a second writer committing between the read and the write was told "saved" and
+ *     then overwritten. A LOSS on the PUT, the versions restore and the three appends
+ *     until every one of them took BEGIN IMMEDIATE before its read
+ *     (tests/test_notes_cas_is_atomic.py). The rows below are NONE/FORK because the
+ *     code now makes them so, not because the reconcile alone did.
  */
 const NONE = 'none'
 const FORK = 'fork'
@@ -558,9 +565,10 @@ const DOOR_CLASSIFICATION = {
     class: FORK,
     why: 'the editor\'s own body/title save and the outbox drain\'s send, both compare-and-set on '
       + 'baseUpdatedAt. When ANOTHER tab or device rewrote the body or title first, the 409 reconcile '
-      + '(ownerReconcilePlan -> classifyServerChange) forks: the member\'s words become a conflicted copy.',
+      + '(ownerReconcilePlan -> classifyServerChange) forks: the member\'s words become a conflicted copy. '
+      + 'The compare-and-set runs inside BEGIN IMMEDIATE, so two writers holding one baseline cannot both land.',
     evidence: ['app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js',
-      'app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx'],
+      'app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx', 'tests/test_notes_cas_is_atomic.py'],
   },
   'PATCH /api/j2/notes/*/tags': {
     class: NONE,
@@ -591,21 +599,23 @@ const DOOR_CLASSIFICATION = {
   'POST /api/j2/notes/*/embeds': {
     class: NONE,
     why: 'appends ONE widgetEmbed at the end (append_widget_embed); widgetEmbed is a SERVER_APPENDED_TYPE, '
-      + 'so the reconcile proves APPEND_ONLY and merges the block into the member\'s document (F-6 closed).',
+      + 'so the reconcile proves APPEND_ONLY and merges the block into the member\'s document (F-6 closed). '
+      + 'Read and rewritten inside BEGIN IMMEDIATE, so an editor PUT cannot land between the two.',
     evidence: ['app/src/pages/journal-2-0/lib/offline/settleKeepsTheAppendBase.test.js',
-      'docs/notebook/wave-q1-f5-append-merge-finding.md'],
+      'docs/notebook/wave-q1-f5-append-merge-finding.md', 'tests/test_notes_cas_is_atomic.py'],
   },
   'POST /api/j2/notes/*/facts/*/insert': {
     class: NONE,
     why: 'appends ONE financialFact block (append_financial_fact); a SERVER_APPENDED_TYPE, merged by the '
-      + 'reconcile\'s APPEND_ONLY branch exactly like a widget embed, never forked.',
-    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js'],
+      + 'reconcile\'s APPEND_ONLY branch exactly like a widget embed, never forked; read and rewritten '
+      + 'inside BEGIN IMMEDIATE.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js', 'tests/test_notes_cas_is_atomic.py'],
   },
   'POST /api/j2/notes/*/excerpts': {
     class: NONE,
     why: 'appends ONE documentExcerpt block (append_document_excerpt); a SERVER_APPENDED_TYPE, merged by '
-      + 'the reconcile\'s APPEND_ONLY branch, never forked.',
-    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js'],
+      + 'the reconcile\'s APPEND_ONLY branch, never forked; read and rewritten inside BEGIN IMMEDIATE.',
+    evidence: ['app/src/pages/journal-2-0/lib/offline/serverChange.test.js', 'tests/test_notes_cas_is_atomic.py'],
   },
   'POST /api/j2/notes/*/restore': {
     class: NONE,
@@ -616,9 +626,10 @@ const DOOR_CLASSIFICATION = {
   'POST /api/j2/notes/*/versions/*/restore': {
     class: FORK,
     why: 'rewrites the body to an old version (restore_note_version -> update_note). Another tab holding '
-      + 'unsent words 409s into a BODY_REWRITE and forks: both the restored text and the words survive.',
+      + 'unsent words 409s into a BODY_REWRITE and forks: both the restored text and the words survive. '
+      + 'The restore holds BEGIN IMMEDIATE from its read to its commit.',
     evidence: ['tests/test_journal_two_notes_versions_router.py',
-      'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js'],
+      'app/src/pages/journal-2-0/lib/offline/ownerReconcile.test.js', 'tests/test_notes_cas_is_atomic.py'],
   },
   'POST /api/j2/notes/import/confirm': {
     class: FORK,
