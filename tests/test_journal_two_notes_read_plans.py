@@ -16,7 +16,9 @@ measured at 50k notes):
     EXISTS was answered from `idx_j2_note_embeds_user_sym` once per note: 717 ms at
     10k, ~14.8 s at 50k;
   * the tasks read (`?view=tasks`) starts from the task-bearing partial index,
-    never from every live note's body.
+    never from every live note's body, and reads the task index beside it (wave 10);
+  * a search maps its full-text matches to NOTE ROWIDS through the covering
+    `idx_j2_notes_fts_map_rowid_note`, never through j2_notes' TEXT key (wave 10).
 Each rail was mutation-proved against the defect it names (see the lane-I report).
 """
 from __future__ import annotations
@@ -194,12 +196,37 @@ def test_the_search_boxs_relevance_order_ranks_in_ONE_match_pass(conn):
     assert len(notes_svc.list_notes(U, q="breakout", sort="relevance", conn=conn)) == 6
 
 
+@pytest.mark.parametrize("sort", ["updated", "relevance"])
+def test_a_search_maps_its_matches_to_note_rowids_through_the_covering_index_alone(conn, sort):
+    """Wave 10 (lane 10A): FTS rowid -> NOTE ROWID in one read of
+    `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`. The wave-7 hop went
+    FTS rowid -> `note_id` TEXT -> j2_notes' TEXT key (`sqlite_autoindex_j2_notes_1`)
+    -> rowid: three lookups per match, 49 ms of a common term's set at 50k notes
+    against 19 ms now (docs/notebook/perf-budgets.md §7). Every statement that maps
+    the MATCH must read the map from that covering index and never enter j2_notes by
+    its TEXT key."""
+    conn.execute("UPDATE j2_notes SET body_plain = 'breakout over the pivot', title = 'breakout'")
+    conn.commit()
+    rec = Recorder(conn)
+    rows, total = notes_svc.list_and_count_notes(U, q="breakout", sort=sort, conn=rec)
+    assert len(rows) == total == 6          # non-vacuity: the search really matches
+    hops = [(s, p) for s, p in rec.statements if "j2_notes_fts_map m" in s and "MATCH" in s]
+    assert hops, [s for s, _ in rec.statements]
+    for sql, params in hops:
+        steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+        assert any("COVERING INDEX idx_j2_notes_fts_map_rowid_note" in s for s in steps), (sql, steps)
+        assert not any("sqlite_autoindex_j2_notes_1" in s for s in steps), (sql, steps)
+        assert "note_rowid" in sql and "m.note_id" not in sql, sql
+
+
 def test_the_tasks_read_starts_from_the_task_bearing_partial_index(conn):
     now = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)
     plans = _plans(conn, lambda c: note_tasks.list_tasks(U, now=now, conn=c))
     main = [st for s, st in plans if "taskItem" in s]
     assert main, "the tasks read no longer names taskItem -- update this rail with it"
     assert any("idx_j2_notes_live_tasks" in s for s in main[0]), main[0]
+    # wave 10: each candidate's tasks come from the task index by primary key
+    assert any("j2_note_task_digest" in s for s in main[0]), main[0]
 
 
 def test_the_trash_order_breaks_deleted_at_ties_by_id(conn):

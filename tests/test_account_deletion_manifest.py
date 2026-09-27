@@ -188,6 +188,12 @@ def _seed_member(conn, uid: str) -> None:
     conn.execute("INSERT INTO j2_note_excerpts (id, user_id, note_id, document_id, page_number, captured_text,"
                  " created_at) VALUES (?,?,?,?,1,?,?)", (f"exc-{uid}", uid, f"note-{uid}", f"doc-{uid}",
                                                          f"saved passage {uid}", ts))
+    # Wave 10 (lane 10A): the task index holds a member's task TEXT and is emptied by
+    # its AFTER DELETE trigger on j2_notes. A door writes the row after its body write;
+    # a raw insert fires the invalidating trigger instead, so the row is written here.
+    conn.execute("INSERT INTO j2_note_task_digest (note_id, user_id, tasks_json) VALUES (?,?,?)",
+                 (f"note-{uid}", uid, '[{"index": 0, "checked": false, "text": "task of ' + uid + '",'
+                  ' "due": null, "depth": 1, "links": []}]'))
     conn.commit()
 
 

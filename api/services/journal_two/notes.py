@@ -298,11 +298,14 @@ def _sync_note_sidecars(
     link_ids: list[str] = []
     fact_ids: list[str] = []
     excerpt_ids: list[str] = []
+    has_task = [False]   # wave 10: whether the task index needs its own walk at all
 
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
         ntype = node.get("type")
+        if ntype == "taskItem":
+            has_task[0] = True
         if ntype == "widgetEmbed":
             attrs = node.get("attrs")
             if not isinstance(attrs, dict):
@@ -418,6 +421,34 @@ def _sync_note_sidecars(
             "INSERT INTO j2_note_excerpt_refs (note_id, user_id, position, excerpt_id)"
             " VALUES (?,?,?,?)",
             [(note_id, user_id, i, eid) for i, eid in enumerate(excerpt_ids)])
+
+    # The task index (wave 10) -- refilled HERE because every door that writes a
+    # body already calls this, in the same transaction, AFTER its body write.
+    # ⛔ A document with no `taskItem` (the walk above saw every node) has no tasks,
+    # so it pays no second walk: this function's one-walk claim holds for every
+    # note without a checklist (test_sync_note_sidecars_walks_the_document_exactly_once).
+    _sync_note_task_digest(conn, user_id, note_id, body_json if has_task[0] else None)
+
+
+def _sync_note_task_digest(
+    conn: sqlite3.Connection, user_id: str, note_id: str, body_json: dict[str, Any] | None,
+) -> None:
+    """Refill one note's `j2_note_task_digest` row from the body just written: the
+    tasks `note_tasks.extract_tasks` finds, or no row when there are none.
+
+    ⛔ Must run AFTER the body write in the same transaction: the table's triggers
+    (db.py) delete the row on every body write, so a refill written first is erased
+    by the write that follows it. Correctness does not rest on this call -- a note
+    with no row is computed from its body by `list_tasks` -- only the speed of the
+    tasks view does."""
+    from api.services.journal_two.note_tasks import extract_tasks
+    tasks = extract_tasks(body_json) if isinstance(body_json, dict) else []
+    if tasks:
+        conn.execute(
+            "INSERT OR REPLACE INTO j2_note_task_digest (note_id, user_id, tasks_json) VALUES (?, ?, ?)",
+            (note_id, user_id, json.dumps(tasks)))
+    else:
+        conn.execute("DELETE FROM j2_note_task_digest WHERE note_id = ?", (note_id,))
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -1496,9 +1527,14 @@ def _notes_filter_sql(
             # ONE set, the union of the three ways a search matches (text, the tag
             # it names, the ticker it names) -- so a request that asks for the page
             # AND its total can compute it once (`_RowidSets`).
-            q_set_sql = ("SELECT n.rowid FROM j2_notes n WHERE"
-                         " n.id IN (SELECT m.note_id FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
-                         " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?))")
+            # ⛔ Wave 10 (lane 10A): the text match maps to NOTE ROWIDS in one
+            # covering-index read (`idx_j2_notes_fts_map_rowid_note`), never FTS rowid
+            # -> `note_id` TEXT -> j2_notes' TEXT key -> rowid (three lookups per
+            # match, ~15k matches for a common term at 50k notes). `note_rowid` is
+            # re-derived from `note_id` at every boot (db.py
+            # `_repair_fts_map_note_rowid`); a NULL one can never match `IN`.
+            q_set_sql = ("SELECT m.note_rowid FROM j2_notes_fts_map m WHERE m.fts_rowid IN"
+                         " (SELECT rowid FROM j2_notes_fts WHERE j2_notes_fts MATCH ?)")
             q_set_params: list[Any] = [expr]
             if tag_set_sql:
                 q_set_sql += f" UNION ALL {tag_set_sql}"
@@ -1648,16 +1684,22 @@ def list_notes(
             # for EVERY candidate note, so the search box (FolderSidebar asks for
             # sort=relevance) cost O(candidates x matches): at 50k notes a common
             # term did not finish in 300 s (docs/notebook/perf-budgets.md §2).
-            # The ranked set is keyed by note id through `j2_notes_fts_map`, and
-            # the order is the same expression over the same scores.
+            # The ranked set is keyed by NOTE ROWID through `j2_notes_fts_map`
+            # (wave 10: an integer join, not the note id TEXT), and the order is
+            # the same expression over the same scores.
             # ⛔ TWO PHASES. The order is decided over rowids and the two sort keys
             # only; the page's columns are read for the page alone. Sorting the
             # full summary columns made SQLite read every candidate's body off its
             # overflow pages to sort 15k rows it then threw away (~280 ms at 50k).
+            # ⚰️ Wave 10 measured the planned lever of reading the page's total from
+            # this same pass (`COUNT(*) OVER ()`): NEUTRAL at 50k (47.7 ms with the
+            # window against 35.7 + 10.7 ms for this statement plus the separate
+            # count -- the window materialises every candidate before the sort, which
+            # is the count's work again). Not adopted; perf-budgets.md §7.
             sql = ("SELECT j2_notes.rowid FROM j2_notes LEFT JOIN ("
-                   "SELECT m.note_id AS rank_note_id, bm25(j2_notes_fts) AS rank_score"
+                   "SELECT m.note_rowid AS rank_rid, bm25(j2_notes_fts) AS rank_score"
                    " FROM j2_notes_fts JOIN j2_notes_fts_map m ON m.fts_rowid = j2_notes_fts.rowid"
-                   " WHERE j2_notes_fts MATCH ?) ranked ON ranked.rank_note_id = j2_notes.id"
+                   " WHERE j2_notes_fts MATCH ?) ranked ON ranked.rank_rid = j2_notes.rowid"
                    + where_sql
                    + " ORDER BY COALESCE(ranked.rank_score, -1e9) ASC, j2_notes.updated_at DESC")
             params = [relevance_expr, *params]

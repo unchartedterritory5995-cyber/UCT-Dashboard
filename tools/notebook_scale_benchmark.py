@@ -372,6 +372,14 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     seed_t0 = time.perf_counter()
     truth = _seed(conn, n, heavy["id"], others, paragraphs)
     seed_ms = (time.perf_counter() - seed_t0) * 1000.0
+    # Wave 10 (lane 10A): the raw seed bypasses the door writers, which refill the
+    # task index in production on every save. The boot backfill is what fills it for
+    # rows written without a door, so it stands in for them here -- the same
+    # "indexes maintained during the seed, as production maintains them" rule the
+    # wave-7 A/B followed (perf-budgets.md §2). Its cost is reported, not hidden.
+    digest_t0 = time.perf_counter()
+    j2db.backfill_note_task_digest(conn)
+    digest_ms = (time.perf_counter() - digest_t0) * 1000.0
     # No ANALYZE: production never runs ANALYZE or `PRAGMA optimize` on auth.db, so the
     # planner here must see the same absence of sqlite_stat1 that it sees there.
     db_bytes = os.path.getsize(db_path)
@@ -484,6 +492,7 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "n": n,
         "active": truth["active"], "trashed": truth["trashed"], "archived": truth["archived"],
         "seed_ms": round(seed_ms, 1),
+        "task_digest_backfill_ms": round(digest_ms, 1),
         "db_bytes": db_bytes,
         "ops": stats,
         "peak_tracemalloc_bytes": peak_bytes,

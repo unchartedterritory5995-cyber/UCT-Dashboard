@@ -471,9 +471,21 @@ CREATE VIRTUAL TABLE IF NOT EXISTS j2_notes_fts USING fts5(
 -- a contentless FTS5 table returns NULL for every column, UNINDEXED ones
 -- included, on a MATCH read (verified empirically) -- note_id, the one
 -- thing every search caller actually needs back, would become unreadable.
+-- `note_rowid` (wave 10, lane 10A): the NOTE's rowid beside the FTS rowid, so a
+-- search maps a full-text match straight to a j2_notes rowid -- an integer lookup
+-- in `idx_j2_notes_fts_map_rowid_note` -- instead of FTS rowid -> note_id TEXT ->
+-- j2_notes' TEXT primary key -> rowid. ⚠️ It stores j2_notes' IMPLICIT rowid, the
+-- one value the paragraph above refuses to KEY on, so the hazard it names is
+-- handled, not ignored: every copy path this repo uses keeps rowids (the online
+-- `.backup()` of authdb_backup.py and `VACUUM INTO`; measured, and VACUUM itself,
+-- on SQLite 3.50.4), only a LOGICAL dump/restore renumbers them, and
+-- `_repair_fts_map_note_rowid` re-derives the column from `note_id` at every boot
+-- when any row disagrees with its note. `note_id` stays the key; `note_rowid` is a
+-- derived, self-checked copy. Nullable because an older map gains it by ALTER.
 CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
     note_id    TEXT PRIMARY KEY,
-    fts_rowid  INTEGER NOT NULL
+    fts_rowid  INTEGER NOT NULL,
+    note_rowid INTEGER
 );
 
 -- Triggers, not per-writer calls: j2_notes has 11 production write statements
@@ -481,11 +493,14 @@ CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
 -- how an index goes stale on the one path someone forgets -- and the paths
 -- that would be forgotten are the importer and the sync engine, i.e. exactly
 -- the notes a migrating member most needs to find.
+-- ⛔ These bodies are duplicated in _J2_NOTES_FTS_TRIGGERS_DDL (migration v5 and the
+-- wave-10 upgrade use that copy); tests/test_journal_two_fts_map_note_rowid.py holds
+-- the two identical, so a DB built fresh and a DB upgraded in place run one trigger.
 CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 
 CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
@@ -503,8 +518,38 @@ AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
     WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
+END;
+
+-- ── Task index (wave 10, lane 10A) ──────────────────────────────────────────
+-- One row per note that holds a checklist: that note's `note_tasks.extract_tasks`
+-- output, as JSON. The tasks view (`list_tasks`) reads these small rows instead of
+-- json-parsing and walking every task-bearing note's whole body on every open
+-- (~3.8k bodies, ~9 MB at 50k notes: the ~100 ms of Python perf-budgets.md §2
+-- named as the lever).
+-- ⛔⛔ CORRECTNESS NEVER DEPENDS ON A WRITER REMEMBERING IT. The triggers below
+-- are pure SQL and DELETE a note's row whenever its body is written, by any
+-- statement on any connection, so a row is either EXACTLY its note's current
+-- tasks or ABSENT. `list_tasks` computes an absent note from its body, so an
+-- absent row costs time, never a wrong answer. The door writers REFILL the row in
+-- the same transaction (`notes._sync_note_task_digest`, from `_sync_note_sidecars`),
+-- which is what keeps the tasks view fast; a writer that does not (the connector
+-- engine's media rewrite, a migration) only leaves that note to be parsed.
+-- tests/test_journal_two_task_digest.py drives every writer derived from the code.
+CREATE TABLE IF NOT EXISTS j2_note_task_digest (
+    note_id     TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    tasks_json  TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ai AFTER INSERT ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = new.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_au AFTER UPDATE OF body_json ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
 END;
 
 -- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
@@ -1913,6 +1958,10 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_hub_planned_trades_user_created "
     "ON hub_planned_trades(user_id, created_at DESC)",
+    # Wave 10 (lane 10A): the search's integer hop. A map built before wave 10 has
+    # two columns; `_upgrade_fts_map_note_rowid` (end of ensure_schema) fills the
+    # rows, replaces the triggers and builds the covering index on it.
+    "ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
@@ -1957,12 +2006,13 @@ _PERF_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_tasks"
     " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC)"
     " WHERE instr(body_json, 'taskItem') > 0",
-    # FTS match -> note id WITHOUT reading the FTS content row. A dense search
-    # term matches ~15k notes at 50k; reading `note_id` (an UNINDEXED column)
-    # back out of each match's content row cost ~40 ms, while the MATCH itself
-    # costs ~6 ms. `j2_notes_fts_map` already maps each note to its FTS rowid
-    # (the delete path's O(1) lookup); this indexes the other direction.
-    "CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid ON j2_notes_fts_map(fts_rowid)",
+    # FTS match -> note WITHOUT reading the FTS content row. A dense search term
+    # matches ~15k notes at 50k; reading `note_id` (an UNINDEXED column) back out
+    # of each match's content row cost ~40 ms, while the MATCH itself costs ~6 ms.
+    # ⚰️ Wave 7 indexed `(fts_rowid)` here as `idx_j2_notes_fts_map_rowid`. Wave 10
+    # replaced it with `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`,
+    # a NEW NAME created (and the old one dropped) by `_upgrade_fts_map_note_rowid`
+    # after the column exists -- see there for why the name had to change.
     # The sidebar's expanded-folder rows (notes_for_folders): one folder's live notes
     # by title, LIMIT 200. Without an index in title order SQLite read every note of
     # the folder and sorted them all to keep 200 -- and once idx_j2_notes_live_cover
@@ -2143,6 +2193,24 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.commit()
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration] trade_ref_type index creation aborted: {e}")
+
+    # Wave 10 (lane 10A): the search's integer hop. LAST among the FTS steps, so
+    # whatever migration v4/v5 rebuilt, the map, its triggers and its covering index
+    # end in the wave-10 shape -- on a fresh database and on one that predates it.
+    try:
+        _upgrade_fts_map_note_rowid(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-fts-map] note_rowid upgrade aborted: {e}")
+
+    # Wave 10 (lane 10A): the task index, filled in place for any note that has no
+    # row. A failure only means the tasks view parses those notes' bodies (the
+    # pre-wave-10 cost); it can never make it wrong (see the table's comment).
+    try:
+        backfill_note_task_digest(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-task-digest] backfill aborted: {e}")
 
 
 def _data_dir() -> Path:
@@ -2531,11 +2599,132 @@ def _resync_fts_map(conn: sqlite3.Connection) -> None:
     migration is the sole owner of map correctness; this function is the
     one owner both call into, in whatever order their flags happen to have
     been lost."""
+    _ensure_fts_map_note_rowid_column(conn)
     conn.execute("DELETE FROM j2_notes_fts_map")
+    # `note_rowid` from the note's CURRENT rowid (wave 10), in the same full rebuild:
+    # the map row is correct by construction however it came to be rebuilt.
     conn.execute(
-        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid) "
-        "SELECT note_id, rowid FROM j2_notes_fts"
+        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid) "
+        "SELECT f.note_id, f.rowid, (SELECT n.rowid FROM j2_notes n WHERE n.id = f.note_id)"
+        " FROM j2_notes_fts f"
     )
+
+
+def _ensure_fts_map_note_rowid_column(conn: sqlite3.Connection) -> None:
+    """Give an older `j2_notes_fts_map` (two columns) its wave-10 `note_rowid`.
+    `_PHASE_2_ALTERS` already does this at boot; this copy is for the callers that
+    reach the map before, or without, `ensure_schema` (a lone migration re-run)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes_fts_map)")}
+    if cols and "note_rowid" not in cols:
+        conn.execute("ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER")
+
+
+def _repair_fts_map_note_rowid(conn: sqlite3.Connection) -> int:
+    """Re-derive `j2_notes_fts_map.note_rowid` from `note_id` when ANY row disagrees
+    with its note: NULL for a note that exists (an older map, or a row an older
+    trigger wrote), or a rowid whose note carries a different id (a logical
+    dump/restore renumbered j2_notes). Returns the rows rewritten; 0 means the map
+    already agreed and nothing was written.
+
+    ⛔ Why this runs at EVERY boot rather than once: `note_rowid` copies j2_notes'
+    implicit rowid, which a dump/restore can renumber long after any migration flag
+    was written. The check is one pass over the map, each row compared with the
+    rowid the `id` autoindex already carries -- the note table itself is never
+    read (~58 ms at 50k notes; probing j2_notes by rowid instead read every row,
+    ~120 ms). The rewrite happens only when the check finds drift. `IS NOT` treats
+    NULL as a value: a map row with no note settles at NULL and stays settled.
+    A search reads the column, so a wrong value would silently return a different
+    note of the same member -- or none."""
+    bad = conn.execute(
+        "SELECT 1 FROM j2_notes_fts_map m"
+        " WHERE m.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = m.note_id)"
+        " LIMIT 1"
+    ).fetchone()
+    if not bad:
+        return 0
+    cur = conn.execute(
+        "UPDATE j2_notes_fts_map SET note_rowid ="
+        " (SELECT n.rowid FROM j2_notes n WHERE n.id = j2_notes_fts_map.note_id)"
+    )
+    return cur.rowcount
+
+
+def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Wave 10 (lane 10A): bring ANY database to the integer-hop shape, in place,
+    whatever it held before. Idempotent by construction; runs at every
+    `ensure_schema`, after migrations v4/v5 so it has the last word.
+
+      1. the column (`_ensure_fts_map_note_rowid_column`);
+      2. the triggers: an existing trigger whose body does not maintain
+         `note_rowid` is DROPPED and recreated from `_J2_NOTES_FTS_TRIGGERS_DDL`
+         (`CREATE TRIGGER IF NOT EXISTS` is a no-op against an existing name, so
+         `_J2_SCHEMA` alone can never replace an old body);
+      3. the rows (`_repair_fts_map_note_rowid`);
+      4. the covering index `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`
+         under a NEW NAME, and the superseded `idx_j2_notes_fts_map_rowid
+         (fts_rowid)` dropped. ⛔ A new name is the whole mechanism: `CREATE INDEX IF
+         NOT EXISTS` never touches an index that already exists, so a changed
+         definition under the old name would leave every existing database on the
+         old shape while every fresh (test) database got the new one
+         (perf-budgets.md §2, review M-7)."""
+    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0}
+    has_map = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts_map'").fetchone()
+    has_fts = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'").fetchone()
+    if not has_map or not has_fts:
+        return out
+    _ensure_fts_map_note_rowid_column(conn)
+    bodies = {r[0]: r[1] or "" for r in conn.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type='trigger'"
+        " AND name IN ('j2_notes_fts_ai', 'j2_notes_fts_au', 'j2_notes_fts_ad')")}
+    stale = [n for n in ("j2_notes_fts_ai", "j2_notes_fts_au") if "note_rowid" not in bodies.get(n, "")]
+    if stale or "j2_notes_fts_ad" not in bodies:
+        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ai")
+        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_ad")
+        conn.execute("DROP TRIGGER IF EXISTS j2_notes_fts_au")
+        conn.executescript(_J2_NOTES_FTS_TRIGGERS_DDL)
+        out["triggers_replaced"] = True
+    out["rows_repaired"] = _repair_fts_map_note_rowid(conn)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
+                 " ON j2_notes_fts_map(fts_rowid, note_rowid)")
+    conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
+    conn.commit()
+    return out
+
+
+def backfill_note_task_digest(conn: sqlite3.Connection) -> int:
+    """Fill `j2_note_task_digest` for every checklist-bearing note that has no row
+    (wave 10, lane 10A): a database that predates the table, notes a non-door
+    writer rewrote (the triggers dropped their rows), notes inserted raw. Returns
+    the rows written. Runs at every `ensure_schema`; in a steady state the notes it
+    reads are only the ones whose body names "taskItem" without holding a task
+    (no row is ever written for those), so it is cheap after the first boot.
+
+    ⛔ Same candidate rule as `list_tasks` (`instr(body_json, 'taskItem') > 0`,
+    spelled as the partial index spells it) and the SAME extraction
+    (`note_tasks.extract_tasks`), so what it writes is what the reader would have
+    computed from the body."""
+    from api.services.journal_two.note_tasks import extract_tasks
+    rows = conn.execute(
+        "SELECT n.id, n.user_id, n.body_json FROM j2_notes n"
+        " WHERE instr(n.body_json, 'taskItem') > 0"
+        " AND NOT EXISTS (SELECT 1 FROM j2_note_task_digest d WHERE d.note_id = n.id)"
+    ).fetchall()
+    written = 0
+    for r in rows:
+        try:
+            doc = json.loads(r[2] or "{}")
+        except (ValueError, TypeError):
+            continue
+        tasks = extract_tasks(doc)
+        if tasks:
+            conn.execute(
+                "INSERT OR REPLACE INTO j2_note_task_digest (note_id, user_id, tasks_json)"
+                " VALUES (?, ?, ?)", (r[0], r[1], json.dumps(tasks)))
+            written += 1
+    conn.commit()
+    return written
 
 
 def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
@@ -2616,16 +2805,21 @@ def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
 _J2_NOTES_FTS_MAP_DDL = """
 CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
     note_id    TEXT PRIMARY KEY,
-    fts_rowid  INTEGER NOT NULL
+    fts_rowid  INTEGER NOT NULL,
+    note_rowid INTEGER
 )
 """
 
+# ⛔ The SAME bodies as _J2_SCHEMA's `CREATE TRIGGER IF NOT EXISTS` copies (wave 10
+# added `note_rowid` to both); a rail holds them identical. This copy is what
+# migration v5 and `_upgrade_fts_map_note_rowid` install over an older DB, where the
+# IF NOT EXISTS copies are no-ops against the existing trigger names.
 _J2_NOTES_FTS_TRIGGERS_DDL = """
 CREATE TRIGGER j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 
 CREATE TRIGGER j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
@@ -2640,8 +2834,8 @@ AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
     WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 """
 
