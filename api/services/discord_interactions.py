@@ -1316,6 +1316,11 @@ def _produce_chart(req: ChartRequest, options: dict, prefs: dict, compare: tuple
     got = (RENDER_SLOTS.acquire(timeout=slot_wait, cls=cls) if slot_wait > 0
            else RENDER_SLOTS.acquire(blocking=False, cls=cls))
     _stage("slot")
+    if got and house_fn is not None and options.get("darkpool"):
+        # The dark-pool levels do not depend on the bars: start them now so they overlap the
+        # fetches below instead of running after them inside the house render (2.8 s measured).
+        from api.services import discord_chart_house as _house_zones
+        _house_zones.prefetch_dark_pool_zones(req.ticker)
     if not got:
         return ("busy", None, None)
     try:
@@ -1855,8 +1860,14 @@ def fast_first_enabled() -> bool:
     return os.environ.get("DISCORD_CHART_FAST_FIRST", "1").strip().lower() not in ("0", "false", "off", "")
 
 
-def fast_after_s(default: float = 3.0) -> float:
-    """How long the house render gets before the plain chart stands in."""
+def fast_after_s(default: float = 8.0) -> float:
+    """How long the house render gets before the plain chart stands in.
+
+    8 s, was 3 s (2026-09-26, owner). Measured with per-step timing on production: a warm member
+    chart takes 2-5 s end to end (renderer ~1.8-2.1 s of it), so at 3 s the plain chart flashed up
+    on most View chart clicks and was replaced a second or two later - a member saw the old-style
+    chart first on a chart that was about to arrive. At 8 s it stands in only for a real stall.
+    DISCORD_CHART_FAST_AFTER_S still overrides (0 < v <= 30)."""
     try:
         v = float(os.environ.get("DISCORD_CHART_FAST_AFTER_S", ""))
         return v if 0 < v <= 30 else default

@@ -375,3 +375,85 @@ def test_a_slow_house_render_splits_zones_from_the_renderer(caplog, monkeypatch)
     line = [r.getMessage() for r in caplog.records if "house timing" in r.getMessage()][0]
     assert line.startswith("[discord-chart] house timing SNDK D ok 21.") and "zones 18.9s" in line \
         and "renderer 2.1s (1 attempt)" in line, line
+
+
+# ── dark-pool levels: cached per ticker, one computation shared, started before the bars ──
+
+@pytest.fixture
+def _zones(monkeypatch):
+    from api import darkpool_db
+    from api.services import discord_chart_house as house
+    house._zones_cache.clear(); house._zones_inflight.clear()
+    calls = []
+    def fake(sym, limit=25, **k):
+        calls.append(sym); __import__("time").sleep(0.15)
+        return [{"price": 1.0, "notional": 1e6, "sym": sym}]
+    monkeypatch.setattr(darkpool_db, "get_ticker_zones", fake)
+    yield house, calls
+    house._zones_cache.clear(); house._zones_inflight.clear()
+
+
+def test_dark_pool_levels_are_computed_once_and_kept(_zones, monkeypatch):
+    house, calls = _zones
+    a = house.dark_pool_zones("gh"); b = house.dark_pool_zones("GH")
+    assert a == b and a[0]["sym"] == "GH" and calls == ["GH"], calls
+    monkeypatch.setattr(house, "ZONES_TTL_S", 0.0)
+    house._zones_cache.clear()
+    house.dark_pool_zones("GH"); house.dark_pool_zones("GH")
+    assert calls == ["GH", "GH", "GH"], "with no TTL every call recomputes - the cache is what saves them"
+
+
+def test_concurrent_askers_share_one_computation(_zones):
+    import threading
+    house, calls = _zones
+    out = []
+    ts = [threading.Thread(target=lambda: out.append(house.dark_pool_zones("NVDA"))) for _ in range(4)]
+    [t.start() for t in ts]; [t.join() for t in ts]
+    assert calls == ["NVDA"] and len(out) == 4 and all(o == out[0] and o for o in out), (calls, out)
+
+
+def test_a_failed_lookup_is_empty_and_not_kept(monkeypatch):
+    from api import darkpool_db
+    from api.services import discord_chart_house as house
+    house._zones_cache.clear()
+    def boom(*a, **k):
+        raise RuntimeError("db locked")
+    monkeypatch.setattr(darkpool_db, "get_ticker_zones", boom)
+    assert house.dark_pool_zones("AMD") == [] and "AMD" not in house._zones_cache
+
+
+def test_the_chart_starts_the_levels_before_it_fetches_bars(monkeypatch):
+    from api.services import discord_chart_house as house, discord_chart_prefs as p, discord_interactions as di
+    from api.services.render_gate import MEMBER
+    from tests.test_discord_chart import daily_bars
+    order = []
+    monkeypatch.setattr(house, "prefetch_dark_pool_zones", lambda s: order.append(("zones", s)))
+    prefs = dict(p.DEFAULTS)
+    def bars(sym, tf, n):
+        order.append(("bars", tf)); return daily_bars(30)
+    run = lambda dp: di.produce_chart(di.ChartRequest("GH", "D", darkpool=dp), {**p.render_options(prefs, "D"), "darkpool": dp},
+                                      prefs, cls=MEMBER, bars_fn=bars, render_fn=lambda *a, **k: b"\x89PNG\r\n\x1a\nm",
+                                      house_fn=lambda *a, **k: b"\x89PNG\r\n\x1a\nh", quote_fn=lambda t: None)
+    assert run(True)[0] == "ok" and order[0] == ("zones", "GH"), order
+    order.clear()
+    run(False)
+    assert ("zones", "GH") not in order, "no dark-pool levels asked for, none computed"
+
+
+def test_the_house_render_reads_the_shared_levels(_zones, monkeypatch):
+    house, calls = _zones
+    monkeypatch.setenv("CHART_RENDERER_URL", "http://renderer.invalid")
+    class NoRender:
+        def post(self, *a, **k):
+            return type("R", (), {"is_success": False, "status_code": 503, "text": "down", "content": b""})()
+    house.dark_pool_zones("GH")
+    house.render_house_chart("GH", "D", None, {"darkpool": True}, client=NoRender())
+    assert calls == ["GH"], "the render reused the prefetched levels instead of querying again"
+
+
+def test_the_placeholder_waits_eight_seconds_unless_overridden(monkeypatch):
+    from api.services import discord_interactions as di
+    monkeypatch.delenv("DISCORD_CHART_FAST_AFTER_S", raising=False)
+    assert di.fast_after_s() == 8.0, "a warm chart takes 2-5 s; at 3 s the plain chart flashed on most clicks"
+    monkeypatch.setenv("DISCORD_CHART_FAST_AFTER_S", "4")
+    assert di.fast_after_s() == 4.0
