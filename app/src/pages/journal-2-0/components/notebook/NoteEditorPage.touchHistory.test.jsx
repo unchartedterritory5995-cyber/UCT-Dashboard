@@ -124,6 +124,41 @@ describe('NoteEditorPage — touch Undo / Redo (wave 10, G-144)', () => {
     expect(within(root).queryByRole('button', { name: 'Redo' })).toBeNull()
   })
 
+  // Review M-5 (fix round 1): the JS half of "Undo stays reachable on a phone".
+  // The layout half (the pair really on screen after 60 typed lines at 390 px)
+  // is measured in real Chromium by tools/notebook_wave10b_walk.py (row B10);
+  // jsdom has no layout, so here the sentinel's box is stubbed and the page's
+  // own scroll check is driven by a real scroll event.
+  it('the pair floats once its place in the row has scrolled above the top bar, and returns', async () => {
+    const { root } = await mount('n1')
+    const undo = within(root).getByRole('button', { name: 'Undo' })
+    const group = undo.parentElement
+    const sentinel = group.previousElementSibling
+    expect(sentinel.getAttribute('aria-hidden')).toBe('true')
+    expect(group.hasAttribute('data-history-floating')).toBe(false)
+    let box = { top: -140, bottom: -96, height: 44, left: 0, right: 0, width: 0 }
+    sentinel.getBoundingClientRect = () => box
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+      await new Promise((r) => requestAnimationFrame(() => r()))
+    })
+    expect(group.getAttribute('data-history-floating')).toBe('true')
+    expect(group.className).toMatch(/historyFloat/)
+    box = { top: 300, bottom: 344, height: 44, left: 0, right: 0, width: 0 }
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+      await new Promise((r) => requestAnimationFrame(() => r()))
+    })
+    expect(group.hasAttribute('data-history-floating')).toBe(false)
+    // CONTROL: a sentinel with no box (above 640 px it is display:none) never floats
+    box = { top: 0, bottom: 0, height: 0, left: 0, right: 0, width: 0 }
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+      await new Promise((r) => requestAnimationFrame(() => r()))
+    })
+    expect(group.hasAttribute('data-history-floating')).toBe(false)
+  })
+
   it('the buttons carry the tap-floor class and the touch-only class', async () => {
     const { root } = await mount('n1')
     const undo = within(root).getByRole('button', { name: 'Undo' })

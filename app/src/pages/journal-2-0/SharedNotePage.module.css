@@ -29,6 +29,11 @@
 .column :global(.ProseMirror p) { margin: 12px 0; }
 .column :global(.ProseMirror a) { color: var(--accent); text-decoration: underline; }
 .column :global(.ProseMirror img) { max-width: 100%; height: auto; border-radius: var(--radius-md); }
+/* Wave 10 fix round 1 (review I-2, the same class on the PUBLIC pages): a table
+   resized in the editor carries its column widths as an inline width on the
+   <table>, so on a phone a share link or published page was wider than the
+   screen. Its TableView wrapper scrolls sideways instead of the page. */
+.column :global(.tableWrapper) { overflow-x: auto; max-width: 100%; }
 
 .hero {
   display: block;

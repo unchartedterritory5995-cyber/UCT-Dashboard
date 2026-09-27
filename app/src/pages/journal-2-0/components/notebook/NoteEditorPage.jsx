@@ -1857,6 +1857,52 @@ export default function NoteEditorPage({
     return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
   }, [editor])
 
+  // Wave 10 fix round 1 (review M-5): on a phone the chrome is NOT sticky
+  // (`.chrome { position: static }` at <=640 -- a wrapped header + toolbar would
+  // pin ~200px over a ~600px screen), so the touch Undo / Redo scrolled out of
+  // reach the moment a member typed past the first screen -- the very case
+  // G-144 exists for. Once the pair's PLACE in the toolbar has scrolled up under
+  // the top bar, the pair FLOATS at the top-right (`.historyFloat`, <=640 only);
+  // back in view, it returns to the row.
+  // ⛔ What is observed is a SENTINEL left in the row where the pair sits
+  // (`.historySentinel`), never the pair itself (a floated pair is always on
+  // screen, so observing it would un-float it, which would hide it, which would
+  // float it: a loop) and never the whole row (at 390 px the row wraps to
+  // ~340 px, so the pair at its top was off screen while the row was not --
+  // measured in real Chromium by the lane walk's mutant run). The sentinel
+  // arrives through a state ref, so the check attaches whenever it mounts (the
+  // row renders only after the note loads). A hidden sentinel (zero height:
+  // above 640 px, or a locked note) never floats the pair.
+  // ⛔ A SCROLL CHECK, not an IntersectionObserver: an observer reports only a
+  // CROSSING, and a phone's first tap into the note jumps the sentinel from
+  // below the screen to above it in one scroll -- "not visible" to "not
+  // visible", so it never fired (measured in real Chromium, fix round 1). The
+  // app scrolls its inner .main, not the window: capture phase, one read per
+  // frame, and an unchanged answer re-renders nothing (TableToolbar does the
+  // same for its own position).
+  const [historySentinelEl, setHistorySentinelEl] = useState(null)
+  const [historyFloating, setHistoryFloating] = useState(false)
+  useEffect(() => {
+    if (!historySentinelEl) return undefined
+    const topBar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--mobile-topbar-h')) || 0
+    let frame = 0
+    const check = () => {
+      frame = 0
+      const r = historySentinelEl.getBoundingClientRect()
+      setHistoryFloating(r.height > 0 && r.bottom <= topBar)
+    }
+    const onMove = () => { if (!frame) frame = requestAnimationFrame(check) }
+    window.addEventListener('scroll', onMove, true)
+    window.addEventListener('resize', onMove)
+    check()
+    return () => {
+      window.removeEventListener('scroll', onMove, true)
+      window.removeEventListener('resize', onMove)
+      if (frame) cancelAnimationFrame(frame)
+      setHistoryFloating(false)
+    }
+  }, [historySentinelEl])
+
   // The lock IS `editable`: every surface that edits the note asks
   // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
   // `false`: turning it on or off is not an edit, so no autosave.
@@ -3325,29 +3371,35 @@ export default function NoteEditorPage({
                 runs the editor's OWN history command, so one tap is exactly one
                 of the steps Ctrl+Z would take. A control with nothing to undo
                 is disabled, never silent. `onMouseDown` keeps the caret (and a
-                phone's keyboard) where it was. */}
-            <button
-              type="button"
-              className={`${styles.toolBtn} ${styles.historyBtn}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().undo().run()}
-              disabled={!canRunHistory(editor, 'undo')}
-              aria-label="Undo"
-              title="Undo the last change"
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              className={`${styles.toolBtn} ${styles.historyBtn}`}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => editor.chain().focus().redo().run()}
-              disabled={!canRunHistory(editor, 'redo')}
-              aria-label="Redo"
-              title="Redo the change you undid"
-            >
-              Redo
-            </button>
+                phone's keyboard) where it was. The pair floats once the row
+                has scrolled away on a phone (review M-5, `historyFloating`);
+                the sentinel stays in the row to say when. */}
+            <span ref={setHistorySentinelEl} className={styles.historySentinel} aria-hidden="true" />
+            <span className={`${styles.historyGroup}${historyFloating ? ` ${styles.historyFloat}` : ''}`}
+              data-history-floating={historyFloating ? 'true' : undefined}>
+              <button
+                type="button"
+                className={`${styles.toolBtn} ${styles.historyBtn}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().undo().run()}
+                disabled={!canRunHistory(editor, 'undo')}
+                aria-label="Undo"
+                title="Undo the last change"
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                className={`${styles.toolBtn} ${styles.historyBtn}`}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => editor.chain().focus().redo().run()}
+                disabled={!canRunHistory(editor, 'redo')}
+                aria-label="Redo"
+                title="Redo the change you undid"
+              >
+                Redo
+              </button>
+            </span>
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}

@@ -13,6 +13,7 @@ the sandbox's environment set in that same shell, every name read off its read s
 
     $env:NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED = '1'   # document_extraction.image_docx_documents_enabled
     $env:NOTEBOOK_WRITING_HELP_ENABLED = '1'           # auth._access_payload / writing_help.enabled
+    $env:J2_SHARE_LINKS_ENABLED = '1'                  # note_shares.flag -- row B9b's public page
     $env:ANTHROPIC_API_KEY = ''; $env:OPENAI_API_KEY = ''   # NO model key -- stated, never faked
     python tools/notebook_wave10b_walk.py --data-dir 'C:\\data-w10b' --port 8212 `
         --out docs/notebook/gate-runs/wave10/walk-10B-<sha>.json --tip <sha> `
@@ -35,6 +36,23 @@ Preconditions: app/dist rebuilt from the tip (`npm run build` in app/); the port
   B7  G-165 autofill with NO model key: offered, what the route answers, nothing
       written -- INCONCLUSIVE by construction (no model output can be observed)
   B8  no unforced page error across the walk
+
+Fix round 1 (the review's I-2 and M-5, measured in real Chromium, never jsdom):
+  B9  a RESIZED table (3 x 400 px columns) at 390, 820 and 1200 px, against a control
+      note without a table (same viewport, same page): the table adds NO width to the
+      document or to any sideways scroller, its own wrapper scrolls, and scrolled to its
+      end the table's right edge is on screen
+  B9b the same, on the PUBLIC share page (`/share/n/<token>`, a stranger's browser) at
+      390 px -- needs `$env:J2_SHARE_LINKS_ENABLED = '1'` in the run's shell
+  B9c reported, not graded: the Notebook page's own chrome at 390 px with no table (the
+      voice first-run hint seen and not seen) -- a pre-existing fact kept apart from B9
+  B10 touch Undo at 390 px after typing 60 lines: the toolbar has scrolled away, the
+      Undo button is inside the viewport and is what a finger at its centre touches,
+      and tapping THERE undoes
+
+`--only B9,B10` runs just those rows (the mutant-build run that shows each goes red);
+the evidence run runs everything and holds the sandbox past its +120 s checkpoint, so
+the integrity line names all four (pre-boot, +15 s, +120 s, shutdown).
 
 Exit: 0 = every row PASS or INCONCLUSIVE-by-construction and integrity CLEAN; 1 = a row
 FAILED; 2 = integrity not CLEAN/complete or a row INCONCLUSIVE for another reason; 3 =
@@ -63,18 +81,21 @@ from tools import notebook_perf_harness as H  # noqa: E402  (ONE sandbox + integ
 import sandbox_identity  # noqa: E402
 
 FIX = REPO / "app" / "src" / "pages" / "journal-2-0" / "lib" / "importer" / "__fixtures__" / "census"
-REQUIRED = [H.PRE_BOOT, H.POST_BOOT, H.SHUTDOWN]
+# Review M-8: the evidence run holds the sandbox past +120 s, so all FOUR are required.
+REQUIRED = [H.PRE_BOOT, H.POST_BOOT, H.PREWARM, H.SHUTDOWN]
 EMAIL = "w10b@local.dev"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 S_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
-# Rows that are INCONCLUSIVE by construction (the sandbox holds no model key).
-BY_CONSTRUCTION = {"B7_autofill_no_key"}
+# Rows that are INCONCLUSIVE by construction (the sandbox holds no model key; B9c is a
+# measurement reported for the record, never graded).
+BY_CONSTRUCTION = {"B7_autofill_no_key", "B9c_page_chrome_at_390_no_table"}
 
 res: dict = {"wave": 10, "lane": "10B", "checks": {}, "errors": [], "instrument_notes": []}
 LINES: list[str] = []
+ONLY: list[str] = []        # --only: row-key prefixes to run (empty = every row)
 
 
 # ── small pure helpers ───────────────────────────────────────────────────────
@@ -96,8 +117,56 @@ def guarded(key):
             except Exception as e:  # noqa: BLE001 -- one row never stops the rest
                 record(key, "INCONCLUSIVE", reason=f"exception: {type(e).__name__}: {e}",
                        traceback=traceback.format_exc()[-1500:])
+        inner.key = key
         return inner
     return wrap
+
+
+# Fix round 1 (I-2): one read of a document's layout, the same on every surface, taken
+# on the table note AND on a control note without a table, same viewport, same page.
+#  * `scrollers`: the document and every ancestor of the editor that can scroll
+#    sideways (overflow-x auto/scroll -- the app scrolls its inner .main), with their
+#    scroll and client widths. The table must ADD NOTHING to any of them: whatever the
+#    control shows (the page's own chrome, measured and reported beside it) is not the
+#    table's.
+#  * the table's own wrapper must scroll, and scrolled to its end the table's right
+#    edge must be on screen (a 400 px column cannot fit a 390 px phone whole; what must
+#    be reachable is the rest of the table).
+LAYOUT_JS = """() => {
+  const pm = document.querySelector('.ProseMirror');
+  const de = document.documentElement;
+  const scrollers = [{ cls: 'document', scrollWidth: de.scrollWidth, clientWidth: de.clientWidth }];
+  for (let el = pm ? pm.parentElement : null; el; el = el.parentElement) {
+    const ox = getComputedStyle(el).overflowX;
+    if (ox === 'auto' || ox === 'scroll')
+      scrollers.push({ cls: String(el.className).slice(0, 50), scrollWidth: el.scrollWidth, clientWidth: el.clientWidth });
+  }
+  const w = document.querySelector('.ProseMirror .tableWrapper');
+  if (!w) return { wrapper: false, scrollers, innerWidth: window.innerWidth };
+  const t = w.querySelector('table');
+  const before = { scrollWidth: w.scrollWidth, clientWidth: w.clientWidth, overflowX: getComputedStyle(w).overflowX };
+  w.scrollLeft = w.scrollWidth;
+  const cells = t ? t.querySelectorAll('tr:first-child > *') : [];
+  const last = cells.length ? cells[cells.length - 1].getBoundingClientRect() : null;
+  return { wrapper: true, scrollers, innerWidth: window.innerWidth,
+           tableStyleWidth: t ? t.style.width : null, tableWidth: t ? Math.round(t.getBoundingClientRect().width) : null,
+           wrapperBefore: before, wrapperScrollLeft: w.scrollLeft,
+           lastCell: last && { left: Math.round(last.left), right: Math.round(last.right) } };
+}"""
+
+
+def table_verdict(m, control):
+    """(ok, facts): the wrapper scrolls, the table's end is reachable, and no scroller is
+    wider with the table than without it."""
+    lc = m.get("lastCell") or {}
+    wb = m.get("wrapperBefore") or {}
+    scrolls = wb.get("overflowX") in ("auto", "scroll") and wb.get("scrollWidth", 0) > wb.get("clientWidth", 0)
+    base = {s["cls"]: s["scrollWidth"] for s in (control or {}).get("scrollers") or []}
+    added = [{"cls": s["cls"], "with_table": s["scrollWidth"], "without": base.get(s["cls"])}
+             for s in m.get("scrollers") or [] if s["scrollWidth"] > base.get(s["cls"], s["clientWidth"]) + 1]
+    reach = bool(lc) and 0 < lc.get("right", 10 ** 6) <= m.get("innerWidth", 0)
+    ok = bool(m.get("wrapper") and scrolls and reach and not added and control)
+    return ok, {"wrapper_scrolls": scrolls, "table_end_on_screen": reach, "table_added_overflow": added}
 
 
 def P(text):
@@ -652,7 +721,169 @@ def run_walk(base: str, art: Path) -> None:
                    inks=rows, ring={"color": m["ring"], "ratio": ring}, graph_edges=edges,
                    ink_pixels_on_canvas=m["painted"], screenshot=s)
 
-        for fn in (b1, b2, b3, b4, b5_keep, b5_logseq, b5_onenote, b7, b6):
+        # ── fix round 1: B9 / B9b (review I-2) ─────────────────────────────────
+        def wide_table_note(title):
+            """Three 400 px columns: a table the Wider button can make, and wider than
+            the note column at every viewport the walk measures."""
+            def cell(kind, t):
+                return {"type": kind, "attrs": {"colspan": 1, "rowspan": 1, "colwidth": [400]}, "content": [P(t)]}
+            rows = [["Ticker", "Thesis", "Stop"], ["NVDA", "Data-centre demand", "98.5"],
+                    ["AMD", "Share gains", "9.1"]]
+            table = {"type": "table", "content": [
+                {"type": "tableRow", "content": [cell("tableHeader" if i == 0 else "tableCell", t) for t in r]}
+                for i, r in enumerate(rows)]}
+            return mk_note(title, DOC(P("A resized table."), table))
+
+        # The voice first-run hint (VoiceInputButton, a one-time popover in the toolbar)
+        # is marked seen in every B9 browser: it is a pre-existing, dismissable popover
+        # that sticks out of the toolbar until tapped, and B9 measures the TABLE. The
+        # control note (same page, no table) is what separates the two either way.
+        HINT_SEEN = "try { localStorage.setItem('voice.dictation.hintSeen', '1') } catch (e) {}"
+
+        @guarded("B9_table_scrolls_not_the_page")
+        def b9():
+            note = wide_table_note(f"B9 table {run}")
+            control = mk_note(f"B9 control {run}", DOC(P("A resized table.")))
+            per = {}
+            for width, height, touch in ((390, 844, True), (820, 1180, True), (1200, 800, False)):
+                ctx = browser.new_context(viewport={"width": width, "height": height}, has_touch=touch,
+                                          is_mobile=width <= 640, storage_state=member.storage_state())
+                ctx.add_init_script(HINT_SEEN)
+                pgc = open_note(pages_of(ctx), control["id"])
+                pgc.wait_for_timeout(800)
+                c = pgc.evaluate(LAYOUT_JS)
+                pgc.close()
+                pg = open_note(pages_of(ctx), note["id"])
+                pg.locator(".ProseMirror .tableWrapper").first.wait_for(state="attached", timeout=15000)
+                pg.wait_for_timeout(800)
+                m = pg.evaluate(LAYOUT_JS)
+                ok, facts = table_verdict(m, c)
+                per[str(width)] = {"ok": ok, **facts, "table": m, "control_scrollers": c.get("scrollers"),
+                                   "shot": shot(pg, f"B9-{width}")}
+                ctx.close()
+            ok = all(v["ok"] for v in per.values())
+            record("B9_table_scrolls_not_the_page", "PASS" if ok else "FAIL", widths=per)
+
+        @guarded("B9b_shared_table_scrolls_not_the_page")
+        def b9b():
+            note = wide_table_note(f"B9b shared {run}")
+            control = mk_note(f"B9b control {run}", DOC(P("A resized table.")))
+            tokens = {}
+            for key, n in (("table", note), ("control", control)):
+                r = api.post(base + f"/api/j2/notes/{n['id']}/share", data={})
+                if not r.ok:
+                    record("B9b_shared_table_scrolls_not_the_page", "INCONCLUSIVE",
+                           reason=f"minting a share link answered HTTP {r.status} (is J2_SHARE_LINKS_ENABLED set?)",
+                           body=r.text()[:200])
+                    return
+                tokens[key] = (r.json().get("share") or {}).get("token")
+            stranger = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+            stranger.add_init_script(HINT_SEEN)
+            reads = {}
+            for key in ("control", "table"):
+                pg = pages_of(stranger)()
+                pg.goto(f"{base}/share/n/{tokens[key]}")
+                H._dismiss_intro(pg)
+                pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
+                if key == "table":
+                    pg.locator(".ProseMirror .tableWrapper").first.wait_for(state="attached", timeout=30000)
+                pg.wait_for_timeout(800)
+                reads[key] = pg.evaluate(LAYOUT_JS)
+                reads[key + "_shot"] = shot(pg, f"B9b-shared-{key}-390")
+                pg.close()
+            stranger.close()
+            for n in (note, control):
+                api.delete(base + f"/api/j2/notes/{n['id']}/share")
+            ok, facts = table_verdict(reads["table"], reads["control"])
+            record("B9b_shared_table_scrolls_not_the_page", "PASS" if ok else "FAIL", **facts,
+                   table=reads["table"], control_scrollers=reads["control"].get("scrollers"),
+                   shots=[reads["control_shot"], reads["table_shot"]])
+
+        # A PRE-EXISTING layout fact, measured and reported, not graded: the Notebook page
+        # at 390 px WITHOUT any table, and with the voice hint NOT yet seen -- so the
+        # report can say what the page's own chrome does, apart from the table.
+        @guarded("B9c_page_chrome_at_390_no_table")
+        def b9c():
+            control = mk_note(f"B9c chrome {run}", DOC(P("No table here.")))
+            out = {}
+            for label, seen in (("hint_not_seen", False), ("hint_seen", True)):
+                ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                                          storage_state=member.storage_state())
+                if seen:
+                    ctx.add_init_script(HINT_SEEN)
+                pg = open_note(pages_of(ctx), control["id"])
+                pg.wait_for_timeout(800)
+                out[label] = pg.evaluate(LAYOUT_JS).get("scrollers")
+                out[label + "_shot"] = shot(pg, f"B9c-{label}")
+                ctx.close()
+            record("B9c_page_chrome_at_390_no_table", "INCONCLUSIVE", reason="reported, not graded: pre-existing "
+                   "page chrome, no table involved", **out)
+
+        # ── fix round 1: B10 (review M-5) ──────────────────────────────────────
+        UNDO_JS = """() => {
+          const b = document.querySelector('button[aria-label="Undo"]');
+          const row = document.querySelector('[role="toolbar"][aria-label="Editor toolbar"]');
+          if (!b) return { present: false };
+          const r = b.getBoundingClientRect();
+          const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          const hit = document.elementFromPoint(cx, cy);
+          const rr = row ? row.getBoundingClientRect() : null;
+          const sn = b.parentElement && b.parentElement.previousElementSibling;
+          const sr = sn ? sn.getBoundingClientRect() : null;
+          return { present: true,
+                   sentinel: sr && { top: Math.round(sr.top), bottom: Math.round(sr.bottom),
+                     height: Math.round(sr.height), display: getComputedStyle(sn).display, cls: String(sn.className) }, rect: { left: Math.round(r.left), top: Math.round(r.top),
+                     right: Math.round(r.right), bottom: Math.round(r.bottom) },
+                   centre: [cx, cy], inViewport: r.width > 0 && r.height > 0 && r.top >= 0 && r.left >= 0
+                     && r.bottom <= window.innerHeight && r.right <= window.innerWidth,
+                   fingerLandsOnIt: !!hit && (hit === b || b.contains(hit)),
+                   hitTag: hit ? hit.tagName + '.' + String(hit.className).slice(0, 40) : null,
+                   floating: !!b.closest('[data-history-floating]'),
+                   toolbarRowBottom: rr ? Math.round(rr.bottom) : null,
+                   innerHeight: window.innerHeight };
+        }"""
+
+        @guarded("B10_touch_undo_reachable_after_60_lines")
+        def b10():
+            note = mk_note(f"B10 history {run}", DOC(P("Start.")))
+            touch = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
+                                        device_scale_factor=2, storage_state=member.storage_state())
+            pg = open_note(pages_of(touch), note["id"])
+            pg.locator(".ProseMirror").first.tap()
+            pg.keyboard.press("Control+End")
+            at_top = pg.evaluate(UNDO_JS)
+            for i in range(1, 61):
+                pg.keyboard.press("Enter")
+                pg.keyboard.type(f"Line {i} of the walk", delay=4)
+            typed = wait_until(lambda: "Line 60 of the walk" in editor_text(pg), 10)
+            pg.wait_for_timeout(900)   # past prosemirror-history's 500 ms grouping window
+            m = pg.evaluate(UNDO_JS)
+            s = shot(pg, "B10-390-after-60-lines")
+            undone = None
+            if m.get("present") and m.get("inViewport"):
+                # a finger at the button's centre -- no auto-scroll, unlike a locator tap
+                pg.touchscreen.tap(m["centre"][0], m["centre"][1])
+                undone = wait_until(lambda: "Line 60 of the walk" not in editor_text(pg), 5)
+            # and with its place in the row back on screen, the pair is IN the row again
+            # (not left floating): scroll the pair's place (the sentinel before it) into view
+            pg.evaluate("""() => { const b = document.querySelector('button[aria-label="Undo"]');
+              const sn = b && b.parentElement && b.parentElement.previousElementSibling;
+              if (sn) sn.scrollIntoView({ block: 'center' }) }""")
+            pg.wait_for_timeout(600)
+            back = pg.evaluate(UNDO_JS)
+            s2 = shot(pg, "B10-390-back-at-top")
+            touch.close()
+            scrolled_away = m.get("toolbarRowBottom") is not None and m["toolbarRowBottom"] <= 48
+            ok = bool(typed and scrolled_away and m.get("inViewport") and m.get("fingerLandsOnIt") and undone
+                      and m.get("floating") and back.get("present") and not back.get("floating"))
+            record("B10_touch_undo_reachable_after_60_lines", "PASS" if ok else "FAIL", typed=bool(typed),
+                   toolbar_scrolled_away=scrolled_away, before_typing=at_top, after_typing=m,
+                   tap_at_centre_undid=bool(undone), back_at_top=back, screenshots=[s, s2])
+
+        rows = (b1, b2, b3, b4, b5_keep, b5_logseq, b5_onenote, b7, b9, b9b, b9c, b10, b6)
+        for fn in rows:
+            if ONLY and not any(fn.key.startswith(o) for o in ONLY):
+                continue
             fn()
         browser.close()
 
@@ -667,7 +898,14 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True, help="the evidence JSON")
     ap.add_argument("--tip", default=None)
     ap.add_argument("--artifacts", required=True, help="a scratch directory for screenshots and the launcher log")
+    ap.add_argument("--only", default="", help="comma-separated row-key prefixes, e.g. B9,B10 (default: every row)")
+    ap.add_argument("--no-hold", action="store_true",
+                    help="do NOT hold the sandbox to its +120 s checkpoint (a mutant-build run only; "
+                         "never the evidence run)")
     args = ap.parse_args(argv)
+    ONLY[:] = [s.strip() for s in args.only.split(",") if s.strip()]
+    res["only"] = list(ONLY)
+    required = [c for c in REQUIRED if not (args.no_hold and c == H.PREWARM)]
     base = f"http://127.0.0.1:{args.port}"
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -677,7 +915,7 @@ def main(argv=None) -> int:
                 "instrument": os.path.relpath(__file__, REPO),
                 "walk_process_env": {k: bool(os.environ.get(k)) for k in (
                     "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "NOTEBOOK_WRITING_HELP_ENABLED",
-                    "ANTHROPIC_API_KEY", "OPENAI_API_KEY")}})
+                    "J2_SHARE_LINKS_ENABLED", "ANTHROPIC_API_KEY", "OPENAI_API_KEY")}})
 
     refused = H.refuse_shared_root(args.data_dir)
     if not refused and H.port_busy(args.port):
@@ -704,10 +942,13 @@ def main(argv=None) -> int:
                 except Exception as e:  # noqa: BLE001 -- setup failed; the sandbox still owes its verdict
                     not_run = f"{type(e).__name__}: {e}"
                     res["traceback"] = traceback.format_exc()[-2000:]
+                if not args.no_hold:
+                    # Review M-8: the evidence run's integrity line must cover +120 s too.
+                    res["prewarm_checkpoint_reached"] = sb.wait_checkpoint(H.PREWARM, H.PREWARM_WAIT_S)
     finally:
         res["stop"] = sb.stop()
         ipath = sb.integrity_path()
-        integ = H.read_integrity(ipath, REQUIRED)
+        integ = H.read_integrity(ipath, required)
         kept = None
         if ipath and Path(ipath).is_file():
             kept = out.with_suffix(".integrity.md")
