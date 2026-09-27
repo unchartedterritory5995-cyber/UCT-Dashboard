@@ -226,7 +226,8 @@ plot(ta.atr(14) * Multiplier, title = "X")
     const out = (t.outputs || []).find((o) => o && o.formula)
     // ⭐ THE COLUMN IS STILL RIGHT — the default folds in, so the member loses the KNOB
     // and not the indicator. That distinction is the whole argument of the skip reason.
-    expect(out.formula).toBe('atr(high, low, close, 14) * 2')
+    // (2026-09-27: a Pine `ta.atr` lowers to `atrPine`, Pine's own seed — see PARITY-PROGRAMME.)
+    expect(out.formula).toBe('atrPine(high, low, close, 14) * 2')
     expect(seriesNamesOf(out.ast).has('Multiplier')).toBe(false)
     expect([...unbackedDeclaredInputs(t.outputs, t.declared).keys()]).toEqual([])
     const hit = (out.skippedInputs || []).find((x) => x && x.name === 'Multiplier')

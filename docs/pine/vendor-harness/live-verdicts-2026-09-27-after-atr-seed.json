@@ -1,0 +1,313 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "dirs": [
+  "tests/fixtures/vendor/harness"
+ ],
+ "results": [
+  {
+   "file": "tests/fixtures/vendor/harness/keltner-channels-bands-rddt-1d-2026-09-27.json",
+   "format": "harness-v1",
+   "id": "keltner-channels-bands-rddt-1d-2026-09-27",
+   "script": "KCB",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.4126659081467997e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper 1",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.781854648447927e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower 1",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 5.716063215958205e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "Upper 2",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.492665830974606e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Lower 2",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 6.37564491781124e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Upper 3",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 5.384903450604795e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Lower 3",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 7.350641463203162e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: no result"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 8 items could not be compared",
+   "ourNotes": []
+  }
+ ],
+ "inventory": []
+}
