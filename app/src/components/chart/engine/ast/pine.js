@@ -109,6 +109,7 @@ import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
+import { INLINE_SUFFIX } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -11142,6 +11143,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedOps += 1
     diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
   }
+  // ⭐⭐ A CALL TO A DRAWING FUNCTION THE READER COULD NOT INLINE IS A DROP.
+  // `collectObjectOps` refuses it by name (`objectFnInline.js` says which shapes
+  // and why); counting it HERE is what keeps the object-only clean-win rule
+  // honest — a program that skipped a function's drawing is not a clean program.
+  // ⛔ Keys appear only when non-empty, so a script with no user-function
+  // drawing carries byte-identical diagnostics to before.
+  const refusedCalls = (collected.diagnostics && collected.diagnostics.refusedCalls) || []
+  for (const rc of refusedCalls) dropped(`fn:${rc.why}`)
+  if (refusedCalls.length) {
+    diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
+      + (rc.detail ? ` (${rc.detail})` : ''))
+  }
+  if (collected.diagnostics && collected.diagnostics.inlinedCalls) {
+    diagnostics.inlinedCalls = collected.diagnostics.inlinedCalls
+  }
   // ⭐⭐ HOW MANY OBJECT OPERATIONS THE READER SAW AT ALL, before any of them
   // was converted, dropped or found not to create anything.
   //
@@ -12228,6 +12244,49 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
   const scopeCache = new Map()
+  /** ⭐⭐ THE BINDING OF ONE LOCAL OF AN INLINED FUNCTION BODY.
+   *
+   *  ⛔⛔ A MUTABLE LOCAL IS OPAQUE, NOT ITS INITIALISER. `var int i = na` then
+   *  `i := bar_index` inside an `if` means `i` is `na` on some bars and a bar
+   *  index on others — state this columnar model does not carry. Binding the
+   *  initialiser would read `na` on every bar, a confident wrong answer; so a
+   *  mutable name refuses `pine:state`, loudly, wherever it is read. The ONE
+   *  exception is a read in the same block right after `x := e` (`b.assign`),
+   *  where Pine's own sequencing makes `x` exactly `e` on this bar.
+   *
+   *  ⛔ THE ENV IS A SNAPSHOT (`new Map(scoped)`), because Pine evaluates a
+   *  declaration where it stands: `y = x + 1` followed by `x := 2` must keep the
+   *  `x` that `y` saw, and a live map would hand it the later one.
+   *
+   *  ⚠️ IT RE-PARSES, which the note on `scopeFor` below warns against for the
+   *  TOP-LEVEL walk: there the walk's own binding carries `stampInputName`, and
+   *  a re-parse loses it. These statements were never walked, so there is no
+   *  walk binding to lose — and an `input.*` inside a function body is not a
+   *  member knob (Pine declares inputs at the top level only). */
+  const inlinedLocalBinding = (b, scoped) => {
+    const meta = b.st.synthetic
+    const shown = String(b.name).split(INLINE_SUFFIX)[0]
+    if (!b.assign && meta && meta.mutable && meta.mutable.has(b.name)) {
+      return {
+        kind: 'opaque',
+        guard: 'pine:state',
+        message: `${REFUSALS['pine:state']} — \`${shown}\` changes as the function \`${meta.fn}\``
+          + ' runs, and a value read here would be its first value rather than its current one',
+        at: null,
+      }
+    }
+    let node = null
+    try { node = parseWholeExpression(b.toks) } catch { node = null }
+    if (!node) {
+      return {
+        kind: 'opaque',
+        guard: 'pine:statement',
+        message: `${REFUSALS['pine:statement']} — \`${shown}\` in the function \`${meta ? meta.fn : '?'}\``,
+        at: null,
+      }
+    }
+    return { kind: 'expr', node, env: new Map(scoped) }
+  }
   /** An op's block-local bindings → a resolver scope layered over `env`.
    *
    *  ⛔⛔ IT READS THE WALK'S OWN BINDING AND RE-PARSES NOTHING. ⚰️ MEASURED
@@ -12256,6 +12315,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (scopeCache.has(locals)) return scopeCache.get(locals)
     const scoped = new Map(env)
     for (const b of locals) {
+      // ⭐⭐ A LOCAL OF AN INLINED FUNCTION BODY — the walk never saw these
+      // statements (they are a per-call-site rewrite; see `objectFnInline.js`),
+      // so the binding is built here from the statement itself.
+      if (b.st && b.st.synthetic) {
+        scoped.set(b.name, inlinedLocalBinding(b, scoped))
+        continue
+      }
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
       if (bound) { scoped.set(b.name, bound); continue }
@@ -12383,6 +12449,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const target = targetRef(op.target)
       if (!target) { dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    } else if (op.k === 'copy') {
+      // ⭐ AN INLINED FUNCTION'S RETURNED HANDLE, into the caller's name —
+      // `l := line_(high)` where `line_(p) => ret = line.new(…)`. A plain
+      // `setreg` whose value is the body's register, or this bar's create at a
+      // site, which the program format already carries (`{r:'site'}`).
+      const reg = regId.get(op.into)
+      const value = op.fromSite
+        ? (emittedSites.has(op.fromSite) ? { r: 'site', id: op.fromSite } : null)
+        : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
+      if (!reg || !value) { dropped('copy:source'); continue }
+      ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
     // Both lineages implemented this call and both survived the merge as arms of
