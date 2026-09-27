@@ -3264,6 +3264,11 @@ def update_note(
             sets.append("subtitle = ?"); params.append(s)
         if "bodyJson" in patch:
             bj = _validate_body_json(patch["bodyJson"])
+            # ⛔ Wave 10 (L1b): the SAVE path refuses what create and import already refuse.
+            # Safe for every member save: `_body_build_problem` mirrors only ProseMirror's own
+            # throws (never an unknown type), so a body the editor built can never trip it; it
+            # stops a non-editor writer from storing a note the editor would then open LOCKED.
+            _refuse_unbuildable(bj)
             bp = extract_plain_text(bj)
             sets.append("body_json = ?"); params.append(json.dumps(bj))
             sets.append("body_plain = ?"); params.append(bp)
