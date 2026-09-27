@@ -3661,7 +3661,7 @@ export default function NoteEditorPage({
           />
         ) : null}
 
-        {unreadable && <UnreadableNoteNotice />}
+        {unreadable && <UnreadableNoteNotice editor={editor} />}
         {/* ⛔ ONE `readOnly`, both reasons (wave 6 whole-branch review I-3). The
             wave-5 merge left `readOnly={unreadable}` AND `readOnly={locked}` on
             each input, and the later prop won: an unreadable, unlocked note took
