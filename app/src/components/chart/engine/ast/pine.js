@@ -14060,6 +14060,18 @@ function translatePineResult(source, opts = {}) {
         refusal: fromError(err),
       }
     }
+    // ⭐⭐ 2026-09-27 — THE RUNTIME-LANE DOOR'S HAND-OFF (`opts.drawPresentation`).
+    // What this row LOOKS like, read whether or not its VALUE translated — a
+    // refused row otherwise carries no title, colour or style at all, and the
+    // runtime lane that computes the value has no reader for them. ⛔ Opt-in and
+    // non-enumerable: no other caller does this work, and no digest, hash or
+    // persisted copy can see it.
+    if (opts.drawPresentation === true) {
+      Object.defineProperty(row, '_drawPresentation', {
+        value: drawPresentationOf(out, { env, resolver: makeResolver(), fillHandles }),
+        enumerable: false,
+      })
+    }
     // ⭐⭐ R22a / d2 — A MESSAGE THIS LANE CANNOT CARRY IS SAID, NOT DROPPED.
     //
     // ⛔ A NOTE, NEVER A REFUSAL. The offer translates and must keep translating —
@@ -14561,7 +14573,7 @@ function translatePineResult(source, opts = {}) {
     // able to read even when the program is null.
     objects: objectPass.program,
     objectDiagnostics: objectPass.diagnostics,
-    outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
+    outputs: resolved.map((r) => (r.refusal ? withDrawPresentation(r, { ...r, refusal: withExcerpt(r.refusal, lines) }) : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
     // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
@@ -15843,6 +15855,80 @@ function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
  *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
  *  author's own, more general statement of it, so it is the one to read.
  */
+/** ⭐⭐ 2026-09-27 — ONE OUTPUT'S PRESENTATION, INDEPENDENT OF ITS VALUE.
+ *
+ *  For the runtime-lane member door (`engine/pineRuntimeLane.js`), which computes
+ *  values the host lane refused and must still draw them the way the author
+ *  asked. ⛔ EVERY READER HERE IS THE HOST ROW'S OWN — `outputTitle`,
+ *  `outputHidden`, `outputPresentation` (colours through `pinePalette.js` by the
+ *  script's version), `foldDisplacement` and the fill-anchor rule — so the two
+ *  lanes cannot describe one plot two ways. It never throws: an unreadable row
+ *  says so (`unreadable`) and the door refuses it by name.
+ *
+ *  `displace.names` is every Pine name the `offset =` expression reaches,
+ *  through `env` bindings: an input among them sets WHERE the plot is drawn, and
+ *  the door cannot offer it as a knob without moving the drawing too. */
+function drawPresentationOf(out, ctx) {
+  try {
+    const args = parseArguments(new Cursor(out.toks.slice(2)))
+    const title = outputTitle(args, out.kind, out.role) || null
+    const seriesArg = pickOutputArgument(args, out.kind, out.tok, out.role, out.roleIndex)
+    const plottedName = seriesArg && seriesArg.value && seriesArg.value.type === 'name'
+      ? seriesArg.value.name : null
+    const fillAnchor = !title && !!out.handle && ctx.fillHandles.has(out.handle)
+      && !!plottedName && PLOT_SOURCE_NAMES.has(plottedName)
+    let displace
+    try {
+      const d = foldDisplacement(ctx.resolver, seriesArg)
+      displace = { shift: d.shift, names: namesReachedThrough(seriesArg.offsetNode, ctx.env) }
+    } catch {
+      displace = { unreadable: true }
+    }
+    let presentation = {}
+    try {
+      presentation = outputPresentation(args, { env: ctx.env, resolver: ctx.resolver, kind: out.kind }) || {}
+    } catch { presentation = {} }
+    return Object.freeze({
+      kind: out.kind, line: out.tok.line, title, authorHidden: outputHidden(args),
+      fillAnchor, handle: out.handle || null, presentation, displace,
+    })
+  } catch (err) {
+    return Object.freeze({
+      kind: out.kind, line: out.tok ? out.tok.line : null,
+      unreadable: String((err && err.message) || err),
+    })
+  }
+}
+
+/** ⛔ A SPREAD COPIES ONLY ENUMERABLE KEYS, so the refused-row copy made for its
+ *  excerpt would drop the hand-off above. Carried across explicitly. */
+function withDrawPresentation(from, to) {
+  if (from && Object.prototype.hasOwnProperty.call(from, '_drawPresentation')) {
+    Object.defineProperty(to, '_drawPresentation', { value: from._drawPresentation, enumerable: false })
+  }
+  return to
+}
+
+/** Every `name` a raw parse node reaches, following `env` expression bindings. */
+function namesReachedThrough(node, env, seen = new Set(), depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 32) return [...seen]
+  if (Array.isArray(node)) {
+    for (const n of node) namesReachedThrough(n, env, seen, depth + 1)
+    return [...seen]
+  }
+  if (node.type === 'name' && typeof node.name === 'string' && !seen.has(node.name)) {
+    seen.add(node.name)
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') namesReachedThrough(bound.node, bound.env || env, seen, depth + 1)
+  }
+  for (const k of Object.keys(node)) {
+    if (k === 'tok') continue
+    const v = node[k]
+    if (v && typeof v === 'object') namesReachedThrough(v, env, seen, depth + 1)
+  }
+  return [...seen]
+}
+
 function outputHidden(args) {
   const d = args.find((a) => a.name === 'display')
   // `display.none` lexes as ONE ident — the dot is part of the name, not an
