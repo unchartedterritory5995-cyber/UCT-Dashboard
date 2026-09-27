@@ -605,15 +605,24 @@ def run_walk(base: str, art: Path) -> None:
             backup_hits = api.get(base + "/api/j2/notes?q=backup").json()
             backup_titles = [n.get("title") for n in (backup_hits.get("notes") if isinstance(backup_hits, dict)
                                                       else backup_hits) or []]
+            plain = pn.get("bodyPlain") or pn.get("body_plain") or ""
+            # Fix round 1 (review M-7): the member's OWN properties stay as text (the
+            # fixture carries `timeframe:: daily` and `entry:: 120`); Logseq's bookkeeping
+            # (`id::`, `collapsed::`, `logseq.*`) and the page's consumed title/tags/alias
+            # lines go. (Run at cb1bb94d7 still asserted "no `::` at all" -- the M-7
+            # defect written into the instrument -- and FAILED on the corrected build.)
+            kept = ["timeframe:: daily" in plain, "entry:: 120" in plain]
+            dropped = not re.search(r"\b(id|collapsed|title|tags|alias)::|logseq\.order-list-type", plain)
             ok = bool(page and "2026-09-22" in titles and "2026-09-21" in titles
                       and task_items(pn.get("bodyJson")) == [["Backtest the last ten", False],
                                                                ["Write the entry rules", True]]
                       and {"setup", "swing"} <= set(pn.get("tags") or [])
-                      and "::" not in (pn.get("bodyPlain") or pn.get("body_plain") or "")
+                      and all(kept) and dropped
                       and not backup_titles)
             record("B5_import_logseq", "PASS" if ok else "FAIL", detected_in_preview="Logseq" in preview,
                    preview=preview, summary=summary, page_tasks=task_items(pn.get("bodyJson")),
                    page_tags=pn.get("tags"), journals_present=["2026-09-22" in titles, "2026-09-21" in titles],
+                   member_properties_kept=kept, bookkeeping_dropped=dropped, page_text=plain[:300],
                    backup_copy_notes=backup_titles, screenshot=s)
 
         @guarded("B5_import_onenote_docx")
