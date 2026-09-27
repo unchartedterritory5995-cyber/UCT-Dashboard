@@ -15290,10 +15290,41 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
   return out
 }
 
+/** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
+ *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
+ *  this door used to read names only — the colour was dropped and the row drew
+ *  in the engine's default, measured on a live capture.
+ *
+ *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
+ *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
+ *  per version; a script passing six positionals keeps the first five. Index 0
+ *  is the series itself and is never presentation. */
+const POSITIONAL_PRESENTATION = Object.freeze({
+  plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
+  plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
+  plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
+})
+
 function outputPresentation(args, ctx) {
   const pres = {}
-  const arg = (n) => args.find((a) => a.name === n)
+  const kind = ctx && ctx.kind
+  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? POSITIONAL_PRESENTATION[kind] : null
+  const positional = args.filter((a) => !a.name)
+  // ⭐ A NAMED argument wins; a positional one answers only where the signature
+  // places that name. Pine refuses both at once, so the order is never a choice
+  // between two values the author wrote.
+  const arg = (n) => {
+    const named = args.find((a) => a.name === n)
+    if (named || !signature) return named
+    const at = signature.indexOf(n)
+    return at > 0 ? positional[at] : undefined
+  }
 
+  // ⛔ NO COLOUR AT ALL STAYS ABSENT HERE. This function reports what the AUTHOR
+  // wrote ("absent is absent", `pine.presentation.test.js`); TradingView's
+  // default for a colourless plot is a RENDERING rule and is applied at the member
+  // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
@@ -15371,7 +15402,6 @@ function outputPresentation(args, ctx) {
   // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
   // as an unsupported plot style. The translator's own header said as much
   // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
-  const kind = ctx && ctx.kind
   const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
   if (isMarker) {

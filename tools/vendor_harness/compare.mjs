@@ -161,7 +161,12 @@ export function vendorPlotRoles(capture) {
 //   ⛔  Anything else is UNMAPPED and its verdict is INCONCLUSIVE, loudly, with
 //       the reason. A mapping the harness had to guess is a comparison of two
 //       unrelated columns wearing one plot's name.
-const DEFAULT_TITLE = /^(plot( \d+)?)?$/i
+//
+// ⭐ TradingView's defaults are PER CALL, and all three are MEASURED: an untitled
+// `plot` is "Plot", an untitled `plotshape` is "Shapes", an untitled `plotchar`
+// is "Chars" (probe-default-colour-v{3,4,6}-rddt-1d-2026-09-27). Knowing only
+// "Plot" left every untitled marker UNMAPPED and its colour never compared.
+const DEFAULT_TITLE = /^((plot|shapes|chars)( \d+)?)?$/i
 
 export function mapPlots(vendorValuePlots, ourPlots) {
   const pairs = []
@@ -483,9 +488,20 @@ export function compareCapture(capture, ours, opts = {}) {
     // or 1 vs na) still diverges, and `arrows` carry a sign and are left alone.
     const drawnOnly = v.type === 'shapes' || v.type === 'chars'
     const notDrawn = (x) => (drawnOnly && x === 0 ? null : x)
+    // ⭐⭐ A NATIVE CAPTURE'S MISSING ROW IS AN ANSWER: every plot was `na`.
+    // TradingView's study store keeps a row only when at least one plot has a
+    // value. Measured live 2026-09-27 (probe-sparse-rows-rddt-1d-2026-09-27.json):
+    // `plot(bar_index % 2 == 0 ? na : close)` over 631 bars stored exactly the 315
+    // odd bars. So for a harness-v1 capture a bar with no row reads `na` on every
+    // plot — and QQE Signals (30 rows) / Trendlines (266 rows) become comparable
+    // instead of "a hole in what was read".
+    // ⛔ ADAPTED legacy formats keep the conservative reading: their row sets were
+    // assembled by other readers whose gaps may be genuine holes.
+    const sparseNative = !capture.adaptedFrom
     const vendorVals = times.map((t) => {
       const row = rowsByTime.get(String(t))
-      return row ? notDrawn(row[v.column]) : undefined
+      if (row) return notDrawn(row[v.column])
+      return sparseNative ? null : undefined
     })
     if (!o.column) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',

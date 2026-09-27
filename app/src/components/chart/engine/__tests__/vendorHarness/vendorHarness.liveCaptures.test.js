@@ -52,6 +52,36 @@ describe('live TradingView captures — MATCH', () => {
     }, 60000)
   }
 
+  // ⭐ PROBES — four-line scripts written to measure ONE vendor behaviour each,
+  // captured on the same rig. They pin the rule, not an indicator.
+  for (const id of [
+    // The study store holds a row only where some plot is non-na: 315 of 631.
+    // A missing row is TradingView saying na, and before the comparator read it
+    // that way every other bar was a blank the harness could not grade.
+    'probe-sparse-rows-rddt-1d-2026-09-27',
+    // `plot`/`plotshape`/`plotchar` with no colour draw #2962FF at every version,
+    // v3 at 35% transparency; the engine drew them in its own gold. And an
+    // untitled marker is titled "Shapes"/"Chars", which the mapper did not know.
+    'probe-default-colour-v3-rddt-1d-2026-09-27',
+    'probe-default-colour-v4-rddt-1d-2026-09-27',
+    'probe-default-colour-v6-rddt-1d-2026-09-27',
+  ]) {
+    it(`⭐ ${id}: every plot MATCHES, colour included`, () => {
+      const v = grade(id)
+      const bad = (v.plots || []).filter((p) => p.verdict !== 'MATCH').map((p) => `${p.title}: ${p.verdict} ${p.reason}`)
+      expect(bad, bad.join('\n')).toEqual([])
+      expect(v.verdict, v.reason).toBe('MATCH')
+      expect((v.plots || []).length).toBeGreaterThan(0)
+      for (const p of v.plots) {
+        expect(p.stats.steady.compared, p.title).toBeGreaterThan(500)
+        // ⛔ THE COLOUR IS WHAT THESE PROBES EXIST FOR — a MATCH that never
+        // compared one would pin nothing.
+        expect(p.stats.colorCompared, `${p.title}: no colour compared`).toBeGreaterThan(0)
+        expect(p.stats.colorMismatches, p.title).toBe(0)
+      }
+    }, 60000)
+  }
+
   it('⭐ ATR Trailing Stoploss: the three-colour line agrees bar for bar (palette), and so does the seed', () => {
     const line = grade('atr-trailing-stoploss-rddt-1d-2026-09-27').plots.find((p) => p.id === 'plot_1')
     expect(line.stats.colorCompared).toBeGreaterThan(500)
