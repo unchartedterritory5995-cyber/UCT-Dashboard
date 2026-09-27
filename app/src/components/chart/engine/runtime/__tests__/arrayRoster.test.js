@@ -150,6 +150,17 @@ describe('⭐ max, min, sum, avg — exact over finite numbers', () => {
   })
 })
 
+describe('⭐ a NUMBER bound from a collection call is still this lane\'s to compute', () => {
+  it('`size = array.size(array.from(close))`, read by a later line — the nadaraya-watson shape', () => {
+    // The binding is a number, not a collection, so it is an env binding; the
+    // columnar lane expands it on read and refuses the collection inside, and the
+    // route used to rethrow that (`pine:collection`). One element → 1 on every bar.
+    expect(runPine('size = array.size(array.from(close))\nplot(size)\n')).toEqual(all(1))
+    expect(runPine('size = array.size(array.from(close, open))\nplot(size * close)\n'))
+      .toEqual([200, 202, 204, 206])
+  })
+})
+
 describe('⭐ the METHOD form reaches the same implementation', () => {
   it('a.unshift / a.pop as statements, a.max / a.last as values', () => {
     // [1,2,3] → unshift 0 → [0,1,2,3] → pop → [0,1,2]; max 2, last 2, size 3 → 223

@@ -2681,6 +2681,18 @@ export function buildRuntimeIr(source, opts = {}) {
       return touchesText(node.test, scope)
         || touchesText(node.yes, scope) || touchesText(node.no, scope)
     }
+    // ⭐ 2026-09-27 — A NAME BOUND TO SUCH A SUBTREE TOUCHES IT TOO. `size =
+    // array.size(array.from(src))` binds a NUMBER, so the name is not a
+    // collection and `holdsArray` rightly says no — but the columnar lane expands
+    // the binding when the name is read and refuses the collection inside it
+    // (`pine:collection`, "`this name` is read as an array here"), and this
+    // predicate never looked through the name. nadaraya-watson-rqk was walled on
+    // exactly this line. ⛔ ONLY an env binding (never a slot, which lowers here
+    // anyway), and this is only consulted AFTER the columnar lane has refused.
+    if (node.type === 'name' && scope.lookup(node.name) === null) {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && touchesText(bound.node, scope))
+    }
     return false
   }
 

@@ -42,6 +42,10 @@ const NEWLY = {
   // `i_bothEMAs` defaults true, so the consolidated line is `na` on every bar by
   // the author's own ternary — on TradingView too.
   'btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a': { naByInput: ['Consolidated EMA'] },
+  // `Alert Stream` is a hidden -1/0/1 signal plot (`display = display.none`), not a price
+  'nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125': {
+    shapesMayBeSilent: true, signals: { 'Alert Stream': [-1, 0, 1] },
+  },
 }
 
 describe('⭐ newly attaching through the runtime lane — finite, plausible, no NaN-poisoning', () => {
@@ -61,13 +65,19 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
         const specs = d.definition.compute.columns
         let lines = 0
         let shapesFired = 0
-        for (const t of rule.naByInput || []) expect(d.rows.map((r) => r.label), t).toContain(t)
+        for (const t of [...(rule.naByInput || []), ...Object.keys(rule.signals || {})]) {
+          expect(d.rows.map((r) => r.label), t).toContain(t)
+        }
         for (const row of d.rows.filter((r) => !r.colourFor)) {
           const call = specs[row.key] && specs[row.key].call
           const col = Array.from(cols[row.key])
           expect(col.length, row.label).toBe(bars.length)
           expect(col.some((v) => v === Infinity || v === -Infinity), `${row.label} carries Infinity`).toBe(false)
-          if (call === 'plot' && (rule.naByInput || []).includes(row.label)) {
+          if (call === 'plot' && rule.signals && rule.signals[row.label]) {
+            const allowed = rule.signals[row.label]
+            expect(col.every((v) => allowed.includes(v)), `${row.label} is not a ${allowed} signal`).toBe(true)
+            expect(new Set(col).size, `${row.label} never moves`).toBeGreaterThan(1)
+          } else if (call === 'plot' && (rule.naByInput || []).includes(row.label)) {
             expect(col.filter(Number.isFinite), `${row.label} should be na by input`).toEqual([])
           } else if (call === 'plot') {
             lines += 1
