@@ -415,6 +415,21 @@ def extract_docx_pages(data: bytes) -> tuple[list[str], int] | None:
 # `_MAX_PAGES` are counted, never built. Every part is parsed by expat with a
 # DOCTYPE refused by the parser itself (`_DocxRefused`), the docx guard.
 _XLSX_MAX_TOTAL_XML_BYTES = 2 * _DOCX_MAX_XML_BYTES
+# ⛔⛔ AND THE TEXT IS CAPPED, NOT ONLY THE XML (review C-1). A docx's text is
+# bounded by its XML; a workbook's is NOT: `<c t="s"><v>0</v></c>` is 25 bytes
+# that stands for the whole of shared string 0, so a few KB of XML referencing
+# one long string N times is N copies of it. MEASURED at the lane tip: a
+# 3,890-byte file (one 1 MB shared string, 100 rows of two cells) peaked at
+# 204 MB of Python strings, 200 rows at 404 MB -- linear, on the one web
+# process. Two caps, and each one is railed by its own mutation:
+#   * one cell's text is at most `_XLSX_MAX_CELL_CHARS` (Excel's own per-cell
+#     limit, so a file Excel wrote never meets it);
+#   * the whole workbook produces at most `_xlsx_text_budget()` characters of
+#     row text, across ALL its sheets. Past it no row is built, no further
+#     sheet is read, and the last stored page SAYS the rest was not read --
+#     a readable truncated state, never `processing_failed`.
+_XLSX_MAX_CELL_CHARS = 32_767
+_XLSX_MAX_TEXT_CHARS = _MAX_PAGES * _DOCX_PAGE_CHARS     # as much text as the stored pages hold
 _XLSX_MAX_SHEETS = 100
 # A row is read up to this column (IV, Excel's pre-2007 width). Past it a
 # member's table is a data dump, not something read a page at a time.
@@ -425,6 +440,57 @@ _XLSX_BUILTIN_DATE_FORMATS = frozenset({14, 15, 16, 17, 18, 19, 20, 21, 22, 45, 
 
 class _XlsxRefused(Exception):
     """A part is past a cap, or the workbook is not a readable spreadsheet."""
+
+
+def _xlsx_text_budget() -> int:
+    """The produced-text budget for ONE workbook: `_XLSX_MAX_TEXT_CHARS`, read
+    per call. Deliberately NOT derived from `_MAX_PAGES` at call time: the two
+    are separate caps with separate meanings (pages past `_MAX_PAGES` are
+    COUNTED, never built; text past the budget is never read at all), and a
+    test that lowers one must not silently move the other."""
+    return _XLSX_MAX_TEXT_CHARS
+
+
+class _XlsxBudget:
+    """ONE running produced-characters budget, shared by every sheet of a
+    workbook (a per-sheet budget would let a hundred sheets add up)."""
+
+    def __init__(self, limit: int):
+        self.left = limit
+        self.truncated = False    # some cell text was not read -- the member is told
+        self.spent = False        # a row did not fit: stop reading rows AND sheets
+
+
+class _XlsxBudgetSpent(Exception):
+    """Raised from inside the parser the moment a row does not fit the
+    budget: the rest of that sheet's XML is not walked at all."""
+
+
+def _budgeted_row(row_cells: dict[int, str], width: int, budget: _XlsxBudget) -> str | None:
+    """One row's cells joined by TABs, charged to the budget (plus the newline
+    that will follow it). A row that does not fit is cut at the budget --
+    built piece by piece up to what is left, so the row itself can never be a
+    larger copy than the budget -- and the budget is marked spent."""
+    need = sum(len(v) for v in row_cells.values()) + (width - 1) + 1
+    if need <= budget.left:
+        budget.left -= need
+        return "\t".join(row_cells.get(i, "") for i in range(width))
+    parts: list[str] = []
+    left = max(budget.left - 1, 0)
+    for i in range(width):
+        if left <= 0:
+            break
+        if i:
+            parts.append("\t")
+            left -= 1
+        cell = row_cells.get(i, "")[:left]
+        parts.append(cell)
+        left -= len(cell)
+    budget.left = 0
+    budget.truncated = True
+    budget.spent = True
+    line = "".join(parts).rstrip("\t")
+    return line or None
 
 
 def _local(name: str) -> str:
@@ -513,14 +579,18 @@ def _xlsx_rels(rels: bytes | None) -> dict[str, str]:
     return out
 
 
-def _xlsx_shared_strings(xml: bytes | None) -> list[str]:
-    """The text of every `<si>`, in order. A rich-text string is its runs'
-    `<t>` joined; `<rPh>` (a phonetic reading shown ABOVE East Asian text, not
-    part of it) is skipped."""
+def _xlsx_shared_strings(xml: bytes | None) -> tuple[list[str], bool]:
+    """(the text of every `<si>` in order, was any string cut?). A rich-text
+    string is its runs' `<t>` joined; `<rPh>` (a phonetic reading shown ABOVE
+    East Asian text, not part of it) is skipped. Each string keeps at most
+    `_XLSX_MAX_CELL_CHARS` characters -- counted WHILE parsing, so a long
+    string is never assembled whole only to be sliced."""
     out: list[str] = []
+    capped = [False]
     if not xml:
-        return out
+        return out, False
     cur: list[str] | None = None
+    cur_len = [0]
     depth = {"rPh": 0, "t": 0}
 
     def start(tag, _attrs):
@@ -528,6 +598,7 @@ def _xlsx_shared_strings(xml: bytes | None) -> list[str]:
         local = _local(tag)
         if local == "si":
             cur = []
+            cur_len[0] = 0
         elif local in depth:
             depth[local] += 1
 
@@ -542,10 +613,16 @@ def _xlsx_shared_strings(xml: bytes | None) -> list[str]:
 
     def chars(data):
         if cur is not None and depth["t"] and not depth["rPh"]:
-            cur.append(data)
+            room = _XLSX_MAX_CELL_CHARS - cur_len[0]
+            if len(data) > room:
+                data = data[:max(room, 0)]
+                capped[0] = True
+            if data:
+                cur.append(data)
+                cur_len[0] += len(data)
 
     _parse_xml(xml, start, end, chars)
-    return out
+    return out, capped[0]
 
 
 def _is_date_format(code: str) -> tuple[bool, bool]:
@@ -621,7 +698,15 @@ def _xlsx_serial(raw: str, date1904: bool, has_date: bool, has_time: bool) -> st
     if not (0 <= x < 2958466):
         return _xlsx_number(raw)
     epoch = datetime(1904, 1, 1) if date1904 else datetime(1899, 12, 30)
-    when = epoch + timedelta(days=x)
+    # ⛔ PER CELL (review M-1). The range above is the 1900 system's; the 1904
+    # epoch starts 1,462 days later, so a 1904 serial near the top of that
+    # range is past year 9999 and `timedelta` raises. Caught HERE, one cell
+    # reads as its number -- it used to escape to the workbook level and fail
+    # the whole document for one odd cell.
+    try:
+        when = epoch + timedelta(days=x)
+    except (OverflowError, ValueError):
+        return _xlsx_number(raw)
     if has_date and has_time:
         return when.strftime("%Y-%m-%d %H:%M")
     if has_date:
@@ -643,9 +728,12 @@ def _column_index(ref: str | None) -> int | None:
 
 
 def _xlsx_sheet_rows(xml: bytes, shared: list[str], date_styles: dict[int, tuple[bool, bool]],
-                     date1904: bool) -> list[str]:
+                     date1904: bool, budget: _XlsxBudget | None = None) -> list[str]:
     """Each non-empty row of one sheet as its cells' text joined by TABs (a
-    gap keeps its column), in sheet order."""
+    gap keeps its column), in sheet order -- charged to the workbook's
+    `budget`, and stopped (mid-sheet) the moment a row does not fit it."""
+    if budget is None:
+        budget = _XlsxBudget(_xlsx_text_budget())
     rows: list[str] = []
     row_cells: dict[int, str] | None = None
     cell: dict[str, Any] | None = None
@@ -682,16 +770,28 @@ def _xlsx_sheet_rows(xml: bytes, shared: list[str], date_styles: dict[int, tuple
         elif local in depth and cell is not None:
             depth[local] -= 1
         elif local == "c" and cell is not None and row_cells is not None:
-            text = _xlsx_cell_text(cell, shared, date_styles, date1904)
-            if cell["col"] < _XLSX_MAX_COLUMNS and text:
+            text = _xlsx_cell_text(cell, shared, date_styles, date1904) if cell["col"] < _XLSX_MAX_COLUMNS else ""
+            # ONE cap per text kind, never two copies of one: a shared string
+            # was capped as it was parsed (`_xlsx_shared_strings`); every other
+            # kind (inline, a formula's string, an error, an ISO date) is
+            # capped here. Re-capping shared text here would make the parse-
+            # time cap unprovable (a mutation to it would stay green).
+            if cell["t"] != "s" and len(text) > _XLSX_MAX_CELL_CHARS:
+                text = text[:_XLSX_MAX_CELL_CHARS]
+                budget.truncated = True
+            if text:
                 row_cells[cell["col"]] = text
             next_col[0] = cell["col"] + 1
             cell = None
         elif local == "row" and row_cells is not None:
             if row_cells:
                 width = max(row_cells) + 1
-                rows.append("\t".join(row_cells.get(i, "") for i in range(width)))
+                line = _budgeted_row(row_cells, width, budget)
+                if line is not None:
+                    rows.append(line)
             row_cells = None
+            if budget.spent:
+                raise _XlsxBudgetSpent
 
     def chars(data):
         if capture[0] == "v":
@@ -699,7 +799,10 @@ def _xlsx_sheet_rows(xml: bytes, shared: list[str], date_styles: dict[int, tuple
         elif capture[0] == "t" and cell is not None:
             cell["inline"].append(data)
 
-    _parse_xml(xml, start, end, chars)
+    try:
+        _parse_xml(xml, start, end, chars)
+    except _XlsxBudgetSpent:
+        pass
     return rows
 
 
@@ -744,7 +847,18 @@ def extract_xlsx_pages(data: bytes) -> tuple[list[str], int] | None:
     table, formula cells show their CACHED value, dates are written as ISO
     dates. Sheets past `_XLSX_MAX_SHEETS` are not read; pages past
     `_MAX_PAGES` are counted, never built.
+
+    ⛔ THE TEXT IS BUDGETED (review C-1): one cell is at most
+    `_XLSX_MAX_CELL_CHARS`, and the workbook produces at most
+    `_xlsx_text_budget()` characters of rows across all its sheets. A workbook
+    cut at either cap is still a READABLE document: its pages are what was
+    read, `page_count` counts the pages of THAT text (the part never read is
+    never built, so it cannot be counted without the very walk the budget
+    exists to prevent), and the last stored page ends with
+    `_xlsx_truncated_note()`, so the member is told rather than shown a
+    quietly shorter spreadsheet.
     """
+    budget = _XlsxBudget(_xlsx_text_budget())
     try:
         with zipfile.ZipFile(BytesIO(data)) as zf:
             parts = _XlsxParts(zf)
@@ -753,15 +867,19 @@ def extract_xlsx_pages(data: bytes) -> tuple[list[str], int] | None:
                 return None
             sheets, date1904 = _xlsx_sheets(workbook)
             rels = _xlsx_rels(parts.read("xl/_rels/workbook.xml.rels"))
-            shared = _xlsx_shared_strings(parts.read("xl/sharedStrings.xml"))
+            shared, shared_capped = _xlsx_shared_strings(parts.read("xl/sharedStrings.xml"))
+            if shared_capped:
+                budget.truncated = True
             date_styles = _xlsx_date_styles(parts.read("xl/styles.xml"))
             per_sheet: list[tuple[str, list[str]]] = []
             for name, rid in sheets[:_XLSX_MAX_SHEETS]:
+                if budget.spent:
+                    break                   # no further sheet is even read
                 member = rels.get(rid)
                 xml = parts.read(member) if member else None
                 if xml is None:
                     continue
-                rows = _xlsx_sheet_rows(xml, shared, date_styles, date1904)
+                rows = _xlsx_sheet_rows(xml, shared, date_styles, date1904, budget)
                 if rows:
                     per_sheet.append((name.replace("\x00", "").strip() or "Sheet", rows))
     except (_DocxRefused, _XlsxRefused) as e:
@@ -782,9 +900,22 @@ def extract_xlsx_pages(data: bytes) -> tuple[list[str], int] | None:
         for i, text in enumerate(sheet_pages):
             pages.append(_normalize_docx_text(f"{head if i == 0 else more}\n{text}"))
         count += sheet_count
+    if budget.truncated:
+        note = _xlsx_truncated_note()
+        if not pages:
+            return [note], 1
+        pages[-1] = f"{pages[-1]}\n\n{note}"
     if count == 0:
         return [""], 1
     return pages, count
+
+
+def _xlsx_truncated_note() -> str:
+    """The sentence the last stored page of a budget-cut workbook ends with."""
+    return ("[The rest of this spreadsheet is not in the Notebook. It keeps up to "
+            f"{_xlsx_text_budget():,} characters of a workbook's cell values, and up to "
+            f"{_XLSX_MAX_CELL_CHARS:,} in one cell, so anything past that is not searchable "
+            "here. Open or download the file to see all of it.]")
 
 
 # ── Images (read for OCR, never stored as text here) ─────────────────────────

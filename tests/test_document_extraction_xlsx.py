@@ -167,6 +167,110 @@ class TestXlsxText:
     def test_a_workbook_with_no_cells_is_one_empty_page(self):
         assert dx.extract_xlsx_pages(_xlsx([("S", "")], shared=[])) == ([""], 1)
 
+    def test_a_1904_serial_past_year_9999_reads_as_its_number_and_the_workbook_still_reads(self):
+        # review M-1: the range check is the 1900 system's; in the 1904 system
+        # this serial is past 9999-12-31 and `timedelta` raised -- at the
+        # WORKBOOK level, so one odd cell failed the whole document.
+        styles = '<cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14"/></cellXfs>'
+        row = _row(1, _n("A1", "2958000", style=1), _n("B1", "44829", style=1))
+        (page,) = _pages_of(_xlsx([("S", row)], shared=[], styles=styles, date1904=True))
+        assert page.split("\n")[1] == "2958000\t2026-09-26"
+        assert dx._xlsx_serial("2958000", True, True, False) == "2958000"
+        assert dx._xlsx_serial("2958000", False, True, False) == "9998-09-22", "control: 1900 system reads it"
+
+
+# ── the TEXT is bounded, not only the XML (review C-1) ──────────────────────
+
+def _amplifier(rows: int, string_chars: int = 1_000_000, cells: int = 2) -> bytes:
+    """The reviewer's probe: ONE long shared string referenced by `cells` cells
+    in each of `rows` rows. A few KB of zip; unbounded it is rows x cells
+    copies of the string (measured at the lane tip: 100 rows x 2 cells of a
+    1 MB string peaked at 204 MB, 200 rows at 404 MB)."""
+    word = f"{PHRASE} "
+    text = (word * (string_chars // len(word) + 1))[:string_chars]
+    shared_xml = f'<sst xmlns="{S_NS}"><si><t xml:space="preserve">{text}</t></si></sst>'
+    cols = "ABCDEFGH"
+    body = "".join(_row(r, *[_s(f"{cols[j]}{r}", 0) for j in range(cells)]) for r in range(1, rows + 1))
+    return _xlsx([("S", body)], shared_xml=shared_xml)
+
+
+def _inline(ref: str, text: str) -> str:
+    return f'<c r="{ref}" t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'
+
+
+class TestXlsxTextIsBounded:
+    # ⛔ Both ceilings sit far above the fixed reading (about 5 MB and 0.03 s on
+    # this fixture) and far below the unfixed one: with the budget removed this
+    # file is 2,000 rows x 2 cells x 32,767 chars, about 131 MB of row text;
+    # with neither cap it is about 4 GB.
+    PEAK_CEILING = 40 * 1024 * 1024
+    SECONDS_CEILING = 10.0
+
+    def test_an_amplification_workbook_is_bounded_in_memory_time_and_pages(self):
+        import time
+        import tracemalloc
+
+        data = _amplifier(rows=2000)
+        assert len(data) < 25_000, "the attack is a SMALL file -- that is the whole point"
+        tracemalloc.start()
+        t0 = time.perf_counter()
+        try:
+            out = dx.extract_xlsx_pages(data)
+            seconds = time.perf_counter() - t0
+            _cur, peak = tracemalloc.get_traced_memory()
+        finally:
+            tracemalloc.stop()
+        assert out is not None, "a workbook cut at the budget is still a readable document"
+        pages, count = out
+        assert peak < self.PEAK_CEILING, f"peak {peak / 1e6:.1f} MB"
+        assert seconds < self.SECONDS_CEILING, f"{seconds:.2f} s"
+        # the count is of the text READ -- not of rows x string length
+        assert len(pages) <= dx._MAX_PAGES and count <= 2 * dx._MAX_PAGES, count
+        assert sum(len(p) for p in pages) <= dx._xlsx_text_budget() + 64 * len(pages)
+        assert PHRASE in pages[0]
+        assert pages[-1].endswith(dx._xlsx_truncated_note()), "the member is told, not shown less"
+
+    @pytest.mark.parametrize("where", ["shared", "inline"])
+    def test_one_cell_keeps_at_most_excels_own_limit_and_says_so(self, where):
+        cap = dx._XLSX_MAX_CELL_CHARS
+        tail = "zirconiumtail"
+
+        def book(text: str) -> bytes:
+            if where == "shared":
+                return _xlsx([("S", _row(1, _s("A1", 0)))],
+                             shared_xml=f'<sst xmlns="{S_NS}"><si><t xml:space="preserve">{text}</t></si></sst>')
+            return _xlsx([("S", _row(1, _inline("A1", text)))], shared=[])
+
+        control = "\n".join(_pages_of(book("a" * 100 + " " + tail)))
+        assert tail in control and dx._xlsx_truncated_note() not in control, (
+            "control: under the cap the tail is read and nothing is said")
+        long_pages = _pages_of(book("a" * (cap - 1) + " " + tail))   # the tail starts past the cap
+        body = "\n".join(long_pages)
+        assert tail not in body
+        assert long_pages[-1].endswith(dx._xlsx_truncated_note())
+
+    def test_the_budget_is_ONE_across_all_sheets_and_a_later_sheet_is_not_read(self, monkeypatch):
+        def row_of(word: str, r: int) -> str:
+            return _row(r, _inline(f"A{r}", f"{word}{r:03d} " + "x" * 90))
+
+        def sheet(word: str, n: int) -> str:
+            return "".join(row_of(word, r) for r in range(1, n + 1))
+
+        data = _xlsx([("One", sheet("alpharow", 10)), ("Two", sheet("betarow", 40)),
+                      ("Three", _row(1, _inline("A1", PHRASE)))], shared=[])
+        whole = "\n".join(_pages_of(data))
+        assert "alpharow010" in whole and "betarow040" in whole and PHRASE in whole, (
+            "control: under the real budget every sheet is read")
+        assert dx._xlsx_truncated_note() not in whole
+
+        monkeypatch.setattr(dx, "_xlsx_text_budget", lambda: 3000)
+        pages = _pages_of(data)
+        cut = "\n".join(pages)
+        assert "alpharow010" in cut, "the first sheet fits the budget whole"
+        assert "betarow001" in cut and "betarow040" not in cut, "the second is cut mid-sheet"
+        assert PHRASE not in cut, "a sheet after the budget is spent is not read at all"
+        assert pages[-1].endswith(dx._xlsx_truncated_note())
+
 
 # ── refusals ─────────────────────────────────────────────────────────────────
 
@@ -311,6 +415,22 @@ class TestXlsxEndToEnd:
         plan = ocr.plan_document(doc["id"])
         assert plan["ocr_required"] == [] and plan["status"] == "ready"
         assert seen == []
+
+    def test_a_budget_cut_workbook_is_ready_and_searchable_never_processing_failed(self, env):
+        user = env["user"]
+        note_id = _note(user)
+        doc = _upload_xlsx(user, note_id, _amplifier(rows=200))
+        out = dx.process_document(doc["id"])
+        assert out["ok"] is True and out["status"] == "ready", out
+        assert [h["page_number"] for h in document_search.search_document_pages(user, PHRASE)][:1] == [1]
+        c = get_connection()
+        try:
+            last = c.execute(
+                "SELECT text FROM j2_note_document_pages WHERE document_id = ? "
+                "ORDER BY page_number DESC LIMIT 1", (doc["id"],)).fetchone()[0]
+        finally:
+            c.close()
+        assert last.endswith(dx._xlsx_truncated_note())
 
     def test_an_unreadable_xlsx_is_processing_failed_not_a_crash(self, env):
         user = env["user"]
