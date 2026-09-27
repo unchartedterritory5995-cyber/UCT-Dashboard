@@ -1,7 +1,13 @@
-# promotion-gate: no — ADVISORY until it has been SEEN RED ONCE AND SEEN GREEN ONCE in CI
-#   (ruling D-A2). Only then may it be promoted to `yes`. There is no local proof that
-#   this workflow runs -- a GitHub runner cannot be exercised from this box -- so its
-#   FIRST CI RUN is the proof, and that run's URL belongs in the promotion commit.
+# promotion-gate: yes — PROMOTED 2026-09-27 (wave 10, lane 10D) after being SEEN RED ONCE AND
+#   SEEN GREEN ONCE in CI (ruling D-A2), on a throwaway branch (a11y-proof/w10d-red-green, base
+#   a6c446877, deleted after both runs):
+#     RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36294366772
+#           commit 8540d9ef3 planted ONE unnamed <button> in PublishFolderSheet.jsx; the rail
+#           failed on exactly it: `axe found 1 violation(s) ... [critical] button-name ...
+#           target: button[data-a11y-proof="planted"]` (a11y/axeHarness.js:127).
+#     GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36294512061
+#           commit e367518c4 reverted it; "Notebook accessibility rails" passed.
+#   A red here now REFUSES promoting a master commit to production (tools/promotion_gate.py).
 #   Added 2026-09-26, wave 8 lane 8A (A7).
 # ─── NOTEBOOK ACCESSIBILITY, IN CI ───────────────────────────────────────────
 #

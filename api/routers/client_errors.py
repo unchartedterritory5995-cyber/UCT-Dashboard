@@ -5,6 +5,9 @@
   GET  /api/admin/client-errors      — admin: grouped counts + recent rows.
   GET  /api/admin/notebook-telemetry — admin: count per allow-listed telemetry
                                        event over 7 and 30 days.
+  GET  /api/admin/notebook-slo       — admin: the Notebook SLOs now + recent rows
+  POST /api/admin/notebook-slo/run   — admin: force one SLO check (wave 10, 10D)
+  POST /api/admin/notebook-slo/digest — admin: force the non-paging digest
 
 The store, the scrub and the rate limit are `api/services/client_errors.py`;
 this file is the HTTP shape — and the first two steps of the door's order of
@@ -105,3 +108,34 @@ def admin_notebook_telemetry(_admin: dict = Depends(require_admin)) -> dict[str,
     from api.routers.journal_two import _J2_TELEMETRY_EVENTS
     from api.services.journal_two import notebook_telemetry
     return notebook_telemetry.event_counts(_J2_TELEMETRY_EVENTS)
+
+
+# ── Wave 10 (10D, clause 15c, ruling R-15): the Notebook SLOs ────────────────
+# The evaluator and its alerts are api/services/journal_two/notebook_slo.py; the
+# scheduled runs are registered in api/main.py (the controller's wiring). These
+# are the admin's read and the admin's "run it now" — the same functions the
+# scheduler calls, never a second implementation.
+
+@router.get("/api/admin/notebook-slo")
+def admin_notebook_slo(
+    limit: int = Query(default=50, ge=1, le=500),
+    _admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """The SLOs as they read NOW (nothing written) plus the newest recorded rows —
+    evaluations, pages and digests."""
+    from api.services.journal_two import notebook_slo
+    return {"now": notebook_slo.evaluate(), "events": notebook_slo.recent_events(limit)}
+
+
+@router.post("/api/admin/notebook-slo/run")
+def admin_notebook_slo_run(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Force one scheduled check: record the evaluation, page a save-success breach."""
+    from api.services.journal_two import notebook_slo
+    return notebook_slo.run_check()
+
+
+@router.post("/api/admin/notebook-slo/digest")
+def admin_notebook_slo_digest(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
+    """Force the daily, non-paging digest row."""
+    from api.services.journal_two import notebook_slo
+    return notebook_slo.run_digest()
