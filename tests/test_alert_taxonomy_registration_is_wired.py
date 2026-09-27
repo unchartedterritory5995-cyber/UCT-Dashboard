@@ -37,7 +37,11 @@ OFFERS a `register()`; the process takes it up when the dark run is approved.
 ⛔ **THE GENERAL FORM IS WORTH MORE THAN THE INSTANCE:** a gap between what a
 module PROVIDES and what the process USES is not automatically a defect. Ask
 what the boundary is for before closing it. The same shape produced this repo's
-`earnings_router` row — present, unmounted, and deliberately so.
+`earnings_router` row — present, unmounted, and deliberately so for months.
+⚠️ That instance has since been resolved the OTHER way: the module was retired
+2026-09-26 (TERM-004) because it had zero consumers AND its docstring instructed
+a colliding mount, which a CP2 trigger type does not. The shape still holds; only
+that example's ending changed.
 """
 from __future__ import annotations
 

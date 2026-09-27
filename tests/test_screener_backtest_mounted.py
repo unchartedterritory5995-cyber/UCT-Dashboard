@@ -4,8 +4,10 @@ MEASURED ON THE REAL APP RATHER THAN ON THE ROUTER THAT DECLARES IT.
 WHY THIS FILE EXISTS
 --------------------
 This repo's signature failure is a feature that is built, tested, green — and
-reachable from nothing. `api/earnings_router.py` has sat unmounted for months
-while its own docstring explains how to mount it. `scan_evaluator.enabled()`'s
+reachable from nothing. `api/earnings_router.py` sat unmounted for months while
+its own docstring explained how to mount it — it was finally RETIRED 2026-09-26
+(TERM-004); `tests/test_earnings_router_stays_unmounted.py` carries the record
+and now guards the address instead of the module. `scan_evaluator.enabled()`'s
 docstring and the comment above its `add_job` BOTH said "E-4 has not wired a
 surface to these results" for weeks after the surface was wired; two copies of
 one false sentence read as corroboration.
