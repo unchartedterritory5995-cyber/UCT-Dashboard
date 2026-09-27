@@ -1,0 +1,16 @@
+{
+  "identity": "http://127.0.0.1:8213 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T19-44-16.md (identity 9d0cc4000cf8..., data dir C:\\data-w10c)",
+  "proven": true,
+  "create": 200,
+  "note_id": "2adf13296c1a42ab8ec28486d887bd29",
+  "batch_export_bogus_format": 422,
+  "unreadable_notice": false,
+  "body_puts": [
+    {
+      "url": "http://127.0.0.1:8213/api/j2/notes/2adf13296c1a42ab8ec28486d887bd29",
+      "schema": "2"
+    }
+  ],
+  "stored_has_toc": true,
+  "stored_has_typed": true
+}

@@ -1,0 +1,10 @@
+{
+  "color": "DEFAULT",
+  "isTrashed": true,
+  "isPinned": false,
+  "isArchived": false,
+  "title": "Old idea I deleted",
+  "textContent": "This was in the trash.",
+  "userEditedTimestampUsec": 1789000000000000,
+  "createdTimestampUsec": 1789000000000000
+}

@@ -49,6 +49,13 @@ ET = ZoneInfo("America/New_York")
 _PREFIX = "j2_attachment_backups/"   # R2 key prefix
 _KEEP_MIN = 3                        # never prune the newest N, regardless of age
 _MARKER_NAME = ".j2_attachments_backup_last.json"
+# ⛔ Wave 10 (lane 10C, F-7): every tarball carries a MANIFEST of what it holds --
+# each file's relative path, size and sha256 -- as its LAST member, so a restore
+# drill can sample files and prove they come back byte-identical
+# (tools/authdb_restore_drill.py). Top-level and dot-named: a user directory is a
+# member id, so this can never collide with one. Inside the tarball rather than a
+# sidecar object so it is pruned WITH the tarball (a manifest names member ids).
+MANIFEST_NAME = ".uct-attachments-manifest.json"
 
 
 # --- config (read fresh at call time so a Railway var flip / test env takes ---
@@ -158,13 +165,33 @@ def _read_marker():
 
 def _make_tarball(root: Path, dest: Path) -> int:
     """tar.gz the attachments tree; returns file count. Skips nothing —
-    originals are <=5MB validated images, the tree IS the user data."""
+    originals are <=5MB validated images, the tree IS the user data.
+
+    ⛔ Wave 10 (F-7): each file is read ONCE and the same bytes are both archived
+    and hashed, so the manifest describes exactly what the tarball holds (a file
+    that changed between a hash and a separate `tar.add` would be described wrong).
+    The manifest is the last member; the returned count is user files only."""
+    import hashlib
+    import io
+
     count = 0
+    files = []
     with tarfile.open(dest, "w:gz") as tar:
         for p in sorted(root.rglob("*")):
             if p.is_file():
-                tar.add(p, arcname=str(p.relative_to(root)))
+                data = p.read_bytes()
+                arcname = str(p.relative_to(root))
+                info = tar.gettarinfo(str(p), arcname=arcname)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+                files.append({"path": arcname.replace("\\", "/"), "bytes": len(data),
+                              "sha256": hashlib.sha256(data).hexdigest()})
                 count += 1
+        manifest = json.dumps({"v": 1, "count": count, "files": files}).encode("utf-8")
+        minfo = tarfile.TarInfo(MANIFEST_NAME)
+        minfo.size = len(manifest)
+        minfo.mtime = int(time.time())
+        tar.addfile(minfo, io.BytesIO(manifest))
     return count
 
 
@@ -277,19 +304,46 @@ def backup_j2_attachments_to_r2() -> dict:
 
 # --- scheduler ---------------------------------------------------------------
 
+#: The ONE statement of when the backup runs. register_jobs builds its trigger from it, and
+#: the restore drill derives its freshness limit from it (longest_gap_hours) -- so a changed
+#: schedule moves the drill's limit with it instead of leaving a stale number behind.
+SCHEDULE = {"day_of_week": "mon-sat", "hour": 2, "minute": 45}
+SCHEDULE_TZ = "America/New_York"
+
+
+def _trigger():
+    from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
+    return CronTrigger(**SCHEDULE, timezone=ZoneInfo(SCHEDULE_TZ))
+
+
+def longest_gap_hours() -> float:
+    """The longest interval between two consecutive scheduled runs, in hours (Mon-Sat:
+    Saturday 02:45 -> Monday 02:45 = 48). Walked over two weeks of the real trigger's fire
+    times, so a schedule change is measured, never retyped."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    trig = _trigger()
+    t = _dt.datetime(2026, 1, 5, tzinfo=ZoneInfo(SCHEDULE_TZ))   # any fixed Monday
+    prev, times = None, []
+    for _ in range(20):
+        t = trig.get_next_fire_time(prev, t)
+        times.append(t)
+        prev = t
+        t = t + _dt.timedelta(seconds=1)
+    return max((b - a).total_seconds() for a, b in zip(times, times[1:])) / 3600.0
+
+
 def register_jobs(scheduler) -> bool:
     """Nightly 02:45 ET Mon-Sat backup (post-close, quiet, offset from
-    flow_backup's 02:30). Gated by J2_ATTACHMENT_BACKUP_ENABLED. Returns True
-    iff the job was registered."""
+    flow_backup's 02:30) -- SCHEDULE above. Gated by J2_ATTACHMENT_BACKUP_ENABLED.
+    Returns True iff the job was registered."""
     if not _enabled():
         logger.info("[j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)")
         return False
-    from apscheduler.triggers.cron import CronTrigger
-    from zoneinfo import ZoneInfo
     scheduler.add_job(
         backup_j2_attachments_to_r2,
-        CronTrigger(day_of_week="mon-sat", hour=2, minute=45,
-                    timezone=ZoneInfo("America/New_York")),
+        _trigger(),
         id="j2_attachments_backup", max_instances=1, replace_existing=True)
     logger.info("[j2-attach-backup] scheduled 02:45 ET Mon-Sat (retain=%dd)", _retain_days())
     return True

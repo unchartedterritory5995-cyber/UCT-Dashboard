@@ -25,7 +25,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { useNavigate } from 'react-router-dom'
-import { installFetch, latchWave8Flags, noteDetail, NOTES, Providers } from './fixtures'
+import { installFetch, landPendingAutosave, latchWave8Flags, noteDetail, NOTES, Providers } from './fixtures'
 import NotebookTab from '../tabs/NotebookTab'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 
@@ -247,6 +247,7 @@ describe('focus in the note editor', () => {
     await settle()
     expect(active()).toBe(editor.view.dom)
     expect(editor.state.selection.from).toBe(caret)
+    await landPendingAutosave()
   })
 
   it('Escape in the emoji menu leaves focus in the note, caret unmoved', async () => {
@@ -259,6 +260,7 @@ describe('focus in the note editor', () => {
     await settle()
     expect(active()).toBe(editor.view.dom)
     expect(editor.state.selection.from).toBe(caret)
+    await landPendingAutosave()
   })
 
   it('closing the colour menu gives focus back to its toolbar button', async () => {

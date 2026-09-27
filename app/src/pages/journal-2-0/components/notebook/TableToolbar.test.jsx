@@ -1,7 +1,7 @@
 // Wave 6 item 1 — the table UI: the slash insert, the floating toolbar's every
 // control (through the table extension's own commands, on a REAL editor), and
 // Tab / Shift-Tab between cells.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import { useEffect, useReducer } from 'react'
 import { Editor } from '@tiptap/core'
@@ -221,5 +221,114 @@ describe('Tab / Shift-Tab between cells', () => {
     expect(shape(ed)).toEqual([3, 2])
     expect(cellText(ed)).toBe('')
     expect(tableAtSelection(ed.state)).not.toBeNull()
+  })
+})
+
+// Wave 10 lane 10B — G-134: sort by a column, and size a column, from the bar.
+// Asserted by the table the member SEES (the rendered cells, the colgroup),
+// never by a spied command.
+describe('<TableToolbar> — sort and column width (wave 10, G-134)', () => {
+  // jsdom has no layout: an Undo scrolls the selection into view, which asks a
+  // Range for its rects. Stubbed for this block only (the editor tests' idiom).
+  const saved = {}
+  beforeAll(() => {
+    saved.rects = Range.prototype.getClientRects
+    saved.box = Range.prototype.getBoundingClientRect
+    Range.prototype.getClientRects = () => []
+    Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
+  })
+  afterAll(() => {
+    Range.prototype.getClientRects = saved.rects
+    Range.prototype.getBoundingClientRect = saved.box
+  })
+  const PRICES = {
+    type: 'table',
+    content: [
+      row(cell('Sym', 'tableHeader'), cell('Px', 'tableHeader')),
+      row(cell('NVDA'), cell('120')),
+      row(cell('AMD'), cell('9.5')),
+      row(cell('META'), cell('')),
+      row(cell('TSLA'), cell('1,050')),
+    ],
+  }
+  /** The rendered column, top to bottom, as the member reads it. */
+  const renderedColumn = (ed, i) => [...ed.view.dom.querySelectorAll('tr')].map((tr) => tr.children[i]?.textContent)
+
+  it('Sort A→Z orders the rows by the caret\'s column — numbers as numbers, blank last, header on top', () => {
+    const ed = mount([PRICES])
+    render(<Harness ed={ed} />)
+    caretIn(ed, '9.5')
+    fireEvent.click(screen.getByRole('button', { name: 'Sort rows by this column, A to Z' }))
+    expect(renderedColumn(ed, 1)).toEqual(['Px', '9.5', '120', '1,050', ''])
+    expect(renderedColumn(ed, 0)).toEqual(['Sym', 'AMD', 'NVDA', 'TSLA', 'META'])
+    // the bar is still open, on the same column
+    expect(screen.getByRole('toolbar', { name: 'Table' })).toBeTruthy()
+  })
+
+  it('Sort Z→A reverses it; the blank still sinks', () => {
+    const ed = mount([PRICES])
+    render(<Harness ed={ed} />)
+    caretIn(ed, '120')
+    fireEvent.click(screen.getByRole('button', { name: 'Sort rows by this column, Z to A' }))
+    expect(renderedColumn(ed, 1)).toEqual(['Px', '1,050', '120', '9.5', ''])
+  })
+
+  it('ONE Ctrl+Z after a sort puts every row back', () => {
+    const ed = mount([PRICES])
+    render(<Harness ed={ed} />)
+    const before = renderedColumn(ed, 0)
+    caretIn(ed, 'AMD')
+    fireEvent.click(screen.getByRole('button', { name: 'Sort rows by this column, A to Z' }))
+    expect(renderedColumn(ed, 0)).not.toEqual(before)
+    act(() => { ed.commands.undo() })
+    expect(renderedColumn(ed, 0)).toEqual(before)
+  })
+
+  it('a sort is ONE document change (one transaction), and so is a width step', () => {
+    const ed = mount([PRICES])
+    render(<Harness ed={ed} />)
+    caretIn(ed, 'AMD')
+    let changes = 0
+    const count = ({ transaction }) => { if (transaction.docChanged) changes += 1 }
+    ed.on('transaction', count)
+    fireEvent.click(screen.getByRole('button', { name: 'Sort rows by this column, Z to A' }))
+    expect(changes).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Make this column wider' }))
+    expect(changes).toBe(2)
+    ed.off('transaction', count)
+  })
+
+  it('Sort is DISABLED, with the reason, on a table that cannot be sorted', () => {
+    const ed = mount([{ type: 'table', content: [row(cell('h', 'tableHeader')), row(cell('only'))] }])
+    render(<Harness ed={ed} />)
+    caretIn(ed, 'only')
+    const asc = screen.getByRole('button', { name: 'Sort rows by this column, A to Z' })
+    expect(asc.disabled).toBe(true)
+    expect(asc.getAttribute('title')).toBe('There is only one row to sort.')
+  })
+
+  it('Wider widens the caret\'s column — drawn in the colgroup — and Narrower brings it back', () => {
+    const ed = mount([PRICES])
+    render(<Harness ed={ed} />)
+    caretIn(ed, 'AMD')
+    const col0 = () => ed.view.dom.closest('div').querySelector('table colgroup col')
+    fireEvent.click(screen.getByRole('button', { name: 'Make this column wider' }))
+    // an unsized column starts at 120px; one step is 40px
+    expect(col0()?.style.width).toBe('160px')
+    fireEvent.click(screen.getByRole('button', { name: 'Make this column narrower' }))
+    expect(col0()?.style.width).toBe('120px')
+  })
+
+  it('Narrower is disabled at the floor — never a silent click', () => {
+    const ed = mount([{ type: 'table', content: [
+      // a real column carries ONE width in every row (fixTables normalises a
+      // mixed column), exactly as the drag handle and Wider write it
+      row({ type: 'tableCell', attrs: { colwidth: [40] }, content: [P('a')] }, cell('b')),
+      row({ type: 'tableCell', attrs: { colwidth: [40] }, content: [P('c')] }, cell('d')),
+    ] }])
+    render(<Harness ed={ed} />)
+    caretIn(ed, 'a')
+    expect(screen.getByRole('button', { name: 'Make this column narrower' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Make this column wider' }).disabled).toBe(false)
   })
 })

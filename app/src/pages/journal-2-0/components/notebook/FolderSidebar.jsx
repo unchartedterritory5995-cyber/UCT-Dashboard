@@ -12,6 +12,10 @@ import { searchResultTitle, searchResultHint, reviewDateText }
   from '../../lib/searchResultLabel'
 import { outcomeLabel } from '../../lib/reviewOutcomes'
 import { searchResultTarget } from '../../lib/searchNavigation'
+import {
+  KIND_EXCERPT, KIND_LABEL, KIND_NOTE, KIND_PAGE, KIND_REVIEW,
+  bestMatchesCountText, fuseBestMatches, kindsWithHits, rankableCount,
+} from '../../lib/bestMatches'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
@@ -1043,6 +1047,24 @@ export default function FolderSidebar({
   const { results: reviewResults, isLoading: reviewsSearching } =
     useReviewSearch(debouncedQuery, { enabled: mode === 'search' })
 
+  // Wave 10 (R-5, clause 13b): "Best matches" — ONE ranked list over the four
+  // sections above, by reciprocal-rank fusion of their own orders
+  // (lib/bestMatches.js; no new query, no cross-index score). The sections
+  // stay below it. Shown only once EVERY section has settled (a list that
+  // reshuffled as each section arrived would move rows under the member's
+  // thumb) and only when two or more kinds have hits (with one, it would just
+  // repeat that section's top rows).
+  const bestLists = useMemo(() => ({
+    [KIND_NOTE]: serverSearchResults,
+    [KIND_PAGE]: documentResults,
+    [KIND_EXCERPT]: excerptResults,
+    [KIND_REVIEW]: reviewResults,
+  }), [serverSearchResults, documentResults, excerptResults, reviewResults])
+  const showBestMatches = Boolean(trimmedQuery) && !searching && !searchError
+    && !documentsSearching && !excerptsSearching && !reviewsSearching
+    && kindsWithHits(bestLists) >= 2
+  const bestMatches = showBestMatches ? fuseBestMatches(bestLists) : []
+
   // Tag cloud counts, sorted by count descending — that sort is the
   // pre-existing decision; TAG_CAP + the filter below are additive.
   //
@@ -1378,6 +1400,70 @@ export default function FolderSidebar({
                   Clear filters
                 </button>
               )}
+            </div>
+          )}
+
+          {bestMatches.length > 0 && (
+            <div className={`${styles.searchResults} ${styles.bestMatches}`} role="group" aria-label="Best matches"
+                 data-testid="best-matches">
+              <div className={styles.searchCount}>
+                {bestMatchesCountText(bestMatches.length, rankableCount(bestLists))}
+              </div>
+              {bestMatches.map((m) => {
+                // Each row opens exactly what the same row in its own section
+                // below opens, and says what KIND of hit it is.
+                const kindLine = <span className={styles.bestKind}>{KIND_LABEL[m.kind]}</span>
+                if (m.kind === KIND_NOTE) {
+                  const n = m.item
+                  const hasSnippet = Boolean(n.bodySnippet || n.titleSnippet)
+                  const reason = hasSnippet ? null : matchReasonFor(n, trimmedQuery)
+                  return (
+                    <button key={m.key} type="button"
+                      className={`${styles.searchResultRow} ${activeNoteId === n.id ? styles.rowActive : ''}`}
+                      onClick={(e) => openSearchRow(n, e)}>
+                      <NoteIcon />
+                      <span className={styles.searchResultBody}>
+                        {kindLine}
+                        <span className={styles.searchResultTitle}>
+                          {n.titleSnippet ? renderSnippetMarks(n.titleSnippet) : (n.title?.trim() || 'Untitled')}
+                        </span>
+                        {n.bodySnippet ? (
+                          <span className={styles.searchResultSnippet}>{renderSnippetMarks(n.bodySnippet)}</span>
+                        ) : reason ? (
+                          <span className={styles.searchResultReason}>{reason}</span>
+                        ) : null}
+                      </span>
+                    </button>
+                  )
+                }
+                const r = m.item
+                const icon = m.kind === KIND_PAGE ? (r.sourceKind === 'web' ? 'link' : 'document')
+                  : m.kind === KIND_EXCERPT ? 'quote' : 'clock'
+                return (
+                  <button key={m.key} type="button" className={styles.searchResultRow}
+                    onClick={() => onOpenNote({ id: r.noteId }, searchResultTarget(r, { kind: m.kind }))}
+                    title={searchResultHint(r, { kind: m.kind })}>
+                    <UIcon name={icon} size={12} gold={false} />
+                    <span className={styles.searchResultBody}>
+                      {kindLine}
+                      <span className={styles.searchResultTitle}>
+                        {searchResultTitle(r, { kind: m.kind })}
+                        {/* The same provenance warning the Documents row carries. */}
+                        {m.kind === KIND_PAGE && isScannedText(r) && (
+                          <span className={styles.scannedChip} title={SCANNED_TEXT_HINT}>{SCANNED_TEXT_LABEL}</span>
+                        )}
+                      </span>
+                      <span className={styles.searchResultSnippet}>{renderSnippetMarks(r.snippet)}</span>
+                      {/* A review says the decision, never only the prose (Wave O6). */}
+                      {m.kind === KIND_REVIEW && (
+                        <span className={styles.searchResultMeta}>
+                          {[outcomeLabel(r.outcome), reviewDateText(r.completedAt)].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
 

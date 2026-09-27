@@ -39,9 +39,10 @@
  * asks the toolbar mic of ITS editor to start. Every existing caller passes no
  * ref and renders exactly as before (VoiceInputButton.ref.test.jsx rails it).
  */
-import { forwardRef, useState, useRef, useEffect, useCallback, useImperativeHandle } from 'react'
+import { forwardRef, useState, useRef, useEffect, useLayoutEffect, useCallback, useImperativeHandle } from 'react'
 import { useIsPaid } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
+import { placeHint, HINT_GUTTER } from './voiceHintPlacement'
 
 function getSpeechRecognitionCtor() {
   if (typeof window === 'undefined' && typeof global === 'undefined') return null
@@ -123,6 +124,40 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
     markHintSeen()
     setShowHint(false)
   }, [])
+
+  // The hint's measured place (placeHint, voiceHintPlacement.js -- wave 10 follow-up
+  // F1: it ran off a 390 px phone's right edge). Measured after layout, on a resize,
+  // and when the row the mic sits in changes size (a toolbar that re-wraps moves the
+  // mic). The hint is absolutely positioned, so moving it never resizes that row:
+  // setting the offset cannot re-trigger the observer, and an unchanged value is a
+  // no-op for React.
+  const hintRef = useRef(null)
+  const [hintLeft, setHintLeft] = useState(0)
+  const hintVisible = showHint && !recording && !uploading
+  useLayoutEffect(() => {
+    if (!hintVisible) return undefined
+    const el = hintRef.current
+    const anchor = el && el.parentElement
+    if (!el || !anchor) return undefined
+    const place = () => {
+      const width = el.offsetWidth
+      if (!width) return   // not laid out (a test DOM, a hidden subtree): keep the authored anchor
+      setHintLeft(placeHint({
+        anchorLeft: anchor.getBoundingClientRect().left,
+        hintWidth: width,
+        viewportWidth: document.documentElement.clientWidth,
+      }))
+    }
+    place()
+    window.addEventListener('resize', place)
+    const row = anchor.parentElement
+    const ro = row && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(place) : null
+    if (ro) ro.observe(row)
+    return () => {
+      window.removeEventListener('resize', place)
+      if (ro) ro.disconnect()
+    }
+  }, [hintVisible])
 
   // Whisper path refs
   const mediaRecorderRef = useRef(null)
@@ -315,12 +350,13 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
 
   return (
     <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-      {showHint && !recording && !uploading && (
+      {hintVisible && (
         <span
+          ref={hintRef}
           role="status"
           style={{
-            position: 'absolute', bottom: 'calc(100% + 8px)', left: 0,
-            zIndex: 20, width: 230,
+            position: 'absolute', bottom: 'calc(100% + 8px)', left: hintLeft,
+            zIndex: 20, width: 230, maxWidth: `calc(100vw - ${2 * HINT_GUTTER}px)`,
             background: 'var(--bg-base, #1a1a1a)',
             border: '1px solid var(--ut-gold, #c9a84c)',
             borderRadius: 6, padding: '8px 10px',

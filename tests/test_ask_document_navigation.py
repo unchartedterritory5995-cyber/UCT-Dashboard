@@ -187,5 +187,9 @@ def test_the_client_reads_the_SAME_two_values():
     transport = (lib / "openCitation.js").read_text(encoding="utf-8")
     assert re.search(r"import \{[^}]*\bSOURCE_WEB\b[^}]*\bSOURCE_ATTACHMENT\b[^}]*\}"
                      r" from '\./searchResultLabel'", transport)
-    assert not re.search(r"=\s*'(web|attachment)'", transport), (
+    # An ASSIGNMENT of the literal (`const X = 'web'`) restates the value. A COMPARISON
+    # (`r.kind === 'web'`) reads it, and `{ kind: 'web' }` is openCitation's own result
+    # tag -- neither is a restatement. The first form of this check matched the
+    # comparison and had been red on master since #183 (a3d9f5a1e).
+    assert not re.search(r"(?<![=!<>])=\s*'(web|attachment)'", transport), (
         "openCitation.js restates a kind value instead of importing it")

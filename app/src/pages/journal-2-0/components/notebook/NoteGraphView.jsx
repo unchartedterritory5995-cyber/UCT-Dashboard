@@ -112,6 +112,52 @@ const RING_GAP = 3
 const RING_WIDTH = 2.5
 const RING_FALLBACK = '#dcbb5e' // jsdom and a host with no computed style
 
+// ⭐ Wave 10 (9b, accessibility.md "the graph canvas draws in fixed colours"):
+// EVERY colour the canvas paints now comes from the stylesheet, like the ring
+// always did. Each is a hidden `data-graph-ink` element in the canvas wrapper
+// whose CSS `color` is a theme token (NoteGraphView.module.css `.ink*`), read
+// with getComputedStyle -- so the graph follows dark, oled and light, and the
+// contrast rail measures every one of them against the canvas surface
+// (a11y/contrastAudit.js `graphInkRows`). ⚰️ Until wave 10 the nodes, edges and
+// hub labels were literals chosen for a dark canvas; on the light theme the hub
+// labels were near-invisible, and nothing measured them.
+// ⛔ draw() holds NO colour literal (NoteGraphView.inks.test.jsx reads its
+// source): these fallbacks are for jsdom and a host with no computed style only.
+export const GRAPH_INKS = Object.freeze(['node', 'orphan', 'hover', 'label', 'labelHover', 'edge', 'edgeLit'])
+const INK_FALLBACK = Object.freeze({
+  node: '#7aa2c8', orphan: '#94a3b8', hover: '#c9a84c', label: '#cbd5e1',
+  labelHover: '#f8fafc', edge: '#94a3b8', edgeLit: '#c9a84c', ring: RING_FALLBACK,
+})
+// An orphan's fill is a tint of its ink; its dashed OUTLINE (full strength)
+// is what carries the contrast.
+const ORPHAN_FILL_ALPHA = 0.25
+
+/** The palette, read from the ink elements and the canvas (the ring). Never
+ *  throws; a colour that cannot be read is its fallback. */
+function readInks(inkRoot, canvas) {
+  const out = { ...INK_FALLBACK }
+  const read = (el) => {
+    try {
+      const c = el ? window.getComputedStyle(el).color : ''
+      return c || null
+    } catch {
+      return null
+    }
+  }
+  for (const name of GRAPH_INKS) {
+    const c = read(inkRoot?.querySelector(`[data-graph-ink="${name}"]`))
+    if (c) out[name] = c
+  }
+  out.ring = read(canvas) || RING_FALLBACK
+  return out
+}
+
+/** What a theme switch changes on the page root (Layout.jsx / appThemes.js). */
+const themeKey = () => {
+  const el = typeof document !== 'undefined' ? document.documentElement : null
+  return el ? `${el.getAttribute('data-theme') || ''}|${el.getAttribute('style') || ''}|${el.className || ''}` : ''
+}
+
 export default function NoteGraphView({ onOpenNote }) {
   const { data, isLoading } = useSWR('/api/j2/notes/graph', fetcher, {
     revalidateOnFocus: false,
@@ -125,6 +171,10 @@ export default function NoteGraphView({ onOpenNote }) {
   const hoverRef = useRef(null)
   const selectedRef = useRef(null)
   const rafRef = useRef(0)
+  // Wave 10 (9b): the stylesheet's inks, and the palette read from them --
+  // cached per theme, so a frame never reads styles (draw() runs 220 times).
+  const inkRootRef = useRef(null)
+  const inksRef = useRef({ key: null, inks: null })
   const [hover, setHover] = useState(null)
   const [selected, setSelected] = useState(null)
   const [view, setView] = useState(readGraphView)
@@ -335,27 +385,27 @@ export default function NoteGraphView({ onOpenNote }) {
       stepCap = Math.max(stepCap * COOLING, stepCapFloor)
     }
 
-    /** The ring colour, read from the canvas's own CSS `color` -- only when a
-     *  note is selected, so an unselected frame costs no style read. */
-    const ringColor = () => {
-      try {
-        const c = window.getComputedStyle(canvas).color
-        if (c) return c
-      } catch {
-        // fall through
+    /** The palette for the page's CURRENT theme: read from the stylesheet's
+     *  inks (and the ring from the canvas's own CSS `color`) once per theme,
+     *  never per frame -- a frame only compares the theme key. */
+    const inks = () => {
+      const key = themeKey()
+      if (inksRef.current.key !== key || !inksRef.current.inks) {
+        inksRef.current = { key, inks: readInks(inkRootRef.current, canvas) }
       }
-      return RING_FALLBACK
+      return inksRef.current.inks
     }
 
     const draw = () => {
       const hovered = hoverRef.current
       const chosen = selectedRef.current ? byId.get(selectedRef.current) : null
-      const ring = chosen ? ringColor() : null
+      const ink = inks()
+      const ring = chosen ? ink.ring : null
       ctx.clearRect(0, 0, size.w, size.h)
       ctx.lineWidth = 1
       for (const e of edges) {
         const lit = hovered && (e.s.id === hovered || e.t.id === hovered)
-        ctx.strokeStyle = lit ? 'rgba(201,168,76,0.85)' : 'rgba(148,163,184,0.20)'
+        ctx.strokeStyle = lit ? ink.edgeLit : ink.edge
         ctx.beginPath()
         ctx.moveTo(e.s.x, e.s.y)
         ctx.lineTo(e.t.x, e.t.y)
@@ -379,10 +429,18 @@ export default function NoteGraphView({ onOpenNote }) {
         const orphan = !n.degree
         ctx.beginPath()
         ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2)
-        ctx.fillStyle = isHover ? '#c9a84c' : (orphan ? 'rgba(148,163,184,0.38)' : '#7aa2c8')
-        ctx.fill()
+        if (orphan && !isHover) {
+          // A tint of the orphan ink; the dashed outline below carries it.
+          ctx.globalAlpha = ORPHAN_FILL_ALPHA
+          ctx.fillStyle = ink.orphan
+          ctx.fill()
+          ctx.globalAlpha = 1
+        } else {
+          ctx.fillStyle = isHover ? ink.hover : ink.node
+          ctx.fill()
+        }
         if (orphan) {
-          ctx.strokeStyle = 'rgba(148,163,184,0.55)'
+          ctx.strokeStyle = ink.orphan
           ctx.setLineDash([2, 2])
           ctx.stroke()
           ctx.setLineDash([])
@@ -390,7 +448,7 @@ export default function NoteGraphView({ onOpenNote }) {
         // The biggest hubs, whatever is hovered, and the keyboard selection.
         // See LABEL_BUDGET.
         if (isHover || isChosen || labelled.has(n.id)) {
-          ctx.fillStyle = isHover ? '#f8fafc' : isChosen ? ring : 'rgba(226,232,240,0.62)'
+          ctx.fillStyle = isHover ? ink.labelHover : isChosen ? ring : ink.label
           ctx.font = (isHover || isChosen ? '12px ' : '10px ') + "'Instrument Sans', system-ui, sans-serif"
           ctx.textAlign = 'center'
           const t = n.title.length > 28 ? n.title.slice(0, 27) + '…' : n.title
@@ -426,6 +484,16 @@ export default function NoteGraphView({ onOpenNote }) {
     hoverRef.current = hover
     if (drawRef.current) drawRef.current()
   }, [hover])
+
+  // Wave 10 (9b): a theme switch while the graph is open repaints it in the new
+  // theme's inks -- ONE frame, like a hover (the palette re-reads because its
+  // theme key moved). No state, so nothing re-renders.
+  useEffect(() => {
+    if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return undefined
+    const mo = new MutationObserver(() => { if (drawRef.current) drawRef.current() })
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'style', 'class'] })
+    return () => mo.disconnect()
+  }, [])
 
   // ...and so does a key press. ⛔ Same contract, same reason (header note).
   useEffect(() => {
@@ -595,6 +663,13 @@ export default function NoteGraphView({ onOpenNote }) {
             onMouseLeave={() => setHover(null)}
             onClick={(ev) => { const n = pick(ev); if (n && onOpenNote) onOpenNote(n.id) }}
           />
+          {/* Wave 10 (9b): the canvas's colours, as stylesheet tokens (see
+              GRAPH_INKS). Never shown; only their computed `color` is read. */}
+          <span ref={inkRootRef} className={styles.inks} aria-hidden="true" hidden>
+            {GRAPH_INKS.map((name) => (
+              <span key={name} data-graph-ink={name} className={styles[`ink${name[0].toUpperCase()}${name.slice(1)}`]} />
+            ))}
+          </span>
           <p id={keysId} className="sr-only">
             Arrow keys move to the nearest note in that direction. Home and End go to
             the first and last note by title. Enter opens the selected note. Escape

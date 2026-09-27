@@ -1,0 +1,23 @@
+{
+  "color": "YELLOW",
+  "isTrashed": false,
+  "isPinned": false,
+  "isArchived": true,
+  "title": "",
+  "textContent": "Cut losers fast\nLet winners run",
+  "userEditedTimestampUsec": 1790089200000000,
+  "createdTimestampUsec": 1790089200000000,
+  "labels": [
+    {
+      "name": "Rules"
+    }
+  ],
+  "annotations": [
+    {
+      "description": "",
+      "source": "WEBLINK",
+      "title": "Market wizards",
+      "url": "https://example.com/wizards"
+    }
+  ]
+}

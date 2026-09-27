@@ -1,0 +1,344 @@
+{
+ "wave": 10,
+ "lane": "10B",
+ "checks": {
+  "B1_touch_undo_redo": {
+   "verdict": "PASS",
+   "typed": true,
+   "undo_visible_390": true,
+   "undo_enabled": true,
+   "undo_box": {
+    "x": 60,
+    "y": -127.609375,
+    "width": 46.6875,
+    "height": 44
+   },
+   "text_after_undo": "Start.",
+   "text_after_redo": "Start. one",
+   "undo_visible_1280": false,
+   "screenshot": "r184610-B1-390.png"
+  },
+  "B2_table_sort_resize_reload": {
+   "verdict": "PASS",
+   "order_before": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_sort": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_one_undo": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "order_after_redo": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "resize_handle_seen": true,
+   "width_before": 416.8,
+   "width_after_drag": 507,
+   "width_after_reload": 507,
+   "stored": {
+    "colwidths": [
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ],
+     [
+      [
+       507
+      ],
+      null
+     ]
+    ],
+    "texts": [
+     [
+      "Ticker",
+      "Price"
+     ],
+     [
+      "AMD",
+      "9.5"
+     ],
+     [
+      "NVDA",
+      "120"
+     ],
+     [
+      "TSLA",
+      "1,050"
+     ]
+    ]
+   },
+   "order_after_reload": [
+    [
+     "Ticker",
+     "Price"
+    ],
+    [
+     "AMD",
+     "9.5"
+    ],
+    [
+     "NVDA",
+     "120"
+    ],
+    [
+     "TSLA",
+     "1,050"
+    ]
+   ],
+   "screenshots": [
+    "r184610-B2-before-reload.png",
+    "r184610-B2-after-reload.png"
+   ]
+  },
+  "B3_xlsx_cell_found": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n",
+   "traceback": "Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n\n"
+  },
+  "B4_best_matches": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n",
+   "traceback": "Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for get_by_label(\"Search your notes\").first to be visible\n\n"
+  },
+  "B5_import_google_keep": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n    - locator resolved to <button type=\"button\" data-tour=\"import\" aria-haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n",
+   "traceback": "iName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n    - locator resolved to <button type=\"button\" data-tour=\"import\" aria-haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n\n"
+  },
+  "B5_import_logseq": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n    - locator resolved to <button type=\"button\" data-tour=\"import\" aria-haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n",
+   "traceback": "haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <p class=\"_summaryLine_109q3_325\">…</p> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n\n"
+  },
+  "B5_import_onenote_docx": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Import\", exact=True).first\n    - locator resolved to <button type=\"button\" data-tour=\"import\" aria-haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n  2 × retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_header_futca_149\">…</div> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  56 × retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_header_futca_149\">…</div> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n",
+   "traceback": "rue).first\n    - locator resolved to <button type=\"button\" data-tour=\"import\" aria-haspopup=\"dialog\" class=\"_importBtn_1hxjo_485\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> intercepts pointer events\n  2 × retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"_header_futca_149\">…</div> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  56 × retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"_header_futca_149\">…</div> from <div class=\"_backdrop_futca_1 _modal_futca_25\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 500ms\n\n"
+  },
+  "B7_autofill_no_key": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "no model key in the sandbox: no model output can be observed here; the production proof is after L1 (bench@)",
+   "offered": true,
+   "route_answer": {
+    "status": 502,
+    "body": "{\"detail\":\"Compass couldn't suggest values just now. Nothing was changed in your note.\"}"
+   },
+   "panel_text": "Suggested by Compass from this note\nClose\nCompass couldn't suggest values just now. Nothing was changed in your note.",
+   "note_unchanged": true,
+   "property_candidates": [
+    "builtin:thesis_status",
+    "builtin:confidence",
+    "builtin:research_type",
+    "builtin:review_date"
+   ],
+   "screenshot": "r184610-B7-autofill.png"
+  },
+  "B6_graph_light_theme": {
+   "verdict": "FAIL",
+   "theme": "light",
+   "surface": "rgb(244, 245, 246)",
+   "inks": [
+    {
+     "name": "node",
+     "color": "rgb(31, 93, 122)",
+     "ratio": 6.62,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "orphan",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "hover",
+     "color": "rgb(122, 92, 22)",
+     "ratio": 5.71,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "label",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "name": "labelHover",
+     "color": "rgb(11, 14, 17)",
+     "ratio": 17.73,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "name": "edge",
+     "color": "rgb(87, 96, 106)",
+     "ratio": 5.85,
+     "min": 3.0,
+     "ok": true
+    },
+    {
+     "name": "edgeLit",
+     "color": "rgb(122, 92, 22)",
+     "ratio": 5.71,
+     "min": 3.0,
+     "ok": true
+    }
+   ],
+   "ring": {
+    "color": "rgb(122, 92, 22)",
+    "ratio": 5.71
+   },
+   "node_ink_pixels": 0,
+   "screenshot": "r184610-B6-graph-light.png"
+  },
+  "B8_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "tip": "4355e2a3c",
+ "base": "http://127.0.0.1:8212",
+ "data_dir": "C:\\data-w10b",
+ "instrument": "tools\\notebook_wave10b_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": true,
+  "NOTEBOOK_WRITING_HELP_ENABLED": true,
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8212 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T18-45-21.md (identity ec328006fd4b..., data dir C:\\data-w10b)"
+ },
+ "run": "r184610",
+ "server_flags": {
+  "notebook_writing_help_enabled": true,
+  "paid_equiv": true
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\gate-runs\\wave10\\walk-10B-4355e2a3c.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\gate-runs\\wave10\\walk-10B-4355e2a3c.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 18:45:26",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 18:46:10",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-26 18:48:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 18:48:53",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

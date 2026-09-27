@@ -259,34 +259,35 @@
 }
 
 /* Phone: the header action cluster (Log Trade / ? / account / report /
-   settings / More) doesn't fit one row at 390px. `.header`'s own
-   `flex-wrap: wrap` moves `.headerRight` to its own line, but with no width
-   cap the row itself just overflows past the right edge — found by driving
-   the real page at 390px: `.settingsPill`/`.gearIcon` sat flush against the
-   viewport edge and the "More" button (Community + Accounts — the only door
-   to Journal Accounts) was entirely out of frame with no scroll affordance.
-   Made scrollable rather than reflowed, so nothing in the cluster is lost —
-   same idiom as this directory's own `.mobileNav` (JournalMobileNav.module.css). */
+   settings / More) doesn't fit one row at 390px, so it WRAPS onto a second
+   row inside its own box -- every control on screen, none behind a swipe.
+   `.header`'s own `flex-wrap: wrap` moves `.headerRight` to its own line;
+   `max-width: 100%` + `min-width: 0` let that line shrink to the row so the
+   cluster wraps instead of running past the edge.
+
+   ⚰️ It was a hidden-scrollbar sideways SCROLLER (overflow-x: auto) until wave
+   10 follow-up F1. That kept the page from widening, but measured in real
+   Chromium at 390 px (walk row B9d): the settings gear and "More" (Community +
+   Accounts -- the only door to Journal Accounts) sat off screen at x 358-458,
+   reachable only by a swipe nothing hinted at; and because a box that scrolls
+   one axis clips the other, BOTH header menus (More, and the Log Trade split)
+   opened INSIDE the 46 px row and were clipped away -- a finger at an item's
+   centre landed on the backdrop, so neither menu could be used on a phone.
+
+   The More menu anchors to the whole ROW on a phone (`.moreWrap` static, the
+   row `relative`): wherever More wraps to, the menu opens under the row, right-
+   aligned to it, inside the viewport. The Log Trade split stays on its own
+   button (`.logTradeWrap` keeps `position: relative`), which is always first
+   in the row, and opens rightwards from the left edge. */
 @media (max-width: 640px) {
   .headerRight {
+    position: relative;
     min-width: 0;
     max-width: 100%;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
+    flex-wrap: wrap;
   }
-  .headerRight::-webkit-scrollbar {
-    display: none;
-  }
-  /* Flex children shrink by default only to their min-content size unless
-     told not to — without this each pill/button still refuses to go below
-     its own natural width inside the now-scrollable row, which is fine (that
-     is the point), but they must not each ALSO try to grow/shrink and fight
-     the scroll container. */
-  .headerRight > * {
-    flex-shrink: 0;
+  .moreWrap {
+    position: static;
   }
 }
 

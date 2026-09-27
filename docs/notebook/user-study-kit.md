@@ -20,7 +20,7 @@ about to change.
 | file | what it is |
 |---|---|
 | `user-study/screener.md` | the recruit post, screener questions, exclusion rule, scheduling, reminder, thank-you, no-shows |
-| `user-study/consent.md` | the consent form — **DRAFT, owner approval required** |
+| `user-study/consent.md` | the consent form — approved for use 2026-09-26 |
 | `user-study/facilitator-guide.md` | before / during / after, the script, the hint rule, the per-task silent-failure check, the observation sheet |
 | `user-study/study-notebook/` | the committed note set the facilitator imports AFTER T1 (ruling D-9C8) |
 | `user-study/results-template.csv` | one row per participant, machine-readable |

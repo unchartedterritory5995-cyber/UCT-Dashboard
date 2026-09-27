@@ -128,7 +128,42 @@ export function mapCheckboxLists(doc) {
     li.setAttribute('data-type', 'taskItem')
     li.setAttribute('data-checked', box?.checked || box?.hasAttribute('checked') ? 'true' : 'false')
     box?.remove()
-    li.closest('ul')?.setAttribute('data-type', 'taskList')
+  })
+  // Wave 10 (lane 10B, found by the R-18 census's Logseq fixture): a list that
+  // MIXES plain bullets and to-dos -- ordinary in Obsidian, Notion, Logseq and
+  // Roam Markdown -- used to have its whole <ul> typed `taskList`. TipTap's
+  // schema allows only taskItems in a taskList, so every plain bullet was
+  // lifted out and an EMPTY unticked to-do was left in its place. The list is
+  // now split into runs in the source's own order -- taskList / bulletList /
+  // taskList -- the rule the server lane already follows
+  // (`__fixtures__/server_convert/02-mixed-task-list.json`, from `mddoc.py`).
+  const isTask = (li) => li.getAttribute('data-type') === 'taskItem'
+  doc.querySelectorAll('ul').forEach((ul) => {
+    const items = [...ul.children].filter((c) => c.tagName === 'LI')
+    if (!items.some(isTask)) return
+    if (items.every(isTask)) {
+      ul.setAttribute('data-type', 'taskList')
+      return
+    }
+    // ⛔ EVERY child moves, in order -- not only the <li>s (review I-1). An
+    // indented sub-list written as a DIRECT child <ul> (what contenteditable
+    // indent emits) or a stray text run sits between items; filtering to LI
+    // and then removing the original <ul> deleted them silently. A non-LI
+    // node rides with the run it sits in (a plain run when it comes first).
+    let run = null
+    let runIsTask = null
+    for (const node of [...ul.childNodes]) {
+      const isLi = node.nodeType === 1 && node.tagName === 'LI'
+      const task = isLi ? isTask(node) : runIsTask ?? false
+      if (!run || (isLi && task !== runIsTask)) {
+        run = doc.createElement('ul')
+        if (task) run.setAttribute('data-type', 'taskList')
+        ul.parentNode.insertBefore(run, ul)
+        runIsTask = task
+      }
+      run.appendChild(node)
+    }
+    ul.remove()
   })
 }
 

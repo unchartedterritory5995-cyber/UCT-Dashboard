@@ -1261,6 +1261,29 @@ def admin_reset_password_by_id(user_id: str, user: dict = Depends(get_current_us
         conn.close()
 
 
+TOMBSTONE_REFUSED_DETAIL = (
+    "The account was not deleted: its deletion record for the backups could not be "
+    "saved, so a restore of an older backup would bring it back. Nothing was deleted. "
+    "Try again.")
+
+
+def _record_deletion_tombstone_or_refuse(conn, user_id: str) -> dict:
+    """⛔⛔ THE FIRST WRITE OF EVERY ACCOUNT DELETION (wave 10 10C fix round 1, R-9).
+
+    The tombstone -- the row every later backup carries and the object beside them --
+    is recorded BEFORE any delete (the broker purge included), so every way a deletion
+    can fail leaves it in place and a restore's replay finishes the job. If it cannot
+    be recorded, NOTHING is deleted: the request answers 500 with a sentence, because
+    a deletion with no tombstone is undone by the next restore of an older backup.
+    Both admin delete doors call this, so the rule lives in one place."""
+    from api.services import account_tombstones
+    tomb = account_tombstones.record_tombstone(user_id, conn)
+    if not tomb.get("recorded"):
+        print(f"[admin-delete] REFUSED for {user_id}: tombstone not recorded ({tomb.get('why')})")
+        raise HTTPException(status_code=500, detail=TOMBSTONE_REFUSED_DETAIL)
+    return tomb
+
+
 def _cascade_delete_user(conn, user_id: str) -> None:
     """Delete a user and EVERY row referencing them, across all tables that
     declare an actual foreign key to users(id).
@@ -1332,6 +1355,8 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         row = conn.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
+        # R-9: the tombstone BEFORE the first delete, or no delete at all.
+        tomb = _record_deletion_tombstone_or_refuse(conn, user_id)
         # Broker-sync cascade (GDPR/CCPA): purge encrypted credentials + data,
         # best-effort revoke at SnapTrade — run first so the external revoke
         # sees the rows before the full wipe removes them.
@@ -1349,10 +1374,12 @@ def admin_delete_user_by_id(user_id: str, user: dict = Depends(get_current_user)
         j2_purge_report: dict | None = None
         try:
             from api.services.journal_two import account_purge as _j2_purge
-            j2_purge_report = _j2_purge.purge_user_data(user_id, conn)
+            j2_purge_report = _j2_purge.purge_user_data(user_id, conn, tombstone=tomb)
             if not j2_purge_report["ok"]:
                 print(f"[admin-delete] journal_two purge had errors: {j2_purge_report['errors']}")
         except Exception as _e:
+            # The tombstone is already recorded, so the cascade below may proceed: a
+            # restore's replay finishes whatever this purge could not.
             print(f"[admin-delete] journal_two purge failed (non-fatal): {_e}")
             j2_purge_report = {"ok": False, "errors": [str(_e)]}
         _cascade_delete_user(conn, user_id)
@@ -1406,6 +1433,8 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         # Prevent self-deletion
         if target_id == user["id"]:
             raise HTTPException(status_code=400, detail="Cannot delete your own account")
+        # R-9: the tombstone BEFORE the first delete, or no delete at all.
+        tomb = _record_deletion_tombstone_or_refuse(conn, target_id)
         # Broker-sync cascade (GDPR/CCPA) first (external SnapTrade revoke needs
         # the rows present), then wipe every users(id)-referencing table.
         try:
@@ -1419,10 +1448,11 @@ def admin_delete_user(req: DeleteUserRequest, user: dict = Depends(get_current_u
         j2_purge_report: dict | None = None
         try:
             from api.services.journal_two import account_purge as _j2_purge
-            j2_purge_report = _j2_purge.purge_user_data(target_id, conn)
+            j2_purge_report = _j2_purge.purge_user_data(target_id, conn, tombstone=tomb)
             if not j2_purge_report["ok"]:
                 print(f"[delete-user] journal_two purge had errors: {j2_purge_report['errors']}")
         except Exception as _e:
+            # The tombstone is already recorded: the cascade may proceed (see above).
             print(f"[delete-user] journal_two purge failed (non-fatal): {_e}")
             j2_purge_report = {"ok": False, "errors": [str(_e)]}
         _cascade_delete_user(conn, target_id)

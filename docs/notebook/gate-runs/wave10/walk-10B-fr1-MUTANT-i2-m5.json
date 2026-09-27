@@ -1,0 +1,423 @@
+{
+ "wave": 10,
+ "lane": "10B",
+ "checks": {
+  "B9_table_scrolls_not_the_page": {
+   "verdict": "FAIL",
+   "widths": {
+    "390": {
+     "ok": false,
+     "wrapper_scrolls": false,
+     "table_end_on_screen": false,
+     "table_added_overflow": [
+      {
+       "cls": "_main_1vwfj_19",
+       "with_table": 1260,
+       "without": 390
+      }
+     ],
+     "table": {
+      "wrapper": true,
+      "scrollers": [
+       {
+        "cls": "document",
+        "scrollWidth": 390,
+        "clientWidth": 390
+       },
+       {
+        "cls": "_main_1vwfj_19",
+        "scrollWidth": 1260,
+        "clientWidth": 390
+       }
+      ],
+      "innerWidth": 390,
+      "tableStyleWidth": "1200px",
+      "tableWidth": 1200,
+      "wrapperBefore": {
+       "scrollWidth": 1200,
+       "clientWidth": 270,
+       "overflowX": "visible"
+      },
+      "wrapperScrollLeft": 0,
+      "lastCell": {
+       "left": 860,
+       "right": 1260
+      }
+     },
+     "control_scrollers": [
+      {
+       "cls": "document",
+       "scrollWidth": 390,
+       "clientWidth": 390
+      },
+      {
+       "cls": "_main_1vwfj_19",
+       "scrollWidth": 390,
+       "clientWidth": 390
+      }
+     ],
+     "shot": "r202011-B9-390.png"
+    },
+    "820": {
+     "ok": false,
+     "wrapper_scrolls": false,
+     "table_end_on_screen": false,
+     "table_added_overflow": [
+      {
+       "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+       "with_table": 1264,
+       "without": 506
+      }
+     ],
+     "table": {
+      "wrapper": true,
+      "scrollers": [
+       {
+        "cls": "document",
+        "scrollWidth": 820,
+        "clientWidth": 820
+       },
+       {
+        "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+        "scrollWidth": 1264,
+        "clientWidth": 506
+       },
+       {
+        "cls": "_main_1vwfj_19",
+        "scrollWidth": 820,
+        "clientWidth": 820
+       }
+      ],
+      "innerWidth": 820,
+      "tableStyleWidth": "1200px",
+      "tableWidth": 1200,
+      "wrapperBefore": {
+       "scrollWidth": 1200,
+       "clientWidth": 378,
+       "overflowX": "visible"
+      },
+      "wrapperScrollLeft": 0,
+      "lastCell": {
+       "left": 1154,
+       "right": 1554
+      }
+     },
+     "control_scrollers": [
+      {
+       "cls": "document",
+       "scrollWidth": 820,
+       "clientWidth": 820
+      },
+      {
+       "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+       "scrollWidth": 506,
+       "clientWidth": 506
+      },
+      {
+       "cls": "_main_1vwfj_19",
+       "scrollWidth": 820,
+       "clientWidth": 820
+      }
+     ],
+     "shot": "r202011-B9-820.png"
+    },
+    "1200": {
+     "ok": false,
+     "wrapper_scrolls": false,
+     "table_end_on_screen": false,
+     "table_added_overflow": [
+      {
+       "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+       "with_table": 1264,
+       "without": 826
+      }
+     ],
+     "table": {
+      "wrapper": true,
+      "scrollers": [
+       {
+        "cls": "document",
+        "scrollWidth": 1200,
+        "clientWidth": 1200
+       },
+       {
+        "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+        "scrollWidth": 1264,
+        "clientWidth": 826
+       },
+       {
+        "cls": "_main_1vwfj_19",
+        "scrollWidth": 1140,
+        "clientWidth": 1140
+       }
+      ],
+      "innerWidth": 1200,
+      "tableStyleWidth": "1200px",
+      "tableWidth": 1200,
+      "wrapperBefore": {
+       "scrollWidth": 1200,
+       "clientWidth": 698,
+       "overflowX": "visible"
+      },
+      "wrapperScrollLeft": 0,
+      "lastCell": {
+       "left": 1214,
+       "right": 1614
+      }
+     },
+     "control_scrollers": [
+      {
+       "cls": "document",
+       "scrollWidth": 1200,
+       "clientWidth": 1200
+      },
+      {
+       "cls": "_main_1hxjo_159 _mainNote_1hxjo_179 ",
+       "scrollWidth": 826,
+       "clientWidth": 826
+      },
+      {
+       "cls": "_main_1vwfj_19",
+       "scrollWidth": 1140,
+       "clientWidth": 1140
+      }
+     ],
+     "shot": "r202011-B9-1200.png"
+    }
+   }
+  },
+  "B9b_shared_table_scrolls_not_the_page": {
+   "verdict": "FAIL",
+   "wrapper_scrolls": false,
+   "table_end_on_screen": true,
+   "table_added_overflow": [
+    {
+     "cls": "document",
+     "with_table": 1220,
+     "without": 390
+    }
+   ],
+   "table": {
+    "wrapper": true,
+    "scrollers": [
+     {
+      "cls": "document",
+      "scrollWidth": 1220,
+      "clientWidth": 390
+     }
+    ],
+    "innerWidth": 1220,
+    "tableStyleWidth": "1200px",
+    "tableWidth": 1200,
+    "wrapperBefore": {
+     "scrollWidth": 1200,
+     "clientWidth": 350,
+     "overflowX": "visible"
+    },
+    "wrapperScrollLeft": 0,
+    "lastCell": {
+     "left": 821,
+     "right": 1218
+    }
+   },
+   "control_scrollers": [
+    {
+     "cls": "document",
+     "scrollWidth": 390,
+     "clientWidth": 390
+    }
+   ],
+   "shots": [
+    "r202011-B9b-shared-control-390.png",
+    "r202011-B9b-shared-table-390.png"
+   ]
+  },
+  "B9c_page_chrome_at_390_no_table": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "reported, not graded: pre-existing page chrome, no table involved",
+   "hint_not_seen": [
+    {
+     "cls": "document",
+     "scrollWidth": 390,
+     "clientWidth": 390
+    },
+    {
+     "cls": "_main_1vwfj_19",
+     "scrollWidth": 496,
+     "clientWidth": 390
+    }
+   ],
+   "hint_not_seen_shot": "r202011-B9c-hint_not_seen.png",
+   "hint_seen": [
+    {
+     "cls": "document",
+     "scrollWidth": 390,
+     "clientWidth": 390
+    },
+    {
+     "cls": "_main_1vwfj_19",
+     "scrollWidth": 390,
+     "clientWidth": 390
+    }
+   ],
+   "hint_seen_shot": "r202011-B9c-hint_seen.png"
+  },
+  "B10_touch_undo_reachable_after_60_lines": {
+   "verdict": "FAIL",
+   "typed": true,
+   "toolbar_scrolled_away": true,
+   "before_typing": {
+    "present": true,
+    "sentinel": {
+     "top": -184,
+     "bottom": -140,
+     "height": 44,
+     "display": "block",
+     "cls": "_historySentinel_o1set_483"
+    },
+    "rect": {
+     "left": 62,
+     "top": -184,
+     "right": 109,
+     "bottom": -140
+    },
+    "centre": [
+     85.34375,
+     -161.609375
+    ],
+    "inViewport": false,
+    "fingerLandsOnIt": false,
+    "hitTag": null,
+    "floating": true,
+    "toolbarRowBottom": 142,
+    "innerHeight": 844
+   },
+   "after_typing": {
+    "present": true,
+    "sentinel": {
+     "top": -2114,
+     "bottom": -2070,
+     "height": 44,
+     "display": "block",
+     "cls": "_historySentinel_o1set_483"
+    },
+    "rect": {
+     "left": 62,
+     "top": -2114,
+     "right": 109,
+     "bottom": -2070
+    },
+    "centre": [
+     85.34375,
+     -2091.609375
+    ],
+    "inViewport": false,
+    "fingerLandsOnIt": false,
+    "hitTag": null,
+    "floating": true,
+    "toolbarRowBottom": -1788,
+    "innerHeight": 844
+   },
+   "tap_at_centre_undid": false,
+   "back_at_top": {
+    "present": true,
+    "sentinel": {
+     "top": 400,
+     "bottom": 444,
+     "height": 44,
+     "display": "block",
+     "cls": "_historySentinel_o1set_483"
+    },
+    "rect": {
+     "left": 62,
+     "top": 400,
+     "right": 109,
+     "bottom": 444
+    },
+    "centre": [
+     85.34375,
+     422.390625
+    ],
+    "inViewport": true,
+    "fingerLandsOnIt": true,
+    "hitTag": "BUTTON._toolBtn_o1set_79 _historyBtn_o1set_465",
+    "floating": false,
+    "toolbarRowBottom": 726,
+    "innerHeight": 844
+   },
+   "screenshots": [
+    "r202011-B10-390-after-60-lines.png",
+    "r202011-B10-390-back-at-top.png"
+   ]
+  },
+  "B8_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "only": [
+  "B9",
+  "B10"
+ ],
+ "tip": "mutant-css-final",
+ "base": "http://127.0.0.1:8212",
+ "data_dir": "C:\\data-w10b",
+ "instrument": "tools\\notebook_wave10b_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": true,
+  "NOTEBOOK_WRITING_HELP_ENABLED": true,
+  "J2_SHARE_LINKS_ENABLED": true,
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8212 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T20-19-28.md (identity 315f7aae0417..., data dir C:\\data-w10b)"
+ },
+ "run": "r202011",
+ "member": "w10b-r202011@local.dev",
+ "server_flags": {
+  "notebook_writing_help_enabled": true,
+  "paid_equiv": true
+ },
+ "stop": "graceful (rc 0)",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w10B\\fr1\\walk-mutant2\\walk-mutant2.integrity.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\e5af7430-5c97-49c2-9846-4da28941d38c\\scratchpad\\w10B\\fr1\\walk-mutant2\\walk-mutant2.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-26 20:19:33",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-26 20:20:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-26 20:21:10",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

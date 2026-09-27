@@ -206,3 +206,76 @@ async def writing_help_stream(
         gen(), media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         background=BackgroundTask(charge.close))
+
+
+# ── Wave 10 lane 10B — G-165: property autofill (ruling R-3, narrow) ─────────
+# `POST /api/j2/notes/{note_id}/writing-help/autofill` -> JSON
+#   {suggestions: [{propertyId, name, type, value, display, evidence, source}], model}
+# Behind the SAME router-level gate as the stream (404 while writing help is
+# dark), the same paid check, the same budget and slots. ⛔ THE SERVER NEVER
+# WRITES THE NOTE HERE: it reads the note and its properties and answers
+# suggestions; the member confirms each in the editor, and only a confirmed one
+# is written -- through the existing property door, which lands its revision.
+
+@router.post("/notes/{note_id}/writing-help/autofill")
+async def writing_help_autofill(
+    note_id: str,
+    _payload: dict[str, Any] = Depends(_read_payload),
+    user: dict = Depends(require_paid),
+):
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import note_properties
+    from api.services.journal_two import property_autofill as pa
+
+    user_id = user["id"]
+    note = await run_in_threadpool(notes_service.get_note, user_id, note_id)
+    if note is None:
+        # Another member's note is indistinguishable from one that does not exist.
+        raise HTTPException(status_code=404, detail="Not found")
+
+    def _resolve():
+        conn = get_connection()
+        try:
+            return note_properties.resolve_note_properties(user_id, note, conn)
+        finally:
+            conn.close()
+
+    cands = pa.candidates(await run_in_threadpool(_resolve))
+    if not cands:
+        raise HTTPException(status_code=422, detail=pa.NOTHING_TO_FILL_SENTENCE)
+    text = notes_service.extract_plain_text(note.get("bodyJson") or {})
+    if not (text or "").strip():
+        raise HTTPException(status_code=422, detail=pa.EMPTY_NOTE_SENTENCE)
+
+    model = wh.model_name()
+    title = note.get("title") or ""
+    cost = pa.estimate_cost(title, text, cands, model=model)
+    day = note_ask.charge_day()
+    if not await run_in_threadpool(note_ask.reserve_writing_help, user_id, cost=cost, day=day):
+        shared = await run_in_threadpool(note_ask.shared_cap_reached, cost=cost)
+        raise HTTPException(status_code=429, detail=(
+            wh.SHARED_CAP_SENTENCE if shared else wh.BUDGET_SENTENCE))
+    if not note_ask.begin_stream(user_id):
+        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost, day=day)
+        raise HTTPException(status_code=429, detail=wh.BUSY_SENTENCE)
+
+    suggestions: list[dict[str, Any]] = []
+    settled = False
+    try:
+        # ⛔ Read at CALL time (`pa.complete`), so a test's stub reaches it.
+        raw = await pa.complete(pa.request_kwargs(title, text, cands, model=model))
+        suggestions = pa.parse_suggestions(raw, cands)
+        settled = True
+    except Exception:
+        # ⛔ NO NOTE TEXT OR OUTPUT IN THE LOG.
+        logger.exception("[writing-help] autofill failed")
+    finally:
+        note_ask.end_stream(user_id)
+        note_ask.run_in_background(
+            notes_service._log_notebook_event, user_id, "notebook_writing_help_used",
+            pa.telemetry(candidates_n=len(cands), suggested_n=len(suggestions), settled=settled))
+    if not settled:
+        # A call that failed never costs the member one of their drafts.
+        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost, day=day)
+        raise HTTPException(status_code=502, detail=pa.FAILED_SENTENCE)
+    return {"suggestions": suggestions, "model": model, "source": pa.SOURCE}

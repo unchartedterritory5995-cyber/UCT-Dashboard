@@ -8,10 +8,14 @@
  * added or removed, the header row could not be turned off, and the only way to
  * delete a table was to select all of its cells. This is that missing surface.
  *
- * ⛔ EVERY CONTROL IS A COMMAND THE TABLE EXTENSION ALREADY OWNS
- * (`addRowBefore`, `deleteColumn`, `toggleHeaderRow`, …). Nothing here edits
- * the document by hand, so the table stays a valid prosemirror-tables table
- * (its `fixTables` pass is the table extension's, not a second copy here).
+ * ⛔ THE ROW / COLUMN / HEADER CONTROLS ARE COMMANDS THE TABLE EXTENSION
+ * ALREADY OWNS (`addRowBefore`, `deleteColumn`, `toggleHeaderRow`, …), so the
+ * table stays a valid prosemirror-tables table (its `fixTables` pass is the
+ * table extension's, not a second copy here). ⚰️ This said "nothing here edits
+ * the document by hand" until wave 10 (G-134): Sort and Wider / Narrower are
+ * transaction builders in `lib/tableTools.js` — each ONE transaction over
+ * prosemirror-tables' own `TableMap`, reordering whole rows or writing the
+ * same `colwidth` the drag handle writes, so the table's shape never changes.
  *
  * ⛔ A CONTROL THAT WOULD DO NOTHING IS DISABLED, NEVER SILENT: each button asks
  * `editor.can()` before it is offered (deleting the only column, for one).
@@ -26,6 +30,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { selectedRect } from '@tiptap/pm/tables'
 import UIcon from '../../../../components/ui/UIcon'
+import {
+  COLUMN_MAX_PX, COLUMN_MIN_PX, COLUMN_STEP_PX, canSortTable, currentColumnWidth,
+  hasHeaderRowNode, setColumnWidthTr, sortTableTr, tableContext,
+} from '../../lib/tableTools'
 import styles from './TableToolbar.module.css'
 
 export const TABLE_TOOLBAR_LABEL = 'Table'
@@ -56,13 +64,11 @@ export function wouldEmptyTable(state, cmd) {
   return false
 }
 
-/** Does the table's FIRST row consist of header cells only? */
+/** Does the table's FIRST row consist of header cells only? ⛔ One
+ *  implementation: the sort pins exactly the row this button says is a header
+ *  (lib/tableTools.js), so the two can never disagree. */
 export function hasHeaderRow(table) {
-  const first = table?.firstChild
-  if (!first || !first.childCount) return false
-  let all = true
-  first.forEach((cell) => { if (cell.type.name !== 'tableHeader') all = false })
-  return all
+  return hasHeaderRowNode(table)
 }
 
 // One row of the bar: [command name, visible label, accessible name, icon].
@@ -145,6 +151,26 @@ export default function TableToolbar({ editor }) {
   }
   const header = hasHeaderRow(table.node)
 
+  // Wave 10 (G-134): sort by the caret's column, and size that column. Each is
+  // ONE transaction (lib/tableTools.js), so one Undo reverses it. The drag
+  // handle between columns (the table extension's column resizing, mouse only)
+  // and Wider / Narrower write the same stored `colwidth`; the buttons are the
+  // keyboard and touch door to it.
+  const sortable = canSortTable(editor.state)
+  const ctx = tableContext(editor.state)
+  const width = ctx ? currentColumnWidth(editor.view, ctx) : null
+  const dispatch = (tr) => {
+    if (!tr || editor.isDestroyed) return
+    editor.view.dispatch(tr.scrollIntoView())
+    editor.view.focus()
+  }
+  const sortBy = (dir) => dispatch(sortTableTr(editor.state, dir))
+  const resizeBy = (delta) => {
+    const now = tableContext(editor.state)
+    if (!now) return
+    dispatch(setColumnWidthTr(editor.state, now, now.col, currentColumnWidth(editor.view, now) + delta))
+  }
+
   const onBarKeyDown = (e) => {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -197,6 +223,51 @@ export default function TableToolbar({ editor }) {
           </button>
         </span>
       ))}
+      <span className={styles.divider} aria-hidden="true" />
+      <button
+        type="button"
+        className={styles.btn}
+        onMouseDown={keep}
+        onClick={() => sortBy('asc')}
+        disabled={!sortable.ok}
+        aria-label="Sort rows by this column, A to Z"
+        title={sortable.ok ? 'Sort the rows by this column: A to Z, smallest number first (the header row stays on top)' : sortable.reason}
+      >
+        <span className={styles.label}>Sort A→Z</span>
+      </button>
+      <button
+        type="button"
+        className={styles.btn}
+        onMouseDown={keep}
+        onClick={() => sortBy('desc')}
+        disabled={!sortable.ok}
+        aria-label="Sort rows by this column, Z to A"
+        title={sortable.ok ? 'Sort the rows by this column: Z to A, largest number first (the header row stays on top)' : sortable.reason}
+      >
+        <span className={styles.label}>Sort Z→A</span>
+      </button>
+      <button
+        type="button"
+        className={styles.btn}
+        onMouseDown={keep}
+        onClick={() => resizeBy(-COLUMN_STEP_PX)}
+        disabled={width == null || width <= COLUMN_MIN_PX}
+        aria-label="Make this column narrower"
+        title="Make this column narrower (or drag the column's edge)"
+      >
+        <span className={styles.label}>Narrower</span>
+      </button>
+      <button
+        type="button"
+        className={styles.btn}
+        onMouseDown={keep}
+        onClick={() => resizeBy(COLUMN_STEP_PX)}
+        disabled={width == null || width >= COLUMN_MAX_PX}
+        aria-label="Make this column wider"
+        title="Make this column wider (or drag the column's edge)"
+      >
+        <span className={styles.label}>Wider</span>
+      </button>
       <span className={styles.divider} aria-hidden="true" />
       <button
         type="button"
