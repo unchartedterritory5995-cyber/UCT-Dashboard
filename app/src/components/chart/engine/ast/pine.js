@@ -937,6 +937,9 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // zero-argument VARIABLE that reaches the table and works today. Declaring the
   // one-argument form here would refuse the spelling members actually write, so
   // the function form keeps refusing until a shape can hold both arities.
+  // ⭐ 2026-09-27: HELD AT THE KEY INSTEAD — `resolveTableCall` takes the
+  // one-argument form when its source IS `hlc3` (vendor-measured identical), and
+  // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
   // these keys are synthetic and `dmiParts` is their only caller.
@@ -1763,11 +1766,12 @@ function pivotAtConfirmation(name, args) {
  *  AST node: `true` only when it is the bare identifier `timenow` — which
  *  `PINE_TO_CLOCK_SPELLING` has already rewritten to `{type:'series',
  *  name:'lastbartime'}` by the time this door sees it, since argument
- *  resolution runs before `BUILTIN_CALL_TREE` dispatch. ⛔ NOT `time`: bare
- *  `time` is permanently refused by `PINE_CLOCK_MISMATCH` (Pine's is
- *  milliseconds, ours is seconds) before this door is ever reached, so
- *  `year(time)` can never arrive here at all — checking for it would be
- *  dead code, not a second identity. */
+ *  resolution runs before `BUILTIN_CALL_TREE` dispatch.
+ *  ⚰️ This said `year(time)` "can never arrive here at all" because bare `time`
+ *  refuses at `PINE_CLOCK_MISMATCH`. That stopped being true on 2026-09-23, when
+ *  a versioned script's `time` began reconciling to `time * 1000`
+ *  (`PINE_CLOCK_TRANSFORM`) — `year(time)` then arrived and refused as "that
+ *  argument". It is now its own identity: see `isPineBarTime` below. */
 const isLastBarTime = (node) => !!node && node.type === 'series' && node.name === 'lastbartime'
 
 /** The five clock fields Pine spells both as a bare global and as a
@@ -1777,8 +1781,47 @@ const isLastBarTime = (node) => !!node && node.type === 'series' && node.name ==
  *  declined argument shapes specifically (`time[1]`, `time`, a computed
  *  timestamp), rather than falling through to the generic "maps to nothing"
  *  refusal. `dayofweek` is deliberately absent: measured against the real
- *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`. */
+ *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`, and the
+ *  table has no `lastbardayofweek` column. (Its `(time)` form IS served — see
+ *  `BAR_TIME_IDENTITY_FIELDS` below.) */
 const CLOCK_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'hour', 'minute'])
+
+/** ⭐⭐ THE BAR'S OWN `time`, AS THE ARGUMENT — `year(time)` IS BARE `year`
+ *  (2026-09-27, vocabulary wave). Pine's reference defines `year(time, timezone)`
+ *  with `timezone` defaulting to `syminfo.timezone` — the EXCHANGE zone — and
+ *  defines the bare `year` as "current bar year in exchange timezone". With the
+ *  bar's own `time` and no zone written, the two are the same value by
+ *  definition, for all six fields: nothing is measured or chosen here, so no
+ *  capture is needed for the identity itself. The zone the bare clock reads was
+ *  measured (`r11-nine-safe-spy-1d-2026-09-11.json`, `hour` settles EXCHANGE
+ *  time), which is why the bare leaf is the right target.
+ *
+ *  ⛔ RECOGNISED BY IDENTITY WITH `PINE_CLOCK_TRANSFORM.time()`, NEVER BY SHAPE
+ *  WRITTEN HERE. For a script that declares a version, Pine's millisecond `time`
+ *  arrives already reconciled to `time * 1000` (see `clockTransformFor`), so the
+ *  argument is exactly that tree — asking the transform for it keeps ONE
+ *  authority over what "Pine's `time`" resolves to. A versionless source never
+ *  gets here: its bare `time` refuses at `PINE_CLOCK_MISMATCH` first.
+ *
+ *  ⛔ ONLY THE ONE-ARGUMENT FORM. `hour(time, "America/New_York")` names a zone,
+ *  and a zone string does not survive argument resolution on this door (it meets
+ *  `pine:text-value`); `hour(time[1])` is a different BAR. Both stay refused. */
+const BAR_TIME_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute'])
+// (`PINE_CLOCK_TRANSFORM` is declared further down; this reads it at CALL time,
+// after the module has finished evaluating, so the order is not a TDZ hazard.)
+const isPineBarTime = (node) => !!node
+  && JSON.stringify(node) === JSON.stringify(PINE_CLOCK_TRANSFORM.time())
+
+/** The one-argument clock-field call, resolved: `timenow` → the `lastbar*`
+ *  field (five fields; `dayofweek` has no `lastbar` column), the bar's own
+ *  `time` → the bare field (six), anything else → `null`, which the caller's
+ *  named refusal turns into a sentence rather than a guess. */
+const clockFieldAt = (field, a) => {
+  if (a.length !== 1) return null
+  if (CLOCK_IDENTITY_FIELDS.has(field) && isLastBarTime(a[0])) return cSeries(`lastbar${field}`)
+  if (BAR_TIME_IDENTITY_FIELDS.has(field) && isPineBarTime(a[0])) return cSeries(field)
+  return null
+}
 
 const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
@@ -1994,11 +2037,14 @@ const BUILTIN_CALL_TREE = Object.freeze({
   // answer for one. Measured against the real committed corpus, 2026-09-20:
   // six scripts call one of these five as a function, and `timenow` is the
   // argument in all six.
-  year: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbaryear') : null),
-  month: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarmonth') : null),
-  dayofmonth: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbardayofmonth') : null),
-  hour: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarhour') : null),
-  minute: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarminute') : null),
+  // ⭐ …AND THE BAR'S OWN `time` IS AN IDENTITY ONTO THE BARE CLOCK LEAF — see
+  // `BAR_TIME_IDENTITY_FIELDS`. Checked second so the `timenow` form is untouched.
+  year: (a) => clockFieldAt('year', a),
+  month: (a) => clockFieldAt('month', a),
+  dayofmonth: (a) => clockFieldAt('dayofmonth', a),
+  dayofweek: (a) => clockFieldAt('dayofweek', a),
+  hour: (a) => clockFieldAt('hour', a),
+  minute: (a) => clockFieldAt('minute', a),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -8523,16 +8569,25 @@ export class Resolver {
       // reason. Named here instead, matching `tr`'s own bespoke message for
       // the identical reason: the shape is understood and declined, not
       // merely unrecognised.
-      if (CLOCK_IDENTITY_FIELDS.has(bare) && !(built.length === 1 && isLastBarTime(built[0]))) {
+      // ⭐ 2026-09-27: `${bare}(time)` — the bar's own time — now translates as
+      // well (an identity onto the bare field; see `BAR_TIME_IDENTITY_FIELDS`),
+      // so the sentence names both forms that work. `dayofweek` joins the gate
+      // for its `(time)` form only; it has no `lastbar` column, so its
+      // `(timenow)` form is not offered.
+      if (BAR_TIME_IDENTITY_FIELDS.has(bare) && clockFieldAt(bare, built) === null) {
+        const nowForm = CLOCK_IDENTITY_FIELDS.has(bare)
+          ? `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
+            + `clock, the newest fetched bar's own value -- translates, and so `
+            + `does \`${bare}(time)\`, which is this bar's own value. `
+          : `\`${bare}(time)\` -- this bar's own value -- translates. `
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
-          + `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
-          + `clock, the newest fetched bar's own value -- translates. `
-          + `The bare \`${bare}\` (this bar's own value), a different bar `
-          + `(\`${bare}(time[1])\`), and a computed timestamp are all real `
-          + 'Pine and all currently refused as a function argument. '
-          + `TO UNBLOCK: read the bare \`${bare}\` for this bar's own value, `
-          + `or \`${bare}(timenow)\` for the newest fetched bar's.`,
+          + nowForm
+          + `A different bar (\`${bare}(time[1])\`), a named timezone, and a `
+          + 'computed timestamp are all real Pine and all currently refused as a '
+          + 'function argument. '
+          + `TO UNBLOCK: read the bare \`${bare}\` (or \`${bare}(time)\`) for this `
+          + `bar's own value${CLOCK_IDENTITY_FIELDS.has(bare) ? `, or \`${bare}(timenow)\` for the newest fetched bar's` : ''}.`,
           locate(tok))
       }
       return BUILTIN_CALL_TREE[bare](built)
@@ -8875,7 +8930,39 @@ export class Resolver {
       // names for these — so a named call still meets the refusal it met before,
       // rather than being quietly given a source the member did not ask for.
       const shortForm = own(PINE_SHORT_FORM, key) ? PINE_SHORT_FORM[key] : null
-      if (shortForm
+      // ⭐⭐ `ta.vwap(hlc3)` IS OUR `vwap()` — MEASURED, NOT ASSUMED (2026-09-27).
+      // `tests/fixtures/vendor/groupb-round-max-vwap-spy-1d-2026-09-10.json`
+      // (`ta_vwap_default_source`): `ta.vwap(hlc3) - ta.vwap` is 0 on every one of
+      // 40 consecutive bars, so the default source IS `hlc3` and the one-argument
+      // form anchors exactly as the bare form does; `computeVWAP` weights by the
+      // same typical price. So `hlc3` written out is the zero-argument column
+      // with nothing dropped. This is the "shape that can hold both arities" the
+      // note beside `PINE_CALL_SHAPES.mfi` said the function form was waiting for —
+      // held here, at the one key, rather than as a shape (a shape carries one
+      // `pineArity`, and bare `ta.vwap` must keep working).
+      // ⛔ ANY OTHER SOURCE STILL REFUSES, AND NOW SAYS WHY. The same capture reads
+      // `ta.vwap(close) - ta.vwap` moving between −4.29 and +2.91 over those 40
+      // bars — a real, different column, which this table does not carry.
+      // ⛔ The source is resolved and compared with `derivedSeriesTree`, the
+      // function the door itself expands `hlc3` with — an identity check, exactly
+      // as `sourceMustBe` does for `cci`/`mfi`.
+      if (key === 'vwap' && declaredArgs.length === 0 && args.length === 1
+          && !args.some((a) => a && a.name)) {
+        const want = derivedSeriesTree('hlc3', this.table)
+        const got = this.resolve(args[0].value !== undefined ? args[0].value : args[0])
+        if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          throw new PineRefusal('pine:arity',
+            REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
+            + 'source, and this table carries ONE volume-weighted average price: '
+            + 'the typical price `hlc3`, reset each session — ' + signatureOf(key, spec)
+            + '. Measured on TradingView, `ta.vwap(hlc3)` is that same column and '
+            + 'any other source is a different one (`ta.vwap(close)` moved −4.29 to '
+            + '+2.91 away from it over 40 SPY daily bars). TO UNBLOCK: write '
+            + '`ta.vwap` or `ta.vwap(hlc3)`',
+            locate(tok))
+        }
+        plan = []
+      } else if (shortForm
           && args.length === declaredArgs.length - shortForm.fills.length
           && !args.some((a) => a && a.name)) {
         plan = [
