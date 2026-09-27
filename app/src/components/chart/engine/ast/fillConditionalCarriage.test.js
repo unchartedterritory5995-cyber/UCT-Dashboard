@@ -69,7 +69,9 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     const { outputs } = translated(`${HEAD}plot(close, "DYN", color = ${COND})\n`)
     const p = (outputs[0] || {}).presentation || {}
     expect(p.colorUp, 'the branches do not fold, so this fixture tests nothing').toBe('#4CAF50')
-    expect(p.colorDown).toBe('#FF5252')
+    // v6 red (this HEAD is `@version=6`): `#F23645`, measured — `#FF5252` was v5's,
+    // pinned while the palette was version-blind (palette-by-version-rddt-1d-2026-09-27.json).
+    expect(p.colorDown).toBe('#F23645')
     expect(p.colorCondition && p.colorCondition.formula).toBe('close > open')
   })
 
@@ -141,7 +143,7 @@ describe('(j) j.3b — the conditional-fill carrier', () => {
     const fills = fillsOf(`${TWO}fill(p1, p2, color=${COND})\n`)
     expect(fills.length).toBe(1)
     expect(fills[0].colorUp).toBe('#4CAF50')
-    expect(fills[0].colorDown).toBe('#FF5252')
+    expect(fills[0].colorDown).toBe('#F23645')   // v6 red, measured; see above
     expect(fills[0].colorCondition && fills[0].colorCondition.formula).toBe('close > open')
     // ⛔ AND NO FLAT COLOUR IS INVENTED ALONGSIDE — a consumer reading `.color`
     // first would paint one band where the author drew two.

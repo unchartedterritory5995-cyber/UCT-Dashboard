@@ -458,8 +458,11 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
     const SRC = '//@version=6\nindicator("uct-sma-colour")\nplot(ta.sma(close, 20), "sma20", color = color.red)\n'
 
     it('a static plot colour that agrees MATCHes; one that differs DIVERGEs as colour', () => {
+      // ⚠️ `SRC` is `@version=6`, whose `color.red` the vendor draws `#F23645` (measured,
+      // palette-by-version-rddt-1d-2026-09-27.json). The synthetic state said `#FF5252`
+      // — v5's red — while the engine's palette was version-blind.
       const plots = [{ id: 'plot_0', type: 'line', title: 'sma20' }]
-      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#FF5252', transparency: 0 } } } } })
+      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#F23645', transparency: 0 } } } } })
       const g1 = gradeCapture(agree).verdict
       expect(g1.verdict, JSON.stringify(g1.plots.map((p) => [p.verdict, p.reason, p.color]))).toBe('MATCH')
       expect(g1.plots[0].color).toBe('compared')
@@ -468,7 +471,7 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       const differ = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } } } } })
       const g2 = gradeCapture(differ).verdict
       expect(g2.verdict).toBe('DIVERGE')
-      expect(g2.plots[0].stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#ff5252ff' })
+      expect(g2.plots[0].stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
     })
 
     it('objects: a table the script draws is counted, and its cell text compared', () => {

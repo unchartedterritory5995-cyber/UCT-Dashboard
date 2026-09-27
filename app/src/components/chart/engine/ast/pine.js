@@ -125,6 +125,10 @@ import {
 // exchange spellings on one side, TradingView's on the other), and a fact that
 // can change without any code changing does not belong in code.
 import SYMBOL_SCOPE from './symbolScope.json'
+// ⭐⭐ THE NAMED-COLOUR PALETTE, PER `//@version=` — measured off TradingView and
+// held in ONE place. Every colour name this file resolves goes through it, with
+// the script's version; see `PALETTE_VERSION` below for how the version travels.
+import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pinePalette.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -12605,6 +12609,10 @@ function translatePineResult(source, opts = {}) {
   // is inside it. Opening it any later would leave the phase that actually hangs
   // outside the guard, which is the mistake this guard was written to correct.
   beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  // ⭐ THE PALETTE SCOPE IS SAVED HERE and restored in the SAME `finally` that
+  // closes the budget, so a translation can never leave its version behind for
+  // the next one. It is OPENED once the lexer has read the version, below.
+  const priorPalette = PALETTE_VERSION
   try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
@@ -12623,6 +12631,7 @@ function translatePineResult(source, opts = {}) {
   }
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
+  beginPaletteScope(version)
   if (tokens.length === 0) {
     const r = refusalValue('pine:empty', REFUSALS['pine:empty'], null)
     return { ...blank, version, refusal: r, refusals: [r] }
@@ -14261,6 +14270,7 @@ function translatePineResult(source, opts = {}) {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
     // `printFormula` call — a test, a preview — throw a timeout it never earned.
     endTranslateBudget()
+    endPaletteScope(priorPalette)
   }
 }
 
@@ -14379,52 +14389,51 @@ export function isBareSource(node) {
 // does not promise UCT draws every one of them — a style with no counterpart is
 // reported and left unset rather than silently mapped onto a near neighbour.
 
-/** TradingView's own published constants. ⛔ THESE ARE THE VENDOR'S HEX VALUES,
- *  not our palette: an imported indicator that comes back a different red has
- *  not been imported faithfully, and "close enough" is the whole failure this
- *  wave exists to stop.
+/** ⭐⭐ THE PALETTE A SCRIPT DRAWS WITH DEPENDS ON ITS `//@version=`, and the
+ *  tables live in `../pinePalette.js` — the one authority, pinned name by name
+ *  and version by version to TradingView's own resolved hexes
+ *  (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`).
  *
- *  ⚰️ `color.red` READ `#F23645` UNTIL 2026-09-07, AND THAT IS THE CHART'S
- *  DOWN-CANDLE RED, NOT PINE'S. The comment directly above has said "these are
- *  the vendor's hex values" since the table was written, and nothing in the repo
- *  could falsify it: every rail that touched a colour asserted OUR constant, so
- *  the wrong red was the expected red everywhere. What caught it was the first
- *  observation ever taken of TradingView's own resolved marker styles
- *  (`tests/fixtures/vendor/visual/marker-semantics-spy-1d-2026-09-07.json`),
- *  where a `color = color.red` plotshape came back `#FF5252`. Six of the seven
- *  colours that observation reaches — aqua, blue, fuchsia, green, orange,
- *  purple — matched this table exactly; red was the one that did not.
- *  ⭐ `vendorMarkerParity.test.js` now pins every one of the seven to the
- *  vendor's own answer, so this table can no longer drift undetected. */
-const PINE_COLOURS = Object.freeze({
-  'color.aqua': '#00BCD4', 'color.black': '#363A45', 'color.blue': '#2962FF',
-  'color.fuchsia': '#E040FB', 'color.gray': '#787B86', 'color.grey': '#787B86',
-  'color.green': '#4CAF50', 'color.lime': '#00E676', 'color.maroon': '#880E4F',
-  'color.navy': '#311B92', 'color.olive': '#808000', 'color.orange': '#FF9800',
-  'color.purple': '#9C27B0', 'color.red': '#FF5252', 'color.silver': '#B2B5BE',
-  'color.teal': '#00897B', 'color.white': '#FFFFFF', 'color.yellow': '#FFEB3B',
-})
+ *  ⚰️ THIS FILE CARRIED ONE VERSION-BLIND TABLE UNTIL 2026-09-27, AND IT WAS
+ *  RIGHT FOR ONE DIALECT IN FOUR. Its comment said "THESE ARE THE VENDOR'S HEX
+ *  VALUES", and they were — for `@version=5`, which is what the 2026-09-07
+ *  observation that corrected `color.red` to `#FF5252` happened to probe. The
+ *  same `color.red` is `#F23645` at v6; `color.blue` is `#2196F3` at v4; and a v3
+ *  script's bare `red` is plain web red `#FF0000`. The first live harness capture
+ *  (a v4 Keltner script, two `color.blue` bands) graded DIVERGE on colour on
+ *  every bar because of it. A correction measured at one version and applied to
+ *  all of them is the same defect as the one it corrected.
+ *
+ *  ⭐ HOW THE VERSION TRAVELS. Every colour name this file resolves is reached
+ *  from inside `translatePineResult`, through a dozen private helpers that take
+ *  `(node, env, depth, ctx)` and no version. Rather than thread a fifth argument
+ *  through each (and leave the next helper to default it), the translation opens
+ *  a PALETTE SCOPE right after lexing — the same shape as the budget window it
+ *  sits beside, closed in the same `finally`. `activePaletteVersion()` THROWS
+ *  outside a scope, so a colour resolved where no script's version is known is a
+ *  loud defect, never a silent v5.
+ *
+ *  ⚠️ `null` (no `//@version=`), v1 and v2 are UNMEASURED and keep the table this
+ *  file always used (v5) — `pinePalette.UNMEASURED_FALLBACK` says so where the
+ *  choice lives. */
+const NO_PALETTE_SCOPE = Symbol('no palette scope')
+let PALETTE_VERSION = NO_PALETTE_SCOPE
 
-/**
- * ⭐⭐ THE SAME EIGHTEEN COLOURS UNDER THEIR PINE v3/v4 SPELLING — `red`, not
- * `color.red`.
- *
- * ⚰️ MEASURED, AND IT WAS A LARGE SILENT LOSS. Wave B read `color.x` only, so
- * every v3/v4 script's colour argument fell through to "an expression this door
- * cannot say" — including plain `color=aqua`, which is not an expression at all.
- * In the frozen 60 that is most of `cm-ultimate-rsi-mtf` (`aqua`, `red`, `lime`,
- * `gray`, `orange`) and both of `waddah-attar`'s conditionals (`lime`/`green`,
- * `orange`/`red`). The colour was simply not read.
- *
- * ⛔ DERIVED FROM THE `color.` TABLE, NEVER RE-TYPED. Two hand-written tables of
- * the same eighteen hexes is the second-authority defect this file names
- * elsewhere; the day a vendor hex moves, one of them would keep the old value.
- *
- * ⚠️ `grey`/`gray` both survive the strip, which is correct — Pine accepts both.
- */
-const PINE_COLOURS_BARE = Object.freeze(Object.fromEntries(
-  Object.entries(PINE_COLOURS).map(([k, v]) => [k.slice('color.'.length), v]),
-))
+/** Open a palette scope; returns the previous one so a caller can restore it. */
+function beginPaletteScope(version) {
+  const prior = PALETTE_VERSION
+  PALETTE_VERSION = Number.isFinite(version) ? version : null
+  return prior
+}
+
+function endPaletteScope(prior) { PALETTE_VERSION = prior }
+
+function activePaletteVersion() {
+  if (PALETTE_VERSION === NO_PALETTE_SCOPE) {
+    throw new Error('a Pine colour name was resolved outside a translation: no script version is in scope')
+  }
+  return PALETTE_VERSION
+}
 
 /** Pine plot style → the name `defSchema.PLOT_STYLES` already validates.
  *  ⛔ A STYLE WITH NO COUNTERPART IS ABSENT FROM THIS MAP ON PURPOSE, so it is
@@ -14513,25 +14522,26 @@ const PINE_PLOT_STYLES = Object.freeze({
 // called `green` must not silently become a colour. The bound-name check is the
 // caller's (`staticColourOf` is handed a node the env has already been asked
 // about); here the question is only whether the SPELLING names a Pine colour.
-/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through THIS table.
+/** ⭐⭐ EXPORTED so the RUNTIME lane resolves a colour NAME through the SAME
+ *  authority, at the SAME script version.
  *
- *  These eighteen hex values are vendor-pinned — six of the seven a real
- *  TradingView observation reaches matched, and `color.red` was corrected from
- *  the down-candle red to the vendor's `#FF5252` when that observation was
- *  taken. A second copy in the runtime lane would be a second chance to carry
- *  the wrong red, and nothing would catch it: every rail that touched a colour
- *  would assert OUR constant.
+ *  ⛔ THE VERSION IS REQUIRED, AND A MISSING ONE THROWS. The runtime lane lexes
+ *  the script itself and holds its `pineVersion`; a caller that forgets to pass
+ *  it would get a default, and a default is how a door goes version-blind again
+ *  without any rail noticing — right for one dialect in four. `null` is a real
+ *  answer (a script with no `//@version=`); `undefined` is a forgotten one.
  *
  *  ⚠️ Answers `null` for a name that is not a Pine colour, so the caller can
  *  tell "not a colour" from "a colour I cannot read". */
-export const colourHexByName = (name) => (
-  Object.hasOwn(PINE_COLOURS, name) ? PINE_COLOURS[name]
-    : (Object.hasOwn(PINE_COLOURS_BARE, name) ? PINE_COLOURS_BARE[name] : null))
+export function colourHexByName(name, version) {
+  if (version === undefined) {
+    throw new Error(`colourHexByName(${JSON.stringify(name)}) needs the script's Pine version (null when it declares none)`)
+  }
+  return pineColourHex(name, version)
+}
 
-const isColourName = (v) => !!v && v.type === 'name'
-  && (Object.hasOwn(PINE_COLOURS, v.name) || Object.hasOwn(PINE_COLOURS_BARE, v.name))
-const colourHexOf = (v) => (Object.hasOwn(PINE_COLOURS, v.name)
-  ? PINE_COLOURS[v.name] : PINE_COLOURS_BARE[v.name])
+const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
+const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every
@@ -14581,8 +14591,7 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     }
     // Bound to something this door cannot open (an opaque binding) — then a bare
     // colour spelling is the member's variable, not Pine's constant.
-    if (bound && Object.hasOwn(PINE_COLOURS_BARE, node.name)
-        && !Object.hasOwn(PINE_COLOURS, node.name)) return null
+    if (bound && isBareColourSpelling(node.name)) return null
     return isColourName(node) ? colourHexOf(node) : null
   }
   if (node.type === 'colour') return String(node.value)

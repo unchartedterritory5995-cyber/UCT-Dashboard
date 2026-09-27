@@ -1406,7 +1406,7 @@ export function buildRuntimeIr(source, opts = {}) {
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
-      if (colourHexByName(node.name) !== null) return true
+      if (colourHexByName(node.name, pineVersion) !== null) return true
       const slot = scope.lookup(node.name)
       if (slot !== null) return !!(slots[slot] && slots[slot].colour)
       const bound = env.get(node.name)
@@ -3201,12 +3201,12 @@ export function buildRuntimeIr(source, opts = {}) {
         // `avail` is derived from an ARRAY. `cap` then resolved to nothing and
         // the script was told it binds a name it binds one line above.
         {
-          // ⭐⭐ A COLOUR NAME IS A CONSTANT, resolved through `pine.js`'s own
-          // vendor-pinned table. `color.red` is `#FF5252` because a real
-          // TradingView observation said so — a second table here would be a
-          // second chance to carry the wrong red, and every rail that touched a
-          // colour would assert OUR constant and agree with it.
-          const hex = colourHexByName(node.name)
+          // ⭐⭐ A COLOUR NAME IS A CONSTANT, resolved through `pine.js` — and so
+          // through `pinePalette.js`, the one vendor-pinned authority — AT THIS
+          // SCRIPT'S VERSION. `color.red` is `#FF5252` at v5 and `#F23645` at v6
+          // because TradingView draws them so; a second table here, or a missing
+          // version, would be a second chance to carry the wrong red.
+          const hex = colourHexByName(node.name, pineVersion)
           if (hex !== null && scope.lookup(node.name) === null && !env.has(node.name)) {
             return num(hexToPacked(hex, 0))
           }
