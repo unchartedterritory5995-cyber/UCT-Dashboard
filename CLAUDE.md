@@ -1913,6 +1913,41 @@ cannot see is a gate you did not run.**
 ⚠️ It is a cap on CONCURRENCY, not on total agents — three at a time, as many waves as the work
 needs. Dispatching a fourth because "this one is small" is how five happened.
 
+### ⛔⛔ THE SESSION SCRATCHPAD IS SHARED BETWEEN LANES — AND A RACE THERE DEFEATS A SHA-VERIFIED RESTORE
+
+> **Give every scratchpad file a lane-unique name. And a sha256 equality is proof of
+> restoration ONLY for a file no other process can write.**
+
+⚰️ Measured 2026-09-26, with the red signature reproduced. Two concurrent lanes each
+wrote a mutation harness to `<scratchpad>\mutate.py`. Between one lane's Write and its
+Bash call, the other replaced that exact path — so its invocation ran the OTHER lane's
+harness, mutating three files under `api/` and `tests/` it had never been asked to touch
+and running a different suite entirely.
+
+⭐ **The wasted run is not the damage. THIS is:** both harnesses did capture-and-restore
+over overlapping files, and the interleaving is silent.
+
+| | |
+|---|---|
+| A | captures the CLEAN bytes, mutates |
+| B | captures the **MUTATED** bytes as its "original" |
+| A | restores clean |
+| B | "restores" its mutated capture — **and its sha256 assertion PASSES** |
+
+The mutation was then live on disk behind a restore that had verified. The symptom was a
+post-restore baseline going **52 passed → 5 failed while every per-file sha restore
+reported OK**, and it was very nearly filed as "pre-existing reds".
+
+⛔ **A sha proves the bytes on disk match what you captured. It says NOTHING about
+whether what you captured was the original.** That is a different claim, and it is the one
+that matters after a restore. Under concurrency, prove a restore against the committed
+blob (`git cat-file blob HEAD:<path>`) or against `git status`, never against your own
+capture alone.
+
+⚠️ The same reasoning covers any shared mutable path a lane writes — a lock file, a
+results directory, a generated record. `docs/.../term-018-guard-observations.json`
+survived this incident only because the rail that reads it never writes it.
+
 ### 2026-09-12 — THREE CONCURRENT SESSIONS OOM-SWEPT THIS BOX AND DELETED A WORKTREE
 
 > **ONE GATE AT A TIME ON THIS MACHINE. BACKEND PYTEST IS ALWAYS SCOPED. NEVER `npm ci` INTO A
