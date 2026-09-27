@@ -148,6 +148,14 @@ function fromCanonical(node, tok) {
 
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
 
+/** Pine's condition over an IR value: `na` and `0` are false (see
+ *  `pine.js::pineCondition`, which carries the vendor evidence). A comparison
+ *  can never be NaN, so it passes through unwrapped. */
+const IR_COMPARISONS = new Set(['<', '>', '<=', '>=', '==', '!='])
+const irCondition = (t) => (t && t.kind === EXPR.BINARY && IR_COMPARISONS.has(t.op)
+  ? t
+  : binary('!=', t, num(0)))
+
 export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:loop': 'a loop — the runtime has no iteration yet',
   'runtime:function': 'a user-defined function — the runtime has no call frames yet',
@@ -984,8 +992,10 @@ export function buildRuntimeIr(source, opts = {}) {
   // ⛔ OFF BY DEFAULT — no other caller's build moves by one byte.
   const inputMint = opts.collectInputs === true
     ? { counter: 0, byNode: new Map(), metadata: [] } : null
+  // ⭐ `pineNaCondition` — a pure `?:` over an `na` condition takes its else arm
+  // here, as Pine's does and as this lane's own `?:` lowering does (`irCondition`).
   const makeResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint, pineNaCondition: true })
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
   }
@@ -1022,7 +1032,7 @@ export function buildRuntimeIr(source, opts = {}) {
   //  with this option so does this lane. ⛔ OFF BY DEFAULT: every other build
   //  keeps the owner's 2026-08-11 rule exactly (`history.test.js`).
   const makeFrozenResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint, pineNaCondition: true })
     if (opts.inputsReachEveryFold === true && inputs && typeof inputs === 'object') {
       r.inputValues = inputs
     }
@@ -3389,7 +3399,13 @@ export function buildRuntimeIr(source, opts = {}) {
             'runtime:operator',
             'text used as a condition — a `?:` test is a boolean', locate(node.tok))
         }
-        return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+        // ⭐⭐ AN `na` CONDITION TAKES THE ELSE ARM — Pine's rule, the one `if`
+        // already has here (`JUMP_IF_FALSE` treats NaN as false) and the one the
+        // columnar lane now has for a pure `?:` (`pine.js::pineCondition`, which
+        // carries the vendor evidence). One rule, both routes: a `?:` beside a
+        // mutable value and the same `?:` over columns must not disagree.
+        return ternary(irCondition(lowerExpr(node.test, scope)),
+          lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
         // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS
         // BAR. The columnar lane owns price history everywhere else, but it

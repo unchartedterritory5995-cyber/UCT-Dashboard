@@ -101,20 +101,27 @@ describe('⭐⭐ the cross family over runtime state', () => {
     // computable on bars 0, 1 and 2 — bar 2 because the PREVIOUS bar's value is
     // still `na`. An operator lowering answers 0 on all three, which reads as
     // "it did not cross" and is a different claim entirely.
-    const [v] = run(`${VIA_SLOT}plot(ta.crossover(close, m) ? 1 : 0)\n`)
-    expect(Number.isNaN(v[0]), 'bar 0 answered a number').toBe(true)
-    expect(Number.isNaN(v[1]), 'bar 1 answered a number').toBe(true)
-    expect(Number.isNaN(v[2]), 'bar 2 answered a number — the PREVIOUS bar was na').toBe(true)
+    // ⭐ OBSERVED THROUGH `na(…)`, NOT THROUGH `? 1 : 0` (2026-09-27). A `?:` over
+    // an `na` condition takes its ELSE arm in Pine — vendor-pinned by
+    // `pivot-point-supertrend-rddt-1d-2026-09-27` and now this lane's rule
+    // (`pineTernaryNa.test.js`) — so the ternary can no longer carry the crossover's
+    // own `na` out to a plot. `na()` still can, and that is what this rail is about.
+    const [isNa, tern] = run(`${VIA_SLOT}plot(na(ta.crossover(close, m)) ? 1 : 0)\nplot(ta.crossover(close, m) ? 1 : 0)\n`)
+    expect(isNa.slice(0, 3), 'bars 0-2 are NOT COMPUTABLE — bar 2 because the PREVIOUS bar was na').toEqual([1, 1, 1])
     // ...and once both bars are finite it is a real 0/1 answer, not more na.
-    expect(v.slice(3).every((x) => x === 0 || x === 1), 'never became computable').toBe(true)
+    expect(isNa.slice(3).every((x) => x === 0), 'never became computable').toBe(true)
+    expect(tern.slice(3).every((x) => x === 0 || x === 1)).toBe(true)
+    // ⭐ and Pine's `?:` answers its else arm on the not-computable bars.
+    expect(tern.slice(0, 3)).toEqual([0, 0, 0])
   })
 
   it('⛔ bar 0 is `na` even when both inputs are finite there', () => {
     // `crossing` starts its loop at i = 1: with no previous bar there is no
     // crossing to report, and that is `na` rather than 0.
-    const [v] = run('var float m = na\nm := close\nplot(ta.crossover(high, m) ? 1 : 0)\n')
-    expect(Number.isNaN(v[0])).toBe(true)
-    expect(v.slice(1).every((x) => x === 0 || x === 1)).toBe(true)
+    // Observed through `na(…)` for the reason given in the case above.
+    const [v] = run('var float m = na\nm := close\nplot(na(ta.crossover(high, m)) ? 1 : 0)\n')
+    expect(v[0]).toBe(1)
+    expect(v.slice(1).every((x) => x === 0)).toBe(true)
   })
 
   it('⭐ the bare v1-v3 spellings are the same functions', () => {
