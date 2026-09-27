@@ -28,6 +28,7 @@ import {
   renderDefaults,
 } from '../versionRender'
 import { POOL_LIMITS } from '../objectPool'
+import { pineColourHex } from '../pinePalette.js'
 
 const SRC = path.resolve(__dirname, '../../../..')
 const REPO = path.resolve(SRC, '../..')
@@ -94,7 +95,10 @@ describe('the palette is derived from the spec, not typed in the module', () => 
   })
 
   it('the module\'s v6 palette is the spec\'s palette', () => {
-    expect(COLOR_V6).toEqual(parsed)
+    // ⚠️ CASE-INSENSITIVE: the spec (like the vendor) spells blue `#2962ff`; the
+    // engine carries `#2962FF` so no saved definition changes byte-for-byte.
+    const lower = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v.toLowerCase()]))
+    expect(lower(COLOR_V6)).toEqual(lower(parsed))
   })
 
   it('color.blue is #2962ff and comparison is case-insensitive', () => {
@@ -144,12 +148,29 @@ describe('the three constants that changed at v6', () => {
     }
   })
 
-  it('every OTHER constant is stable across every version', () => {
+  // ⚰️ THIS ASSERTED "every OTHER constant is stable across every version" —
+  // the docs' claim, and MEASURED FALSE on 2026-09-27
+  // (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`): v4 draws
+  // `color.blue` as `#2196F3`, and v3's bare names are plain web colours. What the
+  // docs got right is the v5→v6 boundary above. The palette now comes from
+  // `pinePalette.js`, whose own rail (`pinePaletteVendor.test.js`) pins every name
+  // at every probed version to the vendor; here we only prove this module DEFERS
+  // to it rather than keeping a copy.
+  it('colorConstant defers to the one authority at every version', () => {
     for (const name of Object.keys(COLOR_V6)) {
-      if (name in COLOR_PRE_V6) continue
-      const seen = new Set([1, 2, 3, 4, 5, 6].map((v) => colorConstant(name, v)))
-      expect(seen.size, `color.${name} should not vary by version`).toBe(1)
+      for (const v of [1, 2, 3, 4, 5, 6]) {
+        expect(colorConstant(name, v), `color.${name} v${v}`).toBe(pineColourHex(name, v))
+      }
     }
+  })
+
+  it('⛔ and the documented "stable across every version" is false, measured', () => {
+    const fx = JSON.parse(fs.readFileSync(
+      path.join(REPO, 'tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json'), 'utf8'))
+    const low = (h) => h.toLowerCase()
+    expect(low(fx.versions['4'].colours.blue)).not.toBe(low(fx.versions['5'].colours.blue))
+    expect(low(colorConstant('blue', 4))).toBe(low(fx.versions['4'].colours.blue))
+    expect(low(colorConstant('red', 3))).toBe(low(fx.versions['3'].colours.red))
   })
 
   it('⭐ two of the changed hexes match what a live chart actually draws', () => {

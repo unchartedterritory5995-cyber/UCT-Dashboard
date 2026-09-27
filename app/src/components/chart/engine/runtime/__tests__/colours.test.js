@@ -53,8 +53,8 @@ const refusalOf = (src) => {
   return built.refusal
 }
 
-const RED = hexToPacked(colourHexByName('color.red'), 0)
-const GREEN = hexToPacked(colourHexByName('color.green'), 0)
+const RED = hexToPacked(colourHexByName('color.red', 6), 0)
+const GREEN = hexToPacked(colourHexByName('color.green', 6), 0)
 
 describe('the packing is the engine\'s own, not a second one', () => {
   it('⛔⛔ THE BYTE ORDER IS 0xTTBBGGRR, and it round-trips', () => {
@@ -64,14 +64,17 @@ describe('the packing is the engine\'s own, not a second one', () => {
     // and the wrong one lands on nothing — so the rail checks the CHANNELS, not
     // just that some integer came back.
     const c = unpackColor(RED)
-    expect(c.hex).toBe(colourHexByName('color.red'))
+    expect(c.hex).toBe(colourHexByName('color.red', 6))
     expect(c.transparencyByte).toBe(0)
   })
 
   it('⭐ two spellings of one colour pack identically', () => {
-    // `color.rgb(255, 82, 82)` IS `color.red` (#FF5252). A packer with the bytes
-    // reversed passes every "did I get an integer" check and fails this one.
-    expect(run('bgcolor(color.rgb(255, 82, 82))\nplot(close)').series[0][0]).toBe(RED)
+    // `color.rgb(242, 54, 69)` IS v6's `color.red` (#F23645) — this file's scripts
+    // are `@version=6`. ⚰️ It read `rgb(255, 82, 82)` (#FF5252, v5's red) while the
+    // engine's palette was version-blind; measured 2026-09-27, v6 draws #F23645.
+    // A packer with the bytes reversed passes every "did I get an integer" check
+    // and fails this one.
+    expect(run('bgcolor(color.rgb(242, 54, 69))\nplot(close)').series[0][0]).toBe(RED)
   })
 
   it('⚠️ transparency is the exact inverse of what the renderer unpacks', () => {

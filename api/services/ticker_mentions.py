@@ -1,7 +1,19 @@
-"""Cross-session ticker mentions for a Desk video's chart markers + timeline
-(spec 2026-08-11, Phase 2 design section A) — the single authority both
-features are built on: StockChart's Desk-mentions marker category and
-TickerPopup's "Desk" timeline tab.
+"""Cross-session ticker mentions for a Desk video's chart markers
+(spec 2026-08-11, Phase 2 design section A) — the authority behind
+StockChart's Desk-mentions marker category.
+
+⚰️ CORRECTED 2026-09-27 — THE SECOND FEATURE NAMED HERE DOES NOT EXIST. This
+header read: "the single authority both features are built on: StockChart's
+Desk-mentions marker category and TickerPopup's "Desk" timeline tab." Phase 2C
+(chart markers) SHIPPED and is live — app/src/components/StockChart.jsx:3121
+fetches GET /api/education/tickers/{sym}/mentions with its own inline useSWR,
+member opt-in cs.markers.desk, OFF by default. Phase 2B's TickerPopup "Desk"
+tab was never built: that popup's tabs are Daily / About / Fundamentals / The
+Street, and app/src/hooks/useTickerMentions.js — the hook written for it — has
+exactly one importer, its own test. Same correction the same day at
+api/routers/education.py::get_ticker_mentions. ⭐ The already-correct statement
+of this is api/services/wisdom/publish/adapters/desk_markers.py:5, "There is
+no TickerPopup Desk tab".
 
 One row PER MENTION (a video discussing SYM twice yields two rows).
 anchor_date derives from edu_videos.created_at via

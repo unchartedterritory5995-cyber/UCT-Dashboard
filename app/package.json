@@ -13,6 +13,7 @@
     "test:engine": "vitest run src/components/chart/engine/",
     "test:builder": "vitest run src/components/chart/builder/",
     "test:chart": "vitest run src/components/chart/",
+    "vendor-harness": "vitest run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
     "test:watch": "vitest"
   },
   "dependencies": {
