@@ -15109,6 +15109,52 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
+/**
+ * ⭐⭐ AN N-WAY COLOUR CHAIN, CARRIED AS A PALETTE AND AN INDEX.
+ *
+ * `close > ts ? color.green : close < ts ? color.red : color.black` is ATR
+ * Trailing Stoploss line 19-22, measured against TradingView 2026-09-27: its line
+ * is black on every bar where neither side holds, and a two-colour schema could
+ * only draw it gold. The same tree with every LEAF replaced by its position in a
+ * palette is an ordinary numeric ternary —
+ *
+ *     close > ts ? 0 : close < ts ? 1 : 2      palette [green, red, black]
+ *
+ * — which the resolver already canonicalises like any other series, so the chain
+ * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
+ *
+ * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
+ * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * readable branches would paint the unreadable ones a neighbour's colour.
+ * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
+ * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
+ * would carry the colour, not its position.
+ * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
+ * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ */
+function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+      return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
+    }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
+    if (!yes) return null
+    const no = colourIndexChain(node.no, env, ctx, depth + 1, acc)
+    if (!no) return null
+    return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
+  }
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  let idx = acc.palette.indexOf(hex)
+  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
+  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  return { tree: { type: 'number', value: idx }, acc }
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -15144,6 +15190,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
       || (n.type === 'call' && n.name === 'na'))
     if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
     const arity = staticColourArity(node, env)
+    // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
+    // answer so a chain the RESOLVER then refuses still reports its size.
+    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
+    if (chain && chain.acc.palette.length >= 2) {
+      const al = chain.acc.alphas
+      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
+      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -15224,9 +15278,12 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
       } : {}),
+      // ⭐ An N-way chain rides the same way a plot's does: palette + index.
+      ...(Array.isArray(pres.colorPalette) && pres.colorIndex
+        ? { colorPalette: pres.colorPalette, colorIndex: pres.colorIndex } : {}),
       // A conditional this lane could not carry — folded to one colour, or not
       // folded at all — says so rather than going quiet.
-      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+      ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
   }
@@ -15268,6 +15325,21 @@ function outputPresentation(args, ctx) {
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
+      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+      // refuses leaves the plot imported and `colorDynamicArity` saying why.
+      if (cond && cond.indexTree && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.indexTree)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorPalette = cond.palette.slice()
+          pres.colorIndex = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          delete pres.colorDynamicArity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
           const ast = ctx.resolver.resolve(cond.test)
