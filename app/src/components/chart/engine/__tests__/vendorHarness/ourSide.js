@@ -1,0 +1,257 @@
+// app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js
+//
+// ─── OUR SIDE: the member door, run on the VENDOR'S bars ──────────────────────
+//
+// ⛔⛔ THIS IS NOT AN EVALUATOR. It calls, in order, exactly what a member's
+// paste reaches:
+//
+//   memberPaneDefinition({source, id})   — MemberPane.jsx's own call
+//   installUserDefinitions([definition]) — the install door (it re-validates and
+//                                          can refuse what the builder accepted)
+//   computeFor(def, bars, inputs, ctx)   — what `binder.sync` calls per instance
+//   createBinder(...).sync(...)          — the real binder over the repo's own
+//                                          recording chart double, so a colour
+//                                          is read off the POINTS the renderer
+//                                          was handed, not re-derived here
+//   objectReaderFor → evaluateObjects → toRenderState
+//                                        — the object lane, counting what the
+//                                          render state KEEPS
+//
+// A harness that evaluated differently from the product would measure itself.
+// Nothing here computes a value; it only moves the vendor's bars into the shape
+// the product's bars have and reads back what the product produced.
+//
+// ⚠️ It lives under `__tests__/` on purpose: it is test infrastructure (the
+// reachability rail's TEST_INFRA rule), invoked by the harness tests and the
+// vitest CLI entry, and must never be imported by a member surface.
+
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import * as registry from '../../nativeRegistry'
+import { createBinder } from '../../binder'
+import { addInstance } from '../../instanceControls'
+import { mergeChartSettings } from '../../../chartDefaults'
+import { objectReaderFor } from '../../objectColumns'
+import { evaluateObjects } from '../../objectRuntime'
+import { toRenderState } from '../../objectRenderState'
+import { maxLookback } from '../../ast/interpret'
+import { createFakeChart } from '../fakeChart'
+import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+
+/** The id every harness run installs under. Satisfies `defSchema.ID_RE` (it is
+ *  the member pane's own prefix) and is uninstalled after every run. */
+export const HARNESS_DEF_ID = 'u_member-pane-vendorharness'
+
+/** TradingView interval string → the chart's own timeframe code. An interval
+ *  the chart has no code for is passed through unchanged, which folds nothing
+ *  (`timeframeFlags` returns null for an unknown code rather than guessing). */
+export function tfCodeOf(interval) {
+  const s = String(interval || '').trim()
+  if (/^\d+$/.test(s)) return s
+  if (/^1?D$/i.test(s)) return 'D'
+  if (/^1?W$/i.test(s)) return 'W'
+  if (/^1?M$/.test(s)) return 'M'
+  return s
+}
+
+const isDailyLike = (interval) => /^\d*[DWM]$/.test(String(interval || '').trim())
+
+/** The ISO date a unix time falls on, in the exchange's timezone. */
+export function isoDateIn(unixSeconds, timeZone) {
+  const f = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timeZone || 'Etc/UTC', year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  return f.format(new Date(unixSeconds * 1000))
+}
+
+/**
+ * The vendor's bars in the SHAPE the product's bars have: `/api/bars` returns an
+ * ISO date for a daily/weekly/monthly bar and unix seconds for an intraday one
+ * (`tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json` is that payload).
+ * The NUMBERS are the vendor's, untouched. A missing volume becomes 0 and the
+ * verdict carries the adapter's note saying so.
+ */
+export function toProductBars(capture) {
+  const tz = capture.symbol && capture.symbol.timezone
+  const daily = isDailyLike(capture.timeframe)
+  const iso = capture.bars.timeUnit === 'iso-date'
+  return capture.bars.rows.map(([t, o, h, l, c, v]) => ({
+    t: iso ? t : (daily ? isoDateIn(t, tz) : t),
+    o, h, l, c, v: v === null || v === undefined ? 0 : v,
+  }))
+}
+
+/** `{ticker, exchange}` for the bind-time fold, from the capture's symbol. */
+function symbolOf(capture) {
+  const s = capture.symbol || {}
+  const pro = String(s.pro_name || s.full_name || s.name || '')
+  const ticker = pro.includes(':') ? pro.split(':').pop() : (s.name || pro)
+  const exchange = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  return { ticker, exchange }
+}
+
+function lookbackOf(ast) {
+  try {
+    const n = maxLookback(ast)
+    return Number.isInteger(n) ? n : null
+  } catch {
+    return null
+  }
+}
+
+/** Colour a series point/option to `#rrggbbaa`, folding a plot opacity in. */
+function withOpacity(hex, opacity) {
+  const c = normalizeColor(hex)
+  if (!c || !Number.isFinite(opacity)) return c
+  const a = Math.max(0, Math.min(255, Math.round(opacity * 255))).toString(16).padStart(2, '0')
+  return `${c.slice(0, 7)}${a}`
+}
+
+/** Drive the real binder over the recording double; per plot key, the colour
+ *  the renderer was handed for every bar (point colour, else series colour). */
+function drawnColours(def, bars, ctx) {
+  const fake = createFakeChart()
+  const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+  const cs = addInstance(mergeChartSettings({}), def.id, registry)
+  const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
+  const out = new Map()
+  if (!instances.length) return { ok: false, reason: 'addInstance produced no instance', byKey: out }
+  const res = binder.sync({
+    enabled: true,
+    cs,
+    instances,
+    registry,
+    bars,
+    tf: ctx.tf,
+    symbol: ctx.symbol,
+    newestBarIsForming: ctx.newestBarIsForming,
+    adjustTime: (t) => t,
+    applyData: (series, data) => series.setData(data),
+    plan: { fresh: true },
+    resolvePlacement: () => ({ paneIndex: 1, scaleId: def.id, scaleOptions: {} }),
+  })
+  const plotByKey = new Map((def.plots || []).map((p) => [p.key, p]))
+  for (const b of binder.bindings()) {
+    if (!b || !b.series) continue
+    const sets = fake.calls.filter((c) => c.method === 'setData' && c.id === b.series.__id)
+    const data = sets.length ? sets[sets.length - 1].args[0] : null
+    if (!Array.isArray(data)) continue
+    const plot = plotByKey.get(b.plotKey) || {}
+    const seriesColor = b.series.__options && b.series.__options.color
+    const byTime = new Map(data.map((p) => [String(p.time), p]))
+    const colors = bars.map((bar) => {
+      const p = byTime.get(String(bar.t))
+      if (!p || !Number.isFinite(p.value)) return null
+      return withOpacity(p.color || seriesColor || plot.color, plot.opacity)
+    })
+    out.set(b.plotKey, colors)
+  }
+  binder.teardown()
+  return { ok: true, reason: null, byKey: out, sync: res }
+}
+
+/** The object lane's LIVE set at the last bar, as counts and texts. */
+function objectsOf(def, bars, ctx) {
+  if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
+  try {
+    const reader = objectReaderFor(def, bars, { inputs: undefined, tf: ctx.tf, symbol: ctx.symbol })
+    if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
+    const run = evaluateObjects(reader.program, {
+      barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+    })
+    const state = toRenderState(run.live, { bars })
+    const cells = state.tables.flatMap((t) => t.cells || [])
+    return {
+      drawsObjects: true,
+      ok: true,
+      counts: {
+        lines: state.lines.length,
+        labels: state.labels.length,
+        boxes: state.boxes.length,
+        tables: state.tables.length,
+        tableCells: cells.length,
+      },
+      texts: { labels: state.labels.map((l) => l.text), tableCells: cells.map((c) => c.text) },
+      dropped: state.dropped || null,
+    }
+  } catch (err) {
+    return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
+  }
+}
+
+/**
+ * Run the member door on the capture's bars.
+ *
+ * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
+ *            ctx: object, notes: string[]}}
+ */
+export function runOurSide(capture) {
+  const notes = []
+  const source = capture && capture.source && capture.source.text
+  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  if (!built.ok) {
+    return { ok: false, refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}`, plots: [], notes }
+  }
+  const { installed, errors } = registry.installUserDefinitions([built.definition])
+  try {
+    if (!installed.length) {
+      return { ok: false, refusal: `install door refused: ${errors.join(' | ')}`, plots: [], notes }
+    }
+    const def = installed[0]
+    const bars = toProductBars(capture)
+    const tf = tfCodeOf(capture.timeframe)
+    if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
+      notes.push(`timeframe ${JSON.stringify(capture.timeframe)} has no chart code — the bind-time fold folds nothing`)
+    }
+    const ctx = {
+      tf,
+      symbol: symbolOf(capture),
+      newestBarIsForming: capture.newestBarIsForming ?? null,
+    }
+    const cols = registry.computeFor(def, bars, undefined, ctx)
+
+    let colours
+    try {
+      colours = drawnColours(def, bars, ctx)
+    } catch (err) {
+      colours = { ok: false, reason: `binder threw: ${String((err && err.message) || err)}`, byKey: new Map() }
+    }
+    if (!colours.ok) notes.push(`colours unresolvable: ${colours.reason}`)
+
+    const rowByAst = new Map((built.rows || []).map((r) => [r.ast, r]))
+    const plots = []
+    for (const o of (built.translation.outputs || [])) {
+      if (o && o.kind === 'alertcondition') continue
+      const row = o && o.ast ? rowByAst.get(o.ast) : null
+      const col = row ? cols[row.key] : undefined
+      let missingReason = null
+      if (!row) {
+        missingReason = o && o.refusal
+          ? `the translator refused this plot (${(o.refusal && (o.refusal.guard || o.refusal.message)) || 'refusal'})`
+          : 'the member pane did not carry this output (hidden helper or beyond its row ceiling)'
+      } else if (!col) {
+        missingReason = `computeFor returned no column for ${row.key}`
+      }
+      plots.push({
+        title: o ? o.title : null,
+        formula: o ? o.formula : null,
+        key: row ? row.key : null,
+        hidden: !!(o && o.hidden),
+        column: col || null,
+        missingReason,
+        lookback: o && o.ast ? lookbackOf(o.ast) : null,
+        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+      })
+    }
+    return {
+      ok: true,
+      refusal: null,
+      plots,
+      objects: objectsOf(def, bars, ctx),
+      ctx,
+      notes,
+      bars,
+    }
+  } finally {
+    registry.uninstallUserDefinition(HARNESS_DEF_ID)
+  }
+}

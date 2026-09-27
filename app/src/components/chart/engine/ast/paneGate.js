@@ -40,8 +40,31 @@
 // ⭐ IT RETURNS A REASON, NEVER A BARE `false`. A pane that declines to render owes
 // the member a sentence, and a boolean cannot carry one.
 
+import {
+  assessObjectLoss, objectRemovalRefusal, OBJECT_REMOVAL_GUARD,
+} from './objectLoss'
+
 /** The lane whose verdict a pane is allowed to act on. */
 export const PANE_LANE = 'host'
+
+/** ⭐⭐ MAY A PANE DRAW THIS SCRIPT'S OBJECT PROGRAM? — owner ruling 2026-09-27
+ *  (option b).
+ *
+ *  A program that lost anything that REMOVES a drawing is never drawn: the chart
+ *  would keep objects TradingView removed, which is a wrong picture rather than
+ *  a smaller one. Everything else is drawn, and `objectLoss.js` words the
+ *  disclosure. Classification lives there; THIS is the decision, and both of its
+ *  consumers — the objects-only admissions below and `memberPaneDefinition`'s
+ *  withholding for a plotting script — ask this one function.
+ *
+ *  @returns {{draw: boolean, loss: object, refusal: string|null, guard: string|null}} */
+export function paneObjectsGate(t) {
+  const loss = assessObjectLoss(t)
+  if (loss.verdict === 'removes') {
+    return { draw: false, loss, refusal: objectRemovalRefusal(loss), guard: OBJECT_REMOVAL_GUARD }
+  }
+  return { draw: true, loss, refusal: null, guard: null }
+}
 
 /** May a pane render this translation, and if not, why not?
  *
@@ -87,6 +110,13 @@ export function paneGate(t, opts = {}) {
     if (opts.allowObjectsOnly === true
         && r && r.guard === 'pine:objects-only'
         && t.objects && Array.isArray(t.objects.ops) && t.objects.ops.length > 0) {
+      // ⛔⛔ 2026-09-27 — A DIRTY PROGRAM IS NOT ADMITTED WHOLESALE ANY MORE. This
+      // branch exists BECAUSE the program dropped ops (a clean one arrives `ok:
+      // true`, below), and it used to answer `ok` for all of them — including the
+      // ones that lost a delete. The drawing is the only thing such a script
+      // offers, so a lost removal refuses it, by name.
+      const og = paneObjectsGate(t)
+      if (!og.draw) return no(og.refusal, og.guard)
       return { ok: true, reason: null, guard: null }
     }
     return no(r && r.message
@@ -124,6 +154,12 @@ export function paneGate(t, opts = {}) {
   const drawsObjects = !!(t.objects && Array.isArray(t.objects.ops) && t.objects.ops.length > 0)
   if (!Number.isInteger(t.selected) || t.selected < 0) {
     if (opts.allowObjectsOnly === true && drawsObjects) {
+      // ⛔ "CLEAN" HERE MEANS `droppedOps === 0`, AND THAT IS NOT THE SAME AS
+      // LOSING NOTHING: the READER counts `box.delete` inside a loop it cannot run
+      // before the converter sees an op (measured: `sonarlab-order-blocks`, zero
+      // drops, a lost `box.delete`). The same gate asks, so the same answer holds.
+      const og = paneObjectsGate(t)
+      if (!og.draw) return no(og.refusal, og.guard)
       return { ok: true, reason: null, guard: null }
     }
     // Ruling D1's honest case, arriving here rather than as a blank pane.

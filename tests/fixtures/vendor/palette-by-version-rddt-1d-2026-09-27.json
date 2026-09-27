@@ -1,0 +1,51 @@
+{
+  "_what": "TradingView's resolved hex for every named Pine colour constant, per Pine version. One probe script per version plotting all 17 names; the hex is read from the study's own properties().state().styles[plot_N].color after TradingView compiled and drew it.",
+  "_why": "The engine carries ONE version-blind table (pine.js PINE_COLOURS). The 2026-09-07 correction of color.red to #FF5252 came from a @version=5 probe and was applied to every version; this capture measures all four.",
+  "_captured": "2026-09-27T06:25Z, owner's TradingView Premium session, rig layout 01f1AcIj ('UCT CAPTURE RIG — no studies'), NYSE:RDDT 1D, tab visible, study count 0 before each add and 0 after each removal",
+  "_method": "Pine editor -> Create new -> Indicator (fresh 183-char template each time), buffer written through Monaco and asserted equal to the probe source, exactly one visible enabled 'Add to chart' and no 'Update on chart', add, read styles, removeEntity.",
+  "_probe_template": "//@version=N\\n(study|indicator)(\"UCTVH palette vN\", overlay=false)\\nplot(i, title=\"<name>\", color=<name for v3 | color.<name> for v4+>) for each name",
+  "_note_case": "TradingView returns lowercase '#2962ff' for blue under v5 and v6 only; compare case-insensitively.",
+  "_note_grey": "color.grey was not probed; it is documented as an alias of color.gray.",
+  "versions": {
+    "3": {
+      "spelling": "bare names (color=red)",
+      "colours": {
+        "aqua": "#00FFFF", "black": "#000000", "blue": "#0000FF", "fuchsia": "#FF00FF",
+        "gray": "#808080", "green": "#008000", "lime": "#00FF00", "maroon": "#800000",
+        "navy": "#000080", "olive": "#808000", "orange": "#FF7F00", "purple": "#800080",
+        "red": "#FF0000", "silver": "#C0C0C0", "teal": "#008080", "white": "#FFFFFF",
+        "yellow": "#FFFF00"
+      }
+    },
+    "4": {
+      "spelling": "color.<name>",
+      "colours": {
+        "aqua": "#00BCD4", "black": "#363A45", "blue": "#2196F3", "fuchsia": "#E040FB",
+        "gray": "#787B86", "green": "#4CAF50", "lime": "#00E676", "maroon": "#880E4F",
+        "navy": "#311B92", "olive": "#808000", "orange": "#FF9800", "purple": "#9C27B0",
+        "red": "#FF5252", "silver": "#B2B5BE", "teal": "#00897B", "white": "#FFFFFF",
+        "yellow": "#FFEB3B"
+      }
+    },
+    "5": {
+      "spelling": "color.<name>",
+      "colours": {
+        "aqua": "#00BCD4", "black": "#363A45", "blue": "#2962ff", "fuchsia": "#E040FB",
+        "gray": "#787B86", "green": "#4CAF50", "lime": "#00E676", "maroon": "#880E4F",
+        "navy": "#311B92", "olive": "#808000", "orange": "#FF9800", "purple": "#9C27B0",
+        "red": "#FF5252", "silver": "#B2B5BE", "teal": "#00897B", "white": "#FFFFFF",
+        "yellow": "#FFEB3B"
+      }
+    },
+    "6": {
+      "spelling": "color.<name>",
+      "colours": {
+        "aqua": "#00BCD4", "black": "#363A45", "blue": "#2962ff", "fuchsia": "#E040FB",
+        "gray": "#787B86", "green": "#4CAF50", "lime": "#00E676", "maroon": "#880E4F",
+        "navy": "#311B92", "olive": "#808000", "orange": "#FF9800", "purple": "#9C27B0",
+        "red": "#F23645", "silver": "#B2B5BE", "teal": "#089981", "white": "#FFFFFF",
+        "yellow": "#FDD835"
+      }
+    }
+  }
+}
