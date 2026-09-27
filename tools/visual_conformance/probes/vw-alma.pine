@@ -1,0 +1,31 @@
+//@version=6
+indicator("UCTPROBE_VW_ALMA", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `ta.alma`, THE NAMESPACED FORM ─────────────
+//
+// ALONE IN ITS FILE because the last ALMA probe (`r11-alma.pine`) failed to
+// compile on the BARE spelling and took every plot with it — bare `alma` does not
+// exist in Pine v6 and must never be added (PARITY-PROGRAMME.md). `ta.alma` DOES
+// exist; it has never been captured. It appears in
+// `delta-volume-candles-lucf__qADnaAfCPp` (masked today by a library import) and
+// would be a new table function, so it is priced before it is built.
+//
+// The reference defines it: m = offset * (length - 1) (floored when `floor`),
+// s = length / sigma, w_i = exp(-(i - m)^2 / (2 s^2)), newest bar at i = length-1.
+// What the reference does NOT settle, and these read:
+//   A01–A02  the raw value at the corpus's own arguments, and with `floor = true`;
+//   A03      warm-up: bar_index of the first non-`na` value (expected length - 1);
+//   A04      the weight ORIENTATION — an offset of 0 must weight the OLDEST bar,
+//            0.99 the newest; A04 is (alma - close) at offset 0.99, near 0 if so;
+//   A05      na inside the window: `ta.alma` over a series with one `na` — does it
+//            skip, carry, or poison the window for `length` bars?
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, ≥ 300 bars, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta.alma(close, 9, 0.85, 6),        "A01_alma_close_9_085_6")
+plot(ta.alma(close, 9, 0.85, 6, true),  "A02_alma_floor_true")
+plot(na(ta.alma(close, 9, 0.85, 6)) ? -1 : bar_index, "A03_first_nonNA_bar")
+plot(ta.alma(close, 9, 0.99, 6) - close, "A04_offset099_minus_close_NEAR0")
+holed = bar_index % 50 == 25 ? na : close
+plot(ta.alma(holed, 9, 0.85, 6),        "A05_alma_over_series_with_na")
