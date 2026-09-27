@@ -75,6 +75,13 @@ export const RUNTIME_LANE_KIND = 'pine'
 //  them and this lane builds — `[k, d] = ta.stoch(…)` refuses here too
 //  (`runtime:tuple`), and `fixnan` refuses in both lanes (`pine:na`). A member
 //  earns a place by a script the lane actually serves, never by its sentence.
+//
+//  ⭐ `pine:offset-literal` JOINED 2026-09-27, on its proof. The host lane holds
+//  one expression per column, so a bar offset must be a whole-bar constant; the
+//  runtime reads a run-time offset through a materialised column or a dynamic
+//  ring. TradingView was captured answering `x[na]` as `x[0]` on 158 of 158 bars
+//  (`rtwalls-dyn-history-na`), and this lane matches it on every bar. A malformed
+//  offset (`close[1.5]`, `close[1][2]`) still refuses in this lane too.
 export const RUNTIME_FALLBACK_GUARDS = Object.freeze(new Set([
   'pine:state',
   'pine:reassign',
@@ -82,6 +89,7 @@ export const RUNTIME_FALLBACK_GUARDS = Object.freeze(new Set([
   'pine:collection',
   'pine:type',
   'pine:function-def',
+  'pine:offset-literal',
 ]))
 
 /** Is this host refusal one the runtime lane may answer instead? */

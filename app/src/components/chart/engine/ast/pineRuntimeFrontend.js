@@ -1331,8 +1331,16 @@ export function buildRuntimeIr(source, opts = {}) {
     // else — `parseOffsetIndex` hands the expression over rather than refusing,
     // *"precisely so a consumer can decide"*. A literal has no `.expr` and
     // recurses into nothing, so a constant offset routes exactly as before.
+    //
+    // ⭐⭐ 2026-09-27 — AND A PURE SERIES AS THE OFFSET IS PER-BAR TOO.
+    // `kn = bar_index % 4 == 0 ? na : 1` reads no slot, so the test above said
+    // "pure", `close[kn]` went to the columnar lane, and that lane refused
+    // `pine:offset-literal` — a whole-bar constant is all it can hold. TradingView
+    // answers it bar by bar (capture `rtwalls-dyn-history-na`: `x[na]` reads
+    // `x[0]` on 158 of 158 bars). `offsetIsPerBarSeries` is the SAME question
+    // `offsetPlan` already asks for a slot's history — one answer, two callers.
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
-        && needsRuntime(node.n.expr, scope)) return true
+        && (needsRuntime(node.n.expr, scope) || offsetIsPerBarSeries(node.n.expr))) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
       if (needsRuntime(node[k], scope)) return true
     }
@@ -1344,6 +1352,18 @@ export function buildRuntimeIr(source, opts = {}) {
     return false
   }
   const readsSlot = needsRuntime
+
+  /** ⭐ Does this offset expression resolve to something per-bar rather than a
+   *  whole-bar constant? Asked through the FROZEN resolver, exactly as
+   *  `offsetPlan` asks it, so a saved definition still bakes an input's default.
+   *  ⛔ A resolution that FAILS answers `false`, so a typo is left to the lane
+   *  whose refusal names it (`close[zzNope]` → "never given a value"). */
+  function offsetIsPerBarSeries(expr) {
+    if (!expr) return false
+    let canonical = null
+    try { canonical = makeFrozenResolver().resolve(expr) } catch { return false }
+    return !!canonical && canonical.type !== 'num'
+  }
 
   /** Does this subtree carry TEXT?
    *
@@ -3622,7 +3642,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // resolver's rule that a saved definition bakes the AUTHOR'S default.
         const offAt = locate(node.tok)
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && needsRuntime(offExpr, scope)) {
+        if (offExpr && (needsRuntime(offExpr, scope) || offsetIsPerBarSeries(offExpr))) {
           return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
         }
         const back = Number(node.n)

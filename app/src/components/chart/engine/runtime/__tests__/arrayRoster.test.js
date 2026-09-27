@@ -131,18 +131,33 @@ describe('⭐ max, min, sum, avg — exact over finite numbers', () => {
       .toEqual([100, 100.5, 101.5, 102.5])
   })
 
-  it('⛔ an `na` element STOPS by name, citing the unmeasured rule (Q5)', () => {
-    for (const fn of ['max', 'min', 'sum', 'avg']) {
-      expect(() => runPine(`a = array.from(1.0, na, 3.0)\nplot(array.${fn}(a))\n`), fn)
-        .toThrow(new RegExp(`array\\.${fn}: element 1 is na — .*has not been measured \\(capture queue Q5\\)`))
+  // Q5, vendor-measured 2026-09-27 (capture rtwalls-array-stats-na-rddt-1d):
+  // `[1, na, 3]` answers max 3, min 1, sum 4, avg 2 — na is SKIPPED; and avg/max of
+  // an empty array answer na on every bar.
+  it('⭐ an `na` element is SKIPPED, as TradingView measures it (Q5)', () => {
+    const src = (fn) => `a = array.from(1.0, na, 3.0)\nplot(array.${fn}(a))\n`
+    expect(runPine(src('max'))).toEqual(all(3))
+    expect(runPine(src('min'))).toEqual(all(1))
+    expect(runPine(src('sum'))).toEqual(all(4))
+    expect(runPine(src('avg'))).toEqual(all(2))
+  })
+
+  it('⭐ an EMPTY array answers na for max / min / avg (Q5)', () => {
+    for (const fn of ['max', 'min', 'avg']) {
+      expect(runPine(`a = array.new<float>()\nplot(array.${fn}(a))\n`), fn).toEqual(all(NaN))
     }
   })
 
-  it('⛔ an EMPTY array STOPS by name, citing Q5', () => {
-    for (const fn of ['max', 'min', 'sum', 'avg']) {
-      expect(() => runPine(`a = array.new<float>()\nplot(array.${fn}(a))\n`), fn)
-        .toThrow(new RegExp(`array\\.${fn}: the array is empty — .*capture queue Q5`))
+  it('⛔ a SUM of nothing STOPS by name — 0 and na draw different lines and neither is measured', () => {
+    for (const make of ['array.new<float>()', 'array.from(na, na)']) {
+      expect(() => runPine(`a = ${make}\nplot(array.sum(a))\n`), make)
+        .toThrow(/array\.sum: no number to add .*has not been measured/)
     }
+  })
+
+  it('⛔ a non-number element STOPS by name', () => {
+    expect(() => runPine('a = array.from("x", "y")\nplot(array.max(a))\n'))
+      .toThrow(/array\.max: element 0 is/)
   })
 
   it('⛔ an nth outside the array STOPS', () => {

@@ -11,6 +11,27 @@ A capture is read ROW BY ROW. Every probe carries an `N01_bar_index_CONTROL` plo
 a study that did not evaluate cannot read as an answer, and a sentinel `-2` where a
 bar is not evidence for the question — count only the other rows.
 
+## ✅ ANSWERED — captured 2026-09-27, every capture's source sha-identical to its probe
+
+| Q | TradingView's answer | capture (`tests/fixtures/vendor/harness/`) | runtime lane now |
+|---|---|---|---|
+| Q1 | pivots: LEFT tie **inclusive**, RIGHT tie **strict** (NYSE:F: right-tie highs and lows fire 0 times, left-tie highs and lows fire every time) | `rtwalls-pivot-ties-f-1d-…`, `rtwalls-pivot-ties-rddt-1d-…` | **unchanged** — ruling R1 below; railed as evidence only |
+| Q2 | `x[na]` reads **`x[0]`** (158 of 158 `na` bars carry the current close) | `rtwalls-dyn-history-na-rddt-1d-…` | follows it: `vm.js::dynamicOffset` maps `na` to 0 |
+| Q3 | a negative run-time offset **stops the study with a runtime error**; no rows drawn. ⚠️ The error's exact text was not recorded, so none is quoted here. | none (nothing to capture) | follows it: `dynamicOffset` throws a named `VmError`, and the door reports `runtime-door:run` |
+| Q4 | the control and the no-`max_bars_back` variant **agree on every bar**; no buffer error | `rtwalls-dyn-history-rddt-1d-…`, `rtwalls-dyn-history-nomaxbars-rddt-1d-…` | already matched; now graded bar by bar |
+| Q5 | statistics **skip** `na` (`[1, na, 3]` → max 3, min 1, sum 4, avg 2); `max`/`avg` of an **empty** array are **`na`** | `rtwalls-array-stats-na-rddt-1d-…` | follows it: `collections.js::finiteElements` skips `na`; an empty `max`/`min`/`avg` is `na`. ⛔ An empty `sum` still STOPS by name, because no capture measured it. |
+
+Rail: `app/src/components/chart/engine/__tests__/vendorHarness/runtimeWallsCaptures.test.js`.
+It grades every probe title on every bar through `runOurSide(capture, { lane: 'runtime' })`.
+
+⭐ Q2 also needed a ROUTE fix. `close[kn]` with `kn = bar_index % 4 == 0 ? na : 1` reads no
+mutable slot, so `needsRuntime` sent it to the columnar lane, which refused
+`pine:offset-literal`. `pineRuntimeFrontend.js::offsetIsPerBarSeries` asks the question
+`offsetPlan` already asked: does the offset resolve to a constant? Both places use it.
+`pine:offset-literal` joined `RUNTIME_FALLBACK_GUARDS` on that script's proof.
+
+⛔ The sections below are kept as written, because they are the predictions the captures were read against.
+
 ---
 
 ## Q1 — pivot ties: does `ta.pivothigh`/`ta.pivotlow` accept a tie on the RIGHT?

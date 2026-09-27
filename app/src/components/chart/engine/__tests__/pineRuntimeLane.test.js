@@ -75,6 +75,8 @@ const GUARD_PROOFS = {
   'pine:block': { source: H + 'x = switch\n    close > open => 1\n    => 0\nplot(x)\n' },
   'pine:collection': { source: H + 'a = array.new_float(0)\narray.push(a, close)\nplot(array.get(a, 0))\n' },
   'pine:type': { source: H + 'type P\n    float v\np = P.new(close)\nplot(p.v)\n' },
+  // ⭐ a PURE per-bar offset: no slot, not a constant — the capture-queue Q2 shape.
+  'pine:offset-literal': { source: H + 'kn = bar_index % 4 == 0 ? na : 1\nplot(close[kn])\n' },
   'pine:function-def': {
     source: fs.readFileSync(path.join(REPO, 'corpus/committed/trendlines__43QQg9nDN0.pine'), 'utf8'),
     ownsDrawing: true,

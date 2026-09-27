@@ -397,12 +397,15 @@ export const ARRAY_FNS = Object.freeze({
       for (let i = from; i < to; i += 1) a[0][i] = a[1]
     },
   },
-  // ⭐ THE STATISTICS ARE EXACT OVER AN ARRAY OF FINITE NUMBERS, AND ONLY THERE.
-  // ⛔⛔ AN `na` ELEMENT OR AN EMPTY ARRAY STOPS THE SCRIPT BY NAME. Whether
-  // TradingView skips an `na`, propagates it, or answers `na` for an empty array
-  // has not been watched on a chart (queued: docs/pine/capture-queue-2026-09-27.md
-  // Q5). Each of the three plausible rules gives a different number for the same
-  // bars, and a guessed one is a confident wrong statistic a member would read.
+  // ⭐⭐ VENDOR-MEASURED (2026-09-27, NYSE:RDDT 1D, all 631 bars,
+  // tests/fixtures/vendor/harness/rtwalls-array-stats-na-rddt-1d-2026-09-27.json):
+  //   • an `na` element is SKIPPED — `[1, na, 3]` gives max 3, min 1, sum 4, avg 2;
+  //   • an EMPTY array answers `na` for `array.avg` and `array.max` (158 bars each).
+  // ⚰️ Both used to stop the script by name, which kept wyckoff off every real chart.
+  // ⛔ `array.min` of an empty array answers `na` because it IS `array.max`'s code
+  // path (`nthOrdered`) — one measurement covers both. `array.sum` of an empty
+  // array is NOT measured and still stops: sum-of-nothing could be 0 or `na`, and
+  // the two draw different lines.
   'array.max': {
     args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
     fn: (a, budget) => nthOrdered(a, budget, 'array.max', (x, y) => y - x),
@@ -413,13 +416,20 @@ export const ARRAY_FNS = Object.freeze({
   },
   'array.sum': {
     args: ['array'], returns: 'number',
-    fn: (a, budget) => finiteElements(a[0], 'array.sum', budget).reduce((s, x) => s + x, 0),
+    fn: (a, budget) => {
+      const xs = finiteElements(a[0], 'array.sum', budget)
+      if (!xs.length) {
+        throw new CollectionError('array.sum: no number to add (the array is empty or all na) — what '
+          + 'TradingView answers here has not been measured, and 0 and na draw different lines')
+      }
+      return xs.reduce((s, x) => s + x, 0)
+    },
   },
   'array.avg': {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       const xs = finiteElements(a[0], 'array.avg', budget)
-      return xs.reduce((s, x) => s + x, 0) / xs.length
+      return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN
     },
   },
 })
@@ -429,27 +439,27 @@ function emptyStop(what) {
   return `${what}: the array is empty — Pine stops the script here rather than answering na`
 }
 
-/** Every element, checked to be a finite number; stops the script otherwise. */
+/** The numeric elements, with every `na` SKIPPED (vendor-measured). A value
+ *  that is not a number at all — a string, a colour, a handle — is not an `na`
+ *  and still stops the script: TradingView would not type-check it. */
 function finiteElements(arr, what, budget) {
   budget.charge('ARRAY_OPERATIONS', arr.length)
-  if (!arr.length) {
-    throw new CollectionError(`${what}: the array is empty — what TradingView answers for an `
-      + 'empty array has not been measured (capture queue Q5), and this engine does not guess it')
-  }
+  const xs = []
   for (let i = 0; i < arr.length; i += 1) {
     const v = arr[i]
-    if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new CollectionError(`${what}: element ${i} is ${typeof v === 'number' ? 'na' : kindOf(v)} — `
-        + 'whether TradingView skips it, propagates it or answers na has not been measured '
-        + '(capture queue Q5), and each rule gives a different number')
+    if (typeof v !== 'number') {
+      throw new CollectionError(`${what}: element ${i} is ${kindOf(v)}, not a number`)
     }
+    if (Number.isFinite(v)) xs.push(v)
   }
-  return arr
+  return xs
 }
 
 /** `array.max(id, nth)` / `array.min(id, nth)`: the nth element in order. */
 function nthOrdered(a, budget, what, cmp) {
   const xs = finiteElements(a[0], what, budget).slice().sort(cmp)
+  // ⭐ Empty — or empty once every `na` is skipped — answers `na` (vendor-measured).
+  if (!xs.length) return NaN
   const nth = a.length > 1 ? a[1] : 0
   if (!Number.isInteger(nth) || nth < 0 || nth >= xs.length) {
     throw new CollectionError(`${what}: nth ${nth} is outside an array of ${xs.length} — `

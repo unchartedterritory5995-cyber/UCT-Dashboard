@@ -13,9 +13,10 @@
 //   x[0]             → the LIVE value (never the previous bar)
 //   x[n], 1 ≤ n ≤ bar → the value committed n bars ago
 //   x[n], n > bar    → na (before the first bar — Pine's own answer)
-//   n na / negative / fractional → na  (the same three answers READ_HIST_DYN gives a
-//                      column; TradingView's answer is QUEUED for live capture,
-//                      tools/visual_conformance/probes/rtwalls-dyn-history-*.pine)
+//   n na             → x[0], the live value   ⎫ VENDOR-MEASURED, NYSE:RDDT 1D
+//   n negative       → STOPS the script        ⎬ tests/fixtures/vendor/harness/
+//                                              ⎭ rtwalls-dyn-history-*-2026-09-27
+//   n fractional     → na (unmeasured; never `n | 0`)
 //
 // `acc` counts bars (acc = bar + 1), so every expectation is arithmetic.
 import { describe, it, expect } from 'vitest'
@@ -77,17 +78,18 @@ describe('⛔ the unanswerable offsets are na — never a clamp, never a wrong b
     expect(v).toEqual([null, null, null, 1, 2, 3, 4, 5])
   })
 
-  it('an na offset is na', () => {
+  it('⭐ an na offset reads the LIVE value — TradingView reads x[na] as x[0] (158 of 158 bars)', () => {
     const [v] = run(src(...ACC, 'float z = 0.0', 'int k = bar_index % 2 == 0 ? na : 1',
       'for i = 0 to 0', '    z := acc[k]', 'plot(z)'))
-    // odd bars: acc[1] = b; even bars: na
-    expect(v).toEqual([null, 1, null, 3, null, 5, null, 7])
+    // odd bars: acc[1] = b; even bars: acc[0] = b + 1. ⚰️ This answered na.
+    expect(v).toEqual([1, 1, 3, 3, 5, 5, 7, 7])
   })
 
-  it('a negative offset is na — a bar that has not happened is never read', () => {
-    const [v] = run(src(...ACC, 'float z = 0.0', 'int k = bar_index % 2 == 0 ? -1 : 1',
-      'for i = 0 to 0', '    z := acc[k]', 'plot(z)'))
-    expect(v).toEqual([null, 1, null, 3, null, 5, null, 7])
+  it('⭐ a negative offset STOPS the script — TradingView errors the whole study', () => {
+    // ⚰️ This answered na, drawing a line where TradingView draws nothing.
+    expect(() => run(src(...ACC, 'float z = 0.0', 'int k = bar_index % 2 == 0 ? -1 : 1',
+      'for i = 0 to 0', '    z := acc[k]', 'plot(z)')))
+      .toThrow(/reads history at -1 bars back — .*TradingView stops the script/)
   })
 })
 
