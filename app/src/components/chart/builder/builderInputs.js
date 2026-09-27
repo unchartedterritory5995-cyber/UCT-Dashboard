@@ -666,8 +666,21 @@ function annotate(translation, windowBound, displacementBound = new Set()) {
         : e
     })
     const { inputs, skipped } = inputsFromFolded(folded, o.formula)
-    return { ...o, memberInputs: inputs, skippedInputs: skipped }
+    return carryHandoffs(o, { ...o, memberInputs: inputs, skippedInputs: skipped })
   })
+}
+
+/** ⛔ A SPREAD DROPS NON-ENUMERABLE PROPERTIES, and the translator hands a
+ *  leftward displacement's parameter relation to the chart door that way
+ *  (`_displaceFrom` / `_displaceParams`, 2026-09-26). Re-attach them, still
+ *  non-enumerable, so the annotated row carries what the raw row carried. */
+function carryHandoffs(from, to) {
+  for (const k of ['_displaceFrom', '_displaceParams']) {
+    if (Object.prototype.hasOwnProperty.call(from, k)) {
+      Object.defineProperty(to, k, { value: from[k], enumerable: false })
+    }
+  }
+  return to
 }
 
 export function memberInputTranslation(translate, source, opts = {}) {

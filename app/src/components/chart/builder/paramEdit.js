@@ -375,6 +375,34 @@ export function applyParamEdit(definition, paramId, newValue) {
     return { ok: false, error: `paramEdit: ${entry.title || paramId} — every locator is detached; nothing to update` }
   }
 
+  // ⭐⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT THAT IS A FUNCTION OF THIS PARAMETER
+  // MOVES WITH IT. It lives on the plot (`plots[].displace`), not in a tree, so no
+  // locator reaches it; `plots[].displaceFrom` records `scale * value + add` and it
+  // is recomputed here, in the same atomic edit. Without this an edit to a pivot's
+  // `rightbars` moved the pivot and its confirmation shift and left the MARKER drawn
+  // at the old distance — a drawing that disagrees with its own maths.
+  // ⛔ A displacement that would turn rightward is refused whole: that is a bar
+  // offset in the tree, a different translation, not a new number on the plot.
+  let plots = definition.plots
+  if (Array.isArray(plots) && plots.some((p) => p && p.displaceFrom && p.displaceFrom.param === paramId)) {
+    const next = []
+    for (const p of plots) {
+      const f = p && p.displaceFrom
+      if (!f || f.param !== paramId) { next.push(p); continue }
+      const d = f.scale * newValue + f.add
+      if (!Number.isInteger(d) || d > 0) {
+        return { ok: false, error: `paramEdit: ${entry.title || paramId} = ${newValue} would draw `
+          + `\`${p.key}\` ${d} bars to the RIGHT; a rightward displacement is a different translation — `
+          + 'change it in the script and paste it again' }
+      }
+      const moved = { ...p }
+      if (d === 0) delete moved.displace
+      else moved.displace = d
+      next.push(moved)
+    }
+    plots = next
+  }
+
   const compute = { ...definition.compute }
   const hasMultiTree = isPlainObject(compute.trees)
   if (hasMultiTree) {
@@ -400,5 +428,5 @@ export function applyParamEdit(definition, paramId, newValue) {
     compute.source = updatedFormulaByTreeIndex.get(null)
   }
 
-  return { ok: true, definition: { ...definition, compute } }
+  return { ok: true, definition: { ...definition, compute, ...(plots !== definition.plots ? { plots } : {}) } }
 }

@@ -13662,7 +13662,9 @@ function translatePineResult(source, opts = {}) {
       // the value on display there would be a FUTURE bar's, which has no node,
       // while the author's computed value at each bar is exactly what the
       // undisplaced tree says.
-      const { shift, paramId: shiftParamId } = foldDisplacement(resolver, seriesArg)
+      const {
+        shift, paramId: shiftParamId, displaceFrom, displaceParams,
+      } = foldDisplacement(resolver, seriesArg)
       const base = resolver.resolve(seriesArg.value)
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
@@ -13790,6 +13792,14 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
+      // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
+      // definition-parameter edit moves the drawing too. Non-enumerable, like
+      // `_bareRole`: it is a hand-off to one reader, not part of the row's shape.
+      if (shift < 0) {
+        Object.defineProperty(row, '_displaceFrom', { value: displaceFrom, enumerable: false })
+        Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
+      }
       Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
     } catch (err) {
       row = {
@@ -15403,9 +15413,52 @@ export function treeYieldsBool(node, table = TABLE) {
  *  ⛔ A DISPLACEMENT THAT DOES NOT REDUCE TO A CONSTANT REFUSES. One that depends
  *  on a COLUMN is a per-bar shift — neither a node nor a presentation constant —
  *  and there is nothing honest to do with it. */
+/** Every parameter id tagged anywhere inside a resolved tree. */
+function paramIdsIn(node, out = new Set()) {
+  if (!node || typeof node !== 'object') return out
+  if (node.__uctParamId !== undefined) out.add(String(node.__uctParamId))
+  for (const a of (node.args || [])) paramIdsIn(a, out)
+  return out
+}
+
+/** A resolved displacement as `scale * <one parameter> + add`, or null.
+ *
+ *  ⭐ 2026-09-26 — WHY THIS EXISTS: a NEGATIVE displacement is drawn from the
+ *  plot row (`displace`), not from the tree, so a definition-parameter edit —
+ *  which rewrites tree literals — cannot reach it. For the shapes the corpus
+ *  actually writes (`-len`, `-n - 1`, `-displacement + 1`) the displacement is
+ *  an affine function of ONE input with a ±1 slope, so the row can carry that
+ *  relation and `paramEdit` recomputes the displacement from the new value.
+ *  ⛔ Anything else — two inputs, a product, a call — answers null, and the
+ *  caller withholds the parameter rather than let an edit half-apply. */
+function affineDisplacement(node) {
+  if (!node || typeof node !== 'object') return null
+  if (node.type === 'num') {
+    if (!Number.isFinite(Number(node.value))) return null
+    return node.__uctParamId !== undefined
+      ? { param: String(node.__uctParamId), scale: 1, add: 0 }
+      : { param: null, scale: 0, add: Number(node.value) }
+  }
+  if (node.type !== 'op') return null
+  const args = node.args || []
+  if (node.name === 'u-' && args.length === 1) {
+    const a = affineDisplacement(args[0])
+    return a && { param: a.param, scale: -a.scale, add: -a.add }
+  }
+  if ((node.name === '+' || node.name === '-') && args.length === 2) {
+    const a = affineDisplacement(args[0])
+    const b = affineDisplacement(args[1])
+    if (!a || !b) return null
+    if (a.param && b.param) return null
+    const sign = node.name === '-' ? -1 : 1
+    return { param: a.param || b.param, scale: a.scale + sign * b.scale, add: a.add + sign * b.add }
+  }
+  return null
+}
+
 function foldDisplacement(resolver, seriesArg) {
   const node = seriesArg.offsetNode
-  if (!node) return { shift: 0, paramId: undefined }
+  if (!node) return { shift: 0, paramId: undefined, displaceFrom: null, displaceParams: [] }
   let folded
   try {
     folded = resolver.resolve(node)
@@ -15472,7 +15525,16 @@ function foldDisplacement(resolver, seriesArg) {
       + 'bars you mean.',
       locate(seriesArg.offsetTok))
   }
-  return { shift: value, paramId }
+  // ⭐ THE PARAMETER RELATION, for a displacement drawn from the row. Only a
+  // ±1-slope function of ONE tagged input is carried; `displaceParams` names
+  // every parameter the displacement reads so a caller can withhold the ones
+  // the relation cannot express.
+  const fit = affineDisplacement(folded)
+  const displaceFrom = fit && fit.param && Math.abs(fit.scale) === 1
+    // `+ 0` normalises a `-0` (from `u-` over a zero constant) — a stored `-0` would
+    // round-trip through JSON as `0` and read as a different document.
+    ? { param: fit.param, scale: fit.scale, add: fit.add + 0 } : null
+  return { shift: value, paramId, displaceFrom, displaceParams: [...paramIdsIn(folded)] }
 }
 
 /** The argument a screener reads. `plot(series, title, …)` and
