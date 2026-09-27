@@ -355,3 +355,56 @@
     align-items: center;
   }
 }
+
+/* ⛔⛔ THE PHONE TIER, AND BOTH RULES ARE HERE BECAUSE A BROWSER MEASURED THEM,
+   NOT BECAUSE THEY READ WELL. Every number below is from a real Chromium at
+   390×844 with the panel OPEN; the rails for this component are green in jsdom,
+   which computes NO LAYOUT and therefore could not see either defect.
+
+   ⚰️ WHAT SHIPPED AND WAS WRONG (2026-09-26, live for ~20 min): the panel is
+   anchored `right: 0` on the premise that both notes "sit at the right end of
+   their container". MEASURED AT 390 THAT PREMISE IS FALSE FOR MOUNT 1 — the rule
+   at the top of this file collapses the key-level grid's `repeat(5,…)` to a
+   single `1fr` track, so the Total GEX card becomes FULL WIDTH and its note sits
+   17px from the card's LEFT edge and 285.7px from its right. `right: 0` then grew
+   the panel leftward off-screen: 145.14px of 239.44px clipped — 60.6% — and a
+   member tapping it read "all open interest." instead of "Assumes dealers are
+   short all open interest." 3 of 5 hit-probes on the panel's own text returned
+   null. ⭐ The premise was true on desktop and false on the one tier the
+   tap-affordance exists for. */
+@media (max-width: 640px) {
+  /* Restores the premise `right: 0` was written against: as a block-level flex
+     box the note spans the collapsed card, so its right edge IS the card's right
+     edge. MEASURED: mount 1 clipped 145.14px → 0.00px, hit-probes 1/3 → 3/3,
+     panel [-145.14, 94.30] → [125.56, 365.00]. Also holds for the longer
+     Trade-Aware copy, which reaches the 260px max-width cap and still clips 0.00.
+     ⚠️ Inert on the Summary strip, where the note is already a flex ITEM. */
+  .of-mroot .of-gexnote {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  /* ⛔ MOUNT 2 IS HIDDEN ON PHONES ONLY, AND IT IS NOT COSMETIC. The Summary
+     strip's `auto 1fr` grid ALREADY overflows `.of-mroot` by 53px with no note at
+     all; this note added 44px more and that took the Danger/Safe gauge from
+     39.05px visible to 0.00px. Removing it returns exactly that 44px — measured
+     gauge 0.00 → 39.05px, root overflow 97 → 53px, i.e. back to the pre-existing
+     figure. The 53px is NOT this ticket's and is recorded as an open item.
+     ⭐ Mount 2 was the weaker disclosure anyway: it cleared the viewport by
+     0.25px, and only because the browser scrolls an un-pannable container for you
+     on tap. The assumption stays disclosed on phones at the Total GEX figure —
+     the number whose SIGN it changes — which after the rule above is fully
+     readable.
+     ⛔ THE SELECTOR KEYS ON THE SUMMARY GRID, NOT ON A GENERIC `display: flex`
+     PARENT. Both were measured at 1 match; this one names the thing it means, so
+     a flex row that acquires a second note later cannot be silently caught by it.
+     Verified against the live DOM: mount 1's parent card's style attribute
+     carries no `display` at all, so it cannot match. A `display:flex` (unspaced)
+     control matched 0, which is what proves the hit depends on the serialized
+     form rather than being accidentally broad.
+     ⚠️ Specificity, deliberately: this is (0,3,1) against the rule above at
+     (0,2,0), so `none` wins regardless of order. */
+  .of-mroot div[style*="grid-template-columns: auto 1fr"] .of-gexnote {
+    display: none;
+  }
+}

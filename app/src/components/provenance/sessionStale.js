@@ -19,7 +19,19 @@
 
 import { sessionState } from '../../lib/marketClock/marketClock'
 
-function _coerceDate(value) {
+/** Read a D1-shaped timestamp: a Date, an ISO string, or epoch seconds/ms.
+ *
+ *  ⛔ EXPORTED SO THERE IS ONE READING OF A TIMESTAMP IN THIS FAMILY, never
+ *  two. `freshnessAge.js` (TERM-006's age authority) needs the same coercion,
+ *  and a second copy of these twelve lines is
+ *  `lesson_a_guard_repeated_is_a_guard_unproved` in miniature — the
+ *  epoch-seconds-vs-milliseconds heuristic below is exactly the kind of rule
+ *  that gets fixed in one copy and not the other.
+ *
+ *  ⚠️ It reads a timestamp; it decides NOTHING about staleness. The two axes
+ *  stay independent (see this file's header) — they merely agree on what a
+ *  timestamp is. */
+export function coerceAsOf(value) {
   if (value === null || value === undefined) return null
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
   if (typeof value === 'number') {
@@ -46,7 +58,7 @@ function _coerceDate(value) {
  * the session axis).
  */
 export function computeSessionStale(asOf, now = new Date()) {
-  const asOfDate = _coerceDate(asOf)
+  const asOfDate = coerceAsOf(asOf)
   if (!asOfDate) return false
   const { boundaryAt } = sessionState(now)
   if (!boundaryAt) return false
