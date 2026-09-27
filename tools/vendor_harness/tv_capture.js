@@ -277,7 +277,7 @@
       }
     }
     const inputs = (mi.inputs || []).map((inp) => ({
-      id: inp.id, name: inp.name, type: inp.type, defval: inp.defval,
+      id: inp.id, name: inp.name, type: inp.type, defval: inp.defval, isHidden: inp.isHidden === true,
       value: state && state.inputs && inp.id in state.inputs ? state.inputs[inp.id] : null,
     }))
 

@@ -23,7 +23,7 @@ double of the chart model (see "What is and is not proven" below).
 | `tools/vendor_harness/adapters.mjs` | legacy fixture formats → v1, or a named reason why not |
 | `app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js` | OUR side: the member door run on the vendor's bars |
 | `app/src/components/chart/engine/__tests__/vendorHarness/harness.js` | files → captures → our side → verdicts |
-| `…/vendorHarness/vendorHarness.test.js` | rails + controls (35 tests) |
+| `…/vendorHarness/vendorHarness.test.js` | rails + controls (36 tests) |
 | `…/vendorHarness/vendorHarness.corpus.test.js` | the corpus run and the CLI entry |
 | `tests/fixtures/vendor/harness/` | where NEW captures go |
 | `docs/pine/vendor-harness/{verdicts.json,summary.md}` | the last corpus run's output |
@@ -41,7 +41,7 @@ double of the chart model (see "What is and is not proven" below).
 | `study.plots` | `metaInfo().plots` IN ORDER: `{id, type, target?, palette?, title}` | ⛔ never `Object.keys(styles)` — the Aroon trap |
 | `study.styles / styleState` | `metaInfo().styles` and `properties().state().styles` (colour, transparency, width, display) | static plot colour |
 | `study.palettes / paletteState` | `metaInfo().palettes` (+ `valToIndex`, default colours) and the property-state palettes | a colorer's value is a palette INDEX |
-| `study.inputs` | `metaInfo().inputs` with the values the study ran with | inputs are part of "the same script" |
+| `study.inputs` | `metaInfo().inputs` (`id, name, type, defval, isHidden`) with the values the study ran with | inputs are part of "the same script": v1 runs our side at DEFAULT inputs, so a capture whose visible inputs were edited is INCONCLUSIVE (re-capture at defaults) |
 | `window` | `chartBarsLoaded`, `studyBarsLoaded` (the study's own buffer — the window-check number), first/last bar time | depth is part of the answer (`HVE Trigger`, 2026-09-12) |
 | `bars` | `{fields:[time,open,high,low,close,volume], timeUnit:"unix-s", rows}` — the VENDOR'S OWN bars | any delta is then a maths delta, never a data delta |
 | `plotValues` | `{fields:["time", ...plot ids], rows}` — `study.data()` rows; `na` is `null` | the per-bar answer |
@@ -181,7 +181,7 @@ bar) or `scattered`. The pattern never changes the verdict.
   (`value` / `na` / `color`) and both readings; `stats.steady.last`,
   `maxAbs`, `maxRel` and `pattern` bound it.
 - **INCONCLUSIVE** — could not compare: refused script (with the door's
-  sentence), failed receipt / schema / source sha, unmapped plot, no compared
+  sentence), a study run with non-default visible inputs, failed receipt / schema / source sha, unmapped plot, no compared
   bar, a hole in the vendor rows after the study started, or colour captured but
   unresolvable on our side.
 
@@ -214,7 +214,8 @@ could not be compared, else MATCH.
 - mutation-proved: comparator stubbed to always-MATCH (6 red), `valuesAgree`
   always true (4 red), unmapped plots dropped silently (3 red), receipt never
   failing (2 red), adapter coercing named readings (1 red), our side reporting
-  no colours (2 red) — each restored from captured bytes, sha256 verified.
+  no colours (2 red), the non-default-inputs rule disabled (1 red) — each
+  restored from captured bytes, sha256 verified.
 
 ## First corpus run (2026-09-27, on disk before any new capture)
 

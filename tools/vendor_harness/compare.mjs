@@ -432,6 +432,11 @@ export function compareCapture(capture, ours, opts = {}) {
 
   const integrity = opts.integrity || { ok: true, errors: [] }
   if (!integrity.ok) return inconclusive(`capture failed validation: ${integrity.errors.slice(0, 3).join('; ')}${integrity.errors.length > 3 ? ` (+${integrity.errors.length - 3} more)` : ''}`)
+  // ⛔ v1 RUNS OUR SIDE AT THE SCRIPT'S DEFAULT INPUTS. A study the vendor ran
+  // with an edited input is a different script as far as the numbers go, and
+  // grading it against the defaults would report the edit as a divergence.
+  const changed = nonDefaultInputs(capture)
+  if (changed.length) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
   if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
 
   const tol = tolerancePolicy(capture)
@@ -499,6 +504,15 @@ export function compareCapture(capture, ours, opts = {}) {
   else if (n('INCONCLUSIVE')) { verdict = 'INCONCLUSIVE'; reason = `${n('INCONCLUSIVE')} of ${verdicts.length} items could not be compared` }
   else { verdict = 'MATCH'; reason = `all ${verdicts.length} items agree` }
   return { ...base, verdict, reason }
+}
+
+/** The member-visible inputs whose captured value differs from the declared
+ *  default. Hidden inputs (TradingView's own `pineId`, `text`, …) are ignored;
+ *  an input whose value was not read (`null`) is not evidence of a change. */
+export function nonDefaultInputs(capture) {
+  const inputs = (capture && capture.study && capture.study.inputs) || []
+  return inputs.filter((i) => i && !i.isHidden && i.value !== null && i.value !== undefined
+    && JSON.stringify(i.value) !== JSON.stringify(i.defval))
 }
 
 /** Objects: the LIVE set at the last bar on each side. */

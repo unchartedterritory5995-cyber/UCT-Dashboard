@@ -348,6 +348,17 @@ describe('3 · the comparator', () => {
     expect(compareObjects(null, { ok: true }).verdict).toBe('INCONCLUSIVE')
   })
 
+  it('⛔ a study the vendor ran with a NON-DEFAULT input is INCONCLUSIVE — v1 runs our side at defaults', () => {
+    const ours = runOurSide(SMA_CAPTURE)
+    const edited = { ...SMA_CAPTURE, study: { ...SMA_CAPTURE.study, inputs: [
+      { id: 'text', name: 'text', defval: 'x', value: 'y', isHidden: true },          // TradingView's own — ignored
+      { id: 'in_0', name: 'Length', defval: 20, value: 50, isHidden: false },
+    ] } }
+    expect(compareCapture(edited, ours)).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/non-default inputs \(Length=50 vs default 20\)/) })
+    const atDefault = { ...edited, study: { ...edited.study, inputs: [{ id: 'in_0', name: 'Length', defval: 20, value: 20 }] } }
+    expect(compareCapture(atDefault, ours).verdict).toBe('MATCH')
+  })
+
   it('a refused script and an invalid capture are INCONCLUSIVE with the reason', () => {
     expect(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'pine:function' })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/refused.*pine:function/) })
     expect(compareCapture(SMA_CAPTURE, null, { integrity: { ok: false, errors: ['receipt: broken'] } })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/receipt: broken/) })

@@ -45,7 +45,7 @@ const IS_TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/
 const ACKNOWLEDGED = [
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
-  // The vendor-comparison harness (2026-09-27). Run green (2 files / 40 tests)
+  // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
   'src/components/chart/engine/ast',
@@ -185,7 +185,7 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/builder/memberPane',
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
-  // The vendor-comparison harness (2026-09-27). Run green (2 files / 40 tests)
+  // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)
   // BEFORE this line was added. docs/pine/VENDOR-HARNESS.md.
   'src/components/chart/engine/__tests__/vendorHarness',
   'src/components/chart/engine/ast',
