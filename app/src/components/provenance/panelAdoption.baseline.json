@@ -1,0 +1,23 @@
+{
+  "note": [
+    "THE PROVENANCE ADOPTION RATCHET BASELINE. Read by panelAdoption.ratchet.test.js.",
+    "NAMES, NEVER A COUNT: every number the rail prints is derived by counting this list.",
+    "ADDING a name is mechanical: UPDATE_PROVENANCE_ADOPTION_BASELINE=1 npx vitest run src/components/provenance/panelAdoption.ratchet.test.js",
+    "REMOVING a name is a HAND EDIT. The update mode refuses to drop a path, so a",
+    "regression cannot be laundered by re-running the generator. Retiring an adopter",
+    "costs one reviewable line in a diff, with the reason in the commit message.",
+    "Paths are repo-relative with forward slashes, sorted, and the file is LF with a",
+    "trailing newline: the rail asserts these bytes are exactly what its writer",
+    "produces, so appending one adopter is a one-line diff."
+  ],
+  "adopters": [
+    "app/src/components/chart/builder/EvidenceTab.jsx",
+    "app/src/components/screener/ScanResults.jsx",
+    "app/src/pages/ProvenanceDemo.jsx",
+    "app/src/pages/research/tabs/AnalystRatingsTab.jsx",
+    "app/src/pages/research/tabs/AskAiTab.jsx",
+    "app/src/pages/research/tabs/CatalystsTab.jsx",
+    "app/src/pages/research/tabs/NewsTab.jsx",
+    "app/src/pages/research/tabs/OwnershipTab.jsx"
+  ]
+}
