@@ -11154,6 +11154,49 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // tell an engineer whether the guard, the handle or the content was the
     // gate that refused, and those are three different pieces of work.
     dropReasons: {},
+    // ⭐⭐ 2026-09-27 — THE DENOMINATOR `droppedOps` IS A FRACTION OF.
+    // `collectedOps` below counts the READER's top-level ops, so a loop is one op
+    // there while every op inside its body is converted — and dropped — one at a
+    // time. Measured on the committed corpus: `dual-view-htf-candlestick-patterns`
+    // drops 62 of a `collectedOps` of 29. A member told "62 of 29 drawing elements
+    // aren't supported" is told nothing. This counts every op the converter
+    // ATTEMPTS, loop ops and loop-body ops alike, so `droppedOps <= attemptedOps`
+    // holds by construction: each attempt ends in exactly one push or one
+    // `dropped()`. `memberPaneDisclosure.test.js` holds that over the corpus.
+    attemptedOps: 0,
+    // ⭐ WHAT A LOOP DROPPED WHOLE WAS GOING TO DO. `guard:loop` and `loop:bounds`
+    // drop the loop before its body is converted, so the body's deletes are in no
+    // other counter — and a lost delete is the one loss the member door refuses
+    // (ruling 2026-09-27, option b). Reader op kinds, counted recursively.
+    unconvertedLoopOps: {},
+    // ⭐⭐ EVERY LOST REMOVAL, AND WHETHER IT COULD HAVE REMOVED ANYTHING DRAWN.
+    // `{via, family, reaches}` per lost `*.delete` / `table.clear` — dropped
+    // itself, or inside a loop dropped whole. `reaches` is false only when the
+    // program carries NO create of that family at all: then nothing that removal
+    // could have taken off the chart is ever on it. `uncharted-volume-v2` loses
+    // three `label.delete`s and draws no label anywhere (the one `label.new` is
+    // dropped too), so its two tables are not a picture with extra objects in it.
+    //
+    // ⛔ BY FAMILY, NOT BY REGISTER, ON PURPOSE. A register is only ever FILLED
+    // here by a `create … into` it, but in Pine it can also be filled by
+    // `l := array.get(ls, i)` or `l := f(…)`, which this reader does not model —
+    // so "no create writes this register" would wave through a delete of a label
+    // that IS drawn. "No label is drawn anywhere" cannot be fooled that way. A
+    // removal whose family this pass cannot name always reaches — the loud way.
+    lostRemovals: [],
+  }
+  const lostRemovalFamilies = []
+  const lostRemoval = (via, op) => {
+    const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
+    lostRemovalFamilies.push({ via, family })
+  }
+  const unconverted = (body, via) => {
+    for (const b of body || []) {
+      if (!b || !b.k) continue
+      diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
+      if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
+      if (b.k === 'loop') unconverted(b.body, via)
+    }
   }
   const dropped = (why) => {
     diagnostics.droppedOps += 1
@@ -12303,10 +12346,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  rather than being flattened into the program beside its parent. */
   const convertList = (list) => {
   for (const op of list) {
+    diagnostics.attemptedOps += 1
     scopeEnv = scopeFor(op.locals)
     loopIds = op.loopIds || []
     const g = guardOf(op.guards)
-    if (g === undefined) { dropped(`guard:${op.k}`); continue }
+    if (g === undefined) {
+      if (op.k === 'loop') unconverted(op.body, 'guard:loop')
+      if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      dropped(`guard:${op.k}`)
+      continue
+    }
     const when = g.when
     const lastBarOnly = g.extra
     // ⭐⭐ A COUNTED LOOP. Its BOUNDS are resolved in the OUTER scope (the
@@ -12318,7 +12367,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
-      if (!from || !to) { dropped('loop:bounds'); continue }
+      if (!from || !to) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
       const outer = ops
       const body = []
       ops = body
@@ -12398,7 +12447,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
-      if (!target) { dropped('delete:target'); continue }
+      if (!target) { lostRemoval('delete:target', op); dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
@@ -12459,7 +12508,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
-      if (!target) { dropped('clear:target'); continue }
+      if (!target) { lostRemoval('clear:target', op); dropped('clear:target'); continue }
       const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
       const col = raw.start_column ? valueRef(raw.start_column) : null
       const row = raw.start_row ? valueRef(raw.start_row) : null
@@ -12467,7 +12516,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // an unreadable start to (0,0) would clear from the top-left corner of a
       // dashboard the author never asked to touch — wiping real numbers is a
       // strictly worse outcome than leaving stale ones, so this refuses.
-      if (!col || !row) { dropped('clear:range'); continue }
+      if (!col || !row) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       // ⭐⭐ PINE'S OWN DEFAULT, APPLIED ONCE, HERE. The reference
       // (`pine-presentation-spec.md:1689`) says `end_column`/`end_row` default
       // to "the argument used for `start_column`" / `start_row`, so
@@ -12477,7 +12526,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // different answers for the same expression.
       const col2 = raw.end_column ? valueRef(raw.end_column) : col
       const row2 = raw.end_row ? valueRef(raw.end_row) : row
-      if (!col2 || !row2) { dropped('clear:range'); continue }
+      if (!col2 || !row2) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
@@ -12508,6 +12557,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   }
   convertList(collected.ops)
+
+  // ⭐ WHICH LOST REMOVALS COULD HAVE REMOVED SOMETHING DRAWN — read off the
+  // families the conversion actually CARRIED a create for, loop bodies included.
+  {
+    const drawnFamilies = new Set()
+    const scanDrawn = (list) => {
+      for (const o of list || []) {
+        if (o.k === 'create' && o.family) drawnFamilies.add(o.family)
+        if (o.k === 'loop') scanDrawn(o.body)
+      }
+    }
+    scanDrawn(ops)
+    diagnostics.lostRemovals = lostRemovalFamilies.map(({ via, family }) => ({
+      via,
+      family,
+      reaches: !family || drawnFamilies.has(family),
+    }))
+  }
 
   // ⭐ THE AUTHOR'S OWN CEILINGS. 15 of the reachable 27 declare them, so the
   // envelope is read rather than invented — and clamped to ours, because a
