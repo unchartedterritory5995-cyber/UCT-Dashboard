@@ -161,7 +161,59 @@ def approval_fingerprints(root: pathlib.Path) -> dict[str, str]:
     return out
 
 
-_EXEMPT = {**QUOTED_DEAD, **FOREIGN_REPO}
+#: ⛔⛔ HEX-SHAPED IDENTIFIERS THAT WERE NEVER COMMITS — the scanner's own false-positive
+#: class, found 2026-09-26 when the terminal-research tree landed on master and this rail
+#: went red on 16 tokens.
+#:
+#: `_SHA_RX` matches any backticked 7-40 char hex run, so it cannot tell a commit from any
+#: other hex identifier a document quotes — and this programme quotes a lot of them. That
+#: is a PROXY standing in for "is this a commit", and reading its output as "the docs cite
+#: fabricated commits" was wrong in 15 of 16 cases. ⛔ These are NOT tombstones: putting
+#: them in QUOTED_DEAD would assert the docs contain fabrications they do not contain.
+#:
+#: ⭐ Each entry says WHAT KIND of identifier it is, because that is the fact a future
+#: reader needs — the whole point is that these are not SHAs to chase.
+NOT_A_COMMIT: dict[str, str] = {
+    # ── S7 ALERT PREDICATE IDS. The 2026-09-25 daily-read evidence tabulates predicates
+    # one per row with the id in the first cell, and CARD 9 and the population totals
+    # quote individual ones. They are predicate identifiers, not commits.
+    "72b7ff28": "S7 price-level predicate id — a row in the s7 daily-read table, not a commit",
+    "a6e2b755": "S7 price-level predicate id — same table",
+    "c21681ca": "S7 price-level predicate id — same table",
+    "b08c9841": "S7 price-level predicate id — same table",
+    "01b5b35b": "S7 price-level predicate id — same table",
+    "f0d66360": (
+        "S7 predicate id — the one carrying `agreed` 1 over 10 sessions in the "
+        "population totals, not a commit"),
+    "08d68edb": (
+        "S7 price-level predicate id — CARD 9's subject, the predicate carrying 2,344 "
+        "`legacy_only` ticks. Cited 6 times across the cards, the ADR index and "
+        "RESUME-HERE because it is the open decision, and it is a predicate, not a commit"),
+    # ── OTHER IDENTIFIER KINDS, each read from its own sentence rather than assumed.
+    "da73ef5a": "a session-only CRON JOB id (LEDGER: 'via a session-only cron job (id …)')",
+    "7a6d0299": "an s7-dark MEMBER id prefix (DECISION_CARDS_2026-09-25: 'id prefix …')",
+    "73a4286d0dc4b3adcaea9f6f8ec9b80a1bff8735": (
+        "the `sha` FIELD INSIDE docs/plans/joystick/gate-baseline.json — a content "
+        "fingerprint of that baseline file, quoted in testing-plan.md beside its "
+        "`failures`/`files`/`measured_at` siblings. A baseline hash, not a commit"),
+}
+
+#: ⚠️ A COMMIT CITATION THIS BOX CANNOT VERIFY — recorded as UNVERIFIED rather than passed,
+#: following FOREIGN_REPO's precedent for the two repos not checked out here.
+#:
+#: ⛔ This one is NOT in NOT_A_COMMIT, deliberately: its sentence claims it IS a commit, so
+#: filing it as "never a commit" would be a false statement about the document. What is
+#: true is narrower — two searches failed, and that is what is written down.
+UNVERIFIABLE_COMMIT: dict[str, str] = {
+    "474e8710": (
+        "LEDGER:4802 — 'Railway `web` confirmed SUCCESS on `474e8710`'. Measured "
+        "2026-09-26: no object with that prefix in this repo, and no matching deploy in "
+        "`railway deployment list --service web` — whose retained window was only 20 "
+        "records reaching back to 2026-09-26T08:00Z, so it CANNOT refute an older "
+        "deploy either. Neither confirmed nor refuted; do not read this entry as a pass."),
+}
+
+_EXEMPT = {**QUOTED_DEAD, **FOREIGN_REPO, **NOT_A_COMMIT, **UNVERIFIABLE_COMMIT}
 
 
 def doc_files(root: pathlib.Path) -> list[pathlib.Path]:
