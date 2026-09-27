@@ -73,6 +73,22 @@ export function toCss(value) {
     : `rgba(${c.r}, ${c.g}, ${c.b}, ${Number(c.alpha.toFixed(4))})`
 }
 
+/** ⭐ 2026-09-27 — THE CSS ONE POINT OF A PER-POINT PACKED COLOUR PAINTS WITH
+ *  (`colorMode: 'rgba:<key>'`, the runtime lane's colour channel).
+ *
+ *  ⛔ `na` IS "NO COLOUR ON THIS BAR", AND PINE DRAWS NOTHING THERE — a plot
+ *  whose `color` is `na` on a bar is invisible on that bar, which is how
+ *  `cond ? colour : na` hides a line. So a non-finite value paints fully
+ *  TRANSPARENT: the point keeps its value (the scale and the crosshair still
+ *  read it) and shows nothing, rather than falling back to a series colour the
+ *  author never asked for on that bar. */
+export const PACKED_NA_CSS = 'rgba(0, 0, 0, 0)'
+export function packedPointCss(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n < 0 || n > 0xffffffff) return PACKED_NA_CSS
+  return toCss(n)
+}
+
 /**
  * Pack back to a colorer integer. Round-trips `unpackColor`.
  *

@@ -703,6 +703,13 @@ export const DEFAULT_MARKER_COLOR = '#c9a84c'
 
 export function columnColorsForPlot(plot) {
   if (!plot || typeof plot.colorMode !== 'string') return null
+  // ⭐⭐ 2026-09-27 — `rgba:<key>`: the column holds each point's PACKED colour
+  // (the runtime lane's colour channel), so there are no two colours to name —
+  // `packed` tells the one place a point's colour is decided to read it as one.
+  if (plot.colorMode.startsWith('rgba:')) {
+    const key = plot.colorMode.slice('rgba:'.length)
+    return key ? { key, packed: true, up: null, down: null } : null
+  }
   if (!plot.colorMode.startsWith('column:')) return null
   const key = plot.colorMode.slice('column:'.length)
   if (!key) return null

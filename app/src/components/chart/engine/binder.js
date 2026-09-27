@@ -61,6 +61,7 @@ import {
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive } from './fillPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
+import { packedPointCss } from './colorInt'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
@@ -267,6 +268,8 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
  */
 function pointColour(colColors, condColumn, i) {
   if (!colColors || !condColumn) return null
+  // ⭐ 2026-09-27 — a PACKED colour column (`rgba:`) is the colour itself.
+  if (colColors.packed) return packedPointCss(condColumn[i])
   const c = condColumn[i]
   // ⛔ A NON-FINITE CONDITION IS NOT `down`. `na` is the author saying nothing on
   // that bar, and picking a side paints every warm-up bar the "false" colour —
@@ -1654,6 +1657,7 @@ export function createBinder({ chart, LWC }) {
             condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
+            packed: !!(cc && cc.packed),
           })))
         }
       }
