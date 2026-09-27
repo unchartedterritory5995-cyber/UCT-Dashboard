@@ -1784,7 +1784,9 @@ const isLastBarTime = (node) => !!node && node.type === 'series' && node.name ==
  *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`. */
 const CLOCK_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'hour', 'minute'])
 
-const BUILTIN_CALL_TREE = Object.freeze({
+// ⭐ EXPORTED FOR THE RUNTIME LANE (2026-09-27), which applies `avg` to an
+// argument list that reads mutable state — the same builder, never a copy.
+export const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
   // ⛔ GROUPED LEFT, AS THE LINE ABOVE READS: `(100 * (src - src[n])) / src[n]`.

@@ -32,7 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf, constantValueOf,
+  OWN_TF_NAMES, basePeriodOf, constantValueOf, BUILTIN_CALL_TREE,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -129,16 +129,28 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    case 'call': return {
-      type: 'call',
-      name: node.name,
-      tok: at,
-      args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
-    }
-    case 'offset': return {
-      type: 'offset', value: node.value, tok: at,
-      args: (node.args || []).map((a) => fromCanonical(a, at)),
-    }
+    // ⛔⛔ `call` AND `offset` ARE SPELLED THE SAME IN BOTH DIALECTS, so a
+    // caller's own argument that is a PARSE call or a PARSE history read must
+    // pass through untouched — it is not a canonical node to translate. A parse
+    // call's arguments are `{name?, value}` records; a parse offset carries `arg`
+    // and `n`. ⚰️ Measured 2026-09-27: `math.avg(m, close[1])` rebuilt the parse
+    // `close[1]` as a canonical offset with no arguments and died in lowering
+    // with "Cannot read properties of undefined (reading 'type')".
+    case 'call':
+      if ((node.args || []).some((a) => a && a.type === undefined
+          && Object.prototype.hasOwnProperty.call(a, 'value'))) return node
+      return {
+        type: 'call',
+        name: node.name,
+        tok: at,
+        args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
+      }
+    case 'offset':
+      if (node.arg !== undefined || node.n !== undefined) return node
+      return {
+        type: 'offset', value: node.value, tok: at,
+        args: (node.args || []).map((a) => fromCanonical(a, at)),
+      }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
     // a builder embeds verbatim. Rewriting it would be this bridge inventing a
     // translation for a dialect it was not asked about.
@@ -541,6 +553,16 @@ const isInputName = (name) => typeof name === 'string'
 
 /** Is this node a call to Pine's input family? */
 const isInputCall = (node) => !!(node && node.type === 'call' && isInputName(node.name))
+
+/** The DEFAULT of an `input.color(…)` call — `defval` by name, else the first
+ *  positional argument — or null. */
+const inputColourDefault = (node) => {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  const pick = named || args.find((a) => a && !a.name)
+  if (!pick) return null
+  return pick.value !== undefined ? pick.value : pick
+}
 
 /** The NAMED arguments of an input call that a reader in EITHER lane consults.
  *
@@ -1478,6 +1500,10 @@ export function buildRuntimeIr(source, opts = {}) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ `input.color(<colour>)` is a colour when its default is (see its lowering).
+    if (node.type === 'call' && node.name === 'input.color') {
+      return holdsColour(inputColourDefault(node), scope)
+    }
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
     // would send a price into a colour slot with no complaint.
@@ -3668,6 +3694,28 @@ export function buildRuntimeIr(source, opts = {}) {
           }
           if (built) return lowerExpr(fromCanonical(built, node.tok), scope)
         }
+        // ⭐ 2026-09-27 — `math.avg(a, b, …)` OVER MUTABLE STATE. The columnar lane
+        // expands it through `pine.js::BUILTIN_CALL_TREE.avg` — the mean OF ITS
+        // ARGUMENTS, `(a + b + …) / n` — during resolution, which a subtree that
+        // reads a slot never gets, so it arrived here as "a builtin the closed
+        // table does not declare" (trend-targets, implied-volatility-suite). The
+        // SAME builder is applied, never a copy, so an `na` argument propagates
+        // exactly as it does in the other lane.
+        if (fnIndex === undefined && (node.name === 'avg' || node.name === 'math.avg'
+            || node.name === 'ta.avg')) {
+          for (const arg of node.args) {
+            if (arg && arg.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          if (args.length < 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` averages two or more values`, locate(node.tok))
+          }
+          return lowerExpr(fromCanonical(BUILTIN_CALL_TREE.avg(args), node.tok), scope)
+        }
         // ⛔⛔ PLACED HERE, NOT AT THE TOP OF THIS ARM, AND THE ORDER IS
         // DOCUMENTED ABOVE: `Foo.new(…)` must be read before the user-function
         // table AND before the method-form rewrite. Putting this consult first
@@ -3778,6 +3826,22 @@ export function buildRuntimeIr(source, opts = {}) {
               '`color.new` takes a colour to recolour, and this is not one', locate(node.tok))
           }
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
+        }
+        // ⭐ 2026-09-27 — `input.color(<colour>, …)` IS ITS DEFAULT COLOUR. This is
+        // the host presentation's own rule (`pine.js::staticColourOf`: "Its
+        // DEFAULT is a real static colour … the KNOB does not come across") — a
+        // colour input is not a Track F kind, so a member has no control that
+        // could move it, and the loss is disclosed by `skippedInputs`. Reading
+        // the default is therefore the value TradingView draws with, not a guess.
+        // ⛔ ONLY A DEFAULT THAT IS ITSELF A COLOUR; anything else keeps the
+        // columnar lane's `pine:input-kind`.
+        if (node.name === 'input.color') {
+          const dv = inputColourDefault(node)
+          if (!dv || !holdsColour(dv, scope)) {
+            throw new RuntimeRefusal('runtime:colour',
+              '`input.color` whose default is not a colour this lane can read', locate(node.tok))
+          }
+          return lowerExpr(dv, scope)
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
