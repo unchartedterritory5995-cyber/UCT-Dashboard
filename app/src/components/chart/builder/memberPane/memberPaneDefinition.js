@@ -23,7 +23,8 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
-import { paneGate } from '../../engine/ast/paneGate'
+import { paneGate, paneObjectsGate } from '../../engine/ast/paneGate'
+import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
 import { manifestFromPlacements, paramLocatorsIn } from '../pineParamManifest'
@@ -105,6 +106,15 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   const allowObjectsOnly = objectsOnlyPaneEnabled()
   const gate = paneGate(t, { allowObjectsOnly })
   if (!gate.ok) return no(gate.reason, gate.guard, t)
+  // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
+  // `paneGate` has already refused a drawing-only script that lost a removal. A
+  // script that ALSO plots reaches here with the same loss, and its plots are
+  // still true: they are drawn, and its drawings are WITHHELD rather than drawn
+  // as a picture that keeps objects TradingView removed. The pane already draws a
+  // plot-only document (`objects: null` is every script without drawings), so
+  // withholding is a narrowing of what it draws, never a new render path.
+  const objectsGate = paneObjectsGate(t)
+  const withholdObjects = !objectsGate.draw
 
   // ⛔ THE ROWS ARE THE ONES A CHART CAN DRAW, and `hidden` is respected because
   // an author who wrote `display = display.none` meant it — Clouds' layer plots
@@ -151,7 +161,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   //
   // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
   // did, and the fact that it now asks a second question is invisible.
-  const drawsObjects = !!(t.objects && (t.objects.ops || []).length)
+  const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
   if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
     return no('this script declares nothing a chart can draw', null, t)
   }
@@ -463,7 +473,8 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // inventing; the pane document simply did not pass what it had —
       // `lesson_a_projection_drops_what_it_does_not_name`, on the same document
       // that taught it for `meta.disclosures` one item ago.
-      objects: (t.objects && (t.objects.ops || []).length) ? t.objects : null,
+      // ⛔ AND NOT WHEN IT LOST A REMOVAL — see `withholdObjects` above.
+      objects: drawsObjects ? t.objects : null,
     })
   } catch (err) {
     return no(`the document could not be built: ${String((err && err.message) || err)}`, null, t)
@@ -481,6 +492,15 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // reads as four problems.
   const notes = []
   const seen = new Set()
+  // ⭐⭐ THE DRAWING DISCLOSURE LEADS THE LIST. A pane whose lines, labels or
+  // tables are incomplete — or withheld — is the fact a member most needs before
+  // reading anything it draws. Worded in `objectLoss.js`, never here; `null` for
+  // a clean object program and for a script that draws no objects at all.
+  const drawingNote = objectLossNote(objectsGate.loss, { withheld: withholdObjects })
+  if (drawingNote) {
+    seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
+    notes.push(drawingNote)
+  }
   for (const o of (t.outputs || [])) {
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
