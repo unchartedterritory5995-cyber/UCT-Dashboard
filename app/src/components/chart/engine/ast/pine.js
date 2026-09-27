@@ -14852,13 +14852,34 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node, env, ctx) {
-  if (!node || node.type !== 'call') return null
+function colourHelperAlpha(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
+  // `staticColourOf` opens them — otherwise the two readers disagree about the
+  // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
+  // `S_color = input.color(color.new(#90EE90, 25))` then `plot(..., color =
+  // S_color)` carried the colour and dropped the 25% transparency, so Support and
+  // Resistance drew opaque on 568 bars where TradingView drew them at `bf`. The
+  // same colour written inline kept its alpha; only the name and the input hid it.
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[bound.index]
+      const v = a && a.value !== undefined ? a.value : a
+      return colourHelperAlpha(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
+    }
+    return bound && bound.kind === 'expr'
+      ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'input.color') {
+    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
   // alpha, which is the feature inverted rather than merely missing.
   const helper = openColourHelper(node, env, ctx)
-  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)

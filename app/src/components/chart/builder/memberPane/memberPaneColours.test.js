@@ -95,3 +95,37 @@ describe("a plot's OPACITY reaches the saved document", () => {
     expect(d.definition.plots[0].opacity).toBeUndefined()
   })
 })
+
+// ⚰️ MEASURED ON A LIVE CAPTURE (cc-yata, NYSE:RDDT 1D, 2026-09-27): the
+// transparency hid behind a NAME. `S = input.color(color.new(#90EE90, 25))` then
+// `color = S` carried the colour and dropped the alpha — Support and Resistance
+// drew opaque where TradingView drew `#90ee90bf`. The same colour written inline
+// always kept it; only the name, and the input's default, hid it.
+describe('a transparency behind a NAME or an input default is carried', () => {
+  const rowOf = (body) => {
+    const d = build(`//@version=5\nindicator('t')\n${body}\n`)
+    expect(d.ok, d.reason).toBe(true)
+    return d.rows.filter((r) => !r.hidden)[0]
+  }
+
+  it('⭐ a name bound to input.color(color.new(c, 25)) draws at 75% opacity', () => {
+    const r = rowOf("S = input.color(color.new(#90EE90, 25), title='s')\nplot(close, color = S)")
+    expect(r.color).toBe('#90EE90')
+    expect(r.opacity).toBeCloseTo(0.75, 10)
+  })
+
+  it('⭐ input.color(color.new(...)) written inline too', () => {
+    expect(rowOf('plot(close, color = input.color(color.new(#90EE90, 25)))').opacity).toBeCloseTo(0.75, 10)
+  })
+
+  it('⭐ a name bound to color.new(c, 60) draws at 40% opacity', () => {
+    const r = rowOf('C = color.new(color.red, 60)\nplot(close, color = C)')
+    expect(r.color).toBe('#FF5252')
+    expect(r.opacity).toBeCloseTo(0.4, 10)
+  })
+
+  it('⛔ CONTROL — an opaque colour behind a name or an input stays opaque', () => {
+    expect(rowOf('C = color.red\nplot(close, color = C)').opacity).toBeUndefined()
+    expect(rowOf("S = input.color(#90EE90, title='s')\nplot(close, color = S)").opacity).toBeUndefined()
+  })
+})
