@@ -117,3 +117,50 @@ def test_the_probe_refuses_production(probe, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["probe", "--base", "https://uctintelligence.com", "--out", "x"])
     assert probe.main() == 2
     assert "REFUSED" in capsys.readouterr().out
+
+
+# ── fix round 1: an UNREAD note list is not an EMPTY one ─────────────────────────────────────
+
+class _Page:
+    """A stand-in for the Playwright page `_titles_after` reads through."""
+
+    def __init__(self, answer=None, raises=False):
+        self.answer, self.raises = answer, raises
+
+    def evaluate(self, _js):
+        if self.raises:
+            raise RuntimeError("planted: the page could not run the read")
+        return self.answer
+
+
+@pytest.mark.parametrize("page", [
+    _Page({"err": "HTTP 500"}),
+    _Page({"err": "the answer was not JSON"}),
+    _Page({"err": "the answer carried no notes list"}),
+    _Page(None),
+    _Page(raises=True),
+], ids=["http-error", "not-json", "no-notes-list", "no-answer", "page-raised"])
+def test_titles_after_answers_None_when_the_list_was_not_read(t12, page):
+    assert t12._titles_after(page) is None
+
+
+def test_titles_after_control_a_read_list_comes_back_as_titles(t12):
+    assert t12._titles_after(_Page({"titles": ["a", "b (conflicted copy)"]})) == ["a", "b (conflicted copy)"]
+    assert t12._titles_after(_Page({"titles": []})) == [], "a list READ as empty is empty"
+
+
+def test_an_unread_note_list_is_INCONCLUSIVE_never_a_pass(t12):
+    v = t12.burst_verdict([OK, OK], NID, None, True)
+    assert v["verdict"] == "INCONCLUSIVE" and v["unread"]
+
+
+def test_an_unread_list_does_not_hide_a_measured_loss_or_unsettled_409(t12):
+    assert t12.burst_verdict([OK], NID, None, False)["verdict"] == "FAIL"
+    assert t12.burst_verdict([OK, C409], NID, None, True)["verdict"] == "FAIL"
+
+
+def test_the_probe_keeps_the_rails_INCONCLUSIVE_and_reads_unread_tags_the_same_way(t12, probe):
+    assert probe.judge(t12, [OK], NID, None, "alpha", ["alpha"], [], [], False)["verdict"] == "INCONCLUSIVE"
+    assert probe.judge(t12, [OK], NID, ["x"], "alpha", ["alpha"], None, ["a"], False)["verdict"] == "INCONCLUSIVE"
+    # control: tags READ and missing is still a FAIL
+    assert probe.judge(t12, [OK], NID, ["x"], "alpha", ["alpha"], [], ["a"], False)["verdict"] == "FAIL"

@@ -762,34 +762,77 @@ def _body_build_problem(doc: dict[str, Any]) -> str | None:
     this check's business -- that is the newer-schema case the
     `X-UCT-Notebook-Schema` guard owns (`notebook_schema.check_body_write`). And it
     is ITERATIVE: a body may be nested deeper than Python's recursion limit.
+
+    ⛔ Wave 10 10C fix round 1: ProseMirror's tests are JAVASCRIPT truthiness, so
+    this reads them that way (`_js_truthy`). `content: {}` and `marks: {}` are
+    falsy in Python and were skipped; in JS an object is truthy, is not an array,
+    and throws. A node or mark with NO type (absent, null, "", a number, a bool,
+    an object) throws too -- `schema.nodeType(undefined)` / `schema.marks[undefined]`
+    -- and no bundle, older or newer, will ever register such a name, so it is
+    malformed, not "newer". A LIST type is the one shape left alone: JS looks a
+    property up by its string form, so `["paragraph"]` builds, and
+    `["text"] == "text"` is true -- `_js_text_type` follows that rather than
+    refusing a body the editor opens.
     """
     top = doc.get("content")
-    if top and not isinstance(top, list):
+    if _js_truthy(top) and not isinstance(top, list):
         return "the document's content is not a list"
-    stack: list[Any] = list(top) if top else []
+    stack: list[Any] = list(top) if isinstance(top, list) else []
     while stack:
         node = stack.pop()
-        if not isinstance(node, dict) or not node:
+        if not isinstance(node, dict):
             return "a node is not an object"
         marks = node.get("marks")
-        if marks:
+        if _js_truthy(marks):
             if not isinstance(marks, list):
                 return "a node's marks are not a list"
-            if any(not isinstance(m, dict) or not m for m in marks):
+            if any(not isinstance(m, dict) for m in marks):
                 return "a mark is not an object"
-        if node.get("type") == "text":
+            if any(_js_nameless(m.get("type")) for m in marks):
+                return "a mark has no type"
+        t = node.get("type")
+        if _js_text_type(t):
             text = node.get("text")
             if not isinstance(text, str):
                 return "a text node has no text"
             if text == "":
                 return "a text node is empty"
             continue
+        if _js_nameless(t):
+            return "a node has no type"
         content = node.get("content")
-        if content:
+        if _js_truthy(content):
             if not isinstance(content, list):
                 return "a node's content is not a list"
             stack.extend(content)
     return None
+
+
+def _js_truthy(v: Any) -> bool:
+    """JavaScript truthiness over a JSON value: null, false, 0 and "" are falsy;
+    every object and every array -- EMPTY ones included -- is truthy."""
+    if v is None or v is False or v == "":
+        return False
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return v != 0
+    return True
+
+
+def _js_text_type(t: Any) -> bool:
+    """`t == "text"` with JavaScript's loose equality: a one-element array compares
+    by its string form, so `["text"]` (and `[["text"]]`) is a text node there."""
+    while isinstance(t, list) and len(t) == 1:
+        t = t[0]
+    return t == "text"
+
+
+def _js_nameless(t: Any) -> bool:
+    """True when `t` can never name a node or mark type: absent/null, "", a number,
+    a bool or an object. A string is a NAME (an unknown one is the newer-schema
+    case, not ours) and so is a list (JS looks it up by its string form)."""
+    if isinstance(t, str):
+        return t == ""
+    return not isinstance(t, list)
 
 
 def _refuse_unbuildable(body_json: dict[str, Any]) -> None:

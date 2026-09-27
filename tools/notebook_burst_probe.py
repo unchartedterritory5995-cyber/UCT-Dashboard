@@ -68,14 +68,23 @@ def judge(t12, calls, note_id, titles_after, body_after, fragments, tags_after, 
     """Pure: one run's evidence -> its verdict. Built on the T-12 typing-burst rail."""
     missing = [f for f in fragments if f.strip() and f.strip() not in body_after]
     base = t12.burst_verdict(calls, note_id, titles_after, sentence_present=not missing)
-    lost_tags = [t for t in tags_added if t not in (tags_after or [])]
+    unread = list(base.get("unread") or [])
+    # ⛔ An unread tag list (None) is not an empty one -- wave 10 10C fix round 1.
+    if tags_after is None and tags_added:
+        unread.append("the note's stored tags could not be read")
+        lost_tags = []
+    else:
+        lost_tags = [t for t in tags_added if t not in (tags_after or [])]
     problems = list(base["problems"])
     if missing:
         problems = [p for p in problems if not p.startswith("LOSS")]
         problems.insert(0, f"LOSS: {len(missing)} typed fragment(s) absent after reload: {missing}")
     if lost_tags:
         problems.append(f"TAG LOSS: {lost_tags} absent after the save that followed them")
-    return {**base, "verdict": "FAIL" if problems else "PASS", "problems": problems,
+    # ⚰️ This read `"FAIL" if problems else "PASS"`, which turned the rail's
+    # INCONCLUSIVE (an unread note list) back into a pass.
+    verdict = "FAIL" if problems else ("INCONCLUSIVE" if unread else "PASS")
+    return {**base, "verdict": verdict, "problems": problems, "unread": unread,
             "missing_fragments": missing, "lost_tags": lost_tags, "save_failed_seen": save_failed_seen}
 
 
@@ -97,6 +106,10 @@ def self_check() -> int:
          judge(t12, [put], "n", ["x"], "alpha", ["alpha", "beta"], ["a"], ["a"], False)["verdict"] == "FAIL")
     case("a conflicted copy -> FAIL (fork)",
          judge(t12, [put], "n", ["x (conflicted copy)"], "alpha", ["alpha"], [], [], False)["verdict"] == "FAIL")
+    case("an unread note list -> INCONCLUSIVE, never a pass",
+         judge(t12, [put], "n", None, "alpha", ["alpha"], [], [], False)["verdict"] == "INCONCLUSIVE")
+    case("unread stored tags -> INCONCLUSIVE, never a pass",
+         judge(t12, [put], "n", ["x"], "alpha", ["alpha"], None, ["a"], False)["verdict"] == "INCONCLUSIVE")
     case("a tag gone after the save -> FAIL",
          judge(t12, [put], "n", ["x"], "alpha", ["alpha"], [], ["a"], False)["verdict"] == "FAIL")
     case("an unsettled 409 -> FAIL",

@@ -370,7 +370,7 @@ def step2_create_note(page, run, today) -> tuple[str, str]:
 CONFLICTED_MARK = "conflicted copy"
 
 
-def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str],
+def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str] | None,
                   sentence_present: bool) -> dict:
     """⛔⛔ THE TYPING-BURST RAIL (wave 10, lane 10C) — T-12 step 3's shape, judged
     from the NETWORK TRACE, not from how the page looked.
@@ -383,6 +383,11 @@ def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str
     A 409 that IS settled is reported, never hidden: "zero 409s" and "each 409
     settled" are different, and the difference is the F-5 question.
 
+    ⛔ `titles_after` is None when the note list could not be READ
+    (`_titles_after`). With nothing else wrong that is INCONCLUSIVE, never a pass:
+    an unread list cannot say "no conflicted copy exists" (wave 10 10C fix round 1).
+    A LOSS or an unsettled 409 is still a FAIL -- those were measured.
+
     Pure, so `--self-check` can plant each failure and watch it turn.
     """
     path = f"/api/j2/notes/{note_id}" if note_id else None
@@ -393,7 +398,7 @@ def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str
             if not any(200 <= (d.get("status") or 0) < 300 for d in puts[i + 1:]):
                 unsettled.append(i)
     n409 = sum(1 for c in puts if c.get("status") == 409)
-    forks = [t for t in titles_after if CONFLICTED_MARK in (t or "").lower()]
+    forks = [t for t in (titles_after or []) if CONFLICTED_MARK in (t or "").lower()]
     problems = []
     if not sentence_present:
         problems.append("LOSS: the sentence is not in the note after a reload")
@@ -403,8 +408,11 @@ def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str
         problems.append(f"{len(unsettled)} 409(s) on this note were never followed by a landed PUT")
     if not puts and note_id:
         problems.append("no PUT to the note was observed -- the burst was never sent, nothing was measured")
+    unread = []
+    if titles_after is None:
+        unread.append("the note list could not be read, so a conflicted copy cannot be ruled out")
     return {
-        "verdict": FAIL if problems else PASS,
+        "verdict": FAIL if problems else (INCONCL if unread else PASS), "unread": unread,
         "puts": len(puts), "conflicts_409": n409, "unsettled_409": len(unsettled),
         "forks": forks, "sentence_present": sentence_present, "problems": problems,
         "put_sequence": [{"status": c.get("status"), "sent_keys": c.get("sent_keys"),
@@ -413,15 +421,27 @@ def burst_verdict(calls: list[dict], note_id: str | None, titles_after: list[str
     }
 
 
-def _titles_after(page) -> list[str]:
-    """INSTRUMENT READ (not a step): every live note title, to look for a fork."""
-    got = page.evaluate("""async () => {
-      const r = await fetch('/api/j2/notes?limit=200', {credentials:'include'});
-      if (!r.ok) return {err: r.status};
-      const j = await r.json().catch(() => ({notes:[]}));
-      return {titles: (j.notes||[]).map(n => n.title || '')};
-    }""")
-    return got.get("titles") or []
+def _titles_after(page) -> list[str] | None:
+    """INSTRUMENT READ (not a step): every live note title, to look for a fork.
+
+    ⛔ None when the list was not READ -- the fetch failed, the answer was not
+    JSON, or it carried no `notes` list. ⚰️ It returned [] for all three, and []
+    reads as "no conflicted copy exists": a fork check that passed on a list
+    nobody saw (wave 10 10C fix round 1). An unread list is not an empty one."""
+    try:
+        got = page.evaluate("""async () => {
+          const r = await fetch('/api/j2/notes?limit=200', {credentials:'include'});
+          if (!r.ok) return {err: 'HTTP ' + r.status};
+          let j;
+          try { j = await r.json() } catch (e) { return {err: 'the answer was not JSON'} }
+          if (!j || !Array.isArray(j.notes)) return {err: 'the answer carried no notes list'};
+          return {titles: j.notes.map(n => n.title || '')};
+        }""")
+    except Exception:  # noqa: BLE001 -- a page that could not run the read has not read it
+        return None
+    if not isinstance(got, dict) or not isinstance(got.get("titles"), list):
+        return None
+    return got["titles"]
 
 
 def step3_type_and_reload(page, run) -> tuple[str, str]:
@@ -443,8 +463,10 @@ def step3_type_and_reload(page, run) -> tuple[str, str]:
     body1 = page.evaluate("() => (document.querySelector('.ProseMirror')||{}).innerText || ''")
     if run.trace:
         run.burst = burst_verdict(run.calls, run.note_id, _titles_after(page), SENTENCE in body1)
-        if run.burst["verdict"] != PASS:
+        if run.burst["verdict"] == FAIL:
             return FAIL, "typing-burst rail: " + "; ".join(run.burst["problems"])
+        if run.burst["verdict"] != PASS:
+            return INCONCL, "typing-burst rail: " + "; ".join(run.burst["unread"])
     if SENTENCE in body1:
         extra = ""
         if run.burst is not None:
@@ -1011,6 +1033,10 @@ def self_check() -> int:
          burst_verdict([], nid, ["T-12 smoke"], True)["verdict"] == FAIL)
     case("burst: another note's 409 is not this note's",
          burst_verdict([ok_put, {**c409, "u": "/api/j2/notes/other"}], nid, ["x"], True)["verdict"] == PASS)
+    case("burst: the note list unread -> INCONCLUSIVE, never a pass",
+         burst_verdict([ok_put], nid, None, True)["verdict"] == INCONCL)
+    case("burst: an unread list does not hide a measured LOSS -> FAIL",
+         burst_verdict([ok_put], nid, None, False)["verdict"] == FAIL)
     print("self-check:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

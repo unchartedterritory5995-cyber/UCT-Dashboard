@@ -56,6 +56,20 @@ UNBUILDABLE = {
     "a node that is not an object": _doc("paragraph"),
     "an empty text node deep inside a list": _doc({"type": "bulletList", "content": [
         {"type": "listItem", "content": [_p(_t("ok")), _p(_t(""))]}]}),
+    # ⛔ Fix round 1: JAVASCRIPT truthiness. `{}` is falsy in Python and was skipped;
+    # in JS it is truthy, not an array, and ProseMirror throws. Every verdict from here
+    # down was checked against prosemirror-model's own `Node.fromJSON` (2026-09-26,
+    # wave10-10C-report.md, "Fix round 1").
+    "the document's content is an empty object": {"type": "doc", "content": {}},
+    "a node's content is an empty object": _doc({"type": "paragraph", "content": {}}),
+    "marks that are an empty object": _doc(_p(_t("x", marks={}))),
+    "a node with no type": _doc({"content": [_t("x")]}),
+    "a node whose type is null": _doc({"type": None}),
+    "a node whose type is empty": _doc({"type": ""}),
+    "a node whose type is a number": _doc({"type": 5}),
+    "an empty-object node": _doc({}),
+    "a mark with no type": _doc(_p(_t("x", marks=[{"attrs": {}}]))),
+    "an empty-object mark": _doc(_p(_t("x", marks=[{}]))),
 }
 
 
@@ -81,7 +95,32 @@ BUILDABLE = {
     "a nested body": _deep(10),
     # ⛔ NOT this check's business: an unknown TYPE is the newer-schema case.
     "an unknown node type": _doc({"type": "waveElevenWidget"}),
+    # JS-falsy content and marks build (Fragment.empty / no marks) -- nothing more is refused.
+    "an empty marks list": _doc(_p(_t("x", marks=[]))),
+    "marks: null": _doc(_p(_t("x", marks=None))),
+    "an empty content list": _doc({"type": "paragraph", "content": []}),
+    "content: false": _doc({"type": "paragraph", "content": False}),
+    "content: 0": _doc({"type": "paragraph", "content": 0}),
 }
+
+
+# A LIST type is a name to JavaScript: `schema.nodes[["paragraph"]]` looks the key up by
+# its string form, and `["text"] == "text"` is true. ProseMirror builds all of these, so
+# the check must not refuse them. Asserted on the check itself: what the REST of the
+# create pipeline makes of a list-typed node is not this rail's subject.
+LIST_TYPED = {
+    "a node typed as a one-element list": (_doc({"type": ["paragraph"], "content": [_t("x")]}), None),
+    "a text node typed as ['text']": (_doc(_p({"type": ["text"], "text": "x"})), None),
+    "a text node typed as [['text']]": (_doc(_p({"type": [["text"]], "text": "x"})), None),
+    "a mark typed as a one-element list": (_doc(_p(_t("x", marks=[{"type": ["bold"]}]))), None),
+    "an EMPTY text node typed as ['text']": (_doc(_p({"type": ["text"], "text": ""})), "a text node is empty"),
+}
+
+
+@pytest.mark.parametrize("case", sorted(LIST_TYPED))
+def test_a_list_type_is_read_the_way_javascript_reads_it(case):
+    body, want = LIST_TYPED[case]
+    assert svc._body_build_problem(body) == want, case
 
 
 @pytest.fixture
