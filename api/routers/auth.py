@@ -20,6 +20,11 @@ from api.services import totp_service
 # Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /
 # falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.
 from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on
+# S12 rung zero (TERM-068 / RM-N11): the request-time cohort gate. The STORE is
+# `api/services/rollout.py`; this is the half that answers per request, and it is
+# where the kill switch is read. `_access_payload`'s `cohorts` field is its only
+# caller today.
+from api.services import rollout_gate
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -296,6 +301,27 @@ def _access_payload(user: dict, plan: str) -> dict:
         },
         "paid_equiv": bool(is_paid_plan or trial_active),
         "billing": {"annual_available": annual_available()},
+        # ── S12 rollout cohorts (TERM-068 / RM-N11 rung zero) ───────────────
+        # ⭐ THE ONE THING THE CLIENT COULD NOT KNOW. The cohort store has
+        # shipped since 2026-09-12 and every gate over it was server-side, so a
+        # browser had no way to tell it was in a dark run — which is why a
+        # cohort could gate an API but never a surface.
+        #
+        # ⛔ NOT A COHORT STORE AND NOT A SECOND AUTHORITY OVER MEMBERSHIP.
+        # Membership is `user_tags` written by `tools/rollout_cohort.py`; this
+        # field only REPORTS. ⛔ Never `user_preferences` — a member writes
+        # their own, so a preference-backed entitlement is self-grantable.
+        #
+        # ⛔⛔ THE KILL SWITCH IS EVALUATED FIRST, PER COHORT. This is the
+        # EFFECTIVE list, so `TERMINAL_NEXT_ENABLED=false` empties it for a
+        # member who IS tagged, without one tag being touched: "turning a
+        # feature off" is never "emptying a table". A cohort with no registered
+        # kill switch is never reported at all.
+        #
+        # ⛔ READ PER REQUEST, like every flag below it, and it NEVER RAISES —
+        # this payload is the universal auth path (signup, login, /me), so an
+        # exception here is a LOGIN OUTAGE rather than a dark surface.
+        "cohorts": rollout_gate.client_cohorts(user.get("id")),
         # ── Joystick hub preview kill switch (Phase 2.5) ────────────────────
         # ⭐ READ AT REQUEST TIME, NOT AT IMPORT. That is the whole point: flipping
         # HUB_PREVIEW_ENABLED=false in Railway must hide the hub for everyone
