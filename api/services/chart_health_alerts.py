@@ -30,8 +30,17 @@ Trading a swallowed page for a flood would not have been a fix.
 CRITICAL alerts also PAGE Discord (2026-08-18, instant-origin Phase 0/2): the
 in-memory deque was admin-pull-only, so a bars-store problem paged no one — the
 gap that let the 2026-08-11 daily freeze run for a week. Discord delivery is
-fire-and-forget, gated on DISCORD_WEBHOOK_URL, and has its OWN longer cooldown so
-a persistent critical doesn't spam the channel.
+fire-and-forget, gated on an OPS-class destination, and has its OWN longer
+cooldown so a persistent critical doesn't spam the channel.
+
+⭐ TERM-011 / RM-N09 STEP 3 — THIS SINK'S 22 EMIT SITES ARE CONVERTED AS ONE
+CLASS, AND NOT ONE OF THEM MOVED. The destination is resolved here, once, by
+`alert_destination.ops_webhook()` instead of by a literal `DISCORD_WEBHOOK_URL`
+read. `emit`'s signature, its free-string severity, both throttles, the page
+gate and all 22 call sites are untouched — the only thing that changed is where
+the SINK sends things. ⛔ With `DISCORD_OPS_WEBHOOK_URL` unset or blank, which is
+how it ships, that call returns exactly what the literal read returned, so every
+page lands where it landed before, byte for byte.
 """
 import os
 import time
@@ -40,6 +49,13 @@ import threading
 import urllib.request as _urllib
 from collections import deque
 from typing import Optional
+
+# ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader. Imported at MODULE
+# level rather than inside `emit`: `emit` resolves the destination while holding
+# `_lock`, and a lazy import under a lock is a worse trade than a four-module,
+# stdlib-only import chain at boot (alert_destination -> alert_routing -> alerts ->
+# cache). ⛔ It is a reader, never a transport — the POST below is unchanged.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 
 _lock = threading.RLock()
 _alerts: deque = deque(maxlen=200)
@@ -71,7 +87,12 @@ def _should_page_discord(alert_key, severity, now, *, webhook_present, enabled, 
 
 def _page_discord(alert_key, message):
     """Fire-and-forget Discord post (never blocks the caller, never raises)."""
-    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+    # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+    # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+    # that stood here returned. Same channel, same bytes; proved at the wire in
+    # tests/test_alert_destination.py.
+    webhook = _ops_webhook()
     if not webhook:
         return
 
@@ -118,7 +139,9 @@ def emit(alert_key: str, severity: str, message: str, metadata: Optional[dict] =
         })
         page = _should_page_discord(
             alert_key, severity, now,
-            webhook_present=bool(os.environ.get("DISCORD_WEBHOOK_URL")),
+            # TERM-011 step 3: the same OPS-class resolution the POST uses, so the
+            # gate and the transport can never disagree about which channel exists.
+            webhook_present=bool(_ops_webhook()),
             enabled=os.environ.get("CHART_HEALTH_DISCORD_ENABLED", "1") == "1",
         )
     if page:
