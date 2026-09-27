@@ -1,0 +1,145 @@
+[
+  {
+    "integrity": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\wave10-10c\\switch-rehearsal-r1-boot4\\only-NOTEBOOK_OFFLINE_DEFAULT_ON-off.integrity.md",
+    "boot": "only-NOTEBOOK_OFFLINE_DEFAULT_ON-off",
+    "values": {
+      "NOTEBOOK_OFFLINE_DEFAULT_ON": "0",
+      "J2_SHARE_LINKS_ENABLED": "1",
+      "NOTEBOOK_PUBLISH_ENABLED": "1",
+      "NOTEBOOK_ONBOARDING_ENABLED": "1",
+      "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+      "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+      "NOTEBOOK_ASK_INSERT_ON": "1"
+    },
+    "started": "2026-09-26T21:14:20",
+    "identity": "http://127.0.0.1:8213 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-26T21-14-22.md (identity 52e717a67f88..., data dir C:\\data-w10c)",
+    "obs": {
+      "payload": {
+        "notebook_offline_default_on": false,
+        "notebook_offline_read_on": false,
+        "notebook_conflict_ux_on": false,
+        "notebook_attachments_on": false,
+        "notebook_ask_insert_on": true,
+        "notebook_writing_help_enabled": true,
+        "j2_share_links_enabled": true,
+        "notebook_publish_enabled": true,
+        "notebook_onboarding_enabled": true,
+        "notebook_door_guard": "full"
+      },
+      "doors": {
+        "J2_SHARE_LINKS_ENABLED": 200,
+        "NOTEBOOK_PUBLISH_ENABLED": 200,
+        "NOTEBOOK_ONBOARDING_ENABLED": 200,
+        "NOTEBOOK_WRITING_HELP_ENABLED": 422,
+        "NOTEBOOK_PERSONAL_API_ENABLED": 200
+      },
+      "rendered": {
+        "tour_dialog": true,
+        "writing_help_button": true,
+        "share_heading": true,
+        "publish_heading": true,
+        "offline_store": false,
+        "personal_api_card": true
+      },
+      "notes": [],
+      "page_errors": [],
+      "idb": []
+    },
+    "verify": [
+      "PASS",
+      [
+        "VERIFY ON: PASS",
+        "payload notebook_offline_default_on = False (want False)",
+        "payload j2_share_links_enabled = True (want True)",
+        "payload notebook_publish_enabled = True (want True)",
+        "payload notebook_onboarding_enabled = True (want True)",
+        "payload notebook_writing_help_enabled = True (want True)",
+        "payload notebook_ask_insert_on = True (want True)",
+        "door /api/j2/share/links = 200 (want 200)",
+        "door /api/j2/publish = 200 (want 200)",
+        "door /api/j2/onboarding/sample-notebook = 200 (want 200)",
+        "door /api/j2/personal/tokens = 200 (want 200)"
+      ]
+    ],
+    "rows": [
+      {
+        "switch": "NOTEBOOK_OFFLINE_DEFAULT_ON",
+        "value": "0",
+        "want_on": false,
+        "payload": false,
+        "rendered": false,
+        "door": null,
+        "want_door": null,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "J2_SHARE_LINKS_ENABLED",
+        "value": "1",
+        "want_on": true,
+        "payload": true,
+        "rendered": true,
+        "door": 200,
+        "want_door": 200,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "NOTEBOOK_PUBLISH_ENABLED",
+        "value": "1",
+        "want_on": true,
+        "payload": true,
+        "rendered": true,
+        "door": 200,
+        "want_door": 200,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "NOTEBOOK_ONBOARDING_ENABLED",
+        "value": "1",
+        "want_on": true,
+        "payload": true,
+        "rendered": true,
+        "door": 200,
+        "want_door": 200,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "NOTEBOOK_WRITING_HELP_ENABLED",
+        "value": "1",
+        "want_on": true,
+        "payload": true,
+        "rendered": true,
+        "door": 422,
+        "want_door": 422,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "NOTEBOOK_PERSONAL_API_ENABLED",
+        "value": "1",
+        "want_on": true,
+        "payload": "route gate",
+        "rendered": true,
+        "door": 200,
+        "want_door": 200,
+        "verdict": "PASS",
+        "why": ""
+      },
+      {
+        "switch": "NOTEBOOK_ASK_INSERT_ON",
+        "value": "1",
+        "want_on": true,
+        "payload": true,
+        "rendered": "payload only",
+        "door": null,
+        "want_door": null,
+        "verdict": "PASS",
+        "why": ""
+      }
+    ],
+    "integrity_clean": true
+  }
+]

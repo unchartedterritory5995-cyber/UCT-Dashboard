@@ -1,0 +1,121 @@
+Auto-merging CLAUDE.md
+CONFLICT (content): Merge conflict in CLAUDE.md
+Auto-merging api/routers/journal_two.py
+CONFLICT (content): Merge conflict in api/routers/journal_two.py
+Auto-merging api/services/journal_two/db.py
+CONFLICT (content): Merge conflict in api/services/journal_two/db.py
+Auto-merging api/services/journal_two/note_citation_text.py
+CONFLICT (content): Merge conflict in api/services/journal_two/note_citation_text.py
+Auto-merging api/services/journal_two/note_connectors/convert/mddoc.py
+CONFLICT (modify/delete): api/services/journal_two/notebook_schema.py deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of api/services/journal_two/notebook_schema.py left in tree.
+Auto-merging api/services/journal_two/notes.py
+CONFLICT (content): Merge conflict in api/services/journal_two/notes.py
+Auto-merging api/services/journal_two/notes_export.py
+CONFLICT (content): Merge conflict in api/services/journal_two/notes_export.py
+Auto-merging api/services/journal_two/test_notes_export.py
+CONFLICT (content): Merge conflict in api/services/journal_two/test_notes_export.py
+Auto-merging app/package-lock.json
+Auto-merging app/package.json
+Auto-merging app/src/hub/writePathsTransitive.test.js
+Auto-merging app/src/pages/Privacy.jsx
+CONFLICT (content): Merge conflict in app/src/pages/Privacy.jsx
+CONFLICT (modify/delete): app/src/pages/Privacy.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/Privacy.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/SharedNotePage.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/SharedNotePage.jsx
+Auto-merging app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx
+Auto-merging app/src/pages/journal-2-0/components/ShortcutCheatSheet.test.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/ShortcutCheatSheet.test.jsx
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/BulkActionBar.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/BulkActionBar.jsx left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/BulkActionBar.module.css deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/BulkActionBar.module.css left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/BulkActionBar.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/BulkActionBar.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteCard.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/NoteCard.jsx
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteCard.module.css
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/NoteCard.module.css
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteEditorPage.module.css
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/NoteEditorPage.unreadable.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/NoteEditorPage.unreadable.test.jsx left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteFindBar.module.css
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/NoteOutline.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/NoteOutline.jsx left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/components/notebook/NoteVersionPreview.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/NoteVersionPreview.jsx
+Auto-merging app/src/pages/journal-2-0/components/notebook/NotesTableView.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/NotesTableView.jsx
+Auto-merging app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx
+CONFLICT (modify/delete): app/src/pages/journal-2-0/components/notebook/TagSuggestInput.module.css deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/components/notebook/TagSuggestInput.module.css left in tree.
+Auto-merging app/src/pages/journal-2-0/hooks/useJ2NoteTags.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/hooks/useJ2NoteTags.js
+Auto-merging app/src/pages/journal-2-0/hooks/useJ2Notes.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/hooks/useJ2Notes.js
+Auto-merging app/src/pages/journal-2-0/lib/askCitation.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/askCitation.js
+Auto-merging app/src/pages/journal-2-0/lib/askCitation.parity.test.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/askCitation.parity.test.js
+Auto-merging app/src/pages/journal-2-0/lib/askCitation.schemaParity.test.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/askCitation.schemaParity.test.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/codeBlockNode.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/codeBlockNode.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/codeBlockNode.test.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/codeBlockNode.test.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/codeHighlight.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/codeHighlight.js left in tree.
+Auto-merging app/src/pages/journal-2-0/lib/importer/commit.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/importer/commit.js
+Auto-merging app/src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/noteBatch.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/noteBatch.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/noteBatch.test.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/noteBatch.test.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/noteContent.css deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/noteContent.css left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/noteContentGuard.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/noteContentGuard.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/notebookSchema.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/notebookSchema.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js left in tree.
+Auto-merging app/src/pages/journal-2-0/lib/offline/f5Freeze.test.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/offline/f5Freeze.test.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/offline/offlineWordsSurvive.property.test.jsx
+Auto-merging app/src/pages/journal-2-0/lib/offline/outboxDrain.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/offline/outboxDrain.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/offline/ownerSendsQueuedWork.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/offline/ownerSendsQueuedWork.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/lib/offline/recoverLocalState.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/offline/recoverLocalState.js
+Auto-merging app/src/pages/journal-2-0/lib/offline/useDurableNote.js
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/lib/offline/useDurableNote.js
+Auto-merging app/src/pages/journal-2-0/lib/offline/useOutboxDrain.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/platform.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/platform.js left in tree.
+CONFLICT (modify/delete): app/src/pages/journal-2-0/lib/platform.test.js deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/lib/platform.test.js left in tree.
+Auto-merging app/src/pages/journal-2-0/lib/tiptap.js
+CONFLICT (modify/delete): app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx left in tree.
+Auto-merging app/src/pages/journal-2-0/tabs/NotebookTab.jsx
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/tabs/NotebookTab.jsx
+Auto-merging app/src/pages/journal-2-0/tabs/NotebookTab.module.css
+CONFLICT (content): Merge conflict in app/src/pages/journal-2-0/tabs/NotebookTab.module.css
+Auto-merging docs/notebook/NOTEBOOK-10-OF-10-PLAN.md
+CONFLICT (content): Merge conflict in docs/notebook/NOTEBOOK-10-OF-10-PLAN.md
+CONFLICT (modify/delete): docs/notebook/VENDOR-TERMS-2026-09-23.md deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of docs/notebook/VENDOR-TERMS-2026-09-23.md left in tree.
+CONFLICT (modify/delete): docs/notebook/f5-fixes-2026-09-23.md deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of docs/notebook/f5-fixes-2026-09-23.md left in tree.
+CONFLICT (modify/delete): docs/notebook/user-study-kit.md deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of docs/notebook/user-study-kit.md left in tree.
+CONFLICT (modify/delete): docs/notebook/wave5-6-RESUME-HERE.md deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of docs/notebook/wave5-6-RESUME-HERE.md left in tree.
+Auto-merging scripts/gate_shards.py
+CONFLICT (content): Merge conflict in scripts/gate_shards.py
+CONFLICT (modify/delete): tests/fixtures_plain_text.json deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of tests/fixtures_plain_text.json left in tree.
+Auto-merging tests/fixtures_pm_citation_text.json
+CONFLICT (content): Merge conflict in tests/fixtures_pm_citation_text.json
+CONFLICT (modify/delete): tests/test_journal_two_notes_batch_router.py deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of tests/test_journal_two_notes_batch_router.py left in tree.
+CONFLICT (modify/delete): tests/test_journal_two_notes_switcher_router.py deleted in parent of 2c3ed3093 (Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)) and modified in HEAD.  Version HEAD of tests/test_journal_two_notes_switcher_router.py left in tree.
+Auto-merging tests/test_note_citation_text.py
+Auto-merging tools/gen_pm_citation_fixtures.cjs
+CONFLICT (content): Merge conflict in tools/gen_pm_citation_fixtures.cjs
+error: could not revert 2c3ed3093... Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema guard (merge after the metadata-settle hotfix and #183) (#186)
+hint: After resolving the conflicts, mark them with
+hint: "git add/rm <pathspec>", then run
+hint: "git revert --continue".
+hint: You can instead skip this commit with "git revert --skip".
+hint: To abort and get back to the state before "git revert",
+hint: run "git revert --abort".
+hint: Disable this message with "git config set advice.mergeConflict false"
