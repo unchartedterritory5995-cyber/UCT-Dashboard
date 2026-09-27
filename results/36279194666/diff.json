@@ -1,0 +1,69 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 1,
+    "fixed": 1,
+    "unchanged": 173,
+    "missing": 0,
+    "baseline": 174,
+    "current": 177,
+    "current_ran": 58940,
+    "new_flaky": 3,
+    "flaky_size": 9,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 1
+  },
+  "arithmetic": "baseline 174 = unchanged 173 + fixed 1 + missing 0  |  current 177 = unchanged 173 + new 1 + new-but-flaky 3",
+  "invalid_because": [],
+  "baseline_run_id": "36276125823",
+  "current_run_id": "36279194666",
+  "baseline_sha": "1c4b0bf741b1f3ed788cf5be8cd3e45eea58d22d",
+  "current_sha": "6e7785b52d89890249482a02c945727dd46feef2",
+  "commit_range": "1c4b0bf741b1f3ed788cf5be8cd3e45eea58d22d..6e7785b52d89890249482a02c945727dd46feef2",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/chart/engine/__tests__/stockChartWiring.test.jsx|an engine-drawn indicator still appears in the crosshair legend > \u26d4\u26d4 A HOVER REACHES THE RENDERER NOT AT ALL",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1c4b0bf74..6e7785b52 touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1c4b0bf74..6e7785b52 touched tests/test_discord_close_note.py or anything it imports"
+    }
+  }
+}
