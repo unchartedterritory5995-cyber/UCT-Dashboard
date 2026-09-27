@@ -317,7 +317,146 @@ export const ARRAY_FNS = Object.freeze({
     args: ['array'], returns: 'void',
     fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); a[0].length = 0 },
   },
+
+  // ─── 2026-09-27 — the rest of what the runtime-lane corpus reaches for ──────
+  //
+  // ⭐ THE ROSTER IS DERIVED FROM THE SCRIPTS WALLED ON IT, not from the manual:
+  // `array.shift`/`array.last` (fibonacci-dolphintradebot), `array.remove`/
+  // `array.fill`/`array.avg` (range-filter-dw), `array.max`/`array.min`
+  // (wyckoff-accumulation-distribution), `.unshift`/`.pop`/`.max`/`.min`
+  // (support-resistance-mtf, behind its `map.new`), `.unshift`/`.avg`
+  // (trend-targets). `array.first` and `array.sum` ride along because each is
+  // the other half of a pair already here, with the same rule.
+  //
+  // ⛔ THE MUTATORS THAT ANSWER A VALUE (`shift`, `pop`, `remove`) are the same
+  // bounds rule as `array.get`: an empty array or an out-of-range index STOPS
+  // the script, which is what Pine does, rather than answering `na`.
+  'array.shift': {
+    args: ['array'], returns: 'any',
+    fn: (a, budget) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.shift'))
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return a[0].shift()
+    },
+  },
+  'array.pop': {
+    args: ['array'], returns: 'any',
+    fn: (a, budget) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.pop'))
+      budget.charge('ARRAY_OPERATIONS', 1)
+      return a[0].pop()
+    },
+  },
+  'array.unshift': {
+    args: ['array', 'any'], returns: 'void',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length + 1)
+      budget.peak('ARRAY_ELEMENTS', a[0].length + 1)
+      a[0].unshift(a[1])
+    },
+  },
+  'array.remove': {
+    args: ['array', 'number'], returns: 'any',
+    fn: (a, budget) => {
+      const i = at(a[0], a[1], 'array.remove')
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return a[0].splice(i, 1)[0]
+    },
+  },
+  'array.first': {
+    args: ['array'], returns: 'any',
+    fn: (a) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.first'))
+      return a[0][0]
+    },
+  },
+  'array.last': {
+    args: ['array'], returns: 'any',
+    fn: (a) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.last'))
+      return a[0][a[0].length - 1]
+    },
+  },
+  // ⭐ `array.fill(id, value, index_from = 0, index_to = na)` fills the half-open
+  // range [from, to), `to` defaulting to the size. ⛔ A range that is not inside
+  // 0..size, or runs backwards, is STOPPED rather than clamped: what Pine does
+  // with one has not been measured, and clamping would fill a different set of
+  // elements than the script named, with nothing on screen to say so.
+  'array.fill': {
+    args: ['array', 'any', 'number', 'number'], returns: 'void', minArgs: 2, maxArgs: 4,
+    fn: (a, budget) => {
+      const n = a[0].length
+      const from = a.length > 2 ? a[2] : 0
+      const to = a.length > 3 && !Number.isNaN(a[3]) ? a[3] : n
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
+        throw new CollectionError(
+          `array.fill: the range ${from}..${to} is not inside an array of ${n} — what Pine does `
+          + 'with it has not been measured, and this engine does not clamp a range a script named')
+      }
+      budget.charge('ARRAY_OPERATIONS', to - from)
+      for (let i = from; i < to; i += 1) a[0][i] = a[1]
+    },
+  },
+  // ⭐ THE STATISTICS ARE EXACT OVER AN ARRAY OF FINITE NUMBERS, AND ONLY THERE.
+  // ⛔⛔ AN `na` ELEMENT OR AN EMPTY ARRAY STOPS THE SCRIPT BY NAME. Whether
+  // TradingView skips an `na`, propagates it, or answers `na` for an empty array
+  // has not been watched on a chart (queued: docs/pine/capture-queue-2026-09-27.md
+  // Q5). Each of the three plausible rules gives a different number for the same
+  // bars, and a guessed one is a confident wrong statistic a member would read.
+  'array.max': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => nthOrdered(a, budget, 'array.max', (x, y) => y - x),
+  },
+  'array.min': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => nthOrdered(a, budget, 'array.min', (x, y) => x - y),
+  },
+  'array.sum': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => finiteElements(a[0], 'array.sum', budget).reduce((s, x) => s + x, 0),
+  },
+  'array.avg': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => {
+      const xs = finiteElements(a[0], 'array.avg', budget)
+      return xs.reduce((s, x) => s + x, 0) / xs.length
+    },
+  },
 })
+
+/** The stop sentence for an operation that needs an element and has none. */
+function emptyStop(what) {
+  return `${what}: the array is empty — Pine stops the script here rather than answering na`
+}
+
+/** Every element, checked to be a finite number; stops the script otherwise. */
+function finiteElements(arr, what, budget) {
+  budget.charge('ARRAY_OPERATIONS', arr.length)
+  if (!arr.length) {
+    throw new CollectionError(`${what}: the array is empty — what TradingView answers for an `
+      + 'empty array has not been measured (capture queue Q5), and this engine does not guess it')
+  }
+  for (let i = 0; i < arr.length; i += 1) {
+    const v = arr[i]
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new CollectionError(`${what}: element ${i} is ${typeof v === 'number' ? 'na' : kindOf(v)} — `
+        + 'whether TradingView skips it, propagates it or answers na has not been measured '
+        + '(capture queue Q5), and each rule gives a different number')
+    }
+  }
+  return arr
+}
+
+/** `array.max(id, nth)` / `array.min(id, nth)`: the nth element in order. */
+function nthOrdered(a, budget, what, cmp) {
+  const xs = finiteElements(a[0], what, budget).slice().sort(cmp)
+  const nth = a.length > 1 ? a[1] : 0
+  if (!Number.isInteger(nth) || nth < 0 || nth >= xs.length) {
+    throw new CollectionError(`${what}: nth ${nth} is outside an array of ${xs.length} — `
+      + 'Pine stops the script here rather than answering na')
+  }
+  return xs[nth]
+}
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS))
 

@@ -94,3 +94,26 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
     }
   }
 })
+
+// ⛔ ADMITTED BY THE DOOR, STOPPED ON EVERY REAL CHART — and pinned as exactly that, so
+// the census's count of it is never read as a working indicator. wyckoff's
+// `myhigh(len)` fills an array in a loop bounded by `ta.barssince(…)`, which is `na`
+// until the first event, so its `array.max` meets an EMPTY array (and later `high[i]`
+// before bar i exists). What TradingView answers for either has not been measured
+// (capture queue Q5), and the engine stops by name rather than guess. When Q5 is
+// captured this block flips to the finite/plausible check above.
+describe('⛔ wyckoff-accumulation-distribution — attaches, then stops by name on Q5', () => {
+  for (const [label, bars] of [['SPY 600', SPY], ['RDDT 631', RDDT]]) {
+    it(label, () => {
+      vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+      const d = memberPaneDefinition({ source: corpus('wyckoff-accumulation-distribution__d9ae726e21'), id: 'u_member-pane-rtw' })
+      expect(d.ok, d.reason).toBe(true)
+      expect(d.lane).toBe('runtime')
+      const { installed, errors } = registry.installUserDefinitions([d.definition])
+      expect(errors).toEqual([])
+      const errs = Object.values(registry.columnErrors(registry.computeFor(installed[0], bars, undefined, CTX)))
+      expect(errs.length, 'expected the Q5 stop').toBeGreaterThan(0)
+      for (const e of errs) expect(e.message).toMatch(/array\.(max|min): .*capture queue Q5/)
+    })
+  }
+})

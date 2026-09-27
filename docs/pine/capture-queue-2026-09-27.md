@@ -79,6 +79,31 @@ error ⇒ record it (Pine may reject a negative history reference at run time).
 
 ---
 
+## Q5 — `array.max`/`min`/`sum`/`avg` over an `na` element, and over an empty array
+
+**Probe:** `rtwalls-array-stats-na.pine` (array `[1, na, 3]`, and an array that is empty on
+every 4th bar).
+
+**What the vendor must show:**
+- Control `N06` = 3142 on every bar (the all-finite array: max 3, min 1, sum 4, avg 2) —
+  else the capture is void.
+- `N02..N05`: **3 / 1 / 4 / 2 ⇒ `na` elements are SKIPPED**; `na` for all four ⇒ an `na`
+  PROPAGATES; a runtime error ⇒ record the text. Any other number ⇒ report it as found.
+- `N07`/`N08` on bars where `bar_index % 4 == 0` (the array is empty): `na` ⇒ an empty
+  array answers `na`; a runtime error ⇒ record it. On the other bars both read 5.
+
+**Today:** the engine STOPS the script by name for both cases
+(`runtime/collections.js::finiteElements`, pinned by
+`runtime/__tests__/arrayRoster.test.js`). The all-finite case is exact. Once measured, the
+change is confined to `finiteElements`: skip ⇒ filter the non-finite elements out (and
+decide the all-`na` case from the same capture); propagate ⇒ return `NaN`.
+
+**Why it matters:** wyckoff-accumulation-distribution builds `array.max` over `high[i]` for
+`i` up to its length, which holds `na` on the first bars of every chart — with the stop in
+place it will not run on a real chart even after its other walls fall.
+
+---
+
 ## Open rulings (not this lane's to take)
 
 - **R1 — pivot left-tie on the shared closed-table pivots.** Vendor-pinned (Q1 above).

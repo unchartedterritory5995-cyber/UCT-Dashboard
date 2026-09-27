@@ -5607,13 +5607,19 @@ export function buildRuntimeIr(source, opts = {}) {
         // "array.push"; the dotted branch is for a different shape and never
         // sees it. Established from the refusal's own stack after two rounds of
         // reasoning about the wrong branch.
-        if (isVoid(word)) {
+        //
+        // ⭐ 2026-09-27 — AND A COLLECTION CALL THAT ANSWERS A VALUE, used on a
+        // line of its own. `array.shift(z)` removes an element and hands it back;
+        // as a statement Pine discards what it hands back. The call is lowered
+        // with a DROP of its one result, so the effect happens and the stack
+        // stays level — the same contract a call-for-effect already has.
+        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
           const callNode = parseWholeExpression(toks)
           if (!callNode || callNode.type !== 'call') {
             throw new RuntimeRefusal('runtime:statement',
               `\`${word}()\` is not a shape this front end reads`, locate(first))
           }
-          out.push(exprStmt(admitArrayCall(callNode, scope, true)))
+          out.push(exprStmt(admitArrayCall(callNode, scope, true), isVoid(word) ? 0 : 1))
           continue
         }
         const f = callFamily(word)
@@ -5651,7 +5657,7 @@ export function buildRuntimeIr(source, opts = {}) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
-              out.push(exprStmt(admitArrayCall(rew.node, scope, true)))
+              out.push(exprStmt(admitArrayCall(rew.node, scope, true), isVoid(rew.node.name) ? 0 : 1))
               continue
             }
             note('runtime:array')
