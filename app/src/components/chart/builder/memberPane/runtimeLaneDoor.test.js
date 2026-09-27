@@ -128,6 +128,18 @@ describe('⛔ the ORDER and the SCOPE of the fallback', () => {
     expect(d.reason).not.toMatch(/second engine/)
   })
 
+  it('⛔ a ruling refusal ANYWHERE in the script keeps the fallback shut, even behind a value-model one', () => {
+    on()
+    // host refusals: `pine:state` first, then an unknown function (`pine:function`)
+    const src = '//@version=5\nindicator("t")\nvar float s = 0.0\ns := s + close\nplot(s)\nplot(notAFunction(close))\n'
+    const d = memberPaneDefinition({ source: src, id: 'u_member-pane-mix' })
+    expect(d.ok).toBe(false)
+    expect(d.guard).toBe('pine:state')
+    // the fallback was never TRIED — not tried-and-refused
+    expect(d.runtimeRefusal).toBeUndefined()
+    expect(d.reason).not.toMatch(/second engine/)
+  })
+
   it('both engines refusing is reported with BOTH walls, the host guard kept', () => {
     on()
     const d = memberPaneDefinition({ source: corpus('atr-trailing-stop-by-ceyhun__UMldb6tGLd'), id: 'u_member-pane-2' })

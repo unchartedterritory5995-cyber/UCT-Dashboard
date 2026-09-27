@@ -261,6 +261,30 @@ describe('⭐ the host lane\'s presentation hand-off (`drawPresentation`)', () =
   })
 })
 
+describe('⛔ the install door runs a `pine` document only on an armed build', () => {
+  it('refuses it with the "cannot run" sentence when the flag is off, and admits it when on', async () => {
+    const { validateUserDefinitions } = await import('../nativeRegistry')
+    const doc = {
+      schemaVersion: 1, id: 'u_member-pane-install', version: 1,
+      compute: { kind: 'pine', fn: 'pine:0000abcd', rev: 1, source: H + 'plot(close)\n',
+        columns: { value: { output: 0, call: 'plot', line: 3 } } },
+      meta: { name: 'T', shortName: 'T', category: 'Custom', description: '', tags: ['custom'],
+        tier: 'premium', repaint: 'non-repainting', freshness: 'live' },
+      placement: { target: 'pane', pane: { height: 0.25 } },
+      inputs: [],
+      plots: [{ key: 'value', label: 'v', style: 'line', color: '#2962FF' }],
+    }
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '')
+    const off = validateUserDefinitions([doc])
+    expect(off.defs).toEqual([])
+    expect(off.errors.join('\n')).toMatch(/cannot run it/)
+    vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+    const armed = validateUserDefinitions([doc])
+    expect(armed.errors).toEqual([])
+    expect(armed.defs.map((d) => d.id)).toEqual(['u_member-pane-install'])
+  })
+})
+
 describe('the schema — a `pine` document', () => {
   const good = () => ({
     schemaVersion: 1,
