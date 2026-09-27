@@ -295,6 +295,7 @@ def test_a_tarball_older_than_the_manifest_is_INCONCLUSIVE_never_a_pass(tmp_path
 def test_the_weekly_schedule_line_is_one_schtasks_command_with_no_credentials():
     from tools import authdb_restore_drill as drill
     line = drill.schedule_line()
-    assert line.startswith('schtasks /Create /TN "UCT Restore Drill" /SC WEEKLY')
-    assert "authdb_restore_drill.py" in line and "--report" in line
+    # exactly the task the controller staged (wave 10 fix round 1): one task, never two
+    assert line == ('schtasks /Create /TN "UCT-AuthDB-Restore-Drill" /SC WEEKLY /D SUN /ST 09:00 /F '
+                    r'/TR "C:\Users\Patrick\uct-q1-observe\restore_drill_weekly.cmd"')
     assert "DATA_SYNC" not in line and "SECRET" not in line.upper()

@@ -304,19 +304,46 @@ def backup_j2_attachments_to_r2() -> dict:
 
 # --- scheduler ---------------------------------------------------------------
 
+#: The ONE statement of when the backup runs. register_jobs builds its trigger from it, and
+#: the restore drill derives its freshness limit from it (longest_gap_hours) -- so a changed
+#: schedule moves the drill's limit with it instead of leaving a stale number behind.
+SCHEDULE = {"day_of_week": "mon-sat", "hour": 2, "minute": 45}
+SCHEDULE_TZ = "America/New_York"
+
+
+def _trigger():
+    from apscheduler.triggers.cron import CronTrigger
+    from zoneinfo import ZoneInfo
+    return CronTrigger(**SCHEDULE, timezone=ZoneInfo(SCHEDULE_TZ))
+
+
+def longest_gap_hours() -> float:
+    """The longest interval between two consecutive scheduled runs, in hours (Mon-Sat:
+    Saturday 02:45 -> Monday 02:45 = 48). Walked over two weeks of the real trigger's fire
+    times, so a schedule change is measured, never retyped."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    trig = _trigger()
+    t = _dt.datetime(2026, 1, 5, tzinfo=ZoneInfo(SCHEDULE_TZ))   # any fixed Monday
+    prev, times = None, []
+    for _ in range(20):
+        t = trig.get_next_fire_time(prev, t)
+        times.append(t)
+        prev = t
+        t = t + _dt.timedelta(seconds=1)
+    return max((b - a).total_seconds() for a, b in zip(times, times[1:])) / 3600.0
+
+
 def register_jobs(scheduler) -> bool:
     """Nightly 02:45 ET Mon-Sat backup (post-close, quiet, offset from
-    flow_backup's 02:30). Gated by J2_ATTACHMENT_BACKUP_ENABLED. Returns True
-    iff the job was registered."""
+    flow_backup's 02:30) -- SCHEDULE above. Gated by J2_ATTACHMENT_BACKUP_ENABLED.
+    Returns True iff the job was registered."""
     if not _enabled():
         logger.info("[j2-attach-backup] disabled (J2_ATTACHMENT_BACKUP_ENABLED != 1)")
         return False
-    from apscheduler.triggers.cron import CronTrigger
-    from zoneinfo import ZoneInfo
     scheduler.add_job(
         backup_j2_attachments_to_r2,
-        CronTrigger(day_of_week="mon-sat", hour=2, minute=45,
-                    timezone=ZoneInfo("America/New_York")),
+        _trigger(),
         id="j2_attachments_backup", max_instances=1, replace_existing=True)
     logger.info("[j2-attach-backup] scheduled 02:45 ET Mon-Sat (retain=%dd)", _retain_days())
     return True

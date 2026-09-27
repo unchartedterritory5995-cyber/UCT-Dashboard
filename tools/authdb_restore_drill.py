@@ -244,21 +244,40 @@ def tombstone_check(db_path: Path, store) -> dict:
 
 
 ATTACHMENT_SAMPLE = 25
+#: The newest attachments tarball may be at most this many of the backup job's LONGEST
+#: scheduled gaps old (j2_attachments_backup.longest_gap_hours(), derived from its trigger).
+#: The longest gap, not the usual one: Mon-Sat runs leave a 48 h Saturday->Monday hole, and a
+#: limit built from the 24 h gap would FAIL a healthy system on a Monday morning.
+ATTACHMENT_FRESHNESS_GAPS = 2
+
+
+def attachment_freshness(last_modified: dt.datetime, now: dt.datetime) -> dict:
+    """Pure: how old the newest tarball is against the limit derived from the schedule."""
+    from api import j2_attachments_backup as ab
+    gap = ab.longest_gap_hours()
+    limit = ATTACHMENT_FRESHNESS_GAPS * gap
+    age = (now - last_modified).total_seconds() / 3600.0
+    return {"age_hours": round(age, 1), "limit_hours": limit, "longest_gap_hours": gap,
+            "fresh": age <= limit,
+            "rule": (f"limit {limit:g} h = {ATTACHMENT_FRESHNESS_GAPS} x the backup job's longest "
+                     f"scheduled gap ({gap:g} h; {ab.SCHEDULE} {ab.SCHEDULE_TZ})")}
 
 
 def attachment_check(client, bucket, work: Path, *, file: str | None = None,
-                     sample: int = ATTACHMENT_SAMPLE, tombstoned=()) -> dict:
+                     sample: int = ATTACHMENT_SAMPLE, tombstoned=(), now: dt.datetime | None = None) -> dict:
     """F-7: prove the newest attachments tarball restores byte-identical, by sampling
-    its manifest. Verdict PASS / FAIL / INCONCLUSIVE, with the reason."""
+    its manifest, and that it is FRESH (a stopped backup job stops its prune too, so the
+    last tarball stays "newest" forever). Verdict PASS / FAIL / INCONCLUSIVE, with the reason."""
     import hashlib
     import random
     import tarfile
     from api import j2_attachments_backup as ab
 
     out = {"verdict": "INCONCLUSIVE", "why": "", "source": None, "files": 0, "sampled": 0,
-           "mismatched": [], "missing": [], "tombstoned_dirs": []}
+           "mismatched": [], "missing": [], "tombstoned_dirs": [], "freshness": None}
     if file:
         src, out["source"] = Path(file), Path(file).name
+        out["freshness"] = {"rule": "not checked: a named file is the operator's choice, not the newest backup"}
         if not src.is_file():
             out["why"] = f"no such file: {src}"
             return out
@@ -271,12 +290,25 @@ def attachment_check(client, bucket, work: Path, *, file: str | None = None,
         except Exception as exc:  # noqa: BLE001
             out["why"] = f"could not list attachment backups: {exc}"
             return out
-        dated = sorted(((ab._date_from_key(o["Key"]), o["Key"]) for o in objs
+        dated = sorted(((ab._date_from_key(o["Key"]), o["Key"], o.get("LastModified")) for o in objs
                         if ab._date_from_key(o["Key"])), reverse=True)
         if not dated:
             out["why"] = f"no attachment backups under {ab._PREFIX}"
             return out
-        key = dated[0][1]
+        _day, key, modified = dated[0]
+        if not isinstance(modified, dt.datetime):
+            out["source"] = key
+            out["why"] = f"the listing gave no time for {key} -- its freshness cannot be judged"
+            return out
+        if modified.tzinfo is None:
+            modified = modified.replace(tzinfo=dt.timezone.utc)
+        fresh = attachment_freshness(modified, now or dt.datetime.now(dt.timezone.utc))
+        out["freshness"] = fresh
+        if not fresh["fresh"]:
+            out["source"], out["verdict"] = key, "FAIL"
+            out["why"] = (f"the newest attachments tarball ({key}) is {fresh['age_hours']:g} h old; "
+                          f"{fresh['rule']} -- the nightly backup has stopped")
+            return out
         src, out["source"] = work / Path(key).name, key
         try:
             client.download_file(bucket, key, str(src))
@@ -360,6 +392,10 @@ def render(source: str, taken, size: int, result: dict, code: int, reasons: list
                   f"- mismatched: {len(att['mismatched'])} · missing: {len(att['missing'])}",
                   f"- deleted accounts with a directory in this tarball: {len(att['tombstoned_dirs'])} "
                   "(a restore removes them: `account_tombstones.replay_on_attachment_tree`)",
+                  "- freshness: " + (
+                      f"{att['freshness']['age_hours']:g} h old -- {att['freshness']['rule']}"
+                      if (att.get("freshness") or {}).get("age_hours") is not None
+                      else (att.get("freshness") or {}).get("rule", "not judged")),
                   f"- {att['why']}"]
     lines += ["", "## Row counts", "", "| table | rows |", "|---|---|"]
     lines += [f"| {t} | {n:,} |" for t, n in result["counts"].items()]
@@ -426,11 +462,20 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
                 code = FAIL
                 reasons.append(f"{len(tomb['still_present'])} deleted account(s) would come back on "
                                "restore -- the tombstone replay did not remove them")
+            elif not tomb["store_read"]:
+                # ⛔ AN UNKNOWN IS NEVER A PASS (wave 10 10C fix round 1 item 4), in EVERY mode,
+                # not only --write-restored: without the off-site set the drill cannot know
+                # whether this snapshot would bring a deleted account back.
+                if code == PASS:
+                    code = INCONCLUSIVE
+                reasons.append(f"the off-site tombstones were not read ({tomb['store_error'] or 'no store'})"
+                               " -- without them the drill cannot tell whether this snapshot would bring "
+                               "a deleted account back")
         att = None
         if getattr(args, "attachments", False):
             att = attachment_check(client, bucket, work, file=getattr(args, "attachments_file", None),
                                    sample=getattr(args, "sample", ATTACHMENT_SAMPLE) or ATTACHMENT_SAMPLE,
-                                   tombstoned=(tomb or {}).get("tombstoned_ids", ()))
+                                   tombstoned=(tomb or {}).get("tombstoned_ids", ()), now=now)
             if att["verdict"] == "FAIL":
                 code = FAIL
                 reasons.append(f"attachments: {att['why']}")
@@ -439,6 +484,9 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
         report = render(source, taken, src.stat().st_size, result, code, reasons, now, tomb, att)
         print(report)
         if args.report:
+            # The scheduled task writes into a dated folder that may not exist yet (the staged
+            # restore_drill_weekly.cmd names soak-drills\, created by nothing else).
+            Path(args.report).parent.mkdir(parents=True, exist_ok=True)
             Path(args.report).write_text(report, encoding="utf-8")
         if write_to:
             # ⛔ A REAL restore gets a copy only when everything above passed AND the off-site
@@ -462,17 +510,20 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
             shutil.rmtree(work, ignore_errors=True)
 
 
-SCHEDULE_TASK = "UCT Restore Drill"
+SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"
+#: The weekly task the controller STAGED (wave 10 S-1): its .cmd runs this drill from the
+#: origin/master reference checkout, logs beside itself, and writes the report where the soak
+#: reads drills. ONE task -- a second line here would register the drill twice.
+SCHEDULE_CMD = r"C:\Users\Patrick\uct-q1-observe\restore_drill_weekly.cmd"
 
 
-def schedule_line(repo: Path = REPO) -> str:
-    """The ONE weekly scheduled-task line for the owner's machine (S-1). The task runs
-    with the owner's environment, so DATA_SYNC_* must be set there (setx), never in the
-    line. Sunday 10:00 local, a report file the controller reads, a log beside it."""
-    return (f'schtasks /Create /TN "{SCHEDULE_TASK}" /SC WEEKLY /D SUN /ST 10:00 /F /TR '
-            f'"cmd /c cd /d {repo} && python tools\\authdb_restore_drill.py '
-            f'--report docs\\notebook\\evidence\\restore-drill-latest.md '
-            f'>> logs\\restore-drill.log 2>&1"')
+def schedule_line() -> str:
+    """The ONE weekly scheduled-task line for the owner's machine (S-1), exactly the task the
+    controller staged: Sunday 09:00 local, running SCHEDULE_CMD. The task runs with the
+    owner's environment, so DATA_SYNC_* must be set there (setx), never in the line. The
+    report's folder is created by the drill itself (run(), before it writes)."""
+    return (f'schtasks /Create /TN "{SCHEDULE_TASK}" /SC WEEKLY /D SUN /ST 09:00 /F /TR '
+            f'"{SCHEDULE_CMD}"')
 
 
 def main(argv=None) -> int:
