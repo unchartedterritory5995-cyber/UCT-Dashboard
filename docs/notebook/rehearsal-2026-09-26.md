@@ -12,7 +12,7 @@ half, PRINTED for the controller. Lane 10C ran nothing against production.
 | Every switch, a restart per value | **PASS** on the fixed tool — 9 boots × 7 rows: 8 in the r1 re-run plus boot 4's clean retry (§1a); the first run (`dfa873f4c`) also passed, on the pre-fix tool | `evidence/wave10-10c/switch-rehearsal-r1/`, `evidence/wave10-10c/switch-rehearsal-r1-boot4/`; first run `evidence/wave10-10c/switch-rehearsal/` |
 | The controller's check, run on every boot | **PASS** 9/9 (`VERIFY ON` ×8, `VERIFY OFF` ×1) | same file, key `verify` |
 | Rollback on a sandbox from a `git archive` | **Procedure A as written: not executable at today's tip; the newest-wave rollback: PASS** | `6252d03bc`, `evidence/wave10-10c/rollback/` |
-| Production window | **NOT RUN — the controller's**, commands below | — |
+| Production window | **PASS both ways, 2026-09-27** — OFF 14:20:39Z, restored 14:32:53Z (§1b) | the verify output quoted in §1b; `docs/feature_flags.json` notes |
 
 ## 1a. The re-run on the fixed tool (fix round 1), and what it reads
 
@@ -39,6 +39,25 @@ boots plus boot 4's CLEAN retry), and the first run agrees with it row for row. 
 write to the live `auth.db` at 20:55 is a box-hygiene item, not a switch result. It has not
 recurred: the file's last write is 2026-09-26 20:55:29, checked at 2026-09-27 00:20 CT. A
 read-only watcher now records the process list if it changes again.
+
+## 1b. The production window — run 2026-09-27, PASS both ways
+
+The controller took the record (step 0) at 05:22Z; `--check-record` read it outside the repo, and
+the file was deleted after step 4. The owner ran the two `--set` steps: the controller's own
+`railway variables --set` is refused by the session's command classifier, so a script re-derived
+the commands from the record and the owner ran it with `!`.
+
+| step | at (UTC) | result |
+|---|---|---|
+| baseline `--verify --expect on` (before anything was switched) | 13:40 | **PASS**: 6 payload keys true, 4 GET doors 200 |
+| 1 OFF: one `--set` of all seven switches to `0` | 14:20:39 | deployment `e82b1000` SUCCESS; the email-in flip set seconds earlier was superseded into the same boot |
+| 2 `--verify --expect off` | 14:24 | **PASS**: new boot (uptime 139 s < 238 s since the set); `notebook_offline_default_on`, `ask_insert`, `writing_help`, `share_links`, `publish`, `onboarding` all false; share / publish / sample-notebook / personal-tokens doors 404 |
+| 3 RESTORE: delete `NOTEBOOK_OFFLINE_DEFAULT_ON`, then one `--set` of the six back to `1` | 14:32:53 | both commands exit 0 |
+| 4 `--verify --expect on --recorded` | 14:36 | **PASS**: new boot (uptime 126 s < 202 s); every payload key true, every door 200 |
+
+`NOTEBOOK_OFFLINE_DEFAULT_ON` has no ledger entry of its own: it is a kill switch whose unset value is
+ON, which is why RESTORE deletes it rather than setting `1`. Members were without the switched
+features for about twelve minutes, between the two boots, on a Sunday morning.
 
 ## 1. Every switch, on a sandbox
 
