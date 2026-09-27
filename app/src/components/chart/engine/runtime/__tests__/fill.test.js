@@ -34,8 +34,8 @@ const BARS = [
 const N = BARS.length
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const head = '//@version=6\nindicator("t")\n'
-const RED = hexToPacked(colourHexByName('color.red'), 0)
-const GREEN = hexToPacked(colourHexByName('color.green'), 0)
+const RED = hexToPacked(colourHexByName('color.red', 6), 0)
+const GREEN = hexToPacked(colourHexByName('color.green', 6), 0)
 
 function run(src) {
   const built = buildRuntimeIr(head + src, { bars: BARS, inputs: {} })

@@ -148,7 +148,11 @@ describe('R35c — a single-expression colour helper is substituted and re-walke
   it('⛔ CLOUDS — the two branches are the author\'s bull and bear colours', () => {
     const { fills } = fillsOf(CLOUDS)
     // teal and maroon, through `input.color`'s defaults (R33a's recursion).
-    expect(fills[0].colorUp).toBe('#00897B')
+    // ⚰️ Read `#00897B` (v5's teal) while the palette was version-blind. Clouds is
+    // `@version=6`, and TradingView's own capture of Clouds decodes this band as
+    // `#089981` (`colorInt.test.js`, reference/A/clouds-volume-spy-1d-250.csv) —
+    // the same value `palette-by-version-rddt-1d-2026-09-27.json` measured for v6.
+    expect(fills[0].colorUp).toBe('#089981')
     expect(fills[0].colorDown).toBe('#880E4F')
   })
 

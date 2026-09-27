@@ -1,0 +1,459 @@
+{
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "dirs": [
+  "tests/fixtures/vendor/harness"
+ ],
+ "results": [
+  {
+   "file": "tests/fixtures/vendor/harness/keltner-channels-bands-rddt-1d-2026-09-27.json",
+   "format": "harness-v1",
+   "id": "keltner-channels-bands-rddt-1d-2026-09-27",
+   "script": "KCB",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.4126659081467997e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper 1",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "137 steady-state bars disagree; first at bar 19 (value: vendor 52.56921231914695 vs ours 52.41573491758862) — a CONVERGING PREFIX: bars 19..155 differ with |err| falling 1.53e-1 → 9.18e-8, then all 475 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 475,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 137,
+      "colorMismatches": 0,
+      "colorCompared": 475,
+      "maxAbs": 0.15347740155832668,
+      "maxRel": 0.002919530173413433,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 52.56921231914695,
+       "ours": 52.41573491758862
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 137,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 52.56921231914695,
+        "ours": 52.41573491758862
+       },
+       "last": {
+        "bar": 155,
+        "time": 1730381400,
+        "kind": "value",
+        "vendor": 89.7947887497115,
+        "ours": 89.7947886578728
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 155,
+        "agreeingAfter": 475,
+        "contiguous": true,
+        "absErrFirst": 0.15347740155832668,
+        "absErrLast": 9.183870020024187e-8
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower 1",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "138 steady-state bars disagree; first at bar 19 (value: vendor 42.154787680853055 vs ours 42.30826508241138) — a CONVERGING PREFIX: bars 19..156 differ with |err| falling 1.53e-1 → 8.27e-8, then all 474 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 474,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 138,
+      "colorMismatches": 0,
+      "colorCompared": 474,
+      "maxAbs": 0.15347740155832668,
+      "maxRel": 0.003640805944043148,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 42.154787680853055,
+       "ours": 42.30826508241138
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 138,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 42.154787680853055,
+        "ours": 42.30826508241138
+       },
+       "last": {
+        "bar": 156,
+        "time": 1730467800,
+        "kind": "value",
+        "vendor": 79.02844132934072,
+        "ours": 79.02844141199556
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 156,
+        "agreeingAfter": 474,
+        "contiguous": true,
+        "absErrFirst": 0.15347740155832668,
+        "absErrLast": 8.265483586455957e-8
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "Upper 2",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "141 steady-state bars disagree; first at bar 19 (value: vendor 57.7764246382939 vs ours 57.46946983517725) — a CONVERGING PREFIX: bars 19..159 differ with |err| falling 3.07e-1 → 1.21e-7, then all 471 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 471,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 141,
+      "colorMismatches": 0,
+      "colorCompared": 471,
+      "maxAbs": 0.30695480311665335,
+      "maxRel": 0.0053128037090963455,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 57.7764246382939,
+       "ours": 57.46946983517725
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 141,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 57.7764246382939,
+        "ours": 57.46946983517725
+       },
+       "last": {
+        "bar": 159,
+        "time": 1730903400,
+        "kind": "value",
+        "vendor": 109.02630945955563,
+        "ours": 109.02630933904489
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 159,
+        "agreeingAfter": 471,
+        "contiguous": true,
+        "absErrFirst": 0.30695480311665335,
+        "absErrLast": 1.2051074804730888e-7
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Lower 2",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "143 steady-state bars disagree; first at bar 19 (value: vendor 36.9475753617061 vs ours 37.254530164822754) — a CONVERGING PREFIX: bars 19..161 differ with |err| falling 3.07e-1 → 9.76e-8, then all 469 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 469,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 143,
+      "colorMismatches": 0,
+      "colorCompared": 469,
+      "maxAbs": 0.30695480311665335,
+      "maxRel": 0.008307846999746382,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 36.9475753617061,
+       "ours": 37.254530164822754
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 143,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 36.9475753617061,
+        "ours": 37.254530164822754
+       },
+       "last": {
+        "bar": 161,
+        "time": 1731076200,
+        "kind": "value",
+        "vendor": 85.85152947286771,
+        "ours": 85.85152957048139
+       },
+       "pattern": {
+        "kind": "converging-prefix",
+        "lastDivergentBar": 161,
+        "agreeingAfter": 469,
+        "contiguous": true,
+        "absErrFirst": 0.30695480311665335,
+        "absErrLast": 9.761367891769623e-8
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Upper 3",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "612 steady-state bars disagree; first at bar 19 (value: vendor 62.98363695744085 vs ours 62.52320475276587) — persistent, last at bar 630",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 0,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 144,
+      "colorMismatches": 468,
+      "colorCompared": 468,
+      "maxAbs": 0.46043220467498003,
+      "maxRel": 0.007310346415627001,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 62.98363695744085,
+       "ours": 62.52320475276587
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 612,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 62.98363695744085,
+        "ours": 62.52320475276587
+       },
+       "last": {
+        "bar": 630,
+        "time": 1790343000,
+        "kind": "color",
+        "vendor": 176.36231322534246,
+        "ours": 176.36231322534246,
+        "vendorColor": "#2196f3ff",
+        "ourColor": "#2962ffff"
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 630
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Lower 3",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "612 steady-state bars disagree; first at bar 19 (value: vendor 31.740363042559153 vs ours 32.20079524723413) — persistent, last at bar 630",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 0,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 147,
+      "colorMismatches": 465,
+      "colorCompared": 465,
+      "maxAbs": 0.46043220467498003,
+      "maxRel": 0.01450620473551636,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 1713447000,
+       "kind": "value",
+       "vendor": 31.740363042559153,
+       "ours": 32.20079524723413
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 612,
+       "first": {
+        "bar": 19,
+        "time": 1713447000,
+        "kind": "value",
+        "vendor": 31.740363042559153,
+        "ours": 32.20079524723413
+       },
+       "last": {
+        "bar": 630,
+        "time": 1790343000,
+        "kind": "color",
+        "vendor": 133.11046216637476,
+        "ours": 133.11046216637476,
+        "vendorColor": "#2196f3ff",
+        "ourColor": "#2962ffff"
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 630
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: no result"
+   },
+   "verdict": "DIVERGE",
+   "reason": "6 of 8 compared items diverge",
+   "ourNotes": []
+  }
+ ],
+ "inventory": []
+}

@@ -27,7 +27,11 @@
 //
 // Provenance: docs/pine/pine-presentation-spec.md §4.2.5 (the 17-colour table,
 // hexes verified against TradingView's own reference payload) and
-// docs/pine/pine-version-evolution.md rows 27, 49, 50, 63.
+// docs/pine/pine-version-evolution.md rows 27, 49, 50, 63. The COLOUR answers are
+// no longer this module's own: they come from `pinePalette.js`, pinned to the
+// vendor at v3–v6 (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`).
+
+import { PALETTE_BY_VERSION, pineColourHex } from './pinePalette.js'
 
 export const MIN_VERSION = 1
 export const MAX_VERSION = 6
@@ -35,35 +39,33 @@ export const MAX_VERSION = 6
 /**
  * The 17 `color.*` constants, at the CURRENT (v6) values.
  *
- * ⚠️ `color.blue` is `#2962ff`, lowercase, and it is `#2962ff` — NOT the
- * `#2196F3` (Material Blue 500) that appears in the user manual's prose table.
- * Both the v5 and v6 payloads carry `#2962ff`. The payload's lowercase hex for
- * this one constant is why every comparison here is case-insensitive.
+ * ⛔⛔ DERIVED, NOT TYPED — `pinePalette.js` is the one authority for every named
+ * colour at every version, pinned to TradingView's own resolved hexes
+ * (`tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json`). This
+ * module used to carry its own copy, and that copy was right about v5/v6 and
+ * wrong about the two older dialects it claimed to describe (see `colorConstant`).
+ *
+ * ⚠️ `color.blue` is `#2962ff` at v5/v6 — the vendor answers it lowercase, the
+ * engine carries `#2962FF`; every comparison is case-insensitive.
  */
-export const COLOR_V6 = Object.freeze({
-  aqua: '#00BCD4', black: '#363A45', blue: '#2962ff', fuchsia: '#E040FB',
-  gray: '#787B86', green: '#4CAF50', lime: '#00E676', maroon: '#880E4F',
-  navy: '#311B92', olive: '#808000', orange: '#FF9800', purple: '#9C27B0',
-  red: '#F23645', silver: '#B2B5BE', teal: '#089981', white: '#FFFFFF',
-  yellow: '#FDD835',
-})
+export const COLOR_V6 = PALETTE_BY_VERSION[6]
 
 /**
- * ⭐ THE THREE CONSTANTS THAT CHANGED VALUE AT v6, and only these three.
+ * ⭐ THE THREE CONSTANTS THAT CHANGED VALUE AT v6, and their v5 hexes.
  *
- * Values here are the **pre-v6** hexes. Everything else in `COLOR_V6` is stable
- * across every version that had `color.*` at all.
+ * Derived from the authority as "the names whose v5 and v6 hexes differ", so it
+ * cannot disagree with the palette it describes.
  *
- * ⚠️ v1–v3 spell these as BARE IDENTIFIERS (`red`, not `color.red`) — the move to
- * the `color.*` namespace happened at v4. That is a parser concern; the pixels are
- * the same, so this table is keyed on the colour name and the caller resolves the
- * spelling.
+ * ⚠️ WAS DOCUMENTED AS "pre-v6" AND "stable across every version" — MEASURED
+ * FALSE 2026-09-27. These are the v5 values. v4 ALSO differs from v5 (`blue` is
+ * `#2196F3`), and v3's bare names draw plain web colours for 15 of the 17. The
+ * v5→v6 boundary itself is exactly as the evolution doc says.
  */
-export const COLOR_PRE_V6 = Object.freeze({
-  red: '#FF5252',
-  teal: '#00897B',
-  yellow: '#FFEB3B',
-})
+export const COLOR_PRE_V6 = Object.freeze(Object.fromEntries(
+  Object.keys(PALETTE_BY_VERSION[6])
+    .filter((k) => PALETTE_BY_VERSION[5][k].toLowerCase() !== PALETTE_BY_VERSION[6][k].toLowerCase())
+    .map((k) => [k, PALETTE_BY_VERSION[5][k]]),
+))
 
 /** The version each renderer-affecting change landed in. Keyed by the evolution
  *  doc's own row numbers so the two can be diffed rather than compared by eye. */
@@ -94,9 +96,11 @@ export function colorConstant(name, pineVersion) {
   // before lowercasing leaves `COLOR.BLUE` as `color.blue` — a key that does not
   // exist — so a perfectly valid uppercase spelling throws "unknown constant".
   const key = String(name || '').toLowerCase().replace(/^color\./, '')
-  if (!(key in COLOR_V6)) throw new Error(`unknown colour constant: color.${key}`)
-  if (v < RENDER_CHANGES.row49.since && key in COLOR_PRE_V6) return COLOR_PRE_V6[key]
-  return COLOR_V6[key]
+  // ⛔ THE AUTHORITY ANSWERS, AT THIS VERSION. v1/v2 are unmeasured and get the
+  // authority's stated fallback (`UNMEASURED_FALLBACK`), not a guess made here.
+  const hex = pineColourHex(key, v)
+  if (hex === null) throw new Error(`unknown colour constant: color.${key}`)
+  return hex
 }
 
 /**
