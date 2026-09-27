@@ -30,6 +30,15 @@ const APP = path.resolve(process.cwd())
 const REPO = path.resolve(APP, '..')
 const DASHBOARD = fs.readFileSync(
   path.join(REPO, 'corpus/committed/strong-start-rvol-dashboard__36140b1cbe.pine'), 'utf8')
+// ⭐ 2026-09-27 — THE ONE COMMITTED CORPUS SCRIPT THAT DRAWS, OFFERS NO COLUMN, AND
+// LOSES NOTHING. The dashboard above was this file's "ON" fixture until the owner's
+// partial-drawing ruling (option b): its object program drops 11 of 14 steps,
+// including the `table.clear` that wipes last bar's rows, so it is now REFUSED with
+// the flag on — which is the point of the ruling, not a regression. The admission
+// mechanics this file pins need a script the door is supposed to draw, and a
+// measured census (`partialDrawing.census.measure.test.js`) finds exactly one.
+const CLEAN_OBJECTS_ONLY = fs.readFileSync(
+  path.join(REPO, 'corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine'), 'utf8')
 const PLOTTING = '//@version=6\nindicator("t", overlay = true)\nplot(close)\n'
 
 const on = () => vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -93,16 +102,29 @@ describe('⛔ OFF — a member sees exactly what they saw before', () => {
   })
 })
 
-describe('⭐⭐ ON — the dashboard becomes a pane definition', () => {
-  it('a definition is built, and it carries the TABLE program', () => {
+describe('⭐⭐ ON — a clean objects-only script becomes a pane definition', () => {
+  it('a definition is built, and it carries the BOX program', () => {
     on()
-    const r = build(DASHBOARD)
-    expect(r.ok).toBe(true)
+    const r = build(CLEAN_OBJECTS_ONLY)
+    expect(r.ok, r.reason || '').toBe(true)
+    // ⛔ NON-VACUITY: it really is the clean shape — nothing dropped, nothing named
+    // by the reader — so this case pins admission, not the partial-drawing rule.
+    expect(r.translation.objectDiagnostics.droppedOps).toBe(0)
+    expect(r.notes.filter((n) => n.name === 'Drawings')).toEqual([])
     expect(r.definition.objects).toBeTruthy()
     expect(r.definition.objects.ops.length).toBeGreaterThan(0)
     // ⛔ THE OBJECT PROGRAM IS THE CONTENT, so a definition that passed the gate
     // and carried NO ops would be an empty pane with no sentence.
-    expect(new Set(r.definition.objects.ops.map((o) => o.family)).has('table')).toBe(true)
+    expect(new Set(r.definition.objects.ops.map((o) => o.family)).has('box')).toBe(true)
+  })
+
+  it('⛔⛔ the DASHBOARD is refused ON, by name — it loses a `table.clear`', () => {
+    on()
+    const r = build(DASHBOARD)
+    expect(r.ok).toBe(false)
+    expect(r.definition).toBeFalsy()
+    expect(r.guard).toBe('pine:object-removal-lost')
+    expect(String(r.reason)).toContain('a table clear')
   })
 
   it('⛔⛔ THE ANCHOR ROW IS HIDDEN — it must put nothing on screen', () => {
@@ -111,7 +133,7 @@ describe('⭐⭐ ON — the dashboard becomes a pane definition', () => {
     // that real table-drawing scripts conventionally carry. Its hiddenness is
     // the whole justification: the renderer draws no series for a hidden row.
     on()
-    const { definition, rows } = build(DASHBOARD)
+    const { definition, rows } = build(CLEAN_OBJECTS_ONLY)
     expect(rows).toHaveLength(0)              // nothing the MEMBER offered
     expect(definition.plots).toHaveLength(1)  // one anchor, and only one
     expect(definition.plots.every((p) => p.hidden === true)).toBe(true)
@@ -122,7 +144,7 @@ describe('⭐⭐ ON — the dashboard becomes a pane definition', () => {
     // the member as a screenable or selectable column, this engine would be
     // offering a constant nobody wrote.
     on()
-    const { rows } = build(DASHBOARD)
+    const { rows } = build(CLEAN_OBJECTS_ONLY)
     expect(rows.map((r) => r.label)).toEqual([])
   })
 })

@@ -20,6 +20,124 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-27 — PARTIAL DRAWINGS AT THE MEMBER DOOR: a lost removal refuses, every other loss is disclosed
+
+> Branch `pine/partial-drawing-rule` (base `pine/plot-offset-bound` @ `cf009d3ea`).
+> Every number below is `memberPaneDefinition` over the 266 committed scripts,
+> objects-only flag off/on, measured on this base before and after. The census is
+> `app/src/components/chart/builder/memberPane/partialDrawing.census.measure.test.js`
+> (opt-in: `PARTIAL_CENSUS=1`). ⚠️ The brief's master-code figures (off 29/15, on
+> 53/37) are not this base's; this base measures off 33/17, on 58/40.
+
+**The defect.** The member door admitted object programs that lost operations and
+drew the survivors with no disclosure. `paneGate` with the objects-only flag
+admitted a DIRTY program (`pine:objects-only`) as `ok`, and a plotting script
+carried whatever the object pass kept. Where the lost ops were deletes or table
+clears, the chart kept objects TradingView removes: a wrong picture, not a smaller one.
+
+**Owner ruling (option b), as implemented.**
+
+1. A lost REMOVAL (a delete, a `table.clear`, or a lost list change the script
+   deletes through) **refuses** a drawing-only script by name
+   (`pine:object-removal-lost`). A plotting script with the same loss **keeps its
+   plots and has its drawings withheld** (`objects: null`, the shape every
+   plot-only script already has, so no new render path), and says so in a note.
+2. Every other partial program attaches with **"N of M drawing elements in this
+   script aren't supported yet"** on the existing notes channel (`notes` →
+   `MemberPane`'s list → `meta.disclosures` on the saved document → the real
+   chart's `AttachedPineDisclosures`). N = the pass's `droppedOps`; M = the pass's
+   new `attemptedOps`, every op the converter tried, loop ops and loop-body ops
+   alike, so `N <= M` holds by construction. (`collectedOps` counts only top-level
+   reader ops and read "62 of 29" on `dual-view-htf-candlestick-patterns`.)
+3. A clean object program and a plot-only script are unchanged.
+
+⚠️ **A lost removal of something never drawn is not a removal loss.** The pass now
+records every lost `*.delete` / `table.clear` with its family (`lostRemovals`). If
+the program draws no create of that family at all, nothing that removal would take
+off the chart is on it, and the loss is PARTIAL. It is judged by FAMILY, not by
+register, because Pine fills a register through `l := array.get(…)` / `l := f(…)`,
+which the reader does not model. This is what keeps **Volume v2**'s two tables: it
+loses three `label.delete`s and draws no label anywhere (the one `label.new` is lost
+too), and now carries "5 of 14 drawing elements…". A removal whose family the pass
+cannot name always counts. **This refinement is an interpretation, flagged for a
+ruling below.**
+
+**Classification of every key the object pass emits** (`engine/ast/objectLoss.js`,
+railed against the `dropped(...)` call sites in `pine.js` and the op kinds in
+`pineObjects.js`; an unclassified key is refused, never guessed):
+
+| key | class | why |
+|---|---|---|
+| `delete:target` | REMOVES | a delete whose target cannot be read; the object Pine deletes stays |
+| `guard:delete` | REMOVES | a delete whose condition cannot be read |
+| `clear:target`, `clear:range`, `guard:clear` | REMOVES | a `table.clear` lost; the cells Pine wipes keep last bar's text |
+| `guard:loop`, `loop:bounds` | LOOP, by body | the body is never converted; REMOVES if it held a reaching delete/clear, else LIST if it changed lists, else PARTIAL |
+| `coll:push`, `coll:set`, `coll:remove`, `coll:unknown`, `coll:<method>` (e.g. `pop`), `guard:coll_*` | LIST | lists are how a script finds what it later deletes; REMOVES when the script removes anything, PARTIAL otherwise |
+| `create:<family>`, `guard:create` | PARTIAL | a missing object, never an extra one |
+| `update:target`, `update:props`, `guard:update` | PARTIAL | a stale position or style, not an extra object |
+| `cell:target`, `cell:address`, `cell:text`, `guard:cell` | PARTIAL | a missing cell (dropped whole, never written blank) |
+| `cellpatch:target`, `cellpatch:address`, `cellpatch:<prop>`, `guard:cellpatch` | PARTIAL | a missing style |
+| `loop:empty` | PARTIAL | its body ops are each counted under their own key |
+| reader: `*.delete`, `table.clear` (loop-blocked or unsupported) | REMOVES, unless that family is never drawn | never became an op, so in no drop count; `sonarlab-order-blocks` has zero drops and a lost `box.delete` |
+| reader: `array.*` | LIST | as above |
+| reader: anything else, `outOfScope` namespaces | PARTIAL | named in the note (`It also uses …`) |
+
+**Before and after (this base).**
+
+| | flag OFF | flag ON |
+|---|---|---|
+| attached, before | 33 (17 with drops; 18 with any loss) | 58 (40 with drops; 42 with any loss) |
+| attached, after | 33 | 47 |
+| … with the "N of M" / "uses X" disclosure | 17 | 30 |
+| … plots drawn, drawings withheld | 1 (`fibonacci-pivot-points-cc`) | 1 (same) |
+| refused for a lost removal | 0 | 11 |
+| clean with objects (unchanged) | 3 | 4 |
+| plot-only (unchanged) | 12 | 12 |
+
+Refused, flag ON (all drawing-only): `fibonacci-retracement-statistics-by-volprofex`,
+`ict-institutional-order-flow-fadi`, `ict-ipda-look-back`,
+`linear-regression-channel-tradingfinder-existing-trend-lines`, `market-profile-with-tpo`,
+`options-max-pain-calculator-backquant`, `rsi-horizontal-resistance-levels`,
+`sonarlab-order-blocks`, **`strong-start-rvol-dashboard`** (the objects-only lane's
+acceptance dashboard; it loses a `table.clear`), `swing-highlow-zigzag-chartprime`,
+`volumized-order-blocks-flux-charts`.
+
+Of the 25 scripts the flag adds on this base, 24 had a loss: 11 are now refused, 13
+attach with a disclosure, and 1 is clean (`makuchaku039s-trade-tools-fair-value-gaps`).
+
+**The member sentences** (worded once, in `objectLoss.js`):
+- refused: *"This script's drawing can't be shown yet. It removes drawings as it runs,
+  and this chart can't follow part of that (a delete), so drawing the rest would leave
+  lines, labels, boxes or table cells on screen that TradingView would have removed."*
+- withheld: *"This script's plots are shown, but its drawings are not. It removes
+  drawings as it runs, and this chart can't follow part of that (a delete), so showing
+  them would leave lines, labels, boxes or table cells on screen that TradingView would
+  have removed."*
+- partial: *"199 of 246 drawing elements in this script aren't supported yet, so what
+  it draws is incomplete. (The 246 are every drawing step this chart tried to carry:
+  each line, label, box or table created, changed or written to, each change to a list
+  of them, and each loop.) It also uses `line.set_xloc`, which this chart doesn't draw
+  yet."*
+- reader-only: *"This script uses `table.merge_cells`, which this chart doesn't draw
+  yet, so what it draws is incomplete."*
+
+**Rails.** `builder/memberPane/partialDrawing.test.jsx` is a table over 11 named
+corpus scripts (clean ×3, partial ×2, refused ×3, plots+partial ×2, withheld ×1) plus
+the flag-off control, asserting the door verdict AND the rendered DOM text.
+`engine/ast/objectLoss.test.js` derives the classification check from source, holds
+`N <= M` over the corpus, and pins the family test. Nine mutations (the pass counter,
+the family test, two classifications, both `paneGate` admissions, the withholding, the
+note push, the N/M order) each turned the rails red; every file was restored from
+captured bytes and verified by sha256.
+
+**Needs a ruling.** (a) the family-level "never drawn" refinement above; (b) LIST as
+conditional on the script removing anything; (c) prop-level losses inside a kept op
+(`droppedProps`, `unsupportedProps`) are not disclosed; (d) reader-level losses are
+named but not counted in N/M, because they never became ops; (e) the acceptance
+dashboard is now refused with the flag ON.
+
+---
+
 ## ⭐⭐ 2026-09-26 — `pine:plot-offset` (11) SIZED, AND IT WAS NOT A PINE GAP
 
 > Branch `pine/plot-offset-bound`. Every number below is `memberPaneDefinition`
