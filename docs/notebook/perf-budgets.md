@@ -514,6 +514,7 @@ bounded wait). ⛔ A LOADED reading is never a verdict. Scratch evidence is in t
 | relevance: ONE ranked MATCH pass primes the request's match set; plain tuples and two sorts; candidates read from the narrow `idx_j2_notes_switcher_live`; the page's total taken from the candidate read | the MATCH run again for the WHERE and the COUNT; a second COUNT over the library | see the A/B below |
 | `idx_j2_notes_id_live (id, user_id, deleted_at, updated_at, title)` | backlinks read every matched note's ROW, behind its body's overflow pages | count 24 -> 7 ms, list 32 -> 14 ms at 50k |
 | `idx_j2_note_document_pages_user_doc (user_id, document_id)` | the per-note document list walked every page the member owns, once per document (the planner took the one-column `(user_id)` index) | a note with 50 documents: 85 -> 11 ms at 1,000 documents; 819 ms p50 in the 10,000-document tier before |
+| the document search ranks on the FTS table alone (`_RANKED_SQL`), then joins and snippets only the ranked pages (`api/services/journal_two/document_search.py`; the exact one-pass read `_one_pass` answers when the Trash takes more than the ranked window's slack) | one statement joined the document, the note (its `deleted_at` past the body, on an overflow page) and the page, and built a snippet, for every matching page before its sort kept twenty | a common term over 10,000 documents (9,075 matching pages): 134 -> 47 ms p50 (same process, loaded box); 32 of 32 answers identical to the old function (`w10A/docsearch_diff.py`) |
 
 ⚰️ **`COUNT(*) OVER ()` was measured and not adopted** (the brief's second named lever): the
 window over the SQL ranked pass read 47.7 ms against 35.7 + 10.7 ms without it. The page's total
@@ -576,3 +577,10 @@ identical at 5,000 notes and at 50,000.
   7.588, re-measured 7.620; the other 13 stayed under the line). If it flaps in its first 20
   runs, R-10 says gate bytes only, restate clause 4b and put the marker back to `no`. ⛔ The
   local 50k gate stays the verdict.
+- **Its first 20 runs: 20 green, no flap.** Runs `36323273589`, `36323923444` on the lane
+  branch and 18 on the throwaway `ci/notebook-w10a-flapwatch` (each commit touches only a
+  trailing comment of the workflow, so each is the lane's tree; the token here cannot
+  dispatch a workflow). In every run the worst op was the fuzzy switcher at **0.922 - 1.016**
+  against the 2.301 line (40 - 44 % of it) while the runner's calibration ranged
+  **42.8 - 58.4 ms**: the ratio held still as the runner's speed moved by a third, which is the
+  property the check exists for (`w10A/flapwatch-summary.txt`). Clause 4b is not restated.

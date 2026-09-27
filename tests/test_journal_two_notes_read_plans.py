@@ -22,7 +22,9 @@ measured at 50k notes):
   * the backlinks look each note up in the covering `idx_j2_notes_id_live`, never its
     row; the relevance order reads its candidates from the NARROW covering
     `idx_j2_notes_switcher_live`, and its page's total comes from that same read, with
-    no second COUNT (wave 10).
+    no second COUNT (wave 10);
+  * the document search ranks on the FTS table ALONE and joins + snippets only the
+    ranked pages, answering exactly what the one-pass read answers (wave 10).
 Each rail was mutation-proved against the defect it names (see the lane-I report).
 """
 from __future__ import annotations
@@ -397,3 +399,90 @@ def test_the_snippet_page_filter_keeps_the_MATCH_only_plan(conn):
     for s in fts:
         m = re.search(r"VIRTUAL TABLE INDEX \d+:(\S*)", s)
         assert m and m.group(1).startswith("M") and "=" not in m.group(1), steps
+
+
+# ── the document search (wave 10, lane 10A, clause 14b) ───────────────────────
+
+
+def _seed_documents(conn, pages):
+    """`pages`: [(user, note_id, doc_id, page_number, text)]. The FTS triggers index them."""
+    ts = "2026-09-01T00:00:00+00:00"
+    seen = set()
+    for user, note, doc, pno, text in pages:
+        if doc not in seen:
+            seen.add(doc)
+            conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, name,"
+                         " status, page_count, created_at) VALUES (?,?,?,?,?,?,?,?)",
+                         (doc, user, note, f"/a/{doc}.pdf", f"{doc}.pdf", "ready", 1, ts))
+        conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
+                     " VALUES (?,?,?,?)", (doc, user, pno, text))
+    conn.commit()
+
+
+def test_the_document_search_ranks_on_the_fts_table_alone(conn):
+    """The one-pass read joined the document, the note (whose `deleted_at` sits past its body,
+    on an overflow page) and the page, and built a snippet, for EVERY matching page before its
+    sort kept twenty: 134 ms p50 for a common term over 10,000 documents. The rank now comes
+    from the FTS table alone, and only the ranked pages are joined and snippeted (47 ms)."""
+    from api.services.journal_two import document_search as ds
+    _seed_documents(conn, [(U, f"n{i % 6}", f"d{i}", 1, f"guidance reiterated page {i}")
+                           for i in range(12)])
+    rec = Recorder(conn)
+    hits = ds.search_document_pages(U, "guidance", limit=5, conn=rec)
+    assert len(hits) == 5 and all("<mark>" in h["snippet"] for h in hits), hits   # non-vacuity
+    fts = [(s, p) for s, p in rec.statements if "j2_note_document_pages_fts" in s and "MATCH" in s]
+    assert fts[0][0] == ds._RANKED_SQL, [s for s, _ in fts]
+    assert " JOIN " not in fts[0][0].upper() and "LIMIT" in fts[0][0].upper()
+    assert len(fts) == 2, [s for s, _ in fts]           # the ranked read, then the ranked pages
+    sql, params = fts[1]
+    assert "snippet(" in sql and "IN (" in sql and "ORDER BY" not in sql.upper(), sql
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    scan = [s for s in steps if "j2_note_document_pages_fts VIRTUAL TABLE INDEX" in s]
+    assert scan and all("=" not in s.split(":")[-1] for s in scan), steps   # MATCH-only, no rowid seek
+
+
+def test_the_document_search_falls_back_to_the_exact_read_when_the_trash_takes_the_window(conn):
+    """The ranked read cannot see the Trash. When trashed notes' pages take more of the ranked
+    window than its slack, the live pages below it must still be found -- by the exact
+    one-pass read -- rather than an empty or short page being returned."""
+    from api.services.journal_two import document_search as ds
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id = 'n0'")
+    # the trashed note's pages are indexed FIRST, so they lead every tie of the rank
+    trashed = [(U, "n0", f"t{i}", 1, "zzqfallback") for i in range(5)]
+    live = [(U, "n1", f"l{i}", 1, "zzqfallback") for i in range(3)]
+    _seed_documents(conn, trashed + live)
+    rec = Recorder(conn)
+    hits = ds.search_document_pages(U, "zzqfallback", limit=2, conn=rec)
+    assert [h["document_id"] for h in hits] == ["l0", "l1"], hits
+    ordered = [s for s, _ in rec.statements if "ORDER BY bm25" in s and " JOIN " in s]
+    assert ordered, "the exact one-pass read never ran"
+    # control: with room in the window, the fast path answers and the one-pass read does not run
+    rec2 = Recorder(conn)
+    assert [h["document_id"] for h in ds.search_document_pages(U, "zzqfallback", limit=8, conn=rec2)]         == ["l0", "l1", "l2"]
+    assert not [s for s, _ in rec2.statements if "ORDER BY bm25" in s and " JOIN " in s]
+
+
+@pytest.mark.parametrize("limit", [1, 2, 3, 5, 8, 20, 50])
+def test_the_document_search_answers_exactly_what_the_one_pass_read_answers(conn, limit):
+    """Differential: the two-read search against the exact one-pass read (`_one_pass`, the
+    definition), over pages with distinct and TIED scores, a trashed note, a missing note and
+    another member's pages, for common, rare, absent and trash-only terms."""
+    from api.services.journal_two import document_search as ds
+    from api.services.journal_two.notes_search import fts_match_expr
+    conn.execute("UPDATE j2_notes SET deleted_at = '2026-09-02T00:00:00+00:00' WHERE id IN ('n2', 'n4')")
+    ts = "2026-09-01T00:00:00+00:00"
+    conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, created_at, updated_at)"
+                 " VALUES ('o1', 'other', 'o1', '{}', '', ?, ?)", (ts, ts))
+    pages = []
+    for i in range(40):
+        words = " ".join(["guidance"] * (1 + i % 4)) + f" reiterated filler {'x ' * (i % 7)}"
+        pages.append((U, f"n{i % 6}", f"d{i}", 1 + i % 3, words + (" trashonly" if i % 6 in (2, 4) else "")))
+    pages += [(U, "gone", "dg", 1, "guidance reiterated")]           # a note that does not exist
+    pages += [("other", "o1", f"o{i}", 1, "guidance reiterated") for i in range(10)]
+    _seed_documents(conn, pages)
+    for q in ("guidance", "guidance reiterated", "reiterated filler", "trashonly", "absentterm"):
+        got = ds.search_document_pages(U, q, limit=limit, conn=conn)
+        want = ds._one_pass(conn, fts_match_expr(q), U, limit)
+        assert got == want, (q, limit, [h["document_id"] for h in got], [h["document_id"] for h in want])
+    assert ds.search_document_pages(U, "guidance", limit=limit, conn=conn), "non-vacuity"
+    assert ds.search_document_pages(U, "trashonly", limit=limit, conn=conn) == []
