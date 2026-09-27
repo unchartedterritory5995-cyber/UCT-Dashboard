@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsTouch } from '../../hooks/useBreakpoint'
 import { trapTabKey } from './useFocusTrap'
@@ -20,6 +20,11 @@ import styles from './Sheet.module.css'
  *   lockScroll         default true — locks body scroll while open
  *   maxWidth           desktop modal max width (px or css), default 520
  *   ariaLabel          accessible label when no title
+ *   labelledByTitle    opt-in: name the dialog FROM its visible title
+ *                      (`aria-labelledby` -> the title element), so the name
+ *                      and the heading are one value, never a restated copy.
+ *                      Ignored when `ariaLabel` is given or there is no title.
+ *                      Off by default, so every other caller is byte-identical.
  *   className          applied to the panel
  *   bodyClassName      applied to the scrolling body, beside the default
  *                      `.body` rules. A caller whose content owns its OWN
@@ -51,11 +56,14 @@ export default function Sheet({
   lockScroll = true,
   maxWidth = 520,
   ariaLabel,
+  labelledByTitle = false,
   className = '',
   bodyClassName = '',
   zIndex,
 }) {
   const isTouch = useIsTouch()
+  const titleId = useId()
+  const nameFromTitle = labelledByTitle && !ariaLabel && title != null
   const panelRef = useRef(null)
   const restoreFocusRef = useRef(null)
   const startY = useRef(0)
@@ -252,9 +260,11 @@ export default function Sheet({
         className={`${styles.panel} ${styles[`panel_${resolved}`]} ${className}`}
         role="dialog"
         aria-modal="true"
-        // A title is a heading, not a name: the dialog has no aria-labelledby
-        // wiring, so an ariaLabel names it whether or not a title is shown.
+        // A title is a heading, not a name: unless the caller opts in with
+        // `labelledByTitle` (the dialog is then named BY its title element), an
+        // ariaLabel names it whether or not a title is shown.
         aria-label={ariaLabel || undefined}
+        aria-labelledby={nameFromTitle ? titleId : undefined}
         data-sheet-panel=""
         tabIndex={-1}
         style={panelStyle}
@@ -272,7 +282,7 @@ export default function Sheet({
         )}
         {title != null && (
           <div className={styles.header}>
-            <div className={styles.title}>{title}</div>
+            <div className={styles.title} id={nameFromTitle ? titleId : undefined}>{title}</div>
             <button className={styles.close} onClick={onClose} aria-label="Close">×</button>
           </div>
         )}

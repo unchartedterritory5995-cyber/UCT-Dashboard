@@ -16,8 +16,14 @@ import { kickSnapshotWarm } from './embedArchive'
 import { CAPTURE_TARGETS } from './captureTargets'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
-/** captureTargets key -> `capture_used.target`. A key not here is not a notebook capture. */
+/** captureTargets key -> `capture_used.target`. */
 export const CAPTURE_TELEMETRY_TARGET = Object.freeze({ note: 'current', newNote: 'new', inbox: 'inbox' })
+/** captureTargets keys that are deliberately NOT a notebook capture (nothing lands in a
+ *  note), so they send no `capture_used`. ⛔ Every CAPTURE_TARGETS key must be in exactly
+ *  one of these two lists — a destination added to the registry reaches every door for
+ *  free and would otherwise be silently never counted (review M-9; railed by
+ *  captureTelemetryCoverage.test.js). */
+export const NOT_A_CAPTURE = Object.freeze(['copyChartLink'])
 
 // Stage A member-validation instrumentation (decision-log "Stage A→B gate"
 // entry, 2026-09-06) — fires once per genuine capture, from the one function
