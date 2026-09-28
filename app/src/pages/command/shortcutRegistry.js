@@ -178,9 +178,10 @@ export const SHORTCUTS = Object.freeze([
   decl({
     id: 'voice.talk',
     chord: { code: 'KeyV', mod: 'platform', shift: true },
-    target: 'window', capture: false, inEditable: true, repeat: true,
+    target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'Cmd+Shift+V (Mac) / Ctrl+Shift+V starts or ends a Realtime conversation. Physical key, '
-      + 'so it survives non-QWERTY layouts. Fires in text fields and on auto-repeat, as it always did.',
+      + 'so it survives non-QWERTY layouts. NOT inside a text field (2026-09-28): there the chord is '
+      + 'paste-as-plain-text in the browser, which push-to-talk used to preventDefault away.',
   }),
   decl({
     id: 'voice.trainMe',
