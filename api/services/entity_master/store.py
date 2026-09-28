@@ -273,6 +273,11 @@ def status_counts(db_path: str | None = None) -> dict:
         "aliases": _scalar("SELECT COUNT(*) FROM entity_aliases") or 0,
         "open_aliases": _scalar(
             "SELECT COUNT(*) FROM entity_aliases WHERE valid_to IS NULL") or 0,
+        # TERM-023: the denominator `ambiguous_open_aliases` is counted over --
+        # DISTINCT alias strings currently held open, because an ambiguity is
+        # counted per alias, not per row.
+        "distinct_open_aliases": _scalar(
+            "SELECT COUNT(DISTINCT alias) FROM entity_aliases WHERE valid_to IS NULL") or 0,
         "delisted_entities": lifecycle_states.get("delisted", 0),
         "lifecycle_states": lifecycle_states,
         "figi_rows": _scalar("SELECT COUNT(*) FROM entity_figi") or 0,
