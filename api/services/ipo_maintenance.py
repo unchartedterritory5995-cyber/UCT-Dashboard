@@ -75,10 +75,8 @@ def check_ipo_expirations():
     unknown = []
 
     # Load taxonomy
-    paths = [
-        os.path.join(os.path.dirname(__file__), "..", "..", "themes_taxonomy.json"),
-        "/app/themes_taxonomy.json",
-    ]
+    from api.services import a8_taxonomy  # TERM-075: the one locator of the taxonomy file
+    paths = list(a8_taxonomy.THEMES_TAXONOMY_CANDIDATES)
     taxonomy = None
     for p in paths:
         if os.path.exists(os.path.abspath(p)):

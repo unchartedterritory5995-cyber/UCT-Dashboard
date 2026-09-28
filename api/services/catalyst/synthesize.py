@@ -9,6 +9,7 @@ import os
 import time
 from typing import Optional
 
+from api.services.a8_taxonomy import CATALYST_TAG
 from api.services.catalyst import cost_guard, store
 
 logger = logging.getLogger(__name__)
@@ -525,7 +526,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             else:
                 parsed = {
                     "thesis": "No clear catalyst identified. Source pool was thin.",
-                    "tag": candidate.get("tag", "Gapper"),
+                    "tag": candidate.get("tag", CATALYST_TAG.GAPPER),
                     "grade": "C",
                     "catalyst_type": "None",
                     "source_urls": [],
@@ -533,7 +534,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
         except Exception:
             parsed = {
                 "thesis": "No clear catalyst identified. Source pool was thin.",
-                "tag": candidate.get("tag", "Gapper"),
+                "tag": candidate.get("tag", CATALYST_TAG.GAPPER),
                 "grade": "C",
                 "catalyst_type": "None",
                 "source_urls": [],

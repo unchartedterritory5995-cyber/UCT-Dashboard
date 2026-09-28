@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "what_this_is": [
+    "TERM-075 / FB-A8-01: the ONE authority for A8's vocabularies (News & Catalyst Intelligence).",
+    "It is DATA so both halves read the same bytes: api/services/a8_taxonomy.py (Python) and",
+    "app/src/lib/taxonomy/a8Taxonomy.js (the frontend) derive from this file and restate nothing.",
+    "tests/test_a8_taxonomy.py and app/src/lib/taxonomy/a8Taxonomy.rail.test.js fail BY NAME on a",
+    "restated copy anywhere in product source.",
+    "",
+    "It unifies the VOCABULARY, never a score (PROD-C6): nothing here weights, ranks or blends.",
+    "A policy table keyed by a vocabulary (selection quotas, hunter bonuses, tag chip styles) stays",
+    "with its owner and is wrapped in keyed_by / keyedBy, which refuses a key set that differs."
+  ],
+  "catalyst_tags": {
+    "_note": "K8's deterministic tag. precedence is the order assign_tag() tests them in (Earnings wins, then Catalyst, then Gapper, then News). display_order is the order the tile's chips render and selection fills its quotas in; it must be a permutation of precedence.",
+    "precedence": ["Earnings", "Catalyst", "Gapper", "News"],
+    "display_order": ["Catalyst", "Earnings", "Gapper", "News"]
+  },
+  "hunter_catalyst_types": {
+    "_note": "The CLOSED catalyst_type set the Catalyst Hunter may emit (anything else becomes the fallback) and the scorer's per-type hunter bonus is keyed by. NOT the synthesis prompt's fifteen-label convention (an OPEN vocabulary the model is asked for, mirrored frozen in S7's alert_taxonomy/catalyst_match.py) - the two share words and differ in members, and that difference is recorded, not resolved here.",
+    "members": ["Earnings", "Analyst", "M&A", "FDA", "Guidance", "Contract", "Index", "Offering", "Halt", "News"],
+    "fallback": "News"
+  },
+  "cashtag": {
+    "_note": "M5's cashtag grammar: the tweet ingest (tweet_ticker_extract) and the catalyst engine's RSS cashtag pass read it. Applied to UPPER-CASED text, so $aapl books AAPL. excluded are forex codes traders cashtag and we do not trade. Other cashtag grammars in the repo are DIFFERENT grammars with their own rulings (buzz's recall ruling, class-share suffixes); the rail records them and refuses a new one.",
+    "pattern": "\\$([A-Z]{1,5})\\b",
+    "excluded": ["USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "NZD"]
+  },
+  "themes": {
+    "_note": "H9's theme vocabulary is the owner's taxonomy FILE, which stays where it is and is never moved or rewritten by this authority (its baseline is inviolable). This names the file once; every reader locates it through a8_taxonomy.themes_taxonomy_path().",
+    "taxonomy_file": "themes_taxonomy.json"
+  },
+  "primary_vs_mentioned": {
+    "_note": "One resolver decides whether a ticker in a story is its SUBJECT (primary) or only MENTIONED. Rule lead_cashtag_v1: a story with one ticker is about it; with several, the ticker whose cashtag appears FIRST is the subject and the rest are mentions; a story whose tickers cannot be located in its text keeps today's behaviour (every ticker primary). Stored additively on tweets.db tweet_tickers.is_primary (DEFAULT 1 = today's behaviour for every existing row). Read only while A8_PRIMARY_MENTION_ENABLED is on.",
+    "rule": "lead_cashtag_v1"
+  }
+}

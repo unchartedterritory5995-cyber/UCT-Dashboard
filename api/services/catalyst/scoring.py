@@ -5,6 +5,8 @@ All weights are env-var overridable so live tuning doesn't need a redeploy.
 import math
 import os
 
+from api.services.a8_taxonomy import HUNTER_CATALYST_TYPE_FALLBACK, HUNTER_CATALYST_TYPES, keyed_by
+
 
 def _w(name: str, default: float) -> float:
     """Read a weight from env or return default."""
@@ -48,16 +50,18 @@ def _is_regional_bank_earnings(c: dict) -> bool:
 # Per-category bonus for a Catalyst-Hunter-confirmed catalyst. Lets a real but
 # NOT-yet-moving name (0% gap) rank onto the board instead of sinking to ~0 in a
 # gap-dominated score. Decisive events (M&A/FDA/Halt) outweigh soft news.
-_HUNTER_BONUS = {
+# Keyed by A8's hunter catalyst_type set (TERM-075) and checked against it at
+# import — a type added to the vocabulary without a bonus fails loudly here.
+_HUNTER_BONUS = keyed_by(HUNTER_CATALYST_TYPES, {
     "M&A": 35.0, "FDA": 35.0, "Halt": 28.0, "Earnings": 20.0, "Guidance": 18.0,
     "Analyst": 15.0, "Contract": 12.0, "Index": 12.0, "Offering": 8.0, "News": 8.0,
-}
+})
 
 
 def _hunter_bonus(catalyst_type: str) -> float:
     """Env-overridable per-type hunter bonus. Env key: CATALYST_SCORE_W_HUNTER_<TYPE>
     where TYPE is uppercased with '&'→'' and non-alphanumerics→'_' (e.g. M&A→MA)."""
-    default = _HUNTER_BONUS.get(catalyst_type, _HUNTER_BONUS["News"])
+    default = _HUNTER_BONUS.get(catalyst_type, _HUNTER_BONUS[HUNTER_CATALYST_TYPE_FALLBACK])
     key = "".join(ch if ch.isalnum() else "_" for ch in catalyst_type.upper().replace("&", ""))
     return _w(f"HUNTER_{key}", default)
 
@@ -157,6 +161,6 @@ def score(c: dict) -> float:
     # not-yet-moving name surfaces onto the board. A mover keeps its gap/volume
     # score and gets this on top, so movers still outrank equal-type flat names.
     if c.get("hunter_confirmed"):
-        s += _hunter_bonus(c.get("catalyst_type") or "News")
+        s += _hunter_bonus(c.get("catalyst_type") or HUNTER_CATALYST_TYPE_FALLBACK)
 
     return s

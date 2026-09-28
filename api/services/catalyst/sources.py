@@ -24,10 +24,15 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from api.services.a8_taxonomy import CASHTAG_RE
+
 logger = logging.getLogger(__name__)
 
 _ET = ZoneInfo("America/New_York")
-_CASHTAG_RE = re.compile(r"\$([A-Z]{1,5})\b")
+# M5's cashtag GRAMMAR, from A8's authority (TERM-075). The RSS pass applies the
+# grammar only — it never had the tweet ingest's forex exclusion, and adopting it
+# here would change which headlines attach to a ticker, so it does not.
+_CASHTAG_RE = CASHTAG_RE
 
 # Per-source pull stats from the most recent collect_all(). Lets the premarket
 # health check distinguish "genuinely quiet morning" from "a source (Massive /

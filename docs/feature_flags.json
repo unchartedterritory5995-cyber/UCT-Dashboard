@@ -53,6 +53,12 @@
     "the ledger says WHY a value is what it is and not merely what it is."
   ],
   "flags": {
+    "A8_PRIMARY_MENTION_ENABLED": {
+      "status": "pending",
+      "where": [],
+      "since": "2026-09-28",
+      "note": "TERM-075 (FB-A8-01), ENABLEMENT GATE, default OFF, read per call in api/services/a8_taxonomy.py::primary_mention_enabled(). SERVICE: web (tweet_store reads run in-process on web; the catalyst engine's tweet signal reads the same store). What it arms: the primary-vs-mentioned bit on the tweet story-to-ticker join. tweets.db tweet_tickers gains is_primary INTEGER NOT NULL DEFAULT 1 at _init_db (ADDITIVE: every existing row reads 1 = today's behaviour; nothing is rewritten), and the poller writes a8_taxonomy.resolve_primary's answer (rule lead_cashtag_v1: the first-named cashtag is the story's subject, the rest are mentions) on NEW rows whatever the flag says. Only while this flag is set do the three subject-count reads in tweet_store (tweets_for_ticker, tape, batch_counts) add AND tt.is_primary = 1, so a mention-only ticker stops counting as a subject on every surface that reads them: /api/tweets/ticker|tape|has-tweets-batch, the Movers tweet icons, the catalyst engine's tweet_mention_count, AI Search, voice tools, news adapters. feed() still lists every ticker a tweet names. Unset: every query text is byte-identical to before the column existed (tests/test_a8_primary_mention.py). Not armed: the owner decides, after reading how the lead-cashtag rule treats peer lists ($AAPL $MSFT $GOOGL: only AAPL stays a subject). REVERSAL: unset it; the column and its values are left in place and are inert."
+    },
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [

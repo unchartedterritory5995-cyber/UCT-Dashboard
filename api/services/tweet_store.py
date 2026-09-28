@@ -11,7 +11,9 @@ import re
 import sqlite3
 import threading
 import time
-from typing import Iterable, Optional
+from typing import Iterable, Mapping, Optional
+
+from api.services.a8_taxonomy import primary_mention_enabled
 
 # Twitter image media URLs live on pbs.twimg.com/media/. Regex-scan the (possibly
 # truncated) raw_json string directly — robust to the 8KB cap + shape changes.
@@ -109,13 +111,35 @@ def _init_db() -> None:
         except sqlite3.OperationalError as e:
             if "duplicate column name" not in str(e).lower():
                 raise
+        # TERM-075 (FB-A8-01): the primary-vs-mentioned bit on the story-to-ticker
+        # join. ADDITIVE — DEFAULT 1 reads every existing row as a subject, which
+        # is exactly today's behaviour. Nothing is rewritten.
+        try:
+            c.execute("ALTER TABLE tweet_tickers ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 1")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         c.commit()
+
+
+def _subject_clause() -> str:
+    """The extra predicate a SUBJECT count adds on `tweet_tickers tt`.
+
+    Empty while `A8_PRIMARY_MENTION_ENABLED` is off, so every query is the exact
+    text it was before the column existed. On, a mention-only link stops counting
+    as the story being about that ticker. Read per call — never at import."""
+    return " AND tt.is_primary = 1" if primary_mention_enabled() else ""
 
 
 # ---- writes ----------------------------------------------------------------
 
-def upsert_tweet(tweet: dict, tickers: Iterable[str]) -> None:
-    """Insert or update a tweet and its ticker links. Idempotent on tweet.id."""
+def upsert_tweet(tweet: dict, tickers: Iterable[str],
+                 primary: Optional[Mapping[str, bool]] = None) -> None:
+    """Insert or update a tweet and its ticker links. Idempotent on tweet.id.
+
+    ``primary`` is the A8 resolver's {ticker: is-the-subject} answer. Omitted (or
+    a ticker missing from it) writes the column default — every link primary,
+    today's behaviour. Links already stored are never rewritten."""
     now = int(time.time())
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute(
@@ -138,10 +162,16 @@ def upsert_tweet(tweet: dict, tickers: Iterable[str]) -> None:
             ),
         )
         for t in set(tickers):
-            c.execute(
-                "INSERT OR IGNORE INTO tweet_tickers (tweet_id, ticker) VALUES (?, ?)",
-                (tweet["id"], t),
-            )
+            if primary is None or t not in primary:
+                c.execute(
+                    "INSERT OR IGNORE INTO tweet_tickers (tweet_id, ticker) VALUES (?, ?)",
+                    (tweet["id"], t),
+                )
+            else:
+                c.execute(
+                    "INSERT OR IGNORE INTO tweet_tickers (tweet_id, ticker, is_primary) VALUES (?, ?, ?)",
+                    (tweet["id"], t, 1 if primary[t] else 0),
+                )
         c.commit()
 
 
@@ -297,11 +327,12 @@ def get_poll_state(handle: str) -> Optional[dict]:
 
 def tweets_for_ticker(ticker: str, hours: int = 24) -> list[dict]:
     since = int(time.time()) - hours * 3600
+    subject = _subject_clause()
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT t.* FROM tweets t
+            f"""SELECT t.* FROM tweets t
                JOIN tweet_tickers tt ON tt.tweet_id = t.id
-               WHERE tt.ticker = ? AND t.created_at >= ?
+               WHERE tt.ticker = ? AND t.created_at >= ?{subject}
                ORDER BY t.created_at DESC""",
             (ticker.upper(), since),
         ).fetchall()
@@ -312,14 +343,15 @@ def tape(hours: int = 12, limit: int = 15) -> list[dict]:
     """Distinct tickers mentioned in window, newest-mention first.
     Does NOT exclude current movers — that join happens in the router."""
     since = int(time.time()) - hours * 3600
+    subject = _subject_clause()
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT tt.ticker,
+            f"""SELECT tt.ticker,
                       MAX(t.created_at) AS latest_at,
                       COUNT(*)          AS n_tweets
                FROM tweet_tickers tt
                JOIN tweets t ON t.id = tt.tweet_id
-               WHERE t.created_at >= ?
+               WHERE t.created_at >= ?{subject}
                GROUP BY tt.ticker
                ORDER BY latest_at DESC
                LIMIT ?""",
@@ -328,9 +360,9 @@ def tape(hours: int = 12, limit: int = 15) -> list[dict]:
         result = []
         for r in rows:
             sample = c.execute(
-                """SELECT t.* FROM tweets t
+                f"""SELECT t.* FROM tweets t
                    JOIN tweet_tickers tt ON tt.tweet_id = t.id
-                   WHERE tt.ticker = ? AND t.created_at >= ?
+                   WHERE tt.ticker = ? AND t.created_at >= ?{subject}
                    ORDER BY t.created_at DESC LIMIT 1""",
                 (r["ticker"], since),
             ).fetchone()
@@ -396,13 +428,14 @@ def batch_counts(tickers: Iterable[str], hours: int = 24) -> dict[str, int]:
         return {}
     since = int(time.time()) - hours * 3600
     placeholders = ",".join("?" * len(tickers))
+    subject = _subject_clause()
     out = {t: 0 for t in tickers}
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
             f"""SELECT tt.ticker, COUNT(*) AS n
                 FROM tweet_tickers tt
                 JOIN tweets t ON t.id = tt.tweet_id
-                WHERE tt.ticker IN ({placeholders}) AND t.created_at >= ?
+                WHERE tt.ticker IN ({placeholders}) AND t.created_at >= ?{subject}
                 GROUP BY tt.ticker""",
             (*tickers, since),
         ).fetchall()
