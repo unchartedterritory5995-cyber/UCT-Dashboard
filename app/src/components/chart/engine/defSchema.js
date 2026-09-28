@@ -1508,6 +1508,15 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
   // the spec locks at color/width/levels) and validated exactly like `color`
   // otherwise. `validateColorModes` is what makes them REQUIRED under `'sign'`;
   // this half is what stops `colorUp: 3` registering.
+  // ⭐ An N-way palette: two or more colours, each validated like `color`.
+  if (plot.colorPalette !== undefined) {
+    const pal = plot.colorPalette
+    if (!Array.isArray(pal) || pal.length < 2 || !pal.every(isNonEmptyString)) {
+      errors.push(`${path}.colorPalette: expected an array of two or more colour strings, got ${fmt(pal)}`)
+    } else if (typeof plot.colorMode !== 'string' || !plot.colorMode.startsWith('column:')) {
+      errors.push(`${path}.colorPalette: a palette is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
+    }
+  }
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
     if (!isNonEmptyString(plot[field])) {
@@ -1733,11 +1742,21 @@ function validateColorModes(plots, columnKeys, errors) {
     // `sign` branch above exists to make impossible. Reusing `colorUp`/
     // `colorDown` rather than inventing a second spelling keeps one vocabulary
     // for "the two colours a per-point mode needs".
+    // ⭐⭐ OR A PALETTE: the column then holds which entry each bar uses — an
+    // N-way Pine colour chain. Two ways to say "what to alternate between", and a
+    // plot must say exactly one of them.
+    if (plot.colorPalette !== undefined) {
+      if (plot.colorUp !== undefined || plot.colorDown !== undefined) {
+        errors.push(`${path}: declare colorPalette OR colorUp/colorDown for ${fmt(mode)}, not both`)
+      }
+      return
+    }
     const missing = ['colorUp', 'colorDown'].filter((f) => !isNonEmptyString(plot[f]))
     if (missing.length) {
       errors.push(
         `${path}: colour mode ${fmt(mode)} colours each point by whether column ${fmt(col)} is ` +
-        `non-zero, so the plot must declare both colorUp and colorDown — missing ${list(missing)}`,
+        `non-zero, so the plot must declare both colorUp and colorDown (or a colorPalette) — ` +
+        `missing ${list(missing)}`,
       )
     }
   })

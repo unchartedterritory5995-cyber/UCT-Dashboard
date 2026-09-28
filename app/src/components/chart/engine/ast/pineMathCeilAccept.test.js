@@ -114,12 +114,17 @@ plot(math.ceil(close))
       // refuses, and still on something unrelated to `math.ceil`.
       ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:module'],
       ['volume-profile-auto-line-v2__b0e947fd20.pine', 'pine:no-output'],
-      // ⚰️ WAS `pine:no-output`, for the same reason as the footprint row above:
-      // the merge kept the NARROWER guard for a script that draws. ⭐ The row two
-      // lines down (`volume-profile-auto-line-v2`) still reads `pine:no-output`
-      // and is what proves the two guards discriminate rather than one having
-      // simply been renamed to the other.
-      ['volumized-order-blocks-flux-charts__1675b2b8e3.pine', 'pine:objects-only'],
+      // ⚰️⚰️ `pine:no-output` → `pine:objects-only` (merge of 2026-09-23) → and
+      // BACK to `pine:no-output` (2026-09-26), and the second move is a FIX, not
+      // drift. The one op that made this script "draw" was a `box.new` inside a
+      // user function's body, which the object reader walked as if it ran at the
+      // top level — unconditionally, every bar, corners reading `na`. The
+      // function is now inlined at its call site (`objectFnInline.js`), where it
+      // refuses by name (its handle is a user-type field), so the script
+      // honestly draws nothing this door can carry. The claim is unchanged: it
+      // refuses, and not on `math.ceil`. ⭐ The footprint row above still reads
+      // `pine:objects-only`, so the two guards still discriminate.
+      ['volumized-order-blocks-flux-charts__1675b2b8e3.pine', 'pine:no-output'],
     ]
     for (const [file, guard] of cases) {
       const s = fs.readFileSync(path.join(CORPUS, file), 'utf8')

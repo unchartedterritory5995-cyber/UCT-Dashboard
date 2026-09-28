@@ -35,6 +35,11 @@
 // decides no legality, so this file's rosters stay the only authority on which
 // members exist.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+import {
+  MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
+  historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
+  callsMethodAny, bodyEffects,
+} from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
  *  REACHABLE 27 — a positional call is common in the corpus and a named-only
@@ -161,7 +166,13 @@ export function collectObjectOps(stmts, h) {
   // ⭐ `let`, not `const`: a loop body is collected into its OWN sink and then
   // nested under a `loop` op. See the `for` branch in `walk`.
   let ops = []
-  const diagnostics = { loopBlocked: [], getters: [], unsupported: [], outOfScope: [] }
+  // ⭐ `refusedCalls` and `inlinedCalls` belong to the function inliner below
+  // (`objectFnInline.js`). A refused call is a COUNTED DROP downstream — see
+  // `buildObjectProgram` — never a note beside a program that looks clean.
+  const diagnostics = {
+    loopBlocked: [], getters: [], unsupported: [], outOfScope: [],
+    refusedCalls: [], inlinedCalls: 0,
+  }
   let siteSeq = 0
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
    *  every op emitted inside one, because the VALUE resolver lives in `pine.js`
@@ -207,6 +218,43 @@ export function collectObjectOps(stmts, h) {
   }
   scanDefs(stmts)
   const isDefined = (name) => defined.has(name)
+
+  // ── ⭐⭐ USER FUNCTIONS THAT DRAW — inlined at each call site ──────────────
+  // See `objectFnInline.js` for the measurement and the Pine semantics. A
+  // definition is never walked as top-level code any more; its body runs where
+  // it is CALLED, under the call's guards, with its own per-call-site locals.
+  const fnDefs = readFunctionDefs(stmts, h)
+  const objColls = objectCollections(stmts, h)
+  const drawing = drawingFunctions(fnDefs, objColls)
+  const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
+  const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
+  const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
+  const userMethods = new Set([...fnDefs.keys()].filter((n) => fnDefs.get(n).isMethod))
+  const pureFns = pureFunctions(fnDefs, drawFns)
+  let inlineSeq = 0
+  let inlineDepth = 0
+  /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
+   *
+   *  ⭐ AND WHAT ITS BODY WOULD HAVE REMOVED (`bodyEffects`), because a refused
+   *  body is never walked and no other counter sees it — the member door's
+   *  partial-drawing rule refuses a drawing that lost a removal (ruling
+   *  2026-09-27, option b). `return-type` is the one refusal made AFTER the body
+   *  was inlined: its ops are in the program, and only the returned handle is
+   *  lost, so it carries no body effects. A function this reader cannot find
+   *  has an unknown body and reports one removal of an unnamed family — the
+   *  loud answer, never "removes nothing". */
+  const refuseCall = (why, fn, st, detail) => {
+    const def = fnDefs.get(fn)
+    const effects = why === 'return-type' ? { kinds: {}, families: [] }
+      : def ? bodyEffects(def, fnDefs, objColls)
+        : { kinds: { delete: 1 }, families: [null] }
+    diagnostics.refusedCalls.push({
+      why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
+      ...(detail ? { detail } : {}),
+      effects,
+    })
+    return false
+  }
 
   /** The namespace a METHOD-FORM receiver speaks for — `array`/`matrix`/`map`
    *  for a collection, the drawing family for a handle — read off `decls` and
@@ -272,6 +320,89 @@ export function collectObjectOps(stmts, h) {
       if (!t || !t.length) continue
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
+
+      // ⭐⭐ A DEFINITION IS NOT CODE THAT RUNS HERE. Its body runs at each call
+      // site (see `inlineCall`), so it is skipped at the definition — the
+      // catch-all at the bottom of this loop used to descend into it and emit
+      // its drawing as if it ran unconditionally on every bar.
+      if (definitionHeader(t, h)) continue
+
+      // ⭐⭐ A CALL TO A FUNCTION THAT DRAWS. Two shapes are inlined — the call
+      // as a whole statement, and as the whole right-hand side of an assignment.
+      // Anywhere else the call sits inside an expression whose evaluation order
+      // this reader does not model, and it is REFUSED by name.
+      const drawMethod = drawMethods.size
+        ? (callsMethodAny(t, drawMethods) || callsAny(t, drawMethods)) : null
+      if (drawMethod) refuseCall('method', drawMethod, st)
+      const drawCall = drawFns.size ? callsAny(t, drawFns) : null
+      if (drawCall && !drawMethod) {
+        if (word !== 'if' && word !== 'else' && word !== 'for' && word !== 'while'
+            && word !== 'switch') {
+          if (first.kind === 'ident' && drawFns.has(String(first.value)) && h.isPunct(t[1], '(')
+              && closeOf(t, 1) === t.length - 1) {
+            inlineCall(String(first.value), t, 1, null, guards, inLoop, st, localScope)
+            continue
+          }
+          const reIdx = h.findTop(t, (x) => h.isPunct(x, ':='))
+          const asIdx = reIdx >= 0 ? reIdx : h.findTop(t, (x) => h.isPunct(x, '='))
+          const rhs = asIdx > 0 ? t.slice(asIdx + 1) : []
+          if (rhs.length > 1 && rhs[0].kind === 'ident' && drawFns.has(String(rhs[0].value))
+              && h.isPunct(rhs[1], '(') && closeOf(rhs, 1) === rhs.length - 1) {
+            if (word === 'var' || word === 'varip') {
+              refuseCall('var-init', String(rhs[0].value), st)
+              continue
+            }
+            const intoTok = reIdx >= 0 ? t[asIdx - 1] : h.boundName(t, asIdx)
+            const into = intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null
+            inlineCall(String(rhs[0].value), rhs, 1, into, guards, inLoop, st, localScope)
+            continue
+          }
+        }
+        refuseCall('in-expression', drawCall, st)
+      }
+
+      // ⭐⭐ A `switch` IS A CHAIN OF GUARDED ARMS, and each arm runs under its own
+      // condition AND the negation of every arm above it (Pine takes the FIRST arm
+      // that matches). ⚰️ Before this branch a `switch` fell through to the
+      // catch-all below, which walks a nested block under the PARENT's guards —
+      // so every drawing inside an arm lost its arm's condition and ran on every
+      // bar. Measured against TradingView 2026-09-27 (Zero-Lag MA Trend Levels,
+      // NYSE:RDDT 1D, live capture): two `label.new` arms guarded by crossings drew
+      // the 50-label cap where TradingView drew 8 — a confident wrong picture, not
+      // a refusal.
+      // ⭐ `switch <subject>` arms compare the subject: `(subject) == (match)`.
+      // A condition this lane cannot read (an object getter, an unsupported call)
+      // makes the GUARD unreadable, and an unreadable guard is dropped and counted
+      // by the converter — never drawn unconditionally.
+      if (word === 'switch') {
+        const subject = t.slice(1)
+        const P = (value) => ({ kind: 'punct', value, line: first.line, column: first.column, index: first.index })
+        const prior = []
+        for (const arm of st.sub || []) {
+          const ah = arm.header || []
+          const at = h.findTop(ah, (x) => h.isPunct(x, '=>'))
+          const armGuards = [...guards, ...prior.map((toks) => ({ toks, negate: true }))]
+          if (at < 0) {
+            // Not an arm shape this reader knows: an empty guard is unreadable, so
+            // whatever it draws is refused rather than run without its condition.
+            walk([arm], [...armGuards, { toks: [], negate: false }], inLoop, localScope)
+            continue
+          }
+          const match = ah.slice(0, at)
+          let g = armGuards
+          if (at > 0) {
+            const cond = subject.length
+              ? [P('('), ...subject, P(')'), P('=='), P('('), ...match, P(')')]
+              : match
+            prior.push(cond)
+            g = [...armGuards, { toks: cond, negate: false }]
+          }
+          const rhs = ah.slice(at + 1)
+          if (rhs.length) walk([{ ...arm, header: rhs }], g, inLoop, localScope)
+          else walk(arm.sub || [], g, inLoop, localScope)
+        }
+        continue
+      }
 
       if (word === 'if') {
         const condEnd = t.length
@@ -612,6 +743,23 @@ export function collectObjectOps(stmts, h) {
       // the `=` unless it is one of them — it is what the walk itself uses to
       // decide this same question. A second roster here would be the exact
       // second authority steps 1 and 2 spent their time deleting.
+      // ⭐⭐ INSIDE AN INLINED BODY, `x := e` IS WHAT `x` READS FOR THE REST OF
+      // THE BLOCK. Pine is sequential: after the assignment, and until the next
+      // one, `x` on this bar IS `e`'s value on this bar. The corpus writes the
+      // drawing right under it —
+      //     var int lastDojiIndex = na
+      //     if isDoji
+      //         lastDojiIndex := bar_index
+      //         line.new(x1 = lastDojiIndex, …)
+      // — so the create reads `bar_index`, exactly. ⛔ ONLY for a synthetic
+      // (inlined) statement: at the top level the value walk already binds the
+      // name, and a second binding here would change trees it already built.
+      // ⛔ Outside this block, and before it, the name stays OPAQUE (see
+      // `scopeFor` in pine.js): a `var` read there is the state this lane does
+      // not carry, and it refuses rather than reading the initialiser.
+      if (st.synthetic && t.length > 2 && t[0].kind === 'ident' && h.isPunct(t[1], ':=')) {
+        localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st, assign: true }]
+      }
       const declEq = h.findTop(t, (x) => h.isPunct(x, '='))
       const isArrow = h.findTop(t, (x) => h.isPunct(x, '=>')) >= 0
       if (declEq > 0 && !isArrow && t.length > declEq + 1) {
@@ -1093,6 +1241,95 @@ export function collectObjectOps(stmts, h) {
       k: `coll_${method}`, coll: collName, args: rest,
       guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line,
     })
+  }
+
+  /**
+   * ⭐⭐ ONE CALL TO A DRAWING FUNCTION → ITS BODY, WALKED IN PLACE.
+   *
+   * The body is rewritten for THIS call site (`rewriteBody`): every local it
+   * declares is renamed with a per-call-site suffix — which is what gives each
+   * call its own `var` register, Pine's own rule — and every parameter is
+   * replaced by the argument's tokens. The rewritten statements are then walked
+   * by the ordinary `walk`, under the call's guards and inside the caller's
+   * block scope, so every shape this reader already carries (if/else, counted
+   * loops, ternary creates, method forms, collections) works inside a function
+   * with no second reader.
+   *
+   * @returns {boolean} whether the body was inlined.
+   */
+  function inlineCall(fnName, callToks, open, into, guards, inLoop, st, scope) {
+    const def = fnDefs.get(fnName)
+    if (!def) return refuseCall('unknown', fnName, st)
+    if (inLoop) return refuseCall('loop', fnName, st)
+    if (inlineDepth >= MAX_INLINE_DEPTH) return refuseCall('depth', fnName, st)
+    const args = splitArgs(callToks, open, h.isPunct)
+    if (!args) return refuseCall('arity', fnName, st)
+    const bound = bindArgs(def, args)
+    if (bound.error) return refuseCall(bound.error, fnName, st)
+    // ⛔ A CONDITIONAL CALL SEES ONLY THE BARS IT RUNS ON. See the header of
+    // `objectFnInline.js`: a body that reads history under a conditional call
+    // measures a different set of bars than the every-bar value model does.
+    if (guards.length || loopIds.length) {
+      const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
+      if (why) return refuseCall('conditional-history', fnName, st, why)
+    }
+    const { locals, mutable } = bodyNames(def, h)
+    inlineSeq += 1
+    const suffix = `${INLINE_SUFFIX}${inlineSeq}`
+    const meta = {
+      fn: fnName,
+      suffix,
+      callLine: st.header[0].line,
+      mutable: new Set([...mutable].map((n) => n + suffix)),
+    }
+    const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
+    if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
+    diagnostics.inlinedCalls += 1
+    const sink = ops
+    const before = sink.length
+    inlineDepth += 1
+    try {
+      walk(rw.stmts, guards, inLoop, scope)
+    } finally {
+      inlineDepth -= 1
+    }
+    if (!into) return true
+    // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
+    // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,
+    // `ln := line.new(…)` and a bare `ln` all return the handle; a bare
+    // `line.new(…)` returns the object it just made (this bar's `site`).
+    const last = rw.stmts[rw.stmts.length - 1]
+    const lt = (last && last.header) || []
+    let from = null
+    let fromSite = null
+    let family = null
+    const reL = h.findTop(lt, (x) => h.isPunct(x, ':='))
+    const asL = reL >= 0 ? reL : h.findTop(lt, (x) => h.isPunct(x, '='))
+    if (asL > 0 && lt[asL - 1] && lt[asL - 1].kind === 'ident') {
+      const nm = String(lt[asL - 1].value)
+      const d = decls.get(nm)
+      if (d && d.kind !== 'coll') { from = nm; family = d.family }
+    } else if (lt.length === 1 && lt[0].kind === 'ident') {
+      const d = decls.get(String(lt[0].value))
+      if (d && d.kind !== 'coll') { from = String(lt[0].value); family = d.family }
+    } else if (lt.length && lt[0].kind === 'ident' && nsOf(String(lt[0].value))
+      && OBJECT_NAMESPACES.includes(nsOf(String(lt[0].value)))
+      && methodOf(String(lt[0].value)) === 'new') {
+      for (let i = sink.length - 1; i >= before; i -= 1) {
+        if (sink[i].k === 'create' && !sink[i].into) { fromSite = sink[i].site; family = sink[i].family; break }
+      }
+    }
+    if (!family) return true
+    const existing = decls.get(into)
+    if (existing && (existing.kind === 'coll' || existing.family !== family)) {
+      return refuseCall('return-type', fnName, st)
+    }
+    if (!existing) decls.set(into, { family, kind: 'local' })
+    ops.push({
+      k: 'copy', into, from, fromSite, guards, locals: scope, loopIds: [...loopIds],
+      at: st.header[0], line: st.header[0].line,
+    })
+    return true
   }
 
   walk(stmts, [], false, [])

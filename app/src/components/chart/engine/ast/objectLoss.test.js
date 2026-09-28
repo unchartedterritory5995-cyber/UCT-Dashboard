@@ -14,7 +14,7 @@ import path from 'node:path'
 
 import {
   classifyDropKey, classifyReaderName, assessObjectLoss, objectLossNote,
-  DROP_KEYS, GUARD_KINDS, DROP_KEY_FAMILIES, LOSS,
+  DROP_KEYS, GUARD_KINDS, DROP_KEY_FAMILIES, FN_REFUSALS, LOSS,
 } from './objectLoss'
 import { translatePine } from './pine'
 
@@ -26,6 +26,7 @@ const code = (f) => fs.readFileSync(path.join(HERE, f), 'utf8')
 
 const PINE = code('pine.js')
 const READER = code('pineObjects.js')
+const INLINER = code('objectFnInline.js')
 
 /** Every argument handed to `dropped(...)` in the object pass. */
 const DROP_CALLS = [...PINE.matchAll(/\bdropped\(\s*(['`])([^'`]+)\1\s*\)/g)].map((m) => m[2])
@@ -39,6 +40,18 @@ const READER_KINDS = (() => {
   const calls = READER.match(/COLLECTION_CALLS\s*=\s*Object\.freeze\(new Set\(\[([^\]]+)\]/)
   for (const m of (calls ? calls[1] : '').matchAll(/'([a-z]+)'/g)) kinds.add(`coll_${m[1]}`)
   return [...kinds].sort()
+})()
+
+/** ⭐ Every `why` a refused drawing-function call can carry — `pine.js` drops each
+ *  as `fn:<why>`. Read from the three places the reader produces one: a literal
+ *  `refuseCall('<why>'` in `pineObjects.js`, a `{ error: '<why>' }` from
+ *  `bindArgs`, and a `<why>:${…}` error from `rewriteBody` (whose prefix is what
+ *  `refuseCall` keeps). */
+const FN_WHYS = (() => {
+  const whys = new Set([...READER.matchAll(/\brefuseCall\(\s*'([a-z-]+)'/g)].map((m) => m[1]))
+  for (const m of INLINER.matchAll(/\berror:\s*'([a-z-]+)'/g)) whys.add(m[1])
+  for (const m of INLINER.matchAll(/\berror\s*=\s*error\s*\|\|\s*`([a-z-]+):\$\{/g)) whys.add(m[1])
+  return [...whys].sort()
 })()
 
 describe('⛔ every drop reason the pass emits is classified', () => {
@@ -62,10 +75,24 @@ describe('⛔ every drop reason the pass emits is classified', () => {
 
   it('every TEMPLATED key has a family, and `guard:` covers every reader op kind', () => {
     const families = DROP_KEY_FAMILIES.map((f) => f.prefix)
-    const unhandled = TEMPLATE_PREFIXES.filter((p) => p !== 'guard:' && !families.includes(p))
+    const unhandled = TEMPLATE_PREFIXES
+      .filter((p) => p !== 'guard:' && p !== 'fn:' && !families.includes(p))
     expect(unhandled).toEqual([])
     const unguarded = READER_KINDS.filter((k) => !Object.prototype.hasOwnProperty.call(GUARD_KINDS, k))
     expect(unguarded).toEqual([])
+  })
+
+  it('`fn:` — every refusal the reader can make has its own entry, and no dead rows', () => {
+    // Non-vacuity: the scan reaches all three sources.
+    expect(TEMPLATE_PREFIXES).toContain('fn:')
+    expect(FN_WHYS).toEqual(expect.arrayContaining(['method', 'conditional-history', 'arity', 'receiver',
+      'return-type']))
+    const missing = FN_WHYS.filter((w) => !Object.prototype.hasOwnProperty.call(FN_REFUSALS, w))
+    expect(missing).toEqual([])
+    const dead = Object.keys(FN_REFUSALS).filter((w) => !FN_WHYS.includes(w))
+    expect(dead).toEqual([])
+    // ⛔ An unknown `why` fails closed like any other unclassified key.
+    expect(classifyDropKey('fn:teleport').cls).toBe(LOSS.REMOVES)
   })
 
   it('⛔ an unknown key is REFUSED, never guessed', () => {
@@ -80,6 +107,12 @@ describe('⛔ every drop reason the pass emits is classified', () => {
       expect(classifyDropKey(k).cls, k).toBe(LOSS.REMOVES)
     }
     for (const k of ['guard:loop', 'loop:bounds']) expect(classifyDropKey(k).cls, k).toBe(LOSS.LOOP)
+    for (const k of ['fn:method', 'fn:conditional-history', 'fn:in-expression', 'fn:var-init']) {
+      expect(classifyDropKey(k).cls, k).toBe(LOSS.BODY)
+    }
+    for (const k of ['copy:source', 'guard:copy', 'fn:return-type']) {
+      expect(classifyDropKey(k).cls, k).toBe(LOSS.LIST)
+    }
     for (const k of ['coll:push', 'coll:set', 'coll:remove', 'coll:pop', 'guard:coll_push']) {
       expect(classifyDropKey(k).cls, k).toBe(LOSS.LIST)
     }
@@ -149,6 +182,73 @@ describe('⭐ a lost removal only counts when it could remove something DRAWN', 
       { via: 'guard:delete', family: 'label', reaches: false },
     ])
     expect(loss.verdict).toBe('partial')
+  })
+
+  it('a REFUSED drawing function whose body deletes a DRAWN family → removes', () => {
+    // `f()` inside an expression is refused (`fn:in-expression`); its body
+    // deletes the label the script draws at the top level, so the refusal
+    // leaves that label on screen when Pine would have removed it.
+    const t = translatePine(HEAD + [
+      'var label lb = na',
+      'lb := label.new(bar_index, high, "x")',
+      'kill() =>',
+      '    label.delete(lb)',
+      '    true',
+      'if kill()',
+      '    na',
+      'plot(close)',
+    ].join('\n'), { strict: true })
+    const d = t.objectDiagnostics
+    expect(d.dropReasons['fn:in-expression']).toBe(1)
+    expect(d.lostRemovals).toContainEqual({ via: 'fn:in-expression', family: 'label', reaches: true })
+    expect(d.droppedOps).toBeLessThanOrEqual(d.attemptedOps)
+    expect(assessObjectLoss(t).verdict).toBe('removes')
+  })
+
+  it('the body is read TRANSITIVELY, and a method-form delete names no family (fail closed)', () => {
+    // `outer()` is refused inside an expression; the delete sits two helpers down.
+    const t = translatePine(HEAD + [
+      'var label lb = na',
+      'lb := label.new(bar_index, high, "x")',
+      'inner() =>',
+      '    label.delete(lb)',
+      'outer() =>',
+      '    inner()',
+      '    true',
+      'if outer()',
+      '    na',
+      'plot(close)',
+    ].join('\n'), { strict: true })
+    expect(t.objectDiagnostics.lostRemovals)
+      .toContainEqual({ via: 'fn:in-expression', family: 'label', reaches: true })
+    const m = translatePine(HEAD + [
+      'var box bx = box.new(bar_index, high, bar_index + 1, low)',
+      'kill(box b) =>',
+      '    b.delete()',
+      '    true',
+      'if kill(bx)',
+      '    na',
+      'plot(close)',
+    ].join('\n'), { strict: true })
+    expect(m.objectDiagnostics.lostRemovals)
+      .toContainEqual({ via: 'fn:in-expression', family: null, reaches: true })
+    expect(assessObjectLoss(m).verdict).toBe('removes')
+  })
+
+  it('…and one whose body only CREATES → partial, disclosed', () => {
+    const t = translatePine(HEAD + [
+      'var box bx = box.new(bar_index, high, bar_index + 1, low)',
+      'mark() =>',
+      '    label.new(bar_index, high, "x")',
+      '    true',
+      'if mark()',
+      '    na',
+      'plot(close)',
+    ].join('\n'), { strict: true })
+    const d = t.objectDiagnostics
+    expect(d.dropReasons['fn:in-expression']).toBe(1)
+    expect(d.lostRemovals.filter((r) => r.via.startsWith('fn:'))).toEqual([])
+    expect(assessObjectLoss(t).verdict).toBe('partial')
   })
 
   it('⛔ a translation with no `lostRemovals` record is read as reaching', () => {

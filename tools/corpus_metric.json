@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-09-27",
   "scripts": 266,
-  "host_ok": 43,
+  "host_ok": 45,
   "screener_ok": 52,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -545,13 +545,11 @@
     },
     {
       "file": "contraction-box-doji-lines__1486658151.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:no-output"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -802,10 +800,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -1026,11 +1024,9 @@
     },
     {
       "file": "ict-ipda-look-back__f85b4c8956.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -1040,10 +1036,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ]
     },
     {
@@ -2110,10 +2106,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ]
     },
     {
@@ -2984,10 +2980,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ]
     },
     {

@@ -109,6 +109,7 @@ import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
+import { INLINE_SUFFIX } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -117,7 +118,7 @@ import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -4484,6 +4485,39 @@ function declaredInputNames(node, out = new Set()) {
   return out
 }
 
+/** ⭐⭐ IS EVERY VALUE THIS CANONICAL TREE CAN TAKE A WHOLE NUMBER OR `na`?
+ *
+ *  The question `int(x)` needs answered, and it is a TYPE question, not a
+ *  value one: Pine's `int()` of an int-typed series is the identity, and of
+ *  `na` is `na`, on every bar. So `int(cond ? bar_index - 5 : na)` — how
+ *  `contraction-box-doji-lines` writes a box's left edge — is exactly its
+ *  argument, with no rounding rule to rule on (see the `int` fold for why the
+ *  FRACTIONAL case still refuses).
+ *
+ *  ⛔ AN ALLOWLIST OF SHAPES THAT ARE WHOLE BY CONSTRUCTION: integer literals,
+ *  `na` (`0/0`), the bar-index clocks, `+ - *` of wholes, a ternary whose two
+ *  arms are whole, and `round`/`floor`/`ceil`, which return whole numbers or
+ *  `na` by definition. Anything else — a division, a price, a user series — is
+ *  not proven whole and answers false, so the refusal stands. */
+export function wholeValued(node, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 64) return false
+  if (node.type === 'num') return Number.isInteger(node.value)
+  if (node.type === 'series') return node.name === 'barindex' || node.name === 'lastbarindex'
+  if (node.type === 'call') {
+    return ['round', 'floor', 'ceil'].includes(node.name) && (node.args || []).length === 1
+  }
+  if (node.type !== 'op') return false
+  const a = node.args || []
+  if (node.name === '/' && a.length === 2 && a[0] && a[1] && a[0].type === 'num'
+    && a[1].type === 'num' && a[0].value === 0 && a[1].value === 0) return true   // na
+  if (['+', '-', '*'].includes(node.name) && a.length === 2) {
+    return wholeValued(a[0], depth + 1) && wholeValued(a[1], depth + 1)
+  }
+  if (node.name === 'u-' && a.length === 1) return wholeValued(a[0], depth + 1)
+  if (node.name === '?:' && a.length === 3) return wholeValued(a[1], depth + 1) && wholeValued(a[2], depth + 1)
+  return false
+}
+
 function foldWindow(node) {
   const v = constantValueOf(node)
   if (v === null || !Number.isInteger(v) || v < 0) return node
@@ -7436,6 +7470,9 @@ export class Resolver {
       const inner = this.resolve(node.args[0].value)
       const folded = foldWindow(inner)
       if (folded && folded.type === 'num' && Number.isInteger(folded.value)) return folded
+      // ⭐ AN ARGUMENT THAT IS WHOLE (OR `na`) ON EVERY BAR IS ITS OWN `int`.
+      // See `wholeValued`: no rounding rule is involved, so none is invented.
+      if (wholeValued(inner)) return inner
       throw new PineRefusal('pine:function',
         `${REFUSALS['pine:function']} — \`int\` is only taken here when its argument `
         + 'already reduces to a whole number, and this one does not. TradingView does '
@@ -11388,12 +11425,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // three `label.delete`s and draws no label anywhere (the one `label.new` is
     // dropped too), so its two tables are not a picture with extra objects in it.
     //
-    // ⛔ BY FAMILY, NOT BY REGISTER, ON PURPOSE. A register is only ever FILLED
-    // here by a `create … into` it, but in Pine it can also be filled by
-    // `l := array.get(ls, i)` or `l := f(…)`, which this reader does not model —
-    // so "no create writes this register" would wave through a delete of a label
-    // that IS drawn. "No label is drawn anywhere" cannot be fooled that way. A
-    // removal whose family this pass cannot name always reaches — the loud way.
+    // ⛔ BY FAMILY, NOT BY REGISTER, ON PURPOSE. A register is filled here by a
+    // `create … into` it and, since the call-site inliner, by a `copy` from an
+    // inlined function's returned handle (`l := f(…)`) — but in Pine it can also
+    // be filled by `l := array.get(ls, i)`, which this reader does not model, and
+    // a refused call fills nothing at all. So "no create writes this register"
+    // would wave through a delete of a label that IS drawn. "No label is drawn
+    // anywhere" cannot be fooled that way. A removal whose family this pass
+    // cannot name always reaches — the loud way.
     lostRemovals: [],
   }
   const lostRemovalFamilies = []
@@ -11413,6 +11452,46 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.droppedOps += 1
     diagnostics.dropReasons[why] = (diagnostics.dropReasons[why] || 0) + 1
   }
+  // ⭐⭐ A CALL TO A DRAWING FUNCTION THE READER COULD NOT INLINE IS A DROP.
+  // `collectObjectOps` refuses it by name (`objectFnInline.js` says which shapes
+  // and why); counting it HERE is what keeps the object-only clean-win rule
+  // honest — a program that skipped a function's drawing is not a clean program.
+  // ⛔ Keys appear only when non-empty, so a script with no user-function
+  // drawing carries byte-identical diagnostics to before.
+  const refusedCalls = (collected.diagnostics && collected.diagnostics.refusedCalls) || []
+  // ⭐⭐ 2026-09-27 (integration of the call-site inliner with the partial-drawing
+  // rule). A refused call is ONE drawing step the converter did not carry, so it
+  // is ONE attempt and ONE drop — `droppedOps <= attemptedOps` holds by
+  // construction here exactly as it does for every converted op. Without the
+  // attempt, a script whose only drawing sat behind a refused call read "4 of 0".
+  //
+  // ⛔ AND WHAT ITS BODY WOULD HAVE REMOVED IS A LOST REMOVAL like any other.
+  // The body never became ops, so `lostRemovals` (the door's reach test) and
+  // `unconvertedFnOps` (its list test) are the only place it can be seen. A
+  // `line.delete(ln)` inside a refused helper leaves the line on screen exactly
+  // as a dropped top-level delete does.
+  for (const rc of refusedCalls) {
+    const via = `fn:${rc.why}`
+    diagnostics.attemptedOps += 1
+    const fx = rc.effects || { kinds: { delete: 1 }, families: [null] }
+    for (const family of fx.families || []) lostRemovalFamilies.push({ via, family })
+    for (const [k, n] of Object.entries(fx.kinds || {})) {
+      if (!diagnostics.unconvertedFnOps) diagnostics.unconvertedFnOps = {}
+      diagnostics.unconvertedFnOps[k] = (diagnostics.unconvertedFnOps[k] || 0) + n
+    }
+    // ⛔ Spelled as a template at the call site, not `dropped(via)`:
+    // `objectLoss.test.js` reads the `dropped(...)` call sites out of this file
+    // to derive the key families it must classify, and a variable argument is
+    // invisible to it.
+    dropped(`fn:${rc.why}`)
+  }
+  if (refusedCalls.length) {
+    diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
+      + (rc.detail ? ` (${rc.detail})` : ''))
+  }
+  if (collected.diagnostics && collected.diagnostics.inlinedCalls) {
+    diagnostics.inlinedCalls = collected.diagnostics.inlinedCalls
+  }
   // ⭐⭐ HOW MANY OBJECT OPERATIONS THE READER SAW AT ALL, before any of them
   // was converted, dropped or found not to create anything.
   //
@@ -11427,7 +11506,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // alone — so a consumer classifying the two rows had to guess, and guessed
   // that a script naming `line` draws with plots.
   diagnostics.collectedOps = collected.ops.length
-  if (!collected.ops.length) return { program: null, diagnostics }
+  if (!collected.ops.length) {
+    // ⭐ A PROGRAM WITH NO OPS DRAWS NOTHING, so a lost removal of a NAMED family
+    // reaches nothing — and one whose family is unknown still reaches, the loud
+    // way, the same rule the full pass applies below.
+    diagnostics.lostRemovals = lostRemovalFamilies.map(({ via, family }) => ({
+      via, family, reaches: !family,
+    }))
+    return { program: null, diagnostics }
+  }
 
   const trees = []
   const byFormula = new Map()
@@ -12317,6 +12404,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     if (!v) return null
     if (v.type === 'name' && regId.has(v.name)) return { r: 'reg', id: regId.get(v.name) }
+    // ⭐⭐ `l[n]` ON A DRAWING VARIABLE — the handle it held n bars ago. The
+    // corpus writes `sup = line.new(…)` then `line.delete(sup[1])`: one fresh
+    // object per bar, yesterday's removed. See `MAX_HANDLE_BACK`.
+    // ⛔ THE OFFSET MUST BE A WHOLE NUMBER THE TRANSLATION CAN STATE. A literal
+    // is; an expression is resolved and accepted only if it folds to one. An
+    // offset that depends on a live value (an input the member can move) is not
+    // a fixed ring depth, and is dropped and counted rather than guessed.
+    if (v.type === 'offset' && v.arg && v.arg.type === 'name' && regId.has(v.arg.name)) {
+      let n = typeof v.n === 'number' ? v.n : null
+      if (n === null && v.n && typeof v.n === 'object' && v.n.expr) {
+        const folded = canonicalOf(v.n.expr)
+        if (folded && folded.type === 'num') n = folded.value
+      }
+      if (!Number.isInteger(n) || n < 0 || n > MAX_HANDLE_BACK) return null
+      return n === 0
+        ? { r: 'reg', id: regId.get(v.arg.name) }
+        : { r: 'reg', id: regId.get(v.arg.name), back: n }
+    }
     if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
       const cn = v.args[0] && v.args[0].value
       if (cn && cn.type === 'name' && collId.has(cn.name)) {
@@ -12501,6 +12606,49 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
   const scopeCache = new Map()
+  /** ⭐⭐ THE BINDING OF ONE LOCAL OF AN INLINED FUNCTION BODY.
+   *
+   *  ⛔⛔ A MUTABLE LOCAL IS OPAQUE, NOT ITS INITIALISER. `var int i = na` then
+   *  `i := bar_index` inside an `if` means `i` is `na` on some bars and a bar
+   *  index on others — state this columnar model does not carry. Binding the
+   *  initialiser would read `na` on every bar, a confident wrong answer; so a
+   *  mutable name refuses `pine:state`, loudly, wherever it is read. The ONE
+   *  exception is a read in the same block right after `x := e` (`b.assign`),
+   *  where Pine's own sequencing makes `x` exactly `e` on this bar.
+   *
+   *  ⛔ THE ENV IS A SNAPSHOT (`new Map(scoped)`), because Pine evaluates a
+   *  declaration where it stands: `y = x + 1` followed by `x := 2` must keep the
+   *  `x` that `y` saw, and a live map would hand it the later one.
+   *
+   *  ⚠️ IT RE-PARSES, which the note on `scopeFor` below warns against for the
+   *  TOP-LEVEL walk: there the walk's own binding carries `stampInputName`, and
+   *  a re-parse loses it. These statements were never walked, so there is no
+   *  walk binding to lose — and an `input.*` inside a function body is not a
+   *  member knob (Pine declares inputs at the top level only). */
+  const inlinedLocalBinding = (b, scoped) => {
+    const meta = b.st.synthetic
+    const shown = String(b.name).split(INLINE_SUFFIX)[0]
+    if (!b.assign && meta && meta.mutable && meta.mutable.has(b.name)) {
+      return {
+        kind: 'opaque',
+        guard: 'pine:state',
+        message: `${REFUSALS['pine:state']} — \`${shown}\` changes as the function \`${meta.fn}\``
+          + ' runs, and a value read here would be its first value rather than its current one',
+        at: null,
+      }
+    }
+    let node = null
+    try { node = parseWholeExpression(b.toks) } catch { node = null }
+    if (!node) {
+      return {
+        kind: 'opaque',
+        guard: 'pine:statement',
+        message: `${REFUSALS['pine:statement']} — \`${shown}\` in the function \`${meta ? meta.fn : '?'}\``,
+        at: null,
+      }
+    }
+    return { kind: 'expr', node, env: new Map(scoped) }
+  }
   /** An op's block-local bindings → a resolver scope layered over `env`.
    *
    *  ⛔⛔ IT READS THE WALK'S OWN BINDING AND RE-PARSES NOTHING. ⚰️ MEASURED
@@ -12529,6 +12677,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (scopeCache.has(locals)) return scopeCache.get(locals)
     const scoped = new Map(env)
     for (const b of locals) {
+      // ⭐⭐ A LOCAL OF AN INLINED FUNCTION BODY — the walk never saw these
+      // statements (they are a per-call-site rewrite; see `objectFnInline.js`),
+      // so the binding is built here from the statement itself.
+      if (b.st && b.st.synthetic) {
+        scoped.set(b.name, inlinedLocalBinding(b, scoped))
+        continue
+      }
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
       if (bound) { scoped.set(b.name, bound); continue }
@@ -12662,6 +12817,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const target = targetRef(op.target)
       if (!target) { lostRemoval('delete:target', op); dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
+    } else if (op.k === 'copy') {
+      // ⭐ AN INLINED FUNCTION'S RETURNED HANDLE, into the caller's name —
+      // `l := line_(high)` where `line_(p) => ret = line.new(…)`. A plain
+      // `setreg` whose value is the body's register, or this bar's create at a
+      // site, which the program format already carries (`{r:'site'}`).
+      const reg = regId.get(op.into)
+      const value = op.fromSite
+        ? (emittedSites.has(op.fromSite) ? { r: 'site', id: op.fromSite } : null)
+        : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
+      if (!reg || !value) { dropped('copy:source'); continue }
+      ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
     // Both lineages implemented this call and both survived the merge as arms of
@@ -13055,6 +13221,18 @@ function translatePineResult(source, opts = {}) {
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
   const unfoldable = new Map()
+  /** ⛔⛔ H14 (2026-09-27) — A FUNCTION NAME DEFINED TWICE IS AN OVERLOAD, AND
+   *  THIS ENGINE HAS NO OVERLOAD RESOLUTION. Pine picks among same-named
+   *  definitions by the TYPES of the arguments; `env` keys a function by its
+   *  NAME alone, so the later body silently replaced the earlier for every call.
+   *  ⚰️ MEASURED on production `1f4d7a309`: `f(int x) => x * 10` beside
+   *  `f(float x) => x + 1` translated `f(bar_index)` to `barindex + 1` — a wrong
+   *  number, drawn without a word. A different ARITY already refused
+   *  (`pine:arity`, against whichever body won), so only the same-arity case was
+   *  silent. Until type-directed resolution exists the name refuses by name on
+   *  EVERY definition after the first — a script that defines an overload and
+   *  never calls it is untouched, because a refusal only lands on use. */
+  const definedFunctions = new Set()
 
   /** ⛔ `at` IS A LOCATOR, NEVER A TOKEN THIS FUNCTION PICKED. When a binding
    *  fails to parse, the refusal that comes back ALREADY points at the offending
@@ -13418,6 +13596,24 @@ function translatePineResult(source, opts = {}) {
         if (!nameTok || !params) {
           throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(toks[arrow]))
         }
+        if (definedFunctions.has(nameTok.value)) {
+          // ⛔ OVERWRITE, never `markOpaque`'s keep-the-first: a FIRST definition
+          // that folded left a live `fn` binding, and the whole defect is that
+          // binding answering calls meant for a different overload.
+          env.set(nameTok.value, {
+            kind: 'opaque',
+            guard: 'pine:function-def',
+            isFunction: true,
+            message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
+              + 'than once (an overload), and this engine would apply one body to every call',
+            at: locate(nameTok),
+          })
+          notes.push({ ...fromError(new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more than once (an overload)`,
+            locate(nameTok))), code: 'pine:function-def' })
+          continue
+        }
+        definedFunctions.add(nameTok.value)
         const fnEnv = new Map(env)
         params.forEach((p, k) => fnEnv.set(p, { kind: 'param', index: k, name: p }))
         // ⭐ THE FUNCTION IS IN ITS OWN SCOPE, AND THAT IS SO RECURSION SAYS SO.
@@ -15362,6 +15558,52 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
+/**
+ * ⭐⭐ AN N-WAY COLOUR CHAIN, CARRIED AS A PALETTE AND AN INDEX.
+ *
+ * `close > ts ? color.green : close < ts ? color.red : color.black` is ATR
+ * Trailing Stoploss line 19-22, measured against TradingView 2026-09-27: its line
+ * is black on every bar where neither side holds, and a two-colour schema could
+ * only draw it gold. The same tree with every LEAF replaced by its position in a
+ * palette is an ordinary numeric ternary —
+ *
+ *     close > ts ? 0 : close < ts ? 1 : 2      palette [green, red, black]
+ *
+ * — which the resolver already canonicalises like any other series, so the chain
+ * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
+ *
+ * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
+ * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * readable branches would paint the unreadable ones a neighbour's colour.
+ * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
+ * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
+ * would carry the colour, not its position.
+ * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
+ * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ */
+function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+      return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
+    }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
+    if (!yes) return null
+    const no = colourIndexChain(node.no, env, ctx, depth + 1, acc)
+    if (!no) return null
+    return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
+  }
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  let idx = acc.palette.indexOf(hex)
+  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
+  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  return { tree: { type: 'number', value: idx }, acc }
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -15397,6 +15639,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
       || (n.type === 'call' && n.name === 'na'))
     if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
     const arity = staticColourArity(node, env)
+    // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
+    // answer so a chain the RESOLVER then refuses still reports its size.
+    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
+    if (chain && chain.acc.palette.length >= 2) {
+      const al = chain.acc.alphas
+      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
+      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -15477,9 +15727,12 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
       } : {}),
+      // ⭐ An N-way chain rides the same way a plot's does: palette + index.
+      ...(Array.isArray(pres.colorPalette) && pres.colorIndex
+        ? { colorPalette: pres.colorPalette, colorIndex: pres.colorIndex } : {}),
       // A conditional this lane could not carry — folded to one colour, or not
       // folded at all — says so rather than going quiet.
-      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+      ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
   }
@@ -15521,6 +15774,21 @@ function outputPresentation(args, ctx) {
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
+      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+      // refuses leaves the plot imported and `colorDynamicArity` saying why.
+      if (cond && cond.indexTree && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.indexTree)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorPalette = cond.palette.slice()
+          pres.colorIndex = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          delete pres.colorDynamicArity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
           const ast = ctx.resolver.resolve(cond.test)
