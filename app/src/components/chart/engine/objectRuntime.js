@@ -180,6 +180,9 @@ export function beginObjects(program, ctx) {
   let nextId = 1
   let created = 0; let updated = 0; let deleted = 0; let evicted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
+  /** Tables removed because a newer one was created at the same position — see
+   *  `replaceTableAt`. Counted apart from `deleted`, which the SCRIPT did. */
+  let tablesReplaced = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -313,6 +316,46 @@ export function beginObjects(program, ctx) {
   function oldestOf(family) {
     for (const inst of live.values()) if (inst.family === family) return inst
     return null
+  }
+
+  /**
+   * ⭐⭐ A TABLE IS PLACED AT ONE OF NINE POSITIONS, AND A NEW ONE AT AN
+   * OCCUPIED POSITION REPLACES THE TABLE THAT WAS THERE.
+   *
+   * ⚰️ MEASURED AGAINST TRADINGVIEW, 2026-09-28 (NYSE:RDDT 1D, 632 bars): two
+   * scripts create a table on EVERY bar without `var` —
+   * `heat-map-seasons` (`table.new(position.bottom_center, …)`, vendor table id
+   * 20193) and `ict-ipda-look-back` (`table.new("top_right", …)`, id 641) — and
+   * TradingView holds exactly ONE table for each at the last bar. `artemis-
+   * oscillator-pro` holds THREE, at three different positions. One per position
+   * is the rule all three agree on; a FIFO of any depth ≥ 2 contradicts the first
+   * two, and a global cap of 1 contradicts the third.
+   *
+   * ⚰️ WHAT THIS ENGINE DID INSTEAD: tables counted against the house envelope
+   * (8) and the ninth REFUSED the run at bar 8 and stopped stepping — so on
+   * `ict-ipda-look-back` every line and box the script draws after bar 8 was
+   * lost, not just the tables.
+   *
+   * ⛔ ONLY WHEN THE POSITION IS KNOWN. A table whose position did not resolve
+   * (a dropped prop — `posOf(input)` the reader cannot fold) is not guessed onto
+   * a default; it keeps the old behaviour, envelope and refusal included. Both
+   * sides are normalised through `position.` so `position.top_right` and the
+   * string `"top_right"` — which Pine accepts interchangeably — name one slot.
+   */
+  const tablePosition = (props) => {
+    const p = props ? props.position : undefined
+    if (typeof p !== 'string' || !p) return null
+    return p.replace(/^position\./, '')
+  }
+  function replaceTableAt(position, bar) {
+    if (!position) return
+    for (const inst of live.values()) {
+      if (inst.family !== 'table' || tablePosition(inst.props) !== position) continue
+      reap(inst)
+      tablesReplaced += 1
+      if (ctx.trace) events.push({ bar, k: 'replace', family: 'table', id: inst.id })
+      return
+    }
   }
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
@@ -625,6 +668,10 @@ export function beginObjects(program, ctx) {
           // that RESEMBLES it.
           // ⚰️ Written family-agnostic at first, which silently made TABLES
           // evict too and turned the envelope's refusal into dead code.
+          // ⭐ Resolved BEFORE the capacity test, because for a table the new
+          // object's own position decides whether an old one leaves first.
+          const props = resolveProps(op.props, {})
+          if (op.family === 'table') replaceTableAt(tablePosition(props), bar)
           const pooled = EVICTS.has(op.family)
           while (pooled && counts[op.family] >= limits[op.family]) {
             const victim = oldestOf(op.family)
@@ -653,7 +700,7 @@ export function beginObjects(program, ctx) {
           const id = nextId
           nextId += 1
           const inst = {
-            family: op.family, id, site: op.site, createdBar: bar, props: resolveProps(op.props, {}),
+            family: op.family, id, site: op.site, createdBar: bar, props,
           }
           live.set(id, inst)
           // ⭐ A fill records which lines own it AT CREATE, because that is the
@@ -885,6 +932,7 @@ export function beginObjects(program, ctx) {
     counts: { ...counts },
     stats: {
       created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
+      ...(tablesReplaced ? { tablesReplaced } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

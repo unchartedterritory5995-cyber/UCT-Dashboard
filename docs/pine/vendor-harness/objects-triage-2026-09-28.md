@@ -99,5 +99,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | step | class | commit | objects MATCH | families agreeing | scripts that moved |
 |---|---|---|---|---|---|
 | baseline | — | `a07c83fe7` | 11 / 47 | 161 / 252 | — |
+| 1 | C1 metainfo HTML decode (harness) | `925bc50e0` | 11 / 47 | 161 / 252 | none on objects (by construction); `extrapolated-pivot-connector`'s two plots go UNMAPPED → mapped and compared (630/632 bars agree) |
+| 2 | C4 table replaces the table at its position | _this commit_ | 12 / 47 | 165 / 252 | `ict-ipda-look-back` 4/7 → **7/7 MATCH** (lines 3, boxes 6, tables 1 — the run no longer stops at bar 8); `heat-map-seasons` 4/7 → 5/7 (tables 1/1; cells still short — C5 + a loop-blocked `table.cell`) |
 
 (rows are appended as each class lands)

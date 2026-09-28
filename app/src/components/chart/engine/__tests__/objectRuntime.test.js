@@ -275,6 +275,73 @@ describe('C3B — the resource envelope', () => {
     expect(r.reason).toMatch(/more than 3 live table objects/)
   })
 
+  describe('⭐⭐ a table at an occupied POSITION replaces the table that was there', () => {
+    // ⚰️ MEASURED 2026-09-28 against TradingView (NYSE:RDDT 1D): a non-`var`
+    // `table.new` on every bar holds ONE table at the last bar
+    // (`heat-map-seasons`, `ict-ipda-look-back`), while three tables at three
+    // positions are all held (`artemis-oscillator-pro`). We refused the run at
+    // the ninth table and stopped stepping.
+    const tableAt = (site, position, extra = {}) => ({
+      k: 'create', family: 'table', site, into: null, when: null,
+      props: { position: { v: 'const', value: position } }, ...extra,
+    })
+
+    it('one table per bar at one position: the run completes holding the NEWEST one', () => {
+      const prog = P({
+        ops: [
+          tableAt('t', 'bottom_center'),
+          // a line drawn AFTER the table on every bar — lost entirely when the
+          // table refusal stopped the run at bar 8
+          { k: 'create', family: 'line', site: 'l', into: null, when: null, props: { x1: { v: 'bar' } } },
+        ],
+      })
+      const r = evaluateObjects(prog, ctxOf(40))
+      expect(r.status).toBe(OBJECT_STATUS.OK)
+      const tables = r.live.filter((o) => o.family === 'table')
+      expect(tables).toHaveLength(1)
+      expect(tables[0].createdBar).toBe(39)
+      expect(r.live.filter((o) => o.family === 'line')).toHaveLength(40)
+      expect(r.stats.tablesReplaced).toBe(39)
+    })
+
+    it('`position.top_right` and the string "top_right" name ONE slot', () => {
+      const prog = P({ ops: [tableAt('a', 'position.top_right'), tableAt('b', 'top_right')] })
+      const r = evaluateObjects(prog, ctxOf(1))
+      expect(r.live.filter((o) => o.family === 'table').map((o) => o.site)).toEqual(['b'])
+    })
+
+    it('⛔ CONTROL — tables at DIFFERENT positions are all held', () => {
+      const prog = P({ ops: [tableAt('a', 'top_right', { once: true }), tableAt('b', 'bottom_right', { once: true }), tableAt('c', 'middle_right', { once: true })] })
+      const r = evaluateObjects(prog, ctxOf(5))
+      expect(r.live.filter((o) => o.family === 'table').map((o) => o.site)).toEqual(['a', 'b', 'c'])
+      expect(r.stats.tablesReplaced).toBeUndefined()
+    })
+
+    it('⛔ CONTROL — a table whose position did not resolve is never guessed onto a slot', () => {
+      const prog = P({
+        limits: { table: 3 },
+        ops: [{ k: 'create', family: 'table', site: 'a', into: null, when: null, props: { position: { v: 'const', value: undefined } } }],
+      })
+      const r = evaluateObjects(prog, ctxOf(10))
+      expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
+      expect(r.reason).toMatch(/more than 3 live table objects/)
+    })
+
+    it('the replaced table leaves every register that named it, like any removal', () => {
+      const prog = P({
+        regs: [{ id: 'old', family: 'table' }],
+        ops: [
+          tableAt('a', 'top_right', { into: 'old', when: { v: 'graph', node: 0 } }),
+          tableAt('b', 'top_right', { when: { v: 'graph', node: 1 } }),
+          { k: 'cell', target: { r: 'reg', id: 'old' }, col: { v: 'const', value: 0 }, row: { v: 'const', value: 0 }, when: { v: 'graph', node: 2 }, props: { text: { v: 'const', value: 'x' } } },
+        ],
+      })
+      const r = evaluateObjects(prog, ctxOf(3, { 0: onBars(3, [0]), 1: onBars(3, [1]), 2: onBars(3, [2]) }))
+      expect(r.live.map((o) => o.site)).toEqual(['b'])
+      expect(r.stats.writesToDeleted).toBe(1)
+    })
+  })
+
   it('⛔ a runaway ops-per-bar is bounded too', () => {
     const ops = Array.from({ length: 12 }, (_, i) => ({
       k: 'create', family: 'label', site: `s${i}`, into: null, when: null, props: {},

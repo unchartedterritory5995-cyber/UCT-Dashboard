@@ -41,10 +41,11 @@ const run = (body, over = {}) => {
 /** The one table's cells, `col,row` → text, on the finished drawing.
  *
  *  ⛔⛔ IT ASSERTS THERE IS EXACTLY ONE TABLE, and that is not tidiness. A
- *  `table.new` without `var` runs on EVERY bar, so a four-bar series leaves FOUR
- *  live tables — measured, ids 1..4 — and a helper that reached for the first
- *  one read bar 0's numbers and reported them as the finished drawing. The
- *  values were stale by three bars and looked entirely plausible. */
+ *  `table.new` without `var` runs on EVERY bar; before tables replaced one
+ *  another by position, a four-bar series left FOUR live tables — measured, ids
+ *  1..4 — and a helper that reached for the first one read bar 0's numbers and
+ *  reported them as the finished drawing. The values were stale by three bars
+ *  and looked entirely plausible. */
 const cells = (r) => {
   const tables = (r.live || []).filter((o) => o.family === 'table')
   expect(tables.length, 'expected ONE table — more than one means the script '
@@ -80,26 +81,34 @@ describe('⭐⭐ a cell holds a number only the runtime lane can compute', () =>
     expect(cells(r)).toEqual({ '0,0': '103', '0,1': '206' })
   })
 
-  it('⭐ the handle may be bound WITHOUT `var` — and then it IS one table per bar', () => {
+  it('⭐ the handle may be bound WITHOUT `var` — a table per bar, each REPLACING the last', () => {
     // ⚰️ A MUTATION FOUND THIS GAP. Both declaration branches skip a drawing
     // handle, and only the `var` one was exercised — so deleting the other left
     // every assertion green while `t = table.new(…)` took the `env` macro path,
     // where a later read re-expands the call in a value position and dies naming
     // the wrong cause. The two branches are different code, one case each.
     //
-    // ⭐ AND THE FOUR TABLES ARE CORRECT HERE, WHICH IS THE POINT. Without `var`
-    // the constructor runs every bar and Pine really does make a new table each
-    // time; the `var` case above asserts ONE precisely because `var` means once.
-    // Asserting "one table" for both would have demanded the engine contradict
-    // TradingView in order to look tidy.
+    // ⚰️⚰️ THIS CASE USED TO ASSERT FOUR LIVE TABLES, reasoning that "Pine
+    // really does make a new table each time". It does make one — and the new
+    // one takes the POSITION the old one held. MEASURED against TradingView
+    // 2026-09-28 (NYSE:RDDT 1D): `heat-map-seasons` and `ict-ipda-look-back`
+    // build a table on every one of 632 bars without `var`, and TradingView
+    // holds exactly ONE table for each at the last bar (vendor table ids 20193
+    // and 641 — the newest). `docs/pine/vendor-harness/objects-triage-2026-09-28.md`, C4.
+    //
+    // ⭐ So the non-`var` path now asserts what the vendor showed: four tables
+    // were MADE (three replaced), and the one held is the LAST bar's, carrying
+    // the last bar's numbers — still a per-bar statement, because a replaced
+    // table that leaked its cells into the survivor would read an earlier bar.
     const { run: r } = run(ARRAY_CELL.replace('var t = table.new', 't = table.new'))
     expect(r.status).toBe('ok')
     const tables = (r.live || []).filter((o) => o.family === 'table')
-    expect(tables.length).toBe(N)
-    // ⭐ Each bar's table carries THAT bar's numbers — the strongest per-bar
-    // statement in this file, because the four objects are independent.
+    expect(tables.length).toBe(1)
+    expect(tables[0].createdBar).toBe(N - 1)
+    expect(r.stats.created).toBe(N)
+    expect(r.stats.tablesReplaced).toBe(N - 1)
     expect(tables.map((t) => (t.cells || []).map((c) => (c.props || c).text).join('/')))
-      .toEqual(['100/200', '101/202', '102/204', '103/206'])
+      .toEqual(['103/206'])
   })
 
   it('⭐⭐ the DOMINANT Pine drawing idiom — `var line l = na` then `l := line.new(…)`', () => {
