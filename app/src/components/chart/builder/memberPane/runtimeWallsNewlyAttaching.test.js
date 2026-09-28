@@ -148,9 +148,12 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
 // atr-stepped passed here and died `LOOP_ITERATIONS_EXCEEDED` on 3,000 SPY daily bars —
 // a member's chart loads up to 5,000. It is a per-bar ceiling now (`vm.js` LOOP_TICK);
 // this holds every loop-bearing newly attaching script to a 2,000-bar run.
-// ⚠️ kernel-channel-backquant is here too and is SLOW: ~5 s per 1,000 daily bars in this
-// VM (27k instructions a bar). Correct and finite; the cost is recorded in
-// PARITY-PROGRAMME.md (2026-09-28), not hidden by leaving it out.
+// ⚠️ kernel-channel-backquant is here too and is the costliest (27k instructions a bar).
+// It WAS ~5 s per 1,000 daily bars under this runner; the VM's dispatch work
+// (pine/runtime-walls-4, 2026-09-28) brought it to ~0.25 s here and ~0.27 s in plain
+// Node, byte-identical (`runtime/__tests__/runtimeSpeedParity.test.js`). The run is
+// now also bounded by the enforced `WALL_TIME` (5,000 ms), which a stall on this box
+// would meet BY NAME as a column error rather than as a slow test.
 const SPY_LONG = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json'), 'utf8'))
   .bars.slice(-2000)
 describe('⭐ loop-bearing scripts compute on a 2,000-bar chart', () => {

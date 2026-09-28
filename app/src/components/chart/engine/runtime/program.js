@@ -241,7 +241,12 @@ export const OP = Object.freeze({
   CARRIED2: 90,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
-  OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
+  // ⚰️ 2026-09-28: these were 90/91/92, and CARRIED2 had already taken 90 — a
+  // reserved number a live opcode shares, so `OP_NAME[90]` named CARRIED2's
+  // instructions OBJ_CREATE and the first implementation would have shadowed
+  // it. Reserved numbers are not a wire format (nothing emits them), so they
+  // move; `dispatchLiterals.test.js` now refuses any repeated OP value.
+  OBJ_CREATE: 93, OBJ_UPDATE: 94, OBJ_DELETE: 95,
 })
 
 /** The opcodes this foundation actually executes. ⛔ DERIVED, so a reserved

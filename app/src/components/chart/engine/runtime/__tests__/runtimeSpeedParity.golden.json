@@ -1,0 +1,797 @@
+{
+  "_": "Written by the pre-optimisation VM, 2026-09-28. See runtimeSpeedParity.test.js.",
+  "bars": "SPY 1D, last 2000 of tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json",
+  "scripts": {
+    "kernel-channel-backquant__d8c4b7f75c": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "3b9abf16c26f4f00656ae5ca95fac8e30b94c058c1a9fa7a7c7d6da3247477e0"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "d933fd8e9ecd818a2963381be3810461de1f5b192093efd9557e9a7e08eea6e3"
+        },
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "999312a398b4a1f24a8ba523372c12e3f9657d5d037aa3818c818fa5f1d60bd0"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "d933fd8e9ecd818a2963381be3810461de1f5b192093efd9557e9a7e08eea6e3"
+        },
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "9d57fbaa8c72af6f5f4df9e4f957bb7a0d6da3eafee411c5f217ec402e06c782"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "d933fd8e9ecd818a2963381be3810461de1f5b192093efd9557e9a7e08eea6e3"
+        },
+        {
+          "call": "fill",
+          "finite": 2000,
+          "sha256": "809e6a118c59f967fd16b68bf549765fec4d5f46bf320b860c28b2cdc375ec3f"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 708,
+          "sha256": "a9779ff0d5fe89179cdf0bbd4fb0cd57f4fd4dfa9d30dcdf706a83bfc856c97c"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "plotcandle",
+          "finite": 2000,
+          "sha256": "8b3dcb4832c12739eb30745ed39879f0be3619378f2aeeb9188333c28d2e3034"
+        },
+        {
+          "call": "plotcandle",
+          "finite": 2000,
+          "sha256": "5e59c4f264bb7a7412c12102bd771b99030bfe26954197f54ab276bbe0126ba6"
+        },
+        {
+          "call": "plotcandle",
+          "finite": 2000,
+          "sha256": "44ced74abe82ace94dd326776fb4dca33578725b8cebe2fe62110fe652c072f0"
+        },
+        {
+          "call": "plotcandle",
+          "finite": 2000,
+          "sha256": "3dfb5a4675511e4357668da5de6b81f00bed4bc4d8acd9ff5731278d5ace3d40"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "42592c69adec5caa4f61783c817e8a76e4885dc12def3f8b4d671ef10c5d4ee1"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "2dc637f5ae07410864f62930d9aec772b29546f2606d3d6982260b8cd15b992a"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1999,
+          "sha256": "1eaeee9f240773d6d986dff2127059bae42e6ed58519365daee096fceefbeef0"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1999,
+          "sha256": "ae4e143ab535ffc42bc4ec9e8d8a2b72fb928160543b89a279273e9090e07a5e"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "d579b30c655894f3aaba61e7f601e2c166eb488f19e7318f99e7d6cacd232f7d"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "1298426dabbdc5d149a63e9e4d84eb6cc6f8fdc952199f857a35bf4d2fbdc7c1"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 606,
+        "INSTRUCTIONS_PER_BAR": 27468,
+        "TOTAL_INSTRUCTIONS": 54090978,
+        "LOOP_ITERATIONS": 404,
+        "LOOP_NESTING": 1,
+        "CALL_DEPTH": 2,
+        "CALL_COUNT": 608000,
+        "ARRAY_ELEMENTS": 0,
+        "ARRAY_OPERATIONS": 0,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 5,
+        "HISTORY_VALUES": 8001,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 4,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "atr-stepped-pdf-ma-loxx__9b90a3f7bb": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 1951,
+          "sha256": "128d7e45011147716dafa44eeb3a3c8427fdbae70f3ad705262509eb578ad167"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "cdf63495e276598b953aceeaa6285e7d4bd73872801ce322cd5b8cd0b2143572"
+        },
+        {
+          "call": "barcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1949,
+          "sha256": "ad6521648f257e03445c6553b1bc05d2f993e5691985f06fdbd659b665c964a2"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "8ab9173d67076f864e9a9fffeb0a272cb24b7f190355ec8e0bad69836b127537"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1949,
+          "sha256": "ad6521648f257e03445c6553b1bc05d2f993e5691985f06fdbd659b665c964a2"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "718d92632d373c19bc9ba019344d94184dffb47d5a3802fe3ff7eb62d6a73b9b"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1949,
+          "sha256": "23cabfbb4f298236c64b8ff514efdab1ff3d9529c89f0fea30bdd23b01690d3c"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1949,
+          "sha256": "c813173f6cc715f6fa7edbbf45c9bad4cdb90db9ca335133bf3ce7fc434f8194"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 275,
+        "INSTRUCTIONS_PER_BAR": 2100,
+        "TOTAL_INSTRUCTIONS": 4200000,
+        "LOOP_ITERATIONS": 43,
+        "LOOP_NESTING": 1,
+        "CALL_DEPTH": 2,
+        "CALL_COUNT": 44000,
+        "ARRAY_ELEMENTS": 21,
+        "ARRAY_OPERATIONS": 42000,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 3,
+        "HISTORY_VALUES": 2002,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 4,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 1974,
+          "sha256": "bca7a20f798b5852697b8863d9204ee64a1971618c1179f0e6762c512c6f2133"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "1fc257ef222c438f5df832534168de4bde59d7c0c9b3713b997dc47b5d30ab43"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "1cabd62e76e5438f87adba59ac0c928f766b1794d0baa679754d1440da46b91f"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "d5915d6a5e8dba8acd0557c44e7c065c8b68ee984e353ea467482220c56c485a"
+        },
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "d23958e2f398da36e47eba32c5c649d9c58dde3046b111b9635788b817be1551"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 189,
+        "INSTRUCTIONS_PER_BAR": 2736,
+        "TOTAL_INSTRUCTIONS": 5472000,
+        "LOOP_ITERATIONS": 56,
+        "LOOP_NESTING": 1,
+        "CALL_DEPTH": 1,
+        "CALL_COUNT": 4000,
+        "ARRAY_ELEMENTS": 1,
+        "ARRAY_OPERATIONS": 0,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 3,
+        "HISTORY_VALUES": 4002,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 4,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "wyckoff-accumulation-distribution__d9ae726e21": {
+      "outputs": [
+        {
+          "call": "barcolor",
+          "finite": 127,
+          "sha256": "d17592351fafdc5e8e385b0db71101468cca07d008f6a7f6a586fb0e6271ec71"
+        },
+        {
+          "call": "plotshape",
+          "finite": 116,
+          "sha256": "49a45dcf50ce8077e108c585bd4f2a3ca31cb58a6bdbea1cdd3849bc8ce625eb"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "4491d39f8454221aab697793f8139bafc96bd38e3a970304673295b2f82fa999"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "d802581ed7e7b459612cb06d819191633064d1e84ebe544d5927bfdc10fa5f40"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "4491d39f8454221aab697793f8139bafc96bd38e3a970304673295b2f82fa999"
+        },
+        {
+          "call": "plotshape",
+          "finite": 116,
+          "sha256": "d88d2e17bf569986ecbe6b2388543cfa4d53274b20853bb8d29f4d0073f8ed0c"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "4491d39f8454221aab697793f8139bafc96bd38e3a970304673295b2f82fa999"
+        },
+        {
+          "call": "plotshape",
+          "finite": 103,
+          "sha256": "e0fce1ed197157e05680cc658a7d4e3edb4bdfde4841f27ef6bb9f12684ea900"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "ecdc981b798f815f586fa56d3cb4076d97262223ac050e6e422cef72c25f387a"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "d4e5782309118a794c74360d97a121a6ccb7e89f9b52bbf9a0dc7a2db5c20d7a"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "plotshape",
+          "finite": 116,
+          "sha256": "cbadc7672b28a54c8e86031ee8ae85f8ba49788430217af4d470954ed7383871"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "c32d5190ddda7c1e1771fe407ff06b22322ca2706e9802310de985e00885bd7c"
+        },
+        {
+          "call": "plotshape",
+          "finite": 103,
+          "sha256": "35b8dcf1424541859e6145751cd631d331f19d848c8e18ee64706462553b8154"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "c32d5190ddda7c1e1771fe407ff06b22322ca2706e9802310de985e00885bd7c"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 411,
+        "INSTRUCTIONS_PER_BAR": 7997,
+        "TOTAL_INSTRUCTIONS": 5107357,
+        "LOOP_ITERATIONS": 368,
+        "LOOP_NESTING": 1,
+        "CALL_DEPTH": 1,
+        "CALL_COUNT": 4000,
+        "ARRAY_ELEMENTS": 183,
+        "ARRAY_OPERATIONS": 427000,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 2,
+        "HISTORY_VALUES": 4,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 2,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "cf7bdf77d6d8a1512799096895f670c11ba2e7d13153c43c0ce01c6dea0a7659"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "08a76f38c810869376e750ccbf59ff7a194e5d9c2cb981170b65f94100ec1466"
+        },
+        {
+          "call": "barcolor",
+          "finite": 2000,
+          "sha256": "08a76f38c810869376e750ccbf59ff7a194e5d9c2cb981170b65f94100ec1466"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1998,
+          "sha256": "92d613ed833f9fa2d8ffc48940b7823b2a32a3ec87e940338cecf1c6fb847e75"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "8ab9173d67076f864e9a9fffeb0a272cb24b7f190355ec8e0bad69836b127537"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1998,
+          "sha256": "da0a7c26ae839f7f6d4eccfefa5a30f569d3721e9edb0c518e8ae3bc5d56d674"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "718d92632d373c19bc9ba019344d94184dffb47d5a3802fe3ff7eb62d6a73b9b"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1998,
+          "sha256": "92d613ed833f9fa2d8ffc48940b7823b2a32a3ec87e940338cecf1c6fb847e75"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1998,
+          "sha256": "da0a7c26ae839f7f6d4eccfefa5a30f569d3721e9edb0c518e8ae3bc5d56d674"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 444,
+        "INSTRUCTIONS_PER_BAR": 3124,
+        "TOTAL_INSTRUCTIONS": 6248000,
+        "LOOP_ITERATIONS": 64,
+        "LOOP_NESTING": 1,
+        "CALL_DEPTH": 1,
+        "CALL_COUNT": 4000,
+        "ARRAY_ELEMENTS": 15,
+        "ARRAY_OPERATIONS": 60000,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 4,
+        "HISTORY_VALUES": 6001,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 4,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "twin-range-filter__xF3L2PeXm7": {
+      "outputs": [
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "fbcd023cd2cc6a99f8f9c9f820214bc325f0876eaf212807a527f7d3622e2978"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "514822833144118dd47909e9b83bab2acb37dc2a89e1fc31580dbc87163df6fa"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "82c7d65b40f0b66d19d49467d8be671d6a42d74549925e29a49bd8b765b71861"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "fbcd023cd2cc6a99f8f9c9f820214bc325f0876eaf212807a527f7d3622e2978"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "82c7d65b40f0b66d19d49467d8be671d6a42d74549925e29a49bd8b765b71861"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 212,
+        "INSTRUCTIONS_PER_BAR": 212,
+        "TOTAL_INSTRUCTIONS": 424000,
+        "LOOP_ITERATIONS": 0,
+        "LOOP_NESTING": 0,
+        "CALL_DEPTH": 1,
+        "CALL_COUNT": 6000,
+        "ARRAY_ELEMENTS": 0,
+        "ARRAY_OPERATIONS": 0,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 7,
+        "HISTORY_VALUES": 7,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 4,
+        "CARRIED_CELLS": 12,
+        "CARRIED_STEPS": 8000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "range-filter-bs-signals__eCVFctFlqp": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 2000,
+          "sha256": "0db38b64ae5de7d328fe1a09ec3ad6bf22b47b8e1eaf0fcbc815efdc29259f03"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "29f0aa14eef1f09d129b4d13f0c44554c86cacdde5ae3d7a5542aa593c3002b3"
+        },
+        {
+          "call": "plot",
+          "finite": 1942,
+          "sha256": "61e73445e9055fbe385fb36ce7767ae5e44579017e68859e6d1cb805c37f1ce2"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "75ffa26de6662f860d818eadb5233ceae36cdc01d7aeeda0770e718beb3af572"
+        },
+        {
+          "call": "plot",
+          "finite": 1942,
+          "sha256": "3695f1f013b38d061f8b91a04a04b9e0b53eafe0bbf4deef9b516d49053b86f9"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "5d375ee3eda3d28b586ff24cc147bf1c0019f045f2dd5f682a69e8189155b1dd"
+        },
+        {
+          "call": "fill",
+          "finite": 2000,
+          "sha256": "80a53fc3ea32f3bc38e89f5ae108a2d8d6e27d637f39e37afed2b7d9b7185d48"
+        },
+        {
+          "call": "fill",
+          "finite": 2000,
+          "sha256": "2634b53d9e5ae89144ed22dd58d67e9dcda468c79ade65ad4fb79c99c10d0e37"
+        },
+        {
+          "call": "barcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "bcecfaedfe9509a2ef9cb0d27210acf1d535a6168b072b42b08a3c7d418bcfcf"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "4491d39f8454221aab697793f8139bafc96bd38e3a970304673295b2f82fa999"
+        },
+        {
+          "call": "plotshape",
+          "finite": 2000,
+          "sha256": "92f606f682016ab624e9f61fa631d0684e395a3aa61d9ea078751bb87af3800f"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "bcecfaedfe9509a2ef9cb0d27210acf1d535a6168b072b42b08a3c7d418bcfcf"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 2000,
+          "sha256": "92f606f682016ab624e9f61fa631d0684e395a3aa61d9ea078751bb87af3800f"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 267,
+        "INSTRUCTIONS_PER_BAR": 255,
+        "TOTAL_INSTRUCTIONS": 501636,
+        "LOOP_ITERATIONS": 0,
+        "LOOP_NESTING": 0,
+        "CALL_DEPTH": 1,
+        "CALL_COUNT": 4000,
+        "ARRAY_ELEMENTS": 2,
+        "ARRAY_OPERATIONS": 2605,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 3,
+        "HISTORY_VALUES": 3,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 2,
+        "CARRIED_CELLS": 6,
+        "CARRIED_STEPS": 4000,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a": {
+      "outputs": [
+        {
+          "call": "plot",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "13a83f46da16c893b81f70162d57a1b94d130f6c10e6697493ab7a7f8958a971"
+        },
+        {
+          "call": "plot",
+          "finite": 1989,
+          "sha256": "12cda14876f96b376bfa82a688825fe039ceab2267fe2daa2dfa904907902e55"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "13a83f46da16c893b81f70162d57a1b94d130f6c10e6697493ab7a7f8958a971"
+        },
+        {
+          "call": "plot",
+          "finite": 1976,
+          "sha256": "9acc6fa3d073af613a4492d409c7a99465d86917e2a8c5b83ca930fc28c90fc8"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "13a83f46da16c893b81f70162d57a1b94d130f6c10e6697493ab7a7f8958a971"
+        },
+        {
+          "call": "barcolor",
+          "finite": 26,
+          "sha256": "f410561372a001c990a4e2854b6694a03ef0d1abe5e1b7540e2c9bcaf4a40ec9"
+        },
+        {
+          "call": "barcolor",
+          "finite": 26,
+          "sha256": "0761f9052bd2e9a758c0b7660a51139e118851c56b00f05b9543e80ff8311b84"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1999,
+          "sha256": "0cefbe1a46502fb495f082dc0ff401afe1d9d5575c2a08209875394984ea8cd3"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "4491d39f8454221aab697793f8139bafc96bd38e3a970304673295b2f82fa999"
+        },
+        {
+          "call": "plotshape",
+          "finite": 1999,
+          "sha256": "5d85a544e1f3298d2f9ddcfa6e2773d4a031a4b6fc41dfef9969f47b377b0cc3"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "barcolor",
+          "finite": 1390,
+          "sha256": "03a7fe40ebe49dfc3d60f4aa191f19b7ece7365f1da9a179c62209f3e051395f"
+        },
+        {
+          "call": "barcolor",
+          "finite": 534,
+          "sha256": "4ad2e43b8258404bda8528286c0a450d7428d9a3c5a0c02af4573993e3b988b2"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1975,
+          "sha256": "d76bb4b3eb3d57f7f3145bdcf1ae695b9d29168f619978283577d7cd0057c770"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1975,
+          "sha256": "630f58e71b55d3c8086bb616de81955feef74dca130a084f281977027dfa6662"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "bgcolor",
+          "finite": 0,
+          "sha256": "dad226fcaec1254c258fa37191965a4b94b3eb7b5ee021d82217c9b7f95c3b06"
+        },
+        {
+          "call": "alertcondition",
+          "finite": 1968,
+          "sha256": "c8eeaa7d9c4d7c36901d2f5e387b9b4f40f006107eb416c0c5389400728979fa"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 293,
+        "INSTRUCTIONS_PER_BAR": 265,
+        "TOTAL_INSTRUCTIONS": 529862,
+        "LOOP_ITERATIONS": 0,
+        "LOOP_NESTING": 0,
+        "CALL_DEPTH": 0,
+        "CALL_COUNT": 0,
+        "ARRAY_ELEMENTS": 0,
+        "ARRAY_OPERATIONS": 0,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 0,
+        "HISTORY_VALUES": 0,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 0,
+        "CARRIED_CELLS": 0,
+        "CARRIED_STEPS": 0,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    },
+    "pivot-high-low-points__hoTsDQRY3L": {
+      "outputs": [
+        {
+          "call": "plotshape",
+          "finite": 103,
+          "sha256": "b01a579802742b7b03f96b9e4d72589078bbb7890a2143b8365c0a0036433a31"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "ac6ae68f345f60b38b6f8cf167656399289e80c119ce1c22dd1cb2eb452cfb31"
+        },
+        {
+          "call": "plotshape",
+          "finite": 116,
+          "sha256": "e1681ee79ec3ec7519d1f27509f894ad78a4c17b44406cb0a5d52fe7942b8fa0"
+        },
+        {
+          "call": "plotcolor",
+          "finite": 2000,
+          "sha256": "514822833144118dd47909e9b83bab2acb37dc2a89e1fc31580dbc87163df6fa"
+        }
+      ],
+      "counts": {
+        "PROGRAM_SIZE": 0,
+        "IR_SIZE": 25,
+        "INSTRUCTIONS_PER_BAR": 25,
+        "TOTAL_INSTRUCTIONS": 50000,
+        "LOOP_ITERATIONS": 0,
+        "LOOP_NESTING": 0,
+        "CALL_DEPTH": 0,
+        "CALL_COUNT": 0,
+        "ARRAY_ELEMENTS": 0,
+        "ARRAY_OPERATIONS": 0,
+        "LIVE_OBJECTS": 0,
+        "OBJECT_OPERATIONS": 0,
+        "HISTORY": 2000,
+        "HISTORY_SLOTS": 0,
+        "HISTORY_VALUES": 0,
+        "WINDOW_CELLS": 0,
+        "CARRIED_INSTANCES": 0,
+        "CARRIED_CELLS": 0,
+        "CARRIED_STEPS": 0,
+        "REQUEST_COUNT": 0,
+        "REQUEST_FANOUT": 0,
+        "MEMORY": 0,
+        "WALL_TIME": 0
+      }
+    }
+  }
+}

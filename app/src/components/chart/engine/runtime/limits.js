@@ -111,8 +111,30 @@ export const DEFAULT_LIMITS = Object.freeze({
   REQUEST_COUNT: 16,
   REQUEST_FANOUT: 64,
   MEMORY: 64 * 1024 * 1024,
+  // ⭐ MILLISECONDS, and ENFORCED since 2026-09-28 (`Budget.checkWall`, read by
+  // `vm.js` every `WALL_CHECK_EVERY` instructions). Until then it was declared
+  // here and charged nowhere, so it bounded nothing — a limit with no counter is
+  // a comment. Measured against it: kernel-channel-backquant, the costliest
+  // script the lane attaches, runs ~0.3 s per 1,000 daily bars after the
+  // dispatch work (`app/scripts/pine-runtime-bench.mjs`), so a 5,000-bar chart
+  // finishes in ~1.5 s — a third of this ceiling — and a runaway stops by name
+  // rather than freezing the member's tab.
   WALL_TIME: 5000,
 })
+
+/** ⭐ HOW OFTEN THE WALL CLOCK IS READ — once every this many instructions,
+ *  counted across bars. Never per instruction: a clock read costs more than the
+ *  instruction it would be guarding. At the measured ~15 ns an instruction this
+ *  is a read every ~0.06 ms, so a run overshoots `WALL_TIME` by well under a
+ *  millisecond; a power of two so the countdown stays a cheap integer. */
+export const WALL_CHECK_EVERY = 4096
+
+/** The wall clock a run reads when its caller supplies none. ⛔ READ AT CALL
+ *  TIME, not captured at load, so a test can drive it (`vi.spyOn(performance,
+ *  'now')`) without this module holding any state. */
+export function defaultClock() {
+  return globalThis.performance.now()
+}
 
 /** ⛔ A RESOURCE STOP IS ITS OWN FAILURE CLASS, distinct from a refusal (the
  *  member wrote something this engine cannot mean) and from a bug (an Error).
@@ -124,6 +146,9 @@ export class RuntimeLimitError extends Error {
     super(`${limit}_EXCEEDED — ceiling ${ceiling}, reached ${reached}`)
     this.name = 'RuntimeLimitError'
     this.limit = limit
+    // ⭐ THE STOP'S NAME AS A VALUE, so a door can report it without parsing
+    // the sentence (`pineRuntimeLane.js::runtimeLaneColumns`).
+    this.code = `${limit}_EXCEEDED`
     this.ceiling = ceiling
     this.reached = reached
   }
@@ -150,6 +175,32 @@ export class Budget {
     this.counts = Object.create(null)
     for (const n of LIMIT_NAMES) this.counts[n] = 0
     this.startedAt = 0
+    // ⭐ WALL_TIME's clock and its high-water mark. ⛔ NOT in `counts`: every
+    // other count is a property of the PROGRAM and the bars (the same run counts
+    // the same forever — `runtimeSpeedParity.test.js` holds them byte-for-byte);
+    // elapsed time is a property of the machine, and mixing it in would make the
+    // account itself nondeterministic.
+    this.clock = null
+    this.wallElapsed = 0
+  }
+
+  /** Start the wall on the run's FIRST `execute`. ⭐ A request's nested run
+   *  shares this budget and so shares the wall: forty requested symbols are
+   *  forty symbols' worth of time inside one member's chart, not forty fresh
+   *  allowances. A second call is a no-op. */
+  startWall(clock) {
+    if (this.clock !== null) return
+    this.clock = clock
+    this.startedAt = clock()
+  }
+
+  /** Read the clock and stop BY NAME if the run has outlived `WALL_TIME`. */
+  checkWall() {
+    const elapsed = this.clock() - this.startedAt
+    if (elapsed > this.wallElapsed) this.wallElapsed = elapsed
+    const ceiling = this.limits.WALL_TIME
+    if (elapsed > ceiling) throw new RuntimeLimitError('WALL_TIME', ceiling, Math.round(elapsed))
+    return elapsed
   }
 
   /** Charge `n` against a limit and stop by name if it is exceeded. */

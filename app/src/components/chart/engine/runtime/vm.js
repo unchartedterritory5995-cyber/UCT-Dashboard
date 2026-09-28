@@ -17,10 +17,17 @@
 // whole-series pass and a per-bar walk: history indexing, ordering, emit
 // alignment and warm-up NaN patterns.
 //
-// ⛔ NO CLOCK, NO NETWORK, NO MODULE STATE — the same purity contract
-// `interpret.js` states. The same (program, context) produces the same series
-// forever, and the budget lives on the call rather than the module so that a
-// screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
+// ⛔ NO NETWORK, NO MODULE STATE — the same purity contract `interpret.js`
+// states. The same (program, context) produces the same series forever, and the
+// budget lives on the call rather than the module so that a screener pass over
+// 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
+//
+// ⭐ ONE CLOCK, AND IT DECIDES ONLY WHETHER TO STOP (2026-09-28). `WALL_TIME` is
+// the one limit a count cannot express, so the loop reads a clock every
+// `WALL_CHECK_EVERY` instructions and stops with `WALL_TIME_EXCEEDED` past the
+// ceiling. It never feeds a value: a run that completes answers exactly what it
+// answered without the clock (`runtimeSpeedParity.test.js`), and the clock is
+// injectable (`opts.clock`) so a test drives it rather than sleeping.
 
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
@@ -33,7 +40,7 @@ import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import {
   udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet,
 } from './records.js'
-import { Budget } from './limits.js'
+import { Budget, WALL_CHECK_EVERY, defaultClock } from './limits.js'
 import { etClockAt } from '../../indicators.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
@@ -64,6 +71,10 @@ const EQ = BINARY['=='], NE = BINARY['!=']
 const AND = BINARY['&&'], OR = BINARY['||']
 const NOT = UNARY['!'], NEG = UNARY['u-']
 const PW = POINTWISE_FOR_PARITY
+// ⭐ Read from `OP` once, at load: the loop tests it after every instruction,
+// and an imported binding named in a hot loop is a namespace read per use
+// under the test runner (see the dispatch switch).
+const OP_HALT = OP.HALT
 
 export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
@@ -429,6 +440,36 @@ export function execute(program, ctx, limits, opts) {
   const frWindowBase = new Int32Array(depthLimit + 1)
   const frFn = new Int32Array(depthLimit + 1)
 
+  // ⭐ READ ONCE, NOT PER INSTRUCTION (2026-09-28). `budget.limits` is frozen
+  // (`resolveLimits`), so the ceiling cannot move during a run; the per-bar
+  // check below compares against this local rather than walking two properties
+  // on every one of ~27,000 instructions a bar.
+  const perBarCeiling = budget.limits.INSTRUCTIONS_PER_BAR
+  const functions = program.functions
+  const callSites = program.callSites
+  // ⭐ A POINTWISE SITE'S IMPLEMENTATION, resolved once per run instead of by
+  // NAME on every call. ⛔ STILL RESOLVED FROM `PW` — the columnar lane's own
+  // table — and a name with no implementation is still a throw AT THE SITE, when
+  // it is reached, with the same sentence; resolving early must not turn a
+  // program that never reaches its bad call into one that refuses to start.
+  const pwFns = (program.pointwise || []).map((name) => PW[name])
+
+  // ⭐⭐ WALL_TIME — THE ONE LIMIT THAT READS A CLOCK. The run's first `execute`
+  // starts the wall (`Budget.startWall`); a request's nested run shares the
+  // budget and therefore the SAME wall, as it shares every other ceiling. The
+  // count runs across bars, so a bar with a runaway loop and a run of many tiny
+  // bars are both checked, and the clock is read once per `WALL_CHECK_EVERY`
+  // instructions — never per instruction.
+  //
+  // ⭐ AND IT COSTS NO COMPARISON OF ITS OWN. `wallAt` is the next check point in
+  // THIS BAR's instruction numbering (it carries across bars by subtracting each
+  // bar's count at the bar's end), and `stopAt` is whichever of it and the
+  // per-bar ceiling comes first — so the loop keeps the ONE `perBar > …` test it
+  // always had, and only the rare instruction that crosses it asks which limit
+  // is due. The per-bar ceiling is asked first, as it was before the wall.
+  budget.startWall((opts && typeof opts.clock === 'function') ? opts.clock : defaultClock)
+  let wallAt = WALL_CHECK_EVERY
+
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -437,6 +478,7 @@ export function execute(program, ctx, limits, opts) {
     let sp = 0
     let pc = entryPc
     let perBar = 0
+    let stopAt = perBarCeiling < wallAt - 1 ? perBarCeiling : wallAt - 1
     let loopTicks = 0
     let depth = 0
     let localsBase = 0
@@ -452,13 +494,32 @@ export function execute(program, ctx, limits, opts) {
       const b = code[base + 2]
       pc += 1
       perBar += 1
-      if (perBar > budget.limits.INSTRUCTIONS_PER_BAR) {
-        budget.charge('INSTRUCTIONS_PER_BAR', perBar)
+      if (perBar > stopAt) {
+        if (perBar > perBarCeiling) budget.charge('INSTRUCTIONS_PER_BAR', perBar)
+        if (perBar === wallAt) {
+          budget.checkWall()
+          wallAt += WALL_CHECK_EVERY
+        }
+        stopAt = perBarCeiling < wallAt - 1 ? perBarCeiling : wallAt - 1
       }
 
+      // ⭐⭐ THE CASE LABELS ARE LITERALS, AND THAT IS THE SPEED WORK (2026-09-28).
+      // They read `case OP.CONST:` until then, and a `case` label that is an
+      // expression is evaluated, in order, on every dispatch: V8's interpreter
+      // builds a jump table only for small-integer LITERAL labels, so each
+      // instruction walked a chain of property loads until it reached its own
+      // case — LOAD_LOCAL, 36% of kernel-channel's instructions, sat ~27th.
+      // Measured (`app/scripts/pine-runtime-bench.mjs`, plain Node, 2,000 SPY
+      // bars): kernel-channel 391 → 259 ms per 1,000 bars. Under vitest it was
+      // far worse, because the module runner reads every imported binding
+      // through a namespace getter, so each label cost a function call.
+      // ⛔ `OP` IN `program.js` STAYS THE ONE AUTHORITY. Each literal carries its
+      // name in the comment before it, and `dispatchLiterals.test.js` parses this
+      // file and fails by name if a literal disagrees with `OP[name]`, if two
+      // cases share a value, or if an IMPLEMENTED opcode has no case.
       switch (op) {
-        case OP.CONST: stack[sp++] = consts[a]; break
-        case OP.READ_SERIES: stack[sp++] = series[a][bar]; break
+        case /* CONST */ 0: stack[sp++] = consts[a]; break
+        case /* READ_SERIES */ 1: stack[sp++] = series[a][bar]; break
         // ⭐ THE ET CLOCK OF THE BAR THIS REGION IS ON. `barTimes` is the
         // REGION'S own instants — `runRequest` hands the requested symbol's
         // — so inside a `request.security` this answers for the requested
@@ -469,7 +530,7 @@ export function execute(program, ctx, limits, opts) {
         // absent `barTimes` (a caller that never supplied one) and an instant
         // below the epoch floor both land here, and answering `0` would make
         // `hour == 9` quietly true on every such bar at midnight ET.
-        case OP.READ_CLOCK: {
+        case /* READ_CLOCK */ 5: {
           const p = etClockAt(clockTimes[bar])
           stack[sp++] = p === null ? NaN : p[CLOCK_GETTER[a]]
           break
@@ -487,7 +548,7 @@ export function execute(program, ctx, limits, opts) {
         //
         // The END IS EXCLUSIVE: a 16:00 bar is the first one after a
         // 0930-1600 session, not its last.
-        case OP.SESSION: {
+        case /* SESSION */ 6: {
           const t = clockTimes[bar]
           const p = etClockAt(t)
           if (p === null) { stack[sp++] = NaN; break }
@@ -495,14 +556,14 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = (mod >= a && mod < b) ? t * 1000 : NaN
           break
         }
-        case OP.READ_SERIES_HIST:
+        case /* READ_SERIES_HIST */ 4:
           // ⛔ BEFORE THE FIRST BAR IS `na`, never a wrapped index. Reading
           // `series[bar - b]` with a negative index would answer `undefined`
           // and poison every later comparison silently.
           stack[sp++] = bar - b >= 0 ? series[a][bar - b] : NaN
           break
-        case OP.READ_COLUMN: stack[sp++] = columns[a][bar]; break
-        case OP.READ_HIST: {
+        case /* READ_COLUMN */ 2: stack[sp++] = columns[a][bar]; break
+        case /* READ_HIST */ 3: {
           // ⛔ `bar - b`, AND OUT OF RANGE IS `na` — NEVER a clamp to bar 0.
           // Clamping is how a warm-up window silently becomes a real number:
           // `close[50]` on bar 3 would answer with bar 0's close and every
@@ -511,7 +572,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
-        case OP.READ_HIST_DYN: {
+        case /* READ_HIST_DYN */ 56: {
           // ⭐⭐ THE THREE RUN-TIME OFFSET RULES ARE VENDOR-MEASURED (2026-09-27,
           // NYSE:RDDT 1D, tests/fixtures/vendor/harness/rtwalls-dyn-history-*):
           //   • `na` offset  → reads the CURRENT bar, exactly `x[0]` — 158 of 158
@@ -528,17 +589,17 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = readDynamicColumn(columns[a], bar, raw)
           break
         }
-        case OP.READ_SERIES_HIST_DYN: {
+        case /* READ_SERIES_HIST_DYN */ 57: {
           const raw = stack[--sp]
           stack[sp++] = readDynamicColumn(series[a], bar, raw)
           break
         }
-        case OP.ADD: { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
-        case OP.SUB: { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
-        case OP.MUL: { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
-        case OP.DIV: { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
-        case OP.NEG: stack[sp - 1] = NEG(stack[sp - 1]); break
-        case OP.CONCAT: {
+        case /* ADD */ 10: { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
+        case /* SUB */ 11: { const y = stack[--sp]; stack[sp - 1] = SUB(stack[sp - 1], y); break }
+        case /* MUL */ 12: { const y = stack[--sp]; stack[sp - 1] = MUL(stack[sp - 1], y); break }
+        case /* DIV */ 13: { const y = stack[--sp]; stack[sp - 1] = DIV(stack[sp - 1], y); break }
+        case /* NEG */ 14: stack[sp - 1] = NEG(stack[sp - 1]); break
+        case /* CONCAT */ 75: {
           const y = stack[--sp]
           const x = stack[sp - 1]
           // ⛔ BOTH SIDES MUST ALREADY BE STRINGS. Pine's `+` across a string
@@ -555,16 +616,16 @@ export function execute(program, ctx, limits, opts) {
           stack[sp - 1] = x + y
           break
         }
-        case OP.LT: { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
-        case OP.GT: { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
-        case OP.LE: { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }
-        case OP.GE: { const y = stack[--sp]; stack[sp - 1] = GE(stack[sp - 1], y); break }
-        case OP.EQ: { const y = stack[--sp]; stack[sp - 1] = EQ(stack[sp - 1], y); break }
-        case OP.NE: { const y = stack[--sp]; stack[sp - 1] = NE(stack[sp - 1], y); break }
-        case OP.AND: { const y = stack[--sp]; stack[sp - 1] = AND(stack[sp - 1], y); break }
-        case OP.OR: { const y = stack[--sp]; stack[sp - 1] = OR(stack[sp - 1], y); break }
-        case OP.NOT: stack[sp - 1] = NOT(stack[sp - 1]); break
-        case OP.SELECT: {
+        case /* LT */ 20: { const y = stack[--sp]; stack[sp - 1] = LT(stack[sp - 1], y); break }
+        case /* GT */ 21: { const y = stack[--sp]; stack[sp - 1] = GT(stack[sp - 1], y); break }
+        case /* LE */ 22: { const y = stack[--sp]; stack[sp - 1] = LE(stack[sp - 1], y); break }
+        case /* GE */ 23: { const y = stack[--sp]; stack[sp - 1] = GE(stack[sp - 1], y); break }
+        case /* EQ */ 24: { const y = stack[--sp]; stack[sp - 1] = EQ(stack[sp - 1], y); break }
+        case /* NE */ 25: { const y = stack[--sp]; stack[sp - 1] = NE(stack[sp - 1], y); break }
+        case /* AND */ 30: { const y = stack[--sp]; stack[sp - 1] = AND(stack[sp - 1], y); break }
+        case /* OR */ 31: { const y = stack[--sp]; stack[sp - 1] = OR(stack[sp - 1], y); break }
+        case /* NOT */ 32: stack[sp - 1] = NOT(stack[sp - 1]); break
+        case /* SELECT */ 33: {
           // ⛔ ARGUMENTS ARE ALREADY EVALUATED, which is correct HERE and will
           // NOT be correct once a branch can have an effect. Pine's `?:` on pure
           // values has no observable order, and this mirrors `interpret.js`'s
@@ -575,7 +636,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp - 1] = TERNARY(stack[sp - 1], aa, bb)
           break
         }
-        case OP.READ_HIST_SLOT: {
+        case /* READ_HIST_SLOT */ 54: {
           // ⛔ BEYOND WHAT HAS BEEN COMMITTED IS `na`, NEVER A CLAMP. On bar 0
           // nothing has been committed, so `x[1]` is `na` — the same answer
           // READ_HIST gives a column, and for the same reason: clamping to the
@@ -589,7 +650,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = hist[cell]
           break
         }
-        case OP.READ_HIST_SLOT_DYN: {
+        case /* READ_HIST_SLOT_DYN */ 55: {
           // ⭐ `x[n]` WITH `n` KNOWN ONLY NOW. The live value sits under the offset.
           //   n = 0            → the live value (`x[0]` IS `x`, never the previous bar)
           //   1 ≤ n ≤ committed → the ring (a dynamic ring holds every committed bar)
@@ -610,15 +671,15 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = hist[histOffset[hi] + ((committed - n) % histDepth[hi])]
           break
         }
-        case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
-        case OP.STORE_LOCAL: locals[localsBase + a] = stack[--sp]; break
-        case OP.LOAD_PERSIST: stack[sp++] = persist[persistBase + a]; break
-        case OP.STORE_PERSIST:
+        case /* LOAD_LOCAL */ 50: stack[sp++] = locals[localsBase + a]; break
+        case /* STORE_LOCAL */ 51: locals[localsBase + a] = stack[--sp]; break
+        case /* LOAD_PERSIST */ 52: stack[sp++] = persist[persistBase + a]; break
+        case /* STORE_PERSIST */ 53:
           persist[persistBase + a] = stack[--sp]
           initialised[persistBase + a] = 1
           break
-        case OP.JUMP: pc = a; break
-        case OP.JUMP_IF_FALSE: {
+        case /* JUMP */ 60: pc = a; break
+        case /* JUMP_IF_FALSE */ 61: {
           // ⛔ `na` IS FALSE HERE, and that is a decision rather than an accident.
           // Pine will not branch on `na`; treating it as true would run a body
           // whose condition is unknown. It matches `TERNARY`'s refusal to pick a
@@ -627,10 +688,10 @@ export function execute(program, ctx, limits, opts) {
           if (t !== t || t === 0) pc = a
           break
         }
-        case OP.JUMP_IF_INIT: if (initialised[persistBase + a]) pc = b; break
-        case OP.CALL: {
-          const fn = program.functions[a]
-          const site = program.callSites[b]
+        case /* JUMP_IF_INIT */ 62: if (initialised[persistBase + a]) pc = b; break
+        case /* CALL */ 70: {
+          const fn = functions[a]
+          const site = callSites[b]
           budget.peak('CALL_DEPTH', depth + 1)
           budget.charge('CALL_COUNT', 1)
           const newBase = localsTop
@@ -663,14 +724,14 @@ export function execute(program, ctx, limits, opts) {
           pc = fn.entry
           break
         }
-        case OP.POINTWISE: {
+        case /* POINTWISE */ 72: {
           // ⭐⭐ THE SCALAR IMPLEMENTATION IS THE COLUMNAR LANE'S OWN. `POINTWISE`
           // is the very table `interpret.js` applies elementwise to build a
           // column, so a pointwise call over runtime state and the same call over
           // a pure series are the SAME arithmetic by construction — including the
           // na rules, which is where a re-implementation would have diverged
           // first and least visibly.
-          const fn = PW[program.pointwise[a]]
+          const fn = pwFns[a]
           if (!fn) throw new VmError(`pc ${pc - 1}: no pointwise implementation for ${program.pointwise[a]}`)
           sp -= b
           let v
@@ -680,7 +741,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = v
           break
         }
-        case OP.COLOUR: {
+        case /* COLOUR */ 85: {
           // ⭐ ONE CHECK SITE, FROM THE ENTRY'S OWN DECLARATION — the rule
           // `OP.TEXT` states below. A colour is a packed integer at run time, so
           // every operand here is a `number` as far as this VM is concerned;
@@ -700,7 +761,7 @@ export function execute(program, ctx, limits, opts) {
           sp += 1
           break
         }
-        case OP.TEXT: {
+        case /* TEXT */ 76: {
           // ⭐⭐ THE KINDS ARE CHECKED FROM THE ENTRY'S OWN DECLARATION, not by
           // each function. Seven hand-written checks drift; one check site
           // cannot, and the one that would have drifted is the one nobody reads
@@ -730,7 +791,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = v
           break
         }
-        case OP.ARRAY: {
+        case /* ARRAY */ 77: {
           const op = program.arrayOps[a]
           const spec = ARRAY_FNS[op.fn]
           sp -= b
@@ -757,7 +818,7 @@ export function execute(program, ctx, limits, opts) {
         // the VM does no type reasoning in any of them: the field NAMES come
         // from the artifact, the pairing is positional, and every refusal is
         // `records.js`'s own sentence naming the member's type and field.
-        case OP.RECORD: {
+        case /* RECORD */ 87: {
           const t = program.recordTypes[a]
           sp -= b
           // ⛔⛔ THE SLICE IS TAKEN INTO A LOCAL BEFORE THE PUSH, AND THAT IS A
@@ -776,10 +837,10 @@ export function execute(program, ctx, limits, opts) {
           sp += 1
           break
         }
-        case OP.FIELD_GET:
+        case /* FIELD_GET */ 88:
           stack[sp - 1] = recFieldGet(stack[sp - 1], program.fieldNames[a])
           break
-        case OP.FIELD_SET:
+        case /* FIELD_SET */ 89:
           // ⛔ BOTH OPERANDS ARE CONSUMED AND NOTHING IS PUSHED. Pine's field
           // assignment is a statement; a VM that left the record behind would
           // grow the stack once per write, and `bigbeluga-smart-money-concepts`
@@ -787,7 +848,7 @@ export function execute(program, ctx, limits, opts) {
           sp -= 2
           recFieldSet(stack[sp], program.fieldNames[a], stack[sp + 1])
           break
-        case OP.WINDOW: {
+        case /* WINDOW */ 73: {
           // ⭐⭐ FRAME-RELATIVE, like every other per-site store. `windowBase` is
           // what keeps two call sites of one function from sharing an
           // observation ring — the fourth time this addressing has been needed.
@@ -839,7 +900,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }
-                case OP.CARRIED: {
+                case /* CARRIED */ 74: {
           // ⭐⭐ THE INSTANCE IS FRAME-RELATIVE. `a` addresses the compiled body;
           // `carriedBase` says WHOSE state that body is stepping on this
           // invocation. Two call sites of one function therefore keep two
@@ -857,7 +918,7 @@ export function execute(program, ctx, limits, opts) {
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
           break
         }
-                case OP.CARRIED2: {
+                case /* CARRIED2 */ 90: {
           // ⭐ TWO INPUTS, POPPED IN REVERSE. `lowerIr` walks the condition
           // first and the source second, so the source is on top.
           //
@@ -874,7 +935,7 @@ export function execute(program, ctx, limits, opts) {
             car2State, car2Offset[a], v2cond, v2src, car2Plan[a].n)
           break
         }
-                case OP.RET: {
+                case /* RET */ 71: {
           // ⭐⭐ THE RESULT IS ALREADY WHERE THE CALLER WANTS IT, AND THIS CASE
           // DELIBERATELY DOES NOT TOUCH THE STACK. `sp` is not part of a frame
           // — CALL consumes the arguments as it binds them, so by the time a
@@ -898,7 +959,7 @@ export function execute(program, ctx, limits, opts) {
           // from there — which is why a bar on which this site never runs
           // re-commits the previous value instead of blanking it.
           {
-            const rf = program.functions[frFn[depth - 1]]
+            const rf = functions[frFn[depth - 1]]
             const hc = rf.historyCount
             for (let k = 0; k < hc; k += 1) {
               held[historyBase + k] = rf.historyPersist[k]
@@ -916,7 +977,7 @@ export function execute(program, ctx, limits, opts) {
           windowBase = frWindowBase[depth]
           break
         }
-        case OP.EMIT: {
+        case /* EMIT */ 40: {
           // ⚰️ A NON-FINITE RESULT IS `na`, AND THE DIFFERENTIAL RAIL IS WHY
           // THIS LINE EXISTS. `close / (close - close)` is Infinity in raw IEEE
           // and the first version of this loop emitted exactly that; the
@@ -947,7 +1008,7 @@ export function execute(program, ctx, limits, opts) {
           outputs[a][bar] = Number.isFinite(v) ? v : NaN
           break
         }
-        case OP.EMIT_ITER: {
+        case /* EMIT_ITER */ 42: {
           const v = stack[--sp]
           const idx = stack[--sp]
           // ⛔ AN OUT-OF-RANGE SLOT IS DROPPED, NEVER WRAPPED OR GROWN. A
@@ -975,7 +1036,7 @@ export function execute(program, ctx, limits, opts) {
           }
           break
         }
-        case OP.LOOP_TICK:
+        case /* LOOP_TICK */ 78:
           // ⛔ COUNTED PER ITERATION, PER BAR. A loop whose step never reaches
           // its bound — `by 0`, or a bound a body keeps moving — is stopped here,
           // by a limit that names itself, rather than hanging the browser tab a
@@ -988,14 +1049,14 @@ export function execute(program, ctx, limits, opts) {
           // daily bars while the 600-bar rails stayed green. A runaway is a
           // property of ONE bar's execution — TradingView's own loop limit is
           // per-loop wall time, not a total over the chart — and the whole run
-          // stays bounded by TOTAL_INSTRUCTIONS (⚠️ `WALL_TIME` is declared in
-          // `limits.js` and charged nowhere, so it bounds nothing). The
-          // high-water mark is what the budget records.
+          // stays bounded by TOTAL_INSTRUCTIONS and, since 2026-09-28, by
+          // `WALL_TIME` (checked at the top of this loop). The high-water mark
+          // is what the budget records.
           loopTicks += 1
           budget.peak('LOOP_ITERATIONS', loopTicks)
           budget.peak('LOOP_NESTING', a)
           break
-        case OP.REQUEST: {
+        case /* REQUEST */ 79: {
           const site = program.requests[a]
           const symbol = stack[--sp]
           if (typeof symbol !== 'string') {
@@ -1031,17 +1092,19 @@ export function execute(program, ctx, limits, opts) {
         // one: a Pine function may hand back a tuple and a statement discards
         // all of it. Nothing is read, so there is no value to coerce and no NaN
         // rule to apply — `sp` alone is the state that changes.
-        case OP.DROP: sp -= a; break
-        case OP.HALT: break
+        case /* DROP */ 86: sp -= a; break
+        case /* HALT */ 41: break
         default:
           throw new VmError(
             `pc ${pc - 1}: ${IMPLEMENTED.has(op) ? 'unhandled' : 'reserved'} opcode `
             + `${OP_NAME[op] || op} reached the dispatch loop`)
       }
-      if (op === OP.HALT) break
+      if (op === OP_HALT) break
       if (pc >= n) throw new VmError('ran off the end of the program without HALT')
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
+    // the next wall check, renumbered into the next bar's count
+    wallAt -= perBar
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
 
     // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE
