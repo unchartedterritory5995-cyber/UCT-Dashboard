@@ -16,6 +16,7 @@ import TemplatePicker from '../components/notebook/TemplatePicker'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
+import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
@@ -1466,10 +1467,15 @@ export default function NotebookTab() {
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
-          it takes focus. */}
-      <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
-        {noteId ? 'Skip to note' : 'Skip to notes list'}
-      </a>
+          it takes focus. F4 (A2R-01): inside the app shell it renders in the
+          shell's skip-link slot, so it is the SECOND Tab stop on the page,
+          right after "Skip to main content" -- not the 36th, behind the nav
+          and the Journal's header. Rendered alone, it stays here. */}
+      <SkipLinkPortal>
+        <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
+          {noteId ? 'Skip to note' : 'Skip to notes list'}
+        </a>
+      </SkipLinkPortal>
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
