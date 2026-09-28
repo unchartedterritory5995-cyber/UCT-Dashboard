@@ -32,7 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf, constantValueOf, BUILTIN_CALL_TREE,
+  OWN_TF_NAMES, basePeriodOf, constantValueOf, BUILTIN_CALL_TREE, MULTI_OUTPUT_CALLS,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -5778,6 +5778,34 @@ export function buildRuntimeIr(source, opts = {}) {
 
       // ── a bare call statement ──
       if (word && isPunct(toks[1], '(')) {
+        // ⭐ `plotcandle` / `plotbar` — ONE STATEMENT, FOUR VALUE OUTPUTS
+        // (2026-09-28), the roles the host lane expands the same call to
+        // (`pine.js::MULTI_OUTPUT_CALLS`, read rather than restated): a named
+        // role argument wins, otherwise the role's position. Each is emitted
+        // through `emitOutputCall`, so a colour or text handed to a role is
+        // refused exactly as `plot` refuses it. ⛔ THE MEMBER PANE DOES NOT DRAW
+        // A CANDLE, and says so by name (`runtimeLaneDefinition.js::NOT_DRAWN`)
+        // — the values are computed; drawing them as four lines would be a
+        // picture TradingView never shows. ⚰️ Until this, the call stopped the
+        // whole script at `runtime:presentation` (kernel-channel-backquant, whose
+        // `plotcandle` is `display.none` at its own defaults).
+        if (Object.prototype.hasOwnProperty.call(MULTI_OUTPUT_CALLS, word)) {
+          const call = parseWholeExpression(toks)
+          const args = (call && call.args) || []
+          const positional = args.filter((x) => x && !x.name)
+          const argOf = (x) => (x && x.value !== undefined ? x.value : x)
+          for (const [roleIndex, role] of MULTI_OUTPUT_CALLS[word].entries()) {
+            const named = args.find((x) => x && x.name === role)
+            const node = named ? argOf(named) : argOf(positional[roleIndex])
+            if (!node) {
+              throw new RuntimeRefusal('runtime:statement',
+                `\`${word}()\` draws open, high, low and close, and \`${role}\` was not given`,
+                locate(first))
+            }
+            emitOutputCall(word, { args: [{ value: node }] }, scope, out, locate(first), { role })
+          }
+          continue
+        }
         if (PRESENTATION_CALLS.has(word)) {
           note('runtime:presentation')
           throw new RuntimeRefusal('runtime:presentation', `\`${word}()\``, locate(first))

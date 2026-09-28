@@ -56,6 +56,16 @@ const NEWLY = {
   // on a marked bar and `na` elsewhere — the host lane emits the identical column
   // for the identical construct (measured), so a marked bar is a finite value.
   'pivot-high-low-points__hoTsDQRY3L': { markerCarriesPrice: true },
+  // pine/runtime-walls-3 (2026-09-28): an 8-digit `#RRGGBBAA` colour literal and a
+  // `plotcandle` (computed, not drawn, said) — kernel-channel has no plotshape.
+  // `warmupBars`: both read `nz(src[i])` over a window, and before bar i that is
+  // `nz(na)` = 0 — on TradingView too — so the first window's worth of bars is
+  // pulled toward zero BY THE SCRIPT. The band check starts after it; the
+  // finite / no-NaN-poisoning checks do not skip anything.
+  'kernel-channel-backquant__d8c4b7f75c': { shapesMayBeSilent: true, warmupBars: 100 },
+  // a binding ended by a trailing `,` followed by an unindented `plot` line
+  // (zlma 2×15 then a 15-bar regression)
+  'nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888': { warmupBars: 45 },
 }
 
 describe('⭐ newly attaching through the runtime lane — finite, plausible, no NaN-poisoning', () => {
@@ -96,7 +106,7 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
             expect(first, `${row.label} starts too late`).toBeLessThan(bars.length / 2)
             const holes = col.slice(first).filter((v) => !Number.isFinite(v)).length
             expect(holes, `${row.label} falls back to na after it started (NaN-poisoning)`).toBe(0)
-            for (const v of col.slice(first)) {
+            for (const v of col.slice(first + (rule.warmupBars || 0))) {
               expect(v, `${row.label} left the price band`).toBeGreaterThan(lo * 0.5)
               expect(v, `${row.label} left the price band`).toBeLessThan(hi * 2)
             }

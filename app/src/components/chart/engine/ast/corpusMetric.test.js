@@ -15,9 +15,10 @@
 // any number walks back to a file. The authority is the artifact, not a literal.
 //
 // ⛔ A THROW IS RECORDED AS `THREW`, NEVER SWALLOWED. `translatePine` is supposed
-// to RETURN refusals; one committed script makes it throw one instead
+// to RETURN refusals; one committed script made it throw one instead
 // (`smart-money-breakouts-chartprime__ea79c79a67.pine`, `pine:statement` out of
-// `switchBinding`). Catching it silently would have hidden a member-reachable
+// `switchBinding`) until 2026-09-28, when its comma-ended switch arms stopped
+// being glued into one header (`pine.js::splitAtStatementBreaks`). Catching it silently would have hidden a member-reachable
 // crash behind a tidy count, so the row says `THREW` and the console says which.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'

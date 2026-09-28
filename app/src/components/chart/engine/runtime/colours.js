@@ -52,9 +52,32 @@ export function transparencyToByte(t) {
   return Math.round((clamped / TRANSPARENCY_MAX) * BYTE_MAX)
 }
 
-/** `#RRGGBB` (or `#RGB`) + a Pine transparency → the colorer integer. */
+/** `#RRGGBB` (or `#RGB`) + a Pine transparency → the colorer integer.
+ *
+ *  ⭐ `#RRGGBBAA` CARRIES ITS OWN ALPHA (2026-09-28). The last byte is OPACITY —
+ *  `FF` opaque, `00` invisible — the rule the host lane already applies to the
+ *  same literal (`pine.js::colourTransparencyOf`, and the object lane keeps such
+ *  a literal byte-for-byte for the same reason). The packed byte is
+ *  TRANSPARENCY, so it is `255 - AA`, EXACTLY: no trip through Pine's 0-100
+ *  transparency, which would round `#…81` to 49 and back to `#…82`.
+ *  ⚰️ Until this, `input.color(#ffeb3b26, …)` stopped a whole script
+ *  (kernel-channel-backquant) at "not a colour this engine can read".
+ *  ⛔ Every caller passes `transparency = 0` for a literal; an 8-digit literal
+ *  given a transparency as well would have two alphas, so that is refused by
+ *  name rather than one of them silently winning. */
 export function hexToPacked(hex, transparency = 0) {
   const s = String(hex || '').replace('#', '')
+  if (/^[0-9a-fA-F]{8}$/.test(s)) {
+    if (Number(transparency) !== 0) {
+      throw new ColourError(`\`${hex}\` already carries its own transparency`)
+    }
+    return packColor({
+      r: parseInt(s.slice(0, 2), 16),
+      g: parseInt(s.slice(2, 4), 16),
+      b: parseInt(s.slice(4, 6), 16),
+      transparencyByte: BYTE_MAX - parseInt(s.slice(6, 8), 16),
+    })
+  }
   const full = s.length === 3 ? s.split('').map((c) => c + c).join('') : s
   if (!/^[0-9a-fA-F]{6}$/.test(full)) {
     throw new ColourError(`not a colour this engine can read: \`${hex}\``)

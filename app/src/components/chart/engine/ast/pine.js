@@ -531,8 +531,11 @@ export const OUTPUT_CALLS = Object.freeze({
  *  (`plotcandle(close = c, open = o, …)`) picks the right series by name and a
  *  positional one picks by position. Reading position only would translate a
  *  reordered named call into a candle with its high and low swapped, which draws
- *  perfectly and screens backwards. */
-const MULTI_OUTPUT_CALLS = Object.freeze({
+ *  perfectly and screens backwards.
+ *
+ *  ⭐ EXPORTED (2026-09-28) so the RUNTIME lane reads the same four roles for
+ *  the same call rather than keeping a second list. */
+export const MULTI_OUTPUT_CALLS = Object.freeze({
   plotcandle: Object.freeze(['open', 'high', 'low', 'close']),
   plotbar: Object.freeze(['open', 'high', 'low', 'close']),
 })
@@ -2798,9 +2801,25 @@ export function blockStatements(toks, indents, indent) {
     // missing an output it declared. A comma inside a call is at bracket depth
     // and was never a candidate — `splitTopLevel` is the same depth rule
     // `findTop` uses, so there is one definition of "top level" here.
-    const parts = body.length === 0 ? splitTopLevel(header, ',') : [header]
-    if (parts.length > 1 && parts.every(isBindingSegment)) {
-      for (const part of parts) out.push({ header: part, body: [], sub: [] })
+    if (body.length === 0) {
+      // ⭐ A COMMA THAT ENDS A LINE, FOLLOWED BY A LINE AT THIS STATEMENT'S OWN
+      // INDENT, SEPARATES TWO STATEMENTS (2026-09-28). `danglesIntoNextLine`
+      // keeps a statement open over a trailing `,`, so
+      //     color colorout = out > sig ? greencolor : redcolor,
+      //     plot(out, …, color = colorout)
+      // (nonlinear-regression-zero-lag-moving-average-loxx, a published script
+      // the vendor compiles) arrived as ONE header, `binding , plot(…)` — which
+      // splits into no all-bindings run, so the whole thing refused. Pine reads a
+      // line at the SAME indent as a new statement (a continuation must be
+      // indented), and `,` is Pine's statement separator, so the two readings
+      // agree: a binding, then a `plot`. ⛔ ONLY at such a line break: a comma
+      // inside one physical line keeps the existing rule below exactly.
+      const pieces = splitAtStatementBreaks(header, indents, indent)
+      if (pieces.length > 1) {
+        for (const piece of pieces) pushBodilessLine(out, piece)
+        continue
+      }
+      pushBodilessLine(out, header)
       continue
     }
     // ⚰️ A REFUSAL HERE FOR AN UNSPLITTABLE TOP-LEVEL COMMA WAS WRITTEN AND
@@ -2859,6 +2878,43 @@ function isBindingSegment(toks) {
 /** One token run split on a top-level separator — the depth rule `findTop` uses.
  *  ⛔ Depth-aware on purpose: `[f(a, b), c]` is TWO parts, and a naive comma
  *  split would make it three and hand a fragment to the parser. */
+/** A body-less statement header → one or more statements on `out`: the
+ *  all-bindings comma split (see the comment in `blockStatements`), or the
+ *  header unchanged — the rule that was inline there before 2026-09-28, moved
+ *  here unchanged so each line-break piece gets it too. */
+function pushBodilessLine(out, header) {
+  const parts = splitTopLevel(header, ',')
+  if (parts.length > 1 && parts.every(isBindingSegment)) {
+    for (const part of parts) out.push({ header: part, body: [], sub: [] })
+    return
+  }
+  out.push({ header, body: [], sub: [] })
+}
+
+/** A header → pieces, cut at every top-level `,` that ENDS a physical line
+ *  whose next line starts at or left of `indent` (Pine: a new statement). The
+ *  separating comma belongs to neither piece. One piece when there is no such
+ *  comma. */
+function splitAtStatementBreaks(header, indents, indent) {
+  const pieces = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < header.length - 1; i += 1) {
+    const tok = header[i]
+    if (tok.kind !== 'punct') continue
+    if (tok.value === '(' || tok.value === '[') { depth += 1; continue }
+    if (tok.value === ')' || tok.value === ']') { depth -= 1; continue }
+    const next = header[i + 1]
+    if (depth === 0 && tok.value === ',' && i > start && next.line !== tok.line
+      && (indents[next.line - 1] || 0) <= indent) {
+      pieces.push(header.slice(start, i))
+      start = i + 1
+    }
+  }
+  pieces.push(header.slice(start))
+  return pieces
+}
+
 function splitTopLevel(toks, sep) {
   const out = []
   let depth = 0
@@ -14066,6 +14122,10 @@ function translatePineResult(source, opts = {}) {
       // ⭐ The comment is corrected rather than deleted because a comment that is
       // measured false is worse than no comment: it tells the next reader the shape is
       // already safe.
+      // ✅ THAT SCRIPT NO LONGER THROWS (2026-09-28): its arms end in `,`, and the
+      // throw came from `blockStatements` gluing all three arms into one header over
+      // those commas — now cut at the line break (`splitAtStatementBreaks`). Whether
+      // `switchBinding` can throw on some OTHER shape is still unmeasured.
       if (rhs[0].kind === 'ident' && rhs[0].value === 'switch' && rhs.length > 1) {
         const built = switchBinding(rhs.slice(1), stmts[si - 1].sub, ctx, env, rhs[0])
         if (built) { env.set(nameTok.value, built); continue }

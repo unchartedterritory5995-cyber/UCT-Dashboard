@@ -35,12 +35,14 @@
 // same refusal returns on the same line, and the script is recorded STUCK.
 // Twenty-four scripts stopped being stuck the moment the line was right.
 //
-// ⛔ THE TWO SURVIVORS ARE CORRECT, NOT RESIDUE. `runtime/colours.js` throws a
+// ⛔ THE TWO SURVIVORS WERE CORRECT, NOT RESIDUE. `runtime/colours.js` threw a
 // bare `ColourError` for an eight-digit hex — an ordinary `Error` with no
 // position to recover — so the statement fallback fires and says so. That is
 // what `locationIsStatement` is FOR, and it is why the flag is kept rather than
 // removed with the defect. The classifier control below is anchored on exactly
-// that shape.
+// that shape. ⚰️ Since 2026-09-28 (pine/runtime-walls-3) `#RRGGBBAA` IS read,
+// so those two may no longer refuse here at all; the control is re-anchored on
+// a SEVEN-digit hex, which is no Pine colour and still reaches the bare throw.
 //
 // ⭐⭐ THE FIX, AND WHY BOTH EARLIER ATTEMPTS MEASURED ZERO. `RuntimeRefusal`
 // FLATTENS its position into `line`/`column`/`token`; `PineRefusal` keeps the
@@ -174,11 +176,12 @@ describe('⭐⭐ refusals that do not know their own line', () => {
     // fix that closed this census made that fixture EXACT — so the control that
     // proves the classifier can tell the two kinds apart had to be re-anchored
     // on a refusal that still cannot say where it is. `runtime/colours.js`
-    // throws a bare `ColourError` for an eight-digit hex: an ordinary `Error`,
+    // throws a bare `ColourError` for a hex it cannot read (seven digits since
+    // 2026-09-28, when eight became readable): an ordinary `Error`,
     // no `line`, no `at`. ⭐ The unreadable colour is written on the line ABOVE
     // and the refusal reports the `bgcolor` statement — an honest approximation,
     // marked as one, which is what the flag is for.
-    const approx = build(`myCol = #00e67610${LF}bgcolor(myCol)${LF}`)
+    const approx = build(`myCol = #00e6761${LF}bgcolor(myCol)${LF}`)
     expect(approx && approx.ok === false, 'the approximate fixture did not refuse').toBe(true)
     expect((approx.refusal || {}).message, 'a different refusal fired')
       .toContain('not a colour this engine can read')
