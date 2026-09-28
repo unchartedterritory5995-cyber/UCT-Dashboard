@@ -46,7 +46,8 @@ vi.mock('./hooks/useJ2SelectedAccount', () => ({
 vi.mock('./components/AddPositionModal', () => ({ default: () => null }))
 vi.mock('./components/AddTradeModal', () => ({ default: () => null }))
 
-import JournalLayout, { isCompactHeaderRoute } from './JournalLayout'
+import JournalLayout from './JournalLayout'
+import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
 
 function renderAt(route) {
   return render(

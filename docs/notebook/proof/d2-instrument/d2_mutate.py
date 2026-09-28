@@ -40,7 +40,7 @@ SETS = {
          "Back to notes always closes (loses the list a note was opened from)"),
         ("M4", J2 + "tabs/NotebookTab.module.css", r"(\.phoneBack \{\r?\n\s*display: )none;",
          r"\1inline-flex;", [T_PHONE], "the back control shows at every width"),
-        ("M5", J2 + "JournalLayout.jsx", r"pathname\.startsWith\('/journal/notebook/'\)",
+        ("M5", J2 + "lib/compactHeaderRoute.js", r"pathname\.startsWith\('/journal/notebook/'\)",
          "pathname.startsWith('/journal/notebook')", [T_HEADER], "a sibling route that merely starts with the word folds"),
         ("M6", J2 + "JournalLayout.jsx", r'aria-controls="journal-header-tools"',
          'aria-controls="journal-tools"', [T_HEADER], "the disclosure names an element that does not exist"),

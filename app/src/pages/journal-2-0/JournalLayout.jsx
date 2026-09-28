@@ -31,6 +31,7 @@ import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
 import useInstantFills from './hooks/useInstantFills'
 import { mapJ2TabToRoute } from './j2tabRedirect'
+import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
@@ -80,20 +81,6 @@ export const HOTKEY_ROUTES = {
 // Chords whose destination is paid-only. A free user firing one is a no-op
 // (mirrors the disabled Compass nav teaser — never routes to a blank surface).
 export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
-
-/**
- * Wave 10 lane D2 (design finding D-1): the route whose Journal header folds on a
- * phone. Measured at 390 px on fa6710394, the Journal took 257 px below the app's
- * top bar before the Notebook began (the title row, then the action cluster
- * wrapped onto two rows, then the section strip), and a note's first line sat
- * 1,530 px down. On this route, and only at <=640 px (CSS decides the width; this
- * decides the route), the header shows Log Trade and one "Journal tools" toggle;
- * the rest of the cluster is one tap away and works exactly as before when open.
- * The section strip is NOT folded: every Journal tab stays one tap away.
- */
-export function isCompactHeaderRoute(pathname) {
-  return pathname === '/journal/notebook' || pathname.startsWith('/journal/notebook/')
-}
 
 export default function JournalLayout() {
   const isPaid = useIsPaid()
