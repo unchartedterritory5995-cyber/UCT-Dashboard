@@ -132,7 +132,7 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
 
   if (isTouch) {
     return (
-      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title={OUTLINE_LABEL}>
+      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title={OUTLINE_LABEL} labelledByTitle>
         <nav aria-label={OUTLINE_LABEL}>{body}</nav>
       </Sheet>
     )

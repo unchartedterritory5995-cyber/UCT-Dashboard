@@ -1,0 +1,323 @@
+{
+  "tool": "notebook_w10d_browser_check",
+  "base": "http://127.0.0.1:8214",
+  "data_dir": "C:\\data-w10d",
+  "started_utc": "2026-09-27T05:07:52+00:00",
+  "sandbox_env": {
+    "J2_SHARE_LINKS_ENABLED": "1",
+    "NOTEBOOK_PUBLISH_ENABLED": "1",
+    "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "steps": [
+    {
+      "step": "save",
+      "driven": true
+    },
+    {
+      "step": "writing help",
+      "driven": true
+    },
+    {
+      "step": "dictation",
+      "driven": true
+    },
+    {
+      "step": "export",
+      "driven": true
+    },
+    {
+      "step": "share+publish",
+      "driven": true
+    },
+    {
+      "step": "switcher",
+      "driven": true
+    },
+    {
+      "step": "search",
+      "driven": true
+    },
+    {
+      "step": "import",
+      "driven": true
+    }
+  ],
+  "rows": [
+    {
+      "row": "provision: a paid, verified member + the sandbox admin",
+      "result": "PASS"
+    },
+    {
+      "row": "writing_help_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "dictation_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "export_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "share_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "publish_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "switcher_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "search_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "import_used counted once",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "row": "save_success counted (every landed autosave is one)",
+      "result": "PASS",
+      "count": 3
+    },
+    {
+      "row": "each stubbed model answer was requested exactly once by its door",
+      "result": "PASS",
+      "served": {
+        "writing_help_stream": 1,
+        "transcribe": 1
+      }
+    },
+    {
+      "row": "a breach already paged inside the re-page window is recorded, NOT paged again",
+      "result": "PASS",
+      "pages": 0,
+      "evaluations": 1,
+      "state": "breach"
+    },
+    {
+      "row": "no latency SLO reached the pager",
+      "result": "PASS"
+    }
+  ],
+  "stubs": {
+    "why": "no model key in the sandbox; the model call and the server's writing-help and transcription routes are NOT exercised by these two rows",
+    "routes": {
+      "**/writing-help/stream": "writing_help_stream",
+      "**/api/voice/transcribe": "transcribe"
+    },
+    "served": {
+      "writing_help_stream": 1,
+      "transcribe": 1
+    }
+  },
+  "member_flags": {
+    "paid_equiv": true,
+    "j2_share_links_enabled": true,
+    "notebook_publish_enabled": true,
+    "notebook_writing_help_enabled": true
+  },
+  "run_tag": "000907",
+  "counts_before": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 0,
+    "export_used": 0,
+    "import_preset_used": 0,
+    "import_used": 1,
+    "note_open_ms": 1,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 2,
+    "notebook_offline_opt_in": 1,
+    "notebook_tab_visit": 2,
+    "publish_used": 0,
+    "reflection_saved": 0,
+    "save_failed": 25,
+    "save_success": 1,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 0,
+    "share_used": 0,
+    "surface_visit": 0,
+    "switcher_used": 1,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 0
+  },
+  "counts_after": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 1,
+    "export_used": 1,
+    "import_preset_used": 0,
+    "import_used": 2,
+    "note_open_ms": 2,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 4,
+    "notebook_offline_opt_in": 2,
+    "notebook_tab_visit": 4,
+    "publish_used": 1,
+    "reflection_saved": 0,
+    "save_failed": 25,
+    "save_success": 4,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 1,
+    "share_used": 1,
+    "surface_visit": 0,
+    "switcher_used": 2,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 1
+  },
+  "delta": {
+    "ask_used": 0,
+    "bulk_used": 0,
+    "capture_used": 0,
+    "conflict_forked": 0,
+    "dictation_used": 1,
+    "export_used": 1,
+    "import_preset_used": 0,
+    "import_used": 1,
+    "note_open_ms": 1,
+    "notebook_blocked_no_baseline": 0,
+    "notebook_capture_saved": 0,
+    "notebook_config_served": 2,
+    "notebook_offline_opt_in": 1,
+    "notebook_tab_visit": 2,
+    "publish_used": 1,
+    "reflection_saved": 0,
+    "save_failed": 0,
+    "save_success": 3,
+    "scope_applied": 0,
+    "screenshot_added": 0,
+    "search_used": 1,
+    "share_used": 1,
+    "surface_visit": 0,
+    "switcher_used": 1,
+    "trade_page_open": 0,
+    "verdict_embed_run": 0,
+    "writing_help_used": 1
+  },
+  "slo_expect": "repage-suppressed",
+  "slo_prior_page_rows": [
+    {
+      "created_at": "2026-09-27 05:05:28",
+      "kind": "page",
+      "slo": "save_success",
+      "state": "breach",
+      "value": 0.038461538461538464,
+      "objective": 0.995,
+      "n": 26,
+      "window_hours": 24,
+      "delivered": "log",
+      "detail": "\ud83d\udd34 **Notebook SLO breach \u2014 save_success**: 0.0385 vs objective >= 0.995 over 26 final save outcomes in 24 h (25 gave up). Read /api/admin/notebook-slo."
+    }
+  ],
+  "save_failed_posts": {
+    "n": 25,
+    "statuses": [
+      200
+    ]
+  },
+  "slo_run": {
+    "evaluated_at": "2026-09-27 05:09:34",
+    "window_hours": 24,
+    "slos": {
+      "save_success": {
+        "state": "breach",
+        "value": 0.07407407407407407,
+        "objective": 0.995,
+        "n": 54,
+        "succeeded": 4,
+        "failed": 50,
+        "min_n": 20
+      },
+      "ask_latency": {
+        "state": "insufficient",
+        "value": null,
+        "objective": 30000,
+        "n": 0,
+        "p50": null,
+        "min_n": 5
+      },
+      "search_latency": {
+        "state": "insufficient",
+        "value": 50.0,
+        "objective": 1000,
+        "n": 1,
+        "p50": 50.0,
+        "min_n": 20
+      }
+    },
+    "pages": []
+  },
+  "slo_page_rows": [],
+  "slo_page_rows_any_run": 1,
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T00-07-54.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-09-27 00:08:01",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-09-27 00:09:01",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-09-27 00:10:55",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-09-27 00:11:08",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T00-07-54.md",
+  "launcher_page_lines": [],
+  "finished_utc": "2026-09-27T05:11:38+00:00"
+}

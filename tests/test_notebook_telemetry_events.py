@@ -165,6 +165,53 @@ def test_a_number_no_float_can_hold_is_dropped_never_a_500(telemetry_app):
     assert json.loads(logged.rows[1][2]) == {"results": int(float(big))}
 
 
+def test_the_wave10_core_action_events_are_on_both_sides_and_read_not_typed():
+    """Wave 10 (10D, R-16): the eight events that complete "every core action".
+    Read out of the client like the seven — this only proves the read SAW them
+    (non-vacuity for the parity rails above, which now cover fifteen)."""
+    names = set(_client_event_names())
+    wave10 = {"save_success", "export_used", "import_used", "share_used", "publish_used",
+              "writing_help_used", "dictation_used", "bulk_used"}
+    assert wave10 <= names, wave10 - names
+    assert wave10 <= _J2_TELEMETRY_EVENTS
+
+
+def test_bulk_used_op_is_the_batch_routes_own_op_list():
+    """`bulk_used.op` names exactly what POST /notes/batch accepts — an op the
+    route gains would otherwise be counted as 'other' forever."""
+    from api.routers.journal_two import NOTE_BATCH_OPS, _NOTEBOOK_PROP_SCHEMAS
+    assert set(_NOTEBOOK_PROP_SCHEMAS["bulk_used"]["op"]) == set(NOTE_BATCH_OPS)
+
+
+def test_the_server_drops_free_text_from_the_wave10_events_whoever_sent_it(telemetry_app):
+    """⛔ A raw fetch carrying a share token, a note title, a file name and a
+    typed instruction: none of it is stored. (Mutation: keep an unlisted prop ->
+    this reds.)"""
+    client, logged = telemetry_app
+    sends = [
+        ("share_used", {"action": "create", "token": "s3cr3t-token", "note": "My NVDA thesis"},
+         {"action": "create"}),
+        ("export_used", {"format": "my private file.docx", "scope": "note", "count": 1, "title": "x"},
+         {"format": "other", "scope": "note", "count": 1}),
+        ("writing_help_used", {"action": "rewrite", "scope": "whole", "replaced": False,
+                               "instruction": "make my thesis on NVDA sound smarter"},
+         {"action": "rewrite", "scope": "whole", "replaced": False}),
+        ("import_used", {"source": "notion", "created": 3, "failed": 0, "folder": "Private"},
+         {"source": "notion", "created": 3, "failed": 0}),
+        ("dictation_used", {"words": 7, "transcript": "buy the dip on NVDA"}, {"words": 7}),
+        ("bulk_used", {"op": "addTag", "changed": 2, "failed": 0, "tag": "my secret tag"},
+         {"op": "addTag", "changed": 2, "failed": 0}),
+    ]
+    for event, props, _ in sends:
+        r = client.post("/api/j2/telemetry", json={"event": event, "props": props})
+        assert r.status_code == 200
+    got = [(a, json.loads(d)) for _, a, d in logged.rows]
+    assert got == [(f"j2:{e}", want) for e, _, want in sends]
+    blob = json.dumps(got)
+    for leaked in ("s3cr3t", "NVDA", "private", "Private", "secret"):
+        assert leaked not in blob, leaked
+
+
 def test_an_event_outside_the_seven_keeps_its_own_props(telemetry_app):
     # CONTROL: the schema is applied to the Notebook events only; the older
     # instrumented events keep what their own rails pin.

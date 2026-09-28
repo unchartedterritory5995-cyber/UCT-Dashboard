@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import ast
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -54,7 +55,8 @@ OPS_ONLY = "https://discord.com/api/webhooks/222/A-DEDICATED-OPS-CHANNEL-TOKEN"
 SEVERITY_UNION = tuple(sorted(ar.SEVERITY_PRIORITY))
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  THE CONVERSION ROSTER — one entry per module step 3 converted.
+#  THE CONVERSION ROSTER — one entry per module converted to the OPS class, by
+#  spec §6 step 3 and then by step 6's MECHANICAL half.
 #
 #  ⛔ PINNED BY NAME, because a COUNT can be satisfied by the wrong set. Each of
 #  these imports `alert_destination`; nothing else under `api/` does, and the rail
@@ -75,6 +77,28 @@ CONVERTED = {
     "api/auth_surface_check.py",
     "api/flow_backup.py",
     "api/flow_gap_autofill.py",
+    # ── spec §6 STEP 6, the MECHANICAL half of the decision packet's thirteen rows.
+    #    ⛔ These are the SIX the packet
+    #    (`docs/terminal-research/07-technical-architecture/term-011-routing-decisions.md`)
+    #    demoted from decisions to ordinary conversions — rows 7, 8, 9, 10, 11 and 12.
+    #    The four real decisions (#4, #5, #1, #3) and the one classification call (#6)
+    #    are the owner's and are NOT here; row 13 moves to step 5; row 2 is struck.
+    #    Rows 11 and 12 are two call sites in one module, hence five paths for six rows.
+    #
+    #    ⭐ WHAT MADE THEM MECHANICAL, measured rather than assumed: with
+    #    DISCORD_OPS_WEBHOOK_URL absent — read from Railway 2026-09-27 on all seven
+    #    services — every one resolves to today's destination byte-identically, and for
+    #    rows 7 and 8 `DISCORD_ALERT_WEBHOOK` was confirmed BYTE-EQUAL to
+    #    `DISCORD_WEBHOOK_URL`, so dropping it from their chain moves nothing.
+    "api/services/journal_two/broker/notifications.py",   # row 7
+    "api/services/journal_two/broker/mirror_check.py",    # row 8
+    "api/services/journal_two/books_audit.py",            # row 9
+    "api/services/catalyst/digest.py",                    # row 10
+    "api/services/desk_daily_session.py",                 # rows 11 + 12
+    # Notebook wave 10 lane 10D: the Notebook save-SLO pager. It was written against the
+    # literal `DISCORD_WEBHOOK_URL` read and converted at the Notebook's L1b integration,
+    # so it never shipped as a literal reader (it would have broken the pinned roster below).
+    "api/services/journal_two/notebook_slo.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -95,7 +119,13 @@ STILL_LITERAL = {
     "api/alpha_gold_eod.py": 5,
     "api/cream_card.py": 5,
     "api/darkpool_eod.py": 5,
-    "api/discord_watchlist.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, NOT STEP 3/6. `discord_watchlist.py`
+    #    now reads its OWN dedicated webhook chain (`WEBHOOK_ENV` / `LEGACY_WEBHOOK_ENV`, at CALL
+    #    time) and fails closed -- it never falls back to `DISCORD_WEBHOOK_URL` at all, so
+    #    `literal_reads_in` now returns []. ⛔ It does NOT move to CONVERTED above: CONVERTED is
+    #    the `alert_destination` importer roster (the shared OPS resolver), and this poster keeps
+    #    its OWN variable by step 5's design -- a fail-closed content poster is a different shape
+    #    from an OPS emitter, not an unfinished conversion of the same one.
     "api/live_massive_router.py": 5,
     "api/liveflow_worker.py": 5,
     "api/oi_morning.py": 5,
@@ -109,10 +139,17 @@ STILL_LITERAL = {
     #    §4.2: only the `test` target falls back; `live` is fail-closed by design.
     "api/services/calendar_week_poster.py": 5,
     # ── spec §6 STEP 6 — the BOTH rows. Decisions, one commit each, never a batch.
-    "api/services/desk_session_recap.py": 6,          # §4.3 row 13
-    "api/services/journal_two/books_audit.py": 6,     # §4.3 row 9
-    "api/services/journal_two/broker/mirror_check.py": 6,    # §4.3 row 8
-    "api/services/journal_two/broker/notifications.py": 6,   # §4.3 row 7
+    #
+    # ⚰️ THREE ROWS LEFT THIS LIST IN STEP 6's MECHANICAL HALF — rows 7, 8 and 9. They
+    #    are in CONVERTED above now, and this diff is the record that they moved. The
+    #    decision packet re-read all three in code and found no decision in any of
+    #    them: each Discord post has exactly ONE reader, the member half is already a
+    #    separate transport where one exists, and every message body is a runbook or an
+    #    accounting verdict. `desk_session_recap.py` STAYS — the packet moves row 13 to
+    #    step 5 as a CONTENT poster, which is a different treatment (fail closed on
+    #    `DISCORD_RECAP_WEBHOOK_URL`), not this conversion.
+    "api/services/desk_session_recap.py": 6,          # §4.3 row 13 → step 5, not done
+
     # ── door C. The shared sink for the BUSINESS notifiers AND four BOTH rows, so
     #    giving it a class is an edit to the business path, which step 3 does not
     #    own. Spec §9 leaves sequencing its import-time capture to this step's
@@ -415,6 +452,45 @@ def test_WIRE_flow_backup_integrity_alert(monkeypatch, blank_ops):
                        "User-Agent": "uct-flow-backup/1"}
 
 
+class _HttpxPost:
+    """Records `httpx.post(url, json=..., timeout=...)` -- the Notebook pager's transport."""
+
+    def __init__(self):
+        self.posts = []
+
+    def __call__(self, url, json=None, timeout=None, **_kw):
+        self.posts.append((url, json))
+
+        class _R:
+            status_code = 204
+        return _R()
+
+
+def test_WIRE_notebook_slo_pager_posts_to_todays_channel_with_the_same_body(monkeypatch, blank_ops):
+    import httpx
+
+    from api.services.journal_two import notebook_slo
+
+    post = _HttpxPost()
+    monkeypatch.setattr(httpx, "post", post)
+    assert notebook_slo._post_discord("Notebook save STALL") == "discord"
+    assert post.posts == [(TODAY, {"content": "Notebook save STALL"})]
+
+
+def test_WIRE_notebook_slo_pager_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """The control: a pager that still read the literal would post to TODAY here."""
+    import httpx
+
+    from api.services.journal_two import notebook_slo
+
+    post = _HttpxPost()
+    monkeypatch.setattr(httpx, "post", post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+    assert notebook_slo._post_discord("page") == "discord"
+    assert post.posts[0][0] == OPS_ONLY
+
+
 def test_WIRE_flow_gap_autofill_alert(monkeypatch, blank_ops):
     import urllib.request as urllib_request
 
@@ -534,6 +610,423 @@ def test_WIRE_the_worker_down_alert_captures_todays_channel(monkeypatch, blank_o
         assert closure.get("_alert_enabled") is True
     finally:
         _CapturingThread.made.clear()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  §2b — STEP 6's MECHANICAL HALF, at the wire, one block per converted producer.
+#
+#  ⛔ SAME THREE-PART SHAPE AS §2 ABOVE, AND ALL THREE PARTS ARE REQUIRED: the blank
+#  path posts to TODAY with a LITERAL body; the unconfigured path posts NOTHING; and
+#  the SET path follows the ops variable. Without the third, the first two pass on a
+#  producer that was never converted at all — which is exactly what a reviewer would
+#  most like to be told, and exactly what those two assertions cannot say.
+#
+#  ⛔⛔ AND FOR ROWS 7 AND 8 THERE IS A FOURTH, BECAUSE THEY ARE THE ONLY TWO WHOSE
+#  CONVERSION DROPS A VARIABLE: both read `DISCORD_ALERT_WEBHOOK or DISCORD_WEBHOOK_URL`
+#  and `ops_webhook()` never reads the first. Whether that MOVED three owner alerts was
+#  §6's one unknown, and it was settled by MEASUREMENT on 2026-09-27 — the two variables
+#  are BYTE-EQUAL on every service that carries both (`web`, `flow-worker`), same Discord
+#  webhook id, one room with two names. ⛔ NOT settled by these two modules treating them
+#  as interchangeable: the spec is explicit that their convenience is evidence, not proof.
+#  `test_rows_7_and_8_no_longer_consult_DISCORD_ALERT_WEBHOOK` pins the change so that if
+#  anybody ever points that variable at a DIFFERENT room, the divergence is a red test and
+#  not a silently relocated pager.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: A third, distinct value standing in for "DISCORD_ALERT_WEBHOOK names another room".
+#: ⛔ It must never be what a converted producer posts to.
+ALERT_VAR_ONLY = "https://discord.com/api/webhooks/333/A-DIFFERENT-ROOM-TOKEN"
+
+
+# ── row 7 — the broker connection / sweep-spike / repeated-failure pings ───────
+
+def test_WIRE_row_7_broker_notifications_posts_to_todays_channel(monkeypatch, blank_ops):
+    """The body is a LITERAL, so a route stamp or a class field appended to the embed
+    fails here — the payload half of step 3's invariant, inherited by step 6."""
+    import requests
+
+    from api.services.journal_two.broker import notifications as bn
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+
+    bn._post_discord("Broker sync failing repeatedly", "Schwab ..0376 - user abcd1234")
+
+    assert len(wire.posts) == 1, wire.posts
+    url, body, _headers = wire.posts[0]
+    assert url == TODAY, "row 7's owner ping went somewhere other than today's channel"
+    assert body == {"embeds": [{"title": "Broker sync failing repeatedly",
+                                "description": "Schwab ..0376 - user abcd1234",
+                                "color": 0xE74C3C,
+                                "footer": {"text": "UCT broker sync"}}]}
+
+
+def test_WIRE_row_7_posts_NOTHING_when_no_channel_is_configured(monkeypatch):
+    import requests
+
+    from api.services.journal_two.broker import notifications as bn
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+
+    bn._post_discord("t", "d")
+    assert wire.posts == []
+
+
+def test_WIRE_row_7_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """⛔ THE CONTROL for the two above."""
+    import requests
+
+    from api.services.journal_two.broker import notifications as bn
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+
+    bn._post_discord("t", "d")
+    assert wire.posts[0][0] == OPS_ONLY
+
+
+# ── row 8 — the mirror-drift page and the daily bias digest ───────────────────
+
+def test_WIRE_row_8_mirror_check_posts_to_todays_channel(monkeypatch, blank_ops):
+    import httpx
+
+    from api.services.journal_two.broker import mirror_check as mc
+
+    wire = _Wire()
+    monkeypatch.setattr(httpx, "post", wire.post)
+
+    mc._post_discord("\U0001fa9e Broker mirror drift", "user `abcd1234` - drifted")
+
+    assert len(wire.posts) == 1, wire.posts
+    url, body, _headers = wire.posts[0]
+    assert url == TODAY
+    assert body == {"embeds": [{"title": "\U0001fa9e Broker mirror drift",
+                                "description": "user `abcd1234` - drifted",
+                                "color": 0xE67E22}]}
+
+
+def test_WIRE_row_8_posts_NOTHING_when_no_channel_is_configured(monkeypatch):
+    import httpx
+
+    from api.services.journal_two.broker import mirror_check as mc
+
+    wire = _Wire()
+    monkeypatch.setattr(httpx, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+
+    mc._post_discord("t", "d")
+    assert wire.posts == []
+
+
+def test_WIRE_row_8_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """⛔ THE CONTROL. ⭐ It also covers the module's SECOND ops caller, the daily bias
+    digest, because both go through this one function — which is the whole reason the
+    conversion boundary is the function and not the alert."""
+    import httpx
+
+    from api.services.journal_two.broker import mirror_check as mc
+
+    wire = _Wire()
+    monkeypatch.setattr(httpx, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+
+    mc._post_discord("t", "d")
+    assert wire.posts[0][0] == OPS_ONLY
+
+
+@pytest.mark.parametrize("module_path,poster", [
+    ("api.services.journal_two.broker.notifications", "requests"),
+    ("api.services.journal_two.broker.mirror_check", "httpx"),
+])
+def test_rows_7_and_8_no_longer_consult_DISCORD_ALERT_WEBHOOK(monkeypatch, module_path,
+                                                              poster):
+    """⛔⛔ THE ONE REAL SEMANTIC CHANGE IN STEP 6's MECHANICAL HALF, PINNED.
+
+    Before: a SET `DISCORD_ALERT_WEBHOOK` WON at both call sites. After: it is not read
+    at all, because `ops_webhook()` resolves `DISCORD_OPS_WEBHOOK_URL` →
+    `DISCORD_WEBHOOK_URL` and the resolver owns that order.
+
+    ⭐ THAT IS SAFE ONLY BECAUSE THE TWO VARIABLES ARE THE SAME VALUE, AND THAT WAS
+    MEASURED, NOT INFERRED (2026-09-27, compared by sha256 and Discord webhook id, values
+    never printed). This test is what keeps it safe: point that variable at another room
+    and this goes RED, instead of three owner alerts quietly relocating.
+    """
+    import importlib
+
+    mod = importlib.import_module(module_path)
+    client = importlib.import_module(poster)
+    wire = _Wire()
+    monkeypatch.setattr(client, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", ALERT_VAR_ONLY)
+
+    mod._post_discord("t", "d")
+    assert wire.posts[0][0] == TODAY, (
+        "a converted producer is still reading DISCORD_ALERT_WEBHOOK, so there are two "
+        "authorities over its destination and they disagree the day they differ")
+
+
+# ── row 9 — the weekly books-audit summary ────────────────────────────────────
+
+def test_WIRE_row_9_books_audit_summary_posts_to_todays_channel(monkeypatch, blank_ops):
+    """⭐ The FAILING branch, with the truncation and the 8-character member ids intact —
+    the privacy posture the packet calls already correct."""
+    import requests
+
+    from api.services.journal_two import books_audit as ba
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+
+    ba._post_discord_summary(11, [{"userId": "abcd1234efgh", "checks": ["tax_price_parity"]}])
+
+    assert len(wire.posts) == 1, wire.posts
+    url, body, _headers = wire.posts[0]
+    assert url == TODAY
+    assert body == {"embeds": [{
+        "title": "\U0001f534 Books audit: 1 of 11 books FAILED",
+        "description": "- `abcd1234…`: tax_price_parity",
+        "color": 0xE74C3C,
+        "footer": {"text": "UCT books audit · weekly"},
+    }]}
+
+
+def test_WIRE_row_9_the_GREEN_weekly_heartbeat_still_posts(monkeypatch, blank_ops):
+    """⛔⛔ THE DEFERRAL, RAILED. The packet §4 row 9 says the class is easy and the
+    green-heartbeat question is DEFERRED to after step 8 — removing the only weekly
+    proof-of-life before the ops room exists and is being read would make "the sweep is
+    quiet" and "the sweep is dead" indistinguishable. So a conversion that silently
+    dropped the healthy-case post would be this rail going red, not a tidy-up.
+    """
+    import requests
+
+    from api.services.journal_two import books_audit as ba
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+
+    ba._post_discord_summary(11, [])
+
+    assert len(wire.posts) == 1, "the green weekly heartbeat stopped posting"
+    assert wire.posts[0][0] == TODAY
+    assert wire.posts[0][1]["embeds"][0]["title"] == "\U0001f7e2 Books audit: all 11 books balance"
+
+
+def test_WIRE_row_9_posts_NOTHING_when_no_channel_is_configured(monkeypatch):
+    import requests
+
+    from api.services.journal_two import books_audit as ba
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+
+    ba._post_discord_summary(3, [])
+    assert wire.posts == []
+
+
+def test_WIRE_row_9_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """⛔ THE CONTROL for the two above."""
+    import requests
+
+    from api.services.journal_two import books_audit as ba
+
+    wire = _Wire()
+    monkeypatch.setattr(requests, "post", wire.post)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+
+    ba._post_discord_summary(3, [])
+    assert wire.posts[0][0] == OPS_ONLY
+
+
+# ── rows 10, 11 and 12 — the three that reach Discord THROUGH door C's sender ──
+#
+# ⭐ These three never read `DISCORD_WEBHOOK_URL` themselves; they called
+# `discord_notify._send_webhook`, which captures it at IMPORT (`discord_notify.py:11`).
+# So the conversion is a DESTINATION handed to that sender, and the wire is the
+# `requests.post` inside its thread.
+
+#: `_alert_owner`'s `kind="stuck"` branch composes a fixed string. ⛔ The `"missing"`
+#: branch calls `_session_title`, which runs the creative-title composer — a model call
+#: in production. A destination test has no business reaching it.
+STUCK_NOW = datetime(2026, 9, 27, 18, 0, tzinfo=timezone.utc)
+
+
+def _door_c_wire(monkeypatch):
+    """Record what door C's sender actually POSTs, running its thread inline.
+
+    ⛔ The email leg is silenced too: `_notify_published` also emails
+    `DESK_DAILY_SESSION_ALERT_EMAILS or ADMIN_EMAILS`, and a Discord-destination test
+    that sends mail is measuring two things and controlling neither.
+    """
+    from api.services import desk_daily_session as dds
+    from api.services import discord_notify as dn
+
+    wire = _Wire()
+    monkeypatch.setattr(dn, "requests", wire)
+    monkeypatch.setattr(dn, "threading", _ThreadingShim)
+    monkeypatch.setattr(dds, "_alert_recipients", lambda: [])
+    return wire
+
+
+def test_WIRE_row_11_the_session_not_published_alarm_posts_to_todays_channel(
+        monkeypatch, blank_ops):
+    from api.services import desk_daily_session as dds
+
+    wire = _door_c_wire(monkeypatch)
+    dds._alert_owner(STUCK_NOW, kind="stuck")
+
+    assert len(wire.posts) == 1, wire.posts
+    url, body, _headers = wire.posts[0]
+    assert url == TODAY
+    assert body["embeds"][0]["title"] == "⚠️ Live Trading Session stuck in processing"
+    assert body["embeds"][0]["color"] == 0xE0A800
+
+
+def test_WIRE_row_12_the_publish_notice_posts_to_todays_channel(monkeypatch, blank_ops):
+    """⭐ Row 12's destination was NEVER the thing that was wrong — the docstring was.
+    The gold embed, the thumbnail and the Watch link are all unchanged here; what the
+    commit deletes is the word "Audience-facing", and
+    `test_row_12s_docstring_no_longer_claims_an_audience` is the rail on that.
+    """
+    from api.services import desk_daily_session as dds
+
+    wire = _door_c_wire(monkeypatch)
+    dds._notify_published("Live Trading Session — September 27, 2026", "vid123",
+                          section="Live Trading Sessions")
+
+    assert len(wire.posts) >= 1, wire.posts
+    url, body, _headers = wire.posts[0]
+    assert url == TODAY
+    embed = body["embeds"][0]
+    assert embed["color"] == 0xC9A84C
+    assert embed["image"] == {"url": "https://i.ytimg.com/vi/vid123/hqdefault.jpg"}
+
+
+@pytest.mark.parametrize("fn,args,kwargs", [
+    ("_alert_owner", (STUCK_NOW,), {"kind": "stuck"}),
+    ("_notify_published", ("t", "vid123"), {}),
+])
+def test_WIRE_rows_11_and_12_post_NOTHING_when_no_channel_is_configured(
+        monkeypatch, fn, args, kwargs):
+    """⛔⛔ THE CLAUSE THAT MADE ME CHANGE `discord_notify._send_webhook`.
+
+    A converted caller resolving to "" must be INERT, not fall back to door C's
+    import-time capture. `url or DISCORD_ADMIN_WEBHOOK` is the tempting one-liner and it
+    would put a STALE value in charge exactly when the live resolution says "nowhere" —
+    a second authority over one destination. So the sender distinguishes `url=None`
+    (door C, for the five business notifiers) from `url=""` (nothing configured).
+    """
+    from api.services import desk_daily_session as dds
+
+    wire = _door_c_wire(monkeypatch)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+
+    getattr(dds, fn)(*args, **kwargs)
+    assert wire.posts == []
+
+
+@pytest.mark.parametrize("fn,args,kwargs", [
+    ("_alert_owner", (STUCK_NOW,), {"kind": "stuck"}),
+    ("_notify_published", ("t", "vid123"), {}),
+])
+def test_WIRE_rows_11_and_12_follow_the_ops_variable_once_it_is_SET(monkeypatch, fn, args,
+                                                                   kwargs):
+    """⛔ THE CONTROL for both rows."""
+    from api.services import desk_daily_session as dds
+
+    wire = _door_c_wire(monkeypatch)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+
+    getattr(dds, fn)(*args, **kwargs)
+    assert [p[0] for p in wire.posts] == [OPS_ONLY]
+
+
+def test_door_C_still_answers_for_every_caller_that_passes_NO_url(monkeypatch):
+    """⛔⛔ THE OTHER DIRECTION, and it is the one that protects the BUSINESS path.
+
+    Five notifiers in `discord_notify` — signup, waitlist, subscription, churn, admin
+    action — and roughly twenty other callers across `api/` pass no `url` at all. Their
+    destination must stay door C's import-time capture, byte for byte: this step
+    converts three rows, not the signup channel. ⭐ Paired with the `url=""` case, this
+    is what makes the None/"" distinction a measured behaviour rather than a comment.
+    """
+    from api.services import discord_notify as dn
+
+    wire = _door_c_wire(monkeypatch)
+    monkeypatch.setattr(dn, "DISCORD_ADMIN_WEBHOOK", TODAY)
+
+    dn._send_webhook({"title": "\U0001f195 New Signup"})
+    assert [p[0] for p in wire.posts] == [TODAY]
+
+    wire.posts.clear()
+    dn._send_webhook({"title": "\U0001f195 New Signup"}, url="")
+    assert wire.posts == [], (
+        "an explicit empty destination fell back to door C's captured value — that is "
+        "the second-authority defect the url=None/url='' split exists to prevent")
+
+    wire.posts.clear()
+    dn._send_webhook({"title": "\U0001f195 New Signup"}, url=OPS_ONLY)
+    assert [p[0] for p in wire.posts] == [OPS_ONLY]
+
+
+def test_row_12s_docstring_no_longer_claims_an_audience():
+    """⭐ SETTLED BY THE PACKET, AND THE DELETION IS THE COMMIT'S OTHER HALF.
+
+    `_notify_published`'s docstring called itself *"Audience-facing"* while its email leg
+    is `DESK_DAILY_SESSION_ALERT_EMAILS or ADMIN_EMAILS` and its Discord leg is the admin
+    channel. ⛔ The rail asserts the CLAIM is gone and that the real PUBLIC path is NAMED
+    in its place — a docstring that simply dropped the word would leave the next reader to
+    rediscover the whole row.
+
+    ⚠️ THE ABSENCE CHECK IS CASE-INSENSITIVE AND WHOLE-FILE, so the docstring may not use
+    that phrase for the OTHER path either. That is not pedantry: a substring test cannot
+    distinguish "this post is audience-facing" from "an audience-facing path exists
+    elsewhere", and the second wording is how the first survives a sweep. Both versions
+    of this rail caught a real instance of exactly that while it was being written.
+
+    ⛔⛔ AND IT ASSERTS THE LEAK GUARD IS STILL WRITTEN DOWN. The tempting way to "fix"
+    row 12 is to point this post at `DISCORD_TSDR_WEBHOOK_URL` so the old sentence
+    becomes true. That announces EVERY show — including paywalled Live Trading Sessions —
+    to the public ~750-member room, bypassing `desk_session_announce`'s per-show
+    allowlist. It is the one consequence in this whole step that no variable can undo.
+    """
+    from api.services import desk_daily_session as dds
+
+    doc = dds._notify_published.__doc__ or ""
+    # ⛔ CASE-INSENSITIVE, and the reason is measured: the first version of this rail
+    # went RED against a docstring that had correctly deleted the CLAIM but QUOTED the
+    # phrase in a "this used to say X" note. A case-sensitive check would have been
+    # satisfied by re-casing the quote, which is a dodge and not a fix —
+    # `lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`, so the phrase goes and
+    # the reasoning stays.
+    assert "audience-facing" not in doc.lower(), (
+        "row 12's docstring still claims an audience its own recipient list contradicts")
+    assert "desk_session_announce" in doc, (
+        "the docstring deletes the wrong sentence without naming the right path")
+    assert "DISCORD_TSDR_WEBHOOK_URL" in doc, (
+        "the paid-content-leak guard against 'fixing' row 12 the other way is gone")
+
+    # ⛔ NON-VACUITY: a `__doc__` of None or "" would satisfy all three `not in` /
+    # `in` checks above in the flattering direction if they were only negative ones.
+    assert len(doc) > 400, len(doc)
+
+    # ⭐ AND THE SOURCE, not just the runtime docstring — `python -OO` strips docstrings,
+    # so a check that only reads `__doc__` can be defeated by an interpreter flag.
+    source = (REPO / "api" / "services" / "desk_daily_session.py").read_text(encoding="utf-8")
+    assert "audience-facing" not in source.lower()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

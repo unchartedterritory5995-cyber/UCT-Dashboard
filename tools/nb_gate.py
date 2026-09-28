@@ -18,6 +18,20 @@ import re
 import subprocess
 import sys
 
+# ⛔ WINDOWS STDOUT IS cp1252 UNDER TASK SCHEDULER, AND THIS VERDICT CARRIES ⚠/⭐/—.
+# The 2026-09-20 Sunday gate wrote its verdict file and THEN died at `print(body)`
+# with `UnicodeEncodeError: 'charmap'`, so the task read Last Result 1 on the one
+# run of the week that decides keep-or-revert. The wrapper now sets
+# PYTHONIOENCODING (a local fix); the repo copy must not depend on it. The same
+# guarded block `tools/window_check.py` and `tools/nb_soak.py` carry: a pipe that
+# cannot be reconfigured must not take the gate down either.
+# Rail: tests/test_nb_gate_stdout.py (a subprocess with the encoding env removed).
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: BLE001
+        pass
+
 HERE = pathlib.Path(__file__).resolve().parent
 LOG = pathlib.Path(os.environ.get("NB_OBSERVE_LOG", "") or (HERE / "wave-q1-observation-log.md"))
 OUT = pathlib.Path(os.environ.get("NB_GATE_VERDICT", "") or (HERE / "wave-q1-gate-verdict.md"))

@@ -180,7 +180,7 @@ def _seed_member(conn, uid: str) -> None:
     ts = "2026-09-25T00:00:00+00:00"
     conn.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, created_at, updated_at)"
                  " VALUES (?,?,?,?,?,?,?,?)", (f"note-{uid}", uid, f"title {uid}", '{"type":"doc"}',
-                                                f"body {uid}", "[]", ts, ts))
+                                                f"body {uid}", '["purge-probe"]', ts, ts))
     conn.execute("INSERT INTO j2_note_documents (id, user_id, note_id, attachment_url, status, created_at)"
                  " VALUES (?,?,?,?,'ready',?)", (f"doc-{uid}", uid, f"note-{uid}", f"/att/{uid}.pdf", ts))
     conn.execute("INSERT INTO j2_note_document_pages (document_id, user_id, page_number, text)"
@@ -188,6 +188,13 @@ def _seed_member(conn, uid: str) -> None:
     conn.execute("INSERT INTO j2_note_excerpts (id, user_id, note_id, document_id, page_number, captured_text,"
                  " created_at) VALUES (?,?,?,?,1,?,?)", (f"exc-{uid}", uid, f"note-{uid}", f"doc-{uid}",
                                                          f"saved passage {uid}", ts))
+    # Wave 10 (lane 10A): the note carries a tag, so the tag index (db.py, one row per
+    # note tag, trigger-kept) holds a row for the member too. The task index holds a
+    # member's task TEXT and is emptied by its AFTER DELETE trigger on j2_notes. A door writes the row after its body write;
+    # a raw insert fires the invalidating trigger instead, so the row is written here.
+    conn.execute("INSERT INTO j2_note_task_digest (note_id, user_id, tasks_json) VALUES (?,?,?)",
+                 (f"note-{uid}", uid, '[{"index": 0, "checked": false, "text": "task of ' + uid + '",'
+                  ' "due": null, "depth": 1, "links": []}]'))
     conn.commit()
 
 

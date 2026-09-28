@@ -1026,3 +1026,43 @@ describe('CommandPalette — R1-N2: where Enter lands never depends on WHEN it i
     expect(await landingIn('tickers-first', 'tsl', TSL)).toBe('/research/TSLA')
   })
 })
+
+// ⭐ Wave 10 (10D, R-16, study task T4): `switcher_used` — declared in wave 6, fired from no
+// door until now. Picking a NOTE row counts how many note rows were offered, where the
+// picked one sat and what kind of row it was — never the query, the title or the id.
+describe('switcher_used — picking a note counts the pick, and nothing about the note', () => {
+  function routeNotes(notes) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.startsWith('/api/ticker-search')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [] }) })
+      }
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ notes, hasMore: false }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ notes: [] }) })
+    })
+  }
+  const row = (over) => ({
+    id: 'n1', title: 'Q3 NVDA thesis', folderId: 'f1', folderPath: 'Research / Semis',
+    ticker: 'NVDA', updatedAt: '2026-09-01T00:00:00Z', isRecent: false, isFavorite: false,
+    matchTier: 2, strong: true, exact: false, ...over,
+  })
+  const telemetry = () => global.fetch.mock.calls
+    .filter(([u]) => String(u) === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('clicking the second of two note rows (a favorite) sends ONE switcher_used', async () => {
+    routeNotes([row({ id: 'secret-a', title: 'Semis plan A' }),
+      row({ id: 'secret-b', title: 'Semis plan B', isFavorite: true })])
+    renderPalette()
+    act(() => pressCtrlK())
+    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'semis plan' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Note: Semis plan B/ }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toContain('secret-b'))
+    expect(telemetry()).toEqual([
+      { event: 'switcher_used', props: { results: 2, rank: 2, picked: true, mode: 'favorite' } },
+    ])
+    expect(JSON.stringify(telemetry())).not.toMatch(/Semis|secret|semis plan|NVDA/)
+  })
+})

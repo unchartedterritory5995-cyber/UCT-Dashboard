@@ -120,6 +120,12 @@ _J2_TELEMETRY_EVENTS = {
     # both are here — never retyped.
     "note_open_ms", "save_failed", "conflict_forked", "ask_used",
     "capture_used", "search_used", "switcher_used",
+    # Wave 10 (lane 10D, ruling R-16) — "every core action" is the user study's
+    # T1-T10 plus export, import, save_success, share, publish, writing help and
+    # dictation; bulk_used is T5. Same client door, same arrival schema below.
+    # The task -> event table is CORE_ACTION_EVENTS in notebookTelemetry.js.
+    "save_success", "export_used", "import_used", "share_used", "publish_used",
+    "writing_help_used", "dictation_used", "bulk_used",
 }
 
 # Wave 6 (D14, S-3) — the seven Notebook events' prop schemas, applied on
@@ -132,6 +138,14 @@ _J2_TELEMETRY_EVENTS = {
 # its values, else 'other'. ⛔ ONE FACT IN TWO FILES: this dict and the client's
 # EVENT_SCHEMAS are pinned by tests/test_notebook_telemetry_events.py, which
 # PARSES the client source — change both or neither.
+#
+# The `save_failed` reason the client sends when the BROWSER itself reports no
+# connection (`NoteEditorPage.jsx` `reportSaveFailed`: no status and
+# `navigator.onLine === false`). Named once, here, because the Notebook SLO's
+# stall count reads it too (`notebook_slo._offline_reason`): an offline retry
+# streak is the member's network, not our outage. tests/test_notebook_slo.py pins
+# it to the word the client source sends.
+SAVE_FAILED_OFFLINE_REASON = "offline"
 _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     "note_open_ms": {
         "ms": "num",
@@ -140,7 +154,8 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "save_failed": {
         "status": "num",
-        "reason": ("network", "http", "conflict", "quota", "offline", "too-large", "unknown"),
+        "reason": ("network", "http", "conflict", "quota", SAVE_FAILED_OFFLINE_REASON, "too-large",
+                   "unknown"),
         "offline": "bool",
         "retrying": "bool",
     },
@@ -168,6 +183,48 @@ _NOTEBOOK_PROP_SCHEMAS: dict[str, dict[str, Any]] = {
         "rank": "num",
         "picked": "bool",
         "mode": ("title", "recent", "favorite", "create"),
+    },
+    # Wave 10 (10D, R-16). ⛔ `bulk_used.op` must stay NOTE_BATCH_OPS (railed:
+    # tests/test_notebook_telemetry_events.py), `import_used.source` the importer
+    # registry's adapter ids and `export_used.format` EXPORT_FORMATS + png/print
+    # (railed client-side: app/src/pages/journal-2-0/lib/notebookTelemetry.test.js,
+    # the "R-16 — every core action has an event that fires on its success" block).
+    "save_success": {
+        "door": ("editor", "outbox"),
+        "queued": "bool",
+    },
+    "export_used": {
+        "format": ("md", "html", "json", "docx", "png", "print"),
+        "scope": ("note", "selection", "notebook"),
+        "count": "num",
+    },
+    "import_used": {
+        "source": ("uct-export", "evernote", "notion", "obsidian", "logseq", "keep", "file"),
+        "created": "num",
+        "updated": "num",
+        "failed": "num",
+    },
+    "share_used": {
+        "action": ("create", "copy", "revoke"),
+    },
+    "publish_used": {
+        "action": ("publish", "unpublish", "copy"),
+        "kind": ("note", "folder"),
+        "door": ("editor", "sidebar"),
+    },
+    "writing_help_used": {
+        "action": ("summarize", "rewrite", "continue", "translate", "autofill"),
+        "scope": ("selection", "whole", "property"),
+        "replaced": "bool",
+    },
+    "dictation_used": {
+        "words": "num",
+    },
+    "bulk_used": {
+        "op": ("move", "addTag", "removeTag", "favorite", "unfavorite", "trash", "restore",
+               "archive", "unarchive", "renameTag"),
+        "changed": "num",
+        "failed": "num",
     },
 }
 
@@ -2321,9 +2378,14 @@ def daily_note_endpoint(
     from api.services.journal_two import note_daily
     body = payload or {}
     try:
-        return note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
+        out = note_daily.open_daily_note(user["id"], body.get("date"), body.get("templateId"))
     except note_daily.DailyNoteError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    # Wave 10 (10D): an existing daily note stored before the depth cap opens
+    # with its body withheld, like every other note read (`_servable_note`).
+    if isinstance(out, dict) and "note" in out:
+        out = {**out, "note": _servable_note(out["note"])}
+    return out
 
 
 NOTE_BATCH_EXPORT_MAX = 500
@@ -2427,7 +2489,7 @@ def append_note_embed_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
-    return {"note": note}
+    return {"note": _servable_note(note)}
 
 
 @router.get("/notes/{note_id}/trade-ref/resolve")
@@ -2532,7 +2594,7 @@ def get_note_version_endpoint(
     version = notes_service.get_note_version(user["id"], note_id, version_id)
     if version is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"version": version}
+    return {"version": _servable_note(version)}
 
 
 @router.post("/notes/{note_id}/versions/{version_id}/restore")
@@ -2553,9 +2615,13 @@ def restore_note_version_endpoint(
         )
     except notes_service.NoteConflictError:
         raise HTTPException(status_code=409, detail="note changed — refresh and retry")
+    except NoteValidationError as e:
+        # ⛔ Wave 10 (10D): a version stored before the depth cap is refused by
+        # update_note's body check -- a 400 with that sentence, never a 500.
+        raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 @router.get("/notes/{note_id}/export")
@@ -2748,7 +2814,7 @@ def insert_note_fact_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
-    return {"note": note}
+    return {"note": _servable_note(note)}
 
 
 @router.put("/facts/{fact_id}")
@@ -3019,6 +3085,69 @@ def notes_enrichment_scan_endpoint(payload: dict[str, Any], user: dict = Depends
     return enrichment.scan_notes_for_tickers(user["id"], note_ids or [])
 
 
+# ── Wave 10 (10D): the READ side of an over-deep note ────────────────────────
+# ⛔⛔ H14 hotfix #203 refuses a body deeper than `notes.MAX_BODY_DEPTH` on every
+# WRITE door. A note ALREADY stored deeper than that (written before the cap)
+# still answered 500 on every read: FastAPI's response serialiser refuses a
+# payload nested past its own ceiling, so the member could never open it again
+# (10C concern 4, measured docs/notebook/evidence/wave10-10c/). Every route in
+# this file that answers with a whole note or version body goes through
+# `_servable_note`, which WITHHOLDS a body past the cap and answers 200 with the
+# note's metadata. The stored row is never touched.
+#
+# ⛔ THE PLACEHOLDER MUST LOCK THE EDITOR, NEVER BLANK IT. A withheld body shown
+# as an empty doc would be autosaved over the stored note -- the loss this
+# exists to prevent. So the placeholder is a doc every editor's content guard
+# (`lib/noteContentGuard.js`) cannot BUILD, with every TYPE known: a paragraph
+# carrying the depth sentence, then an EMPTY text node (ProseMirror throws
+# "Empty text nodes are not allowed"). `unreadableReason` answers
+# UNREADABLE_MALFORMED for it, the editor locks read-only and says "Part of this
+# note is stored in a form the editor can't open ... Nothing in it has been
+# changed." -- the client's EXISTING vocabulary, no second one. The marker
+# `bodyWithheld.reason` carries the same word for every other reader, pinned to
+# the client constant by tests/test_note_read_side_depth.py (which parses the JS).
+# And the PUT door refuses the placeholder echoed back (`_is_withheld_placeholder`),
+# so no stale copy of it can ever be written over the stored note.
+BODY_WITHHELD_REASON = "malformed"
+
+_WITHHELD_BODY_JSON: dict[str, Any] = {
+    "type": "doc",
+    "content": [
+        {"type": "paragraph",
+         "content": [{"type": "text", "text": notes_service.TOO_DEEP_BODY_DETAIL}]},
+        # ⛔ the unbuildable node -- see above. Never "fix" it into a valid one.
+        {"type": "paragraph", "content": [{"type": "text", "text": ""}]},
+    ],
+}
+
+
+def _servable_note(n: Any) -> Any:
+    """`n` unchanged, or a copy whose over-deep `bodyJson` is withheld (see above).
+    Also used for a version dict, which carries `bodyJson` the same way."""
+    if not isinstance(n, dict):
+        return n
+    body = n.get("bodyJson")
+    if not isinstance(body, (dict, list)) or not notes_service._json_depth_exceeds(
+            body, notes_service.MAX_BODY_DEPTH):
+        return n
+    out = dict(n)
+    out["bodyJson"] = json.loads(json.dumps(_WITHHELD_BODY_JSON))
+    out["bodyWithheld"] = {"reason": BODY_WITHHELD_REASON,
+                           "detail": notes_service.TOO_DEEP_BODY_DETAIL}
+    return out
+
+
+def _is_withheld_placeholder(raw: Any) -> bool:
+    """True when a write carries the withheld placeholder back (as an object or
+    as a JSON string)."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError, RecursionError):
+            return False
+    return raw == _WITHHELD_BODY_JSON
+
+
 @router.get("/notes/{note_id}")
 def get_note_endpoint(
     note_id: str,
@@ -3027,7 +3156,7 @@ def get_note_endpoint(
     n = notes_service.get_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
@@ -3258,7 +3387,7 @@ def create_note_endpoint(
         n = notes_service.create_note(user["id"], payload or {})
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 @router.put("/notes/{note_id}")
@@ -3277,6 +3406,10 @@ def update_note_endpoint(
     # including a stale one the outbox replays — never changes it.
     if isinstance(patch, dict):
         patch.pop("locked", None)
+        # ⛔ Wave 10 (10D): the withheld placeholder is never written back over
+        # the stored over-deep body it stands in for (see `_servable_note`).
+        if _is_withheld_placeholder(patch.get("bodyJson")):
+            raise HTTPException(status_code=400, detail=notes_service.TOO_DEEP_BODY_DETAIL)
     try:
         n = notes_service.update_note(
             user["id"], note_id, patch,
@@ -3297,7 +3430,7 @@ def update_note_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 @router.delete("/notes/{note_id}")
@@ -3411,7 +3544,7 @@ def lock_note_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 @router.patch("/notes/{note_id}/tags")
@@ -3442,7 +3575,7 @@ def patch_note_tags_endpoint(
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n, "changed": bool(changed)}
+    return {"note": _servable_note(n), "changed": bool(changed)}
 
 
 @router.patch("/notes/{note_id}/archive")
@@ -3461,7 +3594,7 @@ def archive_note_endpoint(
     n = notes_service.set_note_archived(user["id"], note_id, archived)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 @router.post("/notes/{note_id}/restore")
@@ -3475,7 +3608,7 @@ def restore_note_endpoint(
     n = notes_service.restore_note(user["id"], note_id)
     if n is None:
         raise HTTPException(status_code=404, detail="Not found")
-    return {"note": n}
+    return {"note": _servable_note(n)}
 
 
 async def _hand_off_to_documents(user_id: str, note_id: str, saved: dict, content_type,
@@ -3543,7 +3676,7 @@ async def upload_note_hero_endpoint(
     updated = notes_service.update_note(
         user["id"], note_id, {"heroImageUrl": img["url"]},
     )
-    return {"heroImageUrl": img["url"], "note": updated}
+    return {"heroImageUrl": img["url"], "note": _servable_note(updated)}
 
 
 @router.delete("/notes/{note_id}/hero")
@@ -3559,7 +3692,7 @@ def delete_note_hero_endpoint(
     # offline drain asks "is this server copy ours?", answers no about our own
     # write, and forks the member's note (measured 2026-09-12). It cannot record
     # a revision it was never told. `{"ok": True}` is not enough.
-    return {"ok": True, "note": n}
+    return {"ok": True, "note": _servable_note(n)}
 
 
 @router.post("/notes/{note_id}/attachments")
@@ -3872,8 +4005,19 @@ def create_excerpt_endpoint(
         )
     except note_excerpts.ExcerptValidationError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
-    note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    # ⛔ Wave 10 10D fix round 1 (review M-10): placing the node can be REFUSED —
+    # a note already stored past the H14 depth cap fails `_validate_body_json`
+    # inside the append — and the excerpt row above is already written. A refusal
+    # answers 400 with the sentence (like the embed and fact doors) and removes
+    # the row this request made, so a refused save leaves no unplaced excerpt
+    # behind; a note gone since (None) is cleaned up the same way.
+    try:
+        note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
+    except NoteValidationError as e:
+        note_excerpts.delete_excerpt(user["id"], excerpt["id"])
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if note is None:
+        note_excerpts.delete_excerpt(user["id"], excerpt["id"])
         raise HTTPException(status_code=404, detail="Note not found")
     # Wave Q1 (2026-09-12): ADDITIVE -- the note travels back with the excerpt.
     # `append_document_excerpt` advanced this note's `updated_at`, and a browser
@@ -3881,7 +4025,7 @@ def create_excerpt_endpoint(
     # sees a revision it has never heard of, decides somebody else wrote it, and
     # forks the member's note against their own excerpt capture. Every other
     # door route already returns the note; this was the one that did not.
-    return {"excerpt": excerpt, "note": note}
+    return {"excerpt": excerpt, "note": _servable_note(note)}
 
 
 @router.get("/notes/{note_id}/evidence-candidates")

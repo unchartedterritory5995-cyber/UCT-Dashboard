@@ -43,6 +43,7 @@ import { settleForkedNote } from './outboxDrain'
 import { lastKnownServerCopy, snapshotOfServerCopy } from './serverChange'
 import { usableBaseline, isUsableBaseline } from './baseline'
 import { holdNoteOwnerLock } from './noteOwnerLock'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 
 /** No durable store here at all (a private window, an old browser). Reported,
  *  never papered over — the product degrades truthfully. */
@@ -251,6 +252,16 @@ export async function recordLandedRevision({
 export async function settleLandedSave({
   accountId, noteId, acked, current, updatedAt, connect = connectNotebookDb,
 } = {}) {
+  // ⭐ Wave 10 (10D, R-16) — `save_success`: the server ACCEPTED this editor
+  // save (every landed save of the open note settles here, content and the
+  // metadata doors alike). Fired FIRST, before the §21 and storage checks
+  // below: a landing is a fact whether or not the offline layer is on, and a
+  // telemetry POST is not a store write. The denominator is `save_failed`
+  // (NoteEditorPage) — the save-success SLO reads the two together
+  // (api/services/journal_two/notebook_slo.py). Never content: a word and a flag.
+  if (noteId && usableBaseline(updatedAt)) {
+    trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS, { door: 'editor', queued: false })
+  }
   // ⛔⛔ §21 — SWITCHING THE WAVE OFF MUST WRITE NOTHING. The one-line rollback
   // is only real if every store-direct entry point honours it. These three are
   // mount-independent by design, so they are exactly the ones that would keep
