@@ -1,0 +1,1378 @@
+{
+ "_doc": [
+  "TERM-026 read baseline for api/auth_surface_check.audit_surface.",
+  "Every entry is an anonymous-reachable read measured over api.main:app on 2026-09-27.",
+  "kind=inline: gated in the handler body; 'marker' must stay in the comment-stripped handler code.",
+  "kind=public: deliberately anonymous, with the reason.",
+  "kind=open: NO gate found. Recorded, NOT ruled safe; fixing these is separate work.",
+  "A new anonymous read is a finding; an entry that is now gated or gone is STALE and also a finding.",
+  "Edit by hand; tools/auth_surface_audit.py --candidates prints stubs for new findings."
+ ],
+ "measured": "2026-09-27",
+ "routes": [
+  {
+   "method": "GET",
+   "path": "/Darkpool-data.csv",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/Indexes-data.csv",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/audit-bars/{ticker}",
+   "kind": "inline",
+   "marker": "_check_admin_auth",
+   "reason": "Gated INLINE in the handler body by _check_admin_auth (not a Depends), module api.routers.bars."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/bars-stream-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.bars). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/calendar-coverage-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/calendar-date-integrity",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/calendar-enrichment-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/call-recap-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings_intel). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/fmp-adapter-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fmp_adapter_status). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/fundamentals-health",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fundamentals). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/implied-sweep-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/massive-adapter-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.massive_adapter_status). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/provider-coverage",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.provider_coverage). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/reconciliation-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.bars). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/threads-dump",
+   "kind": "inline",
+   "marker": "_require_push_secret",
+   "reason": "Gated INLINE in the handler body by _require_push_secret (not a Depends), module api.debug_dump_router."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/transcript-index-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings_intel). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/warm-universe-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.bars). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/yfinance-guard",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.yf_guard). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/auth/avatar/{user_id}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.avatar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/history/adv-dec-coverage",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/history/recompute-deep-result",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/history/sweep-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live-diag",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live/reconcile",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live/store",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/ohlc/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/pit/calibrate-result",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/pit/validate-result",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/universe",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/wicks/probe",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/wicks/validate-result",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.breadth_monitor). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/day-metrics",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/day-metrics-batch",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/enrichment",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/enrichment-batch",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/export.ics",
+   "kind": "inline",
+   "marker": "_decode_ics_token",
+   "reason": "Gated INLINE in the handler body by _decode_ics_token (not a Depends), module api.routers.calendar."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/implied-moves",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/ipos",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/month",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/most-anticipated.png",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/reactions",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/report.ics",
+   "kind": "public",
+   "reason": "One earnings report as an 'Add to calendar' event; the handler's own docstring says 'No auth, no token -- it's a single public event the user already sees.'"
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/week-earnings.png",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/week-econ.png",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.calendar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/wire",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.wire). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/wire-coverage",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.wire). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/wire-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.wire). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/catalysts/today-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.catalysts."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart-markers/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart-news/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.chart_news). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart/markers/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.charts). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/compare/group-members",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.compare). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/compare/groups",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.compare). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/cot/narratives/prewarm-status",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.cot."
+  },
+  {
+   "method": "GET",
+   "path": "/api/cot/narratives/recent",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.cot."
+  },
+  {
+   "method": "GET",
+   "path": "/api/darkpool/flatfile-ingest/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.darkpool_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/darkpool/intraday-ingest/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.darkpool_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/darkpool/massive-ingest/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.darkpool_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/dealer-positioning/flow-sources",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.dealer_positioning_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/dealer-positioning/sample",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.dealer_positioning_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/dealer-positioning/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.dealer_positioning_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/debug/earnings-sources/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/creative-cover-backfill",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/creative-cover-retry",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/description-backfill",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/insights-status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/recap-pending",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/recap-source/{video_id}",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/session-audit",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/sessions-status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/team/{member_id}/photo",
+   "kind": "public",
+   "reason": "Desk team photo (marketing image)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/activity/handoff",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.discord_interactions). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/index-close/status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.discord_interactions."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/render-health",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.discord_interactions."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings-analysis/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings-gaps",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings-intel/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fundamentals). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings/audio/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings_intel). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/earnings/intel/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.earnings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/filings/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.filings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/filings/{ticker}/primary",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.filings). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow-backup/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_backup). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow-gap-fill/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_gap_autofill). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow-scoreboard",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_scoreboard). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow-scoreboard/",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_scoreboard). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow/aggregate-health",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/flow/etf-replica-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.flow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/fundamentals-full/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fundamentals). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/fundamentals-statements/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fundamentals). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/fundamentals/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.fundamentals). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/gex/compare",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.gex_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/health",
+   "kind": "public",
+   "reason": "Liveness probe; Railway's healthcheckPath and external monitors call it without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/api/internal/media-evidence/session-time/{video_id}",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.media_evidence_bridge."
+  },
+  {
+   "method": "GET",
+   "path": "/api/internal/media-evidence/trades",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.media_evidence_bridge."
+  },
+  {
+   "method": "GET",
+   "path": "/api/intradaypack/manifest",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.intradaypack_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/intradaypack/{date}/delta",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.intradaypack_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/intradaypack/{date}/{idx}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.intradaypack_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/admin/excursion-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.journal_two). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/broker-coverage",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/drift-series",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/ledger-conservation",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/option-mark-compare",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/capture/destinations",
+   "kind": "inline",
+   "marker": "require_capture_scope",
+   "reason": "Gated by a require_capture_scope(...) FACTORY Depends in the handler signature; its product has no stable name GUARD_NAMES can hold, so the marker is the factory call. Module api.routers.capture_auth."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notebook-validation-report",
+   "kind": "inline",
+   "marker": "validate_session",
+   "reason": "Gated INLINE in the handler body by validate_session (not a Depends), module api.routers.journal_two."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/{provider}/callback",
+   "kind": "public",
+   "reason": "OAuth redirect target: reached from the provider before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/public/track-record/{token}",
+   "kind": "public",
+   "reason": "Public track-record link: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): a published page is public by design."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): an attachment of a published page."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): a published page is public by design."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): an attachment of a published page."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}",
+   "kind": "public",
+   "reason": "Notebook share link: possession of the unguessable token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook share link attachment: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/alerts/history",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.liveflow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/alerts/recent",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.liveflow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/auto-push-config",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/by-contract",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/contract-debug",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/cream",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/curated",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/curated-stream",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.massive_stream_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/curated-stream-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.massive_stream_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/day-stats",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/diagnostic",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/dormant-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/nbbo-histogram",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/pushed",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/q-pool-history",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/recent",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/restart-log",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/side-diagnostic",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/side-method-stats",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/spot-check",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/stream",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.massive_stream_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/stream-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.massive_stream_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/ticker-flow",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/massive/worker-history",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.live_massive_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/live/user-blocklist",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.liveflow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/liveflow/consumer-state",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.liveflow_health). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/logos/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.ticker_logos). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/maintenance",
+   "kind": "public",
+   "reason": "Maintenance-banner state; read before sign-in so a signed-out visitor sees it."
+  },
+  {
+   "method": "GET",
+   "path": "/api/market-calendar",
+   "kind": "public",
+   "reason": "Exchange trading calendar (public market fact)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/market-indicators/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.market_indicators). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/massive/flatfiles/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/massive/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/news",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.news). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/notable-flow/dedupe",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.notable_flow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/notable-flow/settings",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.notable_flow_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/oi-snapshot/history",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.oi_snapshot_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/oi-snapshot/lookup",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.oi_snapshot_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/oi-snapshot/run-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.oi_snapshot_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/oi-snapshot/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.oi_snapshot_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/oi-snapshot/test-massive/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.oi_snapshot_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/provenance/bar",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.provenance_bar). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/push/journal-export",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.push."
+  },
+  {
+   "method": "GET",
+   "path": "/api/quote-of-the-day",
+   "kind": "public",
+   "reason": "Quote of the Day; documented as a public endpoint (CLAUDE.md, FuturesStrip)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/book",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/breadth",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/breadth-monitor",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/buzz",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/calendar-week.png",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/catalysts",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/chart-settings",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/earnings-history",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/econ",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/flow",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/themes",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/tweets",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ready",
+   "kind": "public",
+   "reason": "Readiness probe; must answer without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/analyst-ratings/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/company-news/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/compare/{sym}/{comparator}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/estimates/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/financial-history/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/financials/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/news/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/ownership/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/quote/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/ratings-percentile/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/ratings/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/snapshot/{sym}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.research). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/backfill-contract",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/callback",
+   "kind": "public",
+   "reason": "OAuth redirect target: reached from the provider before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/chart-bounds",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/chart-ohlc",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/contract-history",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/earnings-test",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/market-summary",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/mktcap-batch",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/oi-change-batch",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/options-quote",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/ytd-performance",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.schwab_router). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/screener/shared/{share_token}",
+   "kind": "public",
+   "reason": "Screener share link: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/stream/prices",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.stream). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe. Named in anti-patterns GATE-7 / RISK_REGISTER R-17."
+  },
+  {
+   "method": "GET",
+   "path": "/api/stream/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.stream). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/support/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.support_status). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/terminal-next/catalyst-receipt",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.terminal_next_reports."
+  },
+  {
+   "method": "GET",
+   "path": "/api/terminal-next/report/{name}",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.terminal_next_reports."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-ipo/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.ticker_meta). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-logo/{sym}",
+   "kind": "public",
+   "reason": "Company-logo image proxy used in <img> tags."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-meta/{ticker}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.ticker_meta). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-search",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.ticker_search). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-types/etf-index-symbols",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-types/generation",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-types/replica-push-status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.main). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/transcripts/{symbol}",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.routers.transcripts). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/watchdog/status",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module api.event_loop_watchdog). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/api/wire-feedback/recent-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.wire_feedback."
+  },
+  {
+   "method": "GET",
+   "path": "/docs",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/docs/oauth2-redirect",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/openapi.json",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/redoc",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "HEAD",
+   "path": "/docs",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "HEAD",
+   "path": "/docs/oauth2-redirect",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "HEAD",
+   "path": "/openapi.json",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "HEAD",
+   "path": "/redoc",
+   "kind": "open",
+   "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  }
+ ]
+}
