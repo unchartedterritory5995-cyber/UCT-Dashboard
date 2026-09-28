@@ -772,7 +772,7 @@ not re-trigger promotion). ⚠️ No markdown runbook carries the a11y gate's re
 lives in `notebook-a11y.yml`'s own header -- so the same two lines went into both perf workflow
 headers, beside the gate they recover.
 
-**Still open, by ruling:** the quiet-box verdicts (clauses 4b, 4d, 13d, 14a, 14b, 14d) are taken
+**Still open, by ruling:** the quiet-box verdicts (clauses 4b, 4d, 13d, 14a, 14b, 14d; here "4b" is the 50k search p95 reading, NOT R-10's clause 4b "enforced in CI", which the 20 green runs above met -- controller ruling, wave 10 follow-up F3) are taken
 by the controller in a held quiet slot after this round; the SQLite page cache is not changed in
 wave 10; the two typing levers named above (the toolbar's whole-page re-render and the
 per-keystroke draft snapshot) are deferred, and the snapshot is not touched.

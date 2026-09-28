@@ -24,6 +24,11 @@ flip made wrong), and a record naming any other revision is refused. §0, the ev
 provenance rather than ancestry (squash-landed waves are never ancestors of master): the tag pins the
 recorded tip, the squash is an ancestor, the cited evidence is unchanged since it landed, and every
 measured tree is reachable. Each of those four is shown failing on a planted defect below.
+
+F3 fix round 1 (review I-1, I-2, I-3, M-6): the tag must pin the head that was SQUASHED and the squash
+must carry it file for file (property 5); a measured tree is reachable only from HEAD or a declared
+wave's tag, and that wave must have landed; no measured tree leans on HEAD; and every evidence file
+or walked tree the scorecard cites must be one §0 checks. Each is shown failing below.
 """
 from __future__ import annotations
 
@@ -310,52 +315,132 @@ def test_a_flag_status_the_ledger_does_not_hold_is_refused():
     assert not psc.verify(text, rev=rev)[1], 'control: the unplanted text verifies'
 
 
-# ── §0, the evidence index (wave 10, F3): provenance, each property shown failing ──────────────────
+# ── §0, the evidence index (wave 10, F3; fix round 1): provenance, each property shown failing ─────
+
+W9 = ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74')
+
 
 def test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous():
     rows, problems = psc.evidence_index('HEAD')
     assert not problems, problems
-    assert len(rows) == 2 * len(psc.B0_WAVES) + len(psc.B0_EVIDENCE) + len(psc.B0_TIPS)
-    assert len(psc.B0_WAVES) >= 7 and len(psc.B0_EVIDENCE) >= 20 and len(psc.B0_TIPS) >= 10
+    assert len(rows) == 3 * len(psc.B0_WAVES) + len(psc.B0_EVIDENCE) + len(psc.B0_TIPS)
+    assert len(psc.B0_WAVES) >= 8 and len(psc.B0_EVIDENCE) >= 30 and len(psc.B0_TIPS) >= 10
+    # fix round 1 (review I-3): no measured tree leans on HEAD, which a squash would leave behind
+    assert all(ref != 'HEAD' for _, ref in psc.B0_TIPS), psc.B0_TIPS
 
 
 def test_a_tag_that_does_not_pin_the_recorded_tip_is_refused():
     wave, tag, tip, landing = psc.B0_WAVES[0]
     _, problems = psc.evidence_index('HEAD', waves=[(wave, tag, '0000000aa', landing)], evidence=[], tips=[])
-    assert any(f'tag {tag} does not resolve to the recorded tip' in p for p in problems), problems
+    assert any(f'tag {tag} does not resolve to the recorded head' in p for p in problems), problems
+    # a bare SHA is never a tag: only refs/tags/ is consulted (review I-2)
+    _, p2 = psc.evidence_index('HEAD', waves=[('planted-sha', 'e7c196f38', 'e7c196f38', '1c4b0bf74')], evidence=[], tips=[])
+    assert any('tag e7c196f38 does not resolve to the recorded head' in p for p in p2), p2
 
 
 def test_a_squash_that_did_not_land_is_refused():
     # 8a0098029 is a real commit of the wave-9 branch, reachable only through its tag, never from master.
-    _, problems = psc.evidence_index('HEAD', waves=[('planted', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '8a0098029')],
-                                     evidence=[], tips=[])
+    _, problems = psc.evidence_index('HEAD', waves=[('planted', W9[1], W9[2], '8a0098029')], evidence=[], tips=[])
     assert problems == ['B0 planted: its squash 8a0098029 is not an ancestor of HEAD'], problems
+
+
+def test_a_head_its_squash_does_not_carry_is_refused():
+    """Review I-1: the tag must pin the head that was SQUASHED. Waves 5 and 7's `-tip-` tags do not -- a
+    later commit landed in their place -- and the tie (property 5) names the files that differ."""
+    _, p7 = psc.evidence_index('HEAD', waves=[('wave 7 (old tag)', 'notebook-wave7-tip-2026-09-26', 'e6f418194', 'f883e0996')],
+                               evidence=[], tips=[])
+    assert len(p7) == 1 and '6 file(s) the head e6f418194 changed differ at its squash f883e0996' in p7[0], p7
+    assert 'api/routers/journal_two.py' in p7[0], p7
+    _, p5 = psc.evidence_index('HEAD', waves=[('wave 5 (old tag)', 'notebook-wave5-tip-2026-09-24', '145478ec1', '2c3ed3093')],
+                               evidence=[], tips=[])
+    assert len(p5) == 1 and '2 file(s) the head 145478ec1 changed differ at its squash 2c3ed3093' in p5[0], p5
+    # control: the heads the PRs did squash are carried, file for file
+    _, ok = psc.evidence_index('HEAD', waves=[w for w in psc.B0_WAVES if w[0] in ('wave 5', 'wave 7')], evidence=[], tips=[])
+    assert not ok, ok
+
+
+def test_a_tie_over_no_changed_file_is_refused_as_vacuous():
+    """Property 5 must not pass by comparing nothing. Planted: a "squash" whose parent already contains the head
+    (74a907d86's parent descends from L1a's head 6777b3335), so the head changed no file against it. The tree is
+    pinned by name and read at that commit, so the rail means the same on any branch that still holds it."""
+    planted = [('planted', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '74a907d86')]
+    _, problems = psc.evidence_index('74a907d86', waves=planted, evidence=[], tips=[])
+    assert problems == ['B0 planted: the tie is vacuous -- 6777b3335 changed no file against its squash\'s parent'], problems
+
+
+def test_the_squash_of_a_recorded_head_is_found_in_heads_history():
+    """L1c's squash is not recorded (it does not exist yet); the tool finds it. Shown on the waves whose squash
+    IS recorded, against master's history: the commit found is the recorded one."""
+    rc = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', 'origin/master^{commit}'],
+                        capture_output=True, text=True, cwd=REPO)
+    if rc.returncode != 0:
+        pytest.skip('no origin/master in this clone')
+    for wave, _tag, tip, squash in psc.B0_WAVES:
+        if wave in ('wave 9', 'wave 10 L1a', 'wave 10 L1b'):
+            found = psc._find_squash(tip, 'origin/master')
+            assert found and found.startswith(squash), (wave, found, squash)
+    # control: a head no squash carries is not "found" at some later commit
+    assert psc._find_squash('e6f418194', 'origin/master') is None
 
 
 def test_evidence_that_changed_since_it_landed_is_refused():
     # the gap ledger landed with wave 9's squash and has been edited since: it must NOT read unchanged.
-    w9 = [w for w in psc.B0_WAVES if w[0] == 'wave 9']
-    _, problems = psc.evidence_index('HEAD', waves=w9, evidence=[('docs/notebook/competitive-gap-ledger.md', '1c4b0bf74')], tips=[])
+    _, problems = psc.evidence_index('HEAD', waves=[W9], evidence=[('docs/notebook/competitive-gap-ledger.md', '1c4b0bf74')], tips=[])
     assert problems == ['B0 evidence docs/notebook/competitive-gap-ledger.md: its blob at 1c4b0bf74 is not its blob at HEAD'], problems
     # control: a file wave 9 landed and nobody touched since reads unchanged
-    _, ok = psc.evidence_index('HEAD', waves=w9,
-                               evidence=[('docs/notebook/evidence/wave9-9b-8a0098029/browser-check.json', '1c4b0bf74')], tips=[])
+    _, ok = psc.evidence_index('HEAD', waves=[W9],
+                               evidence=[('docs/notebook/evidence/wave9-9b-8a0098029/browser-check.json', 'wave 9')], tips=[])
     assert not ok, ok
 
 
 def test_evidence_citing_an_unlisted_squash_or_missing_at_head_is_refused():
-    _, problems = psc.evidence_index('HEAD', waves=[], evidence=[('docs/notebook/competitive-gap-ledger.md', '1c4b0bf74'),
-                                                                  ('docs/notebook/no-such-evidence.json', 'HEAD')], tips=[])
-    assert any('1c4b0bf74 is not a listed wave squash' in p for p in problems), problems
+    _, problems = psc.evidence_index('HEAD', waves=[W9], evidence=[('docs/notebook/competitive-gap-ledger.md', 'f883e0996'),
+                                                                    ('docs/notebook/no-such-evidence.json', '1c4b0bf74'),
+                                                                    ('docs/notebook/competitive-gap-ledger.md', 'HEAD')])
+    assert any('f883e0996 is not a listed wave squash' in p for p in problems), problems
     assert any('evidence missing at HEAD: docs/notebook/no-such-evidence.json' in p for p in problems), problems
+    assert any('HEAD is not a listed wave squash' in p for p in problems), problems   # presence alone is not a check
 
 
 def test_a_measured_tree_that_is_not_reachable_is_refused():
     # 330a08964 wrote the wave-9 scorecard on the wave-9 branch: reachable from its tag, never from master.
     _, problems = psc.evidence_index('HEAD', waves=[], evidence=[], tips=[('330a08964', 'HEAD')])
     assert problems == ['B0 tip 330a08964 is not reachable from HEAD'], problems
-    _, ok = psc.evidence_index('HEAD', waves=[], evidence=[], tips=[('330a08964', 'notebook-wave9-tip-2026-09-26')])
+    _, ok = psc.evidence_index('HEAD', waves=[W9], evidence=[], tips=[('330a08964', W9[1])])
     assert not ok, ok
+
+
+def test_a_tree_named_against_a_ref_that_is_not_a_declared_wave_tag_is_refused():
+    """Review I-2, its two counterexamples: an undeclared tag of a branch that never landed, and a SHA named
+    as its own ref. Both passed the first redesign; both must be refused."""
+    _, p1 = psc.evidence_index('HEAD', waves=[W9], evidence=[], tips=[('731476cb6', 'notebook-wave9c-tip-2026-09-26')])
+    assert p1 == ['B0 tip 731476cb6: notebook-wave9c-tip-2026-09-26 is not HEAD or a declared wave tag'], p1
+    _, p2 = psc.evidence_index('HEAD', waves=[W9], evidence=[], tips=[('4d303c9da', '4d303c9da')])
+    assert p2 == ['B0 tip 4d303c9da: 4d303c9da is not HEAD or a declared wave tag'], p2
+    # a declared wave tag whose wave did not land is refused too
+    _, p3 = psc.evidence_index('HEAD', waves=[('planted', W9[1], W9[2], '8a0098029')], evidence=[],
+                               tips=[('8a0098029', W9[1])])
+    assert 'B0 tip 8a0098029: the wave of notebook-wave9-tip-2026-09-26 did not land on HEAD' in p3, p3
+    # control: the same tree against its landed wave's tag passes
+    # a tree that is NOT an ancestor of its declared, landed wave's tag is refused
+    w8 = [w for w in psc.B0_WAVES if w[0] == 'wave 8']
+    _, p4 = psc.evidence_index('HEAD', waves=w8, evidence=[], tips=[('330a08964', w8[0][1])])
+    assert p4 == [f'B0 tip 330a08964 is not reachable from {w8[0][1]}'], p4
+    _, ok = psc.evidence_index('HEAD', waves=[W9], evidence=[], tips=[('8a0098029', W9[1])])
+    assert not ok, ok
+
+
+def test_every_cited_evidence_file_and_walked_tree_is_one_the_index_checks():
+    """Review M-6: the lists are hand-typed (which squash landed a file is history the cells do not carry),
+    so the other direction is derived -- a citation §0 does not check is refused by name."""
+    text = _text(SCORECARD)
+    assert psc.cited_b0_gaps(text) == [], psc.cited_b0_gaps(text)
+    assert psc._B0_CITED.findall(text) and psc._B0_WALK_TIP.findall(text), 'non-vacuity: citations parsed'
+    planted = text + ('\nMEASURE `docs/notebook/evidence/wave10-f3/not-indexed.json`:1 "x"'
+                      '\nWALK `tools/x.py`:C1 PASS — report `docs/notebook/gate-runs/wave8/walk-341bbccf3.json`, tip 0123456789\n')
+    assert psc.cited_b0_gaps(planted) == [
+        'evidence docs/notebook/evidence/wave10-f3/not-indexed.json is cited but §0 does not check it',
+        'walked tree 0123456789 is cited but §0 does not check it'], psc.cited_b0_gaps(planted)
 
 
 # ── §C (wave 10, F3): "what 10/10 still needs" lists every clause not MET exactly once ─────────────

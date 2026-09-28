@@ -218,7 +218,7 @@ programmatic caller) that keeps the newest pre-pattern-purge backup as
 drill refuses to `--write-restored` a snapshot older than `MAX_AGE_HOURS`, so an archive
 restore would be done by hand, and it MUST then run `account_tombstones.replay_on_db` on the
 restored file before it serves anyone. Whether such an object exists was not listed (it needs
-one bucket listing), and keeping or deleting it is an open owner decision; until then it is kept.
+one bucket listing), and the owner decided on 2026-09-27 to KEEP it (recorded "DECIDED 2026-09-27 KEEP" in the Notebook program's OPEN-ITEMS.md; written here by wave 10 follow-up F3, fix round 1), so an archive restore stays by hand and MUST replay the tombstones as above.
 Wave 10 lane 10C report, item 7. Rails: `tests/test_account_tombstones.py` (the resurrected-user rail
 drills a snapshot taken BEFORE a deletion and asserts the member is gone from the restored copy).
 

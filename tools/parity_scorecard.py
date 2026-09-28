@@ -40,17 +40,28 @@ no citation, an evidence-index (§0) property that does not hold. It also refuse
 text verifies at the revision its header records (HEAD): a cited input that is edited but not
 committed would make that header a revision the citations are not true at.
 
-§0, THE EVIDENCE INDEX (redesigned in wave 10, F3). Wave 9 checked "every wave-tip SHA is an ancestor
-of HEAD". Waves 5-10 land on master as SQUASH merges (one parent), so a wave's tip is never an
-ancestor of master and that check could only pass on the wave's own branch: on master it failed for
-seven SHAs while every piece of evidence was present and unchanged. The property the index exists to
-prove is PROVENANCE: the evidence this file cites is (1) preserved -- each wave's tip is pinned by the
-tag the repo already keeps (`notebook-wave*-tip-*`), and resolves to the recorded SHA; (2) landed --
-the wave's squash (the PR merge commit on master) IS an ancestor of HEAD; (3) unchanged since it
-landed -- every cited evidence file's blob at that landing equals its blob at HEAD; and (4) the
-product tips the browser checks ran on are reachable: an ancestor of HEAD, or of a pinned wave tag
-(a squash-landed branch's commit is reachable only through its tag). `evidence_index()` checks all
-four; tests/test_parity_scorecard.py shows each of them failing on a planted defect.
+§0, THE EVIDENCE INDEX (redesigned in wave 10, F3; tightened in F3 fix round 1). Wave 9 checked
+"every wave-tip SHA is an ancestor of HEAD". Waves 5-10 land on master as SQUASH merges (one parent),
+so a wave's head is never an ancestor of master and that check could only pass on the wave's own
+branch. It did, however, prove the one thing the index is for: the code a walk measured SHIPPED. The
+redesign keeps that property through the squash:
+  (1) pinned -- each wave's SQUASHED head is pinned by a tag (refs/tags only) resolving to the
+      recorded SHA. Waves 5 and 7's `-tip-` tags are not the heads their PRs squashed (#186 squashed
+      d251cbb98, #196 bba8bcb4d; each squash's tree equals that head's tree), so new `-tip2-` tags pin
+      the squashed heads and the old tags are left where they are;
+  (2) landed -- the wave's squash is an ancestor of HEAD;
+  (5) tied -- the squash CARRIES the head: every file the head changed against merge-base(head,
+      squash^) has the head's blob at the squash (non-vacuous: a head that changed nothing fails).
+      Wave 10's L1c has no squash yet: its tag is created at the final L1c tip; while that head is in
+      HEAD's own history it is its own landing, and after the squash the tool finds the earliest
+      commit of HEAD's history (topological order) that carries every file the head changed;
+  (3) unchanged -- every cited evidence file's blob at its wave's landing equals its blob at HEAD;
+  (4) reachable -- every tree a browser check or walk measured is an ancestor of the tag of the
+      declared wave it was on, and that wave passed (1), (2) and (5). A ref that is not HEAD or a
+      declared wave tag -- a bare SHA, or a tag of a branch that never landed -- is refused.
+Every evidence path and walked tree the built scorecard cites must be a row here (`cited_b0_gaps`), so a
+new citation cannot escape the index. `evidence_index()` checks all five; tests/test_parity_scorecard.py
+shows each failing on a planted defect.
 """
 from __future__ import annotations
 
@@ -1700,20 +1711,31 @@ def verify(text=None, rev=None):
     return counts, problems
 
 
-# ── §0, the evidence index (redesigned in wave 10, F3 -- see the module docstring) ─────────────────
-# (wave, the tag the repo keeps for its tip, the tip that tag must resolve to, the wave's squash on master)
+# ── §0, the evidence index (redesigned in wave 10, F3; tightened in F3 fix round 1) ────────────────
+# (wave, the tag that pins the head that was SQUASHED, that head, the wave's squash on master).
+# ⚰️ Fix round 1 (review I-1): waves 5 and 7 recorded their `-tip-` tags, which are NOT the heads the
+# PRs squashed -- #186 squashed d251cbb98 and #196 squashed bba8bcb4d (each squash's tree equals that
+# head's tree, measured). The old tags are left where they are; the `-tip2-` tags below were created
+# at the squashed heads. Wave 10's L1c has no squash yet: its tag is created by the controller at the
+# final L1c tip immediately before the squash, so its head and squash are resolved at run time (None).
+L1C_TAG = 'notebook-wave10-L1c-tip-2026-09-28'
 B0_WAVES = (
-    ('wave 5', 'notebook-wave5-tip-2026-09-24', '145478ec1', '2c3ed3093'),
+    ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
-    ('wave 7', 'notebook-wave7-tip-2026-09-26', 'e6f418194', 'f883e0996'),
+    ('wave 7', 'notebook-wave7-tip2-2026-09-26', 'bba8bcb4d', 'f883e0996'),
     ('wave 8', 'notebook-wave8-tip-2026-09-26', '2dde8fed1', 'caf6d1b9e'),
     ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74'),
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
+    ('wave 10 L1c', L1C_TAG, None, None),
 )
-# (an evidence file this scorecard cites, the squash that landed it -- or HEAD: evidence that arrives
-# with the tree scored here, wave 10's L1c landing, has no earlier landing to compare against)
+# (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
+# ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
+# do not carry, so it cannot be derived from them without making property 3 true by definition. What IS
+# derived is the other direction: `cited_b0_gaps()` reads every evidence path and walked tree out of the
+# built scorecard and refuses one this list does not name (review M-6).
 B0_EVIDENCE = (
+    ('docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md', '2c3ed3093'),
     ('docs/notebook/gate-runs/wave5-landing/2026-09-24T21-37-17.md', '2c3ed3093'),
     ('docs/notebook/gate-runs/wave5-landing/2026-09-25T20-10-16.md', '2c3ed3093'),
     ('docs/notebook/gate-runs/wave5-landing/2026-09-25T21-07-34.md', '2c3ed3093'),
@@ -1727,40 +1749,90 @@ B0_EVIDENCE = (
     ('docs/notebook/gate-runs/wave8/walk-341bbccf3.json', 'caf6d1b9e'),
     ('docs/notebook/evidence/wave9-9b-8a0098029/browser-check.json', '1c4b0bf74'),
     ('docs/notebook/evidence/wave9-9b-8a0098029/browser-check-pass2.json', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-pytest-rA.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest-a11y.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/notebook_perf_budgets-bytes.log', '1c4b0bf74'),
     (W10_WALK, '4f708a0d2'),
+    (f'{W10C}/burst-probe-raw.json', '4f708a0d2'),
+    (f'{W10C}/f5-results-run3-tag-applied.md', '4f708a0d2'),
     (f'{W10D}/personal-api-walk-20260927T043218Z.json', 'd9e887ca0'),
     (f'{W10D}/browser-check-20260927T050752Z.json', 'd9e887ca0'),
-    (f'{W10C}/burst-probe-raw.json', '4f708a0d2'),
-    (f'{PROOF}/walk-fd7d1f42d/run.json', 'HEAD'),
-    (f'{PROOF}/walk-fd7d1f42d/census.json', 'HEAD'),
-    (f'{PROOF}/f5-after-aa2417c2c/run.json', 'HEAD'),
-    (f'{PROOF}/f5-after-aa2417c2c/axe.json', 'HEAD'),
-    (f'{PROOF}/rail-census-fd7d1f42d.json', 'HEAD'),
-    (f'{PROOF}/f6-switcher-body/perf/fr1-50k.log', 'HEAD'),
-    (f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 'HEAD'),
-    (KBD_F4, 'HEAD'),
+    (f'{PROOF}/README.md', 'wave 10 L1c'),
+    (f'{PROOF}/walk-fd7d1f42d/run.json', 'wave 10 L1c'),
+    (f'{PROOF}/walk-fd7d1f42d/census.json', 'wave 10 L1c'),
+    (f'{PROOF}/f5-after-aa2417c2c/run.json', 'wave 10 L1c'),
+    (f'{PROOF}/f5-after-aa2417c2c/axe.json', 'wave 10 L1c'),
+    (f'{PROOF}/rail-census-fd7d1f42d.json', 'wave 10 L1c'),
+    (f'{PROOF}/f6-switcher-body/perf/fr1-50k.log', 'wave 10 L1c'),
+    (f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 'wave 10 L1c'),
+    (KBD_F4, 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/pytest-f3-rails.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log', 'wave 10 L1c'),
 )
-# (a tree a browser check or walk measured, what it must be reachable from -- HEAD, or the tag of the
-# squash-landed wave whose branch it was on, since a squash leaves no other path to it)
+# (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
+# declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
+# no row names HEAD any more, because every one of these trees is left behind by a squash; each names
+# the earliest declared wave tag it is an ancestor of.
 B0_TIPS = (
     ('787a993f5', 'notebook-wave6-tip-2026-09-26'),    # the wave-6 walk
-    ('8f232d21d', 'notebook-wave7-tip-2026-09-26'),    # the wave-7 walk
+    ('8f232d21d', 'notebook-wave7-tip2-2026-09-26'),   # the wave-7 walk
     ('341bbccf3', 'notebook-wave8-tip-2026-09-26'),    # the wave-8 walk
     ('8a0098029', 'notebook-wave9-tip-2026-09-26'),    # wave 9's browser check (9B)
     ('9532e67ac', 'notebook-wave9-tip-2026-09-26'),    # 9D: the folder Publish glyph
     ('fccff2f63', 'notebook-wave9-tip-2026-09-26'),    # 9D/D1: Export selected, four formats
     ('39a71dd3c', 'notebook-wave9-tip-2026-09-26'),    # 9D/D2: Publish on every folder row
-    ('14310c206', 'HEAD'),                             # the L1a walk
-    ('fd7d1f42d', 'HEAD'),                             # 10E-1's proof walk
-    ('aa2417c2c', 'HEAD'),                             # F5's after-run (axe, geometry)
-    ('0555889ef', 'HEAD'),                             # F4's keyboard re-walk
-    ('7ee21a7fc', 'HEAD'),                             # F6's recall baseline
+    ('14310c206', 'notebook-wave10-L1a-tip2-2026-09-26'),  # the L1a walk
+    ('fd7d1f42d', 'notebook-wave10-L1b-tip-2026-09-27'),   # 10E-1's proof walk
+    ('aa2417c2c', L1C_TAG),                            # F5's after-run (axe, geometry)
+    ('0555889ef', L1C_TAG),                            # F4's keyboard re-walk
+    ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
 )
+_PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
+
+
+def _tag_commit(tag):
+    """The commit a TAG resolves to, or ''. Only refs/tags/ is consulted, so a bare SHA is never a tag."""
+    rc, sha = git('rev-parse', '--verify', '--quiet', f'refs/tags/{tag}^{{commit}}')
+    return sha if rc == 0 else ''
+
+
+def _tie(tip, landing):
+    """Property 5: (changed, differing) -- the files `tip` changed against merge-base(tip, landing^), and
+    those of them whose blob at `landing` is not their blob at `tip`. A squash of `tip` carries every one."""
+    rc, base = git('merge-base', tip, f'{landing}^')
+    if rc != 0:
+        return set(), {'(no merge base)'}
+    changed = {x for x in git('diff', '--name-only', base, tip)[1].splitlines() if x}
+    differ = {x for x in git('diff', '--name-only', tip, landing)[1].splitlines() if x}
+    return changed, changed & differ
+
+
+def _find_squash(tip, head):
+    """For a wave whose squash is not recorded yet (L1c): the EARLIEST commit of HEAD's history (topological
+    order, oldest first) that carries every file `tip` changed with `tip`'s blob. None when none does.
+    Not the first-parent line: measured on origin/master, wave 9's squash 1c4b0bf74 is not on it (a later
+    merge took master's first parent through another branch), so a first-parent walk misses a real squash."""
+    rc, base = git('merge-base', tip, head)
+    if rc != 0:
+        return None
+    changed = sorted(x for x in git('diff', '--name-only', base, tip)[1].splitlines() if x)
+    if not changed:
+        return None
+    order = [x for x in git('rev-list', '--topo-order', '--reverse', f'{base}..{head}')[1].splitlines() if x]
+    touched = set()
+    for i in range(0, len(changed), _PATHSPEC_CHUNK):
+        out = git('log', '--full-history', '--format=%H', f'{base}..{head}', '--', *changed[i:i + _PATHSPEC_CHUNK])[1]
+        touched.update(x for x in out.splitlines() if x)
+    for c in order:
+        if c in touched and not _tie(tip, c)[1]:
+            return c
+    return None
 
 
 def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
     """§0: (rows, problems). rows are (item, command, result) for the table; problems are the rows
-    whose property does not hold. The four properties are in the module docstring."""
+    whose property does not hold. The five properties are in the module docstring."""
     waves = B0_WAVES if waves is None else waves
     evidence = B0_EVIDENCE if evidence is None else evidence
     tips = B0_TIPS if tips is None else tips
@@ -1769,47 +1841,125 @@ def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
     def ok(*a):
         return git(*a)[0] == 0
 
-    landings = {}
+    landing_of = {}     # wave name AND recorded squash -> the commit that landed it (None: did not land)
+    tag_ok = {}         # declared wave tag -> (its commit, whether its wave landed and is tied)
     for wave, tag, tip, landing in waves:
-        rc, sha = git('rev-parse', '--short=9', f'{tag}^{{commit}}')
-        pinned = rc == 0 and sha.startswith(tip) and ok('cat-file', '-e', f'{tip}^{{commit}}')
-        rows.append((f'{wave}: tag `{tag}`', 'git rev-parse --short=9 <tag>^{commit}',
-                     f'{sha} (the recorded tip)' if pinned else f'{sha or "no such tag"} -- NOT the recorded tip {tip}'))
-        if not pinned:
-            problems.append(f'B0 {wave}: tag {tag} does not resolve to the recorded tip {tip} ({sha or "missing"})')
-        landed = ok('merge-base', '--is-ancestor', landing, head)
-        landings[landing] = landed
-        rows.append((f'{wave}: squash `{landing}`', f'git merge-base --is-ancestor <squash> {head}',
-                     'landed (an ancestor)' if landed else 'NOT an ancestor'))
-        if not landed:
-            problems.append(f'B0 {wave}: its squash {landing} is not an ancestor of {head}')
-    for path, landing in evidence:
+        sha = _tag_commit(tag)
+        pinned = bool(sha) and (tip is None or sha.startswith(tip)) and (tip is None or ok('cat-file', '-e', f'{tip}^{{commit}}'))
+        want = tip or 'the commit it was created at'
+        rows.append((f'{wave}: tag `{tag}`', 'git rev-parse --verify refs/tags/<tag>^{commit}',
+                     f'{sha[:9]} ({"the recorded head" if tip else "created at the final L1c tip"})' if pinned
+                     else f'{sha[:9] or "no such tag"} -- NOT {want}'))
+        if not pinned and tip is None:
+            problems.append(f'B0 {wave}: tag {tag} does not resolve (it is created at the final L1c tip, before the squash)')
+        elif not pinned:
+            problems.append(f'B0 {wave}: tag {tag} does not resolve to the recorded head {tip} ({sha[:9] or "missing"})')
+        head_c = tip or sha[:9]
+        land, tied = None, False
+        if landing is not None:
+            landed = ok('merge-base', '--is-ancestor', landing, head)
+            rows.append((f'{wave}: squash `{landing}`', f'git merge-base --is-ancestor <squash> {head}',
+                         'landed (an ancestor)' if landed else 'NOT an ancestor'))
+            if not landed:
+                problems.append(f'B0 {wave}: its squash {landing} is not an ancestor of {head}')
+            else:
+                land = landing
+        elif sha and ok('merge-base', '--is-ancestor', sha, head):
+            land = sha
+            rows.append((f'{wave}: landing', f'git merge-base --is-ancestor <tag> {head}',
+                         'the tagged head is itself in this tree\'s history (not squashed yet)'))
+        elif sha:
+            land = _find_squash(sha, head)
+            rows.append((f'{wave}: landing', f'earliest commit of {head} carrying the tag\'s files',
+                         f'squash {land[:9]}' if land else 'NOT FOUND'))
+            if not land:
+                problems.append(f'B0 {wave}: no commit of {head} carries the files {tag} changed')
+        else:
+            rows.append((f'{wave}: landing', 'needs the tag', 'unknown (no tag)'))
+        if land and land == sha and landing is None:
+            tied = True
+            rows.append((f'{wave}: head tied to its landing', 'the landing IS the tagged head', 'tied'))
+        elif land and head_c and pinned:
+            changed, bad = _tie(head_c, land)
+            tied = bool(changed) and not bad
+            rows.append((f'{wave}: head tied to its landing',
+                         'git diff --name-only <head> <squash>, over the files the head changed',
+                         f'every one of {len(changed)} files carried' if tied else
+                         ('VACUOUS: the head changed no file' if not changed else
+                          f'{len(bad)} of {len(changed)} files differ at the squash: ' + ', '.join(sorted(bad)[:4]))))
+            if not changed:
+                problems.append(f'B0 {wave}: the tie is vacuous -- {head_c} changed no file against its squash\'s parent')
+            elif bad:
+                problems.append(f'B0 {wave}: {len(bad)} file(s) the head {head_c} changed differ at its squash {land[:9]}: '
+                                + ', '.join(sorted(bad)[:4]))
+        landing_of[wave] = land if tied else None
+        if landing is not None:
+            landing_of[landing] = land if tied else None
+        tag_ok[tag] = (sha, tied)
+    for path, lref in evidence:
         here = git('rev-parse', f'{head}:{path}')
         if here[0] != 0:
             rows.append((f'`{path}`', f'git rev-parse {head}:<path>', 'MISSING'))
             problems.append(f'B0 evidence missing at {head}: {path}')
             continue
-        if landing == 'HEAD':
-            rows.append((f'`{path}`', f'git rev-parse {head}:<path>',
-                         'present (arrives with the tree scored here)'))
+        if lref not in landing_of:
+            rows.append((f'`{path}`', 'the wave that landed it', f'{lref} is no wave or wave squash listed above'))
+            problems.append(f'B0 evidence {path}: {lref} is not a listed wave squash (or wave name)')
             continue
-        if landing not in landings:
-            rows.append((f'`{path}`', 'the squash that landed it', f'{landing} is no wave squash listed above'))
-            problems.append(f'B0 evidence {path}: {landing} is not a listed wave squash')
+        land = landing_of[lref]
+        if not land:
+            rows.append((f'`{path}`', 'the wave that landed it', f'{lref} did not land (see above)'))
+            problems.append(f'B0 evidence {path}: its wave {lref} did not land on {head}')
             continue
-        then = git('rev-parse', f'{landing}:{path}')
+        then = git('rev-parse', f'{land}:{path}')
         same = then[0] == 0 and then[1] == here[1]
-        rows.append((f'`{path}`', f'git rev-parse <squash>:<path> vs {head}:<path>',
-                     f'unchanged since {landing}' if same else f'CHANGED since {landing} (or absent there)'))
+        rows.append((f'`{path}`', f'git rev-parse <landing>:<path> vs {head}:<path>',
+                     f'unchanged since {land[:9]}' if same else f'CHANGED since {land[:9]} (or absent there)'))
         if not same:
-            problems.append(f'B0 evidence {path}: its blob at {landing} is not its blob at {head}')
+            problems.append(f'B0 evidence {path}: its blob at {land[:9]} is not its blob at {head}')
     for sha, frm in tips:
-        reach = ok('merge-base', '--is-ancestor', sha, frm if frm != 'HEAD' else head)
-        rows.append((sha, f'git merge-base --is-ancestor <tip> {frm if frm != "HEAD" else head}',
-                     'reachable' if reach else 'NOT reachable'))
+        if frm == 'HEAD':
+            reach = ok('merge-base', '--is-ancestor', sha, head)
+            rows.append((sha, f'git merge-base --is-ancestor <tree> {head}', 'reachable' if reach else 'NOT reachable'))
+            if not reach:
+                problems.append(f'B0 tip {sha} is not reachable from HEAD')
+            continue
+        if frm not in tag_ok:
+            rows.append((sha, f'the ref `{frm}`', 'REFUSED: not HEAD and not a declared wave tag'))
+            problems.append(f'B0 tip {sha}: {frm} is not HEAD or a declared wave tag')
+            continue
+        tcommit, tied = tag_ok[frm]
+        if not tcommit or not tied:
+            rows.append((sha, f'the ref `{frm}`', 'REFUSED: its wave did not land on this tree'))
+            problems.append(f'B0 tip {sha}: the wave of {frm} did not land on {head}')
+            continue
+        reach = ok('merge-base', '--is-ancestor', sha, tcommit)
+        rows.append((sha, f'git merge-base --is-ancestor <tree> {frm}', 'reachable' if reach else 'NOT reachable'))
         if not reach:
             problems.append(f'B0 tip {sha} is not reachable from {frm}')
     return rows, problems
+
+
+_B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
+_B0_CITED = re.compile(r'(?:(?:CODE|RULING|RECORD|MEASURE) `|— report `|— run by (?:9B|F3): `)'
+                       r'(docs/notebook/(?:evidence|gate-runs|proof)/[^`]+)`')
+
+
+def cited_b0_gaps(text, evidence=None, tips=None):
+    """Review M-6: every evidence file and every walked tree the scorecard CITES must be one §0 checks.
+    Returns the names of the ones it does not (an empty list is the pass)."""
+    evidence = B0_EVIDENCE if evidence is None else evidence
+    tips = B0_TIPS if tips is None else tips
+    listed = {p for p, _ in evidence}
+    listed_tips = {t for t, _ in tips}
+    gaps = []
+    for p in sorted(set(_B0_CITED.findall(text))):
+        if p not in listed:
+            gaps.append(f'evidence {p} is cited but §0 does not check it')
+    for _, t in sorted(set(_B0_WALK_TIP.findall(text))):
+        if not any(t.startswith(x) or x.startswith(t) for x in listed_tips):
+            gaps.append(f'walked tree {t} is cited but §0 does not check it')
+    return gaps
 
 
 _PLAN_AT = {}
@@ -2019,6 +2169,21 @@ def build(pages_dir=None):
         return f'TEST `{fname}` — run by F3: `{F3_LOG}`, "{F3_TOT}"'
 
 
+    # F3 fix round 1 (review I-5): the telemetry wiring rails, run once by F3 on this tree (scoped vitest,
+    # verbose, no colour codes) and committed before the scorecard was written; totals read, never typed.
+    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log'
+    _f3vt_text = open(os.path.join(ROOT, F3VT_LOG), encoding='utf-8', errors='replace').read()
+    _f3vt_tot = [re.sub(r'\s+', ' ', l.strip()) for l in _f3vt_text.splitlines() if re.match(r'\s*Tests\s+\d+ passed', l)]
+    F3VT_TOT = _f3vt_tot[-1] if _f3vt_tot else ''
+    if not F3VT_TOT or re.search(r'failed|error', F3VT_TOT):
+        PROBLEMS.append(f'{F3VT_LOG}: no clean totals line ({F3VT_TOT!r})')
+
+
+    def test_f3vt(fname):
+        _check_log(F3VT_LOG, F3VT_TOT, fname.replace('app/', '', 1))
+        return f'TEST `{fname}` — run by F3: `{F3VT_LOG}`, "{F3VT_TOT}"'
+
+
     def plan_line(prefix):
         for i, l in enumerate(lines_of(PLAN), 1):
             if l.startswith(prefix):
@@ -2145,9 +2310,11 @@ def build(pages_dir=None):
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
-    R('G-003', ('P', 'P', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
+    R('G-003', ('P', 'NV', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
       {'N': ['N_delete_acct'], 'E': ['E_delete_acct'], 'O': NFO},
-      'A server-side purge; no UI behaviour to confirm. PARITY is account deletion as named on each side.')
+      'A server-side purge; no UI behaviour to confirm. Evernote NOT-VERIFIED (F3 fix round 1, review M-4): the UCT '
+      'side stands on a code reading alone, with no committed walk of an account deletion, so the Evernote quote is '
+      'cited but no comparative verdict is published. The Notion PARITY is wave 9\'s, on the same code reading.')
     R('G-004', ('P', 'NV', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
@@ -2171,10 +2338,13 @@ def build(pages_dir=None):
       {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': NFO}, 'B20: the filter panel carries "Note created from".')
     R('G-014', ('NV', 'P', 'P'), [code(NS, 1666, 'def _snippets_for('), walk9('B20_more_older_rows')],
       {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
-    R('G-015', ('P', 'P', 'NV'), [code(NS, 1812, 'relevance ranking is opt-in')],
+    R('G-015', ('P', 'NV', 'NV'), [code(NS, 1812, 'relevance ranking is opt-in')],
       {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': NFO},
       'Ranking is a server behaviour (the search box asks for sort=relevance); Obsidian\'s fetched page documents a '
-      'name sort by default, which says nothing about relevance, so no verdict.')
+      'name sort by default, which says nothing about relevance, so no verdict. Evernote NOT-VERIFIED (F3 fix round 1, '
+      'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
+      'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
+      '(G-017, G-127).')
     R('G-016', 'NA', [code(NS, 2941, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
@@ -2507,7 +2677,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  L('G-161', 'walked the same day as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 964, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -2637,14 +2807,18 @@ def build(pages_dir=None):
          'wave 10 built G-144 / G-134 / G-165 / G-160 and armed the personal API, image/docx documents and email-in; '
          'still not reaching members: meaning search (G-017 / G-127, dark until zero retention is confirmed in '
          'writing) and the browser extension (G-043, the Chrome Web Store submission)', OWNER),
-        ('or is a recorded, deliberate "no" with a reason', 'MET',
+        ('or is a recorded, deliberate "no" with a reason', 'NOT MET',
          [L('G-144', 'Undo and Redo buttons on the touch tier'), L('G-134', 'column resize (a stored width'),
           L('G-165', 'the narrow autofill'), D(7, 'Semantic search is built'),
-          D(4, 'the web clipper (publish the extension already built, G-043)'), D(6, 'Cold-start offline is out of scope'),
+          D(4, 'the web clipper (publish the extension already built, G-043)'),
+          L('G-043', 'only the Chrome Web Store submission remains'), D(6, 'Cold-start offline is out of scope'),
           D(10, 'folders + links + backlinks')],
-         'wave 9\'s four unruled misses (G-144, G-134\'s resize/sort, G-165\'s autofill, G-160\'s xlsx) are built; what '
-         'does not reach members carries a recorded reason: D7 (meaning search waits on vendor terms), D4 (the '
-         'extension, the owner\'s store step), and the recorded no\'s D4 (G-081/G-086), D6 (G-163), D10 (G-157)', None),
+         'read literally (controller ruling, F3 fix round 1): a feature that does not reach members must be a recorded '
+         'NO. Wave 9\'s four unruled misses (G-144, G-134\'s resize/sort, G-165\'s autofill, G-160\'s xlsx) are built, '
+         'and D6 (G-163), D10 (G-157) and D4\'s OUT list (G-081/G-086) are real no\'s. But D4 puts the web clipper IN '
+         '(G-043: built, not shipped; the Chrome Web Store submission is the owner\'s) and D7 keeps meaning search IN '
+         '(built, dark until zero retention is in writing): neither is a "no", and neither reaches members. Levers: ship '
+         'the web clipper (store submission = owner); arm meaning search once zero retention is in writing (owner)', OWNER),
         ('the list is what Notion/Evernote/Obsidian users actually reach for weekly', NMO,
          [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')],
          f'the inventory (§B1) is the plan\'s list, not a census of competitor users; the user study\'s screener '
@@ -2766,10 +2940,13 @@ def build(pages_dir=None):
         ('account deletion purges backups', 'NOT MET',
          [record('docs/account-deletion-manifest.md', 183, 'The deletion writes a TOMBSTONE, as its FIRST write'),
           record('docs/account-deletion-manifest.md', 213, 'one known exception to "snapshots expire"'),
+          record('docs/account-deletion-manifest.md', 221, 'the owner decided on 2026-09-27 to KEEP it'),
           test_f3('tests/test_account_tombstones.py')],
          'a deletion writes a tombstone first and every restore replays it (ruling R-9, built in 10C); one exception '
-         'stands: an authdb/archive/ snapshot is never pruned and has no replaying restore path -- keeping or '
-         'deleting it is the owner\'s decision, open in the manifest', OWNER),
+         'stands: an authdb/archive/ snapshot is never pruned and has no replaying restore path. The owner decided to '
+         'KEEP it (2026-09-27; manifest exception (d), corrected in F3 fix round 1), so the lever is no longer a '
+         'decision: build an archive restore path that runs account_tombstones.replay_on_db before the restored copy '
+         'serves anyone, or prune the archive (which reopens the owner\'s decision)', BUILD),
         ('round-trip export verified every release', 'MET',
          [test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js')],
          'the round-trip rail is a vitest file, so every six-shard landing gate runs it', None),
@@ -2797,12 +2974,15 @@ def build(pages_dir=None):
           code('.github/workflows/notebook-a11y.yml', 4, 'actions/runs/36294366772'),
           code('.github/workflows/notebook-a11y.yml', 8, 'actions/runs/36294512061')],
          'seen red once and green once (ruling D-A2), then promoted: a red refuses production promotion', None),
-        ('zero violations on Notebook surfaces', 'MET',
-         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings'),
-          test_vt('app/src/pages/journal-2-0/a11y/axeHarness.contract.test.js')],
-         'real-browser axe 4.13.0 over 43 surfaces x dark / oled / light: 123 of 123 runs PASS on F5\'s tip after it '
-         'fixed 10E-1\'s three findings (control VALID in every theme); later lanes\' surfaces are covered by the '
-         'gating CI harness (jsdom, no contrast rule), not re-run in a browser', None),
+        ('zero violations on Notebook surfaces', 'NOT MEASURED',
+         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings')],
+         'the only zero-violation reading is F5\'s real-browser axe (123 of 123 runs PASS over 43 surfaces x three themes) '
+         'on F5\'s tip aa2417c2c, and 43 non-test Notebook files changed after it (F7\'s LoadFailed / SaveFailed, F4\'s '
+         'skip link and focus rings, F6\'s switcher rows). The jsdom axe harness ran on the scored tree in the L1c '
+         'six-shard gate (docs/notebook/gate-runs/wave10-L1c/2026-09-28T08-46-04.md, on origin/feat/notebook-w10-l1c at '
+         'debf96fc2; 2088 files, 3 NEW rows classified, none a11y), but it has no contrast rule: contrast on the post-F5 '
+         'surfaces is unmeasured. Lever: re-run F5\'s axe instrument (python tools/notebook_proof_walk.py --boot, the axe '
+         'sweep) on the landed tree', BUILD),
         ('a full screen-reader pass (VoiceOver + NVDA)', NMO,
          [record('docs/notebook/screen-reader-pass.md', 4, 'nothing here has been run on a real screen reader yet')],
          'owner; scripts in a11y-second-review-brief.md', OWNER),
@@ -2897,12 +3077,23 @@ def build(pages_dir=None):
         ('client + server error reporting on', 'MET',
          [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
           test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)', None),
-        ('Notebook telemetry for every core action', 'MET',
+        ('Notebook telemetry for every core action', 'NOT MET',
          [code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
-          measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)')],
-         'wave 10 ruling R-16\'s core actions (the study\'s tasks T1-T10 plus export, import, save_success, share, '
-         'publish, writing help, dictation) each map to an allow-listed event with a closed-enum schema; 10D\'s '
-         'browser check counted each door\'s event exactly once', None),
+          measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)'),
+          test_f3vt('app/src/pages/journal-2-0/lib/notebookTelemetry.test.js'),
+          test_f3vt('app/src/pages/journal-2-0/lib/noteBatch.test.js'),
+          test_f3vt('app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx'),
+          test_f3vt('app/src/pages/journal-2-0/lib/sendToJournal.test.js'),
+          test_f3vt('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx'),
+          code(f'{NB}/AskPanel.jsx', 235, 'trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED')],
+         'R-16\'s core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, '
+         'dictation) each map to an allow-listed event with a closed-enum schema. 10D\'s browser check drove save, '
+         'writing help, dictation, export, share + publish, switcher, search and import and counted each once; it never '
+         'drove ask (T7), bulk (T5), capture (T2 / T6) or a failed save (its deltas are 0). F3 ran the wiring rails on '
+         'this tree: bulk_used (noteBatch, the bulk bar) and capture_used (the capture door, the excerpt) are railed at '
+         'their call sites; notebookTelemetry.test.js pins only the action-to-event TABLE. ask_used (T7) is wired in '
+         'code (AskPanel.jsx:235, :292) but railed at no call site and counted in no browser. Lever: a rail that an '
+         'answered Ask sends ONE ask_used (and an insert the inserted one), or a browser count of T7', BUILD),
         ('canaries in the repo', 'MET',
          [record('docs/notebook/soak-30day.md', 34, 'The out-of-repo copies refreshed and'),
           test_f3('tests/test_nb_observe.py')],
@@ -2989,11 +3180,16 @@ def build(pages_dir=None):
     w('')
     w('## §0 — B0: the evidence index, verified at the revision above')
     w('')
-    w('Waves 5-10 land on master as squash merges, so a wave\'s tip is never an ancestor of master; wave 9\'s "every tip '
-      'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead is provenance: each '
-      'wave\'s tip is pinned by the tag the repo keeps and resolves to the recorded SHA; each wave\'s squash is an ancestor '
-      'of this tree; every cited evidence file is byte-identical here to the file its squash landed; and every tree a '
-      'browser or walk measured is reachable -- from this tree, or from the pinned tag of the squashed branch it was on.')
+    w('Waves 5-10 land on master as squash merges, so a wave\'s head is never an ancestor of master; wave 9\'s "every tip '
+      'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead: (1) each wave\'s '
+      'SQUASHED head is pinned by a tag and resolves to the recorded SHA (waves 5 and 7 by new `-tip2-` tags: their '
+      '`-tip-` tags are not the heads the PRs squashed, and are left where they are); (2) each wave\'s squash is an '
+      'ancestor of this tree; (5) the squash carries the head: every file the head changed has the head\'s blob at the '
+      'squash (L1c, not squashed yet, has its tagged head in this tree\'s own history; after its squash the tool finds '
+      'the earliest commit of this tree\'s history that carries it); (3) every cited evidence file is byte-identical here to the file '
+      'its landing carried; and (4) every tree a browser or walk measured is an ancestor of its declared wave\'s tag, '
+      'and that wave landed; a ref that is not a declared wave tag (a bare SHA, an undeclared tag) is refused. Every '
+      'evidence file and walked tree the cells below cite is one of these rows, or `--write` refuses.')
     w('')
     w('| item | command | result |')
     w('|---|---|---|')
@@ -3259,6 +3455,7 @@ def build(pages_dir=None):
 
 
     text = '\n'.join(out) + '\n'
+    PROBLEMS.extend(f'B0 {g}' for g in cited_b0_gaps(text))
     summary = {'rows': len(ROWS), 'quote_keys_used': len(USED), 'at_bar': N_AT_BAR,
                'clauses': {n: f"{sum(1 for c in C[n] if c[1] == 'MET')}/{len(C[n])}" for n in C},
                'quotes_verbatim_checked': bool(pages_dir)}
