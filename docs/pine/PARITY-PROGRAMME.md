@@ -20,6 +20,127 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-28 — WHAT A `var` IS ON BAR 0: `x[1]` is `na`, bare `x` is the initializer (branch `pine/var-seed-na`)
+
+> Base `db3691055` (`pine/bool-na-cast` = PR #237, on #234). Census tool (opt-in, committed):
+> `app/src/components/chart/engine/ast/varSeed.measure.test.js` (`VAR_SEED_CENSUS=1`). Rails:
+> `pine.varSeed.test.js`. Capture queue: `docs/pine/capture-queue-2026-09-28.md` → Q-V1.
+
+**The defect (recorded as a KNOWN DIVERGENCE by the section below).** `var x = init` +
+`x := … x[1] …` folds to `accum(seed, …self…, 250)`, and `accum`'s window starts with
+`self = seed`. The fold passed the initializer as the seed for EVERY spelling. In Pine a history
+read `x[1]` on bar 0 is `na` — history before bar 0 does not exist — and does not read the
+initializer, so a `var` that reads itself only through history never shows its initializer.
+`opening-range-initial-balance-opening-price` (`var opening = 0.0` /
+`opening := c ? open : opening[1]`) drew a flat **0.0** on every computed bar where the opening
+range never opens (all 50 computed bars of the SPY 60m extended-hours capture), where TradingView
+draws nothing. It attaches in production, so this blocked the #234 door.
+
+**The rule.**
+
+| spelling | bar 0 | evidence |
+|---|---|---|
+| bare `x` inside `x := …` | the initializer (`var` runs before the bar's statements) | **partly captured**: `runtime/mutable-history-spy-1d-2026-09-08.json`'s counter `var float x = 0.0; x := x + 1` reads 8,459 on the last of 8,459 loaded bars — bar 0 read `x` as 0.0, not `na` (on the unverified premise that "loaded history" counts from bar 0) |
+| `x[k]`, k ≥ 1 | `na` | **not captured** — the same fixture lists `x[1] === na on bar 0` under `not_observed`. Pine's history operator; this repo's runtime lane already implements it (`runtime/vm.js` `READ_HIST_SLOT`: *"On bar 0 nothing has been committed, so `x[1]` is `na`"*). Q-V1 (`vw-var-seed.pine`) settles it: every row carries bar 0's answer to every bar |
+
+No capture on disk contradicts the rule (searched `tests/fixtures/vendor/**` for a `var` whose
+update reads its own history: only the mutable-history probe, whose window starts at bar 8,059).
+
+**The fix — `varSeedOf` in `pine.js`, the smallest change that holds both spellings.** The
+Resolver counts, while it resolves a `var`'s update, how the update reads itself: **bare**
+(`case 'selfref'`), **history** (`selfOffsetLag`), or **guarded history** (an `x[k]` inside
+`nz(…)`'s first argument). The update tree is unchanged — one `self` still serves both spellings,
+because on every bar after bar 0 they are the same value — only the seed differs:
+
+| reads | seed | why |
+|---|---|---|
+| history only (guarded or not) | `0 / 0` | exact: `x[k]` is `na` on bar 0, and `nz(na, d)` is Pine's `d` |
+| bare only | the initializer — **unchanged** | exact on bar 0 |
+| bare + an UNGUARDED history read | `0 / 0` | never draws a number Pine never draws (see below) |
+| bare + only nz-guarded history | the initializer | `nz(m[1])` beside a bare `m` is exact this way and would blank under `na` |
+
+The PLAIN spelling (`x = init` + `x := … x[1] …`, no `var`) re-runs `x = init` every bar, so its
+bare `x` is that binding and never `self`: it is always the history case and seeds `na` (its seed
+binding is still resolved, so a seed this door cannot translate keeps refusing exactly as before).
+
+**⚠️ The mixed case is a choice between two wrong answers, stated rather than hidden.** One seed
+slot cannot be the initializer for the bare read and `na` for the history read on one step; which
+arm Pine runs on bar 0 is data, not syntax. `na` is chosen whenever an unguarded history read can
+see the seed, because the alternative invents numbers:
+`var x = close; x := 0.6 * x - 0.08 * x[2] + 0.48 * close` is `na` on every bar in Pine (bar 0's
+`x[2]` poisons it, the bare `x` carries it) and is now `na` here; the door used to draw a smoothed
+close. The cost: `c ? (m + close) / 2 : m[1]` never leaves `na` here, where Pine's answer depends on
+its own bar 0. The one corpus instance (`adaptive-trend-following-suite-alpha-extract`,
+`rsiMomentumSignal`, refused at the door) is mixed only through `if barstate.isconfirmed`'s
+implicit else — a bare arm that runs on the realtime bar alone — so `na` is exact there, and it is
+what the screener lane (which folds `barstate.isconfirmed` to 1) answers: **the two lanes agree**.
+An `na(x[1])` TEST is deliberately not a guard — it exists to see bar 0 and needs the `na` seed.
+
+**What the finite window can and cannot reproduce.** `accum` seeds the window's OPENING bar and
+first runs the update on the bar after it, so the seed never stands for "before bar 0": it stands
+for whatever the recurrence held on a bar the window cannot see. The honest seed is a value the
+recurrence can HOLD. A history-only `var` holds `na` (nothing has fired) or a value its update
+produced — never its initializer — so `na` is in its range and the initializer is not; a bare-only
+`var` can hold its initializer, and keeps it. Neither reproduces a value set more than 250 bars ago
+and still carried: the history spelling then shows a GAP, the bare spelling its initializer, where
+Pine shows the old value (`pine.varSeed.test.js` pins both). **How often a real chart meets that is
+UNMEASURED** — no vendor capture holds such a bar.
+
+**The census (320 scripts: 266 `corpus/committed` + 30 `pine_oos` present on this machine + 21
+`tests/fixtures/pine` + 3 `tests/fixtures/member`; licence-held `pine_oos` absent by name).**
+Per-output value fingerprints over SPY 60m RTH, SPY 60m EXTENDED hours and SPY 1D (300 bars each,
+so 50 computed past the warm-up), in BOTH lanes (host = strict, screener = lenient), translator at
+`HEAD` (byte-exact swap of `pine.js` to its `HEAD` blob, restored and sha-verified) vs the fix:
+
+| | count |
+|---|---|
+| scripts whose output VALUES changed | **1** — `opening-range-initial-balance-opening-price__4a7416ab01`, **attaches in production** |
+| scripts whose formula TEXT changed, no value moved on these bars | **4** — `camarilla__jw9faob08r`, `keltner-center-of-gravity-channel__e4a81d76f6`, `tests/fixtures/pine/02-ict-retracement-to-order-block-screener`, `tests/fixtures/pine/03-rsi-directional-momentum-scanner` — **none attaches** |
+| attach verdict or refusal list changed | **0** of 320, in either lane |
+
+The one value change, host lane, SPY 60m extended hours: "Opening price" **50/300 finite (all
+0.0) → 0/300**, and its untitled `OP` plotshape **40/300 (all 0.0) → 0/300** — `na` where
+TradingView's own membership (S11) says the range never opened. SPY 60m RTH: identical on every
+bar (the range opens inside every window, so the seed is forgotten before it is read); 1D:
+unchanged (`timeframe.isintraday` gates the plots). The screener lane refuses this script's
+`time(tf, session)` (a chart-pane clock), so it has nothing to move there. The four text-only
+scripts read the seed only on bars where their condition has already fired inside the window, or
+through `nz(…)`; on other bars their values can move — **unmeasured**, and none attaches.
+
+**The proof.** `openingRangeBoolCast.vendor.test.js`: the KNOWN DIVERGENCE case is flipped to
+assert `na` on every extended-hours bar for the opening price AND its `OP` label, with a
+non-vacuity control (the same formula re-seeded 0 draws 0.0 on every computed bar); all seven
+titled lines are now compared on BOTH captures (the opening price was skipped on the ext capture);
+a new case holds RTH bar for bar against both the reference and the initializer-seeded formula.
+`pine.varSeed.test.js` (11): both spellings against a Pine reference simulated from bar 0, with a
+fixture on which they differ on every computed bar; the finite-window gap; the plain spelling; `nz`
+unchanged; the implicit else as a bare read; the three mixed cases; the guard's scope.
+
+**Tests that encoded the old seed, changed with their reason written in place:**
+`pine.tuples.test.js` (`s[1]` and bare `s` are the same UPDATE, not the same formula — the seed is
+Pine's bar-0 difference); `pine.localScope.test.js` (the latch is `accum(0 / 0, …)`);
+`pine.convergence.test.js` (the multi-lag fixture is `na` in Pine — now asserted — and its two
+numeric cases measure the gate's claim on the update re-seeded with the finite `close` they always
+used); `__fixtures__/pineCorpus.json` regenerated with `PINE_CORPUS_WRITE=1` (2 lines: 02-ict and
+03-rsi, seed text only).
+
+**Mutation proof** (each applied to `pine.js` by the byte-exact harness, restored and sha-verified;
+6 files, 134 tests): seed always the initializer **17 red** · history branch deleted **15** ·
+history counted as bare **15** · guarded-history-only branch deleted **3** · `nz` not a guard **1** ·
+bare reads not counted **1** · plain spelling seeded by its binding again **2** · the `nz` guard
+leaking past its argument **1** (a survivor until the scope rail was added).
+
+**Derived artifacts** regenerated via their generators — `corpusMetric.test.js`,
+`PARAM_IDS_WRITE=1`, `lookbackAgreement.test.js` (then `pytest tests/test_ast_lookback_agreement.py`
+4 passed): **nothing moved** (`tools/corpus_metric.json`, `docs/pine/param-ids.json`,
+`tools/lookback_agreement.json` identical in content). Only `pineCorpus.json` moved, above.
+
+**Not changed, deliberately:** the plain self-reference `x = na(x[1]) ? SEED : f(x[1])` states its
+own bar-0 value in the `na` arm and keeps it; ThinkScript's `rec` (its own translator, its own
+bar-0 rule); the runtime lane (already right).
+
+---
+
 ## ⭐⭐ 2026-09-28 — A NUMBER IN A BOOL CONTEXT: Pine v5's implicit cast, sized and fixed (branch `pine/bool-na-cast`)
 
 > Base `d7646568e` (`pine/vocab-2` = PR #234). Census tool (opt-in, committed):
@@ -97,7 +218,8 @@ observable in Pine. Where the OR session never opens inside the window — every
 bar (the vendor's own S11 is `na` on all 300), and 2h/4h grids — the door now draws a flat
 **0.0** where TradingView draws nothing. Before this change the line was `na` everywhere, so it
 never showed; the cast exposed it. Pinned as a KNOWN DIVERGENCE in
-`openingRangeBoolCast.vendor.test.js` (it goes red the day the seed is fixed). Any
+`openingRangeBoolCast.vendor.test.js` (it goes red the day the seed is fixed). **→ FIXED 2026-09-28 (`pine/var-seed-na`,
+section above): the door now draws `na` there.** Any
 `var x = c` + `x := … x[1]` whose condition never fires in 250 bars has the same shape.
 
 **The runtime lane.** `pineRuntimeFrontend.js` lowers `and`/`or`/`not`/`?:` over mutable values

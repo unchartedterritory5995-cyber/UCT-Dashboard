@@ -136,14 +136,20 @@ describe('a `var` may read its own previous bar inside its own update', () => {
   const state = (update, plot = 's') =>
     one(`${head}var s = 0\ns := ${update}\nplot(${plot})`)
 
-  it('🔴 `s[1]` IS `self` — the identical tree to the bare spelling', () => {
+  it('🔴 `s[1]` IS `self` — the identical UPDATE to the bare spelling; only the bar-0 seed differs', () => {
     // ⛔ THE OFF-BY-ONE, ASSERTED AS AN EQUALITY rather than by eyeballing a
-    // formula. Two spellings of one thing must produce one tree.
+    // formula. Two spellings of one thing must produce one update tree.
+    // ⭐ 2026-09-28: they are no longer one FORMULA, and the difference is Pine's
+    // own. On bar 0 a bare `s` is the initializer while `s[1]` is `na` (there is
+    // no bar before bar 0), so the accumulator's SEED differs (`varSeedOf` in
+    // pine.js); on every later bar both read last bar's final value — the same
+    // `self`. Rails and the Pine reference: `pine.varSeed.test.js`.
     const bare = state('close > open ? 1 : s')
     const indexed = state('close > open ? 1 : s[1]')
     expect(bare.ok && indexed.ok).toBe(true)
-    expect(indexed.formula).toBe(bare.formula)
-    expect(indexed.formula).toContain(': self,')
+    expect(bare.formula).toBe('accum(0, close > open ? 1 : self, 250)')
+    expect(indexed.formula).toBe('accum(0 / 0, close > open ? 1 : self, 250)')
+    expect(indexed.formula.replace('accum(0 / 0, ', 'accum(0, ')).toBe(bare.formula)
   })
 
   it('⛔ `s[2]` REFUSES today — `self[1]` is written and the gate cannot reach it', () => {

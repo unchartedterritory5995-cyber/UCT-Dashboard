@@ -5213,6 +5213,13 @@ export class Resolver {
      *  instead of re-reading the source with a second typer. It sees; it never
      *  steers — the tree is identical whether or not it is set. */
     this.onCondition = typeof opts.onCondition === 'function' ? opts.onCondition : null
+    /** ⭐ HOW THE `var` BEING FOLDED READS ITSELF — `{ bare, history, guarded }` while the
+     *  `state` arm of `resolveBindingInner` resolves an update, `null` otherwise.
+     *  Both spellings emit the same `self`, and they differ on exactly one bar:
+     *  bar 0, where bare `x` is the initializer and `x[1]` is `na`. See
+     *  `varSeedOf`. Scoped per fold (saved and restored), so a nested `var`
+     *  counts into its own record and never into its caller's. */
+    this.selfReads = null
     /** ⭐⭐ THE BARS THIS TRANSLATION IS FOR. `interpret.js`'s 2026-09-01 ruling on
      *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
@@ -5502,7 +5509,11 @@ export class Resolver {
             bound.at || locate(tok))
         }
         this.env = bound.updateEnv || prevEnv
-        const update = this.resolve(bound.update)
+        const prevReads = this.selfReads
+        const reads = { bare: 0, history: 0, guarded: 0, guardDepth: 0 }
+        this.selfReads = reads
+        let update
+        try { update = this.resolve(bound.update) } finally { this.selfReads = prevReads }
         // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
         // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
         // the SAME reassignment folded straight to `accum(0, self + volume, 250)`
@@ -5534,7 +5545,7 @@ export class Resolver {
             bound.at || locate(tok))
         }
         const args = []
-        args[spec.recurrence.seed] = seed
+        args[spec.recurrence.seed] = varSeedOf(seed, reads)
         args[spec.recurrence.body] = update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         return cCall('accum', args)
@@ -5733,7 +5744,15 @@ export class Resolver {
         this.recurrenceSeeds.delete(name)
         this.recurrenceSeedAt.delete(name)
         this.buildingRecurrence = wasBuilding
-        const seed = this.resolveBinding(seedBinding, tok, name)
+        // ⭐ THE PLAIN FORM READS ITSELF ONLY THROUGH HISTORY. `x = init` then
+        // `x := … x[1] …` re-runs `x = init` on EVERY bar, so a bare `x` in the
+        // update is that binding, never `self`; `self` comes only from `x[k]`,
+        // which on bar 0 is `na` (`varSeedOf`). So the accumulator seeds `na`.
+        // ⛔ The prior binding is still RESOLVED — a seed this door cannot
+        // translate keeps refusing exactly as it did — only its value is unused,
+        // because Pine never observes it through `x[1]`.
+        this.resolveBinding(seedBinding, tok, name)
+        const seed = historySeed()
         const args = []
         args[spec.recurrence.seed] = seed
         args[spec.recurrence.body] = body
@@ -6678,6 +6697,9 @@ export class Resolver {
         if (!spec) {
           throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
         }
+        // A BARE read of the `var` inside its own update — its value so far this
+        // bar, which on bar 0 is the initializer. See `varSeedOf`.
+        if (this.selfReads) this.selfReads.bare += 1
         return cSeries(spec.recurrence.binds)
       }
       case 'unary': {
@@ -6895,6 +6917,12 @@ export class Resolver {
           const spec = this.table.functions.accum
           if (!spec) {
             throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+          }
+          // A HISTORY read — `x[k]`, k ≥ 1 — which on bar 0 is `na` (or, inside
+          // `nz(…)`, nz's default). See `varSeedOf`.
+          if (this.selfReads) {
+            if (this.selfReads.guardDepth > 0) this.selfReads.guarded += 1
+            else this.selfReads.history += 1
           }
           const base = cSeries(spec.recurrence.binds)
           return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
@@ -7508,8 +7536,15 @@ export class Resolver {
         return cCall('na', [this.resolve(node.args[0].value)])
       }
       if (name === 'nz' && (arity === 1 || arity === 2)) {
+        // ⭐ A `var`'s own `x[k]` INSIDE `nz(…)` IS A GUARDED history read: on
+        // bar 0 it answers nz's default, not `na`, so it cannot blank the value
+        // the way a bare `x[k]` does. `varSeedOf` reads the difference.
+        const reads = this.selfReads
+        if (reads) reads.guardDepth += 1
+        let value
+        try { value = this.resolve(node.args[0].value) } finally { if (reads) reads.guardDepth -= 1 }
         return cCall('nz', [
-          this.resolve(node.args[0].value),
+          value,
           arity === 2 ? this.resolve(node.args[1].value) : cNum(0),
         ])
       }
@@ -10270,6 +10305,84 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
  *  whatever the update itself reaches. That refusal is accurate — the script
  *  wants more history than this engine will hold — and it names itself. */
 const PINE_STATE_WARMUP = 250
+
+/** ⭐⭐ WHAT A `var`'S ACCUMULATOR IS SEEDED WITH — its initializer, or `na`.
+ *
+ *  `accum(seed, body, W)` starts each window with `self = seed` and runs the body
+ *  once per bar, so the seed is exactly what the FIRST step reads as `self`. In
+ *  a `var` update `self` comes from two Pine spellings, and on bar 0 they answer
+ *  differently:
+ *
+ *    bare `x`     the value so far this bar — on bar 0 the initializer
+ *                 (`var x = init` runs before the bar's statements)
+ *    `x[k]`, k≥1  a HISTORY read — on bar 0 there is no history, so `na`
+ *                 (Pine's history operator; this repo's runtime lane already
+ *                 answers it that way: `vm.js` `READ_HIST_SLOT`, *"On bar 0
+ *                 nothing has been committed, so `x[1]` is `na`"*)
+ *
+ *  On every later bar they are the same value — a `var` enters a bar holding
+ *  last bar's final value — which is why one `self` serves both.
+ *
+ *  ⚰️ MEASURED 2026-09-28 on `opening-range-initial-balance-opening-price`:
+ *  `var opening = 0.0` / `opening := c ? open : opening[1]` folded to
+ *  `accum(0, c ? open : self, 250)`. In Pine the `0.0` is never observable — bar
+ *  0's `opening[1]` is `na` and overwrites it — so until `c` first fires the line
+ *  is `na`. Seeded `0`, every window in which `c` never fired (every bar of SPY
+ *  60m extended hours) drew a flat 0.0 line TradingView does not draw.
+ *
+ *  ⛔ SO THE SEED IS `na` WHENEVER A HISTORY READ CAN SEE IT, and the
+ *  initializer only where a BARE read is what sees it. Three cases:
+ *
+ *    history only        `na` — exact. An unguarded `x[k]` is `na` on bar 0, and
+ *                        one inside `nz(x[k], d)` is `d`, which `nz(na, d)` also
+ *                        answers (and `nz(init, d)` does not).
+ *    bare only           the initializer — unchanged, because that is right.
+ *    bare AND history    `na` if any history read is UNGUARDED (not inside the
+ *                        first argument of `nz`), else the initializer.
+ *
+ *  The PLAIN spelling (`x = init` + `x := … x[1] …`, no `var`) is always the
+ *  history-only case — `x = init` re-runs every bar, so its bare `x` is that
+ *  binding and never `self` — and seeds `historySeed()` unconditionally.
+ *
+ *  ⚠️ THE MIXED CASE IS A CHOICE BETWEEN TWO WRONG ANSWERS, because one seed slot
+ *  cannot be `init` for the bare read and `na` for the history read on one step.
+ *  Which arm runs on bar 0 decides Pine's answer, and that is data, not syntax.
+ *  ▸ An UNGUARDED history read seeds `na`: seeded `init` it can draw a number Pine
+ *    never draws. `var x = close; x := 0.6 * x - 0.08 * x[2] + 0.48 * close` is
+ *    `na` on every bar in Pine (bar 0's `x[2]` poisons the value and the bare `x`
+ *    carries it forward), and is `na` here; the one corpus instance
+ *    (`adaptive-trend-following-suite-alpha-extract`, `rsiMomentumSignal`) is
+ *    mixed only through `if barstate.isconfirmed`'s implicit else — a bare arm that
+ *    runs on the realtime bar alone — so `na` is exact there, and it is what the
+ *    screener lane (which folds `barstate.isconfirmed` to 1, leaving history reads
+ *    only) answers too. The cost: a bare arm taken on a window's first step reads
+ *    `na` where Pine's bar 0 reads `init`, a GAP (`c ? (m + close) / 2 : m[1]`
+ *    never leaves `na` here; Pine's own answer there depends on its bar 0).
+ *  ▸ Only nz-GUARDED history reads keep `init`: `m := c ? (m + close) / 2 :
+ *    nz(m[1])` is exact with `init` (`nz(na) = 0 = init`), and `na` would blank
+ *    every `c` bar until a non-`c` bar reset it. The cost: `nz(x[k], d)` reads `init` rather than `d` on
+ *    a window's first step — a number, never a gap.
+ *
+ *  ⚠️ WHAT A FINITE WINDOW CAN AND CANNOT REPRODUCE. `accum` seeds the window's
+ *  OPENING bar and first runs the body on the bar after it, so the seed never
+ *  stands for "before bar 0" — it stands for whatever the recurrence held on a
+ *  bar the window cannot see into. The only honest seed is therefore a value the
+ *  recurrence can actually HOLD. A history-only `var` can hold `na` (nothing has
+ *  fired yet) or a value its update produced — never its initializer, which bar
+ *  0's own update overwrites — so `na` is in its range and `init` is not. A
+ *  bare-only `var` can hold its initializer (nothing has fired since bar 0), which
+ *  is why it keeps it: the bounded-window approximation it always had
+ *  (`PINE_STATE_WARMUP`). What neither can reproduce is a value set more than `W`
+ *  bars ago and still carried: there the history spelling shows a GAP and the bare
+ *  spelling shows its initializer, where Pine shows the old value. How often a real
+ *  chart meets that is UNMEASURED — no vendor capture holds such a bar. */
+const historySeed = () => cOp('/', [cNum(0), cNum(0)])
+const varSeedOf = (seed, reads) => {
+  if (!reads) return seed
+  if (reads.history > 0) return historySeed()
+  if (reads.guarded > 0 && reads.bare === 0) return historySeed()
+  return seed
+}
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
 

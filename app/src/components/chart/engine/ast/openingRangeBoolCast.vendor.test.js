@@ -23,6 +23,10 @@
 // held to those columns bar for bar in `pineVocabularyWave.test.js`; this file
 // holds what the script BUILDS on it.
 //
+// ⭐ AND THE `var` SEED (2026-09-28). `var opening = 0.0` is never observable in
+// Pine — bar 0's `opening[1]` is `na` — so where the OR never opens the line is
+// `na`, and the door now says so (it drew a flat 0.0 there until `varSeedOf`).
+//
 // ⚠️ WHAT THIS DOES NOT CLAIM: the door's recurrences are `accum(…, 250)`, so
 // every level is `na` for the first 250 bars of a fetch and TradingView's is not.
 // That is the engine's bounded-state warm-up (`PINE_STATE_WARMUP`), a separate
@@ -126,9 +130,9 @@ describe('⭐⭐ opening range / initial balance — the v5 implicit bool cast, 
       expect(titled.map((o) => o.title)).toEqual(PLOTS)
       const want = reference(bars, inOR, inIB)
       titled.forEach((o, k) => {
-        // ⚠️ SEE THE KNOWN-DIVERGENCE CASE BELOW: where the OR never opens, the
-        // opening price is a different defect (the `var` seed), not this cast.
-        if (!orOpens && k === 0) return
+        // ⭐ ALL SEVEN LINES, ON BOTH CAPTURES. Until 2026-09-28 the opening price
+        // was skipped here where the OR never opens, because the door drew the
+        // `var` seed (0.0) there — see the case below, which now asserts `na`.
         const got = Array.from(interpret(parseFormula(o.formula).ast, bars, {}, undefined, undefined,
           { tf: '60', newestBarIsForming: false }))
         let compared = 0
@@ -150,28 +154,59 @@ describe('⭐⭐ opening range / initial balance — the v5 implicit bool cast, 
     })
   }
 
-  it('⚠️ KNOWN DIVERGENCE, NOT THE CAST: where the session never opens, the door reads the `var` seed', () => {
+  it('⭐⭐ where the session never opens, the opening price is `na` — the `var` seed is never drawn', () => {
     // `var opening = 0.0` then `opening := cond ? open : opening[1]`. In Pine the
-    // seed is NEVER observable: on bar 0 `opening[1]` is `na` and overwrites it,
-    // so until the OR first opens the line is `na`. This door folds the pair into
-    // `accum(0, cond ? open : self, 250)` — `self` at a window start is the SEED —
-    // so a window in which the OR never opens reads 0.0. On the extended-hours
-    // 60m grid no bar opens inside 09:30-10:00 (the vendor's own S11 is `na` on
-    // every bar), so the door draws a flat 0.0 where TradingView draws nothing.
-    // ⛔ This case PINS THE WRONG ANSWER ON PURPOSE, labelled as one, so the
-    // divergence is on record and this test goes red the day the seed is fixed.
-    // Before the cast the line was `na` on every bar of EVERY capture, which is
-    // why it never showed: the cast exposed it, it did not cause it.
+    // seed is NEVER observable: on bar 0 `opening[1]` is `na` (history before bar
+    // 0 does not exist) and overwrites it, so until the OR first opens the line
+    // is `na`. On the extended-hours 60m grid no bar opens inside 09:30-10:00 (the
+    // vendor's own S11 is `na` on every bar), so TradingView draws nothing.
+    // ⚰️ Until 2026-09-28 the door folded the pair into `accum(0, cond ? open :
+    // self, 250)` — `self` at a window start is the SEED — and drew a flat 0.0
+    // line on every computed bar here (50/300), pinned in this file as a KNOWN
+    // DIVERGENCE. A history-reading `var` now seeds `na` (`varSeedOf` in pine.js).
     const { bars, col } = load(CAPTURES[1].rel)
     const inOR = col('S11_na_OR_GMTminus4_CORPUS_FORM').map((v) => v === 0)
     const inIB = col('S16_na_0930_1030_IB_window').map((v) => v === 0)
     const want = reference(bars, inOR, inIB)[0]
     const t = translatePine(SOURCE, { strict: true, basePeriod: '60' })
     const f = t.outputs.find((o) => o.title === 'Opening price').formula
-    const got = Array.from(interpret(parseFormula(f).ast, bars, {}, undefined, undefined,
+    expect(f).toMatch(/^[^,]*accum\(0 \/ 0, /)
+    const run = (formula) => Array.from(interpret(parseFormula(formula).ast, bars, {}, undefined, undefined,
       { tf: '60', newestBarIsForming: false }))
+    const got = run(f)
     expect(want.every((v) => !Number.isFinite(v))).toBe(true)
-    expect(got.slice(WARMUP).every((v) => v === 0)).toBe(true)
+    expect(got.filter(Number.isFinite)).toEqual([])
+    // …and the `OP` label that rides the same value (the untitled plotshape).
+    const op = t.outputs.find((o) => o.title == null && o.formula && /accum\(0 \/ 0, /.test(o.formula))
+    expect(op, 'the OP plotshape reads the same accumulator').toBeTruthy()
+    expect(run(op.formula).filter(Number.isFinite)).toEqual([])
+    // ⛔ NON-VACUITY: the same formula re-seeded with the initializer — the defect
+    // as it shipped — draws 0.0 on every computed bar of this capture, so the two
+    // assertions above are a measurement of the seed and not of an empty column.
+    const seeded = run(f.replace('accum(0 / 0, ', 'accum(0, '))
+    expect(seeded.slice(WARMUP).every((v) => v === 0)).toBe(true)
+  })
+
+  it('⭐ …and where the session DOES open, the seed change moves nothing: RTH bar for bar', () => {
+    // The `na` seed is read only on a window's first step. On the RTH grid the OR
+    // opens every session, so every 250-bar window sees it fire and forgets the
+    // seed before the bar it is computed for — the opening price is identical to
+    // the initializer-seeded formula on every bar, and equal to the reference.
+    const { bars, col } = load(CAPTURES[0].rel)
+    const inOR = col('S11_na_OR_GMTminus4_CORPUS_FORM').map((v) => v === 0)
+    const inIB = col('S16_na_0930_1030_IB_window').map((v) => v === 0)
+    const want = reference(bars, inOR, inIB)[0]
+    const t = translatePine(SOURCE, { strict: true, basePeriod: '60' })
+    const f = t.outputs.find((o) => o.title === 'Opening price').formula
+    const run = (formula) => Array.from(interpret(parseFormula(formula).ast, bars, {}, undefined, undefined,
+      { tf: '60', newestBarIsForming: false }))
+    const got = run(f)
+    const seeded = run(f.replace('accum(0 / 0, ', 'accum(0, '))
+    expect(got.slice(WARMUP).every(Number.isFinite)).toBe(true)
+    for (let i = WARMUP; i < bars.length; i++) {
+      expect(got[i], `bar ${i}`).toBe(seeded[i])
+      expect(got[i], `bar ${i}`).toBe(want[i])
+    }
   })
 
   it('⭐ the opening-price line is the one the cast repaired, and it now computes', () => {

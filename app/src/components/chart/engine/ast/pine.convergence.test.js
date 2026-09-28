@@ -321,14 +321,39 @@ plot(x)
       .toBe('0.6 * self - 0.08 * self[1] + 0.48 * close')
   })
 
-  it('⭐⭐ the column matches the accumulator`s own window, simulated independently', () => {
+  /** ⭐ THE TRANSLATED UPDATE, RE-SEEDED WITH A FINITE VALUE. Since 2026-09-28 the
+   *  translator seeds this `var` `na` (`varSeedOf` in pine.js): the update reads
+   *  `x[2]`, which Pine answers `na` on bar 0 — and so does Pine's whole column,
+   *  below. The two cases after it measure the UPDATE the gate admitted — the
+   *  window arithmetic and "the seed is forgotten" — and forgetting can only be
+   *  measured from a seed that is a number, so they put `close` back, exactly the
+   *  seed the translator emitted before. */
+  const finiteSeeded = () => {
     const ast = built.outputs[0].ast
+    const args = ast.args.slice()
+    args[spec.recurrence.seed] = { type: 'series', name: 'close' }
+    return { ...ast, args }
+  }
+
+  it('✅ and Pine`s own answer for this exact script is `na` on every bar — which the door now gives', () => {
+    // Bar 0: `x[2]` is `na`, so `0.6 * x - 0.08 * x[2] + …` is `na`, and the bare
+    // `x` carries it to every later bar. A member who wants numbers writes
+    // `nz(x[2], x)`; this script as written draws nothing on TradingView.
+    const ast = built.outputs[0].ast
+    expect(ast.args[spec.recurrence.seed]).toEqual({ type: 'op', name: '/', args: [
+      { type: 'num', value: 0 }, { type: 'num', value: 0 }] })
+    const col = interpret(ast, bars(ast.args[spec.recurrence.warmup].value + 40))
+    expect(Array.from(col).filter(Number.isFinite)).toEqual([])
+  })
+
+  it('⭐⭐ the column matches the accumulator`s own window, simulated independently', () => {
+    const ast = finiteSeeded()
     const warmup = ast.args[spec.recurrence.warmup].value
     const rows = bars(warmup + 40)
     const col = interpret(ast, rows)
     const t = rows.length - 1
-    // `var x = close` — the seed is the close on the bar the window opens at, and
-    // it fills EVERY lag, which is the initial condition `interpret.js` states.
+    // Seeded `close` — the close on the bar the window opens at, and it fills
+    // EVERY lag, which is the initial condition `interpret.js` states.
     let h0 = rows[t - warmup].c
     let h1 = h0
     for (let j = t - warmup + 1; j <= t; j += 1) {
@@ -344,7 +369,7 @@ plot(x)
     // admitted this body because the seed is forgotten inside the warm-up, so a run
     // from the very first bar — which is what Pine does — has to land on the same
     // number. If the threshold were decoration these two would disagree.
-    const ast = built.outputs[0].ast
+    const ast = finiteSeeded()
     const rows = bars(ast.args[spec.recurrence.warmup].value + 40)
     const col = interpret(ast, rows)
     let h0 = rows[0].c

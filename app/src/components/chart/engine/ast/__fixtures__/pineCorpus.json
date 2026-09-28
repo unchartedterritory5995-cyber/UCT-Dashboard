@@ -17,7 +17,7 @@
   "translates": true,
   "outputs": 10,
   "usable": 2,
-  "selectedFormula": "accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) != accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250)[1] && accum(0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) == 1",
+  "selectedFormula": "accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) != accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250)[1] && accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) == 1",
   "downstream": {
    "ok": true,
    "guard": null,
@@ -34,7 +34,7 @@
   "translates": true,
   "outputs": 20,
   "usable": 4,
-  "selectedFormula": "crossUnder(rsi(close, 14), 40) && rsi(close, 14) < sma(rsi(close, 14), 14) && (accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) == 0 || accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) >= 4 && accum(0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) <= 5)",
+  "selectedFormula": "crossUnder(rsi(close, 14), 40) && rsi(close, 14) < sma(rsi(close, 14), 14) && (accum(0 / 0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) == 0 || accum(0 / 0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) >= 4 && accum(0 / 0, nz(self, 0) == 3 || nz(self, 0) == 6 ? 0 : nz(self, 0), 250) <= 5)",
   "downstream": {
    "ok": true,
    "guard": null,

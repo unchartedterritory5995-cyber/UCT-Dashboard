@@ -72,3 +72,29 @@ and `implicitBoolCastApplies` goes back to `false`. A compile failure is itself 
 **Capture:** as Q-B1 (1D and 60m RTH). Same rows, plus **B10** `iff(x, 1, 2)` (2 / 2 / 1).
 If v4 answers differently from v5 on any row, `implicitBoolCastApplies` narrows to `=== 5`
 and `engulfingcandle__0df91dc775` returns to its pre-2026-09-28 warm-up bars.
+
+## Q-V1 — `vw-var-seed.pine` (branch `pine/var-seed-na`)
+
+**Capture:** AMEX:SPY **1D**, ≥ 200 bars, inputs at defaults. One timeframe is enough: every row
+is built so that bar 0's answer is carried to every later bar, which is what makes bar 0 — never
+observed by any capture on disk — readable on the bars a capture returns.
+
+**Why it is owed.** `pine.js::varSeedOf` now seeds a `var` whose update reads itself through
+HISTORY (`x[1]`) with `na`, on the rule that `x[1]` on bar 0 is `na` and does not read the
+initializer. That is Pine's history operator and this repo's runtime lane already answers it
+(`vm.js` `READ_HIST_SLOT`), but
+`tests/fixtures/vendor/runtime/mutable-history-spy-1d-2026-09-08.json` records under
+`not_observed` that `x[1] === na` on bar 0 was never seen.
+
+| row | shipped rule | alternative (`x[1]` on bar 0 reads the initializer) |
+|---|---|---|
+| V01 `var a = 7.0` / `a := bar_index > 1e9 ? close : a[1]` | `na` every bar | 7 every bar |
+| V02 same, bare `b` (CONTROL) | 7 every bar | 7 every bar |
+| V03 `nz(c[1], 3.0)` | 3 every bar | 7 every bar |
+| V04 `d := bar_index % 2 == 1 ? d + 1 : d[1]` (bar 0 takes the `x[1]` arm) | `na` every bar | a count from 7 |
+| V05 plain `e = 7.0` / `e := … : e[1]` | `na` every bar | 7 every bar |
+| V06 `var f = close` / `f := 0.6 * f - 0.08 * f[2] + 0.48 * close` | `na` every bar | a smoothed close |
+
+If V01/V05 read 7, `varSeedOf` is wrong and the opening-range fix (PARITY-PROGRAMME 2026-09-28)
+reverts to drawing the initializer; if V02 does not read 7 the probe itself is broken. V04 and V06
+pin the MIXED rule (a bare and an unguarded history read in one update → `na`).
