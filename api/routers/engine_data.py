@@ -201,6 +201,32 @@ def rundown_speech_text(_user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/api/wire/archive")
+def wire_archive_index(_user: dict = Depends(require_paid)):
+    """TERM-089: the dates the Morning Wire archive holds, newest first, with
+    the coverage it can honestly claim (held vs weekdays in range, and the
+    weekdays it does NOT hold, by name). PAID: today's wire is the free tier
+    (`/api/rundown`); past mornings are the paid product."""
+    from api.services import wire_archive
+    return wire_archive.index()
+
+
+@router.get("/api/wire/archive/{ymd}")
+def wire_archive_issue(ymd: str, _user: dict = Depends(require_paid)):
+    """TERM-089: the wire of exactly `ymd`. A date the archive does not hold is
+    `held: false` with no html -- never a neighbouring day, never today's."""
+    from api.services import wire_archive
+    try:
+        day = wire_archive.parse_date(ymd)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="date must be YYYY-MM-DD")
+    entry = wire_archive.read(day)
+    if entry is None:
+        return {"date": day, "held": False, "html": None}
+    return {"date": day, "held": True, "html": entry["rundown_html"],
+            "archived_at": entry.get("archived_at")}
+
+
 @router.get("/api/uct20/portfolio")
 def uct20_portfolio(_user: dict = Depends(require_paid)):
     try:
