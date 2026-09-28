@@ -34,7 +34,43 @@ import { memberNumber, isNumericText } from '../engine/ast/memberValue'
 import { vendorNotesForTree, foldNotesForOutput, alertNoteForOutput } from '../engine/ast/parse'
 import { COMPARISONS, conditionFrom, yieldsCondition, operatorLabel } from './toCondition'
 import { splitPaste, inspectLibrary } from './libraryIntake'
+import {
+  isUndrawnMultiOutput, multiOutputNotDrawnNote, multiOutputNotDrawnNotes, multiOutputOnlyRefusal,
+} from './memberPane/candleNotDrawn'
 import styles from './PineBox.module.css'
+
+// ─── ⛔⛔ H14 (2026-09-28) — A CANDLE ARM IS NOT A COLUMN THIS DOOR CARRIES ──────
+//
+// `translatePine` expands `plotcandle` / `plotbar` into four rows (one per role).
+// This door offered each as a radio "column", SELECTED one by default for a
+// candle-only script (`translatePine`'s `selected` is the first usable row), and
+// carried every other arm as a sibling in `outputs` — and `BuilderSheet` writes
+// every row it is handed as a `style: 'line'` plot. So a pasted Heikin-Ashi script
+// saved as four lines, the same picture PR #233 removed from the host member door.
+//
+// ⭐ THE HOST DOOR'S RULE AND ITS WORDS (`memberPane/candleNotDrawn.js`): a
+// non-hidden candle arm is neither offered nor carried; its row stays on screen,
+// without a radio, saying why; and a script whose only drawable rows were the
+// candle is refused by name. A bare passthrough or `display.none` candle is
+// already `hidden` and keeps the hidden-row branch it always had.
+// ⚠️ WHAT THIS COSTS, stated rather than hidden: a candle arm can no longer be the
+// column a member wraps into a screen here. That path saved the arm as plot 1, a
+// drawn line, which is the defect; offering it back needs a hidden-row carriage
+// the sheet does not have for plot 1. Rail: `pineBoxCandleNotDrawn.test.jsx`.
+const isCandleArm = (o) => !!(o && o.formula && !o.refusal && isUndrawnMultiOutput(o))
+/** A row this door OFFERS and CARRIES. For every non-candle script this is exactly
+ *  the `formula && !hidden` filter the door used before H14. */
+const isOffered = (o) => !!(o && o.formula && !o.hidden && !isCandleArm(o))
+/** The row to select on a fresh paste: the translator's own pick, unless that pick
+ *  is a candle arm — then the first row this door offers, or none. */
+function defaultChoice(report) {
+  const outs = (report && report.outputs) || []
+  const sel = report && report.selected >= 0 ? report.selected : -1
+  if (sel < 0) return null
+  if (!isCandleArm(outs[sel])) return sel
+  const i = outs.findIndex(isOffered)
+  return i >= 0 ? i : null
+}
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
  *  one event but an edit is a keystroke, and translating on every one runs a
@@ -577,7 +613,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       // `next.selected` on every pass would snap a two-plot script back to the
       // first column each time a field is touched.
       setChosen((prev) => ((isNewText || prev == null)
-        ? (next.selected >= 0 ? next.selected : null) : prev))
+        ? defaultChoice(next) : prev))
       if (!overridden) setAuthorKnobs((next.outputs || []).map((o) => o.pasteInputs || []))
     }, PINE_DEBOUNCE_MS)
     return () => clearTimeout(id)
@@ -585,6 +621,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
+    // ⛔ H14: `chosen` never names a candle arm — `defaultChoice` redirects the
+    // translator's pick, and a candle row renders no radio. ONE guard, not two.
     return report.outputs[chosen] || null
   }, [report, chosen])
 
@@ -725,8 +763,12 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
     // which is the worst kind of wrong.
     //
     // ⛔ AND A BAND WHOSE EDGE DID NOT SURVIVE IS DROPPED, not half-drawn.
+    // ⛔ H14 — ONE list of carried siblings, read by the fill re-seating below AND
+    // by `others`, so a band's edge index can never point at a row that was not
+    // carried (a candle arm is not; a band anchored on one is dropped).
+    const siblings = report ? report.outputs.filter((o) => isOffered(o) && o !== active) : []
     if (presentation && Array.isArray(scriptPres.fills) && scriptPres.fills.length && report) {
-      const order = [active, ...report.outputs.filter((o) => o.formula && !o.hidden && o !== active)]
+      const order = [active, ...siblings]
       const seat = new Map()
       order.forEach((o, i) => { const j = report.outputs.indexOf(o); if (j >= 0) seat.set(j, i) })
       presentation.fills = scriptPres.fills
@@ -790,8 +832,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       const i = report.outputs.indexOf(o)
       return i >= 0 ? (paramPlacements[i] || []) : []
     }
-    const others = wrapped || !report ? [] : report.outputs
-      .filter((o) => o.formula && !o.hidden && o !== active)
+    const others = wrapped || !report ? [] : siblings
       .map((o) => ({
         source: o.formula,
         title: o.title || null,
@@ -853,7 +894,9 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // comment describes this exact script. Reading `hidden` here is not a new rule;
   // it is this surface finally asking the question the rows already answer
   // (`lesson_a_second_authority_over_one_value`).
-  const usable = report ? report.outputs.filter((o) => o.formula && !o.hidden) : []
+  const usable = report ? report.outputs.filter(isOffered) : []
+  // ⛔ H14 — the candle(s) this door computed and will not carry, one note per statement.
+  const candleNotes = report ? multiOutputNotDrawnNotes(report.outputs.filter(isCandleArm)) : []
   const anyDialect = dialect !== undefined
   // ⛔ THE DETECTED dialect, not the requested one. With `dialect="auto"` the box
   // is asked to read "whatever this is" and the member has to be told what it
@@ -1000,6 +1043,18 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
             />
           )}
 
+          {/* ⛔ H14 — THE CANDLE WAS EVERYTHING THIS SCRIPT DREW. Without this the
+              box would show no column, no refusal and a disabled button: silence
+              about a script that declares a candle. The sentence is the host
+              door's, from the one helper both doors read. */}
+          {usable.length === 0 && candleNotes.length > 0 && (
+            <Refusal
+              refusal={{ guard: null, message: multiOutputOnlyRefusal(candleNotes), line: null, column: null }}
+              testId="pine-candle-refusal"
+              dialect={seen}
+            />
+          )}
+
           {report.ok && usable.length > 0 && (
             <fieldset className={styles.outputs}>
               <legend className={styles.legend}>
@@ -1040,6 +1095,22 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
                               + 'a fill, so it is scaffolding rather than a column.'
                             : 'The same number on every bar and every symbol — a screen '
                               + 'cannot answer from it.'}
+                      </span>
+                    </div>
+                  )
+                }
+                // ⛔ H14 — A CANDLE ARM IS SHOWN AND NOT OFFERED, the same shape as a
+                // hidden row: the member sees what the script declared and reads
+                // why it is not a column here, in the host door's own sentence.
+                if (isCandleArm(out)) {
+                  return (
+                    <div key={`candle-${out.line}-${i}`} className={styles.outputRow}
+                      data-testid={`pine-output-undrawn-${i}`}>
+                      <span className={styles.outKind}>{out.kind}</span>
+                      <span className={styles.outTitle}>{out.title || `line ${out.line}`}</span>
+                      <code className={styles.outFormula}>{out.formula}</code>
+                      <span className={styles.outReadback}>
+                        {multiOutputNotDrawnNote(out.kind, out.line).note}
                       </span>
                     </div>
                   )

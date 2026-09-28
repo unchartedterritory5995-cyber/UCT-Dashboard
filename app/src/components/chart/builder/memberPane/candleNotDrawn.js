@@ -56,3 +56,27 @@ export function multiOutputNotDrawnNote(call, line) {
     note: `This script's \`${call}\`${Number.isInteger(line) ? ` (line ${line})` : ''} ${what}.`,
   }
 }
+
+/** ⭐ One note per candle STATEMENT (its four rows share a line), in source order.
+ *  Rows that are not undrawn candle rows are ignored, so a caller may pass the
+ *  whole output list or a pre-filtered one. */
+export function multiOutputNotDrawnNotes(outputs) {
+  const notes = []
+  const seen = new Set()
+  for (const o of outputs || []) {
+    if (!isUndrawnMultiOutput(o)) continue
+    const n = multiOutputNotDrawnNote(o.kind, o.line)
+    const k = `${n.name} :: ${n.note}`
+    if (seen.has(k)) continue
+    seen.add(k)
+    notes.push(n)
+  }
+  return notes
+}
+
+/** ⛔ The refusal when a candle was everything a script drew. ONE copy, read by the
+ *  host member door (`memberPaneDefinition`) and the builder's Import door
+ *  (`PineBox`) — H14's second site, 2026-09-28 — so the two cannot drift. */
+export function multiOutputOnlyRefusal(notes) {
+  return `${(notes || []).map((n) => n.note).join(' ')} It plots nothing else this pane can draw.`
+}
