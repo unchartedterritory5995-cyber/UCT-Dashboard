@@ -26,6 +26,7 @@ J2 = "app/src/pages/journal-2-0/"
 T_PHONE = "src/pages/journal-2-0/tabs/NotebookTab.phoneNote.test.jsx"
 T_HEADER = "src/pages/journal-2-0/JournalLayout.compactHeader.test.jsx"
 T_GALLERY = "src/pages/journal-2-0/components/notebook/TemplatePicker.gallery.test.jsx"
+T_TAB = "src/pages/journal-2-0/tabs/NotebookTab.test.jsx"
 
 # (id, file, regex, replacement, tests, what it breaks)
 SETS = {
@@ -53,7 +54,29 @@ SETS = {
         ("M10", J2 + "JournalLayout.jsx", r"setToolsOpen\(\(x\) => !x\)",
          "setToolsOpen((x) => x)", [T_HEADER], "the disclosure never opens"),
     ],
-    "d4": [],  # filled in by the D-4 part (see d2_mutate_d4 entries below)
+    "d4": [
+        ("G1", J2 + "components/notebook/TemplatePicker.jsx", r"templatesByFamily\(fam\.key\)\.map\(\(tpl\) => \{",
+         "templatesByFamily(fam.key).slice(1).map((tpl) => {", [T_GALLERY], "the gallery drops a template per family"),
+        ("G2", J2 + "components/notebook/TemplatePicker.jsx", r"const lines = templatePreview\(tpl\)",
+         "const lines = templatePreview(templatesByFamily(fam.key)[0])", [T_GALLERY],
+         "a card previews ANOTHER template's body"),
+        ("G3", J2 + "lib/notebookTemplates.js", r"for \(const node of tpl\.build\(\{\}\)\?\.content \|\| \[\]\)",
+         "for (const node of [])", [T_GALLERY], "no card has a preview"),
+        ("G4", J2 + "components/notebook/TemplatePicker.jsx", r"onClick=\{\(\) => onPick\(tpl\)\}",
+         "onClick={() => onPick(templatesByFamily(fam.key)[0])}", [T_GALLERY], "a card creates the wrong template's note"),
+        ("G5", J2 + "components/notebook/TemplatePicker.jsx", r"onClick=\{\(\) => onPick\(tpl\)\}",
+         "onClick={() => onPick({ ...tpl, tags: [] })}", [T_GALLERY, T_TAB],
+         "the note made loses the template's preset tags"),
+        ("G6", J2 + "components/notebook/TemplatePicker.jsx", r"ArrowRight: 1,", "ArrowRight: 0,", [T_GALLERY], "ArrowRight does not move"),
+        ("G7", J2 + "components/notebook/TemplatePicker.jsx", r"else if \(e\.key === 'End'\) to = cards\[cards\.length - 1\]",
+         "else if (e.key === 'End') to = cards[0]", [T_GALLERY], "End does not reach the last card"),
+        ("G8", J2 + "components/notebook/TemplatePicker.jsx", r"data-template-key=\{tpl\.key\}",
+         "data-template-key={tpl.key} tabIndex={-1}", [T_GALLERY], "the cards leave the Tab order"),
+        ("G9", J2 + "components/notebook/TemplatePicker.jsx", r"aria-label=\{tpl\.label\}",
+         "data-label={tpl.label}", [T_GALLERY], "a card is not named by its template's name"),
+        ("G10", J2 + "lib/notebookTemplates.js", r"return TEMPLATES\.filter\(\(t\) => t\.family === familyKey\)",
+         "return TEMPLATES.filter((t) => t.family !== familyKey + 'x')", [T_GALLERY], "every family lists every template"),
+    ],
 }
 
 
