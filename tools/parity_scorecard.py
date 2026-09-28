@@ -66,7 +66,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gap_ledger_summary as GLS  # noqa: E402
 
 DATE = '2026-09-28'              # this re-score (wave 10, follow-up F3)
-FETCH_DATE = '2026-09-26'        # the day every competitor page cited here was fetched (R12-R16, W10-E)
+FETCH_DATE = '2026-09-26'        # the day every competitor page cited here was fetched (R12-R17)
 EVD = 'docs/notebook/evidence/wave9-9b-8a0098029'
 LEDGER = 'docs/notebook/competitive-gap-ledger.md'
 PLAN = 'docs/notebook/NOTEBOOK-10-OF-10-PLAN.md'
@@ -1379,7 +1379,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313438-Restore-a-note-from-the-trash",
   "read_from": "help.evernote.com Zendesk article JSON, read in a real Chrome (controller)",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1388,7 +1388,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313858-Use-note-history-to-view-and-restore-older-versions-of-a-note",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1397,7 +1397,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/360056549574-Permanently-close-your-Evernote-account",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1406,7 +1406,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005917-Access-notes-offline",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1415,7 +1415,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313828-Use-advanced-search-syntax",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1424,7 +1424,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005647-Find-what-you-need",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1433,7 +1433,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/45706285591955-Semantic-search",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1442,7 +1442,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1451,7 +1451,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005267-Saved-searches",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  }
@@ -2097,7 +2097,7 @@ def build(pages_dir=None):
             ev = spec['para']
             return (f'{v}: not verified (PARAPHRASE, never a quote) — {ev["url"]} read {ev["fetched"]} in a real '
                     f'browser; the reader\'s summary, not Evernote\'s words: {PARA_WORD.get(ev["verdict"], ev["verdict"])} '
-                    f'({ev.get("paraphrase") or ev.get("note") or "no note"}) [W10-E evidence `{EVERNOTE_EVIDENCE}`]')
+                    f'({ev.get("paraphrase") or ev.get("note") or "no note"}) [R17 evidence `{EVERNOTE_EVIDENCE}`]')
         return f'{v}: ' + '; '.join(qref(k, rid) for k in spec)
 
 
@@ -2768,7 +2768,7 @@ def build(pages_dir=None):
           record('docs/account-deletion-manifest.md', 213, 'one known exception to "snapshots expire"'),
           test_f3('tests/test_account_tombstones.py')],
          'a deletion writes a tombstone first and every restore replays it (ruling R-9, built in 10C); one exception '
-         'stands: an `authdb/archive/` snapshot is never pruned and has no replaying restore path -- keeping or '
+         'stands: an authdb/archive/ snapshot is never pruned and has no replaying restore path -- keeping or '
          'deleting it is the owner\'s decision, open in the manifest', OWNER),
         ('round-trip export verified every release', 'MET',
          [test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js')],
