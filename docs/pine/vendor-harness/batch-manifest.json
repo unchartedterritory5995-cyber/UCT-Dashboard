@@ -17,14 +17,39 @@
   "corpus": 266,
   "doorAttached": 55,
   "doorRefused": 211,
-  "alreadyCaptured": 6,
-  "targets": 49
+  "alreadyCaptured": 53,
+  "targets": 2
  },
  "alreadyCaptured": [
+  {
+   "file": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
+   "sha256": "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656",
+   "capture": "tests\\fixtures\\vendor\\harness\\artemis-oscillator-pro-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
+   "sha256": "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797",
+   "capture": "tests\\fixtures\\vendor\\harness\\atr-support-and-resistance-rddt-1d-2026-09-28.json"
+  },
   {
    "file": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
    "sha256": "026ce841faa6cac276d119ea0cbad0ca3c8217b6efa05bcb0eff133c766606c6",
    "capture": "tests\\fixtures\\vendor\\harness\\atr-trailing-stoploss-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
+   "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
+   "capture": "tests\\fixtures\\vendor\\harness\\average-day-range-adr-pivots-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
+   "sha256": "b597f17ba9faabad09b9c26d3307390c292d0f2066374a78e3ebdf83557c113d",
+   "capture": "tests\\fixtures\\vendor\\harness\\candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
+   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
+   "capture": "tests\\fixtures\\vendor\\harness\\contraction-box-doji-lines-rddt-1d-2026-09-28.json"
   },
   {
    "file": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
@@ -32,9 +57,84 @@
    "capture": "tests\\fixtures\\vendor\\harness\\cumulative-volume-delta-rddt-1d-2026-09-27.json"
   },
   {
+   "file": "corpus/committed/donchian-channels__5df15aaa23.pine",
+   "sha256": "fb4cfe8389cd754e6449381afeafa599fd625b0f92e324c1910355e5193000b3",
+   "capture": "tests\\fixtures\\vendor\\harness\\donchian-channels-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
+   "sha256": "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3",
+   "capture": "tests\\fixtures\\vendor\\harness\\dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
+   "sha256": "4d2ef4ccc6976beac23b022ac025223efae6018d8b4d5d83d9d9c464e67f0b6d",
+   "capture": "tests\\fixtures\\vendor\\harness\\elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
+   "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
+   "capture": "tests\\fixtures\\vendor\\harness\\ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json"
+  },
+  {
    "file": "corpus/committed/engulfingcandle__0df91dc775.pine",
    "sha256": "d1029be95d143943241396640909f5d75964f51794d7ad3c5a57267811651f60",
    "capture": "tests\\fixtures\\vendor\\harness\\engulfingcandle-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
+   "sha256": "9f5cc1c93e49c4a3b1d0ae621e4ddacdeae564729d63e1c70626459ffe520291",
+   "capture": "tests\\fixtures\\vendor\\harness\\extrapolated-pivot-connector-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
+   "sha256": "e901bfe72a798163798ff304c9f792a9964fd9fcba3148f456248e8788716f21",
+   "capture": "tests\\fixtures\\vendor\\harness\\fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/heat-map-seasons__53acdf3223.pine",
+   "sha256": "eac7328544bd4ac89d4df75df5cd391a4ef5ccf38f4d1fd9868a63bee16f2a18",
+   "capture": "tests\\fixtures\\vendor\\harness\\heat-map-seasons-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
+   "sha256": "aaa1bc101cb4081027f10118ef3850a5bbec648605edec2dfcfcbfe38ee7971b",
+   "capture": "tests\\fixtures\\vendor\\harness\\high-low-open-mid-ranges-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
+   "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
+   "capture": "tests\\fixtures\\vendor\\harness\\htf-candle-footprint-cartel-console-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
+   "sha256": "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99",
+   "capture": "tests\\fixtures\\vendor\\harness\\htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
+   "sha256": "c30fc4c35c07be1a6fb57ddbb4e093b804317abf1655f384efae8c936fe7e15b",
+   "capture": "tests\\fixtures\\vendor\\harness\\ict-ipda-look-back-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
+   "sha256": "16ffd9a1a66cbdfc0e3e2bc85a5da02374752139f7ba4ed79cecf8c7642899d0",
+   "capture": "tests\\fixtures\\vendor\\harness\\ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
+   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+   "capture": "tests\\fixtures\\vendor\\harness\\inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
+   "sha256": "9d1d8bd738709ed4efe17f37d6dacfa131cad44efb93def754a363ec94fa449b",
+   "capture": "tests\\fixtures\\vendor\\harness\\institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/k-clustering__8e82f5aa4b.pine",
+   "sha256": "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e",
+   "capture": "tests\\fixtures\\vendor\\harness\\k-clustering-rddt-1d-2026-09-28.json"
   },
   {
    "file": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
@@ -42,9 +142,144 @@
    "capture": "tests\\fixtures\\vendor\\harness\\keltner-channels-bands-rddt-1d-2026-09-27.json"
   },
   {
+   "file": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
+   "sha256": "c771be052a7f90bf57fe0723b430e9ff463ac1c7be1478c3dc012ae25097a84e",
+   "capture": "tests\\fixtures\\vendor\\harness\\linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
+   "sha256": "ecc6f023f5fb7b67a65aa1904ed53491c5e0b7279ab2cc35966ab710df0af8f0",
+   "capture": "tests\\fixtures\\vendor\\harness\\liquidation-levels-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
+   "sha256": "01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150",
+   "capture": "tests\\fixtures\\vendor\\harness\\liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
+   "sha256": "b9230ef3d87aba96c9694deb8d96f8562d6443dd6e262d8e2b80a1bb7a2b6ffb",
+   "capture": "tests\\fixtures\\vendor\\harness\\liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/liquidity-pools__fa7b28e733.pine",
+   "sha256": "716e442d118c2f359e29bd060479dc2abb80b68ff512b90f2776d9b919db82b3",
+   "capture": "tests\\fixtures\\vendor\\harness\\liquidity-pools-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
+   "sha256": "c4ab9ee0c5b3cb46dc8eaefc7915af49a09e9e1607ae07d856b8ecd168968527",
+   "capture": "tests\\fixtures\\vendor\\harness\\madrid-moving-average-ribbon-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
+   "sha256": "33b558860653375ab29f3e81c1ba58864b50664c4e1ed48eddf9a63af7d87519",
+   "capture": "tests\\fixtures\\vendor\\harness\\makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine",
+   "sha256": "e0cc46632b134c1f7951e0810613d13cbb8bbd1b7efcf8351fe64c7bbe82e2d5",
+   "capture": "tests\\fixtures\\vendor\\harness\\market-structure-by-leviathan-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
+   "sha256": "d463f0a9215329f375eb62944fb6f0ac11ecb9bf289c57b4f7f728f399aa2db5",
+   "capture": "tests\\fixtures\\vendor\\harness\\mcclellan-indicators-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
+   "sha256": "10bf64d914aece77e24d6f392fb849db1783c196cf019339d869451e2dbfc6f9",
+   "capture": "tests\\fixtures\\vendor\\harness\\momentum-volatility-scanner-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
+   "sha256": "2e388f11d718f68cbc4ab026b63a1b14d33b9788eab4e4f06f4f9dad1a2280c0",
+   "capture": "tests\\fixtures\\vendor\\harness\\multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
+   "sha256": "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f",
+   "capture": "tests\\fixtures\\vendor\\harness\\options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
+   "sha256": "85b2dd7ca093b474bf2aa422dbcdd61eb4859407f55ba1611bb4e11ecd57090e",
+   "capture": "tests\\fixtures\\vendor\\harness\\poor-man039s-volume-profile-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/position-size-calc__a42db1a620.pine",
+   "sha256": "eaeec551cca2cea99029592a57a9687c0b1c58a635e512183a57ba353c20fe1e",
+   "capture": "tests\\fixtures\\vendor\\harness\\position-size-calc-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
+   "sha256": "1873095ef9c012e5ed806e7c13932515fceb6dccafe711932388840787e4b41d",
+   "capture": "tests\\fixtures\\vendor\\harness\\position-size-calculator-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
+   "sha256": "a4949210fb93f914886dc9b9051284d42a76c9ba2dfd8e7ea661926a09d35d4a",
+   "capture": "tests\\fixtures\\vendor\\harness\\price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
+   "sha256": "996b909e23b875814ac84e1af491e8c0913b59e45a974fc495fa6f07b388c3b4",
+   "capture": "tests\\fixtures\\vendor\\harness\\pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
+   "sha256": "fdb41f5145dca63c347276e0d802641648916824cc498e7497c4af1dfb172ccd",
+   "capture": "tests\\fixtures\\vendor\\harness\\reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
+   "sha256": "b0ea6cc01291279e26b36c4c8dd8ef0b2889be7949fe358242d976ff46b40f6b",
+   "capture": "tests\\fixtures\\vendor\\harness\\rsi-swing-indicator-rddt-1d-2026-09-28.json"
+  },
+  {
    "file": "corpus/committed/rvol__05fcd9e160.pine",
    "sha256": "7dc8fd5ee8816dd7a326c53cf3617d4eef51f79b5f2a98ed06d3d9e9745263fd",
    "capture": "tests\\fixtures\\vendor\\harness\\rvol-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/sector-rotation__0fca060bf4.pine",
+   "sha256": "cdae0510d9c38b51dd860039ba0d983e409de4ed6f0a7a18359011b4e681c277",
+   "capture": "tests\\fixtures\\vendor\\harness\\sector-rotation-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
+   "sha256": "e19d3aeaf994f204b01f2b80f82ba3581472f7af6baf5e044e70bc86c10018c7",
+   "capture": "tests\\fixtures\\vendor\\harness\\smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
+   "sha256": "69e764501cd7197881b9d84f1a03be32c040501fc3eff1419c6c757c6a26ae8f",
+   "capture": "tests\\fixtures\\vendor\\harness\\trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
+   "sha256": "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844",
+   "capture": "tests\\fixtures\\vendor\\harness\\trend-lines-supports-and-resistances-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
+   "sha256": "b010cfc4a8e01a0d421915fa087d58ca8557ecf0dc408442d112671fb7f5e873",
+   "capture": "tests\\fixtures\\vendor\\harness\\ultimate-pivot-points-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
+   "sha256": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
+   "capture": "tests\\fixtures\\vendor\\harness\\vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
+   "sha256": "278394d0336ccbacbc8df6c84e1ea428c2a1c892db77cea238d5848cc69cafde",
+   "capture": "tests\\fixtures\\vendor\\harness\\vold-market-breadth-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
+   "sha256": "d9f11992bf6e03a6bd6a1cb663070ba3bc597d5ff7694feec128c53f138fcee3",
+   "capture": "tests\\fixtures\\vendor\\harness\\volume-profile-rddt-1d-2026-09-28.json"
   },
   {
    "file": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
@@ -53,42 +288,6 @@
   }
  ],
  "scripts": [
-  {
-   "slug": "artemis-oscillator-pro",
-   "path": "corpus/committed/artemis-oscillator-pro__ea1097ca9e.pine",
-   "sha256": "7375c4d95c5820eb9dce153a30b21d12a1bfd6fe823685cc36a950faf6bac656",
-   "bytes": 64909,
-   "plots": 12,
-   "drawsObjects": true,
-   "largestWindow": 129
-  },
-  {
-   "slug": "atr-support-and-resistance",
-   "path": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
-   "sha256": "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797",
-   "bytes": 16731,
-   "plots": 10,
-   "drawsObjects": true,
-   "largestWindow": 200
-  },
-  {
-   "slug": "average-day-range-adr-pivots",
-   "path": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
-   "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
-   "bytes": 27259,
-   "plots": 7,
-   "drawsObjects": true,
-   "largestWindow": 0
-  },
-  {
-   "slug": "candlestick-patterns-identified-update-1-17-26",
-   "path": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
-   "sha256": "b597f17ba9faabad09b9c26d3307390c292d0f2066374a78e3ebdf83557c113d",
-   "bytes": 6294,
-   "plots": 12,
-   "drawsObjects": false,
-   "largestWindow": 11
-  },
   {
    "slug": "cdc-btc-rainbow-road",
    "path": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine",
@@ -99,339 +298,6 @@
    "largestWindow": 730
   },
   {
-   "slug": "contraction-box-doji-lines",
-   "path": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
-   "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
-   "bytes": 2452,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "donchian-channels",
-   "path": "corpus/committed/donchian-channels__5df15aaa23.pine",
-   "sha256": "fb4cfe8389cd754e6449381afeafa599fd625b0f92e324c1910355e5193000b3",
-   "bytes": 7839,
-   "plots": 13,
-   "drawsObjects": false,
-   "largestWindow": 101
-  },
-  {
-   "slug": "dual-view-htf-candlestick-patterns-theultimator5",
-   "path": "corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine",
-   "sha256": "e1c592098f94ac8d96ee885a57b89386a773b128c5a7a1b02b6bbeeb30c638a3",
-   "bytes": 60787,
-   "plots": 1,
-   "drawsObjects": false,
-   "largestWindow": 12
-  },
-  {
-   "slug": "elliott-wave-3-finder-v2",
-   "path": "corpus/committed/elliott-wave-3-finder-v2__451cecfc9d.pine",
-   "sha256": "4d2ef4ccc6976beac23b022ac025223efae6018d8b4d5d83d9d9c464e67f0b6d",
-   "bytes": 852,
-   "plots": 2,
-   "drawsObjects": false,
-   "largestWindow": 35
-  },
-  {
-   "slug": "ema-ribbon-trend-filter-strixedge",
-   "path": "corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine",
-   "sha256": "66efe6b7bddbb2c216d663bae3ff4f35d91c23e92baa1e1f2c1153565e6aaf90",
-   "bytes": 28298,
-   "plots": 15,
-   "drawsObjects": true,
-   "largestWindow": 106
-  },
-  {
-   "slug": "extrapolated-pivot-connector",
-   "path": "corpus/committed/extrapolated-pivot-connector__vROeQSQlNs.pine",
-   "sha256": "9f5cc1c93e49c4a3b1d0ae621e4ddacdeae564729d63e1c70626459ffe520291",
-   "bytes": 1924,
-   "plots": 2,
-   "drawsObjects": false,
-   "largestWindow": 200
-  },
-  {
-   "slug": "fibonacci-pivot-points-cc",
-   "path": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
-   "sha256": "e901bfe72a798163798ff304c9f792a9964fd9fcba3148f456248e8788716f21",
-   "bytes": 2921,
-   "plots": 7,
-   "drawsObjects": true,
-   "largestWindow": 1
-  },
-  {
-   "slug": "heat-map-seasons",
-   "path": "corpus/committed/heat-map-seasons__53acdf3223.pine",
-   "sha256": "eac7328544bd4ac89d4df75df5cd391a4ef5ccf38f4d1fd9868a63bee16f2a18",
-   "bytes": 2688,
-   "plots": 1,
-   "drawsObjects": true,
-   "largestWindow": 200
-  },
-  {
-   "slug": "high-low-open-mid-ranges",
-   "path": "corpus/committed/high-low-open-mid-ranges__5715509e0b.pine",
-   "sha256": "aaa1bc101cb4081027f10118ef3850a5bbec648605edec2dfcfcbfe38ee7971b",
-   "bytes": 13031,
-   "plots": 7,
-   "drawsObjects": true,
-   "largestWindow": 0
-  },
-  {
-   "slug": "htf-candle-footprint-cartel-console",
-   "path": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
-   "sha256": "e0db92075b2e1421b0c47c26b26de7ad5fe52fd6313971d6edbf6a28c9d4b538",
-   "bytes": 7385,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "htf-liquidity-dashboard-tfo",
-   "path": "corpus/committed/htf-liquidity-dashboard-tfo__ec8f8316a4.pine",
-   "sha256": "18279b6aa3fbba7499888e5066d95d7664904b560caa2b65be1a51e27743ef99",
-   "bytes": 30569,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "ict-ipda-look-back",
-   "path": "corpus/committed/ict-ipda-look-back__f85b4c8956.pine",
-   "sha256": "c30fc4c35c07be1a6fb57ddbb4e093b804317abf1655f384efae8c936fe7e15b",
-   "bytes": 11668,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "ict-killzones-pivots-tfo",
-   "path": "corpus/committed/ict-killzones-pivots-tfo__d0b8be94f1.pine",
-   "sha256": "16ffd9a1a66cbdfc0e3e2bc85a5da02374752139f7ba4ed79cecf8c7642899d0",
-   "bytes": 64490,
-   "plots": 7,
-   "drawsObjects": true,
-   "largestWindow": 0
-  },
-  {
-   "slug": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat",
-   "path": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
-   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
-   "bytes": 3342,
-   "plots": 2,
-   "drawsObjects": true,
-   "largestWindow": 501
-  },
-  {
-   "slug": "institutional-smc-order-flow-matrix-pro",
-   "path": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
-   "sha256": "9d1d8bd738709ed4efe17f37d6dacfa131cad44efb93def754a363ec94fa449b",
-   "bytes": 7824,
-   "plots": 5,
-   "drawsObjects": true,
-   "largestWindow": 0
-  },
-  {
-   "slug": "k-clustering",
-   "path": "corpus/committed/k-clustering__8e82f5aa4b.pine",
-   "sha256": "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e",
-   "bytes": 16888,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "linear-regression-channel-tradingfinder-existing-trend-lines",
-   "path": "corpus/committed/linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
-   "sha256": "c771be052a7f90bf57fe0723b430e9ff463ac1c7be1478c3dc012ae25097a84e",
-   "bytes": 3636,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "liquidation-levels",
-   "path": "corpus/committed/liquidation-levels__pi4nVOJgbV.pine",
-   "sha256": "ecc6f023f5fb7b67a65aa1904ed53491c5e0b7279ab2cc35966ab710df0af8f0",
-   "bytes": 5534,
-   "plots": 11,
-   "drawsObjects": false,
-   "largestWindow": 0
-  },
-  {
-   "slug": "liquidity-engulfing-candles-upslidedown",
-   "path": "corpus/committed/liquidity-engulfing-candles-upslidedown__0a521d089c.pine",
-   "sha256": "01dd1380acc1d99804e0b45feb81ebb4f8e1cfc50812648f659ff20d6b7b7150",
-   "bytes": 2645,
-   "plots": 3,
-   "drawsObjects": false,
-   "largestWindow": 1
-  },
-  {
-   "slug": "liquidity-heatmap-nephew-sam",
-   "path": "corpus/committed/liquidity-heatmap-nephew-sam__7628c72c3d.pine",
-   "sha256": "b9230ef3d87aba96c9694deb8d96f8562d6443dd6e262d8e2b80a1bb7a2b6ffb",
-   "bytes": 16188,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "liquidity-pools",
-   "path": "corpus/committed/liquidity-pools__fa7b28e733.pine",
-   "sha256": "716e442d118c2f359e29bd060479dc2abb80b68ff512b90f2776d9b919db82b3",
-   "bytes": 4533,
-   "plots": 2,
-   "drawsObjects": true,
-   "largestWindow": 8
-  },
-  {
-   "slug": "madrid-moving-average-ribbon",
-   "path": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
-   "sha256": "c4ab9ee0c5b3cb46dc8eaefc7915af49a09e9e1607ae07d856b8ecd168968527",
-   "bytes": 9292,
-   "plots": 12,
-   "drawsObjects": false,
-   "largestWindow": 90
-  },
-  {
-   "slug": "makuchaku039s-trade-tools-fair-value-gaps",
-   "path": "corpus/committed/makuchaku039s-trade-tools-fair-value-gaps__b951deedc8.pine",
-   "sha256": "33b558860653375ab29f3e81c1ba58864b50664c4e1ed48eddf9a63af7d87519",
-   "bytes": 1277,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "market-structure-by-leviathan",
-   "path": "corpus/committed/market-structure-by-leviathan__9ca1dae1ac.pine",
-   "sha256": "e0cc46632b134c1f7951e0810613d13cbb8bbd1b7efcf8351fe64c7bbe82e2d5",
-   "bytes": 5111,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "mcclellan-indicators",
-   "path": "corpus/committed/mcclellan-indicators__29fdf0235d.pine",
-   "sha256": "d463f0a9215329f375eb62944fb6f0ac11ecb9bf289c57b4f7f728f399aa2db5",
-   "bytes": 4159,
-   "plots": 16,
-   "drawsObjects": false,
-   "largestWindow": 39
-  },
-  {
-   "slug": "momentum-volatility-scanner",
-   "path": "corpus/committed/momentum-volatility-scanner__4d1deaa855.pine",
-   "sha256": "10bf64d914aece77e24d6f392fb849db1783c196cf019339d869451e2dbfc6f9",
-   "bytes": 12375,
-   "plots": 12,
-   "drawsObjects": true,
-   "largestWindow": 42
-  },
-  {
-   "slug": "multi-timeframe-supply-demand-zones",
-   "path": "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine",
-   "sha256": "2e388f11d718f68cbc4ab026b63a1b14d33b9788eab4e4f06f4f9dad1a2280c0",
-   "bytes": 26359,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "options-max-pain-calculator-backquant",
-   "path": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
-   "sha256": "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f",
-   "bytes": 21452,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "poor-man039s-volume-profile",
-   "path": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
-   "sha256": "85b2dd7ca093b474bf2aa422dbcdd61eb4859407f55ba1611bb4e11ecd57090e",
-   "bytes": 58677,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "position-size-calc",
-   "path": "corpus/committed/position-size-calc__a42db1a620.pine",
-   "sha256": "eaeec551cca2cea99029592a57a9687c0b1c58a635e512183a57ba353c20fe1e",
-   "bytes": 4200,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "position-size-calculator",
-   "path": "corpus/committed/position-size-calculator__28sGm8JqI3.pine",
-   "sha256": "1873095ef9c012e5ed806e7c13932515fceb6dccafe711932388840787e4b41d",
-   "bytes": 3469,
-   "plots": 3,
-   "drawsObjects": true,
-   "largestWindow": 20
-  },
-  {
-   "slug": "price-action-as-in-book-fibonacci-supportresistant-trendline",
-   "path": "corpus/committed/price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7.pine",
-   "sha256": "a4949210fb93f914886dc9b9051284d42a76c9ba2dfd8e7ea661926a09d35d4a",
-   "bytes": 15537,
-   "plots": 2,
-   "drawsObjects": true,
-   "largestWindow": 15
-  },
-  {
-   "slug": "pro-trading-art-double-top-bottom-with-alert",
-   "path": "corpus/committed/pro-trading-art-double-top-bottom-with-alert__5321f25fcb.pine",
-   "sha256": "996b909e23b875814ac84e1af491e8c0913b59e45a974fc495fa6f07b388c3b4",
-   "bytes": 5381,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "reverse-stochastic-momentum-index-on-chart",
-   "path": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
-   "sha256": "fdb41f5145dca63c347276e0d802641648916824cc498e7497c4af1dfb172ccd",
-   "bytes": 16413,
-   "plots": 9,
-   "drawsObjects": false,
-   "largestWindow": 55
-  },
-  {
-   "slug": "rsi-swing-indicator",
-   "path": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
-   "sha256": "b0ea6cc01291279e26b36c4c8dd8ef0b2889be7949fe358242d976ff46b40f6b",
-   "bytes": 4303,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "sector-rotation",
-   "path": "corpus/committed/sector-rotation__0fca060bf4.pine",
-   "sha256": "cdae0510d9c38b51dd860039ba0d983e409de4ed6f0a7a18359011b4e681c277",
-   "bytes": 13496,
-   "plots": 2,
-   "drawsObjects": true,
-   "largestWindow": 1
-  },
-  {
-   "slug": "smt-divergence-ict-01-tradingfinder-smart-money-technique",
-   "path": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
-   "sha256": "e19d3aeaf994f204b01f2b80f82ba3581472f7af6baf5e044e70bc86c10018c7",
-   "bytes": 5592,
-   "plots": 5,
-   "drawsObjects": true,
-   "largestWindow": 0
-  },
-  {
    "slug": "swing-highlow-zigzag-chartprime",
    "path": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
    "sha256": "c8cda9379b7ff3fe413146ece400b0c3bff109490f67ccaa1b779236c33cd363",
@@ -439,61 +305,7 @@
    "plots": 1,
    "drawsObjects": true,
    "largestWindow": 0
-  },
-  {
-   "slug": "trend-duration-forecast-chartprime",
-   "path": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
-   "sha256": "69e764501cd7197881b9d84f1a03be32c040501fc3eff1419c6c757c6a26ae8f",
-   "bytes": 7233,
-   "plots": 2,
-   "drawsObjects": true,
-   "largestWindow": 100
-  },
-  {
-   "slug": "trend-lines-supports-and-resistances",
-   "path": "corpus/committed/trend-lines-supports-and-resistances__413ee2ee3b.pine",
-   "sha256": "e2ff7d788c694424facc01cd373b852b4f13c7301c2d4a96a81a72e0707b4844",
-   "bytes": 21502,
-   "plots": 2,
-   "drawsObjects": false,
-   "largestWindow": 40
-  },
-  {
-   "slug": "ultimate-pivot-points",
-   "path": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
-   "sha256": "b010cfc4a8e01a0d421915fa087d58ca8557ecf0dc408442d112671fb7f5e873",
-   "bytes": 5475,
-   "plots": 3,
-   "drawsObjects": true,
-   "largestWindow": 1
-  },
-  {
-   "slug": "vdubus-pattern-gen-v2-restored-refined",
-   "path": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
-   "sha256": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
-   "bytes": 15533,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "vold-market-breadth",
-   "path": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
-   "sha256": "278394d0336ccbacbc8df6c84e1ea428c2a1c892db77cea238d5848cc69cafde",
-   "bytes": 2043,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
-  },
-  {
-   "slug": "volume-profile",
-   "path": "corpus/committed/volume-profile__X0dKLxdLh4.pine",
-   "sha256": "d9f11992bf6e03a6bd6a1cb663070ba3bc597d5ff7694feec128c53f138fcee3",
-   "bytes": 9386,
-   "plots": 0,
-   "drawsObjects": true,
-   "largestWindow": null
   }
  ],
- "generatedAt": "2026-09-28T19:25:00+00:00"
+ "generatedAt": "2026-09-28T22:56:37+00:00"
 }
