@@ -293,6 +293,11 @@ export default function CalendarHeader({
   const [copying, setCopying] = useState(false)
   const [copied, setCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  // TERM-084: present only when the server says the link is rotatable (flag on).
+  const [linkInfo, setLinkInfo] = useState(null)       // { expires_at }
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [resetMsg, setResetMsg] = useState('')
 
   // Peer read-through — OPT-IN (no auto-spend, no auto-chrome). A small toggle
   // under the sector chips reveals the AI line only when the user asks for it.
@@ -357,7 +362,9 @@ export default function CalendarHeader({
     setDownloading(true)
     try {
       const tr = await fetch('/api/calendar/export-token', { credentials: 'include' })
-      const { token } = tr.ok ? await tr.json() : {}
+      const body = tr.ok ? await tr.json() : {}
+      const { token } = body
+      if (body.rotatable) setLinkInfo({ expires_at: body.expires_at })
       const url = token
         ? `/api/calendar/export.ics?scope=mine&token=${token}`
         : '/api/calendar/export.ics?scope=all'
@@ -376,15 +383,44 @@ export default function CalendarHeader({
     setCopying(true)
     try {
       const tr = await fetch('/api/calendar/export-token', { credentials: 'include' })
-      const { subscribe_url } = tr.ok ? await tr.json() : {}
+      const body = tr.ok ? await tr.json() : {}
+      const { subscribe_url } = body
+      if (body.rotatable) setLinkInfo({ expires_at: body.expires_at })
       if (subscribe_url) {
         await navigator.clipboard.writeText(subscribe_url)
         setCopied(true)
-        setTimeout(() => { setCopied(false); setPanelOpen(false) }, 1500)
+        // A rotatable link keeps the panel open so its expiry + Reset control stay readable.
+        setTimeout(() => { setCopied(false); if (!body.rotatable) setPanelOpen(false) }, 1500)
       }
     } catch (_) { /* silent */ }
     setCopying(false)
   }, [])
+
+  // TERM-084: reset the subscribe link. Two taps (the first only arms it), because
+  // every calendar app subscribed with the old link stops updating.
+  const resetWebcal = useCallback(async () => {
+    if (!confirmReset) { setConfirmReset(true); setResetMsg(''); return }
+    setResetting(true)
+    try {
+      const r = await fetch('/api/calendar/export-token/rotate', { method: 'POST', credentials: 'include' })
+      const body = r.ok ? await r.json() : {}
+      if (body.subscribe_url) {
+        setLinkInfo({ expires_at: body.expires_at })
+        try {
+          await navigator.clipboard.writeText(body.subscribe_url)
+          setResetMsg('New link copied. Replace the old subscription in your calendar app.')
+        } catch (_) {
+          setResetMsg('Link reset. Use Copy webcal URL for the new link.')
+        }
+      } else {
+        setResetMsg('Could not reset the link. Try again.')
+      }
+    } catch (_) {
+      setResetMsg('Could not reset the link. Try again.')
+    }
+    setConfirmReset(false)
+    setResetting(false)
+  }, [confirmReset])
 
   // "Most Anticipated" shareable image — opens the branded weekly PNG in a new
   // tab for the currently-viewed week (right-click save / share the URL).
@@ -494,6 +530,20 @@ export default function CalendarHeader({
                 title="Open a shareable image of this week's biggest reporters">
           <UIcon name="flame" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Most Anticipated image
         </button>
+      )}
+      {linkInfo && (
+        <>
+          {linkInfo.expires_at && (
+            <span data-testid="webcal-expiry">
+              Link valid until {new Date(linkInfo.expires_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+          )}
+          <button className={styles.exportItem} onClick={resetWebcal} disabled={resetting}
+                  title="Stops every calendar app using your current link">
+            {resetting ? 'Resetting…' : confirmReset ? 'Confirm reset (old link stops working)' : 'Reset webcal link'}
+          </button>
+          {resetMsg && <span role="status">{resetMsg}</span>}
+        </>
       )}
     </div>
   )
