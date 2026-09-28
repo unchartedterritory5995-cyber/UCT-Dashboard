@@ -410,7 +410,24 @@ def _access_payload(user: dict, plan: str) -> dict:
         # flag cannot express: one bundle cannot be on for one member and off for the
         # rest.
         **_breadth_dc_flags(is_admin=is_admin),
+        # ── TERM-077 — watchlist "copy or link, chosen at import" ──────────
+        # Same request-time read and ENABLEMENT polarity as the gates above.
+        # ⛔ THE KEY IS PRESENT ONLY WHEN ON. Its ticket's own rail is "flag
+        # off => today's behaviour, byte for byte", and that includes this
+        # payload; the client reads `=== true`, so absent and false mean the
+        # same thing to it.
+        **_watchlist_copy_or_link_flag(),
     }
+
+
+def _watchlist_copy_or_link_flag() -> dict:
+    try:
+        from api.services import watchlist_origin
+        return {"watchlist_copy_or_link_enabled": True} if watchlist_origin.enabled() else {}
+    except Exception:
+        # This payload is the universal auth path; a failure here must never
+        # become a login outage. An unreadable gate is an OFF gate.
+        return {}
 
 
 @router.post("/signup")

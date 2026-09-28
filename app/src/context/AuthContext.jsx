@@ -32,6 +32,9 @@ export function AuthProvider({ children }) {
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
+  // TERM-077 — watchlist "copy or link, chosen at import". Enablement gate,
+  // default FALSE; the server sends the key only when it is on.
+  const [watchlistCopyOrLinkEnabled, setWatchlistCopyOrLinkEnabled] = useState(false)
   // Breadth Data Charts V2 increments (DC-2 §2). Default FALSE, same enablement
   // polarity and the same reason. ⭐ These REPLACE the build-time
   // `VITE_BREADTH_CHARTS_V2_ENABLED`: baked into the bundle, a flip was a rebuild,
@@ -76,6 +79,7 @@ export function AuthProvider({ children }) {
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
     ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
+    ['watchlist_copy_or_link_enabled', (d) => d.watchlist_copy_or_link_enabled === true, setWatchlistCopyOrLinkEnabled],
   ]
 
   const applyServerFlags = (data) => {
@@ -277,7 +281,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )
