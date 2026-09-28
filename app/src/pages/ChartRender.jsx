@@ -71,6 +71,9 @@ import { mergeSettingsOverride, PRESETS, CHART_DEFAULTS } from '../components/ch
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
 import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
+import {
+  pineRuntimeLaneEnabled, loadedPineRuntimeLane, loadPineRuntimeLane, RUNTIME_LANE_KIND,
+} from '../components/chart/engine/pineRuntimeLaneGate'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 
@@ -343,6 +346,26 @@ export default function ChartRender() {
     () => (userDefsParam ? installUserDefinitions(userDefsParam) : { installed: [], errors: [] }),
     [userDefsParam],
   )
+  // ⭐⭐ A RUNTIME-LANE DOCUMENT WAITS FOR ITS ENGINE BEFORE THE CHART MOUNTS.
+  // The runtime lane is a lazy chunk (`pineRuntimeLaneGate.js` says why). A
+  // `compute.kind: 'pine'` document handed in here would otherwise be computed on
+  // the chart's first paint, before the chunk exists — a named "still loading"
+  // column error, and a frame the renderer would call ready. So with the flag on
+  // and such a document present, `StockChart` is not mounted until the lane has
+  // SETTLED; `__chartBarsReady` (set by StockChart) cannot flip before then, which
+  // is the renderer's own precondition. A failed load settles too: the chart then
+  // draws with the lane's named per-column error rather than hanging the capture.
+  const needsRuntimeLane = !!userDefsParam && pineRuntimeLaneEnabled()
+    && userDefsParam.some((d) => d && d.compute && d.compute.kind === RUNTIME_LANE_KIND)
+  const [runtimeLaneSettled, setRuntimeLaneSettled] = useState(() => loadedPineRuntimeLane() !== null)
+  useEffect(() => {
+    if (!needsRuntimeLane || runtimeLaneSettled) return undefined
+    let alive = true
+    const settle = () => { if (alive) setRuntimeLaneSettled(true) }
+    loadPineRuntimeLane().then(settle, settle)
+    return () => { alive = false }
+  }, [needsRuntimeLane, runtimeLaneSettled])
+  const holdChartForRuntimeLane = needsRuntimeLane && !runtimeLaneSettled
   // Sanitised: this value indexes a dynamic import, so it may only ever name a
   // file, never traverse to one.
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
@@ -895,6 +918,7 @@ export default function ChartRender() {
             on the price grid. The prop also gates showVolLegend, which is why
             the "$ Vol / Avg 50D" strip was missing from newsletter charts. */}
         <div style={{ width: w, height: chartH }}>
+          {holdChartForRuntimeLane ? null : (
           <StockChart
             sym={sym}
             tf={tf}
@@ -931,6 +955,7 @@ export default function ChartRender() {
             alwaysShowLegend
             liveUpdates={false}
           />
+          )}
         </div>
         <div style={{ height: 20, background: chromeBg, display: 'flex', alignItems: 'center', padding: '0 16px', color: chromeText, fontSize: 10 }}>
           {/* Traders read ET — a "03:20 UTC" stamp on a 7:35am letter reads broken.

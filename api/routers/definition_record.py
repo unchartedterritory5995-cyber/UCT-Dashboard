@@ -147,6 +147,12 @@ def definition_record_claim(
     doc = row.get("definition") if isinstance(row.get("definition"), dict) else {}
     compute = doc.get("compute") if isinstance(doc.get("compute"), dict) else {}
     tree = compute.get("ast")
+    if defs.is_runtime_lane(doc):
+        # ⭐ NAMED (2026-09-27): the sweep refuses a runtime-lane row, so it has no
+        # forward record — and the member is told why, not that a tree is missing.
+        raise HTTPException(status_code=400,
+                            detail=f"definition {def_id!r} has no forward record: "
+                                   f"{defs.RUNTIME_LANE_REASON}")
     if compute.get("kind") != "ast" or not isinstance(tree, dict) or not tree:
         raise HTTPException(status_code=400,
                             detail=f"definition {def_id!r} carries no `compute.ast` tree")

@@ -307,6 +307,17 @@ def compare_row(row: Mapping[str, Any]) -> List[dict]:
         return [finding(None, stored, None, UNCOMPARABLE,
                         "the stored `repaint` column is not a {plotKey: mode} object")]
 
+    # ⭐ A RUNTIME-LANE ROW IS REPORTED ONCE, BY NAME, AND NEVER HEALED
+    # (2026-09-27). The linter has no tree to read — the program is the member's
+    # Pine, rebuilt in the browser — so its stored verdict is `None` per plot and
+    # there is no measurement to heal it toward. Comparing plot by plot would
+    # raise a vocabulary error per plot on every pass: noise about a fact that is
+    # one sentence long. UNCOMPARABLE is never written, so the row is untouched.
+    if user_definitions.is_runtime_lane(definition):
+        return [finding(None, None, None, UNCOMPARABLE,
+                        f"{user_definitions.RUNTIME_LANE_REASON} — the linter has no "
+                        "tree to measure, so this row's stored badge is left as it is")]
+
     try:
         current = user_definitions.lint_verdict(definition)
     except Exception as exc:                                       # noqa: BLE001

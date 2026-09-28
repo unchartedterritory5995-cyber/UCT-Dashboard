@@ -24,12 +24,15 @@
 // a transport failure (it never answered) and a refusal whose body is
 // unreadable. That is the same split `useIndicatorAlerts.createIndicatorAlert`
 // draws, for the same reason.
-import { useContext, useMemo } from 'react'
+import { useContext, useEffect, useMemo, useState } from 'react'
 import useSWR, { mutate } from 'swr'
 import { AuthContext } from '../context/AuthContext'
 import {
   installUserDefinitions, clearUserDefinitions, registryGeneration,
 } from '../components/chart/engine/nativeRegistry'
+import {
+  pineRuntimeLaneEnabled, loadedPineRuntimeLane, loadPineRuntimeLane, RUNTIME_LANE_KIND,
+} from '../components/chart/engine/pineRuntimeLaneGate'
 import { reduceIfOversized, hydrateGraphDocument } from '../components/chart/engine/ast/graphDocument'
 import { META_KEY } from '../pages/screener/hooks/useScreenerMeta'
 
@@ -269,6 +272,33 @@ export function useInstalledUserDefinitions() {
   // version and compute handle ⇒ no write, no generation bump) and
   // `clearUserDefinitions` returns early on an empty index, so a second run
   // costs a loop and changes nothing a consumer can observe.
+  // ⭐⭐ A RUNTIME-LANE DOCUMENT WAITS FOR ITS ENGINE, IT IS NOT INSTALLED EARLY.
+  // The runtime lane is a lazy chunk (`pineRuntimeLaneGate.js` says why: +328 KB
+  // on every page otherwise). A stored `compute.kind: 'pine'` document installed
+  // before that chunk lands would compute as a named "still loading" error with
+  // nothing to ask it again — the generation only moves when the INSTALLED SET
+  // changes. So, with the flag on and the lane absent, those documents are held
+  // back, the lane is loaded, and they install on the next pass — a real install
+  // that moves the generation, so every chart reading it redraws. Every other
+  // document installs at once. With the flag OFF nothing is held: the install
+  // door refuses a `pine` document by name, exactly as before.
+  const [laneTick, setLaneTick] = useState(0)
+  const [laneFailed, setLaneFailed] = useState(false)
+  const holdsLaneDocs = key !== '<refused>'
+    && pineRuntimeLaneEnabled()
+    && !loadedPineRuntimeLane()
+    && rows.some(r => r && r.definition && r.definition.compute
+      && r.definition.compute.kind === RUNTIME_LANE_KIND)
+  useEffect(() => {
+    if (!holdsLaneDocs) return undefined
+    let alive = true
+    loadPineRuntimeLane().then(
+      () => { if (alive) setLaneTick(n => n + 1) },
+      () => { if (alive) setLaneFailed(true) },
+    )
+    return () => { alive = false }
+  }, [holdsLaneDocs])
+
   const { installedIds, errors } = useMemo(() => {
     if (key === '<refused>') {
       clearUserDefinitions()
@@ -277,9 +307,17 @@ export function useInstalledUserDefinitions() {
     const docs = rows
       .map(r => r && r.definition)
       .filter(d => d && typeof d === 'object')
-    const { installed, errors: installErrors } = installUserDefinitions(docs)
-    return { installedIds: installed.map(d => d.id), errors: installErrors }
-  }, [key, rows])
+    const held = holdsLaneDocs
+      ? docs.filter(d => d.compute && d.compute.kind === RUNTIME_LANE_KIND)
+      : []
+    const ready = held.length ? docs.filter(d => !held.includes(d)) : docs
+    const { installed, errors: installErrors } = installUserDefinitions(ready)
+    // ⛔ A HELD DOCUMENT IS SAID, NEVER SILENTLY MISSING.
+    const heldErrors = held.map(d => `${d.id}: runs in the chart's second engine, which ${
+      laneFailed ? 'could not be loaded — reload to try again' : 'is still loading'}`)
+    return { installedIds: installed.map(d => d.id), errors: [...installErrors, ...heldErrors] }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- laneTick IS the input: the loaded lane
+  }, [key, rows, holdsLaneDocs, laneTick, laneFailed])
 
   return {
     installedIds,

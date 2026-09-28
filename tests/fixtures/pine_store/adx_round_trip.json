@@ -1,0 +1,353 @@
+{
+  "corpus": "adx-and-di-for-v4__932",
+  "draftId": "u_member-pane-adx",
+  "request": {
+    "definition": {
+      "schemaVersion": 1,
+      "id": "u_member-pane-adx",
+      "version": 1,
+      "compute": {
+        "kind": "pine",
+        "rev": 1,
+        "source": "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © BeikabuOyaji\n\n//@version=4\n\n\nstudy(\"ADX and DI for v4\")\nlen = input(14)\nth = input(20)\n\nTrueRange = max(max(high-low, abs(high-nz(close[1]))), abs(low-nz(close[1])))\nDirectionalMovementPlus = high-nz(high[1]) > nz(low[1])-low ? max(high-nz(high[1]), 0): 0\nDirectionalMovementMinus = nz(low[1])-low > high-nz(high[1]) ? max(nz(low[1])-low, 0): 0\n\nSmoothedTrueRange = 0.0\nSmoothedTrueRange := nz(SmoothedTrueRange[1]) - (nz(SmoothedTrueRange[1])/len) + TrueRange\n\nSmoothedDirectionalMovementPlus = 0.0\nSmoothedDirectionalMovementPlus := nz(SmoothedDirectionalMovementPlus[1]) - (nz(SmoothedDirectionalMovementPlus[1])/len) + DirectionalMovementPlus\n\nSmoothedDirectionalMovementMinus = 0.0\nSmoothedDirectionalMovementMinus := nz(SmoothedDirectionalMovementMinus[1]) - (nz(SmoothedDirectionalMovementMinus[1])/len) + DirectionalMovementMinus\n\nDIPlus = SmoothedDirectionalMovementPlus / SmoothedTrueRange * 100\nDIMinus = SmoothedDirectionalMovementMinus / SmoothedTrueRange * 100\nDX = abs(DIPlus-DIMinus) / (DIPlus+DIMinus)*100\nADX = sma(DX, len)\n\nplot(DIPlus, color=color.green, title=\"DI+\")\nplot(DIMinus, color=color.red, title=\"DI-\")\nplot(ADX, color=color.navy, title=\"ADX\")\nhline(th, color=color.black)\n",
+        "lane": {
+          "plotColours": true,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 29
+          },
+          "out2": {
+            "output": 2,
+            "call": "plot",
+            "line": 30
+          },
+          "out3": {
+            "output": 4,
+            "call": "plot",
+            "line": 31
+          }
+        },
+        "inputs": {
+          "pine_len": "len"
+        },
+        "fn": "pine:12d528ed"
+      },
+      "meta": {
+        "name": "ADX and DI for v4",
+        "shortName": "ADX and DI",
+        "category": "Custom",
+        "description": "",
+        "tags": [
+          "custom"
+        ],
+        "tier": "premium",
+        "repaint": "non-repainting",
+        "freshness": "live",
+        "pineLane": "runtime",
+        "disclosures": [
+          {
+            "name": "`hline`",
+            "note": "This script's `hline` (line 32) draws a horizontal guide line, which this pane does not draw yet."
+          },
+          {
+            "name": "th",
+            "note": "`th` only sets something this pane does not draw (line 32), so it is not offered as a setting here."
+          }
+        ],
+        "requirementTags": []
+      },
+      "placement": {
+        "target": "pane",
+        "pane": {
+          "height": 0.25
+        }
+      },
+      "inputs": [
+        {
+          "key": "color",
+          "type": "color",
+          "label": "Color",
+          "default": "#4CAF50"
+        },
+        {
+          "key": "lineWidth",
+          "type": "int",
+          "label": "Line width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        },
+        {
+          "key": "out2Color",
+          "type": "color",
+          "label": "DI- colour",
+          "default": "#FF5252"
+        },
+        {
+          "key": "out2Width",
+          "type": "int",
+          "label": "DI- width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        },
+        {
+          "key": "out3Color",
+          "type": "color",
+          "label": "ADX colour",
+          "default": "#311B92"
+        },
+        {
+          "key": "out3Width",
+          "type": "int",
+          "label": "ADX width",
+          "default": 1,
+          "min": 1,
+          "max": 4,
+          "step": 1
+        },
+        {
+          "key": "pine_len",
+          "type": "int",
+          "label": "len",
+          "default": 14
+        }
+      ],
+      "plots": [
+        {
+          "key": "value",
+          "label": "DI+",
+          "style": "line",
+          "color": "$color",
+          "width": "$lineWidth",
+          "role": "primary",
+          "legend": {
+            "decimals": 2
+          }
+        },
+        {
+          "key": "out2",
+          "label": "DI-",
+          "style": "line",
+          "color": "$out2Color",
+          "width": "$out2Width",
+          "role": "secondary",
+          "legend": {
+            "decimals": 2
+          }
+        },
+        {
+          "key": "out3",
+          "label": "ADX",
+          "style": "line",
+          "color": "$out3Color",
+          "width": "$out3Width",
+          "role": "secondary",
+          "legend": {
+            "decimals": 2
+          }
+        }
+      ]
+    }
+  },
+  "createResponse": {
+    "def_id": "u_0123456789ab",
+    "version": 1,
+    "rev": 1,
+    "rev_bumped": false,
+    "migrated": 0,
+    "notified": 0,
+    "bindings_on_this_tree": 0,
+    "ast_hash": "pine:12d528ed",
+    "repaint": {
+      "out2": null,
+      "out3": null,
+      "value": null
+    },
+    "requirements": [],
+    "appended": true
+  },
+  "listResponse": {
+    "definitions": [
+      {
+        "user_id": "member-1",
+        "def_id": "u_0123456789ab",
+        "version": 1,
+        "rev": 1,
+        "ast_hash": "pine:12d528ed",
+        "definition": {
+          "compute": {
+            "columns": {
+              "out2": {
+                "call": "plot",
+                "line": 30,
+                "output": 2
+              },
+              "out3": {
+                "call": "plot",
+                "line": 31,
+                "output": 4
+              },
+              "value": {
+                "call": "plot",
+                "line": 29,
+                "output": 0
+              }
+            },
+            "fn": "pine:12d528ed",
+            "inputs": {
+              "pine_len": "len"
+            },
+            "kind": "pine",
+            "lane": {
+              "ownsDrawing": false,
+              "plotColours": true
+            },
+            "rev": 1,
+            "source": "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © BeikabuOyaji\n\n//@version=4\n\n\nstudy(\"ADX and DI for v4\")\nlen = input(14)\nth = input(20)\n\nTrueRange = max(max(high-low, abs(high-nz(close[1]))), abs(low-nz(close[1])))\nDirectionalMovementPlus = high-nz(high[1]) > nz(low[1])-low ? max(high-nz(high[1]), 0): 0\nDirectionalMovementMinus = nz(low[1])-low > high-nz(high[1]) ? max(nz(low[1])-low, 0): 0\n\nSmoothedTrueRange = 0.0\nSmoothedTrueRange := nz(SmoothedTrueRange[1]) - (nz(SmoothedTrueRange[1])/len) + TrueRange\n\nSmoothedDirectionalMovementPlus = 0.0\nSmoothedDirectionalMovementPlus := nz(SmoothedDirectionalMovementPlus[1]) - (nz(SmoothedDirectionalMovementPlus[1])/len) + DirectionalMovementPlus\n\nSmoothedDirectionalMovementMinus = 0.0\nSmoothedDirectionalMovementMinus := nz(SmoothedDirectionalMovementMinus[1]) - (nz(SmoothedDirectionalMovementMinus[1])/len) + DirectionalMovementMinus\n\nDIPlus = SmoothedDirectionalMovementPlus / SmoothedTrueRange * 100\nDIMinus = SmoothedDirectionalMovementMinus / SmoothedTrueRange * 100\nDX = abs(DIPlus-DIMinus) / (DIPlus+DIMinus)*100\nADX = sma(DX, len)\n\nplot(DIPlus, color=color.green, title=\"DI+\")\nplot(DIMinus, color=color.red, title=\"DI-\")\nplot(ADX, color=color.navy, title=\"ADX\")\nhline(th, color=color.black)\n"
+          },
+          "id": "u_0123456789ab",
+          "inputs": [
+            {
+              "default": "#4CAF50",
+              "key": "color",
+              "label": "Color",
+              "type": "color"
+            },
+            {
+              "default": 1,
+              "key": "lineWidth",
+              "label": "Line width",
+              "max": 4,
+              "min": 1,
+              "step": 1,
+              "type": "int"
+            },
+            {
+              "default": "#FF5252",
+              "key": "out2Color",
+              "label": "DI- colour",
+              "type": "color"
+            },
+            {
+              "default": 1,
+              "key": "out2Width",
+              "label": "DI- width",
+              "max": 4,
+              "min": 1,
+              "step": 1,
+              "type": "int"
+            },
+            {
+              "default": "#311B92",
+              "key": "out3Color",
+              "label": "ADX colour",
+              "type": "color"
+            },
+            {
+              "default": 1,
+              "key": "out3Width",
+              "label": "ADX width",
+              "max": 4,
+              "min": 1,
+              "step": 1,
+              "type": "int"
+            },
+            {
+              "default": 14,
+              "key": "pine_len",
+              "label": "len",
+              "type": "int"
+            }
+          ],
+          "meta": {
+            "category": "Custom",
+            "description": "",
+            "disclosures": [
+              {
+                "name": "`hline`",
+                "note": "This script's `hline` (line 32) draws a horizontal guide line, which this pane does not draw yet."
+              },
+              {
+                "name": "th",
+                "note": "`th` only sets something this pane does not draw (line 32), so it is not offered as a setting here."
+              }
+            ],
+            "freshness": "live",
+            "name": "ADX and DI for v4",
+            "pineLane": "runtime",
+            "repaint": "non-repainting",
+            "requirementTags": [],
+            "shortName": "ADX and DI",
+            "tags": [
+              "custom"
+            ],
+            "tier": "premium"
+          },
+          "placement": {
+            "pane": {
+              "height": 0.25
+            },
+            "target": "pane"
+          },
+          "plots": [
+            {
+              "color": "$color",
+              "key": "value",
+              "label": "DI+",
+              "legend": {
+                "decimals": 2
+              },
+              "role": "primary",
+              "style": "line",
+              "width": "$lineWidth"
+            },
+            {
+              "color": "$out2Color",
+              "key": "out2",
+              "label": "DI-",
+              "legend": {
+                "decimals": 2
+              },
+              "role": "secondary",
+              "style": "line",
+              "width": "$out2Width"
+            },
+            {
+              "color": "$out3Color",
+              "key": "out3",
+              "label": "ADX",
+              "legend": {
+                "decimals": 2
+              },
+              "role": "secondary",
+              "style": "line",
+              "width": "$out3Width"
+            }
+          ],
+          "schemaVersion": 1,
+          "version": 1
+        },
+        "repaint": {
+          "out2": null,
+          "out3": null,
+          "value": null
+        },
+        "requirements": [],
+        "deleted_at": null,
+        "created_at": 1790000000,
+        "scannable": false,
+        "scan_refusal": {
+          "gate": "kind",
+          "detail": "not computable server-side: runtime-lane definition — compute.kind 'pine' is the member's Pine script, which only the chart's runtime lane can run; a scan is a tree this lane can walk, so only 'ast' is scannable."
+        }
+      }
+    ]
+  }
+}

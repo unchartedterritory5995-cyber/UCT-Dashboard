@@ -1,0 +1,192 @@
+{
+  "_readme": [
+    "Committed vectors for the runtime-lane compute handle (pine:<FNV-1a over key-sorted JSON>).",
+    "BOTH lanes are held to this table: app/src/components/chart/engine/pineRuntimeHandle.js",
+    "(pineRuntimeHandle.test.js) and api/services/user_definitions.py::runtime_lane_handle",
+    "(tests/test_user_definitions_pine_store.py). Generated once from the JS lane on 2026-09-27;",
+    "never regenerate to make a failing side pass."
+  ],
+  "vectors": [
+    {
+      "name": "minimal",
+      "compute": {
+        "kind": "pine",
+        "source": "plot(close)",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 1
+          }
+        }
+      },
+      "handle": "pine:44d6d947"
+    },
+    {
+      "name": "insertion order does not matter (1)",
+      "compute": {
+        "kind": "pine",
+        "source": "s",
+        "lane": {
+          "plotColours": true,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 3
+          },
+          "out2": {
+            "output": 1,
+            "call": "plot",
+            "line": 4,
+            "shift": 2
+          },
+          "out10": {
+            "output": 9,
+            "call": "plotcolor",
+            "line": null
+          }
+        },
+        "inputs": {
+          "pine_len": "len",
+          "pine_a": "a"
+        }
+      },
+      "handle": "pine:6f3720da"
+    },
+    {
+      "name": "insertion order does not matter (2)",
+      "compute": {
+        "columns": {
+          "out10": {
+            "line": null,
+            "call": "plotcolor",
+            "output": 9
+          },
+          "out2": {
+            "shift": 2,
+            "line": 4,
+            "call": "plot",
+            "output": 1
+          },
+          "value": {
+            "line": 3,
+            "output": 0,
+            "call": "plot"
+          }
+        },
+        "inputs": {
+          "pine_a": "a",
+          "pine_len": "len"
+        },
+        "lane": {
+          "ownsDrawing": false,
+          "plotColours": true
+        },
+        "source": "s",
+        "kind": "pine"
+      },
+      "handle": "pine:6f3720da"
+    },
+    {
+      "name": "escapes: quote, backslash, controls, tab, newline, DEL, U+2028",
+      "compute": {
+        "source": "\"q\"  \u0000\u0001\b\f\u001f\t\n\r  end",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": true
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 1
+          }
+        }
+      },
+      "handle": "pine:5e3c7fa8"
+    },
+    {
+      "name": "non-BMP and non-ASCII (UTF-16 code units)",
+      "compute": {
+        "source": "// é中😀 plot(close)",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 2
+          }
+        },
+        "inputs": {
+          "pine_x": "été"
+        }
+      },
+      "handle": "pine:eb6b70c2"
+    },
+    {
+      "name": "lone surrogate",
+      "compute": {
+        "source": "a\ud800b",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 1
+          }
+        }
+      },
+      "handle": "pine:47d2fecb"
+    },
+    {
+      "name": "empty inputs object equals absent inputs",
+      "compute": {
+        "source": "x",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 1
+          }
+        },
+        "inputs": {}
+      },
+      "handle": "pine:0787e649"
+    },
+    {
+      "name": "absent inputs",
+      "compute": {
+        "source": "x",
+        "lane": {
+          "plotColours": false,
+          "ownsDrawing": false
+        },
+        "columns": {
+          "value": {
+            "output": 0,
+            "call": "plot",
+            "line": 1
+          }
+        }
+      },
+      "handle": "pine:0787e649"
+    }
+  ]
+}

@@ -221,6 +221,21 @@ consumer — left for the owner of that file.
    chart" is refused with the store's own sentence. Widening it is a backend change
    with its own blast radius — the scan sweep, alerts, definition records and relint
    all read `compute.ast` off stored rows and must skip or serve `pine`.
+   ⚰️ **SUPERSEDED on branch `pine/pine-store` (2026-09-27, `7e3b02370`):** the store
+   takes a `pine` document behind its OWN backend flag `PINE_RUNTIME_LANE_STORE_ENABLED`
+   (dark; off = the old sentence, byte for byte), validates its shape and RE-DERIVES
+   `compute.fn` (`user_definitions.runtime_lane_handle` ⇄ `engine/pineRuntimeHandle.js`,
+   now FNV-1a over KEY-SORTED JSON so a stored-and-read-back document keeps its handle).
+   Every server consumer refuses a stored `pine` row BY NAME
+   (`user_definitions.RUNTIME_LANE_REASON`): `scan_definition.assert_scannable` (sweep
+   nightly + live — counted in `refused`, the receipt identity still closes — screener,
+   scan run, the list stamp), `alert_user_series._gate_lane`, relint (one UNCOMPARABLE
+   finding, never healed), the forward-record and backtest routes. Rails:
+   `tests/test_user_definitions_pine_store.py` (55) + `runtimeLaneStoreRoundTrip.test.jsx`
+   (save → list → load → computeFor against the store's recorded answers). Mutations:
+   11 backend + 2 frontend, every one red, each restored and verified against the
+   committed blob. ⛔ Nothing on the server COMPUTES one: no nightly scan, alert,
+   forward record or backtest of a runtime-lane script exists.
 2. **The repaint badge** of a runtime document is a token rule (`repaints` when the
    source reads a realtime `barstate.*`, `timenow` or `varip`; else `non-repainting`),
    not the linter — there is no tree to lint.

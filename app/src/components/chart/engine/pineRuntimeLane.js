@@ -274,17 +274,12 @@ export function runtimeLaneColumns(def, bars, inputs, ctx) {
   return { columns, errors }
 }
 
-/** FNV-1a (32-bit) of a string, as 8 hex digits — the document's compute
- *  HANDLE: a changed script or a changed map is a changed handle. */
-export function runtimeLaneHandle(text) {
-  let h = 0x811c9dc5
-  const s = String(text)
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 0x01000193) >>> 0
-  }
-  return `pine:${h.toString(16).padStart(8, '0')}`
-}
+/** The document's compute HANDLE (FNV-1a) — a changed script or a changed map
+ *  is a changed handle. ⭐ It lives in `pineRuntimeHandle.js`, which imports
+ *  nothing, so the store's parity rail can read it without this lane's VM; and
+ *  it is hashed over KEY-SORTED JSON so a document survives the store's
+ *  sorted-key round trip (that file says why). */
+export { runtimeLaneHandle, runtimeLaneHandleOf } from './pineRuntimeHandle'
 
 // ⭐ FILL THE GATE'S SLOT AS THIS MODULE EVALUATES, however it was reached — the
 // gate's lazy load, the door's chunk (`runtimeLaneDefinition.js` imports this

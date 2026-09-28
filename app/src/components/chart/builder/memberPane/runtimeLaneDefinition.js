@@ -31,7 +31,7 @@ import { paneObjectsGate } from '../../engine/ast/paneGate'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { alertNoteForOutput, KEY_RE } from '../../engine/ast/parse'
 import {
-  runtimeLaneBuild, runtimeLaneHandle, RUNTIME_DRAWN_CALLS, RUNTIME_LANE_KIND,
+  runtimeLaneBuild, runtimeLaneHandleOf, RUNTIME_DRAWN_CALLS, RUNTIME_LANE_KIND,
 } from '../../engine/pineRuntimeLane'
 import { buildDefinition } from '../BuilderSheet'
 import { interpret } from '../../engine/ast/interpret'
@@ -400,16 +400,20 @@ export function runtimeLaneDefinition({ source, id, name, carryMax, docCarryMax,
   // ⭐⭐ THE COMPUTE IS REPLACED WHOLESALE: the member's script and the map from
   // each plot key to the runtime output it reads. No tree survives — there is
   // none that is this document's maths.
-  const handleText = JSON.stringify([source, columns, inputMap, built.plotColours, sawDrawing])
-  definition.compute = {
+  //
+  // ⛔ THE HANDLE IS DERIVED FROM THE COMPUTE IT NAMES, by the one function the
+  // store mirrors (`pineRuntimeHandle.js` ⇄ `user_definitions.runtime_lane_handle`).
+  // A separately assembled tuple here would be a second statement of what the
+  // handle covers, and the store re-derives it on every save.
+  const compute = {
     kind: RUNTIME_LANE_KIND,
-    fn: runtimeLaneHandle(handleText),
     rev: 1,
     source,
-    lane: { plotColours: built.plotColours, ownsDrawing: sawDrawing },
+    lane: { plotColours: built.plotColours === true, ownsDrawing: sawDrawing === true },
     columns,
     ...(Object.keys(inputMap).length ? { inputs: inputMap } : {}),
   }
+  definition.compute = { ...compute, fn: runtimeLaneHandleOf(compute) }
 
   const drawingNote = sawDrawing ? objectLossNote(objectsGate.loss, { withheld }) : null
   if (drawingNote) notes.unshift(drawingNote)

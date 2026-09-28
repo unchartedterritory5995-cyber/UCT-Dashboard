@@ -2521,7 +2521,8 @@ def note_demand(symbols: Sequence[Any]) -> None:
 
 
 def definitions_to_sweep() -> list:
-    """Every live `ast` definition on the box, DEDUPED BY MATHS.
+    """Every live `ast` definition on the box, DEDUPED BY MATHS — plus every
+    runtime-lane (`pine`) row, handed in only to be REFUSED BY NAME (see below).
 
     ⚠️ THIS IS THE ONLY MEMBER-SHAPED READ IN THE FILE, AND IT COLLAPSES
     IMMEDIATELY. The store is keyed per member; the sweep is not, and neither is
@@ -2534,6 +2535,22 @@ def definitions_to_sweep() -> list:
     for row in user_definitions.live_definitions():
         definition = row.get("definition")
         if not isinstance(definition, dict):
+            continue
+        # ⭐⭐ A RUNTIME-LANE ROW IS HANDED IN, TO BE REFUSED BY NAME — NOT DROPPED
+        # HERE (2026-09-27). The kind filter below would skip it silently, and a
+        # member's saved Pine script would then be absent from the receipt exactly
+        # as if the store held nothing. Handed to `run_sweep`, `assert_scannable`
+        # refuses it under `gate:kind` with `user_definitions.RUNTIME_LANE_REASON`:
+        # counted in `refused`, named in `refusals`, and
+        # `definitions == swept + refused + duplicate + unswept` still closes.
+        # ⛔ Deduped by its handle like any row, BEFORE the requirements check, so
+        # a script that also reads a window-dependent name is still refused BY
+        # NAME rather than skipped silently one line down.
+        if user_definitions.is_runtime_lane(definition):
+            handle = row.get("ast_hash")
+            if handle not in seen:
+                seen.add(handle)
+                out.append(definition)
             continue
         # ⛔ THE CONSUMER CONTRACT, AND THIS IS THE DOOR IT MATTERS MOST AT.
         # `user_definitions.consumer_refusal` is one authority for five consumers;
