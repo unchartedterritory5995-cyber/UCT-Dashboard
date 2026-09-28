@@ -223,6 +223,32 @@ describe('wave 10 F6: a note found by its TEXT says so in the open-beside picker
     // the control: a title match is named by its title alone
     const byTitle = within(list).getByRole('button', { name: 'Three' })
     expect(byTitle.querySelector('[data-note-cue]')).toBeNull()
+    // the title-first control: the title row is the Enter target, never the body row
+    expect(byTitle.getAttribute('data-enter-target')).toBe('true')
+    expect(byText.hasAttribute('data-enter-target')).toBe(false)
+  })
+
+  it('fix round 2 (I-1): only a text match exists -> it is the shown Enter target, named with its reason, and Enter opens it beside', async () => {
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url)
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return { ok: true, json: async () => ({ notes: [{ id: 'n3', title: 'Three', matched: 'text' }] }) }
+      }
+      if (u.startsWith('/api/j2/note-folders')) return { ok: true, json: async () => ({ folders: [] }) }
+      return { ok: true, json: async () => ({}) }
+    })
+    renderAt('?note=n1')
+    fireEvent.click(screen.getByRole('button', { name: /Open a note beside/ }))
+    const box = screen.getByRole('textbox', { name: 'Find a note to open beside' })
+    fireEvent.change(box, { target: { value: 'inventory draw' } })
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
+    const only = within(list).getByRole('button', { name: 'Three, in note text' })
+    expect(within(list).getAllByRole('button')).toHaveLength(1)
+    expect(only.getAttribute('data-enter-target')).toBe('true')
+    expect(only.querySelector('[data-note-cue="in-text"]')?.textContent).toBe(' · in note text')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(sidePane()).not.toBeNull())
+    expect(editorIn(sidePane())).toBe('n3')
   })
 })
 

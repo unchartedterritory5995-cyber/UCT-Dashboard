@@ -4594,8 +4594,9 @@ def switcher_search(
     note whose title does not hold the typed words is listed, without knowing the tier
     numbers (fix round 1: a result with no visible reason reads as a wrong answer). Returns
     `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`. `hasMore`: more rows
-    than the page holds -- from the titles, or from the body half when it was asked
-    (a page the titles fill never asks it, so there it speaks for the titles).
+    than the page holds. On a page the titles fill it is the title half's answer (the
+    body half is never asked); whenever the body pass runs `_switcher_fill_from_body`
+    replaces it with whether the BODY matches overflow the room left -- see the comment there.
 
     ⛔ `prefixExhausted` is never claimed here (wave 10, F6). The body half is a
     full-text match over a PORTER-STEMMED index, where a longer query can match what
@@ -4643,6 +4644,11 @@ def _switcher_fill_from_body(user_id: str, text: str, limit: int, answer: dict[s
     listed = {n["id"] for n in answer["notes"]}
     ranked = list_notes(user_id, q=text, sort="relevance", limit=limit + 1, conn=conn, _quiet=True)
     extra = [r for r in ranked if r["id"] not in listed]
+    # ⛔ This OVERWRITES the title half's `hasMore` (always False here -- the body
+    # half runs only when the titles left room): from now on it says whether the
+    # BODY matches overflow the page. So `hasMore` is titles-only on a page the
+    # titles fill (or when this pass returns early above), and body-derived whenever
+    # the body pass runs. No client reads it today (wave 10 F6, fix round 2, minor).
     answer["hasMore"] = len(extra) > room
     extra = extra[:room]
     if not extra:
