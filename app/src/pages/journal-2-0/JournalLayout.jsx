@@ -32,6 +32,7 @@ import useBrokerSync from './hooks/useBrokerSync'
 import useInstantFills from './hooks/useInstantFills'
 import { mapJ2TabToRoute } from './j2tabRedirect'
 import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
+import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
@@ -53,7 +54,7 @@ const PRIMARY_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
   { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
-  { to: '/journal/notebook', label: 'Notebook', icon: 'journal' },
+  { to: NOTEBOOK_PATH, label: 'Notebook', icon: 'journal' },
   { to: '/journal/insights', label: 'Insights', icon: 'chart' },
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]
@@ -71,7 +72,7 @@ export const HOTKEY_ROUTES = {
   'g>p': '/journal/trades?seg=open', // Open Positions (was `positions`)
   'g>j': '/journal/trades?seg=closed', // Closed Trades (was `journal`)
   'g>a': '/journal/calendar', // Calendar (own top tab)
-  'g>n': '/journal/notebook', // Notebook (own top tab)
+  'g>n': NOTEBOOK_PATH, // Notebook (own top tab)
   'g>y': '/journal/insights', // Insights (was `analytics`)
   'g>t': '/journal/accounts', // Accounts
   'g>k': '/journal/compass', // Compass (paid-gated — see PAID_HOTKEY_CHORDS)
@@ -98,6 +99,15 @@ export default function JournalLayout() {
   const compactHeader = isCompactHeaderRoute(pathname)
   // D2 (D-1): the phone Notebook's header tools, folded until asked for.
   const [toolsOpen, setToolsOpen] = useState(false)
+  // Fix round 1 (M-1): folded again on every route change. JournalLayout stays
+  // mounted across /journal/*, so without this the member who opened the tools to
+  // reach More -> Accounts came back to the Notebook with the full 257 px header.
+  // (React's "adjust state when a value changes" pattern -- no effect, no flash.)
+  const [toolsPath, setToolsPath] = useState(pathname)
+  if (toolsPath !== pathname) {
+    setToolsPath(pathname)
+    setToolsOpen(false)
+  }
 
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)

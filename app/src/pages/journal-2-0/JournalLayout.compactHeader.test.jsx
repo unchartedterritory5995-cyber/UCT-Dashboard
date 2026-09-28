@@ -48,6 +48,7 @@ vi.mock('./components/AddTradeModal', () => ({ default: () => null }))
 
 import JournalLayout from './JournalLayout'
 import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
+import { NOTEBOOK_PATH, NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './lib/journalRoutes'
 
 function renderAt(route) {
   return render(
@@ -72,12 +73,43 @@ beforeEach(() => {
 
 describe('D-1 -- the phone Notebook header folds (rendered)', () => {
   it('the route decides: only the Notebook folds', () => {
-    expect(isCompactHeaderRoute('/journal/notebook')).toBe(true)
-    expect(isCompactHeaderRoute('/journal/notebook/')).toBe(true)
+    expect(isCompactHeaderRoute(NOTEBOOK_PATH)).toBe(true)
+    expect(isCompactHeaderRoute(`${NOTEBOOK_PATH}/`)).toBe(true)
     expect(isCompactHeaderRoute('/journal')).toBe(false)
     expect(isCompactHeaderRoute('/journal/trades')).toBe(false)
     // a prefix is not a route: a sibling that merely starts with the word does not fold
-    expect(isCompactHeaderRoute('/journal/notebookx')).toBe(false)
+    expect(isCompactHeaderRoute(`${NOTEBOOK_PATH}x`)).toBe(false)
+  })
+
+  it('M-5 RULING -- the Ticker Research page is inside the Notebook, so it folds too', () => {
+    const research = `/journal/${NOTEBOOK_RESEARCH_SEGMENT.replace(':symbol', 'NVDA')}`
+    expect(research).toBe('/journal/notebook/research/NVDA')
+    expect(isCompactHeaderRoute(research)).toBe(true)
+  })
+
+  it('M-5 -- matched case-insensitively, as React Router matches the route', () => {
+    expect(isCompactHeaderRoute('/Journal/Notebook')).toBe(true)
+    expect(isCompactHeaderRoute('/JOURNAL/NOTEBOOK/research/nvda')).toBe(true)
+    expect(isCompactHeaderRoute('/Journal/Trades')).toBe(false)
+  })
+
+  it('M-1 -- the open tools fold again when the route changes (and stay folded on return)', () => {
+    renderAt('/journal/notebook')
+    fireEvent.click(toggle())
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true')
+    const strip = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
+    fireEvent.click(within(strip).getByRole('link', { name: 'Trades' }))
+    expect(screen.getByTestId('trades')).toBeInTheDocument()
+    fireEvent.click(within(strip).getByRole('link', { name: 'Notebook' }))
+    expect(screen.getByTestId('notebook')).toBeInTheDocument()
+    expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+    expect(document.querySelector('[data-tools-open]')).toBeNull()
+  })
+
+  it('M-1 -- a search-param change on the same route (opening a note) leaves the tools as they are', () => {
+    renderAt('/journal/notebook')
+    fireEvent.click(toggle())
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true')
   })
 
   it('on the Notebook the root is marked compact and carries a closed "Journal tools" disclosure', () => {
@@ -249,5 +281,37 @@ describe('D-1 -- the phone-only rules (structural; d2_phone_measure.py is the ve
   it('⭐ CONTROL -- the parser sees an absent fold as absent', () => {
     const without = '@media (max-width: 640px) { .root[data-compact-header] .heading { display: none; } }'
     expect(declaresProp(mediaBodiesAt(without, 390).join('\n'), FOLDED, 'display', /^none$/)).toBe(false)
+  })
+})
+
+describe('M-5 -- one authority for the Notebook route (lib/journalRoutes.js)', () => {
+  const APP = readFileSync(join(process.cwd(), 'src/App.jsx'), 'utf8')
+  const LAYOUT_JSX = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/JournalLayout.jsx'), 'utf8')
+  const STRIP_JSX = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/JournalMobileNav.jsx'), 'utf8')
+
+  it('App.jsx declares both Notebook routes FROM the constants', () => {
+    expect(APP).toMatch(/import \{[^}]*NOTEBOOK_SEGMENT,[^}]*\} from '\.\/pages\/journal-2-0\/lib\/journalRoutes'/)
+    expect(APP).toMatch(/<Route path=\{NOTEBOOK_SEGMENT\} element=\{<NotebookSurface \/>\}/)
+    expect(APP).toMatch(/<Route path=\{NOTEBOOK_RESEARCH_SEGMENT\} element=\{<TickerResearchSurface \/>\}/)
+    // ...and restates neither
+    expect(APP).not.toMatch(/path="notebook/)
+  })
+
+  it('the section nav (desktop rail and phone strip) links to NOTEBOOK_PATH, the route the fold keys on', () => {
+    renderAt('/journal')
+    const rail = screen.getByRole('navigation', { name: 'Journal sections' })
+    const strip = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
+    for (const nav of [rail, strip]) {
+      const href = within(nav).getByRole('link', { name: 'Notebook' }).getAttribute('href')
+      expect(href).toBe(NOTEBOOK_PATH)
+      expect(isCompactHeaderRoute(href)).toBe(true)
+    }
+    expect(LAYOUT_JSX).not.toMatch(/'\/journal\/notebook'/)
+    expect(STRIP_JSX).not.toMatch(/'\/journal\/notebook'/)
+  })
+
+  it('⛔ NON-VACUITY -- the constants compose to the path members actually use', () => {
+    expect(NOTEBOOK_SEGMENT).toBe('notebook')
+    expect(NOTEBOOK_PATH).toBe('/journal/notebook')
   })
 })
