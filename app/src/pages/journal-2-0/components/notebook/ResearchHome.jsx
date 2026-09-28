@@ -18,6 +18,7 @@ import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
+import LoadFailed from '../LoadFailed'
 import styles from './ResearchHome.module.css'
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -72,7 +73,12 @@ function Section({ title, notes, onOpen, viewAllHref, emptyReason }) {
   )
 }
 
-const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
+// Wave 10 F7 (Part A, 5d): a failed status read THROWS -- `null` on a 500 hid the sample's
+// remove strip without a word, as if the sample were gone.
+const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => {
+  if (!r.ok) throw new Error(String(r.status))
+  return r.json()
+})
 
 /**
  * Wave H — Research Home. Renders in place of the bare-root All Notes grid
@@ -88,7 +94,7 @@ export default function ResearchHome({
   // this device holds as blocked (useBlockedNotes), and a title for each held note it names.
   blockedNoteIds = null, titleOf = () => null,
 }) {
-  const { home, isLoading } = useNotebookHome()
+  const { home, isLoading, error: homeError, refresh: refreshHome } = useNotebookHome()
   const navigate = useNavigate()
   // What an Ask citation opened in place: a document page, or a captured web
   // passage (lib/openCitation.js decides which).
@@ -114,7 +120,8 @@ export default function ResearchHome({
   const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
   const wantStatus = onboarding && hasAnyNotes && !!sample && !sample.dismissedAt
-  const { data: sampleStatus } = useSWR(wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false })
+  const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
+    wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false, shouldRetryOnError: false })
   const showStrip = wantStatus && Array.isArray(sampleStatus?.activeIds) && sampleStatus.activeIds.length > 0
 
   const addSample = async () => {
@@ -180,6 +187,10 @@ export default function ResearchHome({
 
   const sampleNotice = (
     <>
+      {wantStatus && (
+        <LoadFailed compact what="your sample notebook's status" error={sampleStatusError}
+          onRetry={() => refreshSampleStatus()} />
+      )}
       {showStrip && (
         <div className={styles.sampleStrip}>
           <span className={styles.sampleStripText}>{SAMPLE_COPY.strip} —</span>
@@ -271,6 +282,17 @@ export default function ResearchHome({
   const nothingToShow = [
     home.continueWorking, home.favorites, home.activeTheses, home.openPositionResearch, home.needsReview,
   ].every((s) => !s || s.length === 0)
+
+  // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
+  // after a failed load told a member there was nothing, when we could not look.
+  if (nothingToShow && homeError) {
+    return (
+      <div className={styles.quietState}>
+        {sampleNotice}
+        <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
+      </div>
+    )
+  }
 
   if (nothingToShow) {
     return (

@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import useSWR from 'swr'
 import TileCard from '../../../components/TileCard'
 import UIcon from '../../../components/ui/UIcon'
+import LoadFailed from './LoadFailed'
 import styles from './PersonalApiCard.module.css'
 
 /**
@@ -18,11 +19,30 @@ import styles from './PersonalApiCard.module.css'
  * flight, or one that failed with anything but a 404, leaves the gate unknown and the card
  * absent; its own error sentence appears only once the gate is known ON.
  *
+ * ⛔ Wave 10 F7 (Part A, 5d): WHY THE PROOF WALK SAW NOTHING, AND WHAT CHANGED. A FIRST read
+ * that failed (a 500, a dropped connection) left the gate unknown, so by the rule above the card
+ * rendered nothing -- its own error sentence was reachable only after an earlier read in the
+ * same page had succeeded. The rule keeps its purpose: a member who has never seen this card is
+ * still shown nothing on an unknown gate. But this browser REMEMBERS that it has seen the gate
+ * ON (`uct.nb.personalApi.gateSeen`, cleared again by a 404), and for a member who has, a failed first read says so
+ * with the shared LoadFailed sentence instead of making the card vanish from their Settings.
+ *
  * Revoking works for a member whose plan lapsed (the server does not paid-gate
  * list or revoke); only making a new token needs a paid plan.
  */
 
 const URL = '/api/j2/personal/tokens'
+const GATE_SEEN_KEY = 'uct.nb.personalApi.gateSeen'
+function gateSeen() {
+  try { return localStorage.getItem(GATE_SEEN_KEY) === '1' } catch { return false }
+}
+function rememberGate(data) {
+  if (data === undefined) return
+  try {
+    if (data?.dark) localStorage.removeItem(GATE_SEEN_KEY)
+    else localStorage.setItem(GATE_SEEN_KEY, '1')
+  } catch { /* private mode: the card falls back to the unknown-gate rule */ }
+}
 
 async function fetcher(u) {
   const r = await fetch(u, { credentials: 'include' })
@@ -56,6 +76,8 @@ export default function PersonalApiCard() {
   const [copied, setCopied] = useState(false)
   const [busyId, setBusyId] = useState(null)
   const [message, setMessage] = useState(null)
+  const [seenBefore] = useState(gateSeen)
+  useEffect(() => { rememberGate(data) }, [data])
 
   const make = useCallback(async (e) => {
     e?.preventDefault?.()
@@ -112,8 +134,10 @@ export default function PersonalApiCard() {
     }
   }, [mutate])
 
-  // ⛔ M-2: no answer yet, or a first answer that was not a 404 -- the gate is unknown.
-  if (data === undefined || data.dark) return null
+  // ⛔ M-2: no answer yet, or a first answer that was not a 404 -- the gate is unknown --
+  // unless this browser has seen the gate ON before (F7, above): then a failed read is said.
+  if (data?.dark) return null
+  if (data === undefined && !(error && seenBefore)) return null
   const tokens = data?.tokens || []
 
   return (
@@ -124,7 +148,7 @@ export default function PersonalApiCard() {
         sign in as you. Each token lasts a year unless you revoke it.
       </p>
 
-      {error && <div className={styles.muted}>Could not load your tokens.</div>}
+      <LoadFailed compact what="your tokens" error={error} onRetry={() => mutate()} />
 
       {made ? (
         <div className={styles.made} role="status" data-testid="personal-api-new-token">

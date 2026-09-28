@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
 import useTickerResearch from '../../hooks/useTickerResearch'
+import LoadFailed from '../LoadFailed'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { openSpanningCitation } from '../../lib/openCitation'
@@ -60,7 +61,7 @@ function fmtFactValue(value, unit) {
  * `/research/:sym`'s "My Research" bridge tab.
  */
 export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLink = true }) {
-  const { summary, isLoading } = useTickerResearch(symbol)
+  const { summary, isLoading, error, refresh } = useTickerResearch(symbol)
   const navigate = useNavigate()
   const [creating, setCreating] = useState(false)
   const [showPastTheses, setShowPastTheses] = useState(false)
@@ -117,6 +118,10 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
     }
   }
 
+  // Wave 10 F7 (Part A, 5d): a failed read used to leave the loading skeleton up for good.
+  if (error && !summary) {
+    return <LoadFailed what={`your research on ${symbol}`} error={error} onRetry={refresh} />
+  }
   if (isLoading || !summary) {
     // G-106 (Wave B lower-frequency sweep): same skeleton idiom as
     // ResearchHome's own loading state -- a title-shaped line, then a

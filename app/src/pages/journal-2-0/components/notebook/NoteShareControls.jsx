@@ -35,7 +35,17 @@ import {
   copyText, findLivePublication, pageCopiedSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
 } from '../../lib/notePublishLink'
 import editorStyles from './NoteEditorPage.module.css'
+import LoadFailed from '../LoadFailed'
 import styles from './NoteShareControls.module.css'
+
+// ⛔ Wave 10 F7 (Part A, voice): a server's `detail` is shown only for a REFUSAL (4xx), which
+// the server writes for members ("needs a paid plan"). A fault (5xx) or a dropped connection
+// carries whatever the server raised -- the proof walk's planted marker reached the screen --
+// so those read the fixed sentence instead.
+function memberDetail(e, fallback) {
+  const status = Number(e?.status)
+  return (status >= 400 && status < 500 && e?.detail) ? e.detail : fallback
+}
 
 function whenText(expiresAt) {
   if (!expiresAt) return 'It never expires.'
@@ -80,6 +90,11 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   const [expiry, setExpiry] = useState('never')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  // Wave 10 F7 (Part A, 5d): the two reads that fill this panel. A failed one used to be
+  // swallowed, and the panel then offered "Create link" as if no link existed.
+  const [shareLoadError, setShareLoadError] = useState(null)
+  const [publishLoadError, setPublishLoadError] = useState(null)
+  const [reload, setReload] = useState(0)
   // M-3: ids from useId, never fixed strings -- split view mounts two editors, so two of these
   // popovers can exist at once, and a fixed id would be a duplicate the moment both open.
   const uid = useId()
@@ -121,9 +136,12 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
   useEffect(() => {
     let alive = true
     const jobs = []
+    setShareLoadError(null)
+    setPublishLoadError(null)
     if (shareOn) {
       jobs.push(requestJson(noteShareEndpoint(noteId))
-        .then((b) => { if (alive) setShare(b.share || null) }).catch(() => {}))
+        .then((b) => { if (alive) setShare(b.share || null) })
+        .catch((e) => { if (alive) setShareLoadError(e || new Error('share')) }))
     }
     if (publishOn) {
       jobs.push(requestJson(`${PUBLISH_ENDPOINT}?note_id=${encodeURIComponent(noteId)}`)
@@ -131,11 +149,12 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
           if (!alive) return
           setPubs(Array.isArray(b.publications) ? b.publications : [])
           setCtx(b.note || null)
-        }).catch(() => {}))
+        })
+        .catch((e) => { if (alive) setPublishLoadError(e || new Error('publish')) }))
     }
     Promise.all(jobs).then(() => { if (alive) setLoading(false) })
     return () => { alive = false }
-  }, [noteId, shareOn, publishOn])
+  }, [noteId, shareOn, publishOn, reload])
 
   const notePub = findLivePublication(pubs, 'note', noteId)
   const folderPub = ctx?.folderId ? findLivePublication(pubs, 'folder', ctx.folderId) : null
@@ -158,7 +177,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       const copied = await copyText(sharedNoteUrl(b.share.token))
       say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
     } catch (e) {
-      say(e.detail || 'Could not create the link. Try again.')
+      say(memberDetail(e, 'Could not create the link. Try again.'))
     }
   })
 
@@ -176,7 +195,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       focusNextRef.current = 'create'
       say('Link revoked. It no longer works.')
     } catch (e) {
-      say(e.detail || 'Could not revoke the link. Try again.')
+      say(memberDetail(e, 'Could not revoke the link. Try again.'))
     }
   })
 
@@ -189,7 +208,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       const copied = await copyText(publishedUrl(pub.slug))
       say(publishedSentence(kind === 'note' ? null : ctx.folderName, copied))
     } catch (e) {
-      say(e.detail || PUBLISH_FAILED_SENTENCE)
+      say(memberDetail(e, PUBLISH_FAILED_SENTENCE))
     }
   })
 
@@ -207,7 +226,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
       focusNextRef.current = pub.kind === 'folder' ? 'publishFolder' : 'publishNote'
       say('Unpublished. The page no longer works.')
     } catch (e) {
-      say(e.detail || 'Could not unpublish. Try again.')
+      say(memberDetail(e, 'Could not unpublish. Try again.'))
     }
   })
 
@@ -217,6 +236,10 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
 
   return (
     <div className={styles.panel}>
+      <LoadFailed compact failures={[
+        { what: "this note's share link", error: shareLoadError, retry: () => setReload((n) => n + 1) },
+        { what: "this note's published pages", error: publishLoadError, retry: () => setReload((n) => n + 1) },
+      ]} />
       {shareOn && (
         <section className={styles.section} aria-labelledby={ids.shareHeading}>
           <h3 id={ids.shareHeading} className={styles.heading}>Share link</h3>
