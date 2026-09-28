@@ -198,11 +198,22 @@ def build_flow_proxy_router() -> APIRouter:
     Register this on web BEFORE the local flow routers so its routes win. Only
     call when PROXY_ENABLED (the caller gates it) -- otherwise local serves.
     """
+    # ⭐ THE TAPE IS GATED ON WEB, BEFORE IT IS FORWARDED. `open_reads_gate`
+    # (flag OPEN_READS_GATE) classifies the CONCRETE path of a forwarded GET/HEAD
+    # against its table and applies the same staged paid/admin decision the local
+    # routers get — so `/api/live/massive/recent` is refused here in enforce mode
+    # instead of being vouched-or-not and handed to flow-worker, whose copy of the
+    # router is mounted without it. Off (the default) it returns before reading
+    # anything, and POST/PUT/DELETE/PATCH are never touched.
+    from fastapi import Depends
+    from api.open_reads_gate import open_reads_gate
+    deps = [Depends(open_reads_gate)]
     router = APIRouter()
     methods = ["GET", "POST", "PUT", "DELETE", "PATCH"]
     for prefix in PROXY_PREFIXES:
-        router.add_api_route(prefix, _proxy, methods=methods)              # exact
-        router.add_api_route(prefix + "/{path:path}", _proxy, methods=methods)  # sub-paths
+        router.add_api_route(prefix, _proxy, methods=methods, dependencies=deps)  # exact
+        router.add_api_route(prefix + "/{path:path}", _proxy, methods=methods,
+                             dependencies=deps)                                  # sub-paths
     return router
 
 

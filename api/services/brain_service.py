@@ -19,15 +19,8 @@ _ENGINE_TRIED = False
 
 _UNAVAILABLE = {"ok": False, "error": "brain not available"}
 
-# Maps the dashboard's own 5-way regime taxonomy (voice_regime_classifier)
-# onto the engine's 4-tier GREEN/YELLOW/ORANGE/RED sizing scale.
-_REGIME_MAP = {
-    "bull_trend": "GREEN",
-    "bull_correction": "YELLOW",
-    "chop": "YELLOW",
-    "distribution": "ORANGE",
-    "bear_trend": "RED",
-}
+# The 5-way -> GREEN/YELLOW/ORANGE/RED sizing band is NOT restated here: it
+# lives once, as voice_regime_classifier.REGIME_BAND / band_of (TERM-071).
 
 
 def _reset_for_tests() -> None:
@@ -94,14 +87,19 @@ def _current_regime() -> str:
     (api.services.voice_regime_classifier.get_current_regime) and map its
     5-way label (bull_trend/bull_correction/distribution/chop/bear_trend)
     onto the engine's GREEN/YELLOW/ORANGE/RED sizing scale. Falls back to
-    YELLOW on any failure (unknown regime, import error, etc.)."""
+    YELLOW on any failure (unknown regime, import error, etc.).
+
+    The band comes from the authority's `band_of` (TERM-071) — the same call
+    grade_ticker's verdict gate makes — so the two can never disagree."""
     try:
-        from api.services.voice_regime_classifier import get_current_regime
-        r = get_current_regime() or {}
-        regime = str(r.get("regime") or "").lower()
-        return _REGIME_MAP.get(regime, "YELLOW")
+        from api.services import voice_regime_classifier as vrc
     except Exception:
-        return "YELLOW"
+        return "YELLOW"  # the authority itself is unreachable
+    try:
+        r = vrc.get_current_regime() or {}
+    except Exception:
+        return vrc.band_of(None)
+    return vrc.band_of(r.get("regime"))
 
 
 def lookup_playbook(setup_name: str) -> dict:

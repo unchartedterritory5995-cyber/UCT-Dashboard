@@ -22,9 +22,8 @@ import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { moveIsUnavailable, moveUnavailableTitle } from '../../../constants/expectedMoveOutcome'
 import { buildQuarters } from '../earningsHistoryModel'
 import SectionLead from '../SectionLead'
+import { sectionFetcher } from './sectionFetch'
 import styles from './SetupSection.module.css'
-
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : null)).catch(() => null)
 
 // `Number(null) === 0` — the single most common defect on this branch (7
 // prior tasks). Every formatter below routes through this so a missing value
@@ -176,8 +175,11 @@ export default function SetupSection({ sym, row, reportDate, expectedMove, liveP
   // calls — a non-canonical-case `sym` (lowercase, stray whitespace) must not
   // fragment the cache from every other surface reading this endpoint.
   const s = (sym || '').toUpperCase().trim()
-  const { data: estimates } = useSWR(
-    s ? `/api/research/estimates/${encodeURIComponent(s)}` : null, fetcher,
+  // sectionFetcher THROWS on a failed request (TERM-033), so a dropped
+  // connection lands in `estimatesError` instead of reading as "no Current Qtr
+  // row" — which silently deleted the consensus line.
+  const { data: estimates, error: estimatesError } = useSWR(
+    s ? `/api/research/estimates/${encodeURIComponent(s)}` : null, sectionFetcher,
     { refreshInterval: 0, revalidateOnFocus: false },
   )
 
@@ -309,12 +311,19 @@ export default function SetupSection({ sym, row, reportDate, expectedMove, liveP
             a stat, so it lives with the stats, and it says which quarter it is
             for. Still OUTSIDE the fundamentals gate above: it comes from a
             different endpoint and must not vanish while fundamentals load. */}
-        {drift && (
+        {drift ? (
           <div className={`${styles.drift} t-num`} data-testid="setup-drift">
             <span className={styles.driftKey}>Consensus, current quarter</span>
             {drift}
           </div>
-        )}
+        ) : estimatesError && !estimates ? (
+          // A failed request says so in the line's own slot. No line at all
+          // is reserved for "the server answered and had no Current Qtr row".
+          <div className={styles.drift} data-testid="setup-drift-failed">
+            <span className={styles.driftKey}>Consensus, current quarter</span>
+            Could not load — the request failed.
+          </div>
+        ) : null}
       </div>
 
       {lo52 != null && hi52 != null && (

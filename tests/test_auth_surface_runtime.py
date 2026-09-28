@@ -51,6 +51,9 @@ def test_finds_a_guard_nested_below_the_top_level(monkeypatch):
 
 
 def test_ignores_read_only_routes():
+    """`audit_routes` is the MUTATING verdict that pages at boot, and stays
+    narrow on purpose. Reads are examined by `audit_surface` (TERM-026) --
+    `tests/test_auth_surface_reads.py` holds the same-fixture contrast."""
     app = FastAPI()
     r = APIRouter()
     r.get("/api/flow/data")(lambda: {"ok": True})

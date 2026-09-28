@@ -1,0 +1,588 @@
+{
+ "_doc": [
+  "TERM-026 read baseline for api/auth_surface_check.audit_surface.",
+  "Every entry is an anonymous-reachable read measured over api.main:app on 2026-09-27.",
+  "kind=inline: gated in the handler body; 'marker' must stay in the comment-stripped handler code.",
+  "kind=public: deliberately anonymous, with the reason.",
+  "kind=open: NO gate found. Recorded, NOT ruled safe; fixing these is separate work.",
+  "A new anonymous read is a finding; an entry that is now gated or gone is STALE and also a finding.",
+  "Edit by hand; tools/auth_surface_audit.py --candidates prints stubs for new findings.",
+  "requires_dist: true marks the SPA shell and root-level static files api/main.py registers only when app/dist is built; absent in a checkout with no bundle, required whenever the SPA catch-all is served.",
+  "2026-09-27 open-reads-gate: every open read classified in api/open_reads_gate.py GATED_READS left this file; the auditor counts one as gated only while that table classifies it AND the dependency is in its tree (reported as OPEN_READS_GATE-staged with the live mode, because while the flag is off those routes still answer anonymously). Each remaining kind=open entry says what blocks gating it."
+ ],
+ "measured": "2026-09-27",
+ "routes": [
+  {
+   "method": "GET",
+   "path": "/api/admin/audit-bars/{ticker}",
+   "kind": "inline",
+   "marker": "_check_admin_auth",
+   "reason": "Gated INLINE in the handler body by _check_admin_auth (not a Depends), module api.routers.bars."
+  },
+  {
+   "method": "GET",
+   "path": "/api/admin/threads-dump",
+   "kind": "inline",
+   "marker": "_require_push_secret",
+   "reason": "Gated INLINE in the handler body by _require_push_secret (not a Depends), module api.debug_dump_router."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live-diag",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live/reconcile",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/live/store",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/breadth-monitor/wicks/probe",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED ON ANONYMOUS INTERNAL READERS (open-reads-gate follow-up, 2026-09-27). Read with no session by: the logged-out /r/calendar render page (app/src/pages/CalendarRender.jsx:61/66), which morning-wire substack/panelshot.py screenshots for the newsletter; flow-worker's earnings-date manager (api/massive_ws_worker.py, partner) and auto-push embed line (api/live_massive_router.py, partner); morning-wire substack/earnings_ahead.py; and the Sunday Scan (uct-sunday-scan sunday_scan/calendar_data.py). Gating it first needs those readers on a token-gated /api/r/ door or the PUSH_SECRET bearer (which OPEN_READS_GATE accepts). Data: the earnings schedule (company-announced dates) with reported actuals."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/export.ics",
+   "kind": "inline",
+   "marker": "_decode_ics_token",
+   "reason": "Gated INLINE in the handler body by _decode_ics_token (not a Depends), module api.routers.calendar."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/month",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED ON AN ANONYMOUS INTERNAL READER: the Sunday Scan generator (uct-sunday-scan sunday_scan/calendar_data.py:452-454) reads it with no session. The paid Calendar's Month view is its only frontend caller. Add it to OPEN_READS_GATE's PAID table once that generator sends the PUSH_SECRET bearer."
+  },
+  {
+   "method": "GET",
+   "path": "/api/calendar/report.ics",
+   "kind": "public",
+   "reason": "One earnings report as an 'Add to calendar' event; the handler's own docstring says 'No auth, no token -- it's a single public event the user already sees.'"
+  },
+  {
+   "method": "GET",
+   "path": "/api/catalysts/today-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.catalysts."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart-markers/{ticker}",
+   "kind": "open",
+   "reason": "NOT GATED: the same handler as /api/chart/markers/{ticker} under a second path. It has no caller of its own, but gating one alias while the other answers would protect nothing; it moves with /api/chart/markers/{ticker} (see that entry)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart-news/{ticker}",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED ON THE HEADLESS RENDERER: StockChart fetches it for news markers (off by default), and /r/chart applies the owner's render chart-settings with no session - same blocker and same fix as /api/chart/markers/{ticker}. The paid PositionDetailPage is its other caller."
+  },
+  {
+   "method": "GET",
+   "path": "/api/chart/markers/{ticker}",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED ON THE HEADLESS RENDERER: read with no session by /r/chart (Discord /chart via chart-renderer, morning-wire substack/chartwidget.py, Sunday Scan charts.py) whenever the owner's render chart-settings turn earnings/split/dividend markers on, and by the free page's TickerPopup when a free member's own settings do. The renderer's only credential (X-Chart-Edge-Token, services/chart_renderer/edge_scope.py) is attached to /api/bars/ only; widen that scope and teach OPEN_READS_GATE to accept it before gating."
+  },
+  {
+   "method": "GET",
+   "path": "/api/cot/narratives/prewarm-status",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.cot."
+  },
+  {
+   "method": "GET",
+   "path": "/api/cot/narratives/recent",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.cot."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/creative-cover-backfill",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/creative-cover-retry",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/description-backfill",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/insights-status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/recap-pending",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/recap-source/{video_id}",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/session-audit",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/sessions-status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.desk_zoom_webhook."
+  },
+  {
+   "method": "GET",
+   "path": "/api/desk/team/{member_id}/photo",
+   "kind": "public",
+   "reason": "Desk team photo (marketing image)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/activity/handoff",
+   "kind": "public",
+   "reason": "Which ticker + timeframe the Discord Activity in a channel should open (that channel's last 'Open in Discord' click). The Activity runs inside Discord's proxy with no dashboard session, by design."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/index-close/status",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.discord_interactions."
+  },
+  {
+   "method": "GET",
+   "path": "/api/discord/render-health",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.discord_interactions."
+  },
+  {
+   "method": "GET",
+   "path": "/api/health",
+   "kind": "public",
+   "reason": "Liveness probe; Railway's healthcheckPath and external monitors call it without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/api/internal/media-evidence/session-time/{video_id}",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.media_evidence_bridge."
+  },
+  {
+   "method": "GET",
+   "path": "/api/internal/media-evidence/trades",
+   "kind": "inline",
+   "marker": "_push_secret_ok",
+   "reason": "Gated INLINE in the handler body by _push_secret_ok (not a Depends), module api.routers.media_evidence_bridge."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/broker-coverage",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/drift-series",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/ledger-conservation",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/broker/admin/option-mark-compare",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.broker_sync."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/capture/destinations",
+   "kind": "inline",
+   "marker": "require_capture_scope",
+   "reason": "Gated by a require_capture_scope(...) FACTORY Depends in the handler signature; its product has no stable name GUARD_NAMES can hold, so the marker is the factory call. Module api.routers.capture_auth."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notebook-validation-report",
+   "kind": "inline",
+   "marker": "validate_session",
+   "reason": "Gated INLINE in the handler body by validate_session (not a Depends), module api.routers.journal_two."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/notes/connectors/{provider}/callback",
+   "kind": "public",
+   "reason": "OAuth redirect target: reached from the provider before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/public/track-record/{token}",
+   "kind": "public",
+   "reason": "Public track-record link: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): a published page is public by design."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): an attachment of a published page."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): a published page is public by design."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/published/{slug}/n/{pid}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook Publish (wave 8): an attachment of a published page."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}",
+   "kind": "public",
+   "reason": "Notebook share link: possession of the unguessable token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/j2/shared/{token}/att/{sub}/{filename}",
+   "kind": "public",
+   "reason": "Notebook share link attachment: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/maintenance",
+   "kind": "public",
+   "reason": "Maintenance-banner state; read before sign-in so a signed-out visitor sees it."
+  },
+  {
+   "method": "GET",
+   "path": "/api/market-calendar",
+   "kind": "public",
+   "reason": "Exchange trading calendar (public market fact)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/push/journal-export",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.push."
+  },
+  {
+   "method": "GET",
+   "path": "/api/quote-of-the-day",
+   "kind": "public",
+   "reason": "Quote of the Day; documented as a public endpoint (CLAUDE.md, FuturesStrip)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/book",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/breadth",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/breadth-monitor",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/buzz",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/calendar-week.png",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/catalysts",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/chart-settings",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/earnings-history",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/econ",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/flow",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/themes",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/r/tweets",
+   "kind": "inline",
+   "marker": "_check_token",
+   "reason": "Gated INLINE in the handler body by _check_token (not a Depends), module api.routers.render_panels. The render token is baked into the frontend bundle, so this is effectively public (GATE-7 names /r/*)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ready",
+   "kind": "public",
+   "reason": "Readiness probe; must answer without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/api/research/snapshot/{sym}",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED: read by the FREE page's TickerPopup (ChartPane -> hooks/useFundamentalSnapshot.js:9) and, with no session, by the Discord Activity (/r/activity, logged out by design). Same decision as /api/stream/prices."
+  },
+  {
+   "method": "GET",
+   "path": "/api/schwab/callback",
+   "kind": "public",
+   "reason": "OAuth redirect target: reached from the provider before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/api/screener/shared/{share_token}",
+   "kind": "public",
+   "reason": "Screener share link: the token is the access decision."
+  },
+  {
+   "method": "GET",
+   "path": "/api/stream/prices",
+   "kind": "open",
+   "reason": "NOT GATED - BLOCKED: the live price SSE is opened by the FREE page for a free member (hub/HubContext.jsx:278; TickerPopup.jsx:126 on /morning-wire) AND, with no session, by the Discord Activity (/r/activity -> ChartDayGain.jsx:28 -> lib/priceStreamManager.js:144). A paid gate breaks the free page; a member-tier gate blanks the Activity's day-gain. Needs an owner call on the Activity (or an Activity token) first."
+  },
+  {
+   "method": "GET",
+   "path": "/api/support/status",
+   "kind": "public",
+   "reason": "Aggregate platform traffic light (operational / degraded / outage per component). No market or member data; documented public in its handler."
+  },
+  {
+   "method": "GET",
+   "path": "/api/terminal-next/catalyst-receipt",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.terminal_next_reports."
+  },
+  {
+   "method": "GET",
+   "path": "/api/terminal-next/report/{name}",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.terminal_next_reports."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-ipo/{ticker}",
+   "kind": "public",
+   "reason": "A ticker's listing date (public fact). Read with no session by the /r/chart renderer and the Discord Activity (StockChart -> hooks/useTickerIpo.js), and by the free page's TickerPopup."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-logo/{sym}",
+   "kind": "public",
+   "reason": "Company-logo image proxy used in <img> tags."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-meta/{ticker}",
+   "kind": "public",
+   "reason": "One ticker's company name / sector / industry (public reference data). Read with no session by the headless /r/chart renderer (ChartRender.jsx:557: Discord /chart, newsletter and Sunday Scan charts) and the Discord Activity; also by the free page's TickerPopup."
+  },
+  {
+   "method": "GET",
+   "path": "/api/ticker-search",
+   "kind": "public",
+   "reason": "Symbol -> company-name lookup over the listed-company universe (public reference data, no vendor analytics). Read with no session by the Discord Activity (logged out by design) and the morning-wire engine (wire_enrich.py, substack/render.py), and by the free page's CommandPalette/TickerPopup."
+  },
+  {
+   "method": "GET",
+   "path": "/api/wire-feedback/recent-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.wire_feedback."
+  },
+  {
+   "method": "GET",
+   "path": "/favicon.svg",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Site favicon; a browser fetches it before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/manifest.json",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "PWA web manifest; fetched by the browser shell without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/og-coming-soon.png",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Pre-launch social-card image referenced by public meta tags."
+  },
+  {
+   "method": "GET",
+   "path": "/og-image.png",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Social-card image; link unfurlers (Discord, X) fetch it anonymously."
+  },
+  {
+   "method": "GET",
+   "path": "/pip-embed",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Static SPA shell page for picture-in-picture; data it loads goes through gated /api routes."
+  },
+  {
+   "method": "GET",
+   "path": "/q1-probe.html",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Wave Q1 synthetic browser-certification page; touches only uct_q1_browser_probe* DBs, no member data (see its route comment and removal condition)."
+  },
+  {
+   "method": "GET",
+   "path": "/robots.txt",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Crawler directives; must be anonymous by definition."
+  },
+  {
+   "method": "GET",
+   "path": "/sitemap.xml",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Sitemap for the public marketing pages; must be anonymous by definition."
+  },
+  {
+   "method": "GET",
+   "path": "/sw.js",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Service-worker script; the browser registers it before sign-in."
+  },
+  {
+   "method": "GET",
+   "path": "/vite.svg",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Static build asset."
+  },
+  {
+   "method": "GET",
+   "path": "/{full_path:path}",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "SPA catch-all: serves index.html (the app shell, no data). Every data read the shell makes goes through gated /api routes."
+  },
+  {
+   "method": "HEAD",
+   "path": "/{full_path:path}",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "SPA catch-all: serves index.html (the app shell, no data). Every data read the shell makes goes through gated /api routes."
+  }
+ ]
+}

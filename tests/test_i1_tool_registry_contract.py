@@ -467,3 +467,219 @@ def test_the_routing_table_and_the_registry_cannot_drift():
     assert set(te._DEFAULT_DOMAINS) <= reg, (
         "the fallback routes to a domain with no composer — every question that "
         "matches nothing would raise")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# TERM-034 — I1-SPEC PART 1 (the evidence-domain contract): the two clauses
+# nothing above enforced. Spec: docs/terminal-research/08-ai/
+# i1-tool-contract-grounding-refusal-spec.md, Part 1. Every other Part-1 claim
+# is already railed above (registry literal, distinct composers, routing ↔
+# registry, budget) or in test_ticker_explain_refusal_names_the_gap.py (the
+# closed label vocabulary) — not re-railed here.
+# ═════════════════════════════════════════════════════════════════════════
+
+#: Keyword arguments that would hand the model a tool — i.e. let it decide WHICH
+#: data to fetch at call time. ⛔ Built by concatenation so a text search over
+#: this file for the literal never mistakes the check for a use.
+_TOOL_KWARGS = ("to" + "ols", "to" + "ol_choice")
+
+
+def _module_tree(path: pathlib.Path) -> ast.Module:
+    return ast.parse(path.read_text(encoding="utf-8"))
+
+
+def _messages_create_calls(tree: ast.AST) -> list:
+    """Every `<anything>.messages.create(...)` call in a parsed module."""
+    out = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "create"
+                and isinstance(node.func.value, ast.Attribute)
+                and node.func.value.attr == "messages"):
+            out.append(node)
+    return out
+
+
+def _imports_the_i1_gate(tree: ast.AST) -> bool:
+    """True when a module reaches I1's `_grounding_flags` — by name
+    (`from api.services.ticker_explain import _grounding_flags`) or through the
+    module (`from api.services import ticker_explain as te` … `te._grounding_flags`).
+    A module that DEFINES its own `_grounding_flags` (Compass's
+    `coach_validation.py`) reaches neither form and is not I1."""
+    module_aliases = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == "api.services.ticker_explain":
+            if any(a.name == "_grounding_flags" for a in node.names):
+                return True
+        if isinstance(node, ast.ImportFrom) and node.module == "api.services":
+            module_aliases |= {a.asname or a.name for a in node.names if a.name == "ticker_explain"}
+        if isinstance(node, ast.Import):
+            module_aliases |= {a.asname for a in node.names
+                               if a.name == "api.services.ticker_explain" and a.asname}
+    return any(isinstance(n, ast.Attribute) and n.attr == "_grounding_flags"
+               and isinstance(n.value, ast.Name) and n.value.id in module_aliases
+               for n in ast.walk(tree))
+
+
+def _is_i1_door(tree: ast.AST) -> bool:
+    return _imports_the_i1_gate(tree) and bool(_messages_create_calls(tree))
+
+
+def i1_model_doors() -> list:
+    """Every module that is an I1 model door — DERIVED, never listed.
+
+    A door is `ticker_explain.py` itself, plus any module under `api/` that
+    reaches I1's `_grounding_flags` AND makes a model call. The first clause is
+    what keeps Compass (a model caller with its OWN gate) out; the second keeps
+    out anything that reads the gate without talking to a model. A third AI surface built on
+    I1's gate joins this set without anybody editing a list — which is why
+    `test_ticker_explain_full_text_completeness.py` imports it too, rather than
+    keeping a second copy of "which surfaces are I1".
+    """
+    doors = [_MODULE]
+    for p in sorted((_REPO / "api").rglob("*.py")):
+        if p == _MODULE:
+            continue
+        try:
+            tree = _module_tree(p)
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        if _is_i1_door(tree):
+            doors.append(p)
+    return doors
+
+
+def door_output_schemas() -> dict:
+    """{dotted module: schema binding name} — the structured-output schema each
+    I1 door hands the model, read off its `messages.create(output_config=
+    {"format": {"schema": NAME}})` call. Derived, so the grounding rail governs
+    every door's schema without a list of schemas typed beside it."""
+    out = {}
+    for p in i1_model_doors():
+        dotted = ".".join(p.relative_to(_REPO).with_suffix("").parts)
+        for call in _messages_create_calls(_module_tree(p)):
+            for kw in call.keywords:
+                if kw.arg != "output_config" or not isinstance(kw.value, ast.Dict):
+                    continue
+                for k, v in zip(kw.value.keys, kw.value.values):
+                    if not (isinstance(k, ast.Constant) and k.value == "format"
+                            and isinstance(v, ast.Dict)):
+                        continue
+                    for fk, fv in zip(v.keys, v.values):
+                        if (isinstance(fk, ast.Constant) and fk.value == "schema"
+                                and isinstance(fv, ast.Name)):
+                            out[dotted] = fv.id
+    return out
+
+
+def _tool_kwargs_in(tree: ast.AST) -> list:
+    """(line, kwarg) for every call that hands the model a tool."""
+    hits = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for kw in node.keywords:
+            if kw.arg in _TOOL_KWARGS:
+                hits.append((node.lineno, kw.arg))
+            # `**{"tools": [...]}` smuggles the same keyword past `kw.arg`.
+            if kw.arg is None and isinstance(kw.value, ast.Dict):
+                for k in kw.value.keys:
+                    if isinstance(k, ast.Constant) and k.value in _TOOL_KWARGS:
+                        hits.append((node.lineno, k.value))
+    return hits
+
+
+def test_PART1_the_model_is_never_handed_a_tool__domain_choice_is_not_the_models():
+    """⛔ I1-SPEC Part 1: *"domain selection is deterministic classification,
+    not a tool the model invokes"* — I1 is NOT a tool-calling registry the way
+    Compass Chat is. The day a door passes `tools=` the model starts choosing
+    what evidence exists, and every routing/budget rule above silently stops
+    being the whole story.
+
+    Checked on the PARSED call sites of every derived door, so a comment or a
+    docstring discussing tools cannot match an AST keyword."""
+    doors = i1_model_doors()
+    names = sorted(p.name for p in doors)
+    call_sites = {p.name: len(_messages_create_calls(_module_tree(p))) for p in doors}
+    print(f"[i1-rail:tool-registry] denominator: {len(doors)} model doors {names}, "
+          f"{sum(call_sites.values())} messages.create call sites {call_sites}")
+    # NON-VACUITY: both doors that ship today are found, and each really calls.
+    assert "ticker_explain.py" in names and "comparison_ai_adapter.py" in names, (
+        f"the door derivation found only {names} — it is broken, not green")
+    assert all(n >= 1 for n in call_sites.values()), call_sites
+
+    offenders = {p.name: _tool_kwargs_in(_module_tree(p)) for p in doors}
+    offenders = {k: v for k, v in offenders.items() if v}
+    assert offenders == {}, (
+        f"an I1 door hands the model a tool: {offenders}. I1 assembles ONE "
+        "evidence bundle deterministically BEFORE the model runs; a tool lets the "
+        "model fetch its own evidence, which is Compass's shape and not I1's. If a "
+        "feature genuinely needs that, it is a spec change, not a kwarg.")
+
+
+def test_PART1_CONTROL_the_tool_detector_sees_a_real_tool_call():
+    """⛔ The control for the absence claim above: Compass Chat really does pass
+    `tools=` to the model, so a detector that finds nothing there is blind rather
+    than the doors being clean."""
+    compass = _REPO / "api" / "services" / "journal_two" / "coach_chat.py"
+    assert compass.exists(), "the control file moved — this control measures nothing"
+    hits = _tool_kwargs_in(_module_tree(compass))
+    assert hits and all(k == _TOOL_KWARGS[0] for _, k in hits), hits
+    # …and the `**{...}` smuggling form is seen too.
+    smuggled = ast.parse("c.messages.create(**{'" + _TOOL_KWARGS[0] + "': []})")
+    assert _tool_kwargs_in(smuggled) == [(1, _TOOL_KWARGS[0])]
+    # …and the door derivation discriminates: Compass is a REAL model caller that
+    # is not I1 (it carries its own `_grounding_flags`), so it must stay out,
+    # while both import forms of I1's gate are recognised.
+    assert _messages_create_calls(_module_tree(compass)), "Compass no longer calls a model"
+    assert compass not in i1_model_doors()
+    by_name = ast.parse("from api.services.ticker_explain import _grounding_flags\n"
+                        "c.messages.create(model='m')\n")
+    by_module = ast.parse("from api.services import ticker_explain as te\n"
+                          "te._grounding_flags({}, [])\nc.messages.create(model='m')\n")
+    gate_only = ast.parse("from api.services.ticker_explain import _grounding_flags\n")
+    assert _is_i1_door(by_name) and _is_i1_door(by_module)
+    assert not _is_i1_door(gate_only), "a module that never calls a model is not a door"
+
+
+def _module_shapers() -> set:
+    """Every module-level `_*_evidence` function in ticker_explain.py — the
+    shapers. Derived from the module, so an adapter call that merely ends in
+    `_evidence` (`get_earnings_ai_evidence`, the earnings ADAPTER) is not one."""
+    return {n.name for n in _tree().body
+            if isinstance(n, ast.FunctionDef) and n.name.startswith("_")
+            and n.name.endswith("_evidence") and n.name != "_build_evidence"}
+
+
+def _shapers_called(fn: ast.FunctionDef, shapers: set) -> set:
+    """Which of this module's shapers a composer calls."""
+    return {node.func.id for node in ast.walk(fn)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in shapers}
+
+
+def test_PART1_every_domain_shapes_its_evidence_through_its_OWN_shaper():
+    """⛔ I1-SPEC Part 1's table: each domain has a fetcher AND its own evidence
+    shaper. A composer that borrows another domain's shaper (or skips shaping and
+    returns a raw provider payload) emits items in a shape its domain's grounding
+    extensions and golden set never agreed to.
+
+    RULE 1 above proves one composer per domain; this proves one SHAPER per
+    composer, distinct across domains."""
+    reg = _registered()
+    module_shapers = _module_shapers()
+    shapers = {domain: _shapers_called(_fn(fname), module_shapers)
+               for domain, fname in reg.items()}
+    print(f"[i1-rail:tool-registry] denominator: {len(reg)} registered domains, "
+          f"{len(module_shapers)} module shapers -> "
+          f"{dict((d, sorted(v)) for d, v in sorted(shapers.items()))}")
+    assert len(reg) >= 8, f"the registry read found only {sorted(reg)}"
+    assert len(module_shapers) >= len(reg), f"the shaper scan found only {sorted(module_shapers)}"
+    not_one = {d: sorted(v) for d, v in shapers.items() if len(v) != 1}
+    assert not not_one, (
+        f"these composers do not shape through exactly one evidence shaper: {not_one}")
+    used = [next(iter(v)) for v in shapers.values()]
+    shared = sorted({s for s in used if used.count(s) > 1})
+    assert not shared, f"two domains share one evidence shaper: {shared}"
+    for s in used:
+        _fn(s)                   # every shaper named really exists at module level

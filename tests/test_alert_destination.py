@@ -116,6 +116,11 @@ CONVERTED = {
     # destination instead of the admin webhook. `imports_module` below walks the whole AST,
     # so it sees this import even though it is function-scoped.
     "api/services/alerts.py",
+    # TERM-015 / FB-OBS-04, 2026-09-27 — the daily dead-man roll-up. The spec puts it
+    # "on the ops channel", so ONLY that job resolves through `ops_webhook()` (lazily,
+    # inside `_ops_url()`); the monitor's other four jobs keep their admin-channel read,
+    # because moving them is a TERM-011 row decision this ticket does not take.
+    "api/terminal_next_monitor_main.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -6,6 +6,8 @@
 // them, a second hand-written copy was the defect waiting to happen
 // (lesson_one_grammar_four_hand_written_copies).
 
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
+
 // `Number(null) === 0` — the phantom-zero trap. Every formatter here treats a
 // missing value as MISSING (an em dash), never as a confident 0. The widget
 // used to guard this at each call site; the guard belongs in the grammar.
@@ -23,14 +25,33 @@ export function fmtPct(v) {
   return `${r >= 0 ? '+' : ''}${r}%`
 }
 
+// ⭐ THE MAGNITUDE SUFFIX IS `lib/presentation`'s (TERM-066). Each ladder below
+// is the one this grammar ALREADY had, passed in rather than unified: the three
+// disagree (K at one decimal / at none; B and M at one decimal / at two) and a
+// shared ladder would move a member-visible number. The missing-value gates
+// stay here, where the unit is known. Byte-identity to the pre-TERM-066 bodies
+// is proved over every input class by `lib/presentation/compactAdoption.test.jsx`.
+const VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
+const REVENUE_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 2 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
+const SHARES_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+
 // $11.8M — dollar volume with a magnitude suffix (Model Book fmtVol).
 export function fmtVol(v) {
   const n = Number(v)
   if (!Number.isFinite(n) || n <= 0) return '—'
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
-  return `$${Math.round(n)}`
+  return formatCompact(n, { tiers: VOL_TIERS, prefix: '$' })
 }
 
 export function fmtEps(v) {
@@ -38,13 +59,11 @@ export function fmtEps(v) {
   return n == null ? '—' : n.toFixed(2)
 }
 
+// $1.23B — the sign stays INSIDE the dollar sign ("$-1.50B"), as it always has.
 export function fmtRevenue(v) {
   const n = Number(v)
   if (!Number.isFinite(n) || n === 0) return '—'
-  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
-  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
-  if (Math.abs(n) >= 1e3) return `$${(n / 1e3).toFixed(1)}K`
-  return `$${Math.round(n)}`
+  return formatCompact(n, { tiers: REVENUE_TIERS, prefix: '$' })
 }
 
 // A % surprise cell → {text, dir} so the caller can color it up/down.
@@ -70,10 +89,7 @@ export function fmtQuarter(r) {
 export function fmtShares(v) {
   const n = Number(v)
   if (!Number.isFinite(n) || n <= 0) return '—'
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
-  return String(Math.round(n))
+  return formatCompact(n, { tiers: SHARES_TIERS })
 }
 
 export function fmtEarnDate(iso) {

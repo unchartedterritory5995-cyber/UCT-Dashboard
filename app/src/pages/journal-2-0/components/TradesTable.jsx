@@ -3,7 +3,6 @@
  * Spec §11.3.
  */
 
-import { useMemo, useState } from 'react'
 import {
   money,
   moneySigned,
@@ -14,6 +13,7 @@ import {
   holdDaysDisplay,
 } from '../../../lib/journal-2-0'
 import UIcon from '../../../components/ui/UIcon'
+import { useGridSort } from '../../../lib/presentation/dataGrid'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import styles from './TradesTable.module.css'
 
@@ -174,6 +174,14 @@ function sortValue(key, trade) {
   return trade[key]
 }
 
+const isNumericSortKey = (key) => NUMERIC_SORT_KEYS.has(key)
+
+// Stable tiebreak: newest entry first, then id.
+function tradesTiebreak(a, b) {
+  if (a.entryDate !== b.entryDate) return a.entryDate > b.entryDate ? -1 : 1
+  return String(a.id) < String(b.id) ? -1 : 1
+}
+
 /**
  * Phone card — one closed trade per card (headline P&L + entry→exit meta +
  * read-only setup chip), replacing the dense table on ≤640px. Tap opens the
@@ -214,39 +222,16 @@ function TradeCard({ trade, onRowAction, reviewedIds }) {
 export default function TradesTable({ trades, visibleColumns, onRowAction, reviewedIds, setups, onUpdateSetup }) {
   const isPhone = useIsPhone()
   // Default sort: entryDate DESC (spec §11.3). Clicking a header re-sorts.
-  const [sort, setSort] = useState({ key: 'entryDate', dir: 'desc' })
-
-  const handleSort = (key) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : { key, dir: defaultDirFor(key) },
-    )
-  }
-
-  const sorted = useMemo(() => {
-    const dir = sort.dir === 'asc' ? 1 : -1
-    const numeric = NUMERIC_SORT_KEYS.has(sort.key)
-    return [...trades].sort((a, b) => {
-      const av = sortValue(sort.key, a)
-      const bv = sortValue(sort.key, b)
-      const aEmpty = av == null || av === ''
-      const bEmpty = bv == null || bv === ''
-      // Blanks always sink to the bottom, regardless of direction.
-      if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
-      else if (aEmpty) return 1
-      else if (bEmpty) return -1
-      else {
-        let c
-        if (numeric) c = av - bv
-        else c = String(av) < String(bv) ? -1 : String(av) > String(bv) ? 1 : 0
-        if (c !== 0) return c * dir
-      }
-      // Stable tiebreak: newest entry first, then id.
-      if (a.entryDate !== b.entryDate) return a.entryDate > b.entryDate ? -1 : 1
-      return String(a.id) < String(b.id) ? -1 : 1
-    })
-  }, [trades, sort])
+  // The sort state, the blanks-sink comparator and the header semantics come
+  // from the S10 DataGrid seed (TERM-065); the markup below is unchanged.
+  const { sorted, requestSort, ariaSort, caret, sort } = useGridSort(trades, {
+    initialKey: 'entryDate',
+    initialDir: 'desc',
+    defaultDirFor,
+    valueOf: sortValue,
+    isNumeric: isNumericSortKey,
+    tiebreak: tradesTiebreak,
+  })
 
   if (sorted.length === 0) {
     return (
@@ -285,16 +270,16 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
                   className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
                   title={c.tooltip || undefined}
                   scope="col"
-                  aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  aria-sort={ariaSort(c.key)}
                 >
                   <button
                     type="button"
                     className={`${styles.thBtn} ${active ? styles.thBtnActive : ''}`}
-                    onClick={() => handleSort(c.key)}
+                    onClick={() => requestSort(c.key)}
                   >
                     <span>{c.label}</span>
                     <span className={styles.sortCaret} aria-hidden="true">
-                      {active ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                      {caret(c.key)}
                     </span>
                   </button>
                 </th>

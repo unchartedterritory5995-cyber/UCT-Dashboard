@@ -262,6 +262,14 @@ def run_seed(db_path: str | None = None, dry_run: bool = False, max_pages: int =
         stats["would_create_delisted_entities"] = len(delisted)
         return {"stats": dict(stats), "anomalies": anomalies, "dry_run": True}
 
+    # TERM-023 (d): the store's row counts are READ OFF THE ROWS before and
+    # after, never restated from `stats` -- `stats` counts what this run DID,
+    # which is not what the store HOLDS (a re-run creates nothing and the store
+    # still holds everything). Real run only: a dry run returned above and
+    # never opens the file. (`status_counts` opens it through `store._conn`,
+    # which runs the idempotent `init_db`.)
+    store_rows_before = store.status_counts(db_path)
+
     with store.bulk_mode(db_path):
         # Real run — opens/creates entity_master.db.
         schema.init_db(db_path=db_path)
@@ -392,7 +400,33 @@ def run_seed(db_path: str | None = None, dry_run: bool = False, max_pages: int =
                 anomalies.append({"kind": "delisted_record_missing_date", "alias": ticker})
                 stats["normalization_anomalies"] += 1
 
-    return {"stats": dict(stats), "anomalies": anomalies, "dry_run": False}
+    return {
+        "stats": dict(stats), "anomalies": anomalies, "dry_run": False,
+        "store_rows_before": _row_report(store_rows_before),
+        "store_rows_after": _row_report(store.status_counts(db_path)),
+    }
+
+
+#: The store facts a seed run reports. Read off the rows by
+#: `store.status_counts` -- the same reader the admin status route uses, so the
+#: seed's printout and `/api/admin/entity-master/status` cannot disagree.
+_ROW_REPORT_KEYS = (
+    "entities", "aliases", "open_aliases", "distinct_open_aliases",
+    "delisted_entities", "figi_rows", "entities_with_composite_figi",
+    "vendor_symbols", "events", "rejected_events", "ambiguous_open_aliases",
+)
+
+
+def _row_report(counts: dict) -> dict:
+    return {k: counts.get(k) for k in _ROW_REPORT_KEYS}
+
+
+def _row_count_line(rows: dict, db_path: str | None) -> str:
+    """The one line an operator reads. Every number comes from `rows`, which
+    came from the store -- nothing here is typed."""
+    from api.services.entity_master import schema
+    body = " ".join(f"{k}={rows.get(k)}" for k in _ROW_REPORT_KEYS)
+    return f"entity_master rows after seed: {body} (read off {db_path or schema.DB_PATH})"
 
 
 def main():
@@ -410,6 +444,8 @@ def main():
     else:
         result = run_seed(db_path=args.db_path, dry_run=args.dry_run, max_pages=args.max_pages)
     print(json.dumps(result, indent=2, default=str))
+    if result.get("store_rows_after") is not None:
+        print(_row_count_line(result["store_rows_after"], args.db_path))
 
 
 if __name__ == "__main__":

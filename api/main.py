@@ -133,6 +133,7 @@ from api.routers import provenance_quote as provenance_quote_router
 from api.routers import provenance_bar as provenance_bar_router
 from api.routers import alert_taxonomy as alert_taxonomy_router
 from api.routers import entity_master_admin as entity_master_admin_router
+from api.routers import entity_resolve as entity_resolve_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -141,6 +142,7 @@ from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
+from api.routers import workspace_doc as workspace_doc_router
 from api.routers import discord_interactions as discord_interactions_router
 from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
@@ -8133,6 +8135,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 attachments backup registered (02:45 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
+        # TERM-083 (FB-X1-02): nightly R2 backup of the member-authored stores no rail
+        # above covers (community.db, charts_layouts.db, user_definitions.db, ...).
+        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily. The evidence is the
+        # restore rehearsal, tools/store_restore.py --rehearse, never this job's exit.
+        try:
+            from api.services import store_backup
+            if store_backup.register_jobs(_scheduler):
+                print("[startup] store backup registered (03:05 ET daily)")
+        except Exception as e:
+            print(f"[startup] store backup registration failed (non-fatal): {e}")
         # Nightly closed-trade excursion (MFE/MAE/exit-efficiency) backfill
         # (Journal A+ Phase 2). Ships dark (EXCURSION_ENGINE_ENABLED=0);
         # 03:10 ET Mon-Sat. Idempotent (skips already-computed trade_refs);
@@ -8376,7 +8388,25 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
+# ⭐ OPEN_READS_GATE (api/open_reads_gate.py) — the staged gate over TERM-026's
+# anonymous reads. FastAPI's built-in /openapi.json, /docs, /docs/oauth2-redirect
+# and /redoc are plain Starlette routes that cannot carry a Depends, so they are
+# switched off HERE and re-served (same generators, same titles) by
+# `install_docs` behind the gate: with the flag unset they answer exactly as
+# before; under `enforce` they are admin-only. `app.openapi()` is untouched.
+app = FastAPI(title="UCT Dashboard", lifespan=lifespan,
+              openapi_url=None, docs_url=None, redoc_url=None)
+from api import open_reads_gate as _open_reads_gate
+# Attached where each router is MOUNTED (never inside the router file, so the
+# two partner-owned routers are gated without being edited). The gate governs
+# only GET/HEAD routes its own table classifies; everything else in the router
+# passes straight through. Unset flag = returns before reading anything.
+_OPEN_READS = [Depends(_open_reads_gate.open_reads_gate)]
+_open_reads_gate.install_docs(app)
+app.include_router(_open_reads_gate.router)   # GET /api/admin/open-reads-gate (require_admin)
+# Pure ASGI; only acts on a request the gate ENFORCED and allowed (rewrites
+# Cache-Control to `private` so an edge cache cannot replay it anonymously).
+app.add_middleware(_open_reads_gate.PrivateCacheForGatedReads)
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
 # 🔴 THE FAIL-CLOSED ADMIN GATE. `api/middleware/admin_guard.py` shipped
@@ -8649,8 +8679,8 @@ app.include_router(hub_reports_router.router)
 app.include_router(snapshot.router)
 app.include_router(movers.router)
 app.include_router(engine_data.router)
-app.include_router(earnings.router)
-app.include_router(news.router)
+app.include_router(earnings.router, dependencies=_OPEN_READS)
+app.include_router(news.router, dependencies=_OPEN_READS)
 # ── Company Panel News. The read route touches the persistent company_news
 # store ONLY and never contacts a provider; ingestion is the scheduled job
 # registered in the lifespan below.
@@ -8738,17 +8768,17 @@ if os.environ.get("SCREEN_BACKTEST_ENABLED", "0") == "1":
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(quote_of_the_day_router.router)   # public: the day's quote, same for site + letter
-app.include_router(charts.router)
+app.include_router(charts.router, dependencies=_OPEN_READS)
 app.include_router(discord_interactions_router.router)
-app.include_router(bars_router.router)
+app.include_router(bars_router.router, dependencies=_OPEN_READS)
 app.include_router(cot_router.router)
-app.include_router(breadth_monitor_router.router)
+app.include_router(breadth_monitor_router.router, dependencies=_OPEN_READS)
 # Market Indicators library — McClellan / Breadth-derived / Sentiment / Volatility.
 # ⚠️ Its `/api/market-indicators/{series_id:path}` is a greedy catch-all, so the two
 # fixed sub-paths (`/search`, `/status`) are declared BEFORE it inside that router and
 # nothing outside shares the prefix. Same trap `/live/drill/{metric_key}` hit.
 from api.routers import market_indicators as market_indicators_router  # noqa: E402
-app.include_router(market_indicators_router.router)
+app.include_router(market_indicators_router.router, dependencies=_OPEN_READS)
 app.include_router(theme_performance_router.router)
 from api.routers import theme_sets as theme_sets_router  # per-user custom theme sets
 app.include_router(theme_sets_router.router)
@@ -8766,14 +8796,14 @@ except Exception as _e:  # noqa: BLE001
     print(f"[startup] flow read-proxy registration failed (non-fatal): {_e}")
 
 app.include_router(top_flow_router)
-app.include_router(flow_scoreboard_router)
+app.include_router(flow_scoreboard_router, dependencies=_OPEN_READS)
 app.include_router(flow_explain_router)
-app.include_router(schwab_router)
-app.include_router(calendar_router.router)
+app.include_router(schwab_router, dependencies=_OPEN_READS)
+app.include_router(calendar_router.router, dependencies=_OPEN_READS)
 from api.routers import member as member_router      # S6 CP4: GET /api/member/interest
 app.include_router(member_router.router)
 from api.routers import wire as wire_router          # earnings wire (Phase 1)
-app.include_router(wire_router.router)
+app.include_router(wire_router.router, dependencies=_OPEN_READS)
 
 
 def _wire_enabled() -> bool:
@@ -8789,7 +8819,7 @@ app.include_router(auth_router.router)
 app.include_router(waitlist_router.router)
 app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
-app.include_router(avatar_router.router)
+app.include_router(avatar_router.router, dependencies=_OPEN_READS)
 app.include_router(webhooks_router.router)
 app.include_router(alerts_router.router)
 # Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
@@ -8811,7 +8841,7 @@ app.include_router(notebook_writing_help_router.router)
 # same pre-journal_two slot; tests/test_notebook_share_routes.py +
 # tests/test_main_router_order.py).
 app.include_router(notebook_shares_router.router)
-app.include_router(journal_two_router.router)
+app.include_router(journal_two_router.router, dependencies=_OPEN_READS)
 # Wave 8 seam S8-2: three STUB routers (prefix, no routes yet) for lanes 8B/8C --
 # /api/j2/publish*|published* (8B), /api/j2/export (8C), /api/j2/onboarding (8C).
 # Outside /api/j2/notes/..., so mount order against journal_two does not matter.
@@ -8838,18 +8868,18 @@ app.include_router(market_calendar_router.router)  # public: NYSE full closures,
 app.include_router(watchlists_router.router)
 app.include_router(ticker_tags_router.router)
 app.include_router(watchlist_alerts_router.router)
-app.include_router(stream_router.router)
+app.include_router(stream_router.router, dependencies=_OPEN_READS)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
-app.include_router(compare_router.router)
+app.include_router(compare_router.router, dependencies=_OPEN_READS)
 from api.routers import delisted as delisted_router
 app.include_router(delisted_router.router)
 app.include_router(single_stock_etfs_router.router)
 app.include_router(etf_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
-app.include_router(transcripts_router.router)
+app.include_router(transcripts_router.router, dependencies=_OPEN_READS)
 app.include_router(voice_router.router)
 app.include_router(regime_router.router)
 app.include_router(admin_chart_health_router.router)
@@ -8858,50 +8888,51 @@ app.include_router(indicator_alerts_router.router)
 app.include_router(backtest_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
-app.include_router(gex_router)
-app.include_router(dealer_positioning_router)
+app.include_router(gex_router, dependencies=_OPEN_READS)
+app.include_router(dealer_positioning_router, dependencies=_OPEN_READS)
 app.include_router(watchlist_router)
-app.include_router(flow_router)
+app.include_router(flow_router, dependencies=_OPEN_READS)
 app.include_router(flow_summary_router)
 try:
     from api.flow_gap_autofill import router as flow_gap_autofill_router
-    app.include_router(flow_gap_autofill_router)
+    app.include_router(flow_gap_autofill_router, dependencies=_OPEN_READS)
 except Exception as _e:
     print(f"[startup] flow_gap_autofill router not mounted (non-fatal): {_e}")
 try:
     from api.flow_backup import router as flow_backup_router
-    app.include_router(flow_backup_router)
+    app.include_router(flow_backup_router, dependencies=_OPEN_READS)
 except Exception as _e:
     print(f"[startup] flow_backup router not mounted (non-fatal): {_e}")
 try:
     from api.event_loop_watchdog import router as event_loop_watchdog_router
-    app.include_router(event_loop_watchdog_router)
+    app.include_router(event_loop_watchdog_router, dependencies=_OPEN_READS)
 except Exception as _e:
     print(f"[startup] event_loop_watchdog router not mounted (non-fatal): {_e}")
-app.include_router(oi_snapshot_router)
-app.include_router(notable_flow_router)
-app.include_router(liveflow_router)
-app.include_router(liveflow_health_router)
-app.include_router(live_massive_router)
-app.include_router(massive_stream_router)  # /api/live/massive/stream — flow SSE (dark)
+app.include_router(oi_snapshot_router, dependencies=_OPEN_READS)
+app.include_router(notable_flow_router, dependencies=_OPEN_READS)
+app.include_router(liveflow_router, dependencies=_OPEN_READS)
+app.include_router(liveflow_health_router, dependencies=_OPEN_READS)
+app.include_router(live_massive_router, dependencies=_OPEN_READS)
+app.include_router(massive_stream_router, dependencies=_OPEN_READS)  # /api/live/massive/stream — flow SSE (dark)
 app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
-app.include_router(darkpool_router)
+app.include_router(darkpool_router, dependencies=_OPEN_READS)
 app.include_router(barspack_router)
-app.include_router(intradaypack_router)
+app.include_router(intradaypack_router, dependencies=_OPEN_READS)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
 app.include_router(desk_router.router)
 app.include_router(admin_api_health_router.router)
-app.include_router(provider_coverage_router.router)  # /api/admin/provider-coverage — Task 22/23
-app.include_router(fmp_adapter_status_router.router)  # /api/admin/fmp-adapter-status — D1 §7.3
-app.include_router(massive_adapter_status_router.router)  # /api/admin/massive-adapter-status — D1 §7.3
+app.include_router(provider_coverage_router.router, dependencies=_OPEN_READS)  # /api/admin/provider-coverage — Task 22/23
+app.include_router(fmp_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/fmp-adapter-status — D1 §7.3
+app.include_router(massive_adapter_status_router.router, dependencies=_OPEN_READS)  # /api/admin/massive-adapter-status — D1 §7.3
 app.include_router(provenance_quote_router.router)  # /api/provenance/quote — S8 Step 2 live D1 wiring
-app.include_router(provenance_bar_router.router)  # /api/provenance/bar — S8 <Cited> narrow interim form
+app.include_router(provenance_bar_router.router, dependencies=_OPEN_READS)  # /api/provenance/bar — S8 <Cited> narrow interim form
 app.include_router(alert_taxonomy_router.router)  # /api/alerts/taxonomy/* — S7 document-arrival first slice
 app.include_router(entity_master_admin_router.router)  # /api/admin/entity-master/* — S3 admin status/ops (admin-only)
-app.include_router(yf_guard_router.router)  # /api/admin/yfinance-guard — breaker observability
+app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM-023 member door, paid, DARK (ENTITY_MASTER_MEMBER_ENABLED)
+app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)
 app.include_router(tracings_router.router)
@@ -8909,6 +8940,7 @@ app.include_router(modelbook_router.router)
 app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
+app.include_router(workspace_doc_router.router)  # /api/workspace/doc/* — TERM-021, 404 unless WORKSPACE_DOC_STORE_ENABLED
 app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
 from api.routers import indicator_vision as indicator_vision_router  # noqa: E402
 app.include_router(indicator_vision_router.router)  # /api/indicator-vision/* — a screenshot in, ranked candidate indicators out
@@ -8919,15 +8951,15 @@ app.include_router(theme_engine_router.router)  # Theme Membership Engine admin 
 app.include_router(ai_search_router.router)
 app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
-app.include_router(fundamentals_router.router)
+app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
-app.include_router(filings_router.router)
-app.include_router(research_router.router)
+app.include_router(filings_router.router, dependencies=_OPEN_READS)
+app.include_router(research_router.router, dependencies=_OPEN_READS)
 app.include_router(expected_move_router.router)
-app.include_router(earnings_intel_router.router)
-app.include_router(ticker_logos_router.router)
+app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
+app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
 app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/connectors/* -- unconditional; per-provider config checked in-endpoint
 app.include_router(desk_zoom_webhook_router.router)
@@ -8944,7 +8976,7 @@ for _wisdom_router in wisdom_registry.routers():
 # Lightweight status route so an operator can verify the consumer thread
 # is alive, connected, and ingesting trades. Wire to a uptime check or
 # just curl it during the first-deploy validation window.
-@app.get("/api/massive/status")
+@app.get("/api/massive/status", dependencies=_OPEN_READS)
 async def _massive_ws_status():
     """Live counters from the Massive WebSocket consumer thread."""
     try:
@@ -8959,7 +8991,7 @@ async def _massive_ws_status():
 # row counts written. The backfill route is for the operator to manually
 # ingest a specific date (or range) -- useful for filling gaps if the cron
 # failed, or for seeding history for baselines.
-@app.get("/api/massive/flatfiles/status")
+@app.get("/api/massive/flatfiles/status", dependencies=_OPEN_READS)
 async def _massive_flatfiles_status():
     """Last-run state of the daily Flat Files ingester."""
     try:
@@ -10127,7 +10159,7 @@ async def _ticker_types_stats():
 # last_synced -- clients can key off that if they need to force-refresh.
 _ETF_INDEX_SYMBOLS_CACHE = {"payload": None, "cached_at": None}
 
-@app.get("/api/ticker-types/replica-push-status")
+@app.get("/api/ticker-types/replica-push-status", dependencies=_OPEN_READS)
 async def _ticker_types_replica_push_status():
     """Sender-side replication telemetry (web). The receiver reports separately at
     /api/flow/etf-replica-status.
@@ -10139,7 +10171,7 @@ async def _ticker_types_replica_push_status():
     return JSONResponse(optionsflow_etf_push.status())
 
 
-@app.get("/api/ticker-types/generation")
+@app.get("/api/ticker-types/generation", dependencies=_OPEN_READS)
 async def _ticker_types_generation():
     """The classification snapshot's CONTENT identity — a few dozen bytes.
 
@@ -10159,7 +10191,7 @@ async def _ticker_types_generation():
         return {"ok": False, "error": str(e), "generation": None}
 
 
-@app.get("/api/ticker-types/etf-index-symbols")
+@app.get("/api/ticker-types/etf-index-symbols", dependencies=_OPEN_READS)
 async def _ticker_types_etf_index_symbols():
     """Return every ticker classified as ETF or INDEX (bulk).
 
@@ -11068,11 +11100,11 @@ async def _flow_delete_by_date(
 def serve_csv():
     return _csv_response(os.path.join(PUBLIC, "flow-data.csv"), "flow-data.csv")
 
-@app.get("/Darkpool-data.csv")
+@app.get("/Darkpool-data.csv", dependencies=_OPEN_READS)
 def serve_darkpool_csv():
     return _csv_response(os.path.join(PUBLIC, "Darkpool-data.csv"), "Darkpool-data.csv")
 
-@app.get("/Indexes-data.csv")
+@app.get("/Indexes-data.csv", dependencies=_OPEN_READS)
 def serve_indexes_csv():
     return _csv_response(os.path.join(PUBLIC, "Indexes-data.csv"), "Indexes-data.csv")
 

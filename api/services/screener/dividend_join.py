@@ -40,7 +40,8 @@ simply old, and `div_days_since_ex` says so out loud.
 
 ⛔ **AND A FORWARD EX-DATE ALREADY HAS A WRITER.**
 `api/services/dividends_calendar.py` builds the forward (`date >= today`)
-dividend calendar from yfinance for the Calendar surface. Even if this store
+dividend calendar (Massive reference data since TERM-036, 2026-09-27; it
+was yfinance) for the Calendar surface. Even if this store
 could answer, answering would be a second authority over one value — this
 repo's most repeated defect. Two independent reasons; the column stays unbuilt
 here.

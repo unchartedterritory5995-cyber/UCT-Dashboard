@@ -142,7 +142,8 @@ def test_the_report_surface_runs_only_DECLARED_commands():
     spec = importlib.util.spec_from_file_location("tnrep", str(_ROUTER))
     r = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(r)
-    assert set(r._REPORTS) == {"ticking", "report", "gate-check"}
+    # TERM-015 adds "cadence" — the dead-man roll-up, one more DECLARED tool.
+    assert set(r._REPORTS) == {"ticking", "report", "gate-check", "cadence"}
     for argv in r._REPORTS.values():
         assert argv[0].startswith("tools/"), argv
 
@@ -187,7 +188,7 @@ def test_every_post_carries_the_commit_and_a_timestamp(monkeypatch):
 
 
 def test_the_job_registry_matches_the_four_schedules():
-    assert set(_load().JOBS) == {"ticking", "catalyst", "gate-check", "weekly"}
+    assert set(_load().JOBS) == {"ticking", "catalyst", "gate-check", "weekly", "cadence"}
 
 
 # ───────────────────────── the ET schedule, and the DST hazard it exists for
@@ -206,6 +207,7 @@ def _et(y, mo, d, h, mi):
     ((2026, 9, 14, 9, 13), []),                # one minute off
     ((2026, 9, 19, 9, 12), []),                # Saturday: ticking is weekdays only
     ((2026, 9, 20, 16, 30), ["gate-check"]),   # Sunday: gate-check is daily
+    ((2026, 9, 20, 16, 20), ["cadence"]),      # TERM-015: the roll-up is daily too
 ])
 def test_due_jobs_fires_exactly_on_its_ET_minute(when, expect):
     assert _load().due_jobs(_et(*when)) == expect

@@ -70,15 +70,17 @@ def _fetch_ticker_events(ticker: str) -> list[dict[str, str]]:
     (no event history for this ticker -- the normal case for most tickers,
     never treated as an error), or if the response shape is not what this
     function expects. Never raises.
+
+    TERM-022: reads through `massive_adapter`; a 404 arrives as
+    `MassiveNotFound` and is answered `[]` here, the same as before.
     """
-    from api.services import massive as _massive
+    from api.services import massive_adapter
 
     out: list[dict[str, str]] = []
     try:
-        client = _massive._get_client()
-        url = (f"{_massive._REST_BASE}/vX/reference/tickers/{ticker}/events"
-               f"?apiKey={client._api_key}")
-        data = client._get(url) or {}
+        data = massive_adapter.get(
+            f"/vX/reference/tickers/{ticker}/events", data_class="reference",
+            activity="entity_master_d5_renames._fetch_ticker_events").value or {}
         events = ((data.get("results") or {}).get("events")) or []
         for e in events:
             if not isinstance(e, dict) or e.get("type") != "ticker_change":

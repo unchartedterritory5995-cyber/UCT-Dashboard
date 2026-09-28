@@ -290,4 +290,13 @@ def ticker_search(
                 })
         except Exception:
             pass
-    return {"results": results[:limit]}
+    results = results[:limit]
+    # TERM-023 adoption, DARK: armed, every instrument row is keyed to the
+    # entity Entity Master holds for it at the row's own date (a delisted row
+    # names the dead company). Unset, this branch is never entered, the store is
+    # never opened, and the response is byte-identical to the pre-TERM-023 one
+    # (`tests/test_entity_master_member_path.py` proves both).
+    from api.services.entity_master import member_resolve as _em_member
+    if _em_member.is_enabled():
+        results = _em_member.attach_entity_ids(results)
+    return {"results": results}

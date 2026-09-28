@@ -38,13 +38,24 @@
 // RECORDED_BOUNDARY_DEBT) described the whole Sources block rather than only
 // the three class names that named it.
 //
-// ⚠️ AND WHAT IS OUTSIDE ITS SURFACE BY CONSTRUCTION: it guards the Ask-AI tab
-// `ResearchPage.jsx` mounts, plus what that tab imports. `pages/research/
-// components/ComparisonAskAi.jsx` — a DIFFERENT door, reached from the compare
-// page — still draws its own citation list through the very classes this rail
-// was opened for, and this file cannot see it. Widening the surface to the
-// whole `pages/research/**` tree is a one-line change to `i1Surface`'s roots
-// and a decision somebody has to make, not a gap to paper over here.
+// ⚠️ AND WHAT IS OUTSIDE THE FIRST SECTION'S SURFACE BY CONSTRUCTION: it
+// guards the Ask-AI tab `ResearchPage.jsx` mounts, plus what that tab imports.
+// `pages/research/components/ComparisonAskAi.jsx` — a DIFFERENT door, reached
+// from the compare page — is not in it.
+//
+// ⭐ TERM-034 (2026-09-27) WIDENED THE ROOTS, in its own describe block at the
+// foot of this file: `aiDoorFiles()` derives every Ask-AI door the research
+// pages mount (so ComparisonAskAi is SEEN). Its violation — its own citation
+// list through three local classes — was recorded there as a strict
+// expected-failure. ⭐ TERM-050 (FB-I1-01) FIXED IT: the compare door's
+// Sources block composes S8's <Provenance>, the `it.fails` is a plain `it`, and
+// a verbatim reconstruction of the deleted list is kept as a control that must
+// stay red. The Ask-AI tab's own section above is untouched.
+//
+// ⚠️ STILL OUTSIDE EVERY SURFACE HERE, stated so a green run is not read as
+// more than it is: AI doors that are not mounted by a research PAGE (the AI
+// Search widget, the catalyst table's citations popover, call recaps, the
+// Notebook's Ask panel) are not roots of either section.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -328,12 +339,11 @@ const ALL_FINDINGS = SURFACE.flatMap((f) => boundaryFindings(f))
  * ⛔ AND IT IS NOT A PARKING SPACE FOR THE NEXT ONE. Adding a line is a
  * decision recorded in a diff with a reason beside it.
  *
- * ⚠️ KNOWN AND DELIBERATELY NOT RECORDED HERE: `pages/research/components/
- * ComparisonAskAi.jsx` still draws the same local citation list through the
- * same three CSS classes. It is NOT in this rail's surface (this rail follows
- * what `ResearchPage.jsx` mounts as the Ask-AI tab, and the compare page is a
- * different door), so an entry for it would be a line in a ledger nothing
- * checks. It is a reported finding, not debt this file can hold.
+ * ⚰️ `pages/research/components/ComparisonAskAi.jsx` drew the same local
+ * citation list through the same three CSS classes. It was never recorded
+ * here (it is not in this section's surface); TERM-034 checked it from the
+ * widened-roots block at the foot of this file as a strict expected-failure,
+ * and TERM-050 fixed it in code. Nothing to record, then or now.
  */
 export const RECORDED_BOUNDARY_DEBT = {}
 
@@ -499,5 +509,135 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
       + "const label = 'citation'\n"
       + 'export default () => <div className={styles.explainSummary}>{label}</div>\n'
     expect(boundaryFindings(anchor, prose)).toEqual([])
+  })
+})
+
+// ─── TERM-034 — THE ROOTS, WIDENED TO EVERY ASK-AI DOOR ─────────────────────
+//
+// I1-SPEC Part 4 names the gap in this rail's own words: ComparisonAskAi (the
+// compare page's Ask-AI door) *"draws its own citation list through the same S8
+// classes and is outside this rail's surface today"*, and says closing it is
+// *"a one-line change"* to `i1Surface`'s roots. TERM-034 says: extend the roots,
+// do not rewrite the section. So the section above is untouched and this block
+// feeds `i1Surface` a DERIVED root set — every default import a research PAGE
+// mounts whose name says Ask-AI — so a third door joins without editing a list.
+//
+// ⚰️ The compare door VIOLATED the boundary when this block landed, so its
+// finding was a strict expected-failure (`it.fails`) pinned to its named
+// reason. TERM-050 fixed the door and removed the marker in the same commit;
+// the reconstruction control below is what keeps a blind detector from hiding
+// behind the green.
+
+const RESEARCH_DIR = path.join(SRC, 'pages', 'research')
+
+/** Every research PAGE file (`*Page.jsx`), read off the directory. */
+export function researchPages() {
+  return fs.readdirSync(RESEARCH_DIR)
+    .filter((f) => /Page\.jsx$/.test(f) && !/\.(test|spec)\.jsx$/.test(f))
+    .map((f) => path.join(RESEARCH_DIR, f))
+}
+
+/** Every Ask-AI door those pages mount — parsed, never typed. */
+export function aiDoorFiles(pages = researchPages()) {
+  const out = []
+  for (const page of pages) {
+    for (const n of parse(read(page)).body) {
+      if (n.type !== 'ImportDeclaration' || typeof n.source?.value !== 'string') continue
+      for (const s of n.specifiers || []) {
+        if (s.type !== 'ImportDefaultSpecifier') continue
+        if (!s.local.name.toLowerCase().replace(/[^a-z]/g, '').includes('askai')) continue
+        const r = resolve(page, n.source.value)
+        if (r && !out.includes(r)) out.push(r)
+      }
+    }
+  }
+  return out
+}
+
+const DOORS = aiDoorFiles()
+const WIDE_SURFACE = i1Surface(DOORS)
+const WIDE_FINDINGS = WIDE_SURFACE.flatMap((f) => boundaryFindings(f))
+const COMPARE_DOOR = 'app/src/pages/research/components/ComparisonAskAi.jsx'
+
+describe('TERM-034 — the boundary, over EVERY Ask-AI door the research pages mount', () => {
+  it('the widened roots are derived, reach both doors, and contain the original surface', () => {
+    // eslint-disable-next-line no-console
+    console.log(`[i1-rail:s8-boundary] denominator: ${researchPages().length} research pages, `
+      + `${DOORS.length} Ask-AI doors [${DOORS.map(key).join(', ')}], `
+      + `${WIDE_SURFACE.length} modules in the widened surface (Ask-AI tab alone: `
+      + `${SURFACE.length}), ${WIDE_FINDINGS.length} findings`)
+    expect(DOORS.map(key)).toEqual(expect.arrayContaining([
+      'app/src/pages/research/tabs/AskAiTab.jsx', COMPARE_DOOR,
+    ]))
+    // The original root is one of the widened ones, so widening can only ADD
+    // surface — the Ask-AI tab is still guarded by exactly the same detector.
+    for (const f of askAiTabFile()) expect(DOORS).toContain(f)
+    for (const f of SURFACE) expect(WIDE_SURFACE).toContain(f)
+  })
+
+  it('the Ask-AI tab stays clean inside the widened surface', () => {
+    const outsideCompare = WIDE_FINDINGS.filter((f) => f.file !== COMPARE_DOOR)
+    expect(outsideCompare.map((f) => f.id)).toEqual([])
+  })
+
+  // ⭐ TERM-050 (FB-I1-01) FIXED THE COMPARE DOOR, and the order was the
+  // evidence, exactly as GATE-I1 slice 2's was: `.fails` came off FIRST, with
+  // the local citation list still in the tree, and this file went RED naming
+  // the three classes at live line numbers. Then ComparisonAskAi's Sources
+  // block was rebuilt on S8's <Provenance> and it went green. The pair of
+  // controls below keeps that red/green pair permanent.
+  it('⭐ EVERY Ask-AI door the research pages mount composes S8 — no findings', () => {
+    expect(WIDE_FINDINGS.map((f) => `${f.id} (line ${f.line}) — ${f.detail}`),
+      'an Ask-AI door renders citation/freshness/coverage/provenance itself instead '
+      + 'of composing S8\'s primitives in app/src/components/provenance/').toEqual([])
+  })
+
+  it('CONTROL: the pre-TERM-050 compare Sources block is RED, by name, at real lines', () => {
+    // The violation this block was opened for, reconstructed verbatim from
+    // the list TERM-050 deleted, classified against the REAL compare-door
+    // anchor so module resolution is the real thing. Without this, the green
+    // above is also satisfied by a detector that stopped looking.
+    const anchor = path.join(ROOT, ...COMPARE_DOOR.split('/'))
+    const preTerm050 = [
+      "import styles from '../ResearchPage.module.css'",
+      'export default ({ data }) => (',
+      '  <div className={styles.explainCitations}>',
+      '    {data.citations.map(c => (',
+      '      <div key={c.id} className={styles.explainCitation}>',
+      '        <span className={styles.explainCitationMark}>[{c.id}]</span>',
+      '        <span>{c.sym} · {c.source} · {c.date}</span>',
+      '      </div>',
+      '    ))}',
+      '  </div>',
+      ')',
+      '',
+    ].join('\n')
+    const findings = boundaryFindings(anchor, preTerm050)
+    expect(findings.map((f) => f.what)).toEqual(
+      ['explainCitations', 'explainCitation', 'explainCitationMark'])
+    for (const f of findings) {
+      expect(f.file).toBe(COMPARE_DOOR)
+      expect(preTerm050.split('\n')[f.line - 1]).toContain(f.what)
+    }
+  })
+
+  it('AND THE SHIPPED COMPARE DOOR IS CLEAN — the fix, not the ledger, is what is green', () => {
+    const anchor = path.join(ROOT, ...COMPARE_DOOR.split('/'))
+    const src = read(anchor)
+    expect(src, 'ComparisonAskAi stopped composing S8 — the TERM-050 fix has been reverted')
+      .toContain('<Provenance')
+    expect(boundaryFindings(anchor, src)).toEqual([])
+    expect(RECORDED_BOUNDARY_DEBT).toEqual({})
+  })
+
+  it('CONTROL: the door derivation discriminates — a non-Ask-AI default import is not a door', () => {
+    // ResearchComparePage also default-imports non-AI components; had the name
+    // filter been dropped they would all be roots.
+    const compare = path.join(RESEARCH_DIR, 'ResearchComparePage.jsx')
+    const defaults = parse(read(compare)).body
+      .filter((n) => n.type === 'ImportDeclaration')
+      .flatMap((n) => (n.specifiers || []).filter((s) => s.type === 'ImportDefaultSpecifier'))
+    expect(defaults.length).toBeGreaterThan(aiDoorFiles([compare]).length)
+    expect(aiDoorFiles([compare]).map(key)).toEqual([COMPARE_DOOR])
   })
 })

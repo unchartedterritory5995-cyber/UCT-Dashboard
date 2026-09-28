@@ -17,16 +17,19 @@
 // chart closely — 24 bars at 168px tall hide the shape of a single quarter.
 import { memo, useCallback, useRef, useState } from 'react'
 import useSWR from 'swr'
-import { SeriesChart } from '../../research-kit'
+import { EmptyState, SeriesChart } from '../../research-kit'
 import { SkeletonBlock } from '../../Skeleton'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
+import { FETCH_FAILED, sectionFetcher } from './sectionFetch'
 import { EXPANDED_HEIGHT, PANEL_HEIGHT, PANEL_SPECS, panelSeries, spanLabel } from './statementSeries'
 import styles from './StatementPanels.module.css'
 
-const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-
+// NO_HISTORY is a claim about the company, so it is only ever said off a
+// successful answer. A failed request throws out of sectionFetcher (TERM-033)
+// and renders FETCH_FAILED instead — it used to arrive here as `null` and read
+// as "unavailable for this ticker".
 const NO_HISTORY = 'Statement history is unavailable for this ticker.'
 
 /** Year-ago + Quarterly/Annual. Rendered above the grid AND inside the
@@ -120,9 +123,9 @@ export default function StatementPanels({ sym }) {
   const [seenSym, setSeenSym] = useState(sym)
   if (seenSym !== sym) { setSeenSym(sym); setExpanded(null) }
 
-  const { data, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     sym ? `/api/research/financial-history/${sym}?period=${period}` : null,
-    fetcher,
+    sectionFetcher,
     // keepPreviousData: a period flip keeps the previous bars on screen while
     // the next ones load — no skeleton flash, no ECharts re-init, and the
     // expand button focus returns to on close stays mounted.
@@ -157,11 +160,22 @@ export default function StatementPanels({ sym }) {
   if (!sym) return null
 
   const spec = PANEL_SPECS.find((s) => s.key === expanded) || null
-  const caption = isLoading ? 'Loading…' : spanLabel(periods, dataPeriod)
+  const caption = isLoading ? 'Loading…' : error ? null : spanLabel(periods, dataPeriod)
   const controls = <Controls period={period} setPeriod={setPeriod} yoy={yoy} setYoy={setYoy} />
+  const failed = error ? <EmptyState {...FETCH_FAILED} compact onRetry={() => mutate()} /> : null
 
   let body
-  if (data === undefined) {
+  if (error) {
+    // Checked FIRST: keepPreviousData can still hand back the other period's
+    // bars under a failed flip, and those must not sit under the new toggle.
+    // The controls stay so the reader can flip back to what did load.
+    body = (
+      <>
+        <div className={styles.head}><span className={styles.count}>{caption}</span>{controls}</div>
+        {failed}
+      </>
+    )
+  } else if (data === undefined) {
     // The FIRST load — later loads keep the previous bars on screen. Only a
     // wait deserves a skeleton; a resolved absence gets words, never a
     // shimmer that promises content which is not coming.
@@ -210,7 +224,7 @@ export default function StatementPanels({ sym }) {
         {spec && (
           <div ref={popRef} className={styles.expanded}>
             <div className={styles.head}><span className={styles.count}>{caption}</span>{controls}</div>
-            {data === undefined ? (
+            {error ? failed : data === undefined ? (
               <SkeletonBlock height={EXPANDED_HEIGHT} />
             ) : !periods.length ? (
               <p className={styles.note}>{NO_HISTORY}</p>

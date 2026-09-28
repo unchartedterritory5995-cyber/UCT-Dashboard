@@ -60,7 +60,12 @@ def _cross_check_live_window(sym: str, date_str: str) -> Optional[dict]:
         cur_monday = _cal._week_dates()[0]
         wk = (cache.get("calendar_weekly") if monday == cur_monday
               else _cal._get_or_build_range_week(monday))
-        days = (wk or {}).get("days") or {}
+        # TERM-030: a malformed week is counted + logged at ERROR by the
+        # assertion, then lands in the except below as an ABSENT cross-check
+        # (None) — never as "the week had no such name".
+        from api.services.calendar_week_contract import week_days
+        days = week_days(
+            wk, reader="api.services.research.earnings_ai_adapter._cross_check_live_window") or {}
         for ds, day in days.items():
             for timing in ("bmo", "amc", "tbd"):
                 for entry in (day.get(timing) or []):

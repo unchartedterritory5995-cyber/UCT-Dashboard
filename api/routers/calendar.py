@@ -16,6 +16,7 @@ from __future__ import annotations
 import calendar as _cal_module
 import logging
 import os
+import re
 import threading
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
@@ -2345,17 +2346,93 @@ _KEY_TERMS = {
     "ism services", "ism non-manufacturing",
 }
 
+# Fed markers that name a ROLE or an institution, never a person — so they
+# cannot go stale when the FOMC roster turns over. Surnames live in the dated
+# roster file below, not here.
 _FED_TERMS = (
-    "fomc member", "fed chair", "powell speaks", "fed governor",
-    "waller", "jefferson", "williams", "barkin", "logan",
-    "kashkari", "daly", "bowman", "kugler", "miran", "barr",
-    "warsh",              # the surname list goes stale on roster turnover — the
-                          # Powell-era list missed Chair Warsh entirely (8/21/26)
+    "fomc member", "fed chair", "fed governor",
     "jackson hole",       # the symposium itself ("Jackson Hole Symposium") — no
                           # "speech" in the title, so nothing else catches it and
                           # FMP's Medium impact let curation drop the Chair's week
     "fed's ", "federal reserve",
 )
+
+# An act of speaking. Both the structural rule and the roster rule require one:
+# "Fed Interest Rate Decision" is a Fed event but not a speaker, and a surname
+# alone is not a mention of the official ("barr" is inside "barrel").
+_FED_SPEAKING_RE = re.compile(
+    r"\b(speaks|speech|speaking|testifies|testimony|remarks|keynote)\b")
+
+# ── Fed-speaker roster: a DATED data file, never a typed literal (TERM-031) ──
+# The hand-typed surname tuple that used to sit in `_FED_TERMS` went stale on
+# roster turnover — the Powell-era list missed Chair Warsh entirely (8/21/26),
+# and a miss presents as ABSENCE, so nothing reported it. The authoritative
+# roster (federalreserve.gov) is not a source this app holds, so the roster is
+# `api/data/fed_speakers.json`, carrying its own `as_of` and `valid_through`.
+# `tests/test_fed_speaker_roster.py` goes red when fewer than
+# `FED_ROSTER_MIN_HORIZON_MONTHS` of cover remain: a correct roster and an
+# expired one look identical on any single day. The roster only decides
+# BARE-SURNAME titles ("Warsh Speaks"); a titled official ("Fed Hammack
+# Testimony") is surfaced by the structural rule whether listed or not.
+_FED_ROSTER_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "data", "fed_speakers.json")
+FED_ROSTER_MIN_HORIZON_MONTHS = 3
+
+
+def load_fed_roster(path: str | os.PathLike | None = None) -> dict:
+    """The dated Fed-speaker roster, never raising.
+
+    `{"state": "ok"|"unreadable", "as_of": date|None, "valid_through":
+    date|None, "surnames": frozenset[str] (lowercase)}`. A missing or malformed
+    file, or one without its `as_of`, horizon or surnames, is `unreadable` with
+    NO surnames — never a plausible default, so the horizon rail can say so.
+    """
+    import json
+
+    target = path if path is not None else _FED_ROSTER_PATH
+    try:
+        with open(target, encoding="utf-8") as fh:
+            raw = json.load(fh)
+        as_of = date.fromisoformat(raw["as_of"])
+        valid_through = date.fromisoformat(raw["valid_through"])
+        surnames = frozenset(
+            str(s).strip().lower() for s in raw["surnames"] if str(s).strip())
+        if not surnames:
+            raise ValueError("empty surnames")
+    except Exception as exc:                              # noqa: BLE001
+        _logger.error("Calendar: Fed-speaker roster unreadable (%s): %s", target, exc)
+        return {"state": "unreadable", "as_of": None, "valid_through": None,
+                "surnames": frozenset()}
+    return {"state": "ok", "as_of": as_of, "valid_through": valid_through,
+            "surnames": surnames}
+
+
+def assert_fed_roster_horizon(roster: dict, today: date) -> None:
+    """Raise AssertionError unless `roster` still has at least
+    `FED_ROSTER_MIN_HORIZON_MONTHS` of cover after `today`."""
+    if roster.get("state") != "ok":
+        raise AssertionError("Fed-speaker roster is unreadable")
+    months_left = (roster["valid_through"] - today).days / 30.44
+    if months_left < FED_ROSTER_MIN_HORIZON_MONTHS:
+        raise AssertionError(
+            f"Fed-speaker roster horizon: {months_left:.1f} months of cover left "
+            f"(valid_through {roster['valid_through']}, as_of {roster['as_of']}), "
+            f"below the stated {FED_ROSTER_MIN_HORIZON_MONTHS}. Re-verify the "
+            f"roster and move as_of AND valid_through.")
+
+
+_FED_ROSTER: dict | None = None
+
+
+def _fed_surnames() -> frozenset:
+    global _FED_ROSTER
+    if _FED_ROSTER is None:
+        _FED_ROSTER = load_fed_roster()
+        vt = _FED_ROSTER["valid_through"]
+        if vt is not None and vt < datetime.now(_ET).date():
+            _logger.warning("Calendar: Fed-speaker roster expired %s — bare-surname "
+                            "speaker titles may be dropped until it is renewed", vt)
+    return _FED_ROSTER["surnames"]
 
 
 def _is_key_event(title: str) -> bool:
@@ -2389,14 +2466,20 @@ def _is_high_impact(title: str) -> bool:
 
 def _is_fed_speaker(title: str) -> bool:
     t = (title or "").lower().strip()
-    # STRUCTURAL first. FMP ships "Fed <Name> Speech" / "Fed <Name> Speaks" for
-    # every official, so matching the SHAPE stays correct as the FOMC roster
-    # turns over. The surname list below silently goes stale — it carried
+    speaking = bool(_FED_SPEAKING_RE.search(t))
+    # STRUCTURAL first. FMP ships "Fed <Name> Speech" / "Fed <Name> Testimony"
+    # for every official, so matching the SHAPE stays correct as the FOMC
+    # roster turns over. A surname list silently goes stale — it carried
     # `barkin` but not `cook` or `musalem`, so on the week of 2026-08-03 three
     # identical Fed-speech events split across the econ and fed buckets.
-    if t.startswith("fed ") and (t.endswith(" speech") or t.endswith(" speaks")):
+    if speaking and t.startswith("fed "):
         return True
-    return any(x in t for x in _FED_TERMS)
+    if any(x in t for x in _FED_TERMS):
+        return True
+    # ROSTER: a bare surname carries no affiliation, so only the roster can say
+    # it is an official — as a WHOLE WORD and in a speaking event, because
+    # surnames collide ("barr" is inside "barrel", "Logan" is an airport).
+    return speaking and bool(set(re.findall(r"[a-z]+", t)) & _fed_surnames())
 
 
 def _fmt_time(dt: datetime) -> str:
@@ -3778,10 +3861,13 @@ def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[st
                     if sym and (scope == "all" or sym in mine):
                         result.append((sym, ds, timing))
 
-    # Try weekly cache first
-    cal = cache.get("calendar_weekly")
-    if cal and cal.get("days"):
-        _add_from_days(cal["days"])
+    # Try weekly cache first. TERM-030: a malformed week raises here, by name,
+    # instead of contributing zero reporters as if the week were quiet.
+    from api.services.calendar_week_contract import week_days
+    days = week_days(cache.get("calendar_weekly"),
+                     reader="api.routers.calendar._collect_reporters_for_ics")
+    if days:
+        _add_from_days(days)
 
     # Supplement with current month and next month (Finnhub, 30-min cached)
     today = _today_et()

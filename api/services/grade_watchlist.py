@@ -13,6 +13,9 @@ import logging
 
 _log = logging.getLogger("grade_watchlist")
 _MAX_NAMES = 20
+#: Bands (from voice_regime_classifier.band_of) under which every GO is muted to
+#: HOLD — "a hostile regime mutes the whole book to watch-only".
+_WATCH_ONLY_BANDS = ("ORANGE", "RED")
 
 
 def _default_resolve(user_id, account_id, source, symbols):
@@ -97,8 +100,11 @@ def grade_watchlist(user_id, account_id=None, symbols=None, source="watchlist",
                        "muted": bool(e.get("muted"))})
 
     # ── MANDATORY list-level synthesis ────────────────────────────────────────
-    band = (regime.get("regime") or "").lower()
-    red = band in ("bear_trend", "distribution") or _regime_ceiling(regime) <= 20
+    # The label -> band derivation is the authority's (TERM-071); this module
+    # only decides which BANDS mute the book (bear_trend -> RED and
+    # distribution -> ORANGE, exactly the two labels it used to spell here).
+    from api.services.voice_regime_classifier import band_of
+    red = band_of(regime.get("regime")) in _WATCH_ONLY_BANDS or _regime_ceiling(regime) <= 20
     if red:
         for r in graded:
             if r["verdict"] == "GO":

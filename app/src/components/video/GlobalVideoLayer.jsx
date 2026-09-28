@@ -18,6 +18,7 @@ import { pauseOtherAudio } from './audioExclusivity'
 import { pipSupported, openPip } from './documentPip'
 import { setVideoOwnsMediaSession } from './mediaSessionOwner'
 import Scrubber from './Scrubber'
+import { registerShortcuts } from '../../pages/command/shortcutRegistry'
 import brandMark from '../intro/assets/compass-mark.png'
 import { PlayIcon } from '../../pages/education/icons'
 import {
@@ -556,25 +557,19 @@ export default function GlobalVideoLayer() {
 
   // Keyboard shortcuts while a video is active (ignored while typing in a field).
   // Handlers are read from kbRef (refreshed each render) to avoid stale closures.
+  // TERM-063: the keys, the window-bubble phase and the text-field guard
+  // (INPUT / TEXTAREA / contenteditable, read off document.activeElement) are
+  // declared in pages/command/shortcutRegistry.js ('video.*'); one listener, as before.
   useEffect(() => {
-    if (!active) return
-    const onKey = (e) => {
-      const el = document.activeElement
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
-      const k = kbRef.current
-      switch (e.key) {
-        case ' ':
-        case 'k': e.preventDefault(); k.togglePlay?.(); break
-        case 'ArrowLeft': e.preventDefault(); k.seekBy?.(-15); break
-        case 'ArrowRight': e.preventDefault(); k.seekBy?.(15); break
-        case 'f': case 'F': k.toggleFs?.(); break
-        case 'm': case 'M': k.toggleMute?.(); break
-        case 'Escape': k.escape?.(); break
-        default: break
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    if (!active) return undefined
+    return registerShortcuts({
+      'video.playPause': (e) => { e.preventDefault(); kbRef.current.togglePlay?.() },
+      'video.seekBack': (e) => { e.preventDefault(); kbRef.current.seekBy?.(-15) },
+      'video.seekForward': (e) => { e.preventDefault(); kbRef.current.seekBy?.(15) },
+      'video.fullscreen': () => { kbRef.current.toggleFs?.() },
+      'video.mute': () => { kbRef.current.toggleMute?.() },
+      'video.escape': () => { kbRef.current.escape?.() },
+    })
   }, [active])
 
   const onExpand = useCallback(() => {

@@ -19,6 +19,11 @@ nothing a member could reach has been watched to die. What is proved here is tha
 the LEVER works against something that would otherwise be reachable. The
 production half needs a real Terminal-Next surface mounted behind this
 dependency, and until then item 4 stays open.
+⭐ `tests/test_terminal_next_kill_switch.py` (TERM-068) is the other half: it
+DERIVES every cohort-gated route from the SERVED app and requires each one — plus
+the `cohorts` payload field — to die with the switch thrown, with auth.db
+fingerprinted identical before and after. So the first production consumer is
+held to the kill the day it mounts, without anybody editing a list.
 
 ⛔ SCOPED RUN ONLY:
     python -m pytest tests/test_terminal_next_flag.py tests/test_feature_flag_ledger.py \\

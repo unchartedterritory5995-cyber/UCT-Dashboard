@@ -49,7 +49,7 @@ $BASE  = "https://uctintelligence.com"
 
 function Get-Breaker {
   try {
-    return Invoke-RestMethod -Uri "$BASE/api/admin/yfinance-guard" -Headers $plain -TimeoutSec 30
+    return Invoke-RestMethod -Uri "$BASE/api/admin/yfinance-guard" -Headers $auth -TimeoutSec 30
   } catch { return $null }
 }
 

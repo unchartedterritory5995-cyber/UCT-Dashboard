@@ -47,6 +47,8 @@ _REPORTS = {
     "ticking":    ["tools/s7_price_level_report.py", "--ticking"],
     "report":     ["tools/s7_price_level_report.py"],
     "gate-check": ["tools/terminal_next_gate_check.py"],
+    # TERM-015 — the daily dead-man roll-up over the cadence markers on this volume.
+    "cadence":    ["tools/cadence_rollup_report.py"],
 }
 
 

@@ -23,8 +23,9 @@ WHAT COUNTS AS GUARDED
       bounded_call(_work, {})            # _work resolved to its def
       bounded_call(functools.partial(_work, t), {})
     ...or inside a module-local function whose EVERY call site is itself
-    guarded (`earnings_estimates._yf_corporate_actions` is called exactly once,
-    from inside a guarded lambda). That transitive rule is sound within a
+    guarded (`earnings_estimates._yf_corporate_actions` was the live case —
+    called exactly once, from inside a guarded lambda — until TERM-036 deleted
+    it on 2026-09-27). That transitive rule is sound within a
     module and is what keeps the census from demanding a redundant second wrap.
 
     The guard is `yf_util.bounded_call`. `ALIAS_NAMES` are accepted ONLY
@@ -174,9 +175,10 @@ class _ModuleCensus(ast.NodeVisitor):
         """Transitive closure: a module-local helper that is ONLY ever called
         from inside a guarded region is itself guarded.
 
-        `earnings_estimates._yf_corporate_actions` is the live case — its one
-        call site is `bounded_call(lambda: _yf_corporate_actions(t), …)`, so
-        demanding a second wrap inside it would add a nested guard for nothing.
+        `earnings_estimates._yf_corporate_actions` was the live case until
+        TERM-036 deleted it (2026-09-27) — its one call site was
+        `bounded_call(lambda: _yf_corporate_actions(t), …)`, so demanding a
+        second wrap inside it would have added a nested guard for nothing.
         Deliberately conservative: skipped when the name is ambiguous (two defs)
         or when the helper is never called (then there is nothing to trust).
         """

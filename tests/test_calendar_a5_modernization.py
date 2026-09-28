@@ -249,11 +249,12 @@ class TestIpoCalendarModernization:
         assert out[0]["entity"] == {"status": "not_found", "entityId": None}
 
 
-# ── Dividends calendar: entity resolution, no D1 leg (yfinance-only) ─────────
+# ── Dividends calendar: entity resolution (Massive reference since TERM-036) ──
 
 class TestDividendsCalendarModernization:
     def test_get_events_stamps_entity_once_per_symbol(self, monkeypatch):
         from api.services import dividends_calendar as dc
+        from api.services import massive
         monkeypatch.setattr(dc, "cache", mock.Mock(get=lambda k: None, set=lambda *a, **kw: None))
         calls = []
 
@@ -263,37 +264,21 @@ class TestDividendsCalendarModernization:
         monkeypatch.setattr(dc, "resolve_entity", _fake_resolve)
 
         # A symbol contributing BOTH a dividend and a split event.
-        import datetime as _dt
+        class _FakeMassive:
+            _api_key = "k"
 
-        class _FakeSeries(dict):
-            @property
-            def empty(self):
-                return len(self) == 0
-
-            def items(self):
-                return dict.items(self)
-
-            @property
-            def iloc(self):
-                vals = list(self.values())
-                class _Loc:
-                    def __getitem__(self_, i):
-                        return vals[i]
-                return _Loc()
-
-        class _FakeTicker:
-            def __init__(self, sym):
-                self.calendar = {"Ex-Dividend Date": _dt.date(2099, 1, 1)}
-                self.dividends = _FakeSeries({_dt.date(2098, 12, 1): 0.5})
-                self.splits = _FakeSeries({_dt.date(2099, 2, 1): 2.0})
-
-        fake_yf = mock.Mock()
-        fake_yf.Ticker = _FakeTicker
-        monkeypatch.setitem(__import__("sys").modules, "yfinance", fake_yf)
+            def _typed_get(self, url, *, timeout=None):  # TERM-022: via massive_adapter
+                if "/v3/reference/dividends" in url:
+                    return {"results": [{"ticker": "DUAL", "ex_dividend_date": "2099-01-01",
+                                         "cash_amount": 0.5}]}
+                return {"results": [{"ticker": "DUAL", "execution_date": "2099-02-01",
+                                     "split_from": 1, "split_to": 2}]}
+        monkeypatch.setattr(massive, "_get_client", lambda: _FakeMassive())
 
         out = dc.get_events(["DUAL"])
         syms_seen = {e["sym"] for e in out}
         assert syms_seen == {"DUAL"}
+        assert sorted(e["type"] for e in out) == ["dividend", "split"]
         assert all(e["entity"] == {"status": "resolved", "entityId": "em_DUAL"} for e in out)
         assert calls == ["DUAL"]   # resolved once, not once per event
 

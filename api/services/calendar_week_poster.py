@@ -157,9 +157,12 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     from api.services.calendar_week_png import MAX_PER_SESSION, MAX_TBD
 
     cur_monday = _week_dates()[0]
+    from api.services.calendar_week_contract import week_days
     payload = (get_calendar() if monday == cur_monday
                else get_calendar(week=monday.isoformat()))
-    days = payload.get("days") or {}
+    # TERM-030: a malformed week raises here, so post_week aborts instead of
+    # building an "empty" card from entries it could not read.
+    days = week_days(payload, reader="api.services.calendar_week_poster.build_payloads") or {}
 
     # Does this week carry EW anticipation at all? Range weeks do not, and the
     # ring rule has to know before it can decide what size threshold to use.

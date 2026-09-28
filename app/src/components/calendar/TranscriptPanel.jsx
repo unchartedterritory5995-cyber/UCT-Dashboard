@@ -84,7 +84,7 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
 
   // The reader's pick wins over the caller's default; null = newest available.
   const activeQuarter = pickedQuarter ?? quarter
-  const { data: transcript, isLoading } = useTranscript(sym, {
+  const { data: transcript, isLoading, error: transcriptError } = useTranscript(sym, {
     enabled: open, quarter: activeQuarter,
   })
   const { quarters } = useTranscriptQuarters(sym, { enabled: open })
@@ -254,6 +254,18 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
               panel ends up asserting absence it never verified. */}
           {!isLoading && transcript === null && (
             <p className={styles.transcriptUnavailable}>Transcript not available.</p>
+          )}
+
+          {/* A FAILED request is not a null (TERM-033): useTranscript's
+              fetcher throws, so it lands here and never on the line above. */}
+          {!isLoading && transcriptError && !transcript && (
+            <p className={styles.transcriptUnavailable} data-testid="transcript-failed">
+              Could not load the transcript — the request failed.
+            </p>
+          )}
+
+          {transcript?.paywalled && (
+            <p className={styles.transcriptUnavailable}>Transcripts require a paid plan.</p>
           )}
 
           {transcript?.segments?.length > 0 && (

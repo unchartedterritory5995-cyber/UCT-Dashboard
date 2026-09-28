@@ -29,15 +29,13 @@ _EXTENDED_PCT = 0.03      # >3% past the pivot = "extended" (long)
 _RISK_CAP_PCT = 2.0       # account-risk hard cap (mirrors size_a_trade)
 _DEFAULT_ACCOUNT = 50000.0
 
-# raw classifier label -> exposure band
-_REGIME_BAND = {
-    "bull_trend": "GREEN", "bull_correction": "YELLOW",
-    "distribution": "ORANGE", "chop": "YELLOW", "bear_trend": "RED",
-}
-
 
 def _regime_band(raw: str) -> str:
-    return _REGIME_BAND.get((raw or "").lower(), "YELLOW")
+    """Raw classifier label -> band, from the ONE authority (TERM-071). A local
+    copy of the map lived here; `tests/test_regime_authority.py` fails if one
+    comes back."""
+    from api.services.voice_regime_classifier import band_of
+    return band_of(raw)
 
 
 def _grade_from_confidence(conf: float) -> str:

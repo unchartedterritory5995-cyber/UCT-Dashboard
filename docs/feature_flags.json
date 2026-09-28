@@ -241,6 +241,16 @@
       ],
       "note": ""
     },
+    "BARS_RAIL_PAGE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-013 / FB-OBS-02. Gates ONLY the S1 PAGE of the push-rail drop-counter reader (api/services/bars_rail_monitor.py): bars_emitted_total flat across 3 consecutive 60 s RTH polls with subscriber_pairs > 0 -> chart_health_alerts.emit('bars_stream_rail_silent', 'critical'), i.e. the OPS-class sink with TERM-016's durable 30-min cooldown. Dark because it pages humans; arming it is a person's act, ideally after reading a few days of the roll-up digest's 'page verdicts N, emitted 0', which counts how often it WOULD have fired. Set it to 1 on web ONLY (the reader is a thread on web, started by bars_continuous_audit.start()). Read per poll in page_enabled(), never at import; unset or 0 = no emit, so rollback is blanking it. NOT gated by it: the 60 s poll itself, the per-day drop ledger under $DATA_DIR/bars_rail (the S2 DIGEST, printed inside TERM-015's daily roll-up) and the 'bars-stream-rail' cadence heartbeat -- none of those pages anybody. SET NOWHERE as of 2026-09-28."
+    },
     "BRAIN_PACK_ENABLED": {
       "status": "armed",
       "where": [
@@ -345,6 +355,16 @@
         "web"
       ],
       "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
+    },
+    "CADENCE_ROLLUP_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-015 / FB-OBS-04. Gates ONLY the daily dead-man roll-up job on terminal-next-monitor (api/terminal_next_monitor_main.py, SCHEDULE row 'cadence', daily 16:20 ET incl. weekends, inside the existing Railway cron). Dark because it posts to humans every day, healthy or not -- that is its purpose (its ABSENCE is the alarm), so it ships off and arming it is a person's act. Set it to 1 on terminal-next-monitor ONLY; it means nothing on web. Read per run in rollup_enabled(), never at import; unset or 0 = the job reads nothing and posts nothing, so rollback is blanking it. The roll-up resolves its channel through the TERM-011 resolver (alert_destination.ops_webhook), i.e. DISCORD_OPS_WEBHOOK_URL falling back to DISCORD_WEBHOOK_URL. The cadence MARKERS it reads (api/services/cadence_heartbeat.py, written on web's volume under $DATA_DIR/cadence) are NOT gated by this flag: writing a heartbeat pages nobody. SET NOWHERE as of 2026-09-27."
     },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
@@ -693,6 +713,12 @@
       "status": "dark",
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
+    },
+    "ENTITY_MASTER_MEMBER_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-023 (FB-S3-01), ENABLEMENT GATE, default OFF, read per request in api/services/entity_master/member_resolve.py::is_enabled(). SERVICE: web. What it arms: (1) GET /api/entity/resolve (api/routers/entity_resolve.py, require_paid) - a ticker plus an optional as_of date resolves to the entity Entity Master holds for it, keyed by entityId with its dated alias history; (2) /api/ticker-search keys every instrument row to that entity at the row's own date (a delisted row names the dead company) and adds entity_status. Unset: the route is the FastAPI 404 to every caller including admins, ticker search is byte-identical and entity_master.db is never opened by either door (tests/test_entity_master_member_path.py). NOT ARMABLE YET: nothing proves entity_master.db on web holds rows - read GET /api/admin/entity-master/status (entities, figi_coverage_denominator, ambiguous_count over ambiguous_count_denominator) and run scripts/entity_master_seed.py if it is empty; arming an empty store makes every row honestly null. REVERSAL: unset it and redeploy web if the unset does not restart it (verify the boot). The store and every row are LEFT IN PLACE; never delete them to undo an arming."
     },
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
@@ -1047,6 +1073,17 @@
       ],
       "note": "Armed 2026-09-02 on flow-worker: the weekday 08:00 ET Morning OI card. Held off earlier in the same session on the grounds that arming it PUBLISHES; that was then checked rather than assumed, and the destination is not what the concern supposed. oi_morning._webhook() falls back OI_MORNING_WEBHOOK_URL -> ALPHA_GOLD_EOD_WEBHOOK_URL -> DISCORD_MASSIVE_WEBHOOK_URL -> DISCORD_LIVE_FLOW_WEBHOOK_URL -> DISCORD_WEBHOOK_URL, and on flow-worker only the LAST of those is set - the admin/signups channel, not a member channel. So the card lands in front of the owner, which is how it should be judged before it goes anywhere else. Point OI_MORNING_WEBHOOK_URL at a member channel to change that; it is a deliberate second act, not a side effect of this flag. TIMING WAS PART OF THE DECISION: applying it restarts flow-worker, which drops the OPRA WS, and Massive does not replay - a gap is permanent until the T+1 flat file. Done at 22:43 ET on a Wednesday with the session closed, so the restart cost no tape. Rollback is this variable plus a redeploy."
     },
+    "OPEN_READS_GATE": {
+      "status": "dark",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "shadow",
+        "enforce"
+      ],
+      "note": "A MODE, not a gate: the staged gate over TERM-026's anonymous reads (api/open_reads_gate.py; 146 read routes classified paid/admin/member in its GATED_READS table, attached at the include_router sites in api/main.py and on flow_proxy's forwarders). Read PER REQUEST on web, so changing it needs no rebuild. UNSET/off = exactly today's behaviour (the dependency returns before reading a cookie or a database) - which is why deploying it changes nothing and why it ships dark. shadow = every would-deny is counted and logged ONCE PER (route, minute) as '[open-reads-gate] would-deny mode=shadow route=... family=... status=... ua=<class> referer=<host/first-segment> session_cookie=present|absent bearer=present|absent count=N' (never a token, cookie, IP or query string); GET /api/admin/open-reads-gate (admin) serves the counts. enforce = refused with the existing gates' status/body (401 Not authenticated / 402 paid plan / 403 Admin access required). An unrecognised value is treated as shadow (never blocks, never silently off). The one bypass is Authorization: Bearer <PUSH_SECRET>. OWNER STEPS: set shadow on web, read the would-deny lines for a trading week (non-browser ua or a referer host that is not uctintelligence.com = an internal reader to migrate first), then set enforce. ROLLBACK: set it back to off (or shadow); `railway variable --set` restarts web, and a DELETE does not - verify the running process, never --kv."
+    },
     "OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED": {
       "status": "armed",
       "where": [
@@ -1193,6 +1230,12 @@
       "status": "dark",
       "note": "Superseded, and setting it would change nothing - confirmed 2026-09-02. On 2026-08-22 the cron was switched, per owner, from run_standing_cron (60-day Open Flow) to run_weekly_cron (a true 5-day week). The scheduler registration and both run_weekly and run_standing accept EITHER this flag or WEEKLY_FLOW_ENABLED, and WEEKLY_FLOW_ENABLED=1 IS set on flow-worker, so the Friday 16:15 ET job is already registered and firing. This flag now survives only as a redundant second arm for a job that is already armed; the 60-day board it was named for is no longer scheduled.",
       "where": []
+    },
+    "STORE_BACKUP_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-27",
+      "where": [],
+      "note": "TERM-083 (FB-X1-02): nightly 03:05 ET R2 backup of the member-authored stores no other rail covers (api/services/store_backup.py STORES: community, charts_layouts, user_definitions, theme_sets, ai_search_member, discord_chart_prefs, wire_feedback, workspace_docs, modelbook, education, desk). SQLite online-backup API with a manifest measured on the same read snapshot; objects under store_backups/<store>/ in the DATA_SYNC_* bucket. SERVICE: web (registered in api/main.py beside the flow and attachment backups). Built and railed, not armed: the owner decides whether to set it on web. The evidence is the restore rehearsal, python tools/store_restore.py --rehearse, never this job's exit code. Rollback is unsetting it; a stopped job deletes nothing already in R2."
     },
     "STREAM_BARS_ENABLED": {
       "status": "armed",
@@ -1448,6 +1491,12 @@
         "worker"
       ],
       "note": ""
+    },
+    "WORKSPACE_DOC_STORE_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-27",
+      "where": [],
+      "note": "TERM-021 (FB-S5-01), ENABLEMENT GATE, default OFF, read per request in api/services/workspace_doc_store.py::is_enabled(). SERVICE: web (api/routers/auth.py upsert_preference hooks + api/routers/workspace_doc.py mounted in api/main.py). What it arms: WRITE-BOTH / READ-OLD. Each POST /api/auth/preferences for one of the Charts board's keys (workspace_doc_store.WORKSPACE_PREF_KEYS, derived from ChartsWorkspace.jsx by rail) first COPIES the member's board out of auth.db user_preferences into /data/workspace_docs.db (WORKSPACE_DOCS_DB_PATH) if no live document exists, then appends the write as a new version; user_preferences stays the authority every client reads. /api/workspace/doc (read, versions, restore with compare-and-set, tombstone DELETE) answers 404 while unset. Backed up by store_backup STORES entry workspace_docs (itself dark until STORE_BACKUP_ENABLED). Unset: no I/O, no file created, member behaviour unchanged (tests/test_workspace_doc_router.py). RETENTION (same flag, no flag of its own): per (user, board) a version is KEPT if it was created in the last 30 days (RETAIN_DAYS) OR is among the newest 200 (RETAIN_NEWEST); either rule is enough. Never pruned whatever the rules say: the newest version, every tombstone, the version a tombstone deleted, and every version a restore copied. It runs opportunistically after each mirrored append that added a version (finish_pref_write -> prune_versions, at most 100 rows removed per call, oldest first), only while this flag is set, and each removal is recorded in workspace_doc_prune_log; prune_versions is the only code that removes a row and never touches user_preferences. NOT ARMABLE YET: no client restore surface, no read-new phase; see the TERM-021 commits. REVERSAL: unset it and redeploy web if the unset does not restart it; that also stops retention. user_preferences was never displaced, and the store file and its rows are LEFT IN PLACE. Never delete them to undo an arming."
     }
   },
   "build_flags": {

@@ -243,9 +243,13 @@ def _post(base_url: str, path: str, secret: str, body: dict, params: str = ""):
         raise SystemExit(f"HTTP {e.code} from {url}\n{detail}")
 
 
-def _get(base_url: str, path: str):
-    req = urllib.request.Request(base_url.rstrip("/") + path,
-                                 headers={"User-Agent": _UA})
+def _get(base_url: str, path: str, secret: str = ""):
+    # ⭐ the coverage read is behind OPEN_READS_GATE (admin) once enforced; the
+    # PUSH_SECRET bearer this script already holds for the POST is its bypass.
+    headers = {"User-Agent": _UA}
+    if secret:
+        headers["Authorization"] = "Bearer " + secret
+    req = urllib.request.Request(base_url.rstrip("/") + path, headers=headers)
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.loads(r.read().decode())
 
@@ -349,7 +353,7 @@ def main(argv=None) -> int:
                 pairs[d] = [0, 0]
                 probe_only.add(d)
 
-    before = _get(a.base_url, "/api/breadth-monitor/history/adv-dec-coverage")
+    before = _get(a.base_url, "/api/breadth-monitor/history/adv-dec-coverage", a.secret)
     print(f"\nZweig coverage before: {before['covered']} of {before['sessions']} "
           f"sessions (needs {before['needs']})")
 
@@ -368,7 +372,7 @@ def main(argv=None) -> int:
         for k in merged:
             merged[k].extend(rep.get(k) or [])
 
-    after = _get(a.base_url, "/api/breadth-monitor/history/adv-dec-coverage")
+    after = _get(a.base_url, "/api/breadth-monitor/history/adv-dec-coverage", a.secret)
 
     n_ok = len(merged["written"])
     n_gate = len(merged["refused_identity"])

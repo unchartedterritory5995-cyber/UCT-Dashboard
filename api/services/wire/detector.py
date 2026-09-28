@@ -48,8 +48,11 @@ def todays_reporters(market_date: str) -> list[dict]:
     it can never disagree with the board about who is reporting.
     """
     from api.routers.calendar import get_calendar
-    payload = get_calendar() or {}
-    day = (payload.get("days") or {}).get(market_date) or {}
+    from api.services.calendar_week_contract import week_days
+    # TERM-030: a malformed week raises, so the tick records an error instead
+    # of "0 reporters — holiday".
+    days = week_days(get_calendar(), reader="api.services.wire.detector.todays_reporters") or {}
+    day = days.get(market_date) or {}
     out = []
     for timing in ("bmo", "amc", "tbd"):
         for e in day.get(timing) or []:

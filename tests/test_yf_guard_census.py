@@ -223,9 +223,10 @@ def test_the_census_clears_the_same_call_once_it_is_wrapped(tmp_path):
 
 
 def test_the_census_clears_a_helper_whose_every_call_site_is_guarded(tmp_path):
-    """Transitive rule — `earnings_estimates._yf_corporate_actions` is the live
-    case. Demanding a second wrap inside it would add a nested guard for
-    nothing."""
+    """Transitive rule — `earnings_estimates._yf_corporate_actions` was the live
+    case until TERM-036 deleted it (2026-09-27); the planted helper below keeps
+    the rule proven. Demanding a second wrap inside such a helper would add a
+    nested guard for nothing."""
     assert _plant(tmp_path, "planted.py", _GUARDED_VIA_HELPER) == []
 
 

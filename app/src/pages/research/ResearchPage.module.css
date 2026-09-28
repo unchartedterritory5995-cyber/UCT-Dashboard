@@ -139,23 +139,17 @@
 .explainFact { font-size: var(--text-base); line-height: 1.5; padding: 3px 0; }
 .explainFactMark { color: var(--ut-gold); font-size: var(--text-xs); margin-left: 4px; }
 .explainInterp { font-size: var(--text-base); line-height: 1.55; color: var(--text); font-style: italic; }
-/* ⚠️ STILL LIVE — `pages/research/components/ComparisonAskAi.jsx` renders its
-   own citation list through these three classes. AskAiTab.jsx no longer does
-   (GATE-I1 slice 2: it composes S8's <Provenance>); the compare page carries
-   the identical defect and is OUT OF SCOPE for that slice, so deleting these
-   here would break a live surface. Delete them with ComparisonAskAi.jsx's own
-   fix, not before. */
-.explainCitations { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-.explainCitation { font-size: var(--text-xs); color: var(--text-muted); display: flex; gap: 6px; }
-.explainCitationMark { color: var(--ut-gold); font-weight: 700; flex-shrink: 0; }
-.explainCitation a { color: var(--info); text-decoration: none; }
-.explainCitation a:hover { text-decoration: underline; }
+/* ⚰️ The old local citation list's three classes lived here. AskAiTab stopped
+   using them in GATE-I1 slice 2 and ComparisonAskAi in TERM-050 (FB-I1-01);
+   both Ask-AI doors now share the Sources block below, so they were deleted
+   with that last fix. */
 
-/* The Sources block, GATE-I1 slice 2. Layout + the [E#] footnote number only —
-   the source/as-of affordance inside each row is S8's <Provenance>, never
-   drawn here. `explainSourceRef` is the same gold reference mark the old
-   `explainCitationMark` drew, and the same concept as `explainFactMark` on
-   the key-fact side: a footnote number, not a provenance renderer. */
+/* The Sources block — GATE-I1 slice 2 (AskAiTab) and TERM-050 (ComparisonAskAi).
+   Layout + the [E#] footnote number only — the source/as-of affordance inside
+   each row is S8's <Provenance>, never drawn here. `explainSourceRef` is the
+   same gold reference mark the old local list drew, and the same concept as
+   `explainFactMark` on the key-fact side: a footnote number, not a provenance
+   renderer. */
 /* ⚠️ gap:0, NOT the old list's 4px. <Provenance>'s detail toggle is a
    `--tap-min` (44px) target, so each row is already ~44px tall and separated;
    adding a gap on top of that stretches an eight-source answer further still.

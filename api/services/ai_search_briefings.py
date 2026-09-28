@@ -279,11 +279,20 @@ def run_due(cadence: str) -> dict:
                 title = ("Morning brief" if cadence == "premarket" else "Closing brief")
                 body = _plain(answer)[:1500]
                 from api.services.watchlist_alert_service import deliver_alert_payload
+                # TERM-011 rows 4/5 + step 7: `severity="info"` USED TO be the only
+                # thing stopping this personalised brief from posting into the
+                # admin Discord channel. `add_alert`'s `user_id`-gate now retires
+                # the Discord leg for every private alert outright, so severity is
+                # free to be what it actually is — dropped here, inheriting
+                # `deliver_alert_payload`'s own default, per the ruled decision
+                # ("delete the two info severity lies", term-011-routing-
+                # decisions.md §2). ⛔ Landed only after the gate itself shipped
+                # (f68eaefa7) — removing this first would have flooded the ops
+                # room with one post per personalised brief.
                 deliver_alert_payload(
                     r["user_id"], (r["sym"] or "AI"), f"{title}: {label}", body,
                     source="ai_briefing",
-                    extra_data={"briefing_id": r["briefing_id"], "query": r["query"]},
-                    severity="info")   # info = bell+email only, never the admin Discord
+                    extra_data={"briefing_id": r["briefing_id"], "query": r["query"]})
                 delivered += 1
                 status = "delivered"
                 try:
