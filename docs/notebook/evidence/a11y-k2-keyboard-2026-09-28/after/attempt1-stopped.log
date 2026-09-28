@@ -1,0 +1,26 @@
+SANDBOX IDENTITY: http://127.0.0.1:8227 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10s1\docs\plans\joystick\sandbox-runs\2026-09-28T13-16-29.md (identity 0654d31ca70d..., data dir C:\data-w10k2)
+[      PASS] C0 control: unreachable found=False after 12; trap detected=True; trail=["button 'Alpha'", "button 'Trap one'", "button 'Trap two'", "button 'Trap one'"
+SECTION S1 DIED: TimeoutError: Page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "http://127.0.0.1:8227/journal/notebook?view=all", waiting until "domcontentloaded"
+
+SECTION S2 DIED: TimeoutError: Page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "http://127.0.0.1:8227/journal/notebook?view=all", waiting until "domcontentloaded"
+
+SECTION S2b DIED: TimeoutError: Page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "http://127.0.0.1:8227/journal/notebook?view=all", waiting until "domcontentloaded"
+
+[   NOT RUN] S2-20 editor door: Ask: did not open
+[   NOT RUN] S2-21 editor door: Writing help: did not open
+[   NOT RUN] S2-22 editor door: Version history: did not open
+[   NOT RUN] S2-23 editor door: Outline: did not open
+[   NOT RUN] S2-24 editor door: Text colour: did not open
+[   NOT RUN] S2-25 editor door: Share: did not open
+[   NOT RUN] S2-26 editor door: Export menu: did not open
+[   NOT RUN] S2-27 editor door: Open beside: did not open
+[   NOT RUN] S2-28 editor door: Delete confirmation: did not open
+[   NOT RUN] S2-29 editor door: Add property: did not open
+[      FAIL] S2-30 editor: lock: not reached; tail ["input 'Select Delta plain'", "button 'Delta plain 50m'", "input 'Select Alpha thesis NVDA'", "button 'Alpha thesis NVDA 
+[      FAIL] S2-31 editor: archive: not reached; tail ["input 'Select Delta plain'", "button 'Delta plain 51m'", "input 'Select Alpha thesis NVDA'", "button 'Alpha thesis NVDA 

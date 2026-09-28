@@ -46,12 +46,11 @@
    pull a phone's 44 px down to 24. Rail: a11y/targetFloors.test.js. */
 @media (min-width: 1025px) {
   .toolbarRow .toolBtn { min-height: 24px; min-width: 24px; }
-}
-.toolbarExports {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  /* Wave 10 lane K2 (D-3): the font picker drew 136 px wide at 1200 (its longest option), and
+     24 of those px are what the formatting row needed to fit ONE line beside the notes list.
+     The chosen name still shows; the open list still shows every font. Measured before/after:
+     docs/notebook/evidence/d3-controls-2026-09-28/. */
+  .toolbarRow .fontSelect { max-width: 112px; }
 }
 .backBtn {
   background: transparent;
@@ -210,6 +209,16 @@
   color: var(--text-muted);
   padding: 4px 0 20px;
   font-style: italic;
+}
+/* Wave 10 lane K2 (D-3): the tour's Export anchor around "More note actions". */
+.tourWrap { display: inline-flex; }
+/* Wave 10 lane K2 (D-3): the tags, under the title with the note's other properties. */
+.tagsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 16px;
 }
 .fontSelect, .fontSizeSelect {
   background: var(--bg-surface);

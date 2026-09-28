@@ -11,8 +11,15 @@
 // tests/test_notebook_export_router.py), with a file name a non-Latin-1 title survives.
 //
 // ⛔ A real menu button: `aria-haspopup="menu"` + `aria-expanded`, arrow keys walk the items,
-// Home/End jump, Escape closes and hands focus BACK to the button, Tab closes. Items are 44px
-// on the touch tier.
+// Home/End jump, Escape closes and hands focus BACK to the button. Items are 44px on the touch
+// tier.
+//
+// ⛔ Wave 10 lane K2 (walk row S2-26): TAB STAYS INSIDE the open menu. It used to close the menu
+// and let focus walk on into the note's title; the walk then pressed Escape out there and nothing
+// handed focus back. The editor's disclosures now share ONE contract (`lib/useDisclosureFocus.js`,
+// the pattern of AskPanel and ContextPopover): focus in on open, Tab kept inside while focus is
+// inside, Escape back to the button. So the items are ordinary Tab stops inside the menu (Tab and
+// the arrows both walk them) and the ONE trap wraps them.
 //
 // ⚠️ The buttons borrow NoteEditorPage.module.css's `.chromeBtn` so they render exactly as the
 // rest of the toolbar. A rename of that class in the editor's stylesheet reaches them too.
@@ -32,6 +39,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { EXPORT_FORMATS, noteExportUrl, saveResponse } from './export/exportFormats'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import editorStyles from './NoteEditorPage.module.css'
 import styles from './NoteExportControls.module.css'
 
@@ -88,6 +96,12 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     setMenuOpen(false)
     if (returnFocus) triggerRef.current?.focus()
   }, [])
+  const closeOnly = useCallback(() => setMenuOpen(false), [])
+  // K2: Tab stays inside while focus is inside; Escape closes and hands focus to the button.
+  // The first item takes focus through the effect below, so the hook does not move it.
+  const { disclosureProps } = useDisclosureFocus({
+    open: menuOpen, containerRef: menuRef, onClose: closeOnly, openerRef: triggerRef, focusOnOpen: false,
+  })
 
   // Wave C's portable single-note export, now in four formats: a bare fetch + blob
   // download (one note is bounded in size — no multi-minute wait to progress-bar).
@@ -153,12 +167,8 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     } else if (e.key === 'End') {
       e.preventDefault()
       items[items.length - 1]?.focus()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      e.stopPropagation()
-      closeMenu(true)
-    } else if (e.key === 'Tab') {
-      setMenuOpen(false)
+    } else {
+      disclosureProps.onKeyDown(e)   // Escape: close, focus back to the button
     }
   }
 
@@ -201,15 +211,16 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
           <UIcon name="chevronDown" size={12} gold={false} />
         </button>
         {menuOpen && (
+          // ⛔ KNOWN DEVIATION (K2 review M-6): a `role="menu"` whose Tab stays inside it -- the APG
+          // menu pattern closes on Tab; this follows the Notebook's one keep-Tab-inside contract.
           <div ref={menuRef} id={menuId} role="menu" aria-label="Export this note as"
-            className={styles.menu} onKeyDown={onMenuKeyDown}>
+            className={styles.menu} {...disclosureProps} onKeyDown={onMenuKeyDown}>
             {EXPORT_FORMATS.map((f, i) => (
               <button
                 key={f.id}
                 ref={(el) => { itemRefs.current[i] = el }}
                 type="button"
                 role="menuitem"
-                tabIndex={-1}
                 className={styles.item}
                 aria-label={f.menuLabel}
                 aria-describedby={`${menuId}-${f.id}`}

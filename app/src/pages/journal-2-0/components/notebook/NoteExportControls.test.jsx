@@ -118,14 +118,41 @@ describe('the Export menu button', () => {
     expect(document.activeElement).toBe(screen.getAllByRole('menuitem')[0])
   })
 
-  it('a press outside closes it; Tab closes it', () => {
+  it('a press outside closes it', () => {
     render(<Host />)
     fireEvent.click(trigger())
     fireEvent.mouseDown(document.body)
     expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  // ⛔ MOVED ON PURPOSE (wave 10 lane K2, walk row S2-26): this rail said "Tab closes it". Tab
+  // closed the menu and focus walked on into the note's title, so the keyboard walk's Escape
+  // six presses later had nothing to close and focus never came back. The editor's disclosures
+  // now share one contract (lib/useDisclosureFocus.js): Tab stays inside while focus is inside.
+  it('Tab and Shift+Tab stay inside the open menu (K2): they wrap at the ends and it stays open', () => {
+    render(<Host />)
     fireEvent.click(trigger())
-    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Tab' })
-    expect(screen.queryByRole('menu')).toBeNull()
+    const items = screen.getAllByRole('menuitem')
+    items[items.length - 1].focus()
+    fireEvent.keyDown(document.activeElement, { key: 'Tab' })
+    expect(document.activeElement).toBe(items[0])
+    fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(items[items.length - 1])
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    // Every item is a Tab stop INSIDE the menu (none is skipped by a roving tabindex, which
+    // would let Tab from a middle item leave the menu).
+    for (const item of items) expect(item).not.toHaveAttribute('tabindex', '-1')
+  })
+
+  it('CONTROL: with focus back outside the open menu, Tab is the page\'s own again', () => {
+    render(<><Host /><button type="button">elsewhere</button></>)
+    fireEvent.click(trigger())
+    const elsewhere = screen.getByRole('button', { name: 'elsewhere' })
+    elsewhere.focus()
+    const ev = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    elsewhere.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(false)
+    expect(document.activeElement).toBe(elsewhere)
   })
 })
 

@@ -80,6 +80,13 @@ async function renderEditor() {
     return el.editor
   })
 }
+// Wave 10 lane K2 (D-3): the page-level actions (Duplicate, Lock, Archive, Save as template,
+// Open beside, Delete) sit behind the note's "More note actions" door -- open it first.
+const openMoreNoteActions = (scope = screen) => {
+  const more = scope.getByRole('button', { name: 'More note actions' })
+  if (more.getAttribute('aria-expanded') !== 'true') fireEvent.click(more)
+}
+
 // Words the server does not have, put in WITHOUT an update event: no autosave
 // is scheduled, so only an explicit send can deliver them (the rail below must
 // not pass on an autosave's timing).
@@ -88,6 +95,7 @@ const typeUnsentWords = (editor) => act(() => {
     { type: 'text', text: 'Original body plus my new line' }] }] }, { emitUpdate: false })
 })
 const confirmDelete = async () => {
+  openMoreNoteActions()
   fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
   const modal = await screen.findByRole('dialog', { name: 'Delete this note?' })
   fireEvent.click(within(modal).getByRole('button', { name: 'Delete' }))

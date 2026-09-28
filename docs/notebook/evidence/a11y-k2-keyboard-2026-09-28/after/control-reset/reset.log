@@ -1,0 +1,2 @@
+SANDBOX IDENTITY: http://127.0.0.1:8227 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10s1\docs\plans\joystick\sandbox-runs\2026-09-28T13-16-29.md (identity 0654d31ca70d..., data dir C:\data-w10k2)
+reset Delta plain body to its seed through PUT /api/j2/notes/{id}: 409

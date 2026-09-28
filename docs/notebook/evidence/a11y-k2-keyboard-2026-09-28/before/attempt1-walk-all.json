@@ -1,0 +1,28 @@
+{
+ "meta": {
+  "tool": "keyboard_walk",
+  "started": "2026-09-28T12:26:01-0500",
+  "base": "http://127.0.0.1:8227",
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T12-24-14.md",
+  "only": [],
+  "browser": "chromium (playwright)",
+  "viewport": "1280x800 unless a step says otherwise",
+  "tip": "fa6710394",
+  "nonce": "82fbc99849aefeb78d89b7ee6b7a6abf",
+  "browser_version": "145.0.7632.6"
+ },
+ "steps": [
+  {
+   "id": "C0",
+   "section": "control",
+   "keys": "Tab x12; Tab x8 inside a trap",
+   "expected": "unreachable button NOT found; trap detected",
+   "observed": "unreachable found=False after 12; trap detected=True; trail=[\"button 'Alpha'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\"]",
+   "verdict": "PASS",
+   "t": "12:26:03"
+  }
+ ],
+ "census": {},
+ "shots": [],
+ "errors": []
+}

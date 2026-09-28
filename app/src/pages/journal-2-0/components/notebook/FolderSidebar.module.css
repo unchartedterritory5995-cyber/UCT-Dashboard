@@ -586,6 +586,13 @@
   .searchResultRow {
     min-height: var(--tap-min, 44px);
   }
+  /* Wave 10 lane K2 (keyboard walk row S6-02, WCAG 2.5.8): at 820 px a folder row's own
+     button -- the folder's NAME, the thing a member taps -- measured 20x44: the chevron and
+     the four 44 px row actions (Rename, Add subfolder, Delete, Publish) took the line and the
+     name button shrank to what was left. The name keeps a 44 px floor, and when the line is
+     too short the actions wrap under it instead of squeezing it. Rail: a11y/targetFloors.test.js. */
+  .folderRow { flex-wrap: wrap; }
+  .rowWrap .row { min-width: var(--tap-min, 44px); }
   .row {
     min-height: var(--tap-min, 44px);
   }
