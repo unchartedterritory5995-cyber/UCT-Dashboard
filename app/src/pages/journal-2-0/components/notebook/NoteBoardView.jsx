@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
@@ -102,6 +102,14 @@ export default function NoteBoardView({
 
   const [dragOver, setDragOver] = useState(null)
   const blocked = blockedNoteIds || new Set()
+  // F4 / A2R-03 (WCAG 2.4.3): a card moved with its <select> RE-MOUNTS in its new column,
+  // and the focused <select> goes with the old node -- lane 10E-2's keyboard walk found focus
+  // on <body> after every keyboard move. So the card that moved is remembered, and focus
+  // follows it: to its <select> once that is usable again (a move disables it while the write
+  // is in flight), to its title in the meantime, never to <body>.
+  const wrapRef = useRef(null)
+  const groupSelectRef = useRef(null)
+  const followRef = useRef(null) // the id of the card a keyboard move is carrying focus with
 
   // ⛔ REPORT THE RESOLVED GROUPING, NOT THE PICKED ONE. `groupById` is null
   // until the member chooses, while `def` is what the board is ACTUALLY drawing
@@ -138,6 +146,33 @@ export default function NoteBoardView({
     setProperty(note, def.id, toColumnId === NO_VALUE ? null : toColumnId)
   }, [def, setProperty])
 
+  // Runs after every render while a keyboard move is carrying focus (see `followRef`).
+  // ⛔ It never takes focus from somewhere the member has put it since: it acts only while
+  // focus is on <body> (the old node went) or still inside the moved card.
+  useEffect(() => {
+    const id = followRef.current
+    if (!id) return
+    const root = wrapRef.current
+    const active = document.activeElement
+    const card = root ? [...root.querySelectorAll('[data-board-card-id]')].find((el) => el.getAttribute('data-board-card-id') === id) : null
+    const lost = !active || active === document.body
+    if (!lost && !(card && card.contains(active))) { followRef.current = null; return }
+    if (!card) {
+      // the card left this board (a view that filters on the value just set)
+      followRef.current = null
+      groupSelectRef.current?.focus()
+      return
+    }
+    const select = card.querySelector('select')
+    if (select && !select.disabled) {
+      followRef.current = null
+      if (active !== select) select.focus()
+      return
+    }
+    const title = card.querySelector('button')
+    if (title && active !== title) title.focus()
+  })
+
   if (!defs.length) {
     return (
       <div className={styles.state}>
@@ -149,10 +184,11 @@ export default function NoteBoardView({
   }
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} ref={wrapRef}>
       <div className={styles.toolbar}>
         <label className={styles.groupLabel} htmlFor="board-group-by">Group by</label>
         <select
+          ref={groupSelectRef}
           id="board-group-by"
           className={styles.groupSelect}
           value={def?.id || ''}
@@ -193,6 +229,7 @@ export default function NoteBoardView({
                   return (
                     <article
                       key={n.id}
+                      data-board-card-id={n.id}
                       className={`${styles.card} ${isBusy(n.id) ? styles.cardBusy : ''}`}
                       draggable={!isBlocked}
                       onDragStart={(e) => { e.dataTransfer.setData('text/plain', n.id) }}
@@ -219,7 +256,7 @@ export default function NoteBoardView({
                             className={styles.move}
                             value={overrideFor(n.id) !== undefined ? overrideFor(n.id) : columnIdFor(n, def)}
                             disabled={isBusy(n.id)}
-                            onChange={(e) => move(n, e.target.value)}
+                            onChange={(e) => { followRef.current = n.id; move(n, e.target.value) }}
                           >
                             {columns.map((c) => (
                               <option key={c.id} value={c.id}>{c.label}</option>
