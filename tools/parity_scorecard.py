@@ -1769,6 +1769,7 @@ B0_EVIDENCE = (
     (KBD_F4, 'wave 10 L1c'),
     ('docs/notebook/evidence/wave10-f3/pytest-f3-rails.log', 'wave 10 L1c'),
     ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r2.log', 'wave 10 L1c'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -1959,6 +1960,59 @@ def cited_b0_gaps(text, evidence=None, tips=None):
     for _, t in sorted(set(_B0_WALK_TIP.findall(text))):
         if not any(t.startswith(x) or x.startswith(t) for x in listed_tips):
             gaps.append(f'walked tree {t} is cited but §0 does not check it')
+    return gaps
+
+
+# F3 fix round 2 (controller ruling 2): clause 15b is DERIVED, never typed. Every event R-16's core actions
+# map to (`CORE_ACTION_EVENTS`, read from the source each build) must have a call-site rail here that names
+# it, and that rail must have run green in F3's telemetry log. One file per event is the claim; a file may
+# carry several events.
+_TNB = 'app/src/pages/journal-2-0/components/notebook'
+TELEMETRY_RAILS = {
+    'note_open_ms': f'{_TNB}/NoteEditorPage.wave6.test.jsx',
+    'save_success': f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+    'save_failed': f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+    'capture_used': f'{_TNB}/NoteEditorPage.excerpts.test.jsx',
+    'switcher_used': 'app/src/components/CommandPalette.test.jsx',
+    'search_used': f'{_TNB}/FolderSidebar.test.jsx',
+    'bulk_used': 'app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx',
+    'ask_used': f'{_TNB}/AskPanel.telemetry.test.jsx',
+    'export_used': f'{_TNB}/NoteExportControls.test.jsx',
+    'share_used': f'{_TNB}/NoteShareControls.test.jsx',
+    'publish_used': f'{_TNB}/NoteShareControls.test.jsx',
+    'import_used': f'{_TNB}/import/ImportWizard.test.jsx',
+    'writing_help_used': f'{_TNB}/NoteEditorPage.writingHelp.test.jsx',
+    'dictation_used': f'{_TNB}/NoteEditorPage.dictation.test.jsx',
+}
+
+
+def core_action_events(src):
+    """The distinct event names `CORE_ACTION_EVENTS` maps R-16's core actions to, read from the JS source."""
+    m = re.search(r'export const CORE_ACTION_EVENTS = Object\.freeze\(\{(.*?)\n\}\)', src, re.S)
+    if not m:
+        return []
+    return sorted({e for arr in re.findall(r'\[([^\]]*)\]', m.group(1)) for e in re.findall(r"'([a-z_]+)'", arr)})
+
+
+def telemetry_rail_gaps(events, rails, read, log_text):
+    """Every core-action event, and the reason it is not railed (an empty list is the pass). `read(path)`
+    returns a rail's source, or None if the file is missing; `log_text` is the vitest log the rails ran in.
+    No events at all is itself a gap: an empty list read from a moved table must not pass."""
+    if not events:
+        return ['CORE_ACTION_EVENTS: no events read from the source']
+    gaps = []
+    for ev in events:
+        f = rails.get(ev)
+        if not f:
+            gaps.append(f'{ev}: no call-site rail is named for it')
+            continue
+        body = read(f)
+        if body is None:
+            gaps.append(f'{ev}: {f} does not exist')
+        elif f"'{ev}'" not in body and f'"{ev}"' not in body:
+            gaps.append(f'{ev}: {f} never names the event')
+        elif ('✓ ' + f.replace('app/', '', 1)) not in log_text:
+            gaps.append(f'{ev}: {f} did not run green in the telemetry log')
     return gaps
 
 
@@ -2171,7 +2225,7 @@ def build(pages_dir=None):
 
     # F3 fix round 1 (review I-5): the telemetry wiring rails, run once by F3 on this tree (scoped vitest,
     # verbose, no colour codes) and committed before the scorecard was written; totals read, never typed.
-    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log'
+    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r2.log'  # fix round 2: + one call-site rail per event
     _f3vt_text = open(os.path.join(ROOT, F3VT_LOG), encoding='utf-8', errors='replace').read()
     _f3vt_tot = [re.sub(r'\s+', ' ', l.strip()) for l in _f3vt_text.splitlines() if re.match(r'\s*Tests\s+\d+ passed', l)]
     F3VT_TOT = _f3vt_tot[-1] if _f3vt_tot else ''
@@ -2310,11 +2364,13 @@ def build(pages_dir=None):
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
-    R('G-003', ('P', 'NV', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
+    R('G-003', 'NV', [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
       {'N': ['N_delete_acct'], 'E': ['E_delete_acct'], 'O': NFO},
-      'A server-side purge; no UI behaviour to confirm. Evernote NOT-VERIFIED (F3 fix round 1, review M-4): the UCT '
-      'side stands on a code reading alone, with no committed walk of an account deletion, so the Evernote quote is '
-      'cited but no comparative verdict is published. The Notion PARITY is wave 9\'s, on the same code reading.')
+      'A server-side purge; no UI behaviour to confirm. NOT-VERIFIED against every competitor: the UCT side stands on '
+      'a code reading alone, and no committed walk or quote shows an account deletion on UCT, so the competitors\' '
+      'quotes are cited but no comparative verdict is published. Evernote by review M-4 (F3 fix round 1); Notion by '
+      'controller ruling 1, F3 fix round 2 (consistency with M-4) -- it was wave 9\'s PARITY on the same code reading.',
+      'a committed walk of an account deletion on UCT (sign up, write a note, delete the account, confirm the notes are gone)')
     R('G-004', ('P', 'NV', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
@@ -3073,27 +3129,35 @@ def build(pages_dir=None):
          'backlinks, list_tasks bending between 10k and 25k) but ran on a loaded box, so neither is a verdict: the '
          'controller\'s quiet slot', QUIET),
     ]
+    TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
+
+    def _read_rail(p):
+        fp = os.path.join(ROOT, p)
+        return open(fp, encoding='utf-8', errors='replace').read() if os.path.isfile(fp) else None
+
+    TELEM_GAPS = telemetry_rail_gaps(TELEM_EVENTS, TELEMETRY_RAILS, _read_rail, _f3vt_text)
     C[15] = [
         ('client + server error reporting on', 'MET',
          [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
           test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)', None),
-        ('Notebook telemetry for every core action', 'NOT MET',
+        ('Notebook telemetry for every core action', 'NOT MET' if TELEM_GAPS else 'MET',
          [code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
-          measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)'),
           test_f3vt('app/src/pages/journal-2-0/lib/notebookTelemetry.test.js'),
-          test_f3vt('app/src/pages/journal-2-0/lib/noteBatch.test.js'),
-          test_f3vt('app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx'),
-          test_f3vt('app/src/pages/journal-2-0/lib/sendToJournal.test.js'),
-          test_f3vt('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx'),
-          code(f'{NB}/AskPanel.jsx', 235, 'trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED')],
-         'R-16\'s core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, '
-         'dictation) each map to an allow-listed event with a closed-enum schema. 10D\'s browser check drove save, '
-         'writing help, dictation, export, share + publish, switcher, search and import and counted each once; it never '
-         'drove ask (T7), bulk (T5), capture (T2 / T6) or a failed save (its deltas are 0). F3 ran the wiring rails on '
-         'this tree: bulk_used (noteBatch, the bulk bar) and capture_used (the capture door, the excerpt) are railed at '
-         'their call sites; notebookTelemetry.test.js pins only the action-to-event TABLE. ask_used (T7) is wired in '
-         'code (AskPanel.jsx:235, :292) but railed at no call site and counted in no browser. Lever: a rail that an '
-         'answered Ask sends ONE ask_used (and an insert the inserted one), or a browser count of T7', BUILD),
+          *[test_f3vt(f) for f in sorted(set(TELEMETRY_RAILS[e] for e in TELEM_EVENTS if e in TELEMETRY_RAILS))
+            if ('✓ ' + f.replace('app/', '', 1)) in _f3vt_text],
+          code(f'{NB}/AskPanel.jsx', 235, 'trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED'),
+          measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)')],
+         (f'R-16\'s core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, '
+          f'dictation) map, in CORE_ACTION_EVENTS, to {len(TELEM_EVENTS)} allow-listed events with closed-enum schemas. '
+          f'Derived, not typed (F3 fix round 2, controller ruling 2): every one of them must have a call-site rail that '
+          f'names it and ran green in F3\'s telemetry log. ask_used (T7) was the one gap in round 1; it is now railed by '
+          f'AskPanel.telemetry.test.jsx (the real panel, a mocked stream: one ask_used per answered ask, none without an '
+          f'ask, none on a failed or empty answer, one more on an insert). 10D\'s browser check drove only some doors '
+          f'(save, writing help, dictation, export, share + publish, switcher, search, import) and is cited as a '
+          f'corroborating count, not as the proof. '
+          + ('Every event is railed.' if not TELEM_GAPS else
+             'Not railed: ' + '; '.join(TELEM_GAPS) + '. Lever: a call-site rail for each')),
+         None if not TELEM_GAPS else BUILD),
         ('canaries in the repo', 'MET',
          [record('docs/notebook/soak-30day.md', 34, 'The out-of-repo copies refreshed and'),
           test_f3('tests/test_nb_observe.py')],

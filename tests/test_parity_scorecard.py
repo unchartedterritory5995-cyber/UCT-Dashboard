@@ -476,3 +476,46 @@ def test_the_plans_now_column_carries_the_scorecards_clause_counts():
     card = {int(c[0]): c[3] for c in _card_standards()}
     assert sorted(plan) == list(range(1, 17)), f'non-vacuity: parsed plan rows {sorted(plan)}'
     assert plan == card, {n: (plan.get(n), card.get(n)) for n in card if plan.get(n) != card.get(n)}
+
+
+# ── F3 fix round 2 (controller ruling 2): clause 15b is derived from the rails ───────────────────
+
+def _telemetry_src() -> str:
+    return _text(REPO / 'app' / 'src' / 'pages' / 'journal-2-0' / 'lib' / 'notebookTelemetry.js')
+
+
+def _read_repo(p):
+    fp = REPO / p
+    return _text(fp) if fp.is_file() else None
+
+
+def test_every_core_action_event_has_a_call_site_rail_that_ran_green():
+    events = psc.core_action_events(_telemetry_src())
+    assert 'ask_used' in events and len(events) >= 10, f'non-vacuity: events read {events}'
+    log = _text(REPO / 'docs' / 'notebook' / 'evidence' / 'wave10-f3' / 'vitest-f3-telemetry-rails-r2.log')
+    assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, log) == []
+
+
+def test_a_core_action_event_that_is_not_railed_is_a_named_gap():
+    events = psc.core_action_events(_telemetry_src())
+    log = _text(REPO / 'docs' / 'notebook' / 'evidence' / 'wave10-f3' / 'vitest-f3-telemetry-rails-r2.log')
+    rails = dict(psc.TELEMETRY_RAILS)
+    del rails['ask_used']
+    assert psc.telemetry_rail_gaps(events, rails, _read_repo, log) == ['ask_used: no call-site rail is named for it']
+    rails = dict(psc.TELEMETRY_RAILS, ask_used='app/src/pages/journal-2-0/lib/noteBatch.test.js')
+    assert psc.telemetry_rail_gaps(events, rails, _read_repo, log) == [
+        'ask_used: app/src/pages/journal-2-0/lib/noteBatch.test.js never names the event']
+    shown = log.replace('✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx', '× gone')
+    assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, shown) == [
+        f'ask_used: {psc.TELEMETRY_RAILS["ask_used"]} did not run green in the telemetry log']
+    assert psc.core_action_events('no table here') == []
+    assert psc.telemetry_rail_gaps([], psc.TELEMETRY_RAILS, _read_repo, log) == [
+        'CORE_ACTION_EVENTS: no events read from the source']
+
+
+def test_clause_15b_and_g003_read_as_the_round_2_rulings_say():
+    text = _text(SCORECARD)
+    row = next(l for l in text.split('\n') if l.startswith('| Notebook telemetry for every core action |'))
+    assert _cells(row)[1] == 'MET' and 'AskPanel.telemetry.test.jsx' in row, row
+    g003 = next(c for c in _a_rows() if c[0] == 'G-003')
+    assert g003[3:6] == ['NOT-VERIFIED'] * 3, g003[3:6]
