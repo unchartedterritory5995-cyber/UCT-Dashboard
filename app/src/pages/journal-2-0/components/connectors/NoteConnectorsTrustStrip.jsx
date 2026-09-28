@@ -8,13 +8,19 @@
 import UIcon from '../../../../components/ui/UIcon'
 import { timeAgo } from '../../../../utils/timeAgo'
 import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import LoadFailed from '../LoadFailed'
 import styles from './NoteConnectorsTrustStrip.module.css'
 
 const LABEL_BY_KEY = Object.fromEntries(NOTE_CONNECTOR_PROVIDERS.map((p) => [p.key, p.label]))
 
 export default function NoteConnectorsTrustStrip() {
-  const { providers, isLoading } = useNoteConnectors()
+  const { providers, isLoading, error, refresh } = useNoteConnectors()
   if (isLoading) return null
+  // Wave 10 F7 (Part A, 5d): a failed status read is said, never taken for "no connected
+  // apps" -- a member with a syncing app would otherwise lose its conflict count silently.
+  if (error) {
+    return <LoadFailed compact what="the sync status of your connected apps" error={error} onRetry={refresh} />
+  }
 
   // `providers[key].sources` is always an array — normalizeStatus guarantees
   // every provider key + shape, so no `|| []` fallback needed here.

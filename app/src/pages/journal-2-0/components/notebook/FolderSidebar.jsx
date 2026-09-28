@@ -20,6 +20,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
+import LoadFailed from '../LoadFailed'
 import { keysInOrder, neighbourFallback, neighbourKeys } from '../../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
@@ -854,8 +855,12 @@ export default function FolderSidebar({
   // subfolder / Delete with the same button idiom. Nothing passes it in wave
   // 8; it is the wave-9 door for folder publish (ruling D-B8).
   extraFolderActions = [],
+  // Wave 10 F7 (Part A): the caller's own reads that this panel SHOWS -- the saved views
+  // live in NotebookTab's hook -- so a failure of one is said here, with the panel's own:
+  // `[{ what, error, retry }]`. Optional; nothing is said when nothing failed.
+  extraLoadFailures = [],
 }) {
-  const { folders, create, rename, remove } = useJ2NoteFolders()
+  const { folders, error: foldersError, refresh: refreshFolders, create, rename, remove } = useJ2NoteFolders()
   // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
   const openSearchRow = useOpenFromList(onOpenNote)
   const [adding, setAdding] = useState(false)
@@ -928,7 +933,7 @@ export default function FolderSidebar({
   // P0-2 fix: the TRUE whole-library per-folder count, never derived from
   // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
   // comment and FolderNode's `honestCount`.
-  const { counts: folderCountsFromServer } = useJ2NoteFolderCounts()
+  const { counts: folderCountsFromServer, error: countsError, refresh: refreshCounts } = useJ2NoteFolderCounts()
   // The actual note rows for the tree's leaf rows, scoped to only the
   // CURRENTLY-EXPANDED folders (never the whole library in one page) —
   // sorted so re-render order never changes the SWR cache key.
@@ -969,8 +974,8 @@ export default function FolderSidebar({
   // Wave B: Favorites + Recents. Both trash-aware server-side (see
   // notes_service.list_favorites/list_recents) — no client-side filtering
   // needed here.
-  const { notes: favoriteNotes } = useJ2Favorites()
-  const { notes: recentNotes } = useJ2Recents()
+  const { notes: favoriteNotes, error: favoritesError, refresh: refreshFavorites } = useJ2Favorites()
+  const { notes: recentNotes, error: recentsError, refresh: refreshRecents } = useJ2Recents()
 
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
@@ -1099,7 +1104,7 @@ export default function FolderSidebar({
   // the server hasn't answered yet (or for a caller/test that stubs the
   // hook away) — never blended with the server numbers, since a partial
   // merge would recreate the same "biased sample" defect this fix closes.
-  const { tagCounts: serverTagCounts, tagTree: serverTagTree } = useJ2NoteTags()
+  const { tagCounts: serverTagCounts, tagTree: serverTagTree, error: tagsError, refresh: refreshTags } = useJ2NoteTags()
   const tagCountsFromPage = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
@@ -1723,6 +1728,17 @@ export default function FolderSidebar({
         </div>
       ) : (
         <>
+          {/* ⛔ Wave 10 F7 (Part A, 5d): a read that failed is SAID, never shown as an empty
+              list. Each section below renders nothing when it has nothing, so without this a
+              failed favorites / folders / tags read looked exactly like "you have none". */}
+          <LoadFailed compact failures={[
+            { what: 'your folders', error: foldersError, retry: refreshFolders },
+            { what: 'your folder counts', error: countsError, retry: refreshCounts },
+            { what: 'your favorites', error: favoritesError, retry: refreshFavorites },
+            { what: 'your recent notes', error: recentsError, retry: refreshRecents },
+            { what: 'your tags', error: tagsError, retry: refreshTags },
+            ...extraLoadFailures,
+          ]} />
           <RecencySection
             label="Favorites"
             icon="star-fill"
