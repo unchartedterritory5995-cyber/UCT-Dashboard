@@ -193,33 +193,37 @@ export const SHORTCUTS = Object.freeze([
   // Registered only while a video is active. None of these ever looked at a
   // modifier, so none declares one — that is preserved, and it is what the
   // ACKNOWLEDGED_OVERLAPS entries below are about.
+  // 2026-09-28: the bare video keys answer only UNMODIFIED (arrows: no Ctrl/Meta/Alt).
+  // Before, Ctrl+F (browser find) also toggled fullscreen, Shift+F flagged a ticker AND
+  // toggled fullscreen, and Alt+Left (browser Back) also seeked. Caps-Lock F / M still
+  // work (`e.key` upper-case, shiftKey false). Two ACKNOWLEDGED_OVERLAPS retired.
   decl({
     id: 'video.playPause',
-    chord: { keys: [' ', 'k'] },
+    chord: { keys: [' ', 'k'], ctrl: false, meta: false, alt: false, shift: false },
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'Space or lower-case k plays/pauses the active video (YouTube convention).',
   }),
   decl({
     id: 'video.seekBack',
-    chord: { keys: ['ArrowLeft'] },
+    chord: { keys: ['ArrowLeft'], ctrl: false, meta: false, alt: false },
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'ArrowLeft seeks the active video back 15 s; auto-repeat keeps seeking.',
   }),
   decl({
     id: 'video.seekForward',
-    chord: { keys: ['ArrowRight'] },
+    chord: { keys: ['ArrowRight'], ctrl: false, meta: false, alt: false },
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'ArrowRight seeks the active video forward 15 s; auto-repeat keeps seeking.',
   }),
   decl({
     id: 'video.fullscreen',
-    chord: { keys: ['f', 'F'] },
+    chord: { keys: ['f', 'F'], ctrl: false, meta: false, alt: false, shift: false },
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'f / F toggles fullscreen on the active video.',
   }),
   decl({
     id: 'video.mute',
-    chord: { keys: ['m', 'M'] },
+    chord: { keys: ['m', 'M'], ctrl: false, meta: false, alt: false, shift: false },
     target: 'window', capture: false, inEditable: false, repeat: true,
     why: 'm / M toggles mute on the active video.',
   }),
@@ -244,25 +248,11 @@ export const shortcutById = (id) => BY_ID.get(id) || null
  */
 export const ACKNOWLEDGED_OVERLAPS = Object.freeze([
   Object.freeze({
-    ids: ['palette.toggle', 'video.playPause'],
-    kind: 'precedence',
-    why: 'Ctrl/Cmd+k matches both. palette.toggle runs in the WINDOW CAPTURE phase and calls '
-      + 'stopPropagation, so video.playPause (window bubble) never receives it. Resolved by phase.',
-  }),
-  Object.freeze({
     ids: ['palette.close', 'video.escape'],
     kind: 'focus',
     why: 'Escape matches both. While the palette is open focus sits in its input, and '
       + 'video.escape is not inEditable, so it does not fire. Resolved by the focus guard — '
       + 'but only while focus stays in that input.',
-  }),
-  Object.freeze({
-    ids: ['video.fullscreen', 'chords:SHIFT_F'],
-    kind: 'defect',
-    why: 'LIVE DOUBLE-FIRE, pre-existing. With a video playing and focus outside a text field, '
-      + 'Shift+F flags the selected ticker on a list surface AND toggles video fullscreen, '
-      + 'because video.fullscreen never excluded modifiers. Fixing it (forbid Shift/Ctrl/Alt/Meta '
-      + 'on the video letters) is a member-visible change and belongs to its own ticket.',
   }),
 ])
 

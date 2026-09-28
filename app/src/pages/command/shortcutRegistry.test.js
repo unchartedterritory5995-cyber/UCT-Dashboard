@@ -41,6 +41,8 @@ import {
   validateDeclaration,
   ShortcutConflictError,
   UnknownShortcutError,
+  bindingMatches,
+  shortcutById,
 } from './shortcutRegistry'
 import { CHORDS, matchesChord } from './chords'
 import { INDICATOR_CHORDS, matchShortcut } from '../../components/chart/keyboardShortcuts'
@@ -400,5 +402,35 @@ describe('TERM-063 — declared == registered (derived by AST)', () => {
     expect(orphanDecls, 'declared but registered by nothing — delete the declaration').toEqual([])
     expect(undeclared, 'registered but never declared — declare it in SHORTCUTS').toEqual([])
     expect(reg.get('palette.toggle')).toEqual(['components/CommandPalette.jsx'])
+  })
+})
+
+// ── 2026-09-28: the video keys answer only UNMODIFIED ────────────────────────
+describe('video shortcuts never steal a modified chord', () => {
+  const env = { document: { activeElement: null }, isMac: false }
+  const key = (k, mods = {}) => ({ type: 'keydown', key: k, repeat: false, ...mods })
+  const fires = (id, e) => bindingMatches(shortcutById(id), e, env)
+
+  it('the bare keys still work, including Caps-Lock letters', () => {
+    expect(fires('video.fullscreen', key('f'))).toBe(true)
+    expect(fires('video.fullscreen', key('F'))).toBe(true) // Caps Lock: shiftKey false
+    expect(fires('video.mute', key('m'))).toBe(true)
+    expect(fires('video.playPause', key(' '))).toBe(true)
+    expect(fires('video.seekBack', key('ArrowLeft'))).toBe(true)
+    expect(fires('video.seekBack', key('ArrowLeft', { shiftKey: true }))).toBe(true)
+  })
+
+  it('Ctrl+F is browser find, never fullscreen', () => {
+    expect(fires('video.fullscreen', key('f', { ctrlKey: true }))).toBe(false)
+    expect(fires('video.fullscreen', key('f', { metaKey: true }))).toBe(false)
+  })
+
+  it('Shift+F flags a ticker and no longer ALSO toggles fullscreen', () => {
+    expect(fires('video.fullscreen', key('F', { shiftKey: true }))).toBe(false)
+  })
+
+  it('Alt+Left is browser Back, never a seek', () => {
+    expect(fires('video.seekBack', key('ArrowLeft', { altKey: true }))).toBe(false)
+    expect(fires('video.seekForward', key('ArrowRight', { altKey: true }))).toBe(false)
   })
 })
