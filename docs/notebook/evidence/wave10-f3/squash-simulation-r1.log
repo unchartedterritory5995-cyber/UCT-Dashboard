@@ -1,0 +1,14 @@
+squash S (9749fa7c6): 0 problem(s)
+    wave 10 L1c: tag `notebook-wave10-L1c-tip-2026-09-28` | git rev-parse --verify refs/tags/<tag>^{commit} | 51025ad9a (created at the final L1c tip)
+    wave 10 L1c: landing | earliest commit of 9749fa7c6d247b944d4eb656c3c37b3cc4272248 carrying the tag's files | squash 9749fa7c6
+    wave 10 L1c: head tied to its landing | git diff --name-only <head> <squash>, over the files the head changed | every one of 467 files carried
+later master S3 (541155787): 0 problem(s)
+    wave 10 L1c: tag `notebook-wave10-L1c-tip-2026-09-28` | git rev-parse --verify refs/tags/<tag>^{commit} | 51025ad9a (created at the final L1c tip)
+    wave 10 L1c: landing | earliest commit of 541155787b24d8c2c46422711d01ea8c8e1c9c08 carrying the tag's files | squash 9749fa7c6
+    wave 10 L1c: head tied to its landing | git diff --name-only <head> <squash>, over the files the head changed | every one of 467 files carried
+control: master 4bba30b73 (4bba30b73): 15 problem(s)
+    wave 10 L1c: tag `notebook-wave10-L1c-tip-2026-09-28` | git rev-parse --verify refs/tags/<tag>^{commit} | 51025ad9a (created at the final L1c tip)
+    wave 10 L1c: landing | earliest commit of 4bba30b73 carrying the tag's files | NOT FOUND
+    PROBLEM: B0 wave 10 L1c: no commit of 4bba30b73 carries the files notebook-wave10-L1c-tip-2026-09-28 changed
+    PROBLEM: B0 evidence missing at 4bba30b73: docs/notebook/proof/README.md
+    PROBLEM: B0 evidence missing at 4bba30b73: docs/notebook/proof/walk-fd7d1f42d/run.json
