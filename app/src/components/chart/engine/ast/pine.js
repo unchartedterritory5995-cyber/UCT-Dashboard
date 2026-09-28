@@ -15400,13 +15400,34 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node, env, ctx) {
-  if (!node || node.type !== 'call') return null
+function colourHelperAlpha(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
+  // `staticColourOf` opens them — otherwise the two readers disagree about the
+  // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
+  // `S_color = input.color(color.new(#90EE90, 25))` then `plot(..., color =
+  // S_color)` carried the colour and dropped the 25% transparency, so Support and
+  // Resistance drew opaque on 568 bars where TradingView drew them at `bf`. The
+  // same colour written inline kept its alpha; only the name and the input hid it.
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[bound.index]
+      const v = a && a.value !== undefined ? a.value : a
+      return colourHelperAlpha(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
+    }
+    return bound && bound.kind === 'expr'
+      ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'input.color') {
+    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
   // alpha, which is the feature inverted rather than merely missing.
   const helper = openColourHelper(node, env, ctx)
-  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
@@ -15875,10 +15896,41 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
   return out
 }
 
+/** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
+ *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
+ *  this door used to read names only — the colour was dropped and the row drew
+ *  in the engine's default, measured on a live capture.
+ *
+ *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
+ *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
+ *  per version; a script passing six positionals keeps the first five. Index 0
+ *  is the series itself and is never presentation. */
+const POSITIONAL_PRESENTATION = Object.freeze({
+  plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
+  plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
+  plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
+})
+
 function outputPresentation(args, ctx) {
   const pres = {}
-  const arg = (n) => args.find((a) => a.name === n)
+  const kind = ctx && ctx.kind
+  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? POSITIONAL_PRESENTATION[kind] : null
+  const positional = args.filter((a) => !a.name)
+  // ⭐ A NAMED argument wins; a positional one answers only where the signature
+  // places that name. Pine refuses both at once, so the order is never a choice
+  // between two values the author wrote.
+  const arg = (n) => {
+    const named = args.find((a) => a.name === n)
+    if (named || !signature) return named
+    const at = signature.indexOf(n)
+    return at > 0 ? positional[at] : undefined
+  }
 
+  // ⛔ NO COLOUR AT ALL STAYS ABSENT HERE. This function reports what the AUTHOR
+  // wrote ("absent is absent", `pine.presentation.test.js`); TradingView's
+  // default for a colourless plot is a RENDERING rule and is applied at the member
+  // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
@@ -15956,7 +16008,6 @@ function outputPresentation(args, ctx) {
   // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
   // as an unsupported plot style. The translator's own header said as much
   // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
-  const kind = ctx && ctx.kind
   const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
   if (isMarker) {
