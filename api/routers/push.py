@@ -15,7 +15,17 @@ try:
 except Exception:  # pragma: no cover
     chart_health_alerts = None
 
-router = APIRouter()
+router = APIRouter()
+
+def _bearer_ok(secret: str, authorization) -> bool:
+    """`Authorization: Bearer <PUSH_SECRET>`, compared in constant time. A blank
+    secret admits nobody (it used to be the caller's `not secret` check, kept
+    here so the four endpoints cannot drift apart)."""
+    import hmac
+    if not secret or not isinstance(authorization, str):
+        return False
+    return hmac.compare_digest(authorization.encode(), f"Bearer {secret}".encode())
+
 
 INVALIDATE_KEYS = [
     "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M", "themes_Today",
@@ -107,7 +117,7 @@ def push_wire_data(
     Persists to /data/wire_data.json (Railway volume) so cache survives redeploys.
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     for key in INVALIDATE_KEYS:
@@ -182,7 +192,7 @@ def push_wire_archive(
     overwrites a date a push already recorded -- what members were served on
     the day is the record -- and it never invalidates or writes a cache key."""
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
     from api.services import wire_archive
     try:
@@ -210,7 +220,7 @@ def push_intraday(
         session_notes: str (Claude's session commentary)
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Store as separate cache key — never overwrites wire_data
@@ -260,7 +270,7 @@ def export_journal_for_brain(
         user_email: filter by user email (default: first admin user)
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     from api.services.journal_two import trades as j2_trades
