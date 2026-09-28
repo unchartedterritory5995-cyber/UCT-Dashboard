@@ -174,7 +174,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // `non-repainting`, then refuses the disagreement. Measured on the corpus:
   // 15 scripts refused with `declared "repaints" but the linter MEASURES
   // "non-repainting"` — two authorities over one badge, four lines apart.
-  const memberSpecs = memberInputSpecs(drawable)
+  // ⭐ The object trees' inputs join the document only when the object program
+  // does: a WITHHELD drawing (a lost removal, `withholdObjects`) is not in the
+  // document, and an input only it reads would be a knob that moves nothing.
+  const memberSpecs = withObjectInputs(memberInputSpecs(drawable), drawsObjects ? t : null)
   const lintScope = {
     ...BUILDER_INPUT_SCOPE,
     ...Object.fromEntries((memberSpecs || []).map((spec) => [spec.key, true])),
@@ -624,6 +627,41 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
  *  to `BUILDER_INPUTS` for a falsy list, so passing `[]` and passing nothing are
  *  the same thing — said out loud here so the next reader does not "fix" it.
  */
+/** ⭐⭐ THE KNOBS THE OBJECT PROGRAM READS, ADDED TO THE ROWS' KNOBS.
+ *
+ *  ⚰️ `memberInputSpecs` takes the specs off the DRAWN rows only — right for a
+ *  plot, and blind to the drawing. An input the translation DECLARED (so every
+ *  object tree reads it by name) but that no drawn row happens to use was left
+ *  out of the document, and `objectReaderFor` met it as an unknown name: the
+ *  tree refused and the object it placed vanished. Measured 2026-09-26 across
+ *  the door's object drawers: 16 scripts with a tree refused this way.
+ *
+ *  ⛔ A SPEC IS NEVER INVENTED. It is taken from the translation's own
+ *  annotation of whichever output declared it; a name no output annotates stays
+ *  undeclared, and its tree still refuses — loudly, by name.
+ */
+function withObjectInputs(specs, t) {
+  const declared = new Set((t && t.declared) || [])
+  const trees = (t && t.objects && t.objects.trees) || []
+  if (!declared.size || !trees.length) return specs
+  const read = new Set()
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (n.type === 'series' && typeof n.name === 'string' && declared.has(n.name)) read.add(n.name)
+    for (const k of Object.keys(n)) if (k !== 'tok') walk(n[k])
+  }
+  walk(trees)
+  if (!read.size) return specs
+  const byKey = new Map((specs || []).map((s) => [s.key, s]))
+  for (const o of (t.outputs || [])) {
+    for (const spec of (o.memberInputs || [])) {
+      if (spec && read.has(spec.key) && !byKey.has(spec.key)) byKey.set(spec.key, spec)
+    }
+  }
+  return byKey.size ? [...byKey.values()] : specs
+}
+
 function memberInputSpecs(rows) {
   const byKey = new Map()
   for (const o of rows) {

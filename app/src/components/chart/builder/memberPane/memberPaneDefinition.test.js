@@ -135,13 +135,18 @@ describe('⭐⭐ Volume v2 becomes a definition a pane can bind', () => {
   it('⭐ and the member is told where the alert went — and about the fold', () => {
     const r = memberPaneDefinition({ source: V2 })
     const byName = Object.fromEntries(r.notes.map((n) => [n.name, n.note]))
-    // ⭐ 2026-09-27 — AND ABOUT THE DRAWING. v2's object program drops 5 of the 14
-    // steps it attempts (its HV label: one `label.new`, one setter, three
-    // `label.delete`s). The deletes remove only labels, and v2 draws no label at
-    // all once that `label.new` is lost, so its two tables are drawn — with the
+    // ⭐ 2026-09-27 — AND ABOUT THE DRAWING. v2's object program drops 8 of the 17
+    // steps it attempts, all of them its HV label: `f_makeHVLabel` is inlined at
+    // its TWO call sites (the call-site inliner, `objectFnInline.js`), so its one
+    // `label.new` is two creates, and each call's returned handle is a `copy` into
+    // `hvLabel` / `hvPreviewLabel` — two creates, two copies, one setter, three
+    // `label.delete`s, every one behind a guard this chart cannot read. (5 of 14
+    // before the inliner, when the helper's body was walked ONCE as top-level
+    // code.) The deletes remove only labels, and v2 draws no label at all once
+    // both creates are lost, so its two tables are drawn — with the
     // partial-drawing sentence, which is the owner's ruling (option b).
     expect(Object.keys(byName).sort()).toEqual(['Drawings', 'alertcondition', 'baseTimeframeFolds'])
-    expect(byName.Drawings).toMatch(/^5 of 14 drawing elements in this script aren't supported yet/)
+    expect(byName.Drawings).toMatch(/^8 of 17 drawing elements in this script aren't supported yet/)
 
     // Ruling D1: the condition is not drawn, and the member is told where it went.
     expect(byName.alertcondition).toContain("'HVE Trigger'")
