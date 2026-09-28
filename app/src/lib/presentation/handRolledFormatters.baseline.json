@@ -226,7 +226,7 @@
     "app/src/pages/community/components/ProfileCard.jsx": 1,
     "app/src/pages/cot/PositioningRail.jsx": 1,
     "app/src/pages/cot/cotDivergence.js": 2,
-    "app/src/pages/cot/cotFormat.js": 5,
+    "app/src/pages/cot/cotFormat.js": 2,
     "app/src/pages/cot/cotTooltip.js": 1,
     "app/src/pages/dashboard/useSessionState.js": 1,
     "app/src/pages/desk/ArticleReader.jsx": 2,
@@ -347,7 +347,7 @@
     "app/src/utils/feedFormat.js": 1,
     "app/src/utils/intradayTiming.js": 1,
     "app/src/utils/marketSession.js": 8,
-    "app/src/utils/profileFormat.js": 23,
+    "app/src/utils/profileFormat.js": 5,
     "app/src/utils/resampleBars.js": 1,
     "app/src/utils/timeAgo.js": 6
   }

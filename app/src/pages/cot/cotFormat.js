@@ -1,5 +1,9 @@
 // app/src/pages/cot/cotFormat.js — number/date formatting shared by the COT
 // chart panes and the positioning rail. ONE copy; both surfaces import it.
+//
+// ⭐ The magnitude suffix is `lib/presentation`'s since TERM-066; this module
+// keeps only the COT ladder and its missing-value rule.
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 /** "2025-11-07" → "11/7/2025" */
 export function fmtDate(iso) {
@@ -14,13 +18,26 @@ export function fmtNum(v) {
   return v < 0 ? `(${abs})` : abs
 }
 
+/** The COT ladder, as it has always been: M at two decimals, K by `Math.round`
+ *  (NOT `toFixed(0)` — "-2K" for -2,500, where toFixed would say "-3K"), and no
+ *  B tier, so a billion reads "1000.00M". Recorded as disagreements with the
+ *  other grammars in TERM-066, and preserved rather than unified. */
+const COT_TIERS = [
+  { at: 1e6, suffix: 'M', decimals: 2 },
+  { at: 1e3, suffix: 'K', decimals: 'round' },
+]
+
 /** 2,072,358 → "2.07M"; 10,560 → "11K"; 512 → "512" (sign preserved). */
 export function fmtCompact(v) {
   if (v == null) return ''
-  const abs = Math.abs(v)
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`
-  if (abs >= 1e3) return `${Math.round(v / 1e3)}K`
-  return String(Math.round(v))
+  // `+v` is the coercion the retired body's `Math.abs(v)` performed — it throws
+  // on a BigInt exactly as that did, where `Number(v)` would not.
+  const n = +v
+  // ⚠️ A non-finite value keeps its retired rendering verbatim: 'NaN', and
+  // 'InfinityM' / '-InfinityM' (an infinite magnitude fell into the M tier).
+  // Odd, recorded, and NOT fixed under a refactor — `compactAdoption.test.jsx`.
+  if (!Number.isFinite(n)) return Number.isNaN(n) ? 'NaN' : `${n}M`
+  return formatCompact(n, { tiers: COT_TIERS })
 }
 
 /** Week-over-week change: "▲ 5K" / "▼ 5K"; zero or missing → "—". */
