@@ -6,6 +6,7 @@ import TileCard from '../components/TileCard'
 import JoystickSettingsCard from './settings/JoystickSettingsCard'
 // TERM-078: member-visible AI meters (read-only; GET /api/ai-search/meters).
 import AiMetersCard from './settings/AiMetersCard'
+import DeviceSyncCard from './settings/DeviceSyncCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import useTagColors from '../hooks/useTagColors'
@@ -1649,7 +1650,8 @@ const SEARCH_INDEX = [
   { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
   { card: 'noteConnectors', section: 'connections', title: 'Connected Apps',              keywords: 'notes connectors roam craft notion dropbox sync import notebook connect' },
   { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
-  { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',         keywords: 'backup restore prefs preferences export import json theme chart tag' },
+  { card: 'deviceSync',     section: 'legal',       title: 'What Syncs Across Your Devices', keywords: 'sync devices device browser phone laptop account local storage saved where cross-device this browser only drawings columns layout' },
+  { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',        keywords: 'backup restore prefs preferences export import json theme chart tag' },
   { card: 'disclaimers',    section: 'legal',       title: 'Disclaimers & Attributions', keywords: 'legal advice disclaimer market data tradingview attribution' },
 ]
 
@@ -2411,6 +2413,8 @@ export default function Settings() {
     ],
     legal: [
       card('privacy', privacyCard),
+      // TERM-076: rendered from the persistence census manifest, never typed.
+      card('deviceSync', <DeviceSyncCard />),
       card('prefsBackup', <PreferencesBackupCard />),
       card('disclaimers', disclaimersCard),
     ],
