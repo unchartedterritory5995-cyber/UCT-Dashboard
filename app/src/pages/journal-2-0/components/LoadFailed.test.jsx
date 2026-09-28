@@ -37,7 +37,10 @@ describe('LoadFailed -- the sentence', () => {
     expect(screen.getByRole('status')).toHaveTextContent("You're offline, so this note's attachments didn't load.")
   })
 
-  it('several failures are ONE sentence naming each, and one Try again that asks every one', () => {
+  // F7 fix round 1 (review M1): async, and it waits for the retry to SETTLE (the button reads
+  // "Try again" and is enabled again) -- the synchronous version let retry()'s final setState land
+  // after the test returned, outside act().
+  it('several failures are ONE sentence naming each, and one Try again that asks every one', async () => {
     const a = vi.fn()
     const b = vi.fn()
     render(<LoadFailed failures={[
@@ -50,6 +53,7 @@ describe('LoadFailed -- the sentence', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(a).toHaveBeenCalledTimes(1)
     expect(b).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled())
   })
 
   it('CONTROL: nothing failed, nothing rendered (it never stands in for data that loaded)', () => {
