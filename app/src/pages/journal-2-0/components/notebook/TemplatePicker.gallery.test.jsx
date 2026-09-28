@@ -11,7 +11,10 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import TemplatePicker from './TemplatePicker'
-import { FAMILIES, TEMPLATES, getTemplate, PREVIEW_LINES } from '../../lib/notebookTemplates'
+import {
+  FAMILIES, TEMPLATES, getTemplate, PREVIEW_LINES, STRUCTURE_PROBE_CONTEXT,
+} from '../../lib/notebookTemplates'
+import { emptyTemplateContext } from '../../lib/templateContext'
 
 function renderGallery(props = {}) {
   const onPick = vi.fn()
@@ -25,9 +28,34 @@ function renderGallery(props = {}) {
 
 const card = (tpl) => screen.getByRole('button', { name: tpl.label })
 
+const text = (n) => (n.type === 'text' ? n.text || '' : (n.content || []).map(text).join(''))
+const norm = (t) => t.replace(/\s+/g, ' ').trim()
+
+/** Fix round 1 (M-2): the text of every block ONLY the no-data branch writes -- in
+ *  `build({})`, but not identically in the build with every data field present.
+ *  Derived from the source every run, never a typed list of sentences. */
+function noDataTexts(tpl) {
+  const withData = new Set((tpl.build(STRUCTURE_PROBE_CONTEXT).content || []).map((n) => JSON.stringify(n)))
+  const out = []
+  for (const n of tpl.build({}).content || []) {
+    if (withData.has(JSON.stringify(n))) continue
+    const items = n.type === 'bulletList' ? (n.content || []) : [n]
+    for (const it of items) {
+      const t = norm(text(it))
+      if (t) out.push(t)
+    }
+  }
+  return out
+}
+
+/** A card's preview lines as rendered, marker and ellipsis stripped ([] = no preview). */
+function previewLines(tpl) {
+  const el = card(tpl).querySelector('[data-template-preview]')
+  return el ? [...el.children].map((c) => c.textContent.replace(/^• /, '').replace(/…$/, '')) : []
+}
+
 /** Each top-level block of the template's own body, as plain text (independent walk). */
 function bodyBlocks(tpl) {
-  const text = (n) => (n.type === 'text' ? n.text || '' : (n.content || []).map(text).join(''))
   const out = []
   for (const node of tpl.build({}).content || []) {
     if (node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList') {
@@ -36,7 +64,7 @@ function bodyBlocks(tpl) {
       out.push(text(node))
     }
   }
-  return out.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  return out.map(norm).filter(Boolean)
 }
 
 describe('D-4 -- the gallery renders every template the source has', () => {
@@ -71,11 +99,13 @@ describe('D-4 -- the gallery renders every template the source has', () => {
       const c = card(tpl)
       expect(c).toHaveTextContent(tpl.label)
       expect(c).toHaveTextContent(tpl.description)
+      // a template with no structure line shows its description alone -- never an empty box
       const preview = c.querySelector('[data-template-preview]')
-      expect(preview, tpl.key).not.toBeNull()
-      const lines = [...preview.children].map((el) => el.textContent)
-      expect(lines.length, tpl.key).toBeGreaterThan(0)
-      expect(lines.length, tpl.key).toBeLessThanOrEqual(PREVIEW_LINES)
+      if (preview) {
+        const lines = [...preview.children].map((el) => el.textContent)
+        expect(lines.length, tpl.key).toBeGreaterThan(0)
+        expect(lines.length, tpl.key).toBeLessThanOrEqual(PREVIEW_LINES)
+      }
     }
   })
 
@@ -83,28 +113,59 @@ describe('D-4 -- the gallery renders every template the source has', () => {
     renderGallery()
     for (const tpl of TEMPLATES) {
       const blocks = bodyBlocks(tpl)
-      const lines = [...card(tpl).querySelector('[data-template-preview]').children]
-        .map((el) => el.textContent.replace(/^• /, '').replace(/…$/, ''))
+      const lines = previewLines(tpl)
       let from = 0
       for (const line of lines) {
         const at = blocks.findIndex((b, i) => i >= from && b.startsWith(line))
         expect(at, `${tpl.key}: "${line}" is not a line of its body`).toBeGreaterThanOrEqual(0)
         from = at + 1
       }
-      // ...and it starts where the note starts
-      expect(blocks[0].startsWith(lines[0]), tpl.key).toBe(true)
     }
   })
 
-  it('a screen reader hears the name, then the rest as the description', () => {
+  it('⛔ M-2 -- no preview, on any template, shows a no-data sentence', () => {
+    renderGallery()
+    const all = TEMPLATES.flatMap(noDataTexts)
+    // NON-VACUITY: the catalog really has a no-data branch, and the known ones are in the set
+    expect(all.some((t) => t.startsWith('No game plan found for today'))).toBe(true)
+    expect(all).toContain('Regime: —')
+    for (const tpl of TEMPLATES) {
+      const scaffold = noDataTexts(tpl)
+      for (const line of previewLines(tpl)) {
+        expect(scaffold.some((t) => t.startsWith(line)), `${tpl.key}: "${line}" is a no-data sentence`).toBe(false)
+      }
+    }
+    // ...and every card still previews its structure
+    expect(TEMPLATES.filter((t) => previewLines(t).length === 0).map((t) => t.key)).toEqual([])
+  })
+
+  it('M-2 -- the probe context has the real context shape and covers every field a template reads', () => {
+    expect(Object.keys(STRUCTURE_PROBE_CONTEXT).sort()).toEqual(Object.keys(emptyTemplateContext()).sort())
+    const read = new Set()
+    const nested = new Set()
+    for (const tpl of TEMPLATES) {
+      tpl.build(new Proxy({}, { get: (_, k) => { read.add(k); return undefined } }))
+      const gp = new Proxy({}, { get: (_, k) => { nested.add(k); return undefined } })
+      tpl.build(new Proxy({}, { get: (_, k) => (k === 'gamePlanNote' ? gp : undefined) }))
+    }
+    expect(read.size).toBeGreaterThan(0)
+    for (const k of read) if (typeof k === 'string') expect(STRUCTURE_PROBE_CONTEXT, `ctx.${k}`).toHaveProperty(k)
+    for (const k of nested) if (typeof k === 'string') expect(STRUCTURE_PROBE_CONTEXT.gamePlanNote, `gamePlanNote.${k}`).toHaveProperty(k)
+  })
+
+  it('⛔ M-3 -- a screen reader hears the name, then the "when" line and the description ONLY', () => {
     renderGallery()
     for (const tpl of TEMPLATES) {
       const c = card(tpl)
-      const described = (c.getAttribute('aria-describedby') || '').split(/\s+/)
-        .map((id) => document.getElementById(id)?.textContent || '').join(' ')
-      expect(described).toContain(tpl.description)
-      expect(described).toContain(tpl.when)
-      expect(described).toContain(c.querySelector('[data-template-preview]').textContent)
+      const ids = (c.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
+      expect(ids.map((id) => document.getElementById(id)?.textContent || ''), tpl.key)
+        .toEqual([tpl.when, tpl.description])
+      // the preview is visual: hidden from assistive tech, and not what describes the card
+      const preview = c.querySelector('[data-template-preview]')
+      if (preview) {
+        expect(preview).toHaveAttribute('aria-hidden', 'true')
+        for (const id of ids) expect(preview.contains(document.getElementById(id))).toBe(false)
+      }
     }
   })
 })
@@ -174,12 +235,20 @@ describe('D-4 -- keyboard selection', () => {
     expect(onPick).toHaveBeenCalledWith(getTemplate(key))
   })
 
-  it('a disabled gallery (a create in flight) is skipped by the arrows', () => {
-    renderGallery({ busy: true })
+  it('⛔ M-4 -- the arrows SKIP a disabled card to the next enabled one (and End skips a disabled last)', () => {
+    renderGallery()
     const all = cards()
+    // A MIX of enabled and disabled cards. jsdom will not focus a disabled button, so
+    // arrows that computed a disabled card as the target would leave focus where it
+    // started -- and these assertions go red.
+    all[1].disabled = true
+    all[all.length - 1].disabled = true
     all[0].focus()
     fireEvent.keyDown(all[0], { key: 'ArrowRight' })
-    // every card is disabled: nothing to move to, focus does not jump onto a dead card
-    expect(document.activeElement === all[1]).toBe(false)
+    expect(document.activeElement).toBe(all[2])
+    fireEvent.keyDown(all[2], { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(all[0])
+    fireEvent.keyDown(all[0], { key: 'End' })
+    expect(document.activeElement).toBe(all[all.length - 2])
   })
 })

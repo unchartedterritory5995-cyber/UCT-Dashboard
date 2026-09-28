@@ -6,11 +6,13 @@
 //
 // Wave 10 lane D2 (design finding D-4): a BROWSABLE gallery, the way Notion's and
 // Evernote's are. Every built-in card shows the template's name, its one-line
-// description and a short preview of the note it makes -- its first lines, built
-// from the template's own `build()` (`templatePreview`, lib/notebookTemplates.js),
+// description and a short preview of the note it makes -- its first lines, taken
+// from the template's own STRUCTURE (`templatePreview`, lib/notebookTemplates.js:
+// the headings and prompts it writes for everyone, never its no-data scaffold),
 // never a second, hand-typed list. Grouped by family, as the catalog declares.
-// A card is named by the template's name and described by the rest, so a screen
-// reader hears "Daily Game Plan, button" and then the detail, not a paragraph.
+// A card is named by the template's name and described by its "when" line and its
+// description only (fix round 1, M-3); the preview is a visual sample and is
+// hidden from assistive tech, which already has the description.
 // Arrow keys move between cards (Home/End to the ends); Tab still walks every one.
 // Picking a card hands `onPick` the catalog's own object, exactly as before.
 import { useId } from 'react'
@@ -80,13 +82,13 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false }) {
                   data-template-card=""
                   data-template-key={tpl.key}
                   aria-label={tpl.label}
-                  aria-describedby={`${id}-when ${id}-desc${lines.length ? ` ${id}-preview` : ''}`}
+                  aria-describedby={`${id}-when ${id}-desc`}
                 >
                   <span className={styles.cardWhen} id={`${id}-when`}>{tpl.when}</span>
                   <span className={styles.cardLabel}>{tpl.label}</span>
                   <span className={styles.cardDesc} id={`${id}-desc`}>{tpl.description}</span>
                   {lines.length > 0 && (
-                    <span className={styles.cardPreview} id={`${id}-preview`} data-template-preview="">
+                    <span className={styles.cardPreview} aria-hidden="true" data-template-preview="">
                       {lines.map((line, i) => (
                         <span
                           // a preview's lines are fixed for a given template: the index is its identity

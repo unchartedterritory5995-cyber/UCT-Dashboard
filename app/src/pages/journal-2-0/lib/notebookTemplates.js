@@ -353,20 +353,51 @@ function clip(text) {
 }
 
 /**
- * The first lines of a template, as the note it makes will open: built from the
- * template's OWN `build()` with a bare context (every template must produce a sane
- * doc from `{}` -- see the header), never from a second, hand-typed description.
- * A line is `{ kind: 'heading' | 'text' | 'bullet', text }`; empty paragraphs and
- * rules are skipped, a list contributes one line per item.
+ * Fix round 1 (review M-2): a context in which EVERY data field a template can read
+ * is present, each carrying a marker no template's own words contain. Its keys are
+ * the keys `assembleTemplateContext` returns (lib/templateContext.js); the rail
+ * (TemplatePicker.gallery.test.jsx) checks both that they match and that no
+ * template reads a field this context lacks.
+ */
+const MARK = '\u2063' // an invisible separator: no template's own words contain it
+export const STRUCTURE_PROBE_CONTEXT = Object.freeze({
+  dateText: `${MARK}date`,
+  dateShort: `${MARK}date`,
+  weekOfText: `${MARK}week`,
+  ticker: `${MARK}TICKER`,
+  regimeLine: `${MARK}regime`,
+  positionLines: [`${MARK}position`],
+  gamePlanNote: { id: `${MARK}id`, title: `${MARK}plan`, planBullets: [`${MARK}plan bullet`] },
+})
+
+/**
+ * A template's STRUCTURE: the top-level blocks it writes whatever the member's data
+ * is -- the blocks of `build({})` that `build(STRUCTURE_PROBE_CONTEXT)` also writes,
+ * identically, in `build({})`'s order. What only the no-data branch writes ("No game
+ * plan found for today -- ...", "Regime: --", the placeholder position list) and what
+ * only data writes are both left out: neither is the note the member will get.
+ */
+export function templateStructure(tpl) {
+  if (!tpl || typeof tpl.build !== 'function') return []
+  const withData = new Set((tpl.build(STRUCTURE_PROBE_CONTEXT)?.content || []).map((n) => JSON.stringify(n)))
+  return (tpl.build({})?.content || []).filter((n) => withData.has(JSON.stringify(n)))
+}
+
+/**
+ * The first lines of a template, from its STRUCTURE (templateStructure above): the
+ * headings and prompts it writes for every member, never its no-data scaffold, and
+ * never a second, hand-typed description. A line is
+ * `{ kind: 'heading' | 'text' | 'bullet', text }`; empty paragraphs and rules are
+ * skipped, a list contributes one line per item. A template whose structure yields
+ * no line has no preview -- the card shows its description alone.
  */
 export function templatePreview(tpl, maxLines = PREVIEW_LINES) {
-  if (!tpl || typeof tpl.build !== 'function') return []
   const lines = []
   const push = (kind, text) => {
     const t = clip(text)
     if (t && lines.length < maxLines) lines.push({ kind, text: t })
   }
-  for (const node of tpl.build({})?.content || []) {
+  for (const node of templateStructure(tpl)) {
     if (lines.length >= maxLines) break
     if (node.type === 'heading') push('heading', nodeText(node))
     else if (node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList') {
