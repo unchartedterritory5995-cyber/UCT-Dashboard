@@ -231,6 +231,39 @@ describe('BulkActionBar — Export selected offers every format (wave 9, D1)', (
     expect(document.activeElement).toBe(btn)
   })
 
+  // F4 / A2R-04: lane 10E-2 pressed Escape with focus still ON "Export selected" (the
+  // panel open below it). That Escape reached the page's "Esc clears the selection", the
+  // bar unmounted and focus fell to <body>. An open panel is what Escape closes now, from
+  // its toggle too, and the key is marked handled so the page leaves the selection alone.
+  it('Escape on the Export toggle itself closes the panel, keeps focus there, and is marked handled', () => {
+    setup()
+    const btn = screen.getByRole('button', { name: 'Export selected' })
+    btn.focus()
+    fireEvent.click(btn)
+    expect(panel()).not.toBeNull()
+    expect(fireEvent.keyDown(btn, { key: 'Escape' })).toBe(false)
+    expect(panel()).toBeNull()
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('Escape with the Tags panel open closes it and hands focus to the Tags toggle', () => {
+    setup()
+    const tags = screen.getByRole('button', { name: 'Tags' })
+    fireEvent.click(tags)
+    const input = screen.getByRole('combobox', { name: 'Tag to add to the selected notes' })
+    input.focus()
+    expect(fireEvent.keyDown(input, { key: 'Escape' })).toBe(false)
+    expect(screen.queryByRole('combobox', { name: 'Tag to add to the selected notes' })).toBeNull()
+    expect(document.activeElement).toBe(tags)
+  })
+
+  it('⛔ CONTROL — with no panel open, Escape is left to the page (not marked handled)', () => {
+    setup()
+    const btn = screen.getByRole('button', { name: 'Export selected' })
+    btn.focus()
+    expect(fireEvent.keyDown(btn, { key: 'Escape' })).toBe(true)
+  })
+
   it('the Archived view offers the same four formats', () => {
     const p = setup({ archiveView: true })
     fireEvent.click(screen.getByRole('button', { name: 'Export selected' }))

@@ -999,7 +999,12 @@ export default function NotebookTab() {
         || (t.tagName === 'INPUT' && t.type !== 'checkbox'))
       if (typing) return
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      // F4 / A2R-04: an Esc pressed IN the bulk bar unmounts the bar with the control that
+      // held focus; focus goes to the heading of the list the selection was made in,
+      // never to <body>.
+      const fromBar = Boolean(t && t.closest && t.closest('[data-bulk-bar]'))
       clearSelection()
+      if (fromBar) paneHeadingRef.current?.focus()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -1965,7 +1970,8 @@ export default function NotebookTab() {
             totalInView={visibleIds.length}
             allSelected={selection.allSelected}
             onSelectAll={selection.selectAll}
-            onClear={selection.clear}
+            // F4 / A2R-04: "Clear" unmounts the bar it sits in -- focus goes to the list's heading.
+            onClear={() => { selection.clear(); paneHeadingRef.current?.focus() }}
             trashView={isTrashView}
             archiveView={isArchiveView}
             busy={bulkBusy}
