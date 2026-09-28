@@ -23,7 +23,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { NavLink, Navigate, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
@@ -81,6 +81,20 @@ export const HOTKEY_ROUTES = {
 // (mirrors the disabled Compass nav teaser — never routes to a blank surface).
 export const PAID_HOTKEY_CHORDS = new Set(['g>k'])
 
+/**
+ * Wave 10 lane D2 (design finding D-1): the route whose Journal header folds on a
+ * phone. Measured at 390 px on fa6710394, the Journal took 257 px below the app's
+ * top bar before the Notebook began (the title row, then the action cluster
+ * wrapped onto two rows, then the section strip), and a note's first line sat
+ * 1,530 px down. On this route, and only at <=640 px (CSS decides the width; this
+ * decides the route), the header shows Log Trade and one "Journal tools" toggle;
+ * the rest of the cluster is one tap away and works exactly as before when open.
+ * The section strip is NOT folded: every Journal tab stays one tap away.
+ */
+export function isCompactHeaderRoute(pathname) {
+  return pathname === '/journal/notebook' || pathname.startsWith('/journal/notebook/')
+}
+
 export default function JournalLayout() {
   const isPaid = useIsPaid()
   // Best-effort refresh of broker-synced trades when the journal opens
@@ -93,6 +107,10 @@ export default function JournalLayout() {
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const compactHeader = isCompactHeaderRoute(pathname)
+  // D2 (D-1): the phone Notebook's header tools, folded until asked for.
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -155,7 +173,11 @@ export default function JournalLayout() {
   }
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      data-compact-header={compactHeader ? 'true' : undefined}
+      data-tools-open={toolsOpen ? 'true' : undefined}
+    >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
         <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
@@ -198,6 +220,26 @@ export default function JournalLayout() {
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
               surface (A5). Owns its own add-position / add-trade modals. */}
           <LogTradeButton />
+          {/* D2 (D-1): shown only on the Notebook route at <=640 px (the
+              stylesheet decides the width). A disclosure, not a menu: the
+              controls it reveals are the header's own, unchanged. */}
+          {compactHeader && (
+            <button
+              type="button"
+              className={styles.toolsToggle}
+              onClick={() => setToolsOpen((x) => !x)}
+              aria-expanded={toolsOpen}
+              aria-controls="journal-header-tools"
+              data-journal-tools-toggle=""
+            >
+              Journal tools
+              <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true" />
+            </button>
+          )}
+          {/* `display: contents` everywhere except a folded phone header, so the
+              controls stay flex items of this row (and the More menu keeps the
+              row as its anchor on a phone). */}
+          <div id="journal-header-tools" className={styles.headerTools}>
           <button
             type="button"
             className={styles.shortcutsBtn}
@@ -269,6 +311,7 @@ export default function JournalLayout() {
                 </div>
               </>
             )}
+          </div>
           </div>
         </div>
       </div>

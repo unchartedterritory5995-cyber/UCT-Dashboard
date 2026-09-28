@@ -1480,6 +1480,12 @@ export default function NotebookTab() {
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
+      // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
+      // so a `?note=` link painted the folder panel first and put the note's title
+      // 1,530 px down at 390 px (measured on fa6710394). With a note open, the
+      // phone rule in NotebookTab.module.css hides the panel; the note is the
+      // page, and the phone back control below returns to the list.
+      data-note-open={noteId ? 'true' : undefined}
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
@@ -1649,6 +1655,19 @@ export default function NotebookTab() {
         )}
         {noteId ? (
           <>
+          {/* D2 (D-1): the way back to the list on a phone, where the folder
+              panel is hidden while a note is open. Shown at <=640 px only
+              (the stylesheet decides); above that the panel is beside the note
+              and is the way back. The same close every other door uses. */}
+          <button
+            type="button"
+            className={styles.phoneBack}
+            onClick={() => closeNote()}
+            data-nb-phone-back=""
+          >
+            <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
+            Back to notes
+          </button>
           {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
               whether or not a note is beside it — moving it into a new parent
               when the side opens would remount it (a flushed save, a reloaded

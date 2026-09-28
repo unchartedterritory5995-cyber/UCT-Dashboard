@@ -626,3 +626,38 @@
     min-height: var(--tap-min);
   }
 }
+
+/* ── D2 (design finding D-1): a `?note=` link opens the NOTE on a phone ───────
+   A phone stacks the folder panel above the notes (the <=640 px rule above), so
+   with a note open the panel was the first thing painted and the note's title
+   sat 1,530 px down at 390 px (docs/notebook/proof/d2-before-fa6710394). While a
+   note is open (`data-note-open`, set by NotebookTab from `?note=`) a phone
+   hides the panel: the note is the page, and "Back to notes" is the way back to
+   the list (the same close every other door uses; Back after opening a note from
+   the list also returns to it, since the open pushes a history entry).
+   ⛔ Phone only: at 641-1024 px the panel sits BESIDE the note and stays.
+   Rail: NotebookTab.phoneNote.test.jsx. */
+.phoneBack {
+  display: none;
+}
+@media (max-width: 640px) {
+  .wrap[data-note-open] .sidebarSlot {
+    display: none;
+  }
+  .phoneBack {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--tap-min);
+    margin: 4px 0 8px;
+    padding: 0 12px 0 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    color: var(--text-bright);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}

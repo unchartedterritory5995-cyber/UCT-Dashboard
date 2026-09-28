@@ -424,3 +424,54 @@
 @media (max-width: 1024px) {
   .settingsPill { min-width: var(--tap-min); min-height: var(--tap-min); }
 }
+
+/* ── D2 (design finding D-1): the phone Notebook's folded header ─────────────
+   Measured at 390 px on fa6710394 (docs/notebook/proof/d2-before-fa6710394):
+   the Journal took 257 px below the app's top bar before the Notebook began --
+   the "Trade Journal" title row (the top bar already says "Journal"), then the
+   action cluster wrapped onto TWO rows, then the section strip. On the Notebook
+   route only (`data-compact-header`, set by JournalLayout from the route) and
+   only on a phone, the header is one row: Log Trade (its split menu unchanged)
+   and a "Journal tools" disclosure that reveals the rest of the cluster -- ?,
+   account, report, settings and More -- laid out exactly as the phone rule
+   above lays them out, so the More menu still anchors to the row.
+   ⛔ The section strip is NOT folded here: every Journal tab stays one tap away.
+   ⛔ Tablet and desktop are untouched: nothing below applies above 640 px.
+   Rail: JournalLayout.compactHeader.test.jsx. */
+.headerTools {
+  display: contents;
+}
+.toolsToggle {
+  display: none;
+}
+@media (max-width: 640px) {
+  .root[data-compact-header] .header {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    min-height: 0;
+  }
+  .root[data-compact-header] .heading {
+    display: none;
+  }
+  .root[data-compact-header] .headerRight {
+    margin-left: 0;
+  }
+  .root[data-compact-header]:not([data-tools-open]) .headerTools {
+    display: none;
+  }
+  .root[data-compact-header] .toolsToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--tap-min);
+    padding: 0 14px;
+    background: var(--bg-hover);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-pill);
+    color: var(--text-bright);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
