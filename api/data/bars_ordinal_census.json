@@ -7,11 +7,12 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 1423,
+  "modules_scanned": 1505,
   "summary": {
-    "named_access_count": 1,
-    "positional_count": 31,
+    "named_access_count": 2,
+    "positional_count": 32,
     "named_access": [
+      "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
     ],
     "positional": [
@@ -27,6 +28,7 @@
       "api/services/barspack.py",
       "api/services/desk_article_anchors.py",
       "api/services/discord_render/symbols.py",
+      "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
       "api/services/journal_two/excursion_engine.py",
       "api/services/pattern_engine/memory.py",
@@ -54,23 +56,23 @@
       "calls": [
         {
           "function": "get_bars",
-          "line": 393
+          "line": 429
         },
         {
           "function": "get_bars",
-          "line": 566
+          "line": 602
         },
         {
           "function": "get_bars",
-          "line": 584
+          "line": 620
         },
         {
           "function": "get_bars",
-          "line": 4409
+          "line": 4532
         }
       ],
       "evidence": {
-        "line": 400,
+        "line": 436,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -172,63 +174,67 @@
         },
         {
           "function": "get_bars",
-          "line": 1283
+          "line": 924
+        },
+        {
+          "function": "get_bars",
+          "line": 1346
         },
         {
           "function": "get_bars_since",
-          "line": 1615
+          "line": 1678
         },
         {
           "function": "get_bars",
-          "line": 2087
+          "line": 2150
         },
         {
           "function": "get_bars_before",
-          "line": 2165
+          "line": 2228
         },
         {
           "function": "get_bars_before",
-          "line": 2184
+          "line": 2247
         },
         {
           "function": "get_bars_before",
-          "line": 2244
+          "line": 2307
         },
         {
           "function": "get_bars_before",
-          "line": 2308
+          "line": 2371
         },
         {
           "function": "get_bars_since",
-          "line": 2444
+          "line": 2507
         },
         {
           "function": "get_bars",
-          "line": 2448
+          "line": 2511
         },
         {
           "function": "get_bars",
-          "line": 2958
+          "line": 3021
         },
         {
           "function": "get_bars",
-          "line": 3005
+          "line": 3068
         },
         {
           "function": "get_bars",
-          "line": 3092
+          "line": 3155
         },
         {
           "function": "get_bars",
-          "line": 3157
+          "line": 3220
         },
         {
           "function": "get_bars",
-          "line": 3251
+          "line": 3314
         },
         {
           "function": "get_bars",
-          "line": 3389
+          "line": 3452
         }
       ],
       "evidence": {
@@ -265,6 +271,23 @@
         "delegate": "_fmt_sqlite_bars"
       }
     },
+    "api/services/canonical/resolver.py": {
+      "classification": "named_access",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 294
+        },
+        {
+          "function": "get_bars_before",
+          "line": 299
+        }
+      ],
+      "evidence": {
+        "line": 286,
+        "pattern": "row_position"
+      }
+    },
     "api/services/desk_article_anchors.py": {
       "classification": "positional",
       "calls": [
@@ -291,6 +314,20 @@
         "line": 151,
         "pattern": "int-subscript",
         "index": 1
+      }
+    },
+    "api/services/fundamentals_pit/beta_store.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars",
+          "line": 51
+        }
+      ],
+      "evidence": {
+        "line": 53,
+        "pattern": "for-unpack",
+        "size": 6
       }
     },
     "api/services/indicator_alert_evaluator.py": {
