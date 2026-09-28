@@ -88,8 +88,13 @@ def test_run_due_delivers_and_isolates_failures(monkeypatch, tmp_path):
     assert out == {"ok": True, "ran": 3, "delivered": 1}
     uid, sym, title, message = delivered[0]
     assert uid == "u2" and sym == "CRM" and title.startswith("Morning brief")
-    # info severity = bell+email only, never the global admin Discord webhook
-    assert delivered_kw[0].get("severity") == "info"
+    # ⚰️ TERM-011 rows 4/5 + step 7: `severity="info"` was deleted once
+    # `add_alert`'s `user_id`-gate made it redundant (a private alert never
+    # reaches Discord at all now, whatever its severity) — this call no longer
+    # passes severity explicitly, so it is absent here, not "info".
+    assert "severity" not in delivered_kw[0], (
+        "the info-severity workaround came back — it is no longer needed and "
+        "the packet's ruling was to delete it, not restore it")
     # delivery text is PLAIN — link syntax and bold stripped
     assert "($CRM)" not in message and "**" not in message and "Salesforce" in message
     # statuses stamped honestly (list_briefings is member-scoped and carries

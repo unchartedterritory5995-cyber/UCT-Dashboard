@@ -296,7 +296,7 @@ def test_scheduled_job_delivers_and_never_refunds_on_error(monkeypatch, tmp_path
     import api.services.watchlist_alert_service as was
     monkeypatch.setattr(was, "deliver_alert_payload",
                         lambda uid, sym, title, msg, **kw: delivered.append((uid, title, kw)))
-    # success path → delivered, severity info, no refund
+    # success path → delivered, no refund
     out = deep.submit("u1", "weekly deep question one", source="scheduled")
     assert out["ok"]
     job = deep.get_job("u1", out["job_id"])
@@ -304,7 +304,12 @@ def test_scheduled_job_delivers_and_never_refunds_on_error(monkeypatch, tmp_path
     assert len(delivered) == 1
     uid, title, kw = delivered[0]
     assert uid == "u1" and "ready" in title.lower()
-    assert kw.get("severity") == "info"          # info skips the Discord webhook
+    # ⚰️ TERM-011 rows 4/5 + step 7: `severity="info"` was deleted once
+    # `add_alert`'s `user_id`-gate made it redundant (a private alert never
+    # reaches Discord at all now, whatever its severity).
+    assert "severity" not in kw, (
+        "the info-severity workaround came back — it is no longer needed and "
+        "the packet's ruling was to delete it, not restore it")
     assert refunded == []
     # error path → error status, STILL no refund
     monkeypatch.setattr(deep, "_synthesize",
