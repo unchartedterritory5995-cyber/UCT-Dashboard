@@ -28,6 +28,22 @@
       "switcher_search (fuzzy, in order)"
     ]
   },
+  "switcher_body_common": {
+    "tier": 50000,
+    "p95_ms_max": 250,
+    "why": "Wave 10 F6, fix round 1 (controller ruling 2026-09-28: the speed accepted, with an honest line of its own). The quick switcher's body half: a body term in ~30% of notes that no title names, so the switcher fills its page from the search box's relevance pass. Measured 171.2 ms p95 at 50k on a quiet box (perf-budgets.md section 8). Line = the smallest multiple of 50 ms at or above 1.4x that reading: 239.7 -> 250. The 1.4x is headroom for a shared box, set before any further reading; a loaded-box reading of 273.1 ms (discarded, CPU at 90% from other work) shows the line is not loose. The levers if it breaches: section 8.",
+    "ops": [
+      "switcher_search (body fallback, common term)"
+    ]
+  },
+  "switcher_body_rare": {
+    "tier": 50000,
+    "p95_ms_max": 100,
+    "why": "Wave 10 F6, fix round 1: the switcher's body half for a term in ONE note that no title names. Measured 68.4 ms p95 at 50k on a quiet box. Line by the same rule as switcher_body_common (smallest multiple of 50 ms at or above 1.4x: 95.8 -> 100), which lands on the search line itself.",
+    "ops": [
+      "switcher_search (body fallback, rare term)"
+    ]
+  },
   "reads": {
     "tier": 50000,
     "p95_ms_max": 100,

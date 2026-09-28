@@ -95,6 +95,8 @@ export default function ExportDialog({ open, onClose }) {
       open={open}
       onClose={handleClose}
       title="Export your notebook"
+      // F4 / A2R-08: named by its visible title (it had no name at all).
+      labelledByTitle
       variant="auto"
       maxWidth={520}
       dismissOnBackdrop={step !== 'running'}

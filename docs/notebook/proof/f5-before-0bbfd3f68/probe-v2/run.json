@@ -1,0 +1,125 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "geometry": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 12.1
+  }
+ },
+ "tip": "0bbfd3f68",
+ "sweeps": [
+  "geometry"
+ ],
+ "only": [
+  "zz-no-surface"
+ ],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-27T20:30:55-0500",
+ "data_dir": "C:\\data-w10f5",
+ "base": "http://127.0.0.1:8220",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8220 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T20-30-58.md (identity 46d81adf0a11..., data dir C:\\data-w10f5)"
+ },
+ "axe_core": {
+  "path": "app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r203241",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "50ba2b5a599946cda1703b89d2284f9a",
+  "share_url": "/share/n/5cE-42LMai91Gxn2i_XYtxRvOaGjs9RW",
+  "publish_url": "/p/brNboYq3bD2eASd-MCzAHA",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "cd6d33ce2b514a4f8e2fab77efc0e294",
+  "first_run_account": "fresh1",
+  "first_run_note": "44509d455e6b437398de39296abd5924",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 42.7,
+ "findings_total": 0,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\proof\\f5-before-0bbfd3f68\\probe-v2\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\proof\\f5-before-0bbfd3f68\\probe-v2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-27 20:31:05",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-27 20:32:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-27 20:34:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-27 20:38:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "finished": "2026-09-27T20:38:45-0500"
+}

@@ -294,6 +294,37 @@ describe('NotebookTab — selecting notes', () => {
     expect(box('First note')).not.toBeChecked()
   })
 
+  // F4 / A2R-04 (WCAG 2.4.3), wired: lane 10E-2 selected two notes by keyboard, opened
+  // "Export selected", pressed Escape -- and the selection went with the bar, focus to <body>.
+  it('Escape on an open "Export selected" keeps the selection and the focus in the bar; the next Escape clears and lands on the list heading', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Second note'))
+    const exp = screen.getByRole('button', { name: 'Export selected' })
+    exp.focus()
+    fireEvent.click(exp)
+    expect(screen.getByRole('group', { name: 'Export the selected notes as' })).toBeInTheDocument()
+    fireEvent.keyDown(exp, { key: 'Escape' })
+    expect(screen.queryByRole('group', { name: 'Export the selected notes as' })).toBeNull()
+    expect(within(toolbar()).getByText('2 selected')).toBeInTheDocument()
+    expect(document.activeElement).toBe(exp)
+    // with no panel open, Escape is the page's again: the selection clears, the bar goes,
+    // and focus lands on the heading of the list -- never on <body>
+    fireEvent.keyDown(exp, { key: 'Escape' })
+    expect(toolbar()).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'All notes' }))
+  })
+
+  it('"Clear" in the bar lands focus on the list heading, not on <body>', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    const clear = screen.getByRole('button', { name: 'Clear the selection (Esc)' })
+    clear.focus()
+    fireEvent.click(clear)
+    expect(toolbar()).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'All notes' }))
+  })
+
   it('⛔ Esc while typing a tag does NOT throw the selection away', () => {
     renderTab()
     fireEvent.click(box('First note'))

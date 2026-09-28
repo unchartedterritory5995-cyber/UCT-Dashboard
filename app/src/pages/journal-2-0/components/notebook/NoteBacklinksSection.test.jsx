@@ -27,10 +27,15 @@ describe('NoteBacklinksSection', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders nothing on a fetch error', () => {
-    hookResult = { count: 0, notes: [], isLoading: false, error: new Error('boom') }
-    const { container } = render(<NoteBacklinksSection noteId="n1" />)
-    expect(container).toBeEmptyDOMElement()
+  // ⛔ Wave 10 F7 (Part A, 5d): this used to render NOTHING on a fetch error -- an empty space
+  // that reads as "no note links here". It says so now, in one compact sentence (it blocks
+  // nothing: the note above it is whole).
+  it('says so on a fetch error, in one sentence, never an empty space', () => {
+    hookResult = { count: 0, notes: [], isLoading: false, error: new Error('500'), refresh: vi.fn() }
+    render(<NoteBacklinksSection noteId="n1" />)
+    expect(screen.getByRole('status')).toHaveTextContent("Couldn't load the notes that link here.")
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(hookResult.refresh).toHaveBeenCalled()
   })
 
   it('renders nothing when there are zero backlinks', () => {

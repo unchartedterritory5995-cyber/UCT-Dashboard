@@ -1,0 +1,11 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10s2/app
+
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx (29 tests | 28 skipped) 1717ms
+     ✓ surfaces a warning when the server could not check every note for duplicates (audit B1)  1715ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed | 28 skipped (29)
+   Start at  09:53:46
+   Duration  3.12s (transform 1.46s, setup 195ms, import 484ms, tests 1.72s, environment 585ms)
+

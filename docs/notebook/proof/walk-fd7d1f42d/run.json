@@ -1,0 +1,100 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "census": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 3,
+   "seconds": 602.9
+  },
+  "geometry": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 2448,
+   "seconds": 587.2
+  },
+  "axe": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 7,
+   "seconds": 496.4
+  },
+  "silent": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 13.9
+  }
+ },
+ "tip": "f25aea389",
+ "sweeps": [
+  "deadclick",
+  "silent",
+  "geometry",
+  "axe",
+  "census"
+ ],
+ "only": [],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-27T18:59:33-0500",
+ "data_dir": "C:\\data-w10e1",
+ "base": "http://127.0.0.1:8215",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8215 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T18-59-36.md (identity 8250c178e1fd..., data dir C:\\data-w10e1)"
+ },
+ "axe_core": {
+  "path": "app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r190026",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "f9a2dcec301d46c7bd2fe9885711c357",
+  "share_url": "/share/n/2CW2gaasogOvNFReM_qgrlEldwrazAdQ",
+  "publish_url": "/p/P26uhN9NO0hYUrM6dXVRvQ",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "9af2205b33c24833a3418087d83f51cd",
+  "first_run_account": "fresh1",
+  "first_run_note": "8d2d0badac5b4be99241be3d68e32722",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 42.4,
+ "findings_total": 2458
+}

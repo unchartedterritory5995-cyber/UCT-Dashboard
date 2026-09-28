@@ -20,11 +20,14 @@
   border-radius: var(--radius-sm, 6px);
   cursor: pointer;
 }
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled):not([aria-disabled='true']) {
   color: var(--text);
   border-color: var(--ut-gold);
 }
-.btn:disabled {
+/* `aria-disabled`: Lock and Archive while their write is in flight -- they keep focus,
+   where `disabled` would drop it to <body> (F4 / A2R-07). Same look either way. */
+.btn:disabled,
+.btn[aria-disabled='true'] {
   opacity: 0.6;
   cursor: default;
 }

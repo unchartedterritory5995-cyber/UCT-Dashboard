@@ -1,0 +1,74 @@
+{
+ "Font family": {
+  "focused": {
+   "name": "Font family",
+   "outline": "rgb(248, 247, 243) none 0px",
+   "border": "rgb(220, 187, 94) 1px",
+   "shadow": "none",
+   "bg": "rgb(10, 10, 10)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "unfocused": {
+   "outline": "rgb(248, 247, 243) none 0px",
+   "border": "rgb(102, 102, 102) 1px",
+   "shadow": "none",
+   "bg": "rgb(10, 10, 10)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "differs": {
+   "outline": false,
+   "border": true,
+   "shadow": false,
+   "bg": false,
+   "color": false
+  }
+ },
+ "Text size": {
+  "focused": {
+   "name": "Text size",
+   "outline": "rgb(248, 247, 243) none 0px",
+   "border": "rgb(220, 187, 94) 1px",
+   "shadow": "none",
+   "bg": "rgb(10, 10, 10)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "unfocused": {
+   "outline": "rgb(248, 247, 243) none 0px",
+   "border": "rgb(102, 102, 102) 1px",
+   "shadow": "none",
+   "bg": "rgb(10, 10, 10)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "differs": {
+   "outline": false,
+   "border": true,
+   "shadow": false,
+   "bg": false,
+   "color": false
+  }
+ },
+ "Bold": {
+  "focused": {
+   "name": null,
+   "outline": "rgb(220, 187, 94) solid 2px",
+   "border": "rgba(0, 0, 0, 0) 1px",
+   "shadow": "none",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "unfocused": {
+   "outline": "rgb(248, 247, 243) none 0px",
+   "border": "rgba(0, 0, 0, 0) 1px",
+   "shadow": "none",
+   "bg": "rgba(0, 0, 0, 0)",
+   "color": "rgb(248, 247, 243)"
+  },
+  "differs": {
+   "outline": true,
+   "border": false,
+   "shadow": false,
+   "bg": false,
+   "color": false
+  }
+ }
+}

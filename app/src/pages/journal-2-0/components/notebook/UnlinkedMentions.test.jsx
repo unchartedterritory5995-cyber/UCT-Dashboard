@@ -61,10 +61,10 @@ describe('UnlinkedMentions', () => {
     expect(b.container).toBeEmptyDOMElement()
     b.unmount()
 
+    // ⛔ Wave 10 F7 (Part A, 5d): an ERROR is not "no mentions" -- it is said, in one sentence.
     respond({ detail: 'nope' }, false)
-    const c = renderIt()
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalled())
-    expect(c.container).toBeEmptyDOMElement()
+    renderIt()
+    expect(await screen.findByText("Couldn't load the notes that mention this one.")).toBeInTheDocument()
   })
 
   it('shows each snippet with the match highlighted, and Open goes to that note', async () => {

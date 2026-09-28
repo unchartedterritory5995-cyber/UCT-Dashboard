@@ -1,0 +1,1200 @@
+{
+ "features": [
+  {
+   "row": "G-043",
+   "items": [
+    "Publish the browser extension"
+   ],
+   "ledger_line": 99,
+   "bucket": "BLOCKED",
+   "status": "BLOCKED (owner) — the extension is BUILT and packaged; only the Chrome Web Store submission remains (2026-09-26, lane 9B): ruling D4 took the web clipper IN (\"t",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-044",
+   "items": [
+    "An iOS capture path",
+    "iOS share path absent"
+   ],
+   "ledger_line": 100,
+   "bucket": "PARTIAL",
+   "status": "PARTIAL (2026-09-26, lane 9B): Android share-target unchanged; for iOS, ruling D5 chose \"PWA + Apple Shortcuts over the personal API\" (docs/notebook/NOTEBOOK-10",
+   "files": [
+    "app/src/App.jsx",
+    "app/src/pages/journal-2-0/components/notebook/ShareTargetPage.jsx",
+    "app/src/pages/journal-2-0/lib/shareTarget.js",
+    "app/src/pages/journal-2-0/components/notebook/ShareTargetPage.test.jsx",
+    "app/src/pages/journal-2-0/shareTarget.contract.test.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/components/navGroups.route.test.jsx",
+    "app/src/pages/dashboard/doors.route.test.jsx",
+    "app/src/pages/formulas/sharedFormula.route.test.jsx",
+    "app/src/pages/journal-2-0/a11y/dialogs.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/ShareTargetPage.test.jsx",
+    "app/src/pages/journal-2-0/lib/shareTarget.test.js",
+    "app/src/pages/journal-2-0/publishedNote.route.test.jsx",
+    "app/src/pages/journal-2-0/shareTarget.contract.test.js",
+    "app/src/pages/journal-2-0/sharedNote.route.test.jsx",
+    "app/src/pages/screener/sharedScreen.route.test.jsx",
+    "app/src/routes/lostDoors.route.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-064",
+   "items": [
+    "G-064's insert on",
+    "G-064 insert built but dark"
+   ],
+   "ledger_line": 120,
+   "bucket": "DONE",
+   "status": "DONE — ARMED, 2 of 2 (2026-09-26, lane 9B): NOTEBOOK_ASK_INSERT_ON ARMED on web 2026-09-26 02:47Z, owner-approved, verified by a new boot and /api/auth/me as th",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/ExcerptView.jsx",
+    "app/src/pages/journal-2-0/components/notebook/AskPanel.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/a11y/panels.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/AskPanel.insert.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/AskPanel.navNotice.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/AskPanel.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/AskPanel.touchFocus.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/ExcerptView.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-080",
+   "items": [
+    "Share links on",
+    "Share links built but off"
+   ],
+   "ledger_line": 138,
+   "bucket": "DONE",
+   "status": "ARMED 2026-09-26 18:53Z — J2_SHARE_LINKS_ENABLED=1 on web after wave 8 went live (#198 caf6d1b9e); publish-to-web (NOTEBOOK_PUBLISH_ENABLED) armed 18:56Z. Owner",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "UNLOCATED"
+  },
+  {
+   "row": "G-081",
+   "items": [
+    "Comments on shared notes",
+    "Real-time co-editing and team workspaces"
+   ],
+   "ledger_line": 139,
+   "bucket": "REJECTED",
+   "status": "REJECTED — OUT OF SCOPE by ruling D4 (2026-09-26, lane 9B): \"OUT: real-time multiplayer, comments, team workspaces (G-081)\" (docs/notebook/NOTEBOOK-10-OF-10-PLA",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-085",
+   "items": [
+    "No public API/webhooks"
+   ],
+   "ledger_line": 143,
+   "bucket": "BUILT-DARK",
+   "status": "BUILT, DARK (2026-09-26, lane 9B): the \"small documented personal API on the existing scoped capture tokens\" ruling D4 took IN (docs/notebook/NOTEBOOK-10-OF-10-",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-093",
+   "items": [
+    "Sync connectors read-only"
+   ],
+   "ledger_line": 153,
+   "bucket": "DONE",
+   "status": "DONE (as scoped)",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "UNLOCATED"
+  },
+  {
+   "row": "G-127",
+   "items": [
+    "Semantic retrieval (G-127)",
+    "Semantic search off"
+   ],
+   "ledger_line": 360,
+   "bucket": "BUILT-DARK",
+   "status": "BUILT, DARK — activation BLOCKED on zero data retention (2026-09-26, lane 9B): the semantic leg was built dark in wave 7 lane H (api/services/journal_two/note_s",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-129",
+   "items": [
+    "Syntax highlighting (lowlight)"
+   ],
+   "ledger_line": 413,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/codeBlockNode.js",
+    "app/src/pages/journal-2-0/lib/codeHighlight.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/noRegexLookbehind.test.js",
+    "app/src/pages/journal-2-0/lib/codeBlockNode.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-130",
+   "items": [
+    "Math, inline + block (KaTeX)"
+   ],
+   "ledger_line": 414,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/mathNodes.js",
+    "app/src/pages/journal-2-0/lib/katexRender.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/mathNodes.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-131",
+   "items": [
+    "Text colour + highlight"
+   ],
+   "ledger_line": 415,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/textColor.js",
+    "app/src/pages/journal-2-0/components/notebook/TextColorMenu.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/TextColorMenu.test.jsx",
+    "app/src/pages/journal-2-0/lib/textColor.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-132",
+   "items": [
+    "Callout icon and colour picker",
+    "Callout icon fixed at 💡"
+   ],
+   "ledger_line": 416,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/calloutNode.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/calloutNode.test.js",
+    "app/src/pages/journal-2-0/lib/calloutNode.variant.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-133",
+   "items": [
+    "Image captions + alignment",
+    "Images have no caption/alignment"
+   ],
+   "ledger_line": 417,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/imageFigureNode.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/imageFigureNode.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-134",
+   "items": [
+    "Table UI (add/delete rows and columns, header row, resize, sort)",
+    "Tables are insert-only"
+   ],
+   "ledger_line": 418,
+   "bucket": "PARTIAL",
+   "status": "PARTIAL — add/delete rows and columns and the header row DONE (wave 6); resize and sort not built",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx",
+    "app/src/pages/journal-2-0/lib/tiptap.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/EmojiMenu.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteStats.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/TableToolbar.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/TextColorMenu.test.jsx",
+    "app/src/pages/journal-2-0/lib/askCitation.schemaParity.test.js",
+    "app/src/pages/journal-2-0/lib/askInsertNodes.test.js",
+    "app/src/pages/journal-2-0/lib/blockHandle.test.js",
+    "app/src/pages/journal-2-0/lib/calloutNode.variant.test.js",
+    "app/src/pages/journal-2-0/lib/codeBlockNode.lazyHighlighter.test.js",
+    "app/src/pages/journal-2-0/lib/codeBlockNode.test.js",
+    "app/src/pages/journal-2-0/lib/columnsNode.test.js",
+    "app/src/pages/journal-2-0/lib/dateMentionNode.test.js",
+    "app/src/pages/journal-2-0/lib/dictationInsert.test.js",
+    "app/src/pages/journal-2-0/lib/headingLevels.test.js",
+    "app/src/pages/journal-2-0/lib/imageFigureNode.test.jsx",
+    "app/src/pages/journal-2-0/lib/importer/obsidianParity.contract.test.js",
+    "app/src/pages/journal-2-0/lib/importer/serverConvert.contract.test.js",
+    "app/src/pages/journal-2-0/lib/mathNodes.test.js",
+    "app/src/pages/journal-2-0/lib/noteContentGuard.reason.test.jsx",
+    "app/src/pages/journal-2-0/lib/noteContentGuard.test.jsx",
+    "app/src/pages/journal-2-0/lib/noteFind.schema.test.js",
+    "app/src/pages/journal-2-0/lib/noteFindReplace.test.js",
+    "app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js",
+    "app/src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js",
+    "app/src/pages/journal-2-0/lib/onDocChange.test.js",
+    "app/src/pages/journal-2-0/lib/pasteContainers.newContent.test.js",
+    "app/src/pages/journal-2-0/lib/pasteContainers.test.js",
+    "app/src/pages/journal-2-0/lib/pasteContainers.unit.test.js",
+    "app/src/pages/journal-2-0/lib/plainText.parity.test.js",
+    "app/src/pages/journal-2-0/lib/setContentEmitsUpdate.test.js",
+    "app/src/pages/journal-2-0/lib/tableOfContentsNode.test.js",
+    "app/src/pages/journal-2-0/lib/tableTools.test.js",
+    "app/src/pages/journal-2-0/lib/textColor.test.js",
+    "app/src/pages/journal-2-0/lib/tiptap.import.test.js",
+    "app/src/pages/journal-2-0/lib/tiptap.test.js",
+    "app/src/pages/journal-2-0/lib/webLinks.test.jsx",
+    "app/src/pages/journal-2-0/lib/widgetEmbed.test.jsx",
+    "app/src/pages/journal-2-0/lib/widgetEmbedId.test.js",
+    "app/src/pages/journal-2-0/lib/widgetEmbedInsert.test.jsx",
+    "app/src/pages/journal-2-0/lib/withheldNoteBody.test.jsx",
+    "app/src/pages/journal-2-0/lib/writingHelp.test.js",
+    "app/src/pages/modelbook/builder/UpbRichEditor.unreadable.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-135",
+   "items": [
+    "Drag handles and block reordering"
+   ],
+   "ledger_line": 419,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/blockHandle.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/blockHandle.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-136",
+   "items": [
+    "Table of contents / outline"
+   ],
+   "ledger_line": 420,
+   "bucket": "DONE",
+   "status": "DONE (waves 5–6)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteOutline.jsx",
+    "app/src/pages/journal-2-0/lib/tableOfContentsNode.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx",
+    "app/src/pages/journal-2-0/lib/tableOfContentsNode.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-137",
+   "items": [
+    "Word count + reading time"
+   ],
+   "ledger_line": 421,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/noteStats.js",
+    "app/src/pages/journal-2-0/components/notebook/NoteStats.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/NoteStats.test.jsx",
+    "app/src/pages/journal-2-0/lib/imageFigureNode.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-138",
+   "items": [
+    "Find and replace"
+   ],
+   "ledger_line": 422,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteFindBar.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/NoteFindBar.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-139",
+   "items": [
+    "Emoji picker"
+   ],
+   "ledger_line": 423,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/EmojiMenu.jsx",
+    "app/src/pages/journal-2-0/lib/emojiData.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/EmojiMenu.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-140",
+   "items": [
+    "@date mentions"
+   ],
+   "ledger_line": 424,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/dateMentionNode.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/dateMentionNode.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-141",
+   "items": [
+    "Web embeds + link bookmarks"
+   ],
+   "ledger_line": 425,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/webLinkNodes.js",
+    "app/src/pages/journal-2-0/lib/webEmbeds.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/webLinks.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-142",
+   "items": [
+    "Multi-column layout"
+   ],
+   "ledger_line": 426,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/columnsNode.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/columnsNode.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-143",
+   "items": [
+    "Heading levels H4–H6"
+   ],
+   "ledger_line": 427,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/SlashMenu.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/EmojiMenu.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.imagePickerTarget.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.viewNotMounted.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/SlashMenu.items.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/TableToolbar.test.jsx",
+    "app/src/pages/journal-2-0/lib/calloutNode.variant.test.js",
+    "app/src/pages/journal-2-0/lib/columnsNode.test.js",
+    "app/src/pages/journal-2-0/lib/dictationInsert.test.js",
+    "app/src/pages/journal-2-0/lib/headingLevels.test.js",
+    "app/src/pages/journal-2-0/lib/tableOfContentsNode.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-144",
+   "items": [
+    "An undo/redo control on touch"
+   ],
+   "ledger_line": 428,
+   "bucket": "OPEN",
+   "status": "OPEN — not built",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteFindBar.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/NoteFindBar.test.jsx"
+   ],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-145",
+   "items": [
+    "Quick switcher over all notes"
+   ],
+   "ledger_line": 429,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/noteSwitcher.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/noteSwitcher.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-146",
+   "items": [
+    "Bulk operations"
+   ],
+   "ledger_line": 430,
+   "bucket": "DONE",
+   "status": "DONE (wave 5; formats wave 9, unmerged)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/BulkActionBar.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/a11y/dialogs.a11y.test.jsx",
+    "app/src/pages/journal-2-0/a11y/publishFolder.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/BulkActionBar.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-147",
+   "items": [
+    "Nested tags",
+    "Flat tags"
+   ],
+   "ledger_line": 431,
+   "bucket": "DONE",
+   "status": "DONE (wave 5)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/tagTree.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/tagKey.parity.test.js",
+    "app/src/pages/journal-2-0/lib/tagTree.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-148",
+   "items": [
+    "Unlinked mentions"
+   ],
+   "ledger_line": 432,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/UnlinkedMentions.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/UnlinkedMentions.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-149",
+   "items": [
+    "Timeline view"
+   ],
+   "ledger_line": 433,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteTimelineView.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/NoteTimelineView.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-150",
+   "items": [
+    "Archive state"
+   ],
+   "ledger_line": 434,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/noteArchive.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/noteArchive.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-151",
+   "items": [
+    "Note lock (read-only)"
+   ],
+   "ledger_line": 435,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/lockedNote.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/lockedNote.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-152",
+   "items": [
+    "Split view"
+   ],
+   "ledger_line": 436,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/splitView.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteBacklinksSection.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteLinkView.split.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/RelationPropertyValue.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/UnlinkedMentions.test.jsx",
+    "app/src/pages/journal-2-0/lib/splitView.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.split.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-153",
+   "items": [
+    "Reminders with notifications",
+    "No reminders"
+   ],
+   "ledger_line": 437,
+   "bucket": "DONE",
+   "status": "DONE — LIVE by default (wave 6); the delivered bell notification is unobserved",
+   "files": [
+    "api/services/journal_two/note_tasks.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_journal_two_account_purge.py",
+    "tests/test_journal_two_notes_read_plans.py",
+    "tests/test_note_tasks.py",
+    "tests/test_notebook_inbound_email.py",
+    "tests/test_notebook_personal_api.py",
+    "tests/test_sample_notebook.py"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-154",
+   "items": [
+    "A tasks view across notes",
+    "No tasks view"
+   ],
+   "ledger_line": 438,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteTasksView.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/a11y/dialogs.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteTasksView.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-155",
+   "items": [
+    "Member-made templates",
+    "Member-made templates not built"
+   ],
+   "ledger_line": 439,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/memberTemplates.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 2,
+   "via": [
+    "app/src/pages/journal-2-0/components/notebook/MemberTemplates.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteMenuActions.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.jsx"
+   ],
+   "rails": [
+    "app/src/hub/sections/notebookCursorSelector.test.jsx",
+    "app/src/pages/journal-2-0/a11y/dialogs.a11y.test.jsx",
+    "app/src/pages/journal-2-0/a11y/focusFlows.test.jsx",
+    "app/src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx",
+    "app/src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.menuUnlock.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.noteMenu.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx",
+    "app/src/pages/journal-2-0/lib/offline/blockedNoteSurface.test.jsx",
+    "app/src/pages/journal-2-0/lib/offline/offlineOptInEvent.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.archive.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.boardView.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.calendarView.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.graphView.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.menuUnlock.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.publishFolder.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.savedViewRestore.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.split.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.tagRename.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.tasksView.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.templates.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.timeline.test.jsx",
+    "app/src/pages/journal-2-0/tabs/NotebookTab.tourChunk.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-156",
+   "items": [
+    "A real daily note"
+   ],
+   "ledger_line": 440,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/dailyNote.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/dailyNote.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-157",
+   "items": [
+    "A decision on pages-inside-pages vs folders"
+   ],
+   "ledger_line": 441,
+   "bucket": "REJECTED",
+   "status": "REJECTED — OUT OF SCOPE by ruling D10",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-158",
+   "items": [
+    "Lightweight relations"
+   ],
+   "ledger_line": 442,
+   "bucket": "DONE",
+   "status": "DONE (relations, wave 6); rollups/formulas OUT by ruling D12",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/RelationPropertyValue.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/RelationPropertyValue.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-159",
+   "items": [
+    "Camera scan with OCR"
+   ],
+   "ledger_line": 443,
+   "bucket": "PARTIAL",
+   "status": "PARTIAL — Scan into a note LIVE (wave 7); its OCR half BUILT, DARK behind NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/a11y/focusFlows.test.jsx",
+    "app/src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx",
+    "app/src/pages/journal-2-0/a11y/parts.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/CaptureInboxTray.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.askInsert.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.attachments.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.autofillLock.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.citations.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.cleanReread.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.conflict.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.draft.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.durable.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.exportPending.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.imagePickerTarget.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.interleavings.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.loaderror.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.lockedWrites.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.menuUnlock.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.metadataSettle.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinks.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.noteMenu.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.nullbaseline.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.rails.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.saveerror.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.slowload.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.tags.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.touchHistory.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.unlock.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.unreadable.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.unsentTrash.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.video.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.viewNotMounted.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.wave5.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.waveB.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/NoteLinkedTradeChips.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/doorsThroughTheEditor.property.test.jsx",
+    "app/src/pages/journal-2-0/lib/offline/blockedEntryIsVisible.test.jsx",
+    "app/src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-160",
+   "items": [
+    "OCR for images; text from docx/xlsx"
+   ],
+   "ledger_line": 444,
+   "bucket": "BUILT-DARK",
+   "status": "BUILT, DARK (images + .docx); .xlsx not built",
+   "files": [
+    "api/services/journal_two/document_extraction.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_document_extraction_kinds.py",
+    "tests/test_document_extraction_pdf_budget.py",
+    "tests/test_document_extraction_xlsx.py",
+    "tests/test_document_list_raw_kind.py",
+    "tests/test_document_ocr.py",
+    "tests/test_journal_two_documents_router.py",
+    "tests/test_journal_two_excerpts_router.py",
+    "tests/test_notebook_inbound_email.py",
+    "tests/test_notes_export_formats.py"
+   ],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-161",
+   "items": [
+    "Email-to-notebook"
+   ],
+   "ledger_line": 445,
+   "bucket": "BUILT-DARK",
+   "status": "BUILT, DARK — activation is the owner's DNS + inbound-provider step and a Privacy sentence (docs/notebook/email-in-setup.md)",
+   "files": [
+    "api/services/journal_two/inbound_email.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_notebook_inbound_email.py"
+   ],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-162",
+   "items": [
+    "Dictation in the note editor",
+    "Dictation missing in the editor"
+   ],
+   "ledger_line": 446,
+   "bucket": "DONE",
+   "status": "DONE (wave 7)",
+   "files": [
+    "app/src/pages/journal-2-0/lib/dictationInsert.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/lib/dictationInsert.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-163",
+   "items": [
+    "Cold-start offline",
+    "No cold-start offline"
+   ],
+   "ledger_line": 447,
+   "bucket": "REJECTED",
+   "status": "REJECTED — OUT OF SCOPE by ruling D6",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-164",
+   "items": [
+    "A real-device matrix every release",
+    "Device testing is manual"
+   ],
+   "ledger_line": 448,
+   "bucket": "BLOCKED",
+   "status": "BLOCKED (owner) — a person on a real device every release, or an Automate purchase",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-165",
+   "items": [
+    "Writing help (summarize, rewrite, continue, translate, autofill)",
+    "No summarize/rewrite/continue/translate"
+   ],
+   "ledger_line": 449,
+   "bucket": "PARTIAL",
+   "status": "PARTIAL — four of five actions LIVE (armed 2026-09-26); autofill not built",
+   "files": [
+    "api/services/journal_two/writing_help.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_note_ask_durable_counters.py",
+    "tests/test_notebook_flag_parse.py",
+    "tests/test_notebook_writing_help.py",
+    "tests/test_property_autofill.py",
+    "tests/test_stream_charge_first_delta.py"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-166",
+   "items": [
+    "AI over attachments beyond PDFs",
+    "Non-PDF attachments unsearched"
+   ],
+   "ledger_line": 450,
+   "bucket": "BUILT-DARK",
+   "status": "BUILT, DARK (rides G-160's gate)",
+   "files": [
+    "api/services/journal_two/ask_retrieval.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_ask_document_navigation.py",
+    "tests/test_ask_insert_exclusion.py",
+    "tests/test_ask_note_scope.py",
+    "tests/test_ask_note_scope_reads_captures.py",
+    "tests/test_ask_retrieval.py",
+    "tests/test_ask_retrieval_plans.py",
+    "tests/test_ask_security.py",
+    "tests/test_compass_notes_tool.py",
+    "tests/test_document_ocr.py",
+    "tests/test_evidence_ask_lineage.py",
+    "tests/test_evidence_capture_kind.py",
+    "tests/test_evidence_lifecycle.py",
+    "tests/test_note_citation_text.py",
+    "tests/test_review_recall.py"
+   ],
+   "verdict": "NOT-SHIPPED"
+  },
+  {
+   "row": "G-167",
+   "items": [
+    "Publish-to-web for a note or folder"
+   ],
+   "ledger_line": 451,
+   "bucket": "DONE",
+   "status": "DONE — ARMED (wave 8, 2026-09-26)",
+   "files": [
+    "api/services/journal_two/note_publish.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_journal_two_account_purge.py",
+    "tests/test_note_publish.py",
+    "tests/test_note_publish_purge.py",
+    "tests/test_share_publish_authorization.py"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-168",
+   "items": [
+    "24 Notebook components carry no aria",
+    "No axe tooling; graph has no keyboard movement"
+   ],
+   "ledger_line": 452,
+   "bucket": "PARTIAL",
+   "status": "PARTIAL — machine rails DONE (wave 8); the screen-reader passes (owner) and the independent second review (ruling D-9B2) not yet run; three contrast rulings ope",
+   "files": [],
+   "cited_missing": [],
+   "rail_depth": null,
+   "via": [],
+   "rails": [],
+   "verdict": "UNLOCATED"
+  },
+  {
+   "row": "G-169",
+   "items": [
+    "Export is markdown zip + single note + PNG/print only"
+   ],
+   "ledger_line": 453,
+   "bucket": "DONE",
+   "status": "DONE (wave 8; PDF by Print)",
+   "files": [
+    "api/services/journal_two/notes_export_formats.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "tests/test_journal_two_notes_batch_router.py",
+    "tests/test_notebook_export_router.py",
+    "tests/test_notes_export_formats.py"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-170",
+   "items": [
+    "No frontend error reporting; telemetry gaps"
+   ],
+   "ledger_line": 454,
+   "bucket": "DONE",
+   "status": "DONE (wave 6)",
+   "files": [
+    "app/src/lib/errorBeacon.js",
+    "api/routers/journal_two.py"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/components/ErrorBoundary.beacon.test.jsx",
+    "app/src/lib/errorBeacon.test.js",
+    "tests/test_ask_security.py",
+    "tests/test_document_list_kind.py",
+    "tests/test_document_list_raw_kind.py",
+    "tests/test_document_ocr.py",
+    "tests/test_j2_telemetry_allowlist.py",
+    "tests/test_journal_two_compass_router.py",
+    "tests/test_journal_two_daily_note_router.py",
+    "tests/test_journal_two_documents_router.py",
+    "tests/test_journal_two_excerpts_router.py",
+    "tests/test_journal_two_facts_router.py",
+    "tests/test_journal_two_home_and_research_router.py",
+    "tests/test_journal_two_nested_tags_router.py",
+    "tests/test_journal_two_note_graph_router.py",
+    "tests/test_journal_two_note_links_router.py",
+    "tests/test_journal_two_note_tags_patch_router.py",
+    "tests/test_journal_two_note_templates_router.py",
+    "tests/test_journal_two_notes_archive_router.py",
+    "tests/test_journal_two_notes_batch_router.py",
+    "tests/test_journal_two_notes_favorites_recents_router.py",
+    "tests/test_journal_two_notes_list_and_count.py",
+    "tests/test_journal_two_notes_lock_router.py",
+    "tests/test_journal_two_notes_search_router.py",
+    "tests/test_journal_two_notes_switcher_router.py",
+    "tests/test_journal_two_notes_versions_router.py",
+    "tests/test_journal_two_positions_attention.py",
+    "tests/test_journal_two_properties_router.py",
+    "tests/test_journal_two_relation_property_router.py",
+    "tests/test_journal_two_share_router.py",
+    "tests/test_journal_two_tag_counts_combined.py",
+    "tests/test_journal_two_tag_rename_router.py",
+    "tests/test_journal_two_thesis_router.py",
+    "tests/test_note_ask.py",
+    "tests/test_note_read_side_depth.py",
+    "tests/test_note_semantic.py",
+    "tests/test_note_semantic_meaning_optin.py",
+    "tests/test_note_semantic_search_bounds.py",
+    "tests/test_notebook_export_router.py",
+    "tests/test_notebook_insights_router.py",
+    "tests/test_notebook_schema_guard.py",
+    "tests/test_notebook_share_routes.py",
+    "tests/test_notebook_slo.py",
+    "tests/test_notebook_table_colwidth.py",
+    "tests/test_notebook_telemetry_events.py",
+    "tests/test_notes_body_depth_cap.py",
+    "tests/test_notes_unbuildable_body_refused.py",
+    "tests/test_plain_text_parity.py",
+    "tests/test_stream_charge_first_delta.py",
+    "tests/test_thesis_reviews_router.py"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-171",
+   "items": [
+    "First-run: tour + sample notebook"
+   ],
+   "ledger_line": 455,
+   "bucket": "DONE",
+   "status": "DONE — ARMED (wave 8, 2026-09-26)",
+   "files": [
+    "app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/journal-2-0/components/notebook/ResearchHome.a11y.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/ResearchHome.sample.test.jsx",
+    "app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.test.js"
+   ],
+   "verdict": "RAILED"
+  },
+  {
+   "row": "G-172",
+   "items": [
+    "No Notebook help articles"
+   ],
+   "ledger_line": 456,
+   "bucket": "DONE",
+   "status": "DONE (wave 8)",
+   "files": [
+    "app/src/pages/Support.jsx"
+   ],
+   "cited_missing": [],
+   "rail_depth": 1,
+   "rails": [
+    "app/src/pages/Support.a11y.test.jsx",
+    "app/src/pages/Support.notebook.test.jsx"
+   ],
+   "verdict": "RAILED"
+  }
+ ],
+ "counts": {
+  "RAILED": 38,
+  "NOT-SHIPPED": 11,
+  "UNLOCATED": 3
+ },
+ "sources": {
+  "inventory": "docs/notebook/parity-scorecard.md",
+  "ledger": "docs/notebook/competitive-gap-ledger.md",
+  "status_buckets": "tools/gap_ledger_summary.py"
+ },
+ "index_modules": 2393
+}

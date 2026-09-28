@@ -1,0 +1,42 @@
+{
+ "hide-scrollbars (Playwright default)": {
+  "a": {
+   "sb": 0,
+   "sw": "auto"
+  },
+  "b": {
+   "sb": 0,
+   "sw": "thin"
+  }
+ },
+ "hide-scrollbars (Playwright default) / control, no global rule": {
+  "a": {
+   "sb": 0,
+   "sw": "auto"
+  },
+  "b": {
+   "sb": 0,
+   "sw": "auto"
+  }
+ },
+ "scrollbars shown": {
+  "a": {
+   "sb": 15,
+   "sw": "auto"
+  },
+  "b": {
+   "sb": 10,
+   "sw": "thin"
+  }
+ },
+ "scrollbars shown / control, no global rule": {
+  "a": {
+   "sb": 15,
+   "sw": "auto"
+  },
+  "b": {
+   "sb": 15,
+   "sw": "auto"
+  }
+ }
+}

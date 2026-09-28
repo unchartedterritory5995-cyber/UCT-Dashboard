@@ -1,0 +1,9 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\notebook\proof\walk-fd7d1f42d\integrity.md
+
+Recorded by hand with the harness's own reader (tools/notebook_perf_harness.read_integrity + integrity_line),
+because the walk's `finally` never ran: at 19:29:29 CDT the controller's time-box stop ended the walk's
+Playwright driver (timebox-stop.log) as the silent sweep began, the walk then hung in Playwright teardown,
+so at 19:47:40 the launcher was sent CTRL_BREAK by hand -- the same signal Sandbox.stop() sends -- and
+wrote its shutdown checkpoint at 19:47:46; the hung walk process was then force-ended. run.json is the
+walk's own last dump (19:29:29) and is not edited.
+stop: graceful to the shutdown checkpoint (CTRL_BREAK delivered by hand), walk process forced after

@@ -19,6 +19,10 @@ import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
+import useNoteFacts from '../../hooks/useNoteFacts'
+import useThesisSummary from '../../hooks/useThesisSummary'
+import useEvidenceCandidates from '../../hooks/useEvidenceCandidates'
+import LoadFailed, { SaveFailed } from '../LoadFailed'
 import { useJ2Note, setNoteFavorite, recordNoteOpened } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import ConfirmModal from '../ConfirmModal'
@@ -342,8 +346,13 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   )
 }
 
+// ⛔ Wave 10 F7 (Part A, 5d): a failed read THROWS. It used to answer `{ links: [] }` on any
+// non-OK status, so a 500 read as "this note links no trade" -- a statement, not a failure.
 const _tradeLinksFetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { links: [] }))
+  fetch(url, { credentials: 'include' }).then((r) => {
+    if (!r.ok) throw new Error(String(r.status))
+    return r.json()
+  })
 
 // Wave 3 (Thesis-Trade Link): renders this note's linked trade/strategy as
 // clickable chips. Resolution comes ENTIRELY from the server
@@ -353,12 +362,15 @@ const _tradeLinksFetcher = (url) =>
 // than navigating to a possibly-wrong object.
 export function NoteLinkedTradeChips({ noteId }) {
   const navigate = useNavigate()
-  const { data } = useSWR(
+  const { data, error, mutate } = useSWR(
     noteId ? `/api/j2/notes/${noteId}/trade-ref/resolve` : null,
     _tradeLinksFetcher,
-    { revalidateOnFocus: false, dedupingInterval: 15000 },
+    { revalidateOnFocus: false, dedupingInterval: 15000, shouldRetryOnError: false },
   )
   const links = data?.links || []
+  if (error && !links.length) {
+    return <LoadFailed compact what="this note's linked trades" error={error} onRetry={() => mutate()} />
+  }
   if (!links.length) return null
 
   return (
@@ -448,12 +460,28 @@ export function NoteLinkedTradeChips({ noteId }) {
  * (docs/notebook/perf-budgets.md §7). Railed by NoteEditorPage.toolbarIdentity.test.jsx
  * (a button keeps its DOM node across a re-render) and lib/nestedComponents.test.js.
  */
+/*
+ * ⛔⛔ G-160 (F4 amendment, found by lane 10E-1's path census): IT ACTS ON THE KEYBOARD TOO.
+ * The action ran on `mousedown` only -- `preventDefault` there keeps the editor's selection,
+ * which a click's focus change would drop -- so Enter and Space, which fire `click` and never
+ * `mousedown`, did nothing: "Attach a file", "Insert link", "Insert image", Bold and the rest
+ * were dead to a keyboard member (WCAG 2.1.1). Now `click` runs the action too, and a pointer
+ * press never runs it twice: the `mousedown` that ran it marks the press, and the `click` that
+ * follows is swallowed. A key pressed on the button clears that mark first, so a keyboard
+ * activation always acts. Rail: NoteEditorPage.toolButtonKeyboard.test.jsx.
+ */
 function ToolButton({ active, onClick, label, title }) {
+  const ranOnPressRef = useRef(false)
   return (
     <button
       type="button"
       className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
-      onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      onMouseDown={(e) => { e.preventDefault(); ranOnPressRef.current = true; onClick() }}
+      onKeyDown={() => { ranOnPressRef.current = false }}
+      onClick={() => {
+        if (ranOnPressRef.current) { ranOnPressRef.current = false; return }
+        onClick()
+      }}
       title={title}
       aria-label={title}
     >{label}</button>
@@ -600,6 +628,16 @@ export default function NoteEditorPage({
     editor?.commands.focus()
   }
 
+  // ⛔ Wave 10 F7 (Part A, 5d): a write that did not land is SAID, and the sentence stays until
+  // dismissed or the next attempt OF THAT SAME WRITE lands (SaveFailed). The star was reverted
+  // before, silently.
+  // ⛔ F7 fix round 1 (review I2): ONE SLOT PER WRITE PATH. A single shared slot let a
+  // successful favorite toggle erase an unresolved "Couldn't add that tag" while the field
+  // still held the unsaved tag. A success clears only its own path's sentence; both can show.
+  // Rail: a11y/silentFailures.test.jsx ("one write's success never erases the other's failure").
+  const [favoriteFailure, setFavoriteFailure] = useState(null)
+  const [tagWriteFailure, setTagWriteFailure] = useState(null)
+  useEffect(() => { setFavoriteFailure(null); setTagWriteFailure(null) }, [noteId])
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
     const next = !isFavorite
@@ -607,8 +645,12 @@ export default function NoteEditorPage({
     setFavoriteBusy(true)
     try {
       await setNoteFavorite(noteId, next)
+      setFavoriteFailure(null)
     } catch {
       setIsFavorite(!next) // revert -- never diverge silently from the server
+      setFavoriteFailure(next
+        ? "Couldn't add this note to Favorites. Nothing changed."
+        : "Couldn't remove this note from Favorites. Nothing changed.")
     } finally {
       setFavoriteBusy(false)
     }
@@ -1250,8 +1292,14 @@ export default function NoteEditorPage({
   // Wave N §9 — a captured web passage is revisited AS a captured passage,
   // never as a document. See CapturedSourceSheet for what that means.
   const [capturedSource, setCapturedSource] = useState(null)
-  const { documents: noteDocuments, refresh: refreshDocuments } = useNoteDocuments(noteId)
-  const { excerpts: noteExcerpts, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
+  const { documents: noteDocuments, error: documentsError, refresh: refreshDocuments } = useNoteDocuments(noteId)
+  const { excerpts: noteExcerpts, error: excerptsError, refresh: refreshExcerpts } = useNoteExcerpts(noteId)
+  // ⛔ Wave 10 F7 (Part A, 5d): the side reads of an open note, asked here for their ERRORS --
+  // the same SWR keys ThesisSection and the fact nodes read, so no request is added. A failed
+  // one used to leave its panel empty, which reads as "this note has none".
+  const { error: factsError, refresh: refreshFacts } = useNoteFacts(noteId)
+  const { error: candidatesError, refresh: refreshCandidates } = useEvidenceCandidates(noteId)
+  const { error: thesisError, refresh: refreshThesis } = useThesisSummary(noteId)
 
   // Wave J: opens the preview Sheet for a document_excerpt evidence row in
   // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
@@ -2775,6 +2823,12 @@ export default function NoteEditorPage({
   // request wrote it, null otherwise -- so a no-op answered at another
   // writer's revision is never recorded as ours below.
   const [tagsBusy, setTagsBusy] = useState(false)
+  // ⛔ Wave 10 F7 (Part A, 5d): a failed tag write said so in the 2.4 s chrome message, gone by
+  // the time a member looked back -- the proof walk read it SILENT at 6 s. It is a SaveFailed
+  // sentence now, and the answer (false) lets the field give the typed tag back.
+  const tagFailure = (delta) => (delta?.add?.length
+    ? "Couldn't add that tag. Nothing changed."
+    : "Couldn't remove that tag. Nothing changed.")
   const applyTagDelta = async (delta) => {
     // (One change at a time: the field is `busy` -- disabled -- until this settles.)
     setTagsBusy(true)
@@ -2786,18 +2840,21 @@ export default function NoteEditorPage({
         const body = await res.json()
         serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
       } catch {
-        setChromeMsg("Couldn't update tags — try again")
-        return
+        setTagWriteFailure(tagFailure(delta))
+        return false
       }
       const next = mergeTagDelta(serverTags, delta)
       // ⛔ M14 (wave 6 fix round 1): nothing to send -- but the server's list
       // differs from the chips on screen (they did not show the tag the member
       // just added), so re-read the note and let the chips catch up.
-      if (sameTagList(next, serverTags)) { refresh?.(); return }
+      if (sameTagList(next, serverTags)) { refresh?.(); setTagWriteFailure(null); return true }
       await settleMetadataRevision(await patchTags(delta))
       refreshTagNodes()
+      setTagWriteFailure(null)
+      return true
     } catch {
-      setChromeMsg("Couldn't update tags — try again")
+      setTagWriteFailure(tagFailure(delta))
+      return false
     } finally {
       setTagsBusy(false)
     }
@@ -3294,6 +3351,8 @@ export default function NoteEditorPage({
             onAdd={(tag) => applyTagDelta({ add: [tag] })}
             onRemove={(tag) => applyTagDelta({ remove: [tag] })}
           />
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
           <button
             type="button"
             className={styles.chromeBtn}
@@ -3550,10 +3609,13 @@ export default function NoteEditorPage({
                 "Dictate" starts the same mic). Paid members only — the mic
                 renders nothing for anyone else, and is not even loaded.
                 `holdOnFailure` (review I-4): a failed transcription keeps the
-                member's recording and says why, never a silent drop. */}
+                member's recording and says why, never a silent drop.
+                `hintInFlow` (wave 10 follow-up F5): the first-run hint takes its
+                own place in this wrapping row instead of hanging over the tag
+                input (1200 px) and the formatting row (820 / 390 px). */}
             {isPaid === true && (
               <Suspense fallback={null}>
-                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure />
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow />
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
@@ -3733,6 +3795,14 @@ export default function NoteEditorPage({
             NOTHING when every document's text is complete — the common case
             gets no chrome. */}
         <DocumentTextStatus documents={noteDocuments} />
+        {/* Wave 10 F7 (Part A, 5d): ONE sentence for the note's side reads that failed. */}
+        <LoadFailed compact failures={[
+          { what: "this note's attachments", error: documentsError, retry: refreshDocuments },
+          { what: "this note's saved passages", error: excerptsError, retry: refreshExcerpts },
+          { what: "this note's captured facts", error: factsError, retry: refreshFacts },
+          { what: "this note's evidence sources", error: candidatesError, retry: refreshCandidates },
+          { what: "this note's thesis evidence", error: thesisError, retry: refreshThesis },
+        ]} />
 
         {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
             body (checkpoint §39); renders nothing for a note that isn't

@@ -1,0 +1,1 @@
+3f31af20c6ca5b0d6de96e535edc77299357a403ab39dd5e12ed47690e58dcf0  geometry.json (the raw record, 5,765,958 bytes; stored gzipped as geometry.json.gz because the repo's 5 MB hygiene limit refuses the plain file -- `python -c "import gzip;open('geometry.json','wb').write(gzip.decompress(open('geometry.json.gz','rb').read()))"` restores it byte-for-byte)

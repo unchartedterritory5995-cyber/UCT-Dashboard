@@ -59,7 +59,7 @@ export default function SharedNotePage() {
     // not) say which.
     return (
       <div className={styles.page}>
-        <PublicPageMeta />
+        <PublicPageMeta title="This link is no longer available" />
         <main className={styles.centered} data-testid="shared-note-gone">
           <h1 className={styles.goneTitle}>This link is no longer available.</h1>
           <p className={styles.goneWhy}>It may have expired, or the note may have been unshared or removed.</p>
@@ -69,7 +69,7 @@ export default function SharedNotePage() {
   }
   return (
     <div className={styles.page} data-testid="shared-note">
-      <PublicPageMeta />
+      <PublicPageMeta title={state.note.title || 'Untitled'} />
       <main>
         <ReadOnlyNote note={state.note} />
       </main>

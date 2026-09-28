@@ -12,6 +12,7 @@ import { render, screen, cleanup, within } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 import { PUBLISHED_PATH, PUBLISHED_ROUTE, PUBLISHED_NOTE_ROUTE } from './lib/notePublishLink'
+import { APP_BRAND } from '../../surfaces/brand.js'
 
 const App = (await import('../../App')).default
 
@@ -71,6 +72,8 @@ describe('🔴 a published page renders what the server published, to a signed-o
     expect(page).toHaveTextContent('Published with UCT Intelligence — Navigate the market, effectively.')
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, nofollow')
     expect(document.head.querySelector('meta[name="referrer"]')?.getAttribute('content')).toBe('no-referrer')
+    // F4 / A2R-09 (WCAG 2.4.2): the tab names the note, not the marketing site
+    expect(document.title).toBe(`A published note — ${APP_BRAND}`)
   }, 40000)
 
   it('a published folder: its name and its notes, each linking to its page by pid', async () => {
@@ -82,6 +85,7 @@ describe('🔴 a published page renders what the server published, to a signed-o
     expect(within(list).getByRole('link', { name: 'Week 38 plan' })).toHaveAttribute('href', `${PUBLISHED_PATH}/folderpage/n/pidOne`)
     expect(within(list).getByRole('link', { name: 'Week 39 plan' })).toHaveAttribute('href', `${PUBLISHED_PATH}/folderpage/n/pidTwo`)
     expect(page).toHaveTextContent('Updated Sep 20, 2026')
+    expect(document.title).toBe(`Weekly plans — ${APP_BRAND}`)
   }, 40000)
 
   it('a note of a published folder: its folder link back, and no YouTube hero', async () => {
@@ -91,6 +95,7 @@ describe('🔴 a published page renders what the server published, to a signed-o
     expect(screen.getByRole('link', { name: '← Weekly plans' })).toHaveAttribute('href', '/p/folderpage')
     expect(page).toHaveTextContent('Week 38 plan')
     expect(page.querySelector('img[src*="youtu"]')).toBeNull()
+    expect(document.title).toBe(`Week 38 plan — ${APP_BRAND}`)
   }, 40000)
 
   it('a dead page says so, and still tells a crawler not to index it', async () => {
@@ -100,6 +105,7 @@ describe('🔴 a published page renders what the server published, to a signed-o
     expect(gone).toHaveTextContent('This page is no longer available.')
     expect(gone).toHaveTextContent('It may have expired, or been unpublished or removed.')
     expect(document.head.querySelector('meta[name="robots"]')?.getAttribute('content')).toBe('noindex, nofollow')
+    expect(document.title).toBe(`This page is no longer available — ${APP_BRAND}`)
   }, 40000)
 })
 
