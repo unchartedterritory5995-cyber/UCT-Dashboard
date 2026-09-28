@@ -211,6 +211,17 @@ SILENT_EXEMPT = {
         "viewing' rule). When it fails the note has already opened and nothing on screen changes; "
         "the only effect is that the Recents list does not move this note up until a later open "
         "lands. Telling the member would report a failure of something they did not ask for."),
+    # F7 fix round 1 (review I1). Only the "All Accounts" state reads SILENT: there the header
+    # pill carries NO comparison value (no balance is drawn, loaded or not), so nothing on the
+    # pill is withheld; with one account selected the pill says "balance didn't load" and the
+    # row reads SENTENCE, which an exemption never hides.
+    ("GET", "/api/j2/accounts/comparison"): (
+        "the current-balance comparison under All Accounts: the header pill shows no balance in "
+        "that state whether the read succeeds or fails, so the failure is said where the "
+        "comparison lives, in the opened account menu (AccountSelector's LoadFailed line, "
+        "\"Couldn't load your current balances.\"). The walk does not open that menu. Proved by "
+        "app/src/pages/journal-2-0/a11y/silentFailures.test.jsx, 'the account comparison under "
+        "\"All Accounts\" is said in the menu, where it lives'."),
 }
 
 

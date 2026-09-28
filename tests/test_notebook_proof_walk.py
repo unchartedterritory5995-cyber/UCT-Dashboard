@@ -274,8 +274,10 @@ def test_an_exemption_never_hides_a_sentence_and_is_not_a_finding():
     assert W.findings_count("silent", out) == 1
 
 
-def test_the_exemption_list_is_the_recents_touch_only_and_its_reason_names_real_code():
-    assert set(W.SILENT_EXEMPT) == {("POST", "/api/j2/notes/{id}/opened")}
+def test_the_exemption_list_is_exactly_the_declared_two_and_each_reason_names_real_code():
+    # F7: the recents touch; F7 fix round 1 (review I1): the comparison under "All Accounts".
+    assert set(W.SILENT_EXEMPT) == {("POST", "/api/j2/notes/{id}/opened"),
+                                    ("GET", "/api/j2/accounts/comparison")}
     for reason in W.SILENT_EXEMPT.values():
         assert len(reason) > 80, "an exemption needs a reason a reviewer can check"
     js = (REPO / "app/src/pages/journal-2-0/hooks/useJ2Notes.js").read_text(encoding="utf-8")
@@ -293,3 +295,21 @@ def test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site():
     src = inspect.getsource(W._forced)
     assert "exempt_verdict(row, methods[0], ep)" in src
     assert src.index("judge_failure(") < src.index("exempt_verdict(") < src.index('row["verdict"] = "NOT-TRIGGERED"')
+
+
+def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sentence():
+    # F7 fix round 1 (review I1). The reason is a claim ("the menu says it; this rail proves it"),
+    # so both halves are checked against the files it names: the rail file exists and carries the
+    # quoted describe title, the rail asserts the sentence, and AccountSelector says that sentence
+    # through the shared element inside its menu. A reason pointing at a rail that is gone reds here.
+    reason = W.SILENT_EXEMPT[("GET", "/api/j2/accounts/comparison")]
+    m = re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", reason)
+    assert m, reason
+    rail = (REPO / m.group(1)).read_text(encoding="utf-8")
+    assert f"describe('{m.group(2)}'" in rail
+    assert "Couldn't load your current balances." in rail
+    sel = (REPO / "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx").read_text(encoding="utf-8")
+    menu = sel[sel.index("{open && ("):]
+    assert "what: 'your current balances', error: comparisonError" in menu[:menu.index("accounts.map")]
+    # CONTROL: the parser finds nothing in a reason that names no rail
+    assert re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", W.SILENT_EXEMPT[("POST", "/api/j2/notes/{id}/opened")]) is None

@@ -8,13 +8,14 @@
 // was put back without a word) -- and panels that rendered EMPTY when their read failed. These
 // rails render the REAL NoteEditorPage and the REAL FolderSidebar with only the network faked
 // (fixtures.jsx), fail one request, and assert the sentence a member reads.
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers, NOTES, noteDetail } from './fixtures'
 import NoteEditorPage, { NoteLinkedTradeChips } from '../components/notebook/NoteEditorPage'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteBacklinksSection from '../components/notebook/NoteBacklinksSection'
 import NoteGraphView from '../components/notebook/NoteGraphView'
+import AccountSelector from '../components/accounts/AccountSelector'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
@@ -219,3 +220,51 @@ describe("one write's success never erases the other write's failure", () => {
   }, 15_000)
 })
 
+// ⛔ F7 fix round 1 (review I1): GET /api/j2/accounts/comparison under "All Accounts". The pill
+// carries NO comparison value in that state (no balance is drawn there, loaded or not), so the
+// failure is said where the comparison lives: in the opened account menu. The walk declares the
+// endpoint in SILENT_EXEMPT with this rail as its proof (tools/notebook_proof_walk.py).
+describe('the account comparison under "All Accounts" is said in the menu, where it lives', () => {
+  const ACCOUNTS = { accounts: [
+    { id: 'a1', name: 'Main', color: 'gold', startingBalance: 1000 },
+    { id: 'a2', name: 'IRA', color: 'blue', startingBalance: 2000 },
+  ] }
+  const SENTENCE = "Couldn't load your current balances."
+  const renderSelector = () => render(<Providers><AccountSelector onNewAccount={() => {}} /></Providers>)
+  const pill = () => screen.getByRole('button', { name: /All Accounts/ })
+
+  beforeEach(() => { localStorage.setItem('uct.j2.selectedAccountId', '_all_') })
+  afterEach(() => { localStorage.removeItem('uct.j2.selectedAccountId') })
+
+  it('a failed comparison read with All Accounts selected puts the sentence in the opened menu', async () => {
+    const spy = installFetch([
+      [/^\/api\/j2\/accounts\/comparison$/, FAIL],
+      [/^\/api\/j2\/accounts$/, ACCOUNTS],
+    ])
+    renderSelector()
+    await waitFor(() => expect(spy.mock.calls.some(([u]) => String(u).includes('/accounts/comparison'))).toBe(true))
+    await settle(40)
+    // the pill shows the aggregate and NO balance, loaded or not: nothing is withheld there
+    expect(pill()).toHaveTextContent('All Accounts')
+    expect(pill().textContent).not.toMatch(/\$|balance/i)
+    fireEvent.click(pill())
+    const menu = await screen.findByRole('listbox')
+    expect(within(menu).getByText(SENTENCE)).toBeInTheDocument()
+    expect(within(menu).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('zqproofraw')
+  })
+
+  it('CONTROL: a healthy comparison read puts no sentence in the menu', async () => {
+    installFetch([
+      [/^\/api\/j2\/accounts\/comparison$/, { accounts: [{ id: 'a1', currentBalance: 1100 }, { id: 'a2', currentBalance: 2100 }] }],
+      [/^\/api\/j2\/accounts$/, ACCOUNTS],
+    ])
+    renderSelector()
+    await settle(60)
+    fireEvent.click(pill())
+    const menu = await screen.findByRole('listbox')
+    await settle(40)
+    expect(within(menu).queryByText(SENTENCE)).toBeNull()
+    expect(within(menu).queryByRole('status')).toBeNull()
+  })
+})
