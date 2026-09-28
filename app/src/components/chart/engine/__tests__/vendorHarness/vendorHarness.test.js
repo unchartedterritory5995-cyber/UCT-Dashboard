@@ -255,6 +255,31 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(cap.objects.unreadable).toEqual(['linefills'])   // absent accessor is NAMED, not zero
     vh.cleanup()
   })
+
+  it('an OBJECTS-ONLY study (no declared plots, no rows) captures its drawings; a study WITH plots and no rows is still refused', () => {
+    const byId = (recs) => ({ _primitivesDataById: new Map(recs.map((r, i) => [i, r])) })
+    const g = { dwglines: () => new Map([['a', new Map([['f', byId([{ id: 1 }])]])]]) }
+    const objectsOnly = mkStudy({ mi: { ...mkStudy().mi, plots: [], styles: {}, palettes: {}, defaults: {} }, rows: [], graphics: g })
+    let vh = install({ studies: [objectsOnly], bars: BARS })
+    const sum = vh.capture({ study: 'UCTVH', source: SRC })
+    const cap = JSON.parse(Array.from({ length: sum.chunks }, (_, i) => vh.chunk(i).text).join(''))
+    expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+    expect(cap.plotValues.rows).toEqual([])
+    expect(cap.plotValues.fields).toEqual(['time'])
+    expect(cap.objects.counts.lines).toBe(1)
+    expect(cap.warnings.join(' ')).toMatch(/objects-only study/)
+    // ⛔ CONTROL (schema): zero plots WITHOUT an objects block is still not a capture.
+    const { receipt, ...noReceipt } = cap
+    const stripped = { ...noReceipt, objects: null }
+    const t0 = JSON.stringify(stripped)
+    const resealed = { ...stripped, receipt: { ...receipt, chars: t0.length, fnv1a: fnv1a(t0) } }
+    expect(validateCapture(resealed).errors).toContain('study.plots must list the metaInfo plots in order')
+    vh.cleanup()
+    // ⛔ CONTROL: the same empty rows under a study that DECLARES plots is not a capture.
+    vh = install({ studies: [mkStudy({ rows: [] })], bars: BARS })
+    expect(() => vh.capture({ study: 'UCTVH', source: SRC })).toThrow(/no rows on the bar grid/)
+    vh.cleanup()
+  })
 })
 
 // ═════════════════════════════════════════════════════════════════════════════

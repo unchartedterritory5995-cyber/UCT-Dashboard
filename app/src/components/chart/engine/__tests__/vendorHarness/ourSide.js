@@ -204,6 +204,33 @@ function objectsOf(def, bars, ctx) {
 }
 
 /**
+ * The two doors a member's paste passes through, and nothing else: the builder
+ * (`memberPaneDefinition`, MemberPane.jsx's own call) and the install door
+ * (`installUserDefinitions`, which re-validates and can refuse what the builder
+ * accepted). `def` is the installed definition, or null with the door's own
+ * sentence in `refusal`.
+ *
+ * ⛔ ONE AUTHORITY FOR "CAN THE MEMBER DOOR BUILD THIS". `runOurSide` below and
+ * the vendor-batch manifest census (`memberDoorCensus.measure.test.js`) both
+ * call this, so the batch never targets a script the grader would then refuse
+ * for a reason the census did not see.
+ *
+ * ⚠️ On any path that reached the install door, the caller owns the uninstall
+ * (`registry.uninstallUserDefinition(HARNESS_DEF_ID)`).
+ */
+export function enterMemberDoor(source) {
+  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  if (!built.ok) {
+    return { built, def: null, stage: 'builder', refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}` }
+  }
+  const { installed, errors } = registry.installUserDefinitions([built.definition])
+  if (!installed.length) {
+    return { built, def: null, stage: 'install', refusal: `install door refused: ${errors.join(' | ')}` }
+  }
+  return { built, def: installed[0], stage: null, refusal: null }
+}
+
+/**
  * Run the member door on the capture's bars.
  *
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
@@ -212,16 +239,16 @@ function objectsOf(def, bars, ctx) {
 export function runOurSide(capture) {
   const notes = []
   const source = capture && capture.source && capture.source.text
-  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  const door = enterMemberDoor(source)
+  const built = door.built
   if (!built.ok) {
-    return { ok: false, refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}`, plots: [], notes }
+    return { ok: false, refusal: door.refusal, plots: [], notes }
   }
-  const { installed, errors } = registry.installUserDefinitions([built.definition])
   try {
-    if (!installed.length) {
-      return { ok: false, refusal: `install door refused: ${errors.join(' | ')}`, plots: [], notes }
+    if (!door.def) {
+      return { ok: false, refusal: door.refusal, plots: [], notes }
     }
-    const def = installed[0]
+    const def = door.def
     const bars = toProductBars(capture)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
