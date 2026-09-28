@@ -9,6 +9,11 @@ watch paths set in the Railway service settings (never railway.json — that fil
 # on the watch list below, so a fix to them ships inert here unless a watched
 # file moves in the same commit. `tools/flow_worker_watch_coverage.py` failed
 # the diff and named them; this touch is the fix the rail prescribes.
+# 2026-09-28 - deploy trigger. The Terminal build night changed nine modules
+# this worker reaches but does not watch (auth_surface_check, flow_proxy,
+# open_reads_gate, chart_health_alerts, earnings_estimates, liveflow_monitor,
+# massive, massive_adapter, reference_corp_actions). Same fix as above: move a
+# watched file in the deploying push, which restarts the tape - ship off-hours.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
 flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
