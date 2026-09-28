@@ -99,6 +99,12 @@ CONVERTED = {
     # literal `DISCORD_WEBHOOK_URL` read and converted at the Notebook's L1b integration,
     # so it never shipped as a literal reader (it would have broken the pinned roster below).
     "api/services/journal_two/notebook_slo.py",
+    # TERM-011 step 5, 2026-09-27 — the OPS member of D7's nine, converted to the shared
+    # resolver rather than its own dedicated variable because it is the OUTAGE ORACLE and
+    # must not fail closed. `_post_discord` and the `start_liveflow_monitor` gate both ask
+    # `ops_webhook()` at call time; `LIVEFLOW_ALERT_WEBHOOK_URL` is dropped (measured absent
+    # on the worker service). See its tombstone below for the removed STILL_LITERAL entry.
+    "api/services/liveflow_monitor.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -135,7 +141,18 @@ STILL_LITERAL = {
     # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5 (partner-owned, minimal
     #    footprint: one module-level constant became one call-time function, two call sites
     #    touched, nothing else in the file moved). No DISCORD_WEBHOOK_URL fallback remains.
-    "api/liveflow_worker.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5. `liveflow_worker.py` reads
+    #    WEBHOOK_ENV="DISCORD_LIVE_FLOW_WEBHOOK_URL" at call time (six internal sites plus
+    #    three external readers in api/liveflow_router.py, all via webhook_url()); zero
+    #    DISCORD_WEBHOOK_URL reads remain anywhere in the chain.
+    #    ⚠️ RESOLVED 2026-09-27 (integrator): a concurrent lane flagged the tombstone
+    #    IMMEDIATELY ABOVE (starting "CONVERTED BY STEP 5 (partner-owned...") as possibly
+    #    misplaced, since it sits beside this file rather than the one it describes. It is
+    #    NOT misplaced: it is api/live_massive_router.py's own tombstone (integrator-authored,
+    #    same commit), and it is textually adjacent to this one only because that file's
+    #    STILL_LITERAL key preceded this file's key in the ORIGINAL dict order -- removing
+    #    both keys left their two comment blocks sitting back to back. Confirmed by the
+    #    author of that comment; no text moved.
     # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5. OI_MORNING_WEBHOOK_URL is the
     #    named variable; DISCORD_WEBHOOK_URL is no longer in the chain at all.
     # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, BOTH FUNCTIONS.
@@ -143,12 +160,13 @@ STILL_LITERAL = {
     #    falling through to `_webhook()`) both dropped the DISCORD_WEBHOOK_URL tail. ⚠️ This is the
     #    poster the decision packet flags as hardest to notice silent -- run_weekly_cron fires
     #    once a WEEK, so its log line is the substitute for a notice nobody otherwise gets.
-    # ⚠️ The ops member of D7's nine, and it is STILL step 5's, not step 3's. Its
-    #    read is `LIVEFLOW_ALERT_WEBHOOK_URL or DISCORD_WEBHOOK_URL` captured at
-    #    MODULE IMPORT, so converting it is two decisions at once — where the
-    #    class's variable sits in an existing chain, and whether to fix the
-    #    import-time capture — not the single-read conversion step 3 is scoped to.
-    "api/services/liveflow_monitor.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, TO ops_webhook() (STEP 3/6's shape),
+    #    NOT its own dedicated fail-closed variable. This is the OPS member of D7's nine and
+    #    the OUTAGE ORACLE: it must NOT fail closed, so it moved to CONVERTED above instead of
+    #    getting a dedicated WEBHOOK_ENV like its eight siblings. `LIVEFLOW_ALERT_WEBHOOK_URL`
+    #    is DROPPED, not layered in front of the resolver -- measured ABSENT on the worker
+    #    service (`railway variables --service worker --kv`, DISCORD_WEBHOOK_URL's own presence
+    #    as the positive control), so today's resolution is byte-identical either way.
     #    §4.2: only the `test` target falls back; `live` is fail-closed by design.
     "api/services/calendar_week_poster.py": 5,
     # ── spec §6 STEP 6 — the BOTH rows. Decisions, one commit each, never a batch.

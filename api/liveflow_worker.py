@@ -89,12 +89,34 @@ UCT_LOGO_URL = os.getenv(
 BULLFLOW_API_KEY = os.getenv("BULLFLOW_API_KEY", "").strip()
 BULLFLOW_SSE_URL = "https://api.bullflow.io/v1/streaming/alerts"
 
-# Reuse the existing Discord webhook (same channel as breadth/watchlist pushes).
-# Fallback chain matches what the user has set up; LIVE-specific var wins if set.
-DISCORD_WEBHOOK_URL = (
-    os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-    or os.getenv("DISCORD_WEBHOOK_URL", "")
-).strip()
+#: ⛔ TERM-011 step 5 — THE VARIABLE THAT TURNS THIS POSTER BACK ON, named once.
+#: A log line quotes WEBHOOK_ENV rather than retyping it, so the sentence an
+#: operator acts on cannot drift from the name actually read.
+WEBHOOK_ENV = "DISCORD_LIVE_FLOW_WEBHOOK_URL"
+
+
+def webhook_url() -> str:
+    """This poster's own webhook, read AT CALL TIME. ``""`` = do not post.
+
+    ⛔⛔ TERM-011 step 5 — IT NO LONGER FALLS BACK TO ``DISCORD_WEBHOOK_URL``.
+    This is a member-facing content card (the live-flow Discord forwarder); the
+    admin channel is the ops room, and a card that lands there is in the wrong
+    room while reading as a success. Mirrors ``discord_watchlist.webhook_url``'s
+    shape (TERM-011 step 5, commit 9b28d4fa4) — no legacy name here, since this
+    module only ever read the one variable before falling through.
+
+    ⛔ AND IT IS READ HERE RATHER THAN BOUND AT IMPORT, which is the other half
+    of step 5. This module used to capture the chain into a module constant at
+    import, so blanking the variable reached nothing until the pod restarted
+    while the operator read it back empty and ``--kv`` agreed — the defect
+    ``api/services/discord_notify.py:11`` still has, named in
+    ``alert_destination.destination_for``'s own docstring. A kill switch a
+    restart is required to honour is a fiction.
+
+    ⛔ Reached externally too: ``api/liveflow_router.py``'s manual test-post
+    route calls this rather than an attribute, for the same call-time reason.
+    """
+    return (os.getenv(WEBHOOK_ENV) or "").strip()
 
 MAX_BUFFER = 1000
 RECONNECT_MIN_SEC = 1.0
@@ -1493,11 +1515,13 @@ async def replay_post_alerts_to_discord(
     import httpx
     t0 = time.time()
 
-    if not DISCORD_WEBHOOK_URL:
+    if not webhook_url():
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE, naming the variable. This is an
+        # operator-triggered replay, so the caller sees the refusal directly.
         return {
             "attempted": 0, "succeeded": 0, "failed": 0, "rate_limited": 0,
             "results": [],
-            "error": "DISCORD_WEBHOOK_URL not configured on worker — cannot replay.",
+            "error": f"No webhook configured — set {WEBHOOK_ENV} to turn replay back on.",
             "elapsed_sec": 0.0,
         }
 
@@ -2170,7 +2194,7 @@ _status = {
     "last_discord_error": None,
     "started_at": None,
     "reconnect_count": 0,
-    "discord_configured": bool(DISCORD_WEBHOOK_URL),
+    "discord_configured": bool(webhook_url()),
     # Echo filter config so frontend can display "what's active" w/o hardcoding
     "filter_config": {
         "premium_min": TABLE_FILTER["premium_min"],
@@ -2641,8 +2665,11 @@ def _build_embed(agg: dict) -> dict:
 
 def _discord_post_url() -> str:
     """Return the webhook URL with ?wait=true so Discord returns the message
-    object (including id) on POST — needed for later PATCH calls."""
-    base = DISCORD_WEBHOOK_URL.rstrip("?&/")
+    object (including id) on POST — needed for later PATCH calls.
+
+    ⛔ Call-time via `webhook_url()`; callers must check truthiness first
+    (both call sites below already do, via `_post_to_discord`'s own guard)."""
+    base = webhook_url().rstrip("?&/")
     # If user's env var already has query params, append wait=true; else add ?
     if "?" in base:
         return base + "&wait=true"
@@ -2652,7 +2679,7 @@ def _discord_post_url() -> str:
 def _discord_patch_url(message_id: str) -> str:
     """Build the PATCH URL: {webhook}/messages/{message_id}. Strips any
     query string (?wait=true belongs only on POST)."""
-    base = DISCORD_WEBHOOK_URL.split("?", 1)[0].rstrip("/")
+    base = webhook_url().split("?", 1)[0].rstrip("/")
     return f"{base}/messages/{message_id}"
 
 
@@ -2669,7 +2696,14 @@ async def _post_to_discord(client, alert):
 
     Failures swallowed and logged; never blocks the SSE consumer.
     """
-    if not DISCORD_WEBHOOK_URL:
+    # ⛔ TERM-011 step 5 — call-time, fail-closed. NO per-call log here on purpose:
+    # this runs once per SSE alert and an unconfigured webhook would otherwise log
+    # once per alert on a live feed. `run_forever`'s one-time startup warning is
+    # the visible-silence signal for this path. ⚠️ `discord_configured` in the
+    # status payload is an IMPORT-TIME snapshot (`_status` is a module-level dict
+    # literal, unchanged by this conversion) — pre-existing, not the live signal
+    # the phrasing above might suggest; do not treat it as refreshing per request.
+    if not webhook_url():
         return
 
     _prune_aggregates()
@@ -3423,9 +3457,13 @@ async def run_forever():
         log.error("[liveflow] BULLFLOW_API_KEY env var missing — worker disabled")
         _status["last_error"] = "BULLFLOW_API_KEY env var missing"
         return
-    if not DISCORD_WEBHOOK_URL:
-        log.warning("[liveflow] no Discord webhook configured (DISCORD_LIVE_FLOW_WEBHOOK_URL "
-                    "or DISCORD_WEBHOOK_URL) — alerts will buffer but won't forward")
+    if not webhook_url():
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE, naming the variable that turns
+        # this forwarder back on. No mention of DISCORD_WEBHOOK_URL: it is no
+        # longer consulted, and naming it here would send an operator to set
+        # the wrong knob.
+        log.warning("[liveflow] no Discord webhook configured — set %s to "
+                    "forward alerts (they still buffer either way)", WEBHOOK_ENV)
 
     # Initialize the alert-history table on the Railway volume. Idempotent;
     # safe across deploys. Failures are logged but non-fatal — the worker
