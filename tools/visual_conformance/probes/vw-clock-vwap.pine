@@ -1,0 +1,44 @@
+//@version=6
+indicator("UCTPROBE_VW_CLOCK_VWAP", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — CONFIRMATION PROBE FOR TWO SHIPPED IDENTITIES ─
+//
+// Both names below were IMPLEMENTED on `pine/vocabulary-wave` as identities onto
+// columns the engine already had. This probe confirms them on the vendor rather
+// than trusting the reference manual (clock) or a 40-bar reading (vwap).
+//
+//   V01–V06  `field(time) - field` for the six clock fields. The engine now
+//            translates `year(time)` to the bare `year`, on the Pine reference's
+//            word that `year(time)` with no zone IS the bare field (both are the
+//            EXCHANGE zone). Every row must read EXACTLY 0.
+//   V07–V08  `ta.vwap(hlc3) - ta.vwap` (must read 0) and `ta.vwap(close) - ta.vwap`
+//            (must NOT be all-zero — the control). Re-read on this chart's own
+//            depth; the 2026-09-10 capture read only 40 bars.
+//   V09–V12  the raw columns our side computes, so the vendor harness compares
+//            them bar by bar against the member door.
+//   V13–V14  the discriminator: the capture must SPAN a new year and a new month,
+//            or V01/V02 are compared across a window where they cannot differ.
+//
+// ⛔ CAPTURE TWICE: AMEX:SPY 1D (≥ 400 bars, spans a year boundary) and AMEX:SPY
+// 5m (extended session ON — `hour`/`minute` only vary intraday; on 1D they are a
+// constant and V05/V06 answer nothing). Inputs at defaults.
+
+plot(bar_index, "V00_bar_index_CONTROL")
+
+plot(year(time) - year,             "V01_year_time_minus_year_MUST_BE_0")
+plot(month(time) - month,           "V02_month_time_minus_month_MUST_BE_0")
+plot(dayofmonth(time) - dayofmonth, "V03_dayofmonth_time_minus_bare_MUST_BE_0")
+plot(dayofweek(time) - dayofweek,   "V04_dayofweek_time_minus_bare_MUST_BE_0")
+plot(hour(time) - hour,             "V05_hour_time_minus_hour_MUST_BE_0")
+plot(minute(time) - minute,         "V06_minute_time_minus_minute_MUST_BE_0")
+
+plot(ta.vwap(hlc3) - ta.vwap,       "V07_vwap_hlc3_minus_vwap_MUST_BE_0")
+plot(ta.vwap(close) - ta.vwap,      "V08_vwap_close_minus_vwap_CONTROL_NONZERO")
+
+plot(ta.vwap,                       "V09_vwap_bare_RAW")
+plot(ta.vwap(hlc3),                 "V10_vwap_hlc3_RAW")
+plot(year(time),                    "V11_year_time_RAW")
+plot(dayofweek(time),               "V12_dayofweek_time_RAW")
+
+plot(year,                          "V13_year_MUST_SPAN_TWO_VALUES")
+plot(month,                         "V14_month_MUST_SPAN_SEVERAL_VALUES")

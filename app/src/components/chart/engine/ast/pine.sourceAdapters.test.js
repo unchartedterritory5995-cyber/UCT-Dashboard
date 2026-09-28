@@ -85,6 +85,11 @@ describe('the typical-price adapters', () => {
     // spelling members actually write, which is the worse trade. This case is
     // here so that trade stays visible rather than being quietly reversed.
     expect(formulaOf(screen('close > ta.vwap'))).toBe('close > vwap() ? 1 : 0')
-    expect(screen('close > ta.vwap(hlc3)').ok).toBe(false)
+    // ⭐ 2026-09-27: HELD AT THE KEY, NOT AS A SHAPE — so the bare variable above
+    // keeps working AND the hlc3 form now translates to the same column
+    // (vendor-measured identical, `groupb-round-max-vwap-spy-1d-2026-09-10.json`).
+    // Every other source still refuses: that is the trade this case guards now.
+    expect(formulaOf(screen('close > ta.vwap(hlc3)'))).toBe('close > vwap() ? 1 : 0')
+    expect(screen('close > ta.vwap(close)').ok).toBe(false)
   })
 })
