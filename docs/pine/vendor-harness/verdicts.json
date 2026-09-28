@@ -5,6 +5,310 @@
  ],
  "results": [
   {
+   "file": "tests/fixtures/vendor/harness/keltner-channels-bands-rddt-1d-2026-09-27.json",
+   "format": "harness-v1",
+   "id": "keltner-channels-bands-rddt-1d-2026-09-27",
+   "script": "KCB",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.4126659081467997e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper 1",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.781854648447927e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower 1",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 5.716063215958205e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "Upper 2",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 4.492665830974606e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Lower 2",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 6.37564491781124e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Upper 3",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 8.526512829121202e-14,
+      "maxRel": 5.384903450604795e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Lower 3",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "612 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 631,
+      "compared": 612,
+      "matching": 612,
+      "vendorRowsMissing": 19,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 612,
+      "maxAbs": 1.1368683772161603e-13,
+      "maxRel": 7.350641463203162e-16,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 631,
+       "compared": 612,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "INCONCLUSIVE",
+    "reason": "our object lane did not run: no result"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 8 items could not be compared",
+   "ourNotes": []
+  },
+  {
    "file": "tests/fixtures/vendor/observations/adx-14-2026-09-06.json",
    "format": "observation",
    "id": "adx-14-2026-09-06",
@@ -120,7 +424,7 @@
      "ours": "out2",
      "rule": "M0-selector",
      "verdict": "DIVERGE",
-     "reason": "28 steady-state bars disagree; first at bar 180 (value: vendor 8.77494009272306 vs ours 8.774936243175715) — a CONVERGING PREFIX: bars 180..207 differ with |err| falling 3.85e-6 → 5.21e-7, then all 1120 later bars agree (the recursive-state-seeded-at-the-window signature)",
+     "reason": "27 steady-state bars disagree; first at bar 180 (value: vendor 8.77494009272306 vs ours 8.774936447265276) — a CONVERGING PREFIX: bars 180..206 differ with |err| falling 3.65e-6 → 5.31e-7, then all 1121 later bars agree (the recursive-state-seeded-at-the-window signature)",
      "warmupBars": 180,
      "warmupSource": "declared by the capture (legacy `_vendor_parity_warmup_bars` — fitted to where this capture stopped disagreeing, so read the DERIVED lookback beside it)",
      "derivedLookback": 14,
@@ -128,20 +432,20 @@
      "stats": {
       "bars": 1328,
       "compared": 1314,
-      "matching": 1120,
+      "matching": 1121,
       "vendorRowsMissing": 14,
       "naMismatches": 0,
-      "valueMismatches": 194,
+      "valueMismatches": 193,
       "colorMismatches": 0,
       "colorCompared": 0,
-      "maxAbs": 0.8473583327541294,
-      "maxRel": 0.25002186595305803,
+      "maxAbs": 0.8024343531622922,
+      "maxRel": 0.2367665797660662,
       "firstDivergence": {
        "bar": 14,
        "time": 1623677400,
        "kind": "value",
        "vendor": 3.3891369041827013,
-       "ours": 2.541778571428572
+       "ours": 2.586702551020409
       },
       "warmup": {
        "bars": 180,
@@ -152,34 +456,34 @@
         "time": 1623677400,
         "kind": "value",
         "vendor": 3.3891369041827013,
-        "ours": 2.541778571428572
+        "ours": 2.586702551020409
        }
       },
       "steady": {
        "bars": 1148,
        "compared": 1148,
-       "divergent": 28,
+       "divergent": 27,
        "first": {
         "bar": 180,
         "time": 1644330600,
         "kind": "value",
         "vendor": 8.77494009272306,
-        "ours": 8.774936243175715
+        "ours": 8.774936447265276
        },
        "last": {
-        "bar": 207,
-        "time": 1647610200,
+        "bar": 206,
+        "time": 1647523800,
         "kind": "value",
-        "vendor": 9.445910815571466,
-        "ours": 9.445910295068488
+        "vendor": 9.584827032153887,
+        "ours": 9.584826501330188
        },
        "pattern": {
         "kind": "converging-prefix",
-        "lastDivergentBar": 207,
-        "agreeingAfter": 1120,
+        "lastDivergentBar": 206,
+        "agreeingAfter": 1121,
         "contiguous": true,
-        "absErrFirst": 0.0000038495473457800244,
-        "absErrLast": 5.205029776078618e-7
+        "absErrFirst": 0.0000036454577845290714,
+        "absErrLast": 5.308236996626192e-7
        }
       },
       "vendorRowGapsAfterStart": 0
@@ -1357,8 +1661,8 @@
      "title": "N10_atr5",
      "ours": "out10",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "30 steady-state bars disagree; first at bar 4 (na: vendor 13.96875 vs ours na) — persistent, last at bar 33",
+     "verdict": "MATCH",
+     "reason": "34 steady-state bars agree",
      "warmupBars": 0,
      "warmupSource": "capture starts at bar 0 — no warm-up excuse",
      "derivedLookback": 5,
@@ -1366,21 +1670,15 @@
      "stats": {
       "bars": 34,
       "compared": 34,
-      "matching": 4,
+      "matching": 34,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
-      "valueMismatches": 29,
+      "naMismatches": 0,
+      "valueMismatches": 0,
       "colorMismatches": 0,
       "colorCompared": 0,
-      "maxAbs": 1.9249999999999972,
-      "maxRel": 0.10727969348658987,
-      "firstDivergence": {
-       "bar": 4,
-       "time": "1997-01-01",
-       "kind": "na",
-       "vendor": 13.96875,
-       "ours": null
-      },
+      "maxAbs": 5.684341886080802e-14,
+      "maxRel": 4.3978781027526975e-16,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -1390,25 +1688,10 @@
       "steady": {
        "bars": 34,
        "compared": 34,
-       "divergent": 30,
-       "first": {
-        "bar": 4,
-        "time": "1997-01-01",
-        "kind": "na",
-        "vendor": 13.96875,
-        "ours": null
-       },
-       "last": {
-        "bar": 33,
-        "time": "2026-01-02",
-        "kind": "value",
-        "vendor": 129.2519199775657,
-        "ours": 129.25564346909013
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 33
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -1654,8 +1937,8 @@
     "abs": 1e-12,
     "absReason": "pricescale unknown — double-noise floor 1e-12"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 8 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 8 items agree",
    "ourNotes": [
     "timeframe \"12M\" has no chart code — the bind-time fold folds nothing"
    ]
@@ -1788,6 +2071,11 @@
   },
   {
    "file": "tests/fixtures/vendor/p1-top-unmeasured-spy-1d-2026-09-21.json",
+   "format": "unsupported",
+   "reason": "no vendor OHLCV series together with per-bar study values and a script source"
+  },
+  {
+   "file": "tests/fixtures/vendor/palette-by-version-rddt-1d-2026-09-27.json",
    "format": "unsupported",
    "reason": "no vendor OHLCV series together with per-bar study values and a script source"
   },

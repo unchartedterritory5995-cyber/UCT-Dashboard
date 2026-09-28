@@ -119,6 +119,7 @@ import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
+  GETTER_PROPS as OBJECT_GETTER_PROPS,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -802,6 +803,13 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
  * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
  *
+ * ✅ CLOSED 2026-09-27 (PARITY-PROGRAMME §"THE ATR SEED — the host lane"): the
+ * `atr` shape below lands on `atrPine`, a table entry composed from the
+ * table's own `rma` over `ta.tr(true)`, with a Python twin (`_fn_atr_pine`) and
+ * the frozen artifacts regenerated. The Keltner RDDT capture went from a
+ * 137–147-bar converging prefix per band to 0 mismatches. The paragraph below
+ * is kept as the record of why it was not a one-line change.
+ *
  * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
  * Routing Pine to a separately-seeded column means declaring a name in
  * `closedTable.json`, which the PYTHON lane mirrors in
@@ -907,7 +915,14 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // understood. ⛔ Without this the translator could see that `atr` exists and
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
-  atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐⭐ (2026-09-27) AND IT LANDS ON `atrPine`, NOT ON THE HOUSE `atr`. The
+  // house column is Wilder's original (TR from bar 1, seed on bar n) and stays
+  // so for ThinkScript, PCF and the native indicators; Pine's `ta.atr` is
+  // `ta.rma(ta.tr(true), n)` — bar 0's range is `high - low` and the seed lands
+  // on bar n-1 — measured to the last bit on two vendor captures. Routing the
+  // Pine spelling to its own entry is the ruling on file ("Pine gets its own
+  // seeding"); see `closedTable.json::_functions_atr_convention`.
+  atr: { table: 'atrPine', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
   //
   // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
@@ -12462,11 +12477,113 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
+  // ─── ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())` ───
+  //
+  // ⚰️ MEASURED AGAINST TRADINGVIEW 2026-09-27: Zero-Lag MA Trend Levels draws
+  // its 8 trend-break labels from `switch` arms guarded by exactly that, and a
+  // getter is object state the V2 graph cannot hold (see `findGetter`), so every
+  // label was refused. The RUNTIME holds the register — so, like `na(l)`'s
+  // liveness lift below, the getter is lifted out of the tree: the getter-FREE
+  // parts stay ONE canonical tree each, and only the conjuncts that reach a
+  // getter are structured as `LIVE_GUARD_KINDS` (objectProgram.js), evaluated
+  // per bar by `objectRuntime`.
+  //
+  // ⛔ WHAT LIFTS, EXACTLY: a getter on a DECLARED drawing register, in either
+  // spelling (`b.get_top()` / `box.get_top(b)`), standing as a WHOLE operand of
+  // `ta.crossover`/`ta.crossunder` or of `<`, `<=`, `>`, `>=`, under any mix of
+  // `and`/`or`/`not`. A getter anywhere else (inside arithmetic, on a list
+  // element, in a coordinate, in a loop body) keeps the guard unreadable —
+  // dropped and counted, never guessed.
+  const OBJECT_NS = new Set(OBJECT_NAMESPACES)
+  const GETTER_NAME_RE = /\.get_[a-z0-9_]+$/
+  const regFamily = (name) => {
+    const d = collected.decls.get(name)
+    return d && d.kind !== 'coll' ? d.family : null
+  }
+  /** Is an object getter written anywhere in this parse subtree? */
+  const hasObjectGetter = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return false
+    if (node.type === 'method' && /^get_/.test(String(node.name || ''))) return true
+    if (node.type === 'call' && GETTER_NAME_RE.test(String(node.name || ''))) {
+      const head = String(node.name).slice(0, String(node.name).lastIndexOf('.'))
+      if (OBJECT_NS.has(head) || collected.decls.has(head)) return true
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
+      if (hasObjectGetter(node[k], depth + 1)) return true
+    }
+    if (Array.isArray(node.args)) {
+      for (const a of node.args) {
+        if (hasObjectGetter(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+      }
+    }
+    return false
+  }
+  /** A getter on a declared register → `{v:'get', target, prop}`, else null. */
+  const getterRef = (node) => {
+    if (!node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    const dot = name.lastIndexOf('.')
+    if (dot <= 0) return null
+    const head = name.slice(0, dot)
+    const method = name.slice(dot + 1)
+    const args = node.args || []
+    let regName = null
+    if (OBJECT_NS.has(head)) {
+      if (args.length !== 1 || args[0].name) return null
+      const a = args[0].value
+      if (!a || a.type !== 'name' || regFamily(a.name) !== head) return null
+      regName = a.name
+    } else {
+      if (args.length !== 0) return null
+      regName = head
+    }
+    const fam = regFamily(regName)
+    const prop = fam && regId.has(regName) ? (OBJECT_GETTER_PROPS[fam] || {})[method] : null
+    return prop ? { v: 'get', target: { r: 'reg', id: regId.get(regName) }, prop } : null
+  }
+  /** A getter-free node → its interned tree; a bare getter → its `get` ref. */
+  const liveOperand = (node) => {
+    const g = getterRef(node)
+    if (g) return g
+    if (hasObjectGetter(node)) return null
+    const ast = canonicalOf(node)
+    return ast ? internTree(ast) : null
+  }
+  const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
+  /** A guard expression that reads a getter → its live reference, or null. */
+  const liftLive = (node) => {
+    if (!node) return null
+    if (!hasObjectGetter(node)) return liveOperand(node)
+    if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
+      const a = liftLive(node.arg)
+      return a ? { v: 'bool', op: 'not', args: [a] } : null
+    }
+    if (node.type === 'binary' && ['and', '&&', 'or', '||'].includes(node.op)) {
+      const a = liftLive(node.left)
+      const b = liftLive(node.right)
+      return a && b ? { v: 'bool', op: node.op === 'and' || node.op === '&&' ? 'and' : 'or', args: [a, b] } : null
+    }
+    if (node.type === 'binary' && ['<', '<=', '>', '>='].includes(node.op)) {
+      const a = liveOperand(node.left)
+      const b = liveOperand(node.right)
+      return a && b ? { v: 'cmp', op: node.op, args: [a, b] } : null
+    }
+    if (node.type === 'call' && CROSS_DIR[node.name] && (node.args || []).length === 2
+        && !node.args.some((x) => x.name)) {
+      const a = liveOperand(node.args[0].value)
+      const b = liveOperand(node.args[1].value)
+      return a && b ? { v: 'cross', dir: CROSS_DIR[node.name], args: [a, b] } : null
+    }
+    return null
+  }
+
   const guardOf = (guards) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
     let requiresEmpty = null
+    /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
+    const liveParts = []
     for (const g of guards) {
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
@@ -12508,6 +12625,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (naRef && regId.has(naRef.name)) {
         if (g.negate ? naRef.negated : !naRef.negated) requiresEmpty = regId.get(naRef.name)
         else requiresLive = regId.get(naRef.name)
+        continue
+      }
+      // ⭐⭐ A CONDITION THAT READS A GETTER — lifted, never folded into a tree.
+      // ⛔ Not inside a counted loop: a body op runs several times a bar, and a
+      // crossing observed "once per bar" has no single answer there.
+      if (hasObjectGetter(node)) {
+        if (loopIds.length) return undefined
+        const live = liftLive(node)
+        if (!live) return undefined
+        liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [live] } : live)
         continue
       }
       const ast = canonicalOf(node)
@@ -12572,9 +12699,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ...(requiresLive ? { requiresLive } : {}),
       ...(requiresEmpty ? { requiresEmpty } : {}),
     }
-    if (acc === null) return { when: null, extra }
-    const ref = internTree(acc)
-    return ref === null ? undefined : { when: ref, extra }
+    const ref = acc === null ? null : internTree(acc)
+    if (acc !== null && ref === null) return undefined
+    if (!liveParts.length) return { when: ref, extra }
+    // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
+    const parts = ref ? [ref, ...liveParts] : liveParts
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra }
   }
 
   const namedOrPositional = (args, order) => {
@@ -12828,6 +12958,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
       if (!reg || !value) { dropped('copy:source'); continue }
       ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
+    } else if (op.k === 'reset') {
+      // ⭐ `b := box(na)` — the register forgets its object; the object stays on
+      // the chart. A `setreg` to null, which the format has always carried.
+      const reg = regId.get(op.into)
+      if (!reg) { dropped('reset:target'); continue }
+      ops.push({ k: 'setreg', reg, value: null, when, ...lastBarOnly })
     // ⛔⛔ ONE CONVERTER FOR `table.clear`, AND THE MERGE HAD TWO.
     //
     // Both lineages implemented this call and both survived the merge as arms of
@@ -15264,13 +15400,34 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node, env, ctx) {
-  if (!node || node.type !== 'call') return null
+function colourHelperAlpha(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
+  // `staticColourOf` opens them — otherwise the two readers disagree about the
+  // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
+  // `S_color = input.color(color.new(#90EE90, 25))` then `plot(..., color =
+  // S_color)` carried the colour and dropped the 25% transparency, so Support and
+  // Resistance drew opaque on 568 bars where TradingView drew them at `bf`. The
+  // same colour written inline kept its alpha; only the name and the input hid it.
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[bound.index]
+      const v = a && a.value !== undefined ? a.value : a
+      return colourHelperAlpha(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
+    }
+    return bound && bound.kind === 'expr'
+      ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'input.color') {
+    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
   // alpha, which is the feature inverted rather than merely missing.
   const helper = openColourHelper(node, env, ctx)
-  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
@@ -15739,10 +15896,41 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
   return out
 }
 
+/** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
+ *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
+ *  this door used to read names only — the colour was dropped and the row drew
+ *  in the engine's default, measured on a live capture.
+ *
+ *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
+ *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
+ *  per version; a script passing six positionals keeps the first five. Index 0
+ *  is the series itself and is never presentation. */
+const POSITIONAL_PRESENTATION = Object.freeze({
+  plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
+  plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
+  plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
+})
+
 function outputPresentation(args, ctx) {
   const pres = {}
-  const arg = (n) => args.find((a) => a.name === n)
+  const kind = ctx && ctx.kind
+  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? POSITIONAL_PRESENTATION[kind] : null
+  const positional = args.filter((a) => !a.name)
+  // ⭐ A NAMED argument wins; a positional one answers only where the signature
+  // places that name. Pine refuses both at once, so the order is never a choice
+  // between two values the author wrote.
+  const arg = (n) => {
+    const named = args.find((a) => a.name === n)
+    if (named || !signature) return named
+    const at = signature.indexOf(n)
+    return at > 0 ? positional[at] : undefined
+  }
 
+  // ⛔ NO COLOUR AT ALL STAYS ABSENT HERE. This function reports what the AUTHOR
+  // wrote ("absent is absent", `pine.presentation.test.js`); TradingView's
+  // default for a colourless plot is a RENDERING rule and is applied at the member
+  // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
@@ -15820,7 +16008,6 @@ function outputPresentation(args, ctx) {
   // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
   // as an unsupported plot style. The translator's own header said as much
   // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
-  const kind = ctx && ctx.kind
   const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
   if (isMarker) {
