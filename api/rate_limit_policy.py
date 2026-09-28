@@ -266,6 +266,15 @@ FAMILIES: dict[str, Family] = {
         ("/api/waitlist", "/api/landing-analytics", "/api/client-errors",
          "/api/q1-probe-result", "/api/q1-probe-results"),
     ),
+    "inbound-alerts": Family(
+        TIER_BULK,
+        "TERM-086's TradingView receiver: an unauthenticated POST, so it is keyed on "
+        "the sender's IP -- and TradingView sends every member's webhook from ONE "
+        "small shared egress pool, so this is a coarse whole-feature ceiling, not a "
+        "per-member one. The per-member limit is the per-TOKEN one in "
+        "api/routers/inbound_alerts.py (INBOUND_ALERTS_RATE).",
+        ("/api/inbound-alerts",),
+    ),
     "admin-ops": Family(
         TIER_STANDARD,
         "Admin and ops reads/writes. Internal pollers carry the PUSH_SECRET bearer "

@@ -73,6 +73,7 @@ from api.routers import auth as auth_router
 from api.routers import support_status as support_status_router
 from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
+from api.routers import inbound_alerts as inbound_alerts_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
 # Wave 6 (controller wiring). notebook_insights MUST be mounted BEFORE
@@ -8831,6 +8832,10 @@ app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router, dependencies=_OPEN_READS)
 app.include_router(webhooks_router.router)
+# TERM-086: the TradingView alert receiver. DARK behind INBOUND_ALERTS_ENABLED --
+# its routes do not MATCH while the flag is off, so mount order cannot shadow
+# anything; its own path space (/api/inbound-alerts) touches no other router.
+app.include_router(inbound_alerts_router.router)
 app.include_router(alerts_router.router)
 # Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
 # journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"
