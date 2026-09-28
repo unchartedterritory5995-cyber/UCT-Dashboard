@@ -4946,6 +4946,23 @@ function barOffsetNode(child, n, table, tok, wrote) {
   // `try { … } catch`: the canonical vocabulary is a value this module can read,
   // so "does the engine have a bar offset" is answered by the engine.
   if (NODE_TYPES.includes('offset')) {
+    // ⭐⭐ 2026-09-28 — AN OFFSET OF AN OFFSET IS ONE OFFSET: `(x[m])[n]` IS
+    // `x[m + n]` at every bar, NaN prefix and lookback included, for ANY series
+    // `x`. Pine writes it through a name all the time —
+    //
+    //     h = request.security(syminfo.tickerid, 'D', high[1], …)
+    //     plot(h, color = h == nz(h[1]) ? color.new(color.green, 10) : na)
+    //
+    // — and the canonical grammar has exactly ONE spelling for it (`parse.js`
+    // refuses `x[m][n]` as `canonicalise:offset-chained`, so the tree keeps one
+    // `astHash`). ⚰️ This emitted the chain anyway, the round trip refused it,
+    // and the whole colour rule fell back to "dynamic": Ultimate Pivot Points'
+    // PD_H/PD_L drew the pane's gold on 631 bars where TradingView drew nothing
+    // (vendor harness, RDDT 1D 2026-09-28), and a plain `plot(h == h[1] ? 1 : 0)`
+    // refused outright.
+    if (child && child.type === 'offset' && Number.isInteger(child.value) && Array.isArray(child.args) && child.args.length === 1) {
+      return { type: 'offset', value: child.value + n, args: child.args }
+    }
     return { type: 'offset', value: n, args: [child] }
   }
 
