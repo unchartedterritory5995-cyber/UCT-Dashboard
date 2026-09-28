@@ -1208,7 +1208,7 @@
       "status": "pending",
       "since": "2026-09-27",
       "where": [],
-      "note": "TERM-083 (FB-X1-02): nightly 03:05 ET R2 backup of the member-authored stores no other rail covers (api/services/store_backup.py STORES: community, charts_layouts, user_definitions, theme_sets, ai_search_member, discord_chart_prefs, wire_feedback, modelbook, education, desk). SQLite online-backup API with a manifest measured on the same read snapshot; objects under store_backups/<store>/ in the DATA_SYNC_* bucket. SERVICE: web (registered in api/main.py beside the flow and attachment backups). Built and railed, not armed: the owner decides whether to set it on web. The evidence is the restore rehearsal, python tools/store_restore.py --rehearse, never this job's exit code. Rollback is unsetting it; a stopped job deletes nothing already in R2."
+      "note": "TERM-083 (FB-X1-02): nightly 03:05 ET R2 backup of the member-authored stores no other rail covers (api/services/store_backup.py STORES: community, charts_layouts, user_definitions, theme_sets, ai_search_member, discord_chart_prefs, wire_feedback, workspace_docs, modelbook, education, desk). SQLite online-backup API with a manifest measured on the same read snapshot; objects under store_backups/<store>/ in the DATA_SYNC_* bucket. SERVICE: web (registered in api/main.py beside the flow and attachment backups). Built and railed, not armed: the owner decides whether to set it on web. The evidence is the restore rehearsal, python tools/store_restore.py --rehearse, never this job's exit code. Rollback is unsetting it; a stopped job deletes nothing already in R2."
     },
     "STREAM_BARS_ENABLED": {
       "status": "armed",
@@ -1464,6 +1464,12 @@
         "worker"
       ],
       "note": ""
+    },
+    "WORKSPACE_DOC_STORE_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-27",
+      "where": [],
+      "note": "TERM-021 (FB-S5-01), ENABLEMENT GATE, default OFF, read per request in api/services/workspace_doc_store.py::is_enabled(). SERVICE: web (api/routers/auth.py upsert_preference hooks + api/routers/workspace_doc.py mounted in api/main.py). What it arms: WRITE-BOTH / READ-OLD. Each POST /api/auth/preferences for one of the Charts board's keys (workspace_doc_store.WORKSPACE_PREF_KEYS, derived from ChartsWorkspace.jsx by rail) first COPIES the member's board out of auth.db user_preferences into /data/workspace_docs.db (WORKSPACE_DOCS_DB_PATH) if no live document exists, then appends the write as a new version; user_preferences stays the authority every client reads. /api/workspace/doc (read, versions, restore with compare-and-set, tombstone DELETE) answers 404 while unset. Backed up by store_backup STORES entry workspace_docs (itself dark until STORE_BACKUP_ENABLED). Unset: no I/O, no file created, member behaviour unchanged (tests/test_workspace_doc_router.py). NOT ARMABLE YET: no version retention policy (every board autosave appends a version), no client restore surface, no read-new phase; see the TERM-021 commit. REVERSAL: unset it and redeploy web if the unset does not restart it; user_preferences was never displaced, and the store file and its rows are LEFT IN PLACE. Never delete them to undo an arming."
     }
   },
   "build_flags": {
