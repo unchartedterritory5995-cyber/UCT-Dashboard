@@ -260,6 +260,12 @@ def toolkit_for(user: Optional[Mapping[str, Any]]) -> str:
     so the day a second toolkit is sold the wiring is already load-bearing and the
     only edit is in `TOOLKITS`.
 
+    ⭐ THE ACCOUNT CARRIES IT AS `users.toolkit` (TERM-081): added by
+    `auth_db.init_db`, NULL by default, and projected into the request's user
+    dict by `auth_service.validate_session` ONLY when set. Before TERM-081 no
+    DDL defined the column, so this read could only ever miss.
+    `tests/test_entitlements_toolkit_column.py` proves a set value is reached.
+
     ⚠️ PER-USER SCOPING HAS EXACTLY ONE PRECEDENT and this follows it rather than
     inventing a second: `alert_user_series.scoped_key(user_id, address)` keys the
     fourth partition by ``<user_id>\\x1f<address>``. Nothing here stores per-user
