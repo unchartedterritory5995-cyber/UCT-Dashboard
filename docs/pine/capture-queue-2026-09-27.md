@@ -168,3 +168,75 @@ clock rows need those charts.
 0.01 like a $758,505 one. Only the sub-cent OTC name, the future and the forex pair differ.
 So "US-listed equities and ETFs → 0.01" is supported by this table; OTC, futures, forex
 and any crypto pair other than BTCUSDT are NOT covered by it and must stay unserved.
+
+## READINGS — 2026-09-28 (the intraday legs, and what the 09-27 captures say)
+
+✅ **The intraday legs are no longer owed.** `vw-time-session` on AMEX:SPY 60m with extended
+hours OFF and ON is on disk (`harness/vw-time-session-spy-60-{rth,ext}-2026-09-28.json`,
+commit `932f951cc`); `vw-clock-vwap` on AMEX:SPY 5m extended ON is
+`harness/vw-clock-vwap-spy-5-ext-2026-09-28.json` (300 bars, 04:00–19:55 ET, crosses a
+session boundary). Independent 1D re-captures of `vw-alma`, `vw-int-cast`,
+`vw-clock-vwap` and `vw-nvi-pvi` (full) on 2026-09-28 matched the 09-27 files value for
+value on every common bar (max |diff| 0, no `na` mismatches) and were NOT committed —
+they add a replication, not a reading.
+
+Every reading below cites its capture; row numbers are the probe's plot titles.
+
+**`time(tf, session)`** (`vw-time-session-*`) — membership is the bar's OPEN time in a
+half-open window `[start, end)`, on 1D and on 60m alike; a fixed `"GMT-4"` is not
+DST-aware (in on 215 EDT days, `na` on 85 EST days of 300); `"America/New_York"` and
+`syminfo.timezone` are in on all 300; `":23456"` admits every weekday; `"2000-0000"` is
+`na` everywhere.
+
+**`time(<tf>)` period opens** (`vw-time-tf-spy-1d-2026-09-27.json`, 8472 bars):
+- T05 `time(timeframe.period)` − `time` = 0 on every bar; T06 `time("60")` on a 1D chart =
+  the bar's own time (0 on every bar).
+- ⭐ **The period open is the FIRST TRADING BAR of the period**, for weeks and months:
+  since 2000, a week whose Monday is a holiday opens on its Tuesday bar (T01 = 0, 133 of
+  134 weeks; one −2); a month whose 1st is a weekend or holiday opens on its first
+  trading bar (T02 = 0, 395 of 404 months).
+- ⚠️ **Before 2000 the vendor's own data anchors to the CALENDAR start instead** (T01 = −1
+  on all 30 pre-2000 holiday-Monday weeks; T02 = −1…−3 on 9 January/April months,
+  1994–1999). A 5,000-bar daily fetch starts in 2006, so it never reaches that era; a
+  rule fitted to it would be wrong for every modern bar.
+- T10–T15 `timeframe.in_seconds`: `"1"` 60 · `"60"` 3600 · `"D"` 86400 · `"W"` 604800 ·
+  **`"M"` 2628003** · **`"12M"` 31536036** (exactly 12 × `"M"`, not 365 days).
+- T16 `input.time(timestamp("18 May 2022 00:00 +0000"))` / 86 400 000 = 19130 — the
+  timestamp itself, in ms.
+
+**`int(x)` on a fractional float** (`vw-int-cast-spy-1d-2026-09-27.json`) — it COMPILES,
+and it **truncates toward zero**: `int(2.7)` 2, `int(-2.7)` −2, `int(2.5)` 2,
+`int(-2.5)` −2, `int(3.5)` 3. On the series, `int(x) − trunc(x)` is 0 on every bar while
+`− floor(x)` and `− round(x)` are non-zero on ~150; `int(na)` is `na`. ⇒ the door may
+read `int(x)` as `idiv(x, 1)`, per section 4.
+
+**`ta.alma`** (`vw-alma-spy-1d-2026-09-27.json`) — A05: one `na` in the source makes the
+result `na` for exactly `length` bars (9), then it matches the clean series exactly. It
+POISONS the window; it neither skips nor carries.
+
+**Clock fields and `ta.vwap`** (`vw-clock-vwap-spy-1d-2026-09-27.json`, 1000-bar 1D
+re-capture, and the 5m extended leg) — V01–V07 exactly 0 on every bar of both (1D: five
+years, twelve months; 5m: every hour 04–19 and every minute); V08 non-zero on 931 of 1000
+daily bars. ⭐ With extended hours ON, `ta.vwap` re-anchors on the **first bar of the
+extended session (04:00 ET)** — vwap equals that bar's hlc3 exactly — not at 09:30.
+
+**`ta.nvi` / `ta.pvi`** (`vw-nvi-pvi-spy-1d-full-2026-09-27.json`) — both seed at exactly
+1 on SPY's first bar (1993-01-29); P03/P04 (the step rules, nvi on falling volume, pvi on
+rising) are 0 to ~1e−16 on every bar. `pvi` has drifted to ~0.004 by 2026 — that is its
+level, not a defect.
+
+⛔⛔ **THE "TRUNCATED" CAPTURE DOES NOT MEASURE FETCH DEPENDENCE, AND NO CHART CAPTURE
+CAN.** `vw-nvi-pvi-spy-1d-truncated-2026-09-27.json` starts at `bar_index` 7432 and equals
+the full capture on all 1040 common bars (max |diff| 0.0): TradingView computes the study
+from bar 0 whatever the chart has loaded (a second 1000-bar capture on 2026-09-28 read the
+same). The dependence is between the VENDOR and US. Sized from the full capture: a
+5,000-bar fetch seeds at 2006-11-08, where TradingView's nvi is 9.0732 and pvi 0.348444 —
+so our NVI would read **9.07× low** and PVI **2.87× low** on every later bar, and the
+corpus quantity `x − ta.ema(x, 255)` scales by the same factor. The ruling stands, now
+measured; reopening it would mean fetching the full history for these scripts.
+
+**`syminfo.mintick`** — a 2026-09-28 re-capture of nine symbols agrees with the table above,
+and the capture's own symbol block confirms **mintick = minmov / pricescale on every
+symbol** (ES1! minmov 25 / pricescale 100 = 0.25). It is symbol METADATA: constant across a
+symbol's whole history (SPY 0.01 from $43 to $778; AITX 0.0001 from $0.003 to $0.14).
+Serving it needs the symbol's `pricescale`/`minmov`, not its price.
