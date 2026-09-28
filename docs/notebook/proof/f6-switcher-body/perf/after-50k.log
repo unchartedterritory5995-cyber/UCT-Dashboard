@@ -1,0 +1,48 @@
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_vyz_gshb\auth.db
+
+=== Seeding + measuring 50,000 notes (20 reps after 2 warmup) ===
+  seed 62.7s  db 406.5 MB  active 47,590 trashed 979 archived 1,431
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        1.96ms     2.18ms     2.25ms
+  count_notes (whole library)                             13.55ms    18.56ms    18.66ms
+  GET /notes default (list+count)                         17.31ms    18.85ms    19.58ms
+  list_notes (FTS, common term ~30%)                      53.48ms    65.86ms    69.72ms
+  count_notes (FTS, common term ~30%)                     42.32ms    50.21ms    50.89ms
+  GET /notes q=common (list+count)                       104.26ms   124.93ms   134.33ms
+  list_notes (FTS, rare term, 1 note)                     43.17ms    46.88ms    55.72ms
+  GET /notes q=rare (list+count)                          62.25ms    75.98ms    77.98ms
+  GET /notes q=common, relevance (search box)            223.81ms   251.39ms   252.92ms
+  GET /notes q=rare, relevance (search box)               51.90ms    62.83ms    63.75ms
+  GET /notes tag=setups (list+count)                      50.44ms    58.07ms    60.81ms
+  GET /notes embed_symbol (list+count)                    91.62ms   111.05ms   114.28ms
+  tag_counts (whole library)                             112.44ms   144.37ms   147.62ms
+  tag_tree (whole library)                               118.86ms   133.31ms   137.34ms
+  GET /notes/tags (tags+tree)                            109.91ms   129.94ms   137.27ms
+  folder_note_counts (whole library)                      14.40ms    16.80ms    17.38ms
+  notes_for_folders (heavy + 2 others)                    15.05ms    17.28ms    18.74ms
+  get_symbol_backlinks                                    66.79ms    77.73ms    86.13ms
+  switcher_search (word start)                            73.33ms    88.73ms    93.58ms
+  switcher_search (fuzzy, in order)                       95.37ms   120.42ms   122.04ms
+  list_tasks (open, ?view=tasks)                         108.65ms   135.37ms   143.96ms
+  switcher_search (body fallback, common term)           248.58ms   273.09ms   273.21ms
+  switcher_search (body fallback, rare term)             122.05ms   139.28ms   140.42ms
+  re-measured GET /notes q=common (list+count): p95 124.93 ms -> 102.44 ms (line 100 ms)
+  re-measured GET /notes q=common, relevance (search box): p95 251.39 ms -> 215.75 ms (line 100 ms)
+  re-measured GET /notes embed_symbol (list+count): p95 111.05 ms -> 95.15 ms (line 100 ms)
+  re-measured switcher_search (fuzzy, in order): p95 120.42 ms -> 117.13 ms (line 100 ms)
+  OK all correctness checks passed
+
+report: C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/bench/after-50k.json
+  note [search] 'GET /notes embed_symbol (list+count)' at 50,000 notes: p95 111.1 ms, then 95.1 ms on an immediate re-measure -- did not reproduce, not a breach (the 100 ms line is unchanged)
+VERDICT: BUDGET BREACH
+  BREACH [search] 'GET /notes q=common (list+count)' at 50,000 notes: p95 124.9 ms >= budget 100 ms; re-measured 102.4 ms
+  BREACH [search] 'GET /notes q=common, relevance (search box)' at 50,000 notes: p95 251.4 ms >= budget 100 ms; re-measured 215.8 ms
+  BREACH [search] 'switcher_search (fuzzy, in order)' at 50,000 notes: p95 120.4 ms >= budget 100 ms; re-measured 117.1 ms

@@ -806,7 +806,9 @@ The body half costs what the search box's own relevance request costs for the sa
 that request, minus its count), on top of the title half: over the 100 ms search line for a body
 term common in a 50k library that no title names. A bounded top-k read was prototyped and
 measured no faster: the full-text ranked pass (bm25 over every match) is most of the cost, and a
-bounded read still has to rank every match to be exact.
+bounded read still has to rank every match to be exact (`docs/notebook/proof/f6-switcher-body/perf/topk-probe.txt`:
+equal answers on six queries, the top-k read 77.6 vs 59.3 ms p50 on the common term, 143.3 vs 144.5 on
+a term in every body; re-run 2026-09-28 00:41 CT on the kept 50k file).
 
 ### Fix round 1: the two ops get lines of their own (2026-09-28)
 
@@ -832,6 +834,30 @@ under it does not).
    bm25 pass; the body rows arrive a beat later. Cost: a second request per settled query and a
    second loading state.
 2. **A match-count cap.** Skip or truncate the body pass when the full-text match set is larger
-   than N notes (the match itself is cheap, 5.5 ms for 15k matches at 50k; the ranking is the
-   cost). Cost: recall on very common words, the queries least likely to name one note.
+   than N notes (the match itself is cheap, 4.8 ms p50 for 14,978 matches at 50k, against 25.8 ms
+   for the ranked pass over the same matches: `perf/fts-probe.txt`, rows D and A; the ranking is the
+   cost). Cost: recall on very common words, the queries least likely to name one note.
+
+### The raw output behind every number in this section (fix round 2, R-RAW)
 
+Every reading above and below is in `docs/notebook/proof/f6-switcher-body/perf/`, copied byte for byte from
+the runs. Its `README.md` maps each file to the code it measured (each JSON stamps `git_head` and
+`git_dirty_paths` itself):
+
+- **"before" column:** `before-50k.*` (`3c2356270`).
+- **"after" column and the quiet 171.2 / 68.4 the lines are derived from:** `after2-50k.*` (`7ee21a7fc`).
+- **Discarded loaded-box 273.1 / 139.3:** `after-50k.*`.
+- **Interleaved A/B:** `ab-interleaved-quiet.json` (loaded run `ab-interleaved-loaded.json`, discarded), made by
+  `ab_interleaved.py`.
+- **Fix round 1 gate run** (`fr1-50k.*`): `--budget search --budget reads --budget tasks --budget
+  switcher_body_common --budget switcher_body_rare`, VERDICT PASS. Switcher p95 readings:
+  - word start 37.00 ms;
+  - fuzzy 51.64 ms;
+  - body common 108.35 ms, against its 250 ms line;
+  - body rare 70.36 ms, against its 100 ms line.
+- **Fix round 1 curve run** (`fr1-curve.*`), 1k to 50k:
+  - body common: slope 0.779, last segment 0.816;
+  - body rare: slope 0.698, last segment 0.652;
+  - both are under the 1.1 / 1.3 lines;
+  - the run's BREACH verdict names only count_notes, folder_note_counts, get_symbol_backlinks and list_tasks,
+    which this lane does not touch.

@@ -1,0 +1,8 @@
+2026-09-28T00:41:16-05:00
+c59b499ea80bdf059782436f4dc42ea95f65c122
+regime check confirms co EQUAL topk p50   77.6 p95   85.1 | list_notes p50   59.3 p95   61.3
+pullback EQUAL topk p50  143.3 p95  144.1 | list_notes p50  144.5 p95  159.8
+zzqbenchmarkrareterm EQUAL topk p50   20.1 p95   21.3 | list_notes p50   15.8 p95   17.2
+setup EQUAL topk p50  153.5 p95  172.7 | list_notes p50  152.4 p95  176.6
+nvda EQUAL topk p50   44.0 p95   45.6 | list_notes p50   31.5 p95   34.4
+above average volume EQUAL topk p50  156.3 p95  163.9 | list_notes p50  164.2 p95  195.4
