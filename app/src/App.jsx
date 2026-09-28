@@ -31,7 +31,6 @@ import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
 import { PUBLISHED_ROUTE, PUBLISHED_NOTE_ROUTE } from './pages/journal-2-0/lib/notePublishLink'
 import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
-import { NOTEBOOK_SEGMENT, NOTEBOOK_RESEARCH_SEGMENT } from './pages/journal-2-0/lib/journalRoutes'
 // The formula share link's route pattern. ⛔ DERIVED, never retyped: the Copy
 // button in `SharePanel` builds its URL from this same module. Before it existed
 // the button hand-typed `/formulas/shared/${token}` and NO route answered it, so
@@ -649,12 +648,12 @@ export default function App() {
                   <Route index element={<TodaySurface />} />
                   <Route path="trades" element={<TradesSurface />} />
                   <Route path="calendar" element={<CalendarSurface />} />
-                  <Route path={NOTEBOOK_SEGMENT} element={<NotebookSurface />} />
+                  <Route path="notebook" element={<NotebookSurface />} />
                   {/* Wave H: the Ticker Research Workspace's own canonical
                       route (checkpoint decision 8) -- a focused, single-
                       purpose page, deliberately NOT nested inside
                       NotebookTab's own three-pane shell. */}
-                  <Route path={NOTEBOOK_RESEARCH_SEGMENT} element={<TickerResearchSurface />} />
+                  <Route path="notebook/research/:symbol" element={<TickerResearchSurface />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />

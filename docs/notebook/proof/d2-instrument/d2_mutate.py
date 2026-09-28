@@ -103,14 +103,31 @@ SETS = {
          "caseSensitive: true", [T_HEADER], "M-5: /Journal/Notebook renders unfolded"),
         ("R13", J2 + "lib/compactHeaderRoute.js", r"end: false",
          "end: true", [T_HEADER], "M-5: the Ticker Research page does not fold"),
-        ("R14", "app/src/App.jsx", r"<Route path=\{NOTEBOOK_SEGMENT\} ",
-         '<Route path="notebook" ', [T_HEADER], "M-5: App.jsx restates the route instead of using the constant"),
+        # R14 RETIRED in fix round 2: it targeted `<Route path={NOTEBOOK_SEGMENT} `, which no
+        # longer exists -- App.jsx keeps its LITERAL routes (manifest/Support rails read them).
+        # The inverted tie rail is mutation-proved by set "r2" (F1-F4) below.
         ("R15", J2 + "JournalLayout.jsx", r"\{ to: NOTEBOOK_PATH, label: 'Notebook'",
          "{ to: '/journal/notebook', label: 'Notebook'", [T_HEADER], "M-5: PRIMARY_NAV restates the route"),
         ("R16", J2 + "JournalMobileNav.jsx", r"\{ to: NOTEBOOK_PATH, label: 'Notebook'",
          "{ to: '/journal/notebooks', label: 'Notebook'", [T_HEADER], "M-5: the phone strip links somewhere the fold does not key on"),
         ("R17", J2 + "lib/compactHeaderRoute.js", r"return matchPath\(\{ path: NOTEBOOK_PATH, caseSensitive: false, end: false \}, pathname \|\| ''\) !== null",
          "return (pathname || '').toLowerCase().startsWith(NOTEBOOK_PATH)", [T_HEADER], "M-5: a prefix match folds a sibling route (/journal/notebookx)"),
+    ],
+    # Fix round 2: App.jsx keeps LITERAL Notebook routes; the tie rail asserts they EQUAL the
+    # journalRoutes constants. Moving either side alone must turn it red.
+    "r2": [
+        ("F1", "app/src/App.jsx", r'<Route path="notebook" element=\{<NotebookSurface />\} />',
+         '<Route path="notebooks" element={<NotebookSurface />} />', [T_HEADER],
+         "R2: App.jsx's Notebook literal drifts from NOTEBOOK_SEGMENT"),
+        ("F2", "app/src/App.jsx", r'<Route path="notebook/research/:symbol" element=\{<TickerResearchSurface />\} />',
+         '<Route path="notebook/research/:ticker" element={<TickerResearchSurface />} />', [T_HEADER],
+         "R2: App.jsx's research literal drifts from NOTEBOOK_RESEARCH_SEGMENT"),
+        ("F3", J2 + "lib/journalRoutes.js", r"export const NOTEBOOK_SEGMENT = 'notebook'",
+         "export const NOTEBOOK_SEGMENT = 'notebooks'", [T_HEADER],
+         "R2: the constant drifts from App.jsx's literal"),
+        ("F4", J2 + "lib/journalRoutes.js", r"/research/:symbol`",
+         "/research/:ticker`", [T_HEADER],
+         "R2: the research constant drifts from App.jsx's literal"),
     ],
 }
 
