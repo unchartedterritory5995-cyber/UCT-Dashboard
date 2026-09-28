@@ -8,6 +8,7 @@ import ReadAloudButton from '../components/voice/ReadAloudButton'
 import MorningWireIndexes from '../components/tiles/MorningWireIndexes'
 import MarketClock from '../components/tiles/MarketClock'
 import CatalystTable from '../components/tiles/CatalystTable'
+import WireArchive from '../components/wire/WireArchive'
 import useReadAloudFollow from '../hooks/useReadAloudFollow'
 import useHubMode from '../hub/useHubMode'
 import useWireSection from '../hub/sections/wireSection'
@@ -360,6 +361,10 @@ export default function MorningWire() {
           }
         </div>
       </TileCard>
+
+      {/* ── Past issues (TERM-089): paid-only replay of an archived
+           morning, through the same .rundownWrap renderer as above. ── */}
+      <WireArchive />
 
       {/* ── Legal disclaimer ─────────────────────────────────────── */}
       <p style={{

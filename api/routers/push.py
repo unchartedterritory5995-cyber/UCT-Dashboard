@@ -130,6 +130,15 @@ def push_wire_data(
     except OSError:
         pass  # Volume not mounted in local dev — safe to ignore
 
+    # TERM-089: keep a dated copy of what members were served, so a past
+    # morning can be replayed. The live file above is overwritten daily; this
+    # is the only pod-side history. Never blocks the push.
+    try:
+        from api.services import wire_archive
+        wire_archive.record(payload)
+    except Exception:
+        logger.exception("[push] wire archive write failed (push unaffected)")
+
     # Record UCT20 composition snapshot (for portfolio NAV tracking)
     try:
         from api.services.uct20_nav import record_composition
@@ -158,6 +167,32 @@ def push_wire_data(
         pass
 
     return {"ok": True, "date": payload.get("date", "")}
+
+
+@router.post("/api/push/archive")
+def push_wire_archive(
+    payload: dict,
+    authorization: Optional[str] = Header(None),
+):
+    """TERM-089 backfill: archive a PAST wire without touching the live cache.
+
+    For the dated snapshots already on the engine PC
+    (`morning-wire/data/snapshots/wire_<date>.json`), which predate the push
+    recording its own history. Same PUSH_SECRET as `/api/push`. It never
+    overwrites a date a push already recorded -- what members were served on
+    the day is the record -- and it never invalidates or writes a cache key."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services import wire_archive
+    try:
+        day = wire_archive.parse_date((payload or {}).get("date"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="payload.date must be YYYY-MM-DD")
+    if not isinstance(payload.get("rundown_html"), str) or not payload["rundown_html"]:
+        raise HTTPException(status_code=422, detail="payload.rundown_html is required")
+    stored = wire_archive.record(payload, overwrite=False)
+    return {"ok": True, "date": day, "stored": stored}
 
 
 @router.post("/api/push/intraday")
