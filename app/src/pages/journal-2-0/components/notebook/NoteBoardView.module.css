@@ -63,10 +63,14 @@
        <main> to 1154 px and the whole page panned 764 px sideways; at 820 / 1200 they
        gave the panel (overflow: hidden) a hidden sideways range. `position: relative`
        makes this row their containing block, so they scroll -- and clip -- with it.
-     * The app's global scrollbar style (tokens.css) sets a width and no height, so this
-       row's horizontal scrollbar measured 0 px tall at 390, 820 and 1200: a column was
-       simply cut at the edge with nothing to say the row scrolls. It is a visible, thin
-       bar now, in theme tokens. Rail: NoteBoardView.scrollsAlone.test.js. */
+     * The row's scrollbar took the app's global style (tokens.css): its thumb is
+       --border on a --bg track, 1.36:1 in dark, 1.26:1 in oled and light, so a column
+       was cut at the edge with nothing visible to say the row scrolls. The row now sets
+       its own thin bar with a --text-muted thumb (11.6 / 12.9 / 6.4:1). ⚠️ Not visible
+       to the proof walk: Playwright's Chromium runs with --hide-scrollbars, which reads
+       EVERY scrollbar as 0 px; measured with scrollbars shown in
+       docs/notebook/proof/f5-after-aa2417c2c/scrollbar-shown.json.
+       Rail: NoteBoardView.scrollsAlone.test.js. */
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;

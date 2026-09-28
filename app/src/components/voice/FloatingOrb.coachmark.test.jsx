@@ -14,6 +14,8 @@
 // while a tour holds the stage. The geometry itself is the proof walk's
 // (docs/notebook/proof/f5-*/).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
 import { registerFirstRunSlot, claimFirstRunStage } from '../firstRun/firstRunStage'
@@ -97,5 +99,27 @@ describe('FloatingOrb "Meet Compass": in the page flow, never over it', () => {
     act(() => { registerFirstRunSlot(slot) })
     renderWithProviders(<FloatingOrb />)
     expect(card()).toBeNull()
+  })
+})
+
+describe('"Meet Compass" at the desktop width keeps clear of the feedback "?"', () => {
+  // After run on aa2417c2c (docs/notebook/proof/f5-after-aa2417c2c/geometry.json.gz,
+  // nb-note-first-run @1200): "Got it" [1104,23,63,44] and the fixed "?" [1162,10,24,24]
+  // shared a 5x11 px corner. Structural (jsdom lays nothing out): the card's desktop right
+  // margin must clear the "?" -- whose numbers are READ from FeedbackWidget.jsx, the one
+  // authority over where it sits, never retyped here.
+  const SRC = join(process.cwd(), 'src', 'components')
+  const css = readFileSync(join(SRC, 'voice', 'FloatingOrb.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const fw = readFileSync(join(SRC, 'FeedbackWidget.jsx'), 'utf8')
+
+  it('reads the "?" button geometry from FeedbackWidget.jsx (non-vacuity)', () => {
+    expect(/position: 'fixed', top: \d+, right: \d+, width: \d+, height: \d+/.test(fw)).toBe(true)
+  })
+
+  it('the desktop margin-right is wider than the "?" reaches in from the right edge', () => {
+    const [, right, width] = /position: 'fixed', top: \d+, right: (\d+), width: (\d+), height: \d+/.exec(fw).map(Number)
+    const desk = /@media \(min-width: 1025px\)\s*\{\s*\.coachmark\s*\{\s*margin-right:\s*(\d+)px;?\s*\}\s*\}/.exec(css)
+    expect(desk, 'a desktop .coachmark margin-right rule').not.toBeNull()
+    expect(Number(desk[1])).toBeGreaterThan(right + width)
   })
 })

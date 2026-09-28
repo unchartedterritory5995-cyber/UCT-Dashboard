@@ -10,12 +10,16 @@
 // scroller that is not its containing block, so the labels of cards scrolled out of view
 // stayed out there: the panel (and at 390 px the page) grew to hold them.
 //
-// ⛔ STRUCTURAL, NOT THE VERDICT: jsdom lays nothing out. The measured widths and the
-// scrollbar's thickness are the proof walk's before/after (docs/notebook/proof/f5-*/f5probe.json).
+// ⛔ STRUCTURAL, NOT THE VERDICT: jsdom lays nothing out. The measured widths are the proof
+// walk's before/after (docs/notebook/proof/f5-*/f5probe.json). The scrollbar is NOT in that
+// record: Playwright's Chromium runs with --hide-scrollbars, which reads every scrollbar as
+// 0 px -- see docs/notebook/proof/f5-after-aa2417c2c/scrollbar-shown.json for a reading with
+// scrollbars shown. The thumb's contrast is measured below from the tokens.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRules, declarations, stripComments } from '../../a11y/cssAudit'
+import { parseRules, declarations, stripComments, themeVars, resolveVars, parseColor, THEMES } from '../../a11y/cssAudit'
+import { contrast } from '../../../../styles/__tests__/contrastMath'
 
 const DIR = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook')
 const css = readFileSync(join(DIR, 'NoteBoardView.module.css'), 'utf8')
@@ -50,6 +54,24 @@ describe('the board row (NoteBoardView.module.css `.columns`)', () => {
   it('shows its scrollbar (thin, in theme tokens) -- never hidden', () => {
     expect(columns['scrollbar-width']).toBe('thin')
     expect(columns['scrollbar-color']).toMatch(/^var\(--[a-z-]+\)\s+/)
+  })
+
+  // WCAG 1.4.11 asks 3:1 of a UI component against what is next to it. The thumb sits on the
+  // page background (the track is transparent). The global rule's thumb is read from
+  // tokens.css itself, never typed, for the control.
+  const vars = themeVars()
+  const rgb = (v, t) => parseColor(resolveVars(v, vars[t])).rgb
+  it.each(THEMES)('the thumb reads against the page background at >= 3:1 in %s', (t) => {
+    const thumb = columns['scrollbar-color'].split(/\s+(?![^(]*\))/)[0]
+    const ratio = contrast(rgb(thumb, t), rgb('var(--bg)', t))
+    expect(ratio, `${t}: ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3)
+  })
+
+  it('control: the global scrollbar thumb (tokens.css) is under 3:1 in every theme -- the D-5 finding', () => {
+    const tokens = stripComments(readFileSync(join(process.cwd(), 'src', 'styles', 'tokens.css'), 'utf8'))
+    const m = /::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*([^;]+);/.exec(tokens)
+    expect(m, 'tokens.css styles the scrollbar thumb').not.toBeNull()
+    for (const t of THEMES) expect(contrast(rgb(m[1].trim(), t), rgb('var(--bg)', t)), t).toBeLessThan(3)
   })
 
   it('control: the old rule fails the containment and affordance checks', () => {

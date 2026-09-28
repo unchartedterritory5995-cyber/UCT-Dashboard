@@ -335,3 +335,10 @@
 @media (max-width: 640px) {
   .coachmark { margin: 10px 12px 0; }
 }
+/* Desktop: the feedback "?" (FeedbackWidget.jsx, fixed in the viewport's top-right
+   corner) overlapped the card's "Got it" by a 5x11 px corner at 1200 px (after run,
+   docs/notebook/proof/f5-after-aa2417c2c/). The card ends clear of it. The rail derives
+   the clearance from FeedbackWidget's own numbers (FloatingOrb.coachmark.test.jsx). */
+@media (min-width: 1025px) {
+  .coachmark { margin-right: 48px; }
+}
