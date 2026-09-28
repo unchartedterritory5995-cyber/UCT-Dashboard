@@ -258,7 +258,7 @@ def test_R4_every_class_in_the_vocabulary_has_a_row_in_every_table():
 
 @pytest.mark.parametrize("alert_class", ar.ALERT_CLASSES)
 def test_severity_never_changes_the_destination(alert_class):
-    """⛔ THE DEMOTION, asserted directly. `alerts.py:350` fires Discord on
+    """⛔ THE DEMOTION, asserted directly. `alerts.py:431` fires Discord on
     `warning` OR `critical` while `chart_health_alerts.py:37` pages on `critical`
     only — two doors, two rules, and severity deciding both DESTINATION and
     PRIORITY is the conflation this ticket exists to end."""

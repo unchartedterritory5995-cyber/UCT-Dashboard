@@ -182,8 +182,64 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     ...BUILDER_INPUT_SCOPE,
     ...Object.fromEntries((memberSpecs || []).map((spec) => [spec.key, true])),
   }
+  // ⭐⭐ R34 / C1 — THE CONDITION COLUMNS THIS DOCUMENT NEEDS, minted at most once
+  // per canonical formula, for a conditionally coloured FILL (j.3b) and — since
+  // 2026-09-27 — a conditionally coloured PLOT. One minting helper for both, so a
+  // plot and a fill coloured by the same condition share ONE column.
+  //
+  // ⚰️⚰️ THE PLOT HALF WAS MISSING, AND MEMBERS SAW GOLD. `outputPresentation`
+  // has carried `colorUp`/`colorDown`/`colorCondition` for a plot since C1-A, and
+  // `BuilderSheet`'s own Pine import mints the column; this door never did, so
+  // every `plot(x, color = cond ? color.green : color.red)` on a member's chart
+  // drew in the pane's default gold. Measured against TradingView 2026-09-27
+  // (vendor harness, live captures): Cumulative Volume Delta's histogram
+  // `#ff5252ff` vs ours `#c9a84cff` on 618/618 bars; ATR Trailing Stoploss's line
+  // `#363a45ff` vs `#c9a84cff` on 568/568.
+  //
+  // ⛔ THEY ARE APPENDED AFTER `DOC_CARRY_MAX` HAS BOUNDED THE AUTHOR'S OUTPUTS:
+  // a derived column is not an author output competing for a slot, and dropping
+  // one would leave a `colorMode` naming a column nobody declared.
+  const conditionRows = []
+  const conditionKeyByFormula = new Map()
+  const conditionColumnFor = (cc) => {
+    if (!cc || typeof cc.formula !== 'string' || !cc.ast) return null
+    const formula = cc.formula
+    let key = conditionKeyByFormula.get(formula)
+    if (!key) {
+      key = keyAt(drawable.length + conditionRows.length)
+      const ev = evaluateFormula(formula, lintScope)
+      conditionRows.push({
+        key,
+        label: '',
+        source: formula,
+        ast: cc.ast,
+        // ⛔ THE SAME `evaluateFormula` AN AUTHOR'S ROW GOES THROUGH. A second
+        // evaluator over the same expression is free to disagree with the one
+        // that drew the line, which is the defect `columnColorsForPlot` already
+        // avoids once by riding the compute lane rather than re-deriving.
+        mode: (ev && ev.verdict && ev.verdict.mode) || 'clean',
+        readback: (ev && ev.readback) || '',
+        style: 'line',
+        // ⛔ HIDDEN: it binds no series (R27 amended) and costs the member no
+        // visible slot — `CARRY_MAX` bounds what is SEEN, and this is not.
+        hidden: true,
+        // The marker that makes this row identifiable as DERIVED rather than
+        // authored, for anything that counts outputs.
+        conditionFor: formula,
+      })
+      conditionKeyByFormula.set(formula, key)
+    }
+    return key
+  }
   const rows = drawable.map((o, i) => {
     const p = o.presentation || {}
+    // A plot coloured by a condition between two static colours draws per point.
+    const condKey = (typeof p.colorUp === 'string' && typeof p.colorDown === 'string')
+      ? conditionColumnFor(p.colorCondition) : null
+    // ⭐⭐ …and so does an N-way chain: a palette, and a column holding which
+    // entry each bar uses (ATR Trailing Stoploss's green/red/black line).
+    const paletteKey = (!condKey && Array.isArray(p.colorPalette) && p.colorPalette.length >= 2)
+      ? conditionColumnFor(p.colorIndex) : null
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
     // `meta.repaint` is a TRUTH CLAIM a member makes decisions on, and the
     // install door refuses a declaration that disagrees with what it measures —
@@ -218,6 +274,8 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // declaration dropped on the floor — Wired"); only this step was missing.
       ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
+      ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
     }
   })
 
@@ -242,15 +300,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     const keyOfOutput = new Map()
     drawable.forEach((o, i) => { keyOfOutput.set((t.outputs || []).indexOf(o), keyAt(i)) })
     const byKey = new Map(rows.map((r) => [r.key, r]))
-    // ⭐ R34 — the condition columns this document will need, minted at most once
-    // per canonical formula and appended only if a surviving fill names them.
-    // ⛔ THEY ARE APPENDED AFTER `DOC_CARRY_MAX` HAS BOUNDED THE AUTHOR'S OUTPUTS,
-    // and deliberately so: a derived column is not an author output competing for a
-    // slot, and dropping one would leave a fill's `colorMode` naming a column nobody
-    // declared — a locator into nothing, which is exactly what this block already
-    // refuses for a fill's ANCHORS two lines up.
-    const conditionRows = []
-    const conditionKeyByFormula = new Map()
+    // ⭐ R34 — a conditional fill's column comes from the SAME `conditionColumnFor`
+    // the plots above use (declared before the rows), so a plot and a fill over
+    // one condition share one column.
     for (const f of ((t.presentation || {}).fills || [])) {
       if (!f || !Number.isInteger(f.a) || !Number.isInteger(f.b)) continue
       const ka = keyOfOutput.get(f.a)
@@ -272,38 +324,18 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // identical columns — twenty evaluations of one expression, twenty rows
       // against the document cap, and twenty chances for them to disagree. Keyed by
       // formula it mints one, and the second fill REUSES it.
-      if (typeof f.colorUp === 'string' && typeof f.colorDown === 'string'
-          && f.colorCondition && typeof f.colorCondition.formula === 'string'
-          && f.colorCondition.ast) {
-        const formula = f.colorCondition.formula
-        let key = conditionKeyByFormula.get(formula)
-        if (!key) {
-          key = keyAt(drawable.length + conditionRows.length)
-          const ev = evaluateFormula(formula, lintScope)
-          conditionRows.push({
-            key,
-            label: '',
-            source: formula,
-            ast: f.colorCondition.ast,
-            // ⛔ THE SAME `evaluateFormula` AN AUTHOR'S ROW GOES THROUGH. A second
-            // evaluator over the same expression is free to disagree with the one
-            // that drew the line, which is the defect `columnColorsForPlot` already
-            // avoids once by riding the compute lane rather than re-deriving.
-            mode: (ev && ev.verdict && ev.verdict.mode) || 'clean',
-            readback: (ev && ev.readback) || '',
-            style: 'line',
-            // ⛔ HIDDEN: it binds no series (R27 amended) and costs the member no
-            // visible slot — `CARRY_MAX` bounds what is SEEN, and this is not.
-            hidden: true,
-            // The marker that makes this row identifiable as DERIVED rather than
-            // authored, for the cleanup below and for anything that counts outputs.
-            conditionFor: formula,
-          })
-          conditionKeyByFormula.set(formula, key)
-        }
-        row.fill.colorMode = `column:${key}`
+      const fillKey = (typeof f.colorUp === 'string' && typeof f.colorDown === 'string')
+        ? conditionColumnFor(f.colorCondition) : null
+      if (fillKey) {
+        row.fill.colorMode = `column:${fillKey}`
         row.fill.colorUp = f.colorUp
         row.fill.colorDown = f.colorDown
+      } else if (Array.isArray(f.colorPalette) && f.colorPalette.length >= 2) {
+        const palKey = conditionColumnFor(f.colorIndex)
+        if (palKey) {
+          row.fill.colorMode = `column:${palKey}`
+          row.fill.colorPalette = f.colorPalette.slice()
+        }
       }
     }
     // ⭐ A COLUMN NOBODY NAMES CANNOT EXIST — BY CONSTRUCTION, NOT BY A GUARD.

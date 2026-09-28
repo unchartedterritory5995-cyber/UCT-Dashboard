@@ -12037,7 +12037,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  reachable table scripts colour conditionally far more often than not. */
   const colorNodeOf = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
-    const hex = staticColourOf(node, scope)
+    // ⭐ WITH its transparency — see `staticObjectColourOf`. A drawing object
+    // has one colour string and no opacity field, so the alpha rides in it.
+    const hex = staticObjectColourOf(node, scope)
     if (hex) return { c: 'lit', hex }
     if (node.type === 'ternary') {
       const cond = resolveTree(node.test)
@@ -13316,6 +13318,18 @@ function translatePineResult(source, opts = {}) {
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
   const unfoldable = new Map()
+  /** ⛔⛔ H14 (2026-09-27) — A FUNCTION NAME DEFINED TWICE IS AN OVERLOAD, AND
+   *  THIS ENGINE HAS NO OVERLOAD RESOLUTION. Pine picks among same-named
+   *  definitions by the TYPES of the arguments; `env` keys a function by its
+   *  NAME alone, so the later body silently replaced the earlier for every call.
+   *  ⚰️ MEASURED on production `1f4d7a309`: `f(int x) => x * 10` beside
+   *  `f(float x) => x + 1` translated `f(bar_index)` to `barindex + 1` — a wrong
+   *  number, drawn without a word. A different ARITY already refused
+   *  (`pine:arity`, against whichever body won), so only the same-arity case was
+   *  silent. Until type-directed resolution exists the name refuses by name on
+   *  EVERY definition after the first — a script that defines an overload and
+   *  never calls it is untouched, because a refusal only lands on use. */
+  const definedFunctions = new Set()
 
   /** ⛔ `at` IS A LOCATOR, NEVER A TOKEN THIS FUNCTION PICKED. When a binding
    *  fails to parse, the refusal that comes back ALREADY points at the offending
@@ -13679,6 +13693,24 @@ function translatePineResult(source, opts = {}) {
         if (!nameTok || !params) {
           throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(toks[arrow]))
         }
+        if (definedFunctions.has(nameTok.value)) {
+          // ⛔ OVERWRITE, never `markOpaque`'s keep-the-first: a FIRST definition
+          // that folded left a live `fn` binding, and the whole defect is that
+          // binding answering calls meant for a different overload.
+          env.set(nameTok.value, {
+            kind: 'opaque',
+            guard: 'pine:function-def',
+            isFunction: true,
+            message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
+              + 'than once (an overload), and this engine would apply one body to every call',
+            at: locate(nameTok),
+          })
+          notes.push({ ...fromError(new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more than once (an overload)`,
+            locate(nameTok))), code: 'pine:function-def' })
+          continue
+        }
+        definedFunctions.add(nameTok.value)
         const fnEnv = new Map(env)
         params.forEach((p, k) => fnEnv.set(p, { kind: 'param', index: k, name: p }))
         // ⭐ THE FUNCTION IS IN ITS OWN SCOPE, AND THAT IS SO RECURSION SAYS SO.
@@ -15437,6 +15469,43 @@ function colourTransparencyOf(node, env, depth = 0) {
   return null
 }
 
+/** ⭐⭐ THE COLOUR A DRAWING OBJECT PAINTS: `staticColourOf`'s hex WITH its
+ *  transparency folded in as `#RRGGBBAA`, or null.
+ *
+ *  ⚰️ MEASURED 2026-09-27: every box, label, table cell and linefill painted a
+ *  transparent colour SOLID. `box.new(…, bgcolor = color.new(color.red, 80))`
+ *  reached the object program as `#F23645` — the 80 was read and validated by
+ *  `staticColourOf` and then dropped, because a plot carries its alpha in a
+ *  separate `presentation.opacity` and an object has no such field: its one
+ *  colour string IS the paint. A zone drawn at 20% opacity covered the candles
+ *  under it. Only an 8-digit literal survived, because nothing parsed it.
+ *
+ *  ⛔ NO NEW ARITHMETIC. `colourTransparencyOf` already answers this number for
+ *  exactly the colours `staticColourOf` folds (a name, a literal, `color.new`,
+ *  `color.rgb`'s fourth argument, `input.color`'s default, a bound name), so the
+ *  two cannot disagree about what counts as a colour.
+ *
+ *  ⛔ AN 8-DIGIT LITERAL IS KEPT BYTE-FOR-BYTE. Re-encoding it through a 0-100
+ *  transparency is lossy (`#…81` → 49 → `#…82`); when the transparency read back
+ *  is the literal's own, the literal is the answer. `color.new(#FF000080, 0)`
+ *  still comes out `#FF0000` — `color.new` SETS the transparency, it does not
+ *  stack onto the base's.
+ *
+ *  ⛔ AN OPAQUE COLOUR STAYS SIX DIGITS, so nothing that was already right
+ *  changes its bytes. */
+function staticObjectColourOf(node, env) {
+  const hex = staticColourOf(node, env)
+  if (!hex) return null
+  const base = /^#[0-9a-f]{6}/i.exec(hex)
+  const t = colourTransparencyOf(node, env)
+  if (!base || t === null) return hex
+  const own = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(hex)
+  if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
+  if (!(t > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
+}
+
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
  *
  *  ⭐ ONE READER FOR EVERY ALPHA SLOT — `color.new`'s second argument,
@@ -15624,6 +15693,52 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
+/**
+ * ⭐⭐ AN N-WAY COLOUR CHAIN, CARRIED AS A PALETTE AND AN INDEX.
+ *
+ * `close > ts ? color.green : close < ts ? color.red : color.black` is ATR
+ * Trailing Stoploss line 19-22, measured against TradingView 2026-09-27: its line
+ * is black on every bar where neither side holds, and a two-colour schema could
+ * only draw it gold. The same tree with every LEAF replaced by its position in a
+ * palette is an ordinary numeric ternary —
+ *
+ *     close > ts ? 0 : close < ts ? 1 : 2      palette [green, red, black]
+ *
+ * — which the resolver already canonicalises like any other series, so the chain
+ * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
+ *
+ * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
+ * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * readable branches would paint the unreadable ones a neighbour's colour.
+ * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
+ * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
+ * would carry the colour, not its position.
+ * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
+ * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ */
+function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+      return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
+    }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
+    if (!yes) return null
+    const no = colourIndexChain(node.no, env, ctx, depth + 1, acc)
+    if (!no) return null
+    return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
+  }
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  let idx = acc.palette.indexOf(hex)
+  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
+  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  return { tree: { type: 'number', value: idx }, acc }
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -15659,6 +15774,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
       || (n.type === 'call' && n.name === 'na'))
     if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
     const arity = staticColourArity(node, env)
+    // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
+    // answer so a chain the RESOLVER then refuses still reports its size.
+    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
+    if (chain && chain.acc.palette.length >= 2) {
+      const al = chain.acc.alphas
+      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
+      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -15739,9 +15862,12 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
       } : {}),
+      // ⭐ An N-way chain rides the same way a plot's does: palette + index.
+      ...(Array.isArray(pres.colorPalette) && pres.colorIndex
+        ? { colorPalette: pres.colorPalette, colorIndex: pres.colorIndex } : {}),
       // A conditional this lane could not carry — folded to one colour, or not
       // folded at all — says so rather than going quiet.
-      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+      ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
   }
@@ -15783,6 +15909,21 @@ function outputPresentation(args, ctx) {
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
+      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+      // refuses leaves the plot imported and `colorDynamicArity` saying why.
+      if (cond && cond.indexTree && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.indexTree)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorPalette = cond.palette.slice()
+          pres.colorIndex = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          delete pres.colorDynamicArity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
           const ast = ctx.resolver.resolve(cond.test)
