@@ -156,3 +156,18 @@ def test_an_unrecorded_conflict_stops_the_chain(chain, monkeypatch):
     monkeypatch.setattr(chain, "RULES", rules)
     with pytest.raises(chain.ChainStopped, match=r"api/main\.py"):
         chain.run(chain.MEASURED_AT, "wave8", emit=lambda _l: None)
+
+
+DOC = ROOT / "docs" / "notebook" / "wave5-rollback.md"
+_DOC_ROW = re.compile(r"^\| `([^`]+)` \| `([0-9a-f]{9})` \| (.*?) \| (\*\*kept\*\*)? ?\|$")
+
+
+def test_the_runbooks_chain_table_is_the_tools_chain():
+    """The runbook's step-0 table restates CHAIN and KEPT for a reader; it must not drift from the
+    tool (one authority: the tool; this rail ties the copy to it). Order, keys, squashes, and which
+    rows are kept."""
+    rows = [m.groups() for m in map(_DOC_ROW.match, DOC.read_text(encoding="utf-8").splitlines()) if m]
+    assert len(rows) >= 10, f"non-vacuity: the runbook's chain table was not found ({len(rows)} rows)"
+    mod = _load()
+    assert [(k, s) for k, s, _w, _kept in rows] == [(k, s[:9]) for k, s, _w in mod.CHAIN]
+    assert {s for _k, s, _w, kept in rows if kept} == {s[:9] for s in mod.KEPT}
