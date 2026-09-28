@@ -289,12 +289,32 @@ describe('M-5 -- one authority for the Notebook route (lib/journalRoutes.js)', (
   const LAYOUT_JSX = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/JournalLayout.jsx'), 'utf8')
   const STRIP_JSX = readFileSync(join(process.cwd(), 'src/pages/journal-2-0/JournalMobileNav.jsx'), 'utf8')
 
-  it('App.jsx declares both Notebook routes FROM the constants', () => {
-    expect(APP).toMatch(/import \{[^}]*NOTEBOOK_SEGMENT,[^}]*\} from '\.\/pages\/journal-2-0\/lib\/journalRoutes'/)
-    expect(APP).toMatch(/<Route path=\{NOTEBOOK_SEGMENT\} element=\{<NotebookSurface \/>\}/)
-    expect(APP).toMatch(/<Route path=\{NOTEBOOK_RESEARCH_SEGMENT\} element=\{<TickerResearchSurface \/>\}/)
-    // ...and restates neither
-    expect(APP).not.toMatch(/path="notebook/)
+  // Fix round 2 (controller ruling): App.jsx keeps LITERAL route paths, because other
+  // rails (surfaces/manifest.test.js, pages/Support.notebook.test.jsx) derive the route
+  // list by reading App.jsx's path strings; a constant there blinds them. So the tie runs
+  // the other way: the literals App.jsx declares must EQUAL the constants, and the
+  // constant still cannot drift from the router.
+  /** The literal `path` of the <Route> whose element is `<Component />`, or null. */
+  const routeLiteralFor = (component) => {
+    const m = new RegExp(`<Route\\s+path="([^"]+)"\\s+element=\\{<${component}\\s*/>\\}`).exec(APP)
+    return m ? m[1] : null
+  }
+
+  it('App.jsx declares both Notebook routes as literals EQUAL to the constants', () => {
+    const notebook = routeLiteralFor('NotebookSurface')
+    const research = routeLiteralFor('TickerResearchSurface')
+    // NON-VACUITY: both routes were found as literals
+    expect(notebook).not.toBeNull()
+    expect(research).not.toBeNull()
+    expect(notebook).toBe(NOTEBOOK_SEGMENT)
+    expect(research).toBe(NOTEBOOK_RESEARCH_SEGMENT)
+  })
+
+  it('⭐ CONTROL -- the parser reads a literal, and would see a drifted one', () => {
+    const drifted = '<Route path="notebooks" element={<NotebookSurface />} />'
+    const m = /<Route\s+path="([^"]+)"\s+element=\{<NotebookSurface\s*\/>\}/.exec(drifted)
+    expect(m && m[1]).toBe('notebooks')
+    expect(m[1]).not.toBe(NOTEBOOK_SEGMENT)
   })
 
   it('the section nav (desktop rail and phone strip) links to NOTEBOOK_PATH, the route the fold keys on', () => {
