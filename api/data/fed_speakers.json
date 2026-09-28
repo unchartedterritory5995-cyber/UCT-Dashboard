@@ -1,0 +1,24 @@
+{
+  "as_of": "2026-09-27",
+  "valid_through": "2027-03-31",
+  "renewal": "Re-verify against the Board of Governors and the twelve Reserve Bank presidents on federalreserve.gov, edit surnames, then move BOTH as_of and valid_through. tests/test_fed_speaker_roster.py goes red when fewer than FED_ROSTER_MIN_HORIZON_MONTHS (api/routers/calendar.py) of cover remain.",
+  "provenance": "TERM-031. Migrated verbatim from the hand-typed surname list in api/routers/calendar.py _FED_TERMS at bae1fda48 (Powell from its 'powell speaks' term), plus Cook and Musalem, which that file records the FMP feed carrying on the week of 2026-08-03. NOT yet re-verified against federalreserve.gov: a departed official (Kugler) may still be listed, and a stale name only costs a false-positive risk, while a missing one only matters for bare-surname titles, since titled ones ('Fed <Name> Speech', 'FOMC Member <Name> Speaks') are matched structurally.",
+  "used_for": "Bare-surname speaker titles only (e.g. 'Warsh Speaks'). Matched as a whole word, and only in a speaking event.",
+  "surnames": [
+    "Barkin",
+    "Barr",
+    "Bowman",
+    "Cook",
+    "Daly",
+    "Jefferson",
+    "Kashkari",
+    "Kugler",
+    "Logan",
+    "Miran",
+    "Musalem",
+    "Powell",
+    "Waller",
+    "Warsh",
+    "Williams"
+  ]
+}
