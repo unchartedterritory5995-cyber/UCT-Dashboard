@@ -198,7 +198,7 @@ def main() -> int:
     ready = C.ready_record(Path(a.scratch))
     base = ready["base"]
     import os
-    rec = K.Recorder(out / "walk-f4.json", {
+    rec = K.Recorder(out / os.environ.get("F4_OUT_NAME", "walk-f4.json"), {
         "tool": "kbd_f4", "started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "base": base,
         "integrity_log": ready["integrity_log"], "browser": "chromium (playwright)",
         "viewport": "1280x800 unless a step says otherwise", "tip": os.environ.get("F4_TIP", "unknown")})
