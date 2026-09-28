@@ -23,7 +23,10 @@ THE INSTRUMENTS (`--sweeps`, default all):
              chooser, download, popup, print, clipboard, dialog). A field (input, select,
              textarea, the editor) is live when the click puts focus IN it.
              CONTROL: three planted buttons -- a dead one, a dead one that restyles itself on
-             mousedown (the "looks pressed" trap), and a live one -- must read DEAD, DEAD, LIVE.
+             mousedown (the "looks pressed" trap), and a live one -- must read DEAD, DEAD, LIVE,
+             with a planted POLLER firing inside the dead ones' windows (it must be seen there):
+             a request the page's own timer sent is never the click's effect (F7; the voice poll
+             made run 26e03bbe8's control read the styled dead button LIVE).
   silent     every endpoint a surface calls (and the write each named action sends) is forced
              to answer 500, then to fail as OFFLINE (the request aborted), and a visible
              sentence must render that the healthy load did not show.
@@ -131,14 +134,39 @@ def is_telemetry(url: str) -> bool:
     return any(p == t or p.startswith(t + "/") for t in TELEMETRY_PATHS)
 
 
+def _req_key(r: dict) -> tuple[str, str]:
+    return (str(r.get("method") or "GET").upper(), urlsplit(str(r.get("url", "")))._replace(fragment="").geturl())
+
+
+def without_background(reqs: list[dict], background: list[dict]) -> list[dict]:
+    """The requests of a click's window minus the ones the page's own timers sent (the in-page
+    half records those -- see INSTRUMENT_JS). Matched one for one by method and URL, so a click
+    that asks for the same URL a poll also asked for still keeps its own request."""
+    left: dict = {}
+    for b in background or []:
+        k = _req_key(b)
+        left[k] = left.get(k, 0) + 1
+    out = []
+    for r in reqs or []:
+        k = _req_key(r)
+        if left.get(k, 0) > 0:
+            left[k] -= 1
+            continue
+        out.append(r)
+    return out
+
+
 def judge_click(obs: dict) -> tuple[str, list[str]]:
     """One click's observation -> ("LIVE", effects) | ("DEAD", []). `obs` holds the counts the
     browser half measured (see EFFECT_JS) plus the Python half's request / event lists.
-    A telemetry POST alone is never evidence (the controller's rule for this lane)."""
+    A telemetry POST alone is never evidence (the controller's rule for this lane), and neither
+    is a request the page's own timer sent inside the click's window (`background_requests`,
+    wave 10 follow-up F7: the voice poll read the planted dead control LIVE)."""
     eff = []
     if obs.get("dom", 0) > 0:
         eff.append("dom")
-    reqs = [r for r in obs.get("requests", []) if not is_telemetry(r.get("url", ""))
+    reqs = [r for r in without_background(obs.get("requests", []), obs.get("background_requests", []))
+            if not is_telemetry(r.get("url", ""))
             and normalize_endpoint(r.get("url", "")) not in set(obs.get("noise_endpoints", []))]
     if reqs:
         eff.append("request")
@@ -244,7 +272,8 @@ def judge_axe(result: dict) -> dict:
 def control_ok(sweep: str, got: dict) -> tuple[bool, str]:
     """Did the planted defect FAIL the instrument as it must? One authority per sweep."""
     if sweep == "deadclick":
-        want = {"plant-dead": "DEAD", "plant-dead-styled": "DEAD", "plant-live": "LIVE"}
+        want = {"plant-dead": "DEAD", "plant-dead-styled": "DEAD", "plant-live": "LIVE",
+                "plant-poller": "IN-WINDOW"}
     elif sweep == "silent":
         want = {"plant-swallow:500": "SILENT", "plant-swallow:offline": "SILENT",
                 "plant-honest:500": "SENTENCE", "plant-honest:offline": "SENTENCE"}
@@ -293,11 +322,60 @@ INSTRUMENT_JS = r"""
   } catch (e) {}
   const ex = document.execCommand ? document.execCommand.bind(document) : null;
   if (ex) document.execCommand = function (cmd, a, b) { if (String(cmd).toLowerCase() === 'copy') P.clip++; return ex(cmd, a, b); };
+  // ⛔ WHO ASKED FOR A REQUEST (wave 10 follow-up F7). A request that lands inside a click's
+  // window is not the click's effect when the page's OWN timer sent it: the sweep of 26e03bbe8
+  // read the planted dead control LIVE on `GET /api/voice/insights/unspoken`, the voice poll's
+  // first tick (useProactiveVoice: 8 s after load, then every 90 s) -- far longer than the
+  // 1.5 s idle window that learns noise endpoints, so no idle window could ever have seen it.
+  // Timer callbacks carry a flag: a callback scheduled BEFORE the current click was armed
+  // (`P.armedAt`, set by MARK_JS), or scheduled by a callback that was itself background, runs
+  // as background, and every fetch / XHR it sends is recorded in `P.bgReqs`. A timer the CLICK
+  // scheduled (a debounce, a setTimeout(0)) is born after the arm and stays the click's.
+  // Residual, stated: a background callback's work after an `await` (a promise continuation)
+  // is not followed -- only the synchronous send inside the timer callback is attributed.
+  P.armedAt = Infinity; P.bgDepth = 0; P.bgReqs = [];
+  const wrapTimer = (name) => {
+    const orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function (fn, ...rest) {
+      if (typeof fn !== 'function') return orig.call(this, fn, ...rest);
+      const born = performance.now(); const bornBg = P.bgDepth > 0;
+      return orig.call(this, function (...a) {
+        const bg = bornBg || born < P.armedAt;
+        if (bg) P.bgDepth++;
+        try { return fn.apply(this, a); } finally { if (bg) P.bgDepth--; }
+      }, ...rest);
+    };
+  };
+  wrapTimer('setTimeout'); wrapTimer('setInterval'); wrapTimer('requestAnimationFrame');
+  const noteBg = (method, url) => {
+    if (P.bgDepth <= 0) return;
+    try { const u = new URL(String(url), location.href); u.hash = '';
+          P.bgReqs.push({method: String(method || 'GET').toUpperCase(), url: u.href}); } catch (e) {}
+  };
+  const f0 = window.fetch;
+  if (typeof f0 === 'function') window.fetch = function (input, init) {
+    try {
+      const isReq = input && typeof input === 'object' && 'url' in input;
+      noteBg((init && init.method) || (isReq ? input.method : 'GET'), isReq ? input.url : input);
+    } catch (e) {}
+    return f0.apply(this, arguments);
+  };
+  const XO = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
+  if (XO) {
+    const o0 = XO.open, s0 = XO.send;
+    XO.open = function (m, u) { this.__proofReq = [m, u]; return o0.apply(this, arguments); };
+    XO.send = function () { if (this.__proofReq) noteBg(this.__proofReq[0], this.__proofReq[1]); return s0.apply(this, arguments); };
+  }
 })();
 """
 
+# Arms the click as well as marking it: every timer callback scheduled before this moment is
+# background from now on (see INSTRUMENT_JS), so a poll that fires inside the click's window is
+# never credited to the click. `bgMark` is where this click's background requests start.
 MARK_JS = r"""() => { const P = window.__proof; P.focusMark = document.activeElement;
-  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip}; }"""
+  P.armedAt = performance.now();
+  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip, bgMark: P.bgReqs.length}; }"""
 
 # Add every element that mutated in [from, now) to the page's noise set (the idle window).
 NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
@@ -312,7 +390,7 @@ NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
 # Attribute changes ON the control itself count only when they are aria-* (a toggle); a class
 # or style change there is pointer styling (":active", "pressed" classes) and never evidence.
 EFFECT_JS = r"""(args) => {
-  const [hoverFrom, clickFrom] = args; const P = window.__proof;
+  const [hoverFrom, clickFrom, bgFrom] = args; const P = window.__proof;
   const ctl = document.querySelector('[data-proof-target]');
   const local = new Set();
   for (let i = Math.max(0, hoverFrom - P.base); i < clickFrom - P.base && i < P.muts.length; i++) {
@@ -360,6 +438,7 @@ EFFECT_JS = r"""(args) => {
   out.already_focused = !!(ctl && P.focusMark && (P.focusMark === ctl || ctl.contains(P.focusMark)));
   out.focus_after = f ? desc(f) : null;
   out.printed = P.printed; out.clip = P.clip;
+  out.bg_requests = (P.bgReqs || []).slice(bgFrom || 0).slice(0, 40);
   return out;
 }"""
 
@@ -606,6 +685,17 @@ PLANT_DEADCLICK_JS = r"""(root) => {
   s.addEventListener('pointerdown', () => s.classList.add('pressed')); s.addEventListener('pointerup', () => s.classList.remove('pressed'));
   const l = mk('plant-live', 'Planted live control');
   l.addEventListener('click', () => { l.textContent = 'Planted live control, clicked ' + Date.now(); });
+  // A planted POLLER shaped like the one that broke run 26e03bbe8 (the voice poll, first tick
+  // 8 s after load): an interval set up now, silent through the 1.5 s idle window that learns
+  // noise endpoints, then fetching every 200 ms -- so every planted click's 1.2 s window holds
+  // several of its requests. An instrument that credits them to the click reads both dead plants
+  // LIVE and the control fails. It stops itself once the box is gone.
+  const t0 = performance.now();
+  const id = setInterval(() => {
+    if (!box.isConnected) { clearInterval(id); return; }
+    if (performance.now() - t0 < 2500) return;
+    fetch('/api/proof-plant/poll?t=' + Math.round(performance.now()), {credentials: 'include'}).catch(() => {});
+  }, 200);
   R.insertBefore(box, R.firstChild);
   return true; }"""
 
@@ -656,6 +746,9 @@ def self_check() -> int:
     rows.append(("telemetry only", judge_click({"requests": [{"url": "http://x/api/j2/telemetry"}]})[0], "DEAD"))
     rows.append(("dom change", judge_click({"dom": 1})[0], "LIVE"))
     rows.append(("focus move", judge_click({"focus_moved": True})[0], "LIVE"))
+    poll = {"method": "GET", "url": "http://x/api/voice/insights/unspoken"}
+    rows.append(("a background poll only", judge_click({"requests": [poll], "background_requests": [poll]})[0], "DEAD"))
+    rows.append(("the click's own request beside a poll", judge_click({"requests": [poll, poll], "background_requests": [poll]})[0], "LIVE"))
     rows.append(("swallowed 500", judge_failure([["Notes", "All notes"]], ["Notes", "All notes"], [])["verdict"], "SILENT"))
     rows.append(("honest 500", judge_failure([["Notes"]], ["Notes", "We could not load your notes."], [])["verdict"], "SENTENCE"))
     rows.append(("1400px element", bool(judge_geometry({"vw": 390, "docScrollW": 1400, "docClientW": 390, "controls": []}, width=390)["findings"]), True))
@@ -1728,7 +1821,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
         reloaded = pg.evaluate("() => performance.timeOrigin") != origin0
         if reloaded:
             raise RuntimeError("document reloaded")
-        eff = pg.evaluate(EFFECT_JS, [hover_from, m["mark"]])
+        eff = pg.evaluate(EFFECT_JS, [hover_from, m["mark"], m.get("bgMark", 0)])
         fs1 = pg.evaluate(FORMSTATE_JS, root)
     except Exception as e:  # noqa: BLE001 -- a full navigation replaced the document
         eff = {"dom": 0, "expanded": 0, "focus_moved": False, "printed": m["printed"], "clip": m["clip"],
@@ -1736,8 +1829,10 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
         fs1 = fs0
         reloaded = True
     reqs = tap.reqs[n0:]
+    bg = eff.get("bg_requests") or []
     obs = {"dom": eff.get("dom", 0), "expanded": eff.get("expanded", 0), "focus_moved": eff.get("focus_moved"),
-           "requests": reqs, "noise_endpoints": sorted(W.noise_endpoints), "url_before": url0,
+           "requests": reqs, "background_requests": bg,
+           "noise_endpoints": sorted(W.noise_endpoints), "url_before": url0,
            "url_after": pg.url, "state_changed": fs0 != fs1, "reloaded": reloaded,
            "print": eff.get("printed", 0) - m["printed"], "clipboard": eff.get("clip", 0) - m["clip"],
            **{k: tap.events[k] - ev0[k] for k in tap.events}}
@@ -1767,6 +1862,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
     return {"verdict": verdict, "effects": effects, "dom_samples": eff.get("samples", [])[:4],
             "requests": [f"{r['method']} {normalize_endpoint(r['url'])}" for r in reqs][:6],
             "noise_ignored": eff.get("noiseIgnored"), "self_ignored": eff.get("selfIgnored"),
+            "background_ignored": [f"{b.get('method')} {normalize_endpoint(b.get('url', ''))}" for b in bg][:6],
             "focus_after": eff.get("focus_after"), "url_after": pg.url if pg.url != url0 else None,
             "mutating": [f"{r['method']} {normalize_endpoint(r['url'])}" for r in mutating][:4], "reset": reset}
 
@@ -1903,6 +1999,11 @@ def deadclick_sweep(W: World, only: list[str]) -> dict:
             if r["name"].startswith(label) and cid not in got:
                 got[cid] = r["verdict"]
                 break
+    # ⛔ NON-VACUITY: the planted poller must actually have fired inside a dead plant's click
+    # window. Otherwise "DEAD, DEAD" proves nothing about the background-request fix.
+    polled = [r for r in ctl["controls"] if r["name"].startswith("Planted dead")
+              and any("/api/proof-plant/poll" in b for b in (r.get("background_ignored") or []))]
+    got["plant-poller"] = "IN-WINDOW" if polled else "NOT-SEEN"
     ok, why = control_ok("deadclick", got)
     out["controls"] = {"got": got, "ok": ok, "why": why, "raw": ctl}
     say(f"[{'VALID' if ok else 'INVALID'}] deadclick control: {why}")
