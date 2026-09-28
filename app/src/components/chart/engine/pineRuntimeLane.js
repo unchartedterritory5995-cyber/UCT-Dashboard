@@ -47,55 +47,12 @@ import { buildRuntimeIr } from './ast/pineRuntimeFrontend'
 import { runtimeClockOpts, newestBarIsFormingFrom } from './ast/pineRuntimeClock'
 import { lowerIrProgram } from './runtime/lowerIr'
 import { execute } from './runtime/vm'
-import { pineRuntimeLaneEnabled } from './pineRuntimeLaneGate'
+import { pineRuntimeLaneEnabled, providePineRuntimeLane } from './pineRuntimeLaneGate'
 
-/** The compute kind a runtime-lane document declares (`defSchema.COMPUTE_KINDS`). */
-export const RUNTIME_LANE_KIND = 'pine'
-
-/** ⭐⭐ THE HOST REFUSALS THE RUNTIME LANE IS BUILT TO SERVE — and only those.
- *
- *  Each is a limit of the host lane's VALUE MODEL (one canonical expression per
- *  column), which the runtime lane's bytecode answers by design: persistent
- *  slots, reassignment, blocks and loops as statements, arrays, tuples, records,
- *  user functions with frames, per-bar memory, history rings. `runtimeLaneGuards
- *  .test.js` proves every member with a script the host refuses by exactly that
- *  guard and this lane builds — a member with no such proof is not in the set.
- *
- *  ⛔⛔ NEVER A VOCABULARY OR RULING GUARD. `pine:function`, `pine:builtin`,
- *  `pine:arity`, `pine:role-order`, `pine:window`, `pine:input-kind`,
- *  `pine:request`, `pine:text-value`, … each record that nobody has RULED what a
- *  name means here. The runtime lane reuses the host resolver for pure
- *  sub-expressions, so it usually refuses the same name again — but where it has
- *  a path of its own, falling back would route AROUND a ruling. Measured
- *  2026-09-27: `support-and-resistance__UgNPprOr8h` (host `pine:role-order`)
- *  BUILDS in this lane; it is refused anyway, and the rail pins that. */
-//
-//  ⚠️ MEASURED OUT, 2026-09-27: `pine:tuple` and `pine:na` read like value-model
-//  limits and are NOT in the set, because no fixture exists where the host refuses
-//  them and this lane builds — `[k, d] = ta.stoch(…)` refuses here too
-//  (`runtime:tuple`), and `fixnan` refuses in both lanes (`pine:na`). A member
-//  earns a place by a script the lane actually serves, never by its sentence.
-//
-//  ⭐ `pine:offset-literal` JOINED 2026-09-27, on its proof. The host lane holds
-//  one expression per column, so a bar offset must be a whole-bar constant; the
-//  runtime reads a run-time offset through a materialised column or a dynamic
-//  ring. TradingView was captured answering `x[na]` as `x[0]` on 158 of 158 bars
-//  (`rtwalls-dyn-history-na`), and this lane matches it on every bar. A malformed
-//  offset (`close[1.5]`, `close[1][2]`) still refuses in this lane too.
-export const RUNTIME_FALLBACK_GUARDS = Object.freeze(new Set([
-  'pine:state',
-  'pine:reassign',
-  'pine:block',
-  'pine:collection',
-  'pine:type',
-  'pine:function-def',
-  'pine:offset-literal',
-]))
-
-/** Is this host refusal one the runtime lane may answer instead? */
-export function isRuntimeFallbackGuard(guard) {
-  return typeof guard === 'string' && RUNTIME_FALLBACK_GUARDS.has(guard)
-}
+// ⭐ THE CONSTANTS LIVE IN THE GATE, which is eager and tiny, so the door and the
+// install check can read them without loading this module (see the gate's
+// "lazy chunk" header for the bytes that cost). Re-exported for one spelling.
+export { RUNTIME_LANE_KIND, RUNTIME_FALLBACK_GUARDS, isRuntimeFallbackGuard } from './pineRuntimeLaneGate'
 
 /** The output calls a pane draws as a row. `hline`, `bgcolor`, `barcolor`,
  *  `plotarrow` and `alertcondition` are outputs of this lane that the member
@@ -328,3 +285,9 @@ export function runtimeLaneHandle(text) {
   }
   return `pine:${h.toString(16).padStart(8, '0')}`
 }
+
+// ⭐ FILL THE GATE'S SLOT AS THIS MODULE EVALUATES, however it was reached — the
+// gate's lazy load, the door's chunk (`runtimeLaneDefinition.js` imports this
+// statically), or a test. `nativeRegistry.computeFor` reads the slot and never
+// imports this file, which is what keeps the lane out of the eager bundle.
+providePineRuntimeLane({ runtimeLaneColumns })

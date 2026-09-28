@@ -13,11 +13,11 @@
 //   · the pane draws it through the SAME renderer: host-read presentation, the
 //     runtime lane's own per-bar colour, the partial-drawing rule on its objects
 //   · the runtime door draws the same numbers the host door draws, where both can
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { memberPaneDefinition } from './memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from './memberPaneDefinition'
 import { runtimeLaneDefinition } from './runtimeLaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
 import { createBinder } from '../../engine/binder'
@@ -39,6 +39,10 @@ const corpus = (name) => fs.readFileSync(path.join(REPO, 'corpus/committed', `${
 const ADX = 'adx-and-di-for-v4__932'
 const on = () => vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
 const off = () => vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '')
+
+// ⭐ The door loads the runtime lane on demand; `runtimeLaneLazyDoor.test.jsx`
+// covers the wait itself. Here the lane is loaded so the door answers at once.
+beforeAll(async () => { await loadRuntimeLaneDoor() })
 
 const SPY = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json'), 'utf8'))
   .bars.slice(-600).map((b, i) => ({ ...b, t: 1700000000 + i * 86400 }))

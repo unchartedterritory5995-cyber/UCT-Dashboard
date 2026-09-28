@@ -47,7 +47,9 @@ import { addInstance } from '../../engine/instanceControls'
 import { mergeChartSettings } from '../../chartDefaults'
 import { memberPaneEnabled } from '../../engine/memberPaneGate'
 import { requirementNote } from '../../engine/ast/parse'
-import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import {
+  memberPaneDefinition, MEMBER_PANE_DEF_PREFIX, loadRuntimeLaneDoor,
+} from './memberPaneDefinition'
 import styles from './MemberPane.module.css'
 
 const noop = () => {}
@@ -96,10 +98,27 @@ export default function MemberPane({
   // ⭐ THE BUILD IS MEMOISED ON THE SOURCE, not run per render: `translatePine`
   // on a real script is milliseconds, and milliseconds on every keystroke is a
   // frame budget.
+  // ⭐ `laneTick` moves once, when the runtime lane's chunk lands, so the SAME
+  // source is asked again with the second engine present. It is not a retry
+  // loop: `pending` is only ever answered while the lane is absent, and a
+  // loaded lane never un-loads.
+  const [laneTick, setLaneTick] = useState(0)
   const built = useMemo(
     () => (live ? memberPaneDefinition({ source, id: defId }) : null),
-    [live, source, defId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- laneTick IS the input: the loaded door
+    [live, source, defId, laneTick],
   )
+  const lanePending = !!(built && built.pending === 'runtime-lane')
+  const [laneLoadFailed, setLaneLoadFailed] = useState(false)
+  useEffect(() => {
+    if (!lanePending) return undefined
+    let alive = true
+    loadRuntimeLaneDoor().then(
+      () => { if (alive) setLaneTick((n) => n + 1) },
+      () => { if (alive) setLaneLoadFailed(true) },
+    )
+    return () => { alive = false }
+  }, [lanePending])
   const [installed, setInstalled] = useState(null)
 
   useEffect(() => {
@@ -191,6 +210,18 @@ export default function MemberPane({
 
   if (!enabled) return null
   if (!live) return null
+  // ⭐ WAITING IS NOT REFUSING. While the second engine's chunk loads the member
+  // reads that it is loading, never the host lane's refusal; if the load fails,
+  // they read the host's refusal with the reason the fallback could not run.
+  if (lanePending) {
+    return laneLoadFailed ? (
+      <div data-testid="pine-member-pane-refusal" role="status">
+        {`${built.hostRefusal.reason} — and this chart's second engine, which does handle that, could not be loaded. Reload to try again.`}
+      </div>
+    ) : (
+      <div data-testid="pine-member-pane-loading" role="status">{built.reason}</div>
+    )
+  }
   // ⭐ A REFUSAL IS A SENTENCE, NEVER A BLANK. `paneGate` already produced one;
   // this renders it verbatim rather than inventing a second wording.
   if (built && !built.ok) {

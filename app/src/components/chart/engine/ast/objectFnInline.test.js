@@ -147,11 +147,26 @@ describe('⭐⭐ what the inliner REFUSES, and that a refusal is a DROP', () => 
     expect(diag(t).droppedOps).toBe(0)
   })
 
-  it('⛔ a drawing METHOD is refused, and the refusal makes the program dirty', () => {
+  // ⭐ 2026-09-27: a drawing METHOD is inlined like a function (`recv.m(…)` IS
+  // `m(recv, …)`); see `runtime/__tests__/methodDrawings.test.js` for the member
+  // door. It still refuses `method` where the body is not decidable from tokens.
+  it('⭐ a drawing METHOD on a user-type receiver is INLINED, not refused', () => {
     const t = host([
       '//@version=6', 'indicator("t", overlay=true)',
       'type Z', '    float p',
       'method draw(Z z) =>', '    label.new(bar_index, z.p, "x")',
+      'z = Z.new(high)', 'z.draw()', 'label.new(bar_index, low, "y")',
+    ].join(LF))
+    expect((diag(t).dropReasons || {})['fn:method']).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+  })
+
+  it('⛔ an OVERLOADED drawing method is refused, and the refusal makes the program dirty', () => {
+    const t = host([
+      '//@version=6', 'indicator("t", overlay=true)',
+      'type Z', '    float p',
+      'method draw(Z z) =>', '    label.new(bar_index, z.p, "x")',
+      'method draw(float f) =>', '    label.new(bar_index, f, "f")',
       'z = Z.new(high)', 'z.draw()', 'label.new(bar_index, low, "y")',
     ].join(LF))
     expect(diag(t).dropReasons['fn:method']).toBe(1)

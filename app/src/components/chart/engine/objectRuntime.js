@@ -37,6 +37,10 @@ import {
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity } from './objectPool'
+// ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'}`, see
+// `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
+// OWN carried crossing step — never a second copy of either.
+import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -139,6 +143,40 @@ export function beginObjects(program, ctx) {
   /** site ids whose ONCE create has already fired. ⭐ Pine's `var x = expr`
    *  initialises the first time the path is reached and never again. */
   const firedOnce = new Set()
+  /** ⭐⭐ A CROSSING THAT READS OBJECT STATE, OBSERVED ONCE PER BAR.
+   *
+   *  `ta.crossunder(high, box1.get_bottom())` needs the getter's value on the
+   *  PREVIOUS bar too, and the getter is a read of the register AS IT STANDS
+   *  WHEN THE STATEMENT RUNS. So each `cross` node is stepped exactly once per
+   *  bar, at its op's position in the op order — before any of that op's own
+   *  skip rules — which is the columnar lane's rule for a `ta.*` in a guard
+   *  (computed on every bar) applied to a value only the runtime holds.
+   *  The previous pair is carried by `interpret`'s own `CARRIED2` step.
+   *
+   *  ⛔⛔ AN `na` OPERAND ANSWERS FALSE, NOT `na`. Pine's comparisons are false on
+   *  `na`, so `ta.crossunder(high, na)` is `false` and `not` of it is `true`.
+   *  MEASURED against TradingView 2026-09-27 (Zero-Lag, NYSE:RDDT 1D): its
+   *  first "▲" label follows a box whose bottom is `na` (`ta.atr(200)` warming),
+   *  so the `▼` arm above it evaluated FALSE there — an `na` there would have
+   *  blocked the arm TradingView drew. */
+  const crossAtoms = new Map()
+  const crossState = new Map()
+  const crossNodesOf = (op) => {
+    let found = crossAtoms.get(op)
+    if (found) return found
+    found = []
+    const walk = (v) => {
+      if (!isObj(v)) return
+      if (v.v === 'cross') found.push(v)
+      if (Array.isArray(v.args) && (v.v === 'bool' || v.v === 'cmp' || v.v === 'cross')) v.args.forEach(walk)
+    }
+    walk(op.when)
+    crossAtoms.set(op, found)
+    return found
+  }
+  /** A guard operand as a number: `true`/`false` as 1/0, anything else not a
+   *  finite-or-NaN number as NaN. */
+  const numOf = (x) => (typeof x === 'number' ? x : x === true ? 1 : x === false ? 0 : NaN)
   let nextId = 1
   let created = 0; let updated = 0; let deleted = 0; let evicted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
@@ -288,6 +326,8 @@ export function beginObjects(program, ctx) {
      *  ⛔ PER BAR, and cleared with the bar: a counter that outlived its loop
      *  would let a later op read a stale index and write the wrong row. */
     const loopVars = new Map()
+    /** `cross` node → its answer on THIS bar (see `crossState`). */
+    const crossNow = new Map()
     let opsThisBar = 0
 
     /**
@@ -424,7 +464,39 @@ export function beginObjects(program, ctx) {
         // "tables are static chrome" shortcut produces.
         case 'text': return textOf(ref.node)
         case 'color': return colorOf(ref.node)
+        // ⭐⭐ THE LIVE GUARD KINDS — see `LIVE_GUARD_KINDS` in objectProgram.js.
+        // A getter reads the register as it stands NOW; an empty register, a
+        // deleted object or a non-numeric property is `na`.
+        case 'get': {
+          const id = resolveRef(ref.target)
+          const inst = id === null ? null : live.get(id)
+          const x = inst && inst.props ? inst.props[ref.prop] : undefined
+          return typeof x === 'number' ? x : NaN
+        }
+        // ⛔ EVERY argument is evaluated — no short-circuit — so which operands
+        // were read never depends on the values, exactly as the columnar lane.
+        case 'bool': {
+          const xs = ref.args.map((a) => numOf(value(a)))
+          if (ref.op === 'not') return UNARY['!'](xs[0])
+          const f = BINARY[ref.op === 'and' ? '&&' : '||']
+          return xs.reduce((acc, x) => f(acc, x))
+        }
+        case 'cmp': return BINARY[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
+        case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
         default: return undefined
+      }
+    }
+
+    /** Step every crossing in this op's guard, once, for this bar. */
+    const observeCrossings = (op) => {
+      for (const node of crossNodesOf(op)) {
+        let st = crossState.get(node)
+        if (!st) { st = [NaN, NaN]; crossState.set(node, st) }
+        const a = numOf(value(node.args[0]))
+        const b = numOf(value(node.args[1]))
+        const step = (node.dir === 'over' ? CARRIED2.crossOver : CARRIED2.crossUnder).step
+        const r = step(st, 0, a, b)
+        crossNow.set(node, Number.isNaN(r) ? 0 : r)
       }
     }
 
@@ -471,6 +543,9 @@ export function beginObjects(program, ctx) {
      *  `program.ops`, which is why a loop could not be an operation at all. */
     const runOps = (list) => {
     for (const op of list) {
+      // ⭐ A guard that reads object state steps its crossings HERE, at the op's
+      // own position and before any skip below — once per bar, every bar.
+      if (op.when && op.when.v !== 'graph' && op.when.v !== 'tree') observeCrossings(op)
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
       // Pine's own idiom for a dashboard is "draw it once, on the newest bar",
       // and an object program is a picture of the chart as it stands — so this
