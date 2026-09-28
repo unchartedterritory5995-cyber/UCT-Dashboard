@@ -803,6 +803,13 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
  * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
  *
+ * ✅ CLOSED 2026-09-27 (PARITY-PROGRAMME §"THE ATR SEED — the host lane"): the
+ * `atr` shape below lands on `atrPine`, a table entry composed from the
+ * table's own `rma` over `ta.tr(true)`, with a Python twin (`_fn_atr_pine`) and
+ * the frozen artifacts regenerated. The Keltner RDDT capture went from a
+ * 137–147-bar converging prefix per band to 0 mismatches. The paragraph below
+ * is kept as the record of why it was not a one-line change.
+ *
  * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
  * Routing Pine to a separately-seeded column means declaring a name in
  * `closedTable.json`, which the PYTHON lane mirrors in
@@ -908,7 +915,14 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // understood. ⛔ Without this the translator could see that `atr` exists and
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
-  atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐⭐ (2026-09-27) AND IT LANDS ON `atrPine`, NOT ON THE HOUSE `atr`. The
+  // house column is Wilder's original (TR from bar 1, seed on bar n) and stays
+  // so for ThinkScript, PCF and the native indicators; Pine's `ta.atr` is
+  // `ta.rma(ta.tr(true), n)` — bar 0's range is `high - low` and the seed lands
+  // on bar n-1 — measured to the last bit on two vendor captures. Routing the
+  // Pine spelling to its own entry is the ruling on file ("Pine gets its own
+  // seeding"); see `closedTable.json::_functions_atr_convention`.
+  atr: { table: 'atrPine', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
   //
   // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
