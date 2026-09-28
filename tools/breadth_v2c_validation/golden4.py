@@ -18,7 +18,8 @@ c = ro(art)
 dates = [d for (d,) in c.execute("SELECT date FROM pass_checkpoint WHERE status='done' AND date BETWEEN ? AND ? ORDER BY date", (lo, hi))]
 cal = oracle3.CAL
 i0 = bisect.bisect_left(cal, lo)
-warm = cal[max(0, i0 - 9):i0]
+first = c.execute("SELECT MIN(date) FROM pass_checkpoint WHERE status='done'").fetchone()[0]
+warm = cal[max(0, i0 - 9):i0] if lo > first else []    # the artifact itself has no sessions before its first
 stored = collections.defaultdict(dict)
 for u, d, m, o, h, l, cc, s in c.execute("SELECT universe,date,metric,o,h,l,c,source FROM breadth_daily_ohlc WHERE date BETWEEN ? AND ?", (lo, hi)):
     stored[(u, d)][m] = {"o": o, "h": h, "l": l, "c": cc, "src": "body" if s.endswith("_body") else "path"}
