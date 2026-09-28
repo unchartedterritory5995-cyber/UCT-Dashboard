@@ -33,6 +33,7 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
+import { isUndrawnMultiOutput, multiOutputNotDrawnNote } from './candleNotDrawn'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../builderInputs'
@@ -175,8 +176,20 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
+  // ⛔⛔ H14 (2026-09-28) — AND A CANDLE IS NOT FOUR LINES. `plotcandle` /
+  // `plotbar` translate to four rows (one per role) so a SCREEN can read
+  // `close > open`; this pane has no candle to draw them with, and drawing each
+  // row as a `style: 'line'` put a picture on a member's chart that TradingView
+  // never shows. The rows stay in the translation (computed — the screener still
+  // reads them); the pane carries none of them and says so by name below, in the
+  // runtime lane's own words (`candleNotDrawn.js`). A hidden candle row — a bare
+  // price passthrough, a static `display.none` — already drew nothing and is
+  // carried exactly as before. Rail: `candleNotDrawn.test.jsx`.
+  const undrawnCandles = (t.outputs || [])
+    .filter((o) => o && o.ast && o.formula && !o.refusal && isUndrawnMultiOutput(o))
   const carryable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition'
+      && !isUndrawnMultiOutput(o))
   const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
@@ -195,7 +208,26 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // ⛔ SAME GATE, SAME DEFAULT. Off, this returns exactly the refusal it always
   // did, and the fact that it now asks a second question is invisible.
   const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
+  // ⭐ One sentence per candle STATEMENT (four roles share a line), in source order.
+  const candleNotes = []
+  {
+    const seenCandle = new Set()
+    for (const o of undrawnCandles) {
+      const n = multiOutputNotDrawnNote(o.kind, o.line)
+      const k = `${n.name} :: ${n.note}`
+      if (seenCandle.has(k)) continue
+      seenCandle.add(k)
+      candleNotes.push(n)
+    }
+  }
   if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
+    // ⛔ H14 — a script whose only visible rows were a candle is refused BY NAME.
+    // "declares nothing a chart can draw" would be false about it: it declares a
+    // candle, and the member is owed the sentence saying which one and why.
+    if (candleNotes.length) {
+      return no(`${candleNotes.map((n) => n.note).join(' ')} It plots nothing else this pane can draw.`,
+        'pane:not-drawn', t)
+    }
     return no('this script declares nothing a chart can draw', null, t)
   }
 
@@ -569,7 +601,17 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
   }
+  // ⛔ H14 — the candle the pane computed and did not draw, said by name.
+  for (const n of candleNotes) {
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
   for (const o of (t.outputs || [])) {
+    // ⛔ A withheld candle's fold notes would describe a series nobody sees
+    // (carried over from #227's version of this fix).
+    if (isUndrawnMultiOutput(o)) continue
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
       if (seen.has(key)) continue

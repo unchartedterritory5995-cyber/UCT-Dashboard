@@ -522,7 +522,7 @@ export const OUTPUT_CALLS = Object.freeze({
  *  positional one picks by position. Reading position only would translate a
  *  reordered named call into a candle with its high and low swapped, which draws
  *  perfectly and screens backwards. */
-const MULTI_OUTPUT_CALLS = Object.freeze({
+export const MULTI_OUTPUT_CALLS = Object.freeze({
   plotcandle: Object.freeze(['open', 'high', 'low', 'close']),
   plotbar: Object.freeze(['open', 'high', 'low', 'close']),
 })

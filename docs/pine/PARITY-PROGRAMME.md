@@ -20,6 +20,60 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⛔⛔ 2026-09-28 — H14 FIXED AT THE HOST DOOR: A CANDLE IS SAID, NOT DRAWN AS FOUR LINES (branch `pine/host-candle-refuse`)
+
+> Base `origin/pine/master-reds` @ `3646a4c19`. The defect is recorded on
+> `pine/runtime-walls-3` under *"H14 — FOUND WHILE MEASURING, LIVE IN PRODUCTION,
+> NOT FIXED HERE"*; this is that fix. Owner-delegated shape: refuse by name, the
+> runtime lane's shape.
+
+**The defect.** `translatePine` expands `plotcandle`/`plotbar` into four rows
+(`pine.js::MULTI_OUTPUT_CALLS`), and `memberPaneDefinition` drew every one of them
+that was not a bare price passthrough as a visible `style: 'line'` — four lines where
+TradingView draws a candle, and a `display = cond ? display.all : display.none` on the
+candle ignored. `VITE_PINE_MEMBER_PANE_ENABLED` is armed on `web`, so members saw it.
+Two committed corpus scripts hit it:
+`institutional-smc-order-flow-matrix-pro` (line 85, "Heatmap Candles") and
+`smt-divergence-ict-01-tradingfinder-smart-money-technique` (line 116). In both, the
+candle's four rows were the ONLY visible rows.
+
+**The fix.** The door no longer carries a non-hidden `plotcandle`/`plotbar` row
+(`memberPane/candleNotDrawn.js::isUndrawnMultiOutput`, keyed on the now-exported
+`MULTI_OUTPUT_CALLS`, never a retyped list). The translation still computes the four
+columns — the screener reads them — and the member is told by name through the
+door's existing disclosure list (`notes` → `definition.meta.disclosures` → the pane's
+notes / `AttachedPineDisclosures`), in the runtime lane's exact words:
+*"This script's `plotcandle` (line N) draws candles, which this pane does not draw
+yet."* (`plotbar`: *"… draws OHLC bars, …"*). The candle's rows bring none of their
+inputs into the document (inputs are taken off drawn rows only). When the candle was everything the pane could draw, the
+refusal names it instead of saying "declares nothing a chart can draw". A bare
+passthrough candle (already carried hidden, drawing nothing) and a static
+`display.none` candle are unchanged.
+
+**What a member sees now, for the two scripts:** objects-only flag OFF (production
+today) — no pane, and the refusal *"This script's `plotcandle` (line 85) draws
+candles, which this pane does not draw yet. It plots nothing else this pane can
+draw."* (line 116 for the SMT script). Flag ON — the pane attaches with its drawings
+and that sentence as a disclosure, and no line.
+
+**Rail:** `app/src/components/chart/builder/memberPane/candleNotDrawn.test.jsx` (13
+cases) — both corpus scripts through the real door AND the real `MemberPane`, flag
+off and on, asserting no row shares an AST with a candle output and the sentence is
+RENDERED DOM text; a control that appends `plot(ta.sma(close, 20), "Control")` to each
+script and asserts it still draws as a visible line beside the disclosure; the derived
+`display`-ternary candle, `plotbar`, and the unchanged bare passthrough; and the
+sentence map derived from `MULTI_OUTPUT_CALLS`. **Mutation:** the door reverted to its
+`HEAD` bytes by a sha-verified capture/restore harness → **8 of 13 red**; the 5 that
+stay green are the ones that do not depend on the door (map derivation ×2,
+non-vacuity ×2, the bare-passthrough control).
+
+⚠️ When this meets `pine/runtime-walls-3`: that branch's
+`runtimeLaneDefinition.js::NOT_DRAWN` restates the same two sentences — it should read
+`MULTI_OUTPUT_NOT_DRAWN` from `candleNotDrawn.js` so the two lanes cannot drift. Both
+branches make the same one-word `export const MULTI_OUTPUT_CALLS` change in `pine.js`.
+
+---
+
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
 
 > `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on

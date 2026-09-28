@@ -224,7 +224,9 @@ export default function MemberPane({
           in `closedTable.json::_alertconditions`. */}
       {disclosures.length > 0 && (
         <ul data-testid="pine-member-pane-notes" className={styles.notes}>
-          {disclosures.map((n) => <li key={n.name}>{n.note}</li>)}
+          {/* ⛔ keyed by position AND name: two `plotcandle` calls produce two
+              notes named `plotcandle`, and a name-only key collided. */}
+          {disclosures.map((n, i) => <li key={`${i}:${n.name}`}>{n.note}</li>)}
         </ul>
       )}
       {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a
