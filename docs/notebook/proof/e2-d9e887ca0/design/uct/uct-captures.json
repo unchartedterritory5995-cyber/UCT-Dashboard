@@ -1,0 +1,167 @@
+[
+ {
+  "surface": "list",
+  "width": 390,
+  "touch": true,
+  "shot": "uct-list-390.png",
+  "overflow_px": 0,
+  "targets_lt_24": 0,
+  "targets_lt_44": 1,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "board",
+  "width": 390,
+  "touch": true,
+  "shot": "uct-board-390.png",
+  "overflow_px": 0,
+  "targets_lt_24": 0,
+  "targets_lt_44": 1,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "graph",
+  "width": 390,
+  "touch": true,
+  "shot": "uct-graph-390.png",
+  "overflow_px": 0,
+  "targets_lt_24": 0,
+  "targets_lt_44": 1,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "editor",
+  "width": 390,
+  "touch": true,
+  "shot": "uct-editor-390.png",
+  "overflow_px": 0,
+  "targets_lt_24": 0,
+  "targets_lt_44": 1,
+  "headings": [
+   "Trade Journal",
+   "Alpha thesis NVDA",
+   "Thesis",
+   "Checklist",
+   "Numbers"
+  ]
+ },
+ {
+  "surface": "list",
+  "width": 820,
+  "touch": true,
+  "shot": "uct-list-820.png",
+  "overflow_px": 0,
+  "targets_lt_24": 5,
+  "targets_lt_44": 6,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "board",
+  "width": 820,
+  "touch": true,
+  "shot": "uct-board-820.png",
+  "overflow_px": 0,
+  "targets_lt_24": 2,
+  "targets_lt_44": 3,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "graph",
+  "width": 820,
+  "touch": true,
+  "shot": "uct-graph-820.png",
+  "overflow_px": 0,
+  "targets_lt_24": 1,
+  "targets_lt_44": 2,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "editor",
+  "width": 820,
+  "touch": true,
+  "shot": "uct-editor-820.png",
+  "overflow_px": 0,
+  "targets_lt_24": 1,
+  "targets_lt_44": 4,
+  "headings": [
+   "Trade Journal",
+   "Alpha thesis NVDA",
+   "Thesis",
+   "Checklist",
+   "Numbers"
+  ]
+ },
+ {
+  "surface": "list",
+  "width": 1200,
+  "touch": false,
+  "shot": "uct-list-1200.png",
+  "overflow_px": 0,
+  "targets_lt_24": 13,
+  "targets_lt_44": null,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "board",
+  "width": 1200,
+  "touch": false,
+  "shot": "uct-board-1200.png",
+  "overflow_px": 0,
+  "targets_lt_24": 10,
+  "targets_lt_44": null,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "graph",
+  "width": 1200,
+  "touch": false,
+  "shot": "uct-graph-1200.png",
+  "overflow_px": 0,
+  "targets_lt_24": 9,
+  "targets_lt_44": null,
+  "headings": [
+   "Trade Journal",
+   "All notes"
+  ]
+ },
+ {
+  "surface": "editor",
+  "width": 1200,
+  "touch": false,
+  "shot": "uct-editor-1200.png",
+  "overflow_px": 0,
+  "targets_lt_24": 23,
+  "targets_lt_44": null,
+  "headings": [
+   "Trade Journal",
+   "Alpha thesis NVDA",
+   "Thesis",
+   "Checklist",
+   "Numbers"
+  ]
+ }
+]
