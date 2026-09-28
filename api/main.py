@@ -8133,6 +8133,16 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 attachments backup registered (02:45 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 attachments backup registration failed (non-fatal): {e}")
+        # TERM-083 (FB-X1-02): nightly R2 backup of the member-authored stores no rail
+        # above covers (community.db, charts_layouts.db, user_definitions.db, ...).
+        # Ships dark (STORE_BACKUP_ENABLED unset); 03:05 ET daily. The evidence is the
+        # restore rehearsal, tools/store_restore.py --rehearse, never this job's exit.
+        try:
+            from api.services import store_backup
+            if store_backup.register_jobs(_scheduler):
+                print("[startup] store backup registered (03:05 ET daily)")
+        except Exception as e:
+            print(f"[startup] store backup registration failed (non-fatal): {e}")
         # Nightly closed-trade excursion (MFE/MAE/exit-efficiency) backfill
         # (Journal A+ Phase 2). Ships dark (EXCURSION_ENGINE_ENABLED=0);
         # 03:10 ET Mon-Sat. Idempotent (skips already-computed trade_refs);

@@ -1194,6 +1194,12 @@
       "note": "Superseded, and setting it would change nothing - confirmed 2026-09-02. On 2026-08-22 the cron was switched, per owner, from run_standing_cron (60-day Open Flow) to run_weekly_cron (a true 5-day week). The scheduler registration and both run_weekly and run_standing accept EITHER this flag or WEEKLY_FLOW_ENABLED, and WEEKLY_FLOW_ENABLED=1 IS set on flow-worker, so the Friday 16:15 ET job is already registered and firing. This flag now survives only as a redundant second arm for a job that is already armed; the 60-day board it was named for is no longer scheduled.",
       "where": []
     },
+    "STORE_BACKUP_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-27",
+      "where": [],
+      "note": "TERM-083 (FB-X1-02): nightly 03:05 ET R2 backup of the member-authored stores no other rail covers (api/services/store_backup.py STORES: community, charts_layouts, user_definitions, theme_sets, ai_search_member, discord_chart_prefs, wire_feedback, modelbook, education, desk). SQLite online-backup API with a manifest measured on the same read snapshot; objects under store_backups/<store>/ in the DATA_SYNC_* bucket. SERVICE: web (registered in api/main.py beside the flow and attachment backups). Built and railed, not armed: the owner decides whether to set it on web. The evidence is the restore rehearsal, python tools/store_restore.py --rehearse, never this job's exit code. Rollback is unsetting it; a stopped job deletes nothing already in R2."
+    },
     "STREAM_BARS_ENABLED": {
       "status": "armed",
       "where": [
