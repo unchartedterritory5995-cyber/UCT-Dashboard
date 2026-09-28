@@ -33,7 +33,9 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
-import { isUndrawnMultiOutput, multiOutputNotDrawnNote } from './candleNotDrawn'
+import {
+  isUndrawnMultiOutput, multiOutputNotDrawnNotes, multiOutputOnlyRefusal,
+} from './candleNotDrawn'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../builderInputs'
@@ -209,24 +211,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // did, and the fact that it now asks a second question is invisible.
   const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
   // ⭐ One sentence per candle STATEMENT (four roles share a line), in source order.
-  const candleNotes = []
-  {
-    const seenCandle = new Set()
-    for (const o of undrawnCandles) {
-      const n = multiOutputNotDrawnNote(o.kind, o.line)
-      const k = `${n.name} :: ${n.note}`
-      if (seenCandle.has(k)) continue
-      seenCandle.add(k)
-      candleNotes.push(n)
-    }
-  }
+  const candleNotes = multiOutputNotDrawnNotes(undrawnCandles)
   if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
     // ⛔ H14 — a script whose only visible rows were a candle is refused BY NAME.
     // "declares nothing a chart can draw" would be false about it: it declares a
     // candle, and the member is owed the sentence saying which one and why.
     if (candleNotes.length) {
-      return no(`${candleNotes.map((n) => n.note).join(' ')} It plots nothing else this pane can draw.`,
-        null, t)
+      return no(multiOutputOnlyRefusal(candleNotes), null, t)
     }
     return no('this script declares nothing a chart can draw', null, t)
   }
