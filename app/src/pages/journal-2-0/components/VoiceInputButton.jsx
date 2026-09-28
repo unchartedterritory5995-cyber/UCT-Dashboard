@@ -28,6 +28,20 @@
  *                                        gone without a trace. The Notebook
  *                                        editor opts in; the four other callers
  *                                        keep today's behaviour until they do.
+ *   hintInFlow?: bool                  — wave 10 follow-up F5, OPT-IN, default
+ *                                        false. The one-time first-run hint
+ *                                        takes its own place in the row, after
+ *                                        the mic, instead of hanging ABOVE it.
+ *                                        ⚰️ Hanging above, it covered the
+ *                                        Notebook's tag input at 1200 px and the
+ *                                        editor's formatting row at 820 and 390
+ *                                        (proof walk 10E-1 6b): a toolbar that
+ *                                        wraps has controls on the line above
+ *                                        the mic. In a wrapping row the hint is
+ *                                        a flex item, so the row makes room and
+ *                                        it covers nothing. The Notebook editor
+ *                                        opts in; the other callers sit in rows
+ *                                        that do not wrap and keep the float.
  *
  * Ref (optional — wave 7 lane H1, ADDITIVE): `{ start(), available }`.
  *   start()   — begin listening exactly as a click on the mic would. Returns
@@ -101,7 +115,7 @@ const FAILURE_BUTTON = {
 }
 
 const VoiceInputButton = forwardRef(function VoiceInputButton(
-  { onTranscript, disabled = false, cleanup = true, holdOnFailure = false }, ref,
+  { onTranscript, disabled = false, cleanup = true, holdOnFailure = false, hintInFlow = false }, ref,
 ) {
   const isPaid = useIsPaid()
   const SR = getSpeechRecognitionCtor()
@@ -135,7 +149,8 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
   const [hintLeft, setHintLeft] = useState(0)
   const hintVisible = showHint && !recording && !uploading
   useLayoutEffect(() => {
-    if (!hintVisible) return undefined
+    // In flow the row places the hint; `left` would OFFSET a relatively placed box.
+    if (!hintVisible || hintInFlow) return undefined
     const el = hintRef.current
     const anchor = el && el.parentElement
     if (!el || !anchor) return undefined
@@ -157,7 +172,7 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
       window.removeEventListener('resize', place)
       if (ro) ro.disconnect()
     }
-  }, [hintVisible])
+  }, [hintVisible, hintInFlow])
 
   // Whisper path refs
   const mediaRecorderRef = useRef(null)
@@ -348,9 +363,49 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
   const retryHeld = () => { if (heldBlobRef.current) uploadAudioToWhisper(heldBlobRef.current) }
   const showFailure = Boolean(failure) && !recording && !uploading
 
+  // The first-run hint. Floating (the default) it hangs above the mic, placed inside the
+  // viewport by placeHint; IN FLOW (the Notebook) it is a flex item after the mic, so the
+  // row makes room for it and it covers no control (wave 10 follow-up F5).
+  const hintEl = hintVisible && (hintInFlow ? (
+    <span
+      ref={hintRef}
+      role="status"
+      data-hint-placement="in-flow"
+      style={{
+        position: 'relative', display: 'flex', alignItems: 'flex-start', gap: 4,
+        width: 250, maxWidth: '100%', boxSizing: 'border-box',
+        background: 'var(--bg-base, #1a1a1a)',
+        border: '1px solid var(--ut-gold, #c9a84c)',
+        borderRadius: 6, padding: '6px 4px 6px 10px',
+        fontSize: 11, lineHeight: 1.45, color: 'var(--text-bright)',
+      }}
+    >
+      <span style={{ flex: 1, minWidth: 0, alignSelf: 'center' }}>
+        <strong style={{ color: 'var(--ut-gold, #c9a84c)' }}><UIcon name="mic" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />New:</strong>{' '}
+        speak instead of type. Tap the mic to dictate, or <UIcon name="compass" size={11} style={{ verticalAlign: '-1px' }} /> to talk through it with Compass.
+      </span>
+      <button
+        type="button"
+        aria-label="Dismiss tip"
+        onClick={dismissHint}
+        style={{
+          flex: 'none', background: 'transparent', border: 'none',
+          color: 'var(--text-muted)', cursor: 'pointer',
+          fontSize: 13, lineHeight: 1, padding: 2,
+          minWidth: 'var(--tap-min)', minHeight: 'var(--tap-min)',
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <UIcon name="x" size={13} />
+      </button>
+    </span>
+  ) : null)
+
   return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-      {hintVisible && (
+    <span style={hintInFlow
+      ? { position: 'relative', display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, maxWidth: '100%' }
+      : { position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      {hintVisible && !hintInFlow && (
         <span
           ref={hintRef}
           role="status"
@@ -419,6 +474,7 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
           {statusText}
         </span>
       )}
+      {hintEl}
       {showFailure && (
         <span
           role="alert"
