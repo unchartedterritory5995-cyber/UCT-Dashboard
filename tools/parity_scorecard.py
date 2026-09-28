@@ -586,6 +586,42 @@ QUOTES = {
  "E_tags": [
   "evernote__compare_plans",
   "Advanced organization Add tags and reminders to notes"
+ ],
+ "E_trash": [
+  "evernote_help__208313438",
+  "When you delete a note, it's moved to the trash"
+ ],
+ "E_version": [
+  "evernote_help__208313858",
+  "Note history allows you to view and restore older versions of a note."
+ ],
+ "E_delete_acct": [
+  "evernote_help__360056549574",
+  "all of your data will be deleted from Evernote"
+ ],
+ "E_offline": [
+  "evernote_help__209005917",
+  "Any changes you make during your time offline will be synced"
+ ],
+ "E_datefilter": [
+  "evernote_help__208313828",
+  "Searches for notes created on or after the date specified."
+ ],
+ "E_snippet": [
+  "evernote_help__209005647",
+  "that match is highlighted both in the note list"
+ ],
+ "E_meaning": [
+  "evernote_help__45706285591955",
+  "helps you find information by meaning, not just by exact keywords"
+ ],
+ "E_pin": [
+  "evernote_help__46319409880211",
+  "pin notes to a notebook, to Home, and add them to shortcuts"
+ ],
+ "E_savedsearch": [
+  "evernote_help__209005267",
+  "Saved searches are synced across all your devices"
  ]
 }
 
@@ -1310,8 +1346,125 @@ SOURCES = {
   "status": 200,
   "sha256": "1b79b32f48a04ade5aa04e9eb515a6ae45afa7f61d70eda9704c9ff6cb6a8fe5",
   "fetched_utc": "2026-09-26T19:22:23Z"
+ },
+ "evernote_help__208313438": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/208313438-Restore-a-note-from-the-trash",
+  "read_from": "help.evernote.com Zendesk article JSON, read in a real Chrome (controller)",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__208313858": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/208313858-Use-note-history-to-view-and-restore-older-versions-of-a-note",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__360056549574": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/360056549574-Permanently-close-your-Evernote-account",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__209005917": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/209005917-Access-notes-offline",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__208313828": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/208313828-Use-advanced-search-syntax",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__209005647": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/209005647-Find-what-you-need",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__45706285591955": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/45706285591955-Semantic-search",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__46319409880211": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
+ },
+ "evernote_help__209005267": {
+  "vendor": "evernote",
+  "kind": "browser-read",
+  "public_url": "https://help.evernote.com/hc/en-us/articles/209005267-Saved-searches",
+  "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
+  "rrow": "W10-E (controller)",
+  "sha256": None,
+  "fetched_utc": "2026-09-26"
  }
 }
+
+# ── wave 10: the Evernote help-centre evidence 9B could not fetch (Cloudflare, R15), read in a
+# real browser by the controller on 2026-09-26 and committed verbatim. Nine rows carry a
+# verbatim quote (cited through QUOTES above, kind "browser-read"); forty carry only the
+# reader's paraphrase (quote null), which is a PARAPHRASE cell: labelled, never a quote, and
+# never evidence for AHEAD, PARITY or BEHIND (checked in build(); railed in
+# tests/test_parity_scorecard_evernote_fold.py).
+EVERNOTE_EVIDENCE = 'docs/notebook/proof/evernote-evidence-2026-09-26.jsonl'
+
+
+def evernote_evidence():
+    with open(os.path.join(ROOT, EVERNOTE_EVIDENCE), encoding='utf-8') as fh:
+        return [json.loads(l) for l in fh if l.strip()]
+
+
+def browser_read_problems(quotes=None, sources=None, evidence=None):
+    """A browser-read quote must be, character for character, the non-null `quote` the
+    committed evidence file records for that URL -- so a paraphrase (quote null) can never
+    be entered into QUOTES, and a quote edited after the fact is caught."""
+    quotes = QUOTES if quotes is None else quotes
+    sources = SOURCES if sources is None else sources
+    evidence = evernote_evidence() if evidence is None else evidence
+    by_url = {}
+    for r in evidence:
+        by_url.setdefault(r['url'], []).append(r)
+    bad = []
+    for key, (pid, q) in quotes.items():
+        src = sources.get(pid) or {}
+        if src.get('kind') != 'browser-read':
+            continue
+        recs = by_url.get(src.get('public_url'), [])
+        if not recs:
+            bad.append((key, 'no evidence row for ' + str(src.get('public_url'))))
+        elif not any(r.get('quote') and r['quote'] == q for r in recs):
+            bad.append((key, 'not the verbatim quote the evidence file records (a paraphrase is never a quote)'))
+    return bad
 
 
 def git(*a):
@@ -1338,6 +1491,10 @@ def verify_quotes(pages_dir=None):
     bad = []
     for key, (pid, quote) in QUOTES.items():
         src = SOURCES.get(pid)
+        if src is not None and src.get('kind') == 'browser-read':
+            if len(quote.split()) > 25:
+                bad.append((key, f'{len(quote.split())} words'))
+            continue   # checked against the committed evidence file by browser_read_problems()
         if src is None or src.get('status') != 200:
             bad.append((key, f'page {pid} not a 200 fetch'))
             continue
@@ -1725,9 +1882,18 @@ def build(pages_dir=None):
         return f'{m["public_url"]} "{q}" ({DATE})'
 
 
+    PARA_WORD = {'HAS': 'has it', 'PARTIAL': 'has part of it', 'LACKS': 'lacks it',
+                 'NO-VERDICT': 'no verdict', 'N/A': 'not applicable'}
+
+
     def comp_part(v, spec, rid):
         if isinstance(spec, str):
             return f'{v}: {spec}'
+        if isinstance(spec, dict) and 'para' in spec:
+            ev = spec['para']
+            return (f'{v}: not verified (PARAPHRASE, never a quote) — {ev["url"]} read {ev["fetched"]} in a real '
+                    f'browser; the reader\'s summary, not Evernote\'s words: {PARA_WORD.get(ev["verdict"], ev["verdict"])} '
+                    f'({ev.get("paraphrase") or ev.get("note") or "no note"}) [W10-E evidence `{EVERNOTE_EVIDENCE}`]')
         return f'{v}: ' + '; '.join(qref(k, rid) for k in spec)
 
 
@@ -1768,22 +1934,22 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'NV', 'P'), [code(NS, 3531, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
-      {'N': ['N_restore', 'N_trash'], 'E': EB, 'O': ['O_trash']},
+    R('G-001', ('P', 'P', 'P'), [code(NS, 3755, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+      {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'NV', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 2979, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3123, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
-      {'N': ['N_version'], 'E': EB, 'O': ['O_recovery']},
+      {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
-    R('G-003', ('P', 'NV', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
-      {'N': ['N_delete_acct'], 'E': EB, 'O': NFO},
+    R('G-003', ('P', 'P', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
+      {'N': ['N_delete_acct'], 'E': ['E_delete_acct'], 'O': NFO},
       'A server-side purge; no UI behaviour to confirm. PARITY is account deletion as named on each side.')
     R('G-004', ('P', 'NV', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named.')
     R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 181, 'const DRAFT_KEY')],
-      {'N': NFN, 'E': EB, 'O': NFO},
+      {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
     # Search / Retrieval
     R('G-010', 'P', [code(NS, 1339, 'exact_ticker'), walk9('B20_more_older_rows')],
@@ -1795,15 +1961,15 @@ def build(pages_dir=None):
       'UCT\'s own 50k search budget is BREACHED (§C); competitor latency is not this lane\'s to state.')
     R('G-012', 'NA', [code(f'{NB}/FolderSidebar.jsx', 610, 'P0-2 fix')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT correctness bug row.')
-    R('G-013', ('P', 'NV', 'NV'), [code(NS, 1176, 'date_from'), walk9('B20_more_older_rows')],
-      {'N': ['N_datefilter'], 'E': EB, 'O': NFO}, 'B20: the filter panel carries "Note created from".')
-    R('G-014', ('NV', 'NV', 'P'), [code(NS, 1379, 'def _snippets_for('), walk9('B20_more_older_rows')],
-      {'N': NFN, 'E': EB, 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
-    R('G-015', ('P', 'NV', 'NV'), [code(NS, 1486, 'relevance ranking is opt-in')],
-      {'N': ['N_relevance'], 'E': EB, 'O': NFO},
+    R('G-013', ('P', 'P', 'NV'), [code(NS, 1176, 'date_from'), walk9('B20_more_older_rows')],
+      {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': NFO}, 'B20: the filter panel carries "Note created from".')
+    R('G-014', ('NV', 'P', 'P'), [code(NS, 1523, 'def _snippets_for('), walk9('B20_more_older_rows')],
+      {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
+    R('G-015', ('P', 'P', 'NV'), [code(NS, 1630, 'relevance ranking is opt-in')],
+      {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': NFO},
       'Ranking is a server behaviour (the search box asks for sort=relevance); Obsidian\'s fetched page documents a '
       'name sort by default, which says nothing about relevance, so no verdict.')
-    R('G-016', 'NA', [code(NS, 2551, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 2695, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
@@ -1820,24 +1986,24 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2233, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'NV', 'P'), [code(NS, 2377, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
-    R('G-023', ('P', 'NV', 'P'), [code(NS, 2692, 'j2_note_favorites'), walk9('B20_more_older_rows')],
-      {'N': ['N_favorites'], 'E': EB, 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
+    R('G-023', ('P', 'P', 'P'), [code(NS, 2692, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+      {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
     R('G-024', ('P', 'NV', 'NV'), [code(NS, 3800, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
-    R('G-025', ('P', 'NV', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
+    R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
-      {'N': ['N_savedview'], 'E': EB, 'O': ['O_views']},
+      {'N': ['N_savedview'], 'E': ['E_savedsearch'], 'O': ['O_views']},
       'B25: a table view saved by name; on a fresh page the saved view reopened as a table.')
     R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 174, "key: 'thesis',")] + TPL_EV,
       {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, TPL_NOTE, TPL_LEVER)
     # Editor
-    R('G-030', 'P', [code(f'{LB}/tiptap.js', 114, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
+    R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 29, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 30, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
@@ -1950,11 +2116,11 @@ def build(pages_dir=None):
     R('G-086', 'D4', [D(4, 'a plugin marketplace (G-086)')], {'N': NFN, 'E': EB, 'O': ['O_plugins']},
       'Recorded scope, not an oversight.')
     # Portability / export
-    R('G-090', 'P', [code(f'{JT}/notes_export.py', 2157, 'def build_export_zip('),
+    R('G-090', 'P', [code(f'{JT}/notes_export.py', 2162, 'def build_export_zip('),
                      test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js'), walk9('B09_list_views_bulk')],
       {'N': ['N_export'], 'E': ['E_emailin'], 'O': ['O_local']},
       'B09: the bulk export panel offers Markdown, web page, JSON and Word.')
-    R('G-091', 'P', [code(f'{JT}/notes_export.py', 2392, 'def build_single_note_export('), walk9('B13_share_publish_export')],
+    R('G-091', 'P', [code(f'{JT}/notes_export.py', 2397, 'def build_single_note_export('), walk9('B13_share_publish_export')],
       {'N': ['N_export'], 'E': ['E_pdfexport'], 'O': ['O_local']}, 'B13: the note\'s Export menu has four items.')
     R('G-092', 'NA', [code(f'{JT}/notes_export.py', 1351, 'linked_trades')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-093', 'NA', [L('G-093', 'DONE (as scoped)')], {'N': NA, 'E': NA, 'O': NA},
@@ -1964,13 +2130,13 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 2994, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3054, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 6, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
     R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 24, 'import ConfirmModal'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B20 read the "Delete this note?" dialog.')
-    R('G-104', 'NA', [code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 58, 'G-104: zero remain'),
+    R('G-104', 'NA', [code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain'),
                       test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT convention row.')
     R('G-105', 'NA', [code(f'{NB}/AskPanel.jsx', 321, 'aria-label="Close Ask"'), walk9('B20_more_older_rows')],
@@ -2040,7 +2206,7 @@ def build(pages_dir=None):
       {'N': ['N_align', 'N_caption'], 'E': ['E_caption'], 'O': NFO},
       'B26: an uploaded image centred (data-align center) and captioned (a figcaption with the typed text). Evernote\'s '
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
-    R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 71, "'addRowBefore', 'Row above'"),
+    R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 77, "'addRowBefore', 'Row above'"),
                                  code(f'{LB}/tiptap.js', 114, 'resizable: false'), walk9('B03_table_toolbar')],
       {'N': ['N_tables'], 'E': ['E_editmode'], 'O': ['O_tables']},
       'B03: add/delete rows and columns and a header row; 0 resize handles, 0 sort controls. PARITY is against '
@@ -2113,7 +2279,7 @@ def build(pages_dir=None):
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
       'B07: the Scan control is there at 390 px; the OCR that makes a scan searchable is dark.',
       'owner: arm NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED')
-    R('G-160', 'BO', [code(f'{JT}/document_extraction.py', 55, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
+    R('G-160', 'BO', [code(f'{JT}/document_extraction.py', 56, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'dark'), walk7('W14_image_ocr_document')],
       {'N': ['N_importdocx'], 'E': ['E_searchimg'], 'O': NFO},
       'Image OCR and docx text are built and dark; xlsx is not built (§C).', 'owner: arm the gate; xlsx unbuilt')
@@ -2128,7 +2294,7 @@ def build(pages_dir=None):
       'a browser pass with a model key')
     R('G-163', 'D6', [D(6, 'Cold-start offline is out of scope')], {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'Recorded scope: the rollback story relies on no service worker (D6).')
-    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1028, 'Automate and App Automate are NOT on this account')],
+    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1050, 'Automate and App Automate are NOT on this account')],
       {'N': NA, 'E': NA, 'O': NA}, 'A release process, not a product feature; no competitor claim is made.',
       'owner: a device run per release (BrowserStack Live by hand, or Automate bought)')
     R('G-165', ('B', 'NV', 'NV'), [code(f'{JT}/writing_help.py', 48, 'ACTIONS = (SUMMARIZE, REWRITE, CONTINUE, TRANSLATE)'),
@@ -2145,7 +2311,7 @@ def build(pages_dir=None):
                                  flag('NOTEBOOK_PUBLISH_ENABLED', 'armed'), walk9('B13_share_publish_export'), walk8('W3_publish')],
       {'N': ['N_publish'], 'E': EB, 'O': ['O_publish']},
       'B13: published from the share sheet; a signed-out stranger read the published page.')
-    R('G-168', 'NV', [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: no'), code('app/package.json', 79, '"axe-core": "4.13.0",'),
+    R('G-168', 'NV', [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: no'), code('app/package.json', 80, '"axe-core": "4.13.0",'),
                       walk9('B19_axe_editor_and_list'), test_vt('app/src/pages/journal-2-0/a11y/axeHarness.contract.test.js')],
       {'N': NFN, 'E': EB, 'O': NFO},
       'B19: axe 4.13.0 whole page, WCAG 2.0-2.2 A/AA, no rule excluded: 0 violations on the editor and the list. The '
@@ -2168,6 +2334,25 @@ def build(pages_dir=None):
       {'N': ['N_help'], 'E': EB, 'O': ['O_help']},
       'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre refused every fetch.')
 
+    # ── wave 10: fold the Evernote evidence (EVERNOTE_EVIDENCE) ──
+    EVN = evernote_evidence()
+    for ev in EVN:
+        row = ROWS.get(ev['g'])
+        if row is None:
+            PROBLEMS.append(f'Evernote evidence names {ev["g"]}, which is not a scored row')
+            continue
+        if ev.get('quote'):
+            cited = row['comp']['E']
+            if isinstance(cited, str) or not any(SOURCES[QUOTES[k][0]].get('public_url') == ev['url'] for k in cited):
+                PROBLEMS.append(f'{ev["g"]}: the evidence carries a verbatim quote the row does not cite')
+            continue
+        if row['comp']['E'] != EB:
+            PROBLEMS.append(f'{ev["g"]}: a paraphrase would replace a cell that is not the unfetched-Evernote cell')
+            continue
+        row['comp']['E'] = {'para': ev}
+    for bq in browser_read_problems():
+        PROBLEMS.append(f'browser-read quote {bq[0]}: {bq[1]}')
+
     # ── checks over §A ──
     lids = [r.rid for r in LROWS]
     if list(ROWS) != lids:
@@ -2179,6 +2364,8 @@ def build(pages_dir=None):
         for idx, vk in enumerate('NEO'):
             if r['v'][idx] in ('PARITY', 'AHEAD', 'BEHIND') and isinstance(r['comp'][vk], str):
                 PROBLEMS.append(f'{rid}: {r["v"][idx]} vs {vk} with no citation')
+            if r['v'][idx] in ('PARITY', 'AHEAD', 'BEHIND') and isinstance(r['comp'][vk], dict):
+                PROBLEMS.append(f'{rid}: {r["v"][idx]} vs {vk} on a paraphrase (a paraphrase is never evidence for a verdict)')
     bad_q = verify_quotes(pages_dir)
     if bad_q:
         PROBLEMS.append(f'quotes: {bad_q}')
@@ -2261,7 +2448,7 @@ def build(pages_dir=None):
         ('a design review against the three competitors signs off each surface', 'NOT MEASURED',
          [record('docs/notebook/notebook-ux-ui-competitive-ledger.md', 3, 'interaction-sequence-level comparison')], 'no sign-off record'),
         ('consistent tokens', 'MET', [test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js'),
-                                     code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 58, 'G-104: zero remain')], ''),
+                                     code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], ''),
         ('no layout regressions at 390/820/1200', 'NOT MEASURED', [walk9('B07_touch_no_undo')], '9B drove 390 px once; no 820/1200 sweep'),
     ]
     C[7] = [
@@ -2341,7 +2528,7 @@ def build(pages_dir=None):
     ]
     C[15] = [
         ('client + server error reporting on', 'MET',
-         [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 51, '@router.post("/api/client-errors")'),
+         [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
           test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)'),
         ('Notebook telemetry for every core action', 'NOT MET', [code('api/routers/journal_two.py', 121, '"note_open_ms"')],
          'seven events; no export, import or save-success event'),
@@ -2607,6 +2794,8 @@ def build(pages_dir=None):
                 for i, vk in enumerate('NEO'):
                     if vs[i] == 'NOT-VERIFIED' and isinstance(r['comp'][vk], str):
                         reasons.append(f'{vk}: a page that states it (next R-row)')
+                    elif vs[i] == 'NOT-VERIFIED' and isinstance(r['comp'][vk], dict):
+                        reasons.append(f'{vk}: a verbatim sentence from the page the paraphrase summarises')
                 own = '; '.join(reasons) or 'a browser pass or a competitor fetch (see notes in §A)'
             w(f'- **{rid}** {esc(capability(rid))} — {" / ".join(vs)} — {esc(own)}')
     w('')
@@ -2650,7 +2839,8 @@ def build(pages_dir=None):
         m = SOURCES[pid]
         rf = m['read_from'] if m['read_from'] != m['public_url'] else 'same'
         rows_u = ', '.join(OrderedDict.fromkeys(d['rows']))
-        w(f'| {i} | {m["public_url"]} | {RROW[m["vendor"]]} | {rf} | {m["fetched_utc"]} | {m["sha256"][:16]} | '
+        sha = m['sha256'][:16] if m.get('sha256') else 'not recorded (read in a real browser)'
+        w(f'| {i} | {m["public_url"]} | {m.get("rrow") or RROW[m["vendor"]]} | {rf} | {m["fetched_utc"]} | {sha} | '
           f'{", ".join(d["keys"])} | {rows_u} |')
     w('')
     w('Failed fetches (logged, nothing cited): `https://help.evernote.com/hc/en-us/articles/208313748` — Cloudflare challenge '

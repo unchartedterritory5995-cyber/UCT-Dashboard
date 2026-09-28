@@ -1,0 +1,1 @@
+RED   rc=1 RESTORED tests/test_parity_scorecard_evernote_fold.py (browser_read_problems accepts any text) :: 2 failed, 2 passed in 0.45s
