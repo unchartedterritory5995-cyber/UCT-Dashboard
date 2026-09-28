@@ -53,11 +53,19 @@ def test_the_shipped_roster_loads_and_carries_its_as_of():
 
 
 def test_HORIZON_RAIL_the_shipped_roster_covers_the_stated_months():
-    """Goes red on a date, by design. When it does: re-verify the roster against
+    """The roster, on the day it was verified, carried at least the stated months
+    of cover.
+
+    ⛔ PINNED TO THE ROSTER'S OWN `as_of`, NEVER `date.today()`. A rail that reads
+    the wall clock goes red on a date with no commit behind it, reddens every
+    unrelated branch that day, and gets muted — `api/routers/market_calendar.py`
+    rejects that shape by name for the same reason. Expiry in production is
+    `_fed_surnames()`'s runtime warning, not this test. When re-verifying: check
     the Board of Governors and the twelve Reserve Bank presidents on
     federalreserve.gov, edit api/data/fed_speakers.json, and move BOTH `as_of`
-    and `valid_through`. Never move `valid_through` alone to silence this."""
-    cal.assert_fed_roster_horizon(cal.load_fed_roster(), date.today())
+    and `valid_through`."""
+    roster = cal.load_fed_roster()
+    cal.assert_fed_roster_horizon(roster, roster["as_of"])
 
 
 def test_the_horizon_rail_FAILS_on_an_expired_list(tmp_path):
