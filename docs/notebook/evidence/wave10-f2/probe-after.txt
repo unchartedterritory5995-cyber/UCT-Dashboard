@@ -1,0 +1,101 @@
+python 3.14.0  sqlite 3.50.4  tmp C:\Users\Patrick\AppData\Local\Temp\w10f2_probe_33ye3qcc
+_FTS_MAP_BUILD='j2_notes_fts_map.note_rowid@1'  tag='j2_note_tag_index@1'  task='j2_note_task_digest@2'
+
+== N-1 journal_mode=delete: renumbered + recorded; the boot cannot take the write lock ==
+[notebook-migration] migrated=0 skipped=0 errored=0
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  records before the renumbering: ['j2_note_tag_index@1', 'j2_note_task_digest@2', 'j2_notes_fts_map.note_rowid@1']
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  non-vacuity: the drift misleads the recorded reads: search True, tag True
+[notebook-schema-builds] could NOT withdraw the record of j2_notes_fts_map.note_rowid after 4 attempts (database is locked); this process does not trust it until a boot proves it
+[notebook-schema-builds] could NOT withdraw the record of j2_note_tag_index after 4 attempts (database is locked); this process does not trust it until a boot proves it
+  fts step: raised OperationalError: database is locked
+  tag step: raised OperationalError: database is locked
+  boot took 9.32s; records now: ['j2_note_tag_index@1', 'j2_note_task_digest@2', 'j2_notes_fts_map.note_rowid@1']
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  fts ready=False  tag ready=False
+  search want (['id000', 'id003', 'id006', 'id009'], ['id000', 'id003', 'id006', 'id009'], (['id000', 'id003', 'id006', 'id009'], 4))
+         got  (['id000', 'id003', 'id006', 'id009'], ['id000', 'id003', 'id006', 'id009'], (['id000', 'id003', 'id006', 'id009'], 4))
+  tag    want (['id000', 'id004', 'id008'], (['id000', 'id004', 'id008'], 3))
+         got  (['id000', 'id004', 'id008'], (['id000', 'id004', 'id008'], 3))
+  PASS  N1-delete-search: search answers the pre-renumbering notes
+  PASS  N1-delete-tag: tag reads answer the pre-renumbering notes
+
+== N-1 journal_mode=wal: renumbered + recorded; the boot cannot take the write lock ==
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  records before the renumbering: ['j2_note_tag_index@1', 'j2_note_task_digest@2', 'j2_notes_fts_map.note_rowid@1']
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  non-vacuity: the drift misleads the recorded reads: search True, tag True
+[notebook-schema-builds] could NOT withdraw the record of j2_notes_fts_map.note_rowid after 4 attempts (database is locked); this process does not trust it until a boot proves it
+[notebook-schema-builds] could NOT withdraw the record of j2_note_tag_index after 4 attempts (database is locked); this process does not trust it until a boot proves it
+  fts step: raised OperationalError: database is locked
+  tag step: raised OperationalError: database is locked
+  boot took 9.38s; records now: ['j2_note_tag_index@1', 'j2_note_task_digest@2', 'j2_notes_fts_map.note_rowid@1']
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  fts ready=False  tag ready=False
+  search want (['id000', 'id003', 'id006', 'id009'], ['id000', 'id003', 'id006', 'id009'], (['id000', 'id003', 'id006', 'id009'], 4))
+         got  (['id000', 'id003', 'id006', 'id009'], ['id000', 'id003', 'id006', 'id009'], (['id000', 'id003', 'id006', 'id009'], 4))
+  tag    want (['id000', 'id004', 'id008'], (['id000', 'id004', 'id008'], 3))
+         got  (['id000', 'id004', 'id008'], (['id000', 'id004', 'id008'], 3))
+  PASS  N1-wal-search: search answers the pre-renumbering notes
+  PASS  N1-wal-tag: tag reads answer the pre-renumbering notes
+
+== N1-retry: the lock is released 0.6 s into the boot (connection timeout 0.2 s) ==
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  fts step: {'triggers_replaced': True, 'rows_repaired': 12, 'marked': True, 'reason': 'rebuilt_for_drift'}
+  tag step: {'built': False, 'rebuilt_for_drift': True, 'rebuilt_for_version': False}
+  records now: ['j2_note_tag_index@1', 'j2_note_task_digest@2', 'j2_notes_fts_map.note_rowid@1']  fts ready=True  tag ready=True
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  PASS  N1-retry-search: got ['id000', 'id003', 'id006', 'id009']
+  PASS  N1-retry-tag: got ['id000', 'id004', 'id008']
+
+== CONTROL (probe honesty): on a fresh database the comparison below says 'equal' ==
+  PASS  CONTROL-fts-compare: a fresh database's fts au body equals the code's
+  PASS  CONTROL-task-compare: a fresh database's task au body equals the code's
+
+== N-4 FTS triggers: an older au body (still names note_rowid), today's bare record ==
+  records after boot: ['j2_notes_fts_map.note_rowid@1']
+  au body after boot == code's: True
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  search after a body_plain write to n0: ['n0', 'n1', 'n3', 'n5']
+  PASS  N4-fts-bare-trigger: the boot installed the code's au body
+  PASS  N4-fts-bare-answer: the edited note is found
+
+== N-4 FTS triggers: an older au body (still names note_rowid), a version-0 record ==
+  records after boot: ['j2_notes_fts_map.note_rowid@1']
+  au body after boot == code's: True
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+[activity] Failed to log j2:notebook_search_used for u1: no such table: activity_log
+  search after a body_plain write to n0: ['n0', 'n1', 'n3', 'n5']
+  PASS  N4-fts-v0-trigger: the boot installed the code's au body
+  PASS  N4-fts-v0-answer: the edited note is found
+
+== N-4 task-index invalidation triggers: an older au body, a version-0 record ==
+[activity] Failed to log j2:notebook_note_created for u1: no such table: activity_log
+  records after boot: ['j2_note_task_digest@2']
+  au body after boot == code's: True
+  tasks after a raw body write: ['new task']
+  PASS  N4-task-trigger: the boot installed the code's au body
+  PASS  N4-task-answer: the tasks view serves the body, not a stale row
+
+SUMMARY: N1-delete-search=PASS N1-delete-tag=PASS N1-wal-search=PASS N1-wal-tag=PASS N1-retry-search=PASS N1-retry-tag=PASS CONTROL-fts-compare=PASS CONTROL-task-compare=PASS N4-fts-bare-trigger=PASS N4-fts-bare-answer=PASS N4-fts-v0-trigger=PASS N4-fts-v0-answer=PASS N4-task-trigger=PASS N4-task-answer=PASS
+14 PASS / 0 FAIL
