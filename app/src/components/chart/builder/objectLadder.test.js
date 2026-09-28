@@ -24,6 +24,9 @@ import { evaluateObjects } from '../engine/objectRuntime'
 import { bindObjectProgram } from '../engine/ast/objectProgram'
 import { toRenderState } from '../engine/objectRenderState'
 import { interpret } from '../engine/ast/interpret'
+// ⏭ LEVEL 10's script is licence-held and local-only; absent, its two cases are
+// skipped BY NAME, never passed and never ENOENT.
+import { itNeedsLocalOnly } from '../engine/ast/__tests__/oosLocalOnly.js'
 
 const OOS = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 
@@ -256,7 +259,7 @@ plot(ma, title = "MA")
 describe('C3B ladder — LEVEL 10: a real reachable OOS composite', () => {
   const NAME = 'long_tail__16-spy-position-helper'
 
-  it('⭐⭐ a published script from the reachable 27 draws its dashboard', () => {
+  itNeedsLocalOnly([NAME], '⭐⭐ a published script from the reachable 27 draws its dashboard', () => {
     const src = fs.readFileSync(path.join(OOS, `${NAME}.pine`), 'utf8')
     const { t, program, res, state } = run(src)
     expect(t.ok).toBe(true)
@@ -273,7 +276,7 @@ describe('C3B ladder — LEVEL 10: a real reachable OOS composite', () => {
     expect(nonEmpty.length).toBe(state.tables[0].cells.length)
   })
 
-  it('⛔ …and what it could NOT carry is counted, not hidden', () => {
+  itNeedsLocalOnly([NAME], '⛔ …and what it could NOT carry is counted, not hidden', () => {
     const src = fs.readFileSync(path.join(OOS, `${NAME}.pine`), 'utf8')
     const t = translatePine(src)
     expect(t.objectDiagnostics).toBeTruthy()

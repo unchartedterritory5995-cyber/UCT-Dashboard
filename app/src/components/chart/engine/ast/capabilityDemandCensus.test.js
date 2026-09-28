@@ -40,6 +40,7 @@ import path from 'node:path'
 import { lexPine, blockStatements } from './pine.js'
 import { scanMutability, buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { TABLE, isPointwise } from './parse.js'
+import { OOS_ABSENT, partialNote } from './__tests__/oosLocalOnly.js'
 
 const CORPORA = [
   ['oos1', '../tests/fixtures/pine_oos'],
@@ -255,7 +256,7 @@ REPORT.executed = rows.filter((r) => r.blocker === 'EXECUTED').length
 if (OUT) fs.writeFileSync(OUT, JSON.stringify({ report: REPORT, rows }, null, 2))
 
 describe('⭐⭐⭐ capability demand — total, not just first blocker (§7)', () => {
-  it('reports both numbers for every family', () => {
+  it(`reports both numbers for every family${partialNote()}`, () => {
     /* eslint-disable no-console */
     const p = (v, w) => String(v === null ? '—' : v).padStart(w)
     console.log(`\n  ${rows.length} scripts, ${REPORT.executed} executing end-to-end\n`)
@@ -269,7 +270,8 @@ describe('⭐⭐⭐ capability demand — total, not just first blocker (§7)', 
         + `${p(f.firstBlocker, 9)}${p(f.executedWithDemand, 6)}   ${hidden}`)
     }
     /* eslint-enable no-console */
-    expect(REPORT.scripts).toBeGreaterThan(150)
+    // ⏭ Licence-held pine_oos absentees are named in the title, not counted as read.
+    expect(REPORT.scripts).toBeGreaterThan(150 - OOS_ABSENT.length)
   })
 
   it('⛔ DEMAND is a superset of FIRST BLOCKER for every family that has a guard', () => {
