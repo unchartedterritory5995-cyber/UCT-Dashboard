@@ -27,6 +27,7 @@ import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
 import { prewarmVisibleList } from '../../../utils/prefetchBars'
+import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 
 const getFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -242,12 +243,25 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   }, [opts?.universes, opts?.source, opts?.value])
   const active = Math.min(Math.max(0, opts?.activeUniverse ?? 0), universes.length - 1)
   const cur = universes[active] || universes[0]
-  const source = cur.source, value = cur.value
+
+  // ── TERM-079: follow the colour group's `list-ref` channel (opt-in, `opts.followList`).
+  // While following, the list a same-group Watchlist widget shows IS this map's universe;
+  // with nothing published, the map keeps its own active tab. Not following → the channel
+  // is not even subscribed (null id), so a publish anywhere cannot re-render this map. ──
+  const following = !!opts?.followList
+  const linked = useChannel(following && color ? channelFor(KIND.LIST_REF, color) : null)
+  const showingLinked = following && !!linked
+  const source = showingLinked ? linked.source : cur.source
+  const value = showingLinked ? linked.value : cur.value
+  const toggleFollow = useCallback(() => patch({ followList: !following }), [following, patch])
+  // Picking a saved tab (or adding one) is an explicit choice of universe — it ends following.
+  const pickTab = useCallback((i) => patch({ activeUniverse: i, ...(following ? { followList: false } : {}) }), [following, patch])
   const addUniverse = useCallback((it) => {
+    const stop = following ? { followList: false } : {}
     const exists = universes.findIndex(u => u.source === it.source && (u.value ?? '') === (it.value ?? ''))
-    if (exists >= 0) { patch({ activeUniverse: exists }); return }
-    patch({ universes: [...universes, { source: it.source, value: it.value, label: it.label }], activeUniverse: universes.length })
-  }, [universes, patch])
+    if (exists >= 0) { patch({ activeUniverse: exists, ...stop }); return }
+    patch({ universes: [...universes, { source: it.source, value: it.value, label: it.label }], activeUniverse: universes.length, ...stop })
+  }, [universes, patch, following])
   const removeUniverse = useCallback((i) => {
     if (universes.length <= 1) return
     const next = universes.filter((_, j) => j !== i)
@@ -437,10 +451,10 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
         <div className={styles.uniTabs}>
           {universes.map((u, i) => (
             <span key={`${u.source}:${u.value ?? ''}:${i}`}
-              className={`${styles.uniTab}${i === active ? ' ' + styles.uniTabActive : ''}`}
-              role="button" tabIndex={0} onClick={() => patch({ activeUniverse: i })}>
+              className={`${styles.uniTab}${i === active && !showingLinked ? ' ' + styles.uniTabActive : ''}`}
+              role="button" tabIndex={0} onClick={() => pickTab(i)}>
               <span className={styles.uniTabLabel}>{u.label || u.value || 'Universe'}</span>
-              {i === active && !!plot.length && <span className={styles.uniTabCount}>{plot.length}</span>}
+              {i === active && !showingLinked && !!plot.length && <span className={styles.uniTabCount}>{plot.length}</span>}
               {universes.length > 1 && (
                 <span className={styles.uniTabX} role="button" tabIndex={-1} aria-label="Remove universe"
                   title="Remove" onClick={(e) => { e.stopPropagation(); removeUniverse(i) }}>
@@ -453,7 +467,25 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
             title="Add a universe" aria-label="Add a universe">
             <UIcon name="plus" size={13} gold={false} />
           </button>
+          {following && (
+            <span className={`${styles.uniTab} ${showingLinked ? styles.uniTabActive : styles.uniTabIdle}`}
+              title={showingLinked
+                ? `Following the list shown in this group's watchlist`
+                : `Pick a list in a watchlist on this colour group to plot it here`}>
+              <UIcon name="link" size={10} gold={false} />
+              <span className={styles.uniTabLabel}>
+                {showingLinked ? (linked.label || linked.value || linked.source) : 'No linked list'}
+              </span>
+              {showingLinked && !!plot.length && <span className={styles.uniTabCount}>{plot.length}</span>}
+            </span>
+          )}
         </div>
+        <button type="button" className={`${styles.uniAdd} ${following ? styles.uniFollowOn : ''}`}
+          onClick={toggleFollow} aria-pressed={following}
+          title={following ? 'Stop following the linked list' : "Follow the list picked in this colour group's watchlist"}
+          aria-label="Follow the linked list">
+          <UIcon name="link" size={12} gold={false} />
+        </button>
         <span className={chrome.spacer} />
         <button ref={gearRef} type="button" className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
           onClick={() => setSettingsOpen(o => !o)} title="Market Map settings" aria-label="Market Map settings">

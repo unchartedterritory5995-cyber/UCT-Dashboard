@@ -7,6 +7,10 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+// TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
+// A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
+// created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
+import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
 import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
@@ -2473,6 +2477,7 @@ export default function ChartsWorkspace() {
     // the provider so widgets keep color-group ticker linking. Grid mode
     // renders as a vertically stacked cell list (its own @media CSS).
     return (
+      <ContextChannelsProvider>
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
           <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -2521,6 +2526,7 @@ export default function ChartsWorkspace() {
           />
         )}
       </WorkspaceContext.Provider>
+      </ContextChannelsProvider>
     )
   }
 
@@ -2700,6 +2706,7 @@ export default function ChartsWorkspace() {
   }
 
   return (
+    <ContextChannelsProvider>
     <WorkspaceContext.Provider value={workspaceValue}>
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
@@ -3076,5 +3083,6 @@ export default function ChartsWorkspace() {
         )}
       </div>
     </WorkspaceContext.Provider>
+    </ContextChannelsProvider>
   )
 }
