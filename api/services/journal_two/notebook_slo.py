@@ -89,6 +89,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional
 
 from api.services import auth_db
+from api.services.alert_destination import ops_webhook as _ops_webhook
 from api.services.journal_two.notebook_telemetry import ms_of, percentile
 
 logger = logging.getLogger(__name__)
@@ -338,10 +339,16 @@ def evaluate(now: Optional[datetime] = None, conn=None, window_hours: int = WIND
 
 
 def _post_discord(text: str) -> str:
-    """'discord' when posted, 'log' when no webhook is configured, 'failed' on error."""
-    webhook = (os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
+    """'discord' when posted, 'log' when no webhook is configured, 'failed' on error.
+
+    ⛔ The destination comes from `alert_destination.ops_webhook()`, the ONE reader of the
+    ops channel (TERM-011), never a literal environment read: with DISCORD_OPS_WEBHOOK_URL
+    unset -- production today -- it resolves to the admin channel every other operator page
+    uses, and `tests/test_alert_destination.py` pins the modules still reading the literal to
+    an exact roster, which a new literal reader here would break. It cannot raise."""
+    webhook = (_ops_webhook() or "").strip()
     if not webhook:
-        logger.warning("[notebook-slo] PAGE (no DISCORD_WEBHOOK_URL, logged only): %s", text)
+        logger.warning("[notebook-slo] PAGE (no ops webhook configured, logged only): %s", text)
         return "log"
     try:
         import httpx

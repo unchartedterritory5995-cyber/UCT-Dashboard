@@ -337,19 +337,32 @@ describe('⛔⛔ DOOR ENUMERATION — derived from the code, in both directions'
     expect([...advancing].filter((n) => !sql.has(n)).sort()).toEqual(['patch_note_tags', 'restore_note_version'])
   })
 
+  // ⭐ Wave 10 (lane 10A, fix round 1, review I-1): `\b` after the table name. Without it the
+  // matcher also read `UPDATE j2_notes_fts_map SET note_rowid` (db.py's map repair) as a write to
+  // j2_notes, and ② went red on a writer of a DIFFERENT table. In JS, `\b` never fires between
+  // `s` and `_` (both word characters), so the sidecar tables drop out and `j2_notes SET` stays in.
+  const WRITES_J2_NOTES = /UPDATE j2_notes\b/
+
+  it('② (control) the writer matcher sees j2_notes and nothing named after it', () => {
+    expect(WRITES_J2_NOTES.test('UPDATE j2_notes SET title = ? WHERE id = ?')).toBe(true)
+    expect(WRITES_J2_NOTES.test('UPDATE j2_notes\n SET deleted_at = ?')).toBe(true)
+    expect(WRITES_J2_NOTES.test('UPDATE j2_notes_fts_map SET note_rowid = ?')).toBe(false)
+    expect(WRITES_J2_NOTES.test('UPDATE j2_note_folders SET name = ?')).toBe(false)
+  })
+
   it('② every OTHER server-side writer of j2_notes is a known second writer', () => {
     const offenders = []
     for (const p of walk(API)) {
       if (!p.endsWith('.py') || isTest(p) || p === NOTES_SERVICE) continue
       const src = readFileSync(p, 'utf8')
-      if (!/UPDATE j2_notes/.test(src)) continue
+      if (!WRITES_J2_NOTES.test(src)) continue
       // ⭐ The connector engine is a GENUINE second writer — a different
       // process syncing Roam/Notion/Craft in the background. A fork against it
       // is the CORRECT answer, not a defect; two of its three writers
       // deliberately preserve `updated_at` and are not doors at all.
       if (rel(p).includes('note_connectors/engine.py')) continue
       for (const [name, body] of pyFunctions(src)) {
-        if (/UPDATE j2_notes/.test(body)) offenders.push(`${rel(p)}:${name}`)
+        if (WRITES_J2_NOTES.test(body)) offenders.push(`${rel(p)}:${name}`)
       }
     }
     expect(offenders, '⛔ a NEW server-side writer of j2_notes is unaccounted for').toEqual([])

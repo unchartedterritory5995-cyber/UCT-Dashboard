@@ -750,9 +750,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
+        "pine:collection",
         "pine:type"
       ],
       "screenerGuards": [
+        "pine:collection",
         "pine:type"
       ]
     },
@@ -2066,10 +2068,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:collection"
       ]
     },
     {
@@ -2269,6 +2271,7 @@
       "screener": true,
       "hostGuards": [
         "pine:function",
+        "pine:collection",
         "pine:reassign",
         "pine:drawing",
         "pine:request",

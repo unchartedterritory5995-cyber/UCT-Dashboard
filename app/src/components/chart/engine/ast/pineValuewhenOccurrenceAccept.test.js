@@ -158,7 +158,11 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
     expect(t.ok, JSON.stringify(t.refusal)).toBe(true)
 
     const stillBlocked = [
-      ['market-structure-break-order-block__3a1fb6197f.pine', 'pine:collection', /array\.get/],
+      // ⚰️ 2026-09-27 (H14): the guard is unchanged and the SENTENCE moved to the
+      // cause. `low_points_arr` is a `var` array `array.push`ed inside an `if`
+      // at line 69; the read used to refuse at `array.get` for a reason further
+      // on, and now refuses at the write the walk does not model.
+      ['market-structure-break-order-block__3a1fb6197f.pine', 'pine:collection', /`low_points_arr` is written at line 69/],
       ['smarter-snr__ac98ab25d5.pine', 'pine:function', /\bint\b/],
       ['support-and-resistance__1505.pine', 'pine:na', /fixnan/],
     ]

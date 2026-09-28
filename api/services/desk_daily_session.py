@@ -13,6 +13,9 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from api.services import desk_background_audio, desk_cover_retry, desk_creative, education_service
+# ⭐ TERM-011 / RM-N09 step 6 rows 11 and 12 — the OPS-class destination reader for the
+# two owner posts below. MODULE level, matching step 3's six producers.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 from api.services.youtube_client import YouTubeClient, YouTubeAuthError
 
 _ET = ZoneInfo("America/New_York")
@@ -282,7 +285,20 @@ def _alert_owner(now: datetime, kind: str = "missing") -> None:
         title = "⚠️ Live Trading Session not published"
         desc = (f"No '{_session_title(None, now=now)}' video is in The Desk by {when}. "
                 "Check that the webinar ran and auto-recorded to the Zoom cloud.")
-    discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800})
+    # ⭐ TERM-011 / RM-N09 step 6 row 11 — OPS, and not a decision: both message bodies
+    # end in a runbook ("Check Zoom/YouTube credentials + the desk_session_jobs queue",
+    # "Check that the webinar ran and auto-recorded to the Zoom cloud"). A post whose
+    # body is a runbook is an ops post by construction. Resolved at CALL time; with
+    # DISCORD_OPS_WEBHOOK_URL unset or blank this is DISCORD_WEBHOOK_URL's value, the
+    # same room door C's import-time capture holds.
+    #
+    # ⚠️ ONE CONSEQUENCE, STATED ONCE: this post no longer rides door C's import-time
+    # capture, so blanking DISCORD_WEBHOOK_URL silences THIS alarm immediately while
+    # `notify_signup` keeps posting until the process restarts. That asymmetry is
+    # already the situation for all six of step 3's converted producers; the fix is
+    # door C's own call-time read, which is a later step's.
+    discord_notify._send_webhook({"title": title, "description": desc, "color": 0xE0A800},
+                                 url=_ops_webhook())
 
 
 _DESK_VIDEOS_URL = "https://uctintelligence.com/desk?section=videos"
@@ -299,8 +315,41 @@ def _alert_recipients() -> list[str]:
 
 def _notify_published(title: str, video_id: str, section: str = "Videos") -> None:
     """Announce a freshly-published video (Discord + email) when it posts to The
-    Desk. Audience-facing: gold embed with the video thumbnail + a Watch link to
-    the website. Works for any show (Live Trading Session, Evening Update, …) —
+    Desk.
+
+    ⛔⛔ TERM-011 / RM-N09 step 6 row 12 — THIS DOCSTRING USED TO ADDRESS THIS POST TO
+    AN AUDIENCE, AND THAT WAS THE WRONG SENTENCE, NOT THE WRONG DESTINATION. The claim
+    is deleted rather than honoured, on three code facts (decision packet §4 row 12):
+
+    ⛔ THE OFFENDING PHRASE IS NOT QUOTED HERE, DELIBERATELY. Both the packet and its
+    own §0 instrument locate this row by that exact string; a "this used to say X" note
+    keeps one occurrence alive in the file and the next reader — or the next grep —
+    cannot tell a live claim from a record of a dead one. The reasoning below is the
+    record; the phrase itself is what had to go.
+
+      1. its OWN other leg goes to administrators — `_alert_recipients()` above is
+         `DESK_DAILY_SESSION_ALERT_EMAILS or ADMIN_EMAILS`, consumed at the email loop
+         below. A function whose email list is the admin list is not addressing an
+         audience;
+      2. `terminal_next_monitor_main.py` binds the claim in CODE, not prose:
+         `ADMIN_WEBHOOK_ENV = "DISCORD_WEBHOOK_URL"`, with `DISCORD_TSDR_WEBHOOK_URL`
+         named as the public ~750-member channel;
+      3. ⭐ A GENUINELY PUBLIC ANNOUNCEMENT FOR THE SAME EVENT ALREADY EXISTS,
+         in `api/services/desk_session_announce.py`, on `DISCORD_TSDR_WEBHOOK_URL`,
+         called from the same publish path behind its own per-show allowlist.
+
+    So this is an operator confirmation that the pipeline shipped, and it only LOOKED
+    like a promo because the gold card was the convenient thing to reuse — the styling
+    is what made the docstring wrong.
+
+    ⛔⛔ DO NOT "FIX" IT THE OTHER WAY. Pointing this at `DISCORD_TSDR_WEBHOOK_URL` to
+    make the old sentence true would announce EVERY show to the public room, bypassing
+    `desk_session_announce`'s allowlist — the one rail that keeps paywalled shows out of
+    it. Live Trading Sessions are paywalled. That is a paid-content leak and it is not
+    reversible: a post cannot be unsent to ~750 people.
+
+    Gold embed with the video thumbnail + a Watch link to the website. Works for any
+    show (Live Trading Session, Evening Update, …) —
     the header is the video's own title, the body names its section.
     Best-effort — never raises (must not break the processor)."""
     try:
@@ -312,7 +361,7 @@ def _notify_published(title: str, video_id: str, section: str = "Videos") -> Non
                            f"[Watch ▶]({_DESK_VIDEOS_URL})",
             "image": {"url": _YT_THUMB.format(vid=video_id)},
             "color": 0xC9A84C,  # brand gold
-        })
+        }, url=_ops_webhook())   # ⭐ step 6 row 12 — OPS, resolved at CALL time
     except Exception:
         pass
     try:

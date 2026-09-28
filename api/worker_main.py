@@ -25,6 +25,12 @@ import time
 import logging
 from contextlib import asynccontextmanager
 
+# ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader for this pod's two
+# direct ops posters (the bars-freshness watchdog and the down-alert). ⛔ Safe at
+# module level: alert_destination -> alert_routing -> alerts -> cache is four
+# stdlib-only modules and never api.main, which builds the whole web app at import.
+from api.services.alert_destination import ops_webhook as _ops_webhook
+
 from fastapi import FastAPI
 import uvicorn
 
@@ -544,7 +550,12 @@ def _start_bars_freshness_watchdog():
     prewarmer dies. Disable with BARS_FRESHNESS_WATCHDOG_ENABLED=0."""
     if os.environ.get("BARS_FRESHNESS_WATCHDOG_ENABLED", "1") != "1":
         return
-    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+    # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+    # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+    # that stood here returned. Same channel, same bytes; proved at the wire in
+    # tests/test_alert_destination.py.
+    webhook = _ops_webhook()
 
     def _loop():
         state = {"bad": False, "last_alert_at": None}
@@ -617,7 +628,12 @@ def _start_keepwarm():
     _market_hours_only = os.environ.get("KEEPWARM_MARKET_HOURS_ONLY") == "1"
 
     # Down-alert config: reuse the same probe to notify the owner via Discord.
-    _alert_webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination, resolved at CALL time.
+    # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank (how it ships, and what production
+    # holds) this returns DISCORD_WEBHOOK_URL's value — exactly what the literal read
+    # that stood here returned. Same channel, same bytes; proved at the wire in
+    # tests/test_alert_destination.py.
+    _alert_webhook = _ops_webhook()
     _alert_enabled = bool(_alert_webhook) and os.environ.get("DOWN_ALERT_ENABLED", "1") == "1"
     _alert_site = base  # public URL the user actually visits
     _alert_state = {"fails": 0, "down": False, "last_alert_at": None}
