@@ -20,6 +20,9 @@ import { memberInputTranslation } from './builderInputs'
 import { buildDefinition } from './BuilderSheet.jsx'
 import { evaluateFormula } from './FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE, BUILDER_INPUTS } from './builderInputs.js'
+// ⏭ 29 of the frozen corpus are licence-held and local-only; a rail that needs
+// one is skipped BY NAME when it is absent, never passed and never ENOENT.
+import { itNeedsLocalOnly } from '../engine/ast/__tests__/oosLocalOnly.js'
 
 const OOS = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 const CAP = 64 * 1024
@@ -88,7 +91,7 @@ const pctl = (arr, p) => {
 }
 
 describe('C2B.2 — the document-size distribution of the frozen 60', () => {
-  it('source, AST, presentation and final document bytes', () => {
+  itNeedsLocalOnly('ALL', 'source, AST, presentation and final document bytes', () => {
     const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine')).sort()
     const rows = []
     for (const f of files) {
@@ -130,7 +133,8 @@ describe('C2B.2/.3 — where the blocked document spends its bytes', () => {
   // column has no document to size, so it moves out of the measurement and into a named
   // record, rather than failing as "the document should build" — which reads like a
   // corpus file somebody deleted.
-  it('⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO document at all', () => {
+  itNeedsLocalOnly(['high_engagement__03-supertrend-kivancozbilgic'],
+    '⚰️ high_engagement__03-supertrend-kivancozbilgic builds NO document at all', () => {
     expect(documentFor('high_engagement__03-supertrend-kivancozbilgic')).toBe(null)
   })
 
