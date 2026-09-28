@@ -25,8 +25,10 @@
  */
 import { MANIFEST } from './manifest.js'
 import { NAV_ITEMS } from '../components/NavBar.jsx'
+import { APP_BRAND, brandedTitle } from './brand.js'
 
-export const APP_BRAND = 'UCT Intelligence'
+// The brand lives in ./brand.js (one authority; the public pages read it without the nav).
+export { APP_BRAND }
 
 /** Literal `'surface'`-kind paths CP1 declared, longest-prefix-first (mirrors
  * MobileNav.jsx's own `titleFor()` matcher, which does the identical thing for
@@ -46,5 +48,5 @@ export function titleForPath(pathname) {
   if (!match) return null
   const label = NAV_LABEL_BY_PATH.get(match)
   if (!label) return null
-  return `${label} — ${APP_BRAND}`
+  return brandedTitle(label)
 }
