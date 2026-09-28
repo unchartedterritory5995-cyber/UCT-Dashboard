@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
 
 // Shared Multi-Security Grounding Architecture V1 (owner authorization,
@@ -7,6 +8,26 @@ import styles from '../ResearchPage.module.css'
 // api/services/research/comparison_ai_adapter.py's module docstring for the
 // full backend contract this renders. Single-turn only for V1: no existing
 // history plumbing for a two-ticker conversation exists yet.
+//
+// ─── TERM-050 (FB-I1-01): THE SOURCES BLOCK COMPOSES S8, NOT ITS OWN LIST ──
+// This door drew its own citation list (`explainCitations` /
+// `explainCitation` / `explainCitationMark`) -- the S8/I1 double-ownership
+// defect AskAiTab carried until GATE-I1 slice 2, on a second door TERM-034's
+// widened rail could see but not fix. Each source row now renders through
+// S8's `<Provenance>`, exactly as AskAiTab's does, so both Ask-AI doors show
+// a member ONE provenance affordance. The rail is
+// `pages/research/i1S8Boundary.test.js`.
+//
+// ⛔ Same two choices as AskAiTab, for the same reasons (read its header):
+//   * `<Provenance>`, not `<Cited>` -- a comparison evidence item is
+//     `{id, sym, type, date, source, text, url}`, carrying neither a bar row
+//     nor a `uctUri`, so `<Cited>` would render an empty detail panel or need
+//     a fabricated address;
+//   * no `timestamp` -- `date` is frequently a LABEL ("current snapshot"),
+//     and formatTimeEt would turn a date-only string into a confident wrong
+//     ET wall-clock time.
+// The [E#] mark stays local: it is a footnote number tying a key fact to its
+// source (the same concept as `explainFactMark`), not a provenance renderer.
 const SUGGESTIONS = [
   'How do their valuations compare?',
   'Which one does UCT rate higher, and why?',
@@ -148,14 +169,22 @@ export default function ComparisonAskAi({ symA, symB }) {
               {!!(data.citations || []).length && (
                 <>
                   <div className={styles.explainSectionLbl}>Sources</div>
-                  <div className={styles.explainCitations}>
+                  <ul className={styles.explainSources} data-testid="comparison-ask-ai-sources">
                     {data.citations.map(c => (
-                      <div key={c.id} className={styles.explainCitation}>
-                        <span className={styles.explainCitationMark}>[{c.id}]</span>
-                        <span>{c.sym} · {c.source} · {c.date}</span>
-                      </div>
+                      <li
+                        key={c.id}
+                        className={styles.explainSourceRow}
+                        data-testid="comparison-ask-ai-source"
+                        data-evidence-id={c.id}
+                      >
+                        <span className={styles.explainSourceRef}>[{c.id}]</span>
+                        <Provenance
+                          value={`${c.sym} · ${c.source} · ${c.date}`}
+                          provenance={{ sourceActivity: c.source }}
+                        />
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </>
               )}
 
