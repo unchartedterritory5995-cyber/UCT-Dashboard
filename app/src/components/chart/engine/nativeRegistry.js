@@ -145,8 +145,12 @@ import { serverColumnsFor } from './serverCompute'
 // document (a member's script the host lane refused and the runtime lane built,
 // behind `VITE_PINE_RUNTIME_LANE_ENABLED`). `pineRuntimeLane.js` is the only
 // live module that imports the lane; this is one of its two callers.
-import { runtimeLaneColumns, RUNTIME_LANE_KIND } from './pineRuntimeLane'
-import { pineRuntimeLaneEnabled } from './pineRuntimeLaneGate'
+// ⛔⛔ THROUGH THE GATE'S SLOT, NEVER A STATIC IMPORT: this module is the chart
+// engine every page loads, and a static import put the whole runtime in the
+// eager bundle (+328 KB, CI's `bytes` budget). The gate's header has the numbers.
+import {
+  pineRuntimeLaneEnabled, loadedPineRuntimeLane, loadPineRuntimeLane, RUNTIME_LANE_KIND,
+} from './pineRuntimeLaneGate'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -1531,6 +1535,28 @@ function astTrees(def) {
 const COLUMN_ERRORS = '__columnErrors'
 
 /** Attach the per-column reasons to a column map without widening its key set. */
+/** A runtime-lane document asked to compute before the lane's chunk has arrived.
+ *
+ *  ⛔ EVERY KEY IS A NAMED COLUMN ERROR, never a blank that reads as data — the
+ *  same contract `runtimeLaneColumns` keeps. With the flag off it is the lane's
+ *  own `runtime-door:off` answer (the install door refuses such a document
+ *  anyway); with it on, the load is started and the next compute has the lane.
+ *  The member door loads the lane BEFORE it mints a document, so on that path
+ *  this never fires; it guards any other route to `computeFor`. */
+function runtimeLaneNotLoaded(def) {
+  const keys = Object.keys((def.compute && def.compute.columns) || {})
+  const on = pineRuntimeLaneEnabled()
+  const error = on
+    ? { guard: 'runtime-door:loading',
+      message: "this definition runs in the chart's second engine, which is still loading" }
+    : { guard: 'runtime-door:off',
+      message: 'this definition runs in the runtime lane, which is off on this build' }
+  if (on) loadPineRuntimeLane().catch(() => {})
+  const errors = {}
+  for (const k of keys) errors[k] = error
+  return withColumnErrors({}, errors)
+}
+
 function withColumnErrors(out, errors) {
   if (errors && Object.keys(errors).length) {
     Object.defineProperty(out, COLUMN_ERRORS, { value: Object.freeze(errors), enumerable: false })
@@ -1817,7 +1843,9 @@ export function computeFor(def, bars, inputs, ctx) {
   // column error — never a throw that would take the instance's other plots with
   // it, and never a blank that reads as data.
   if (def?.compute?.kind === RUNTIME_LANE_KIND) {
-    const { columns, errors } = runtimeLaneColumns(
+    const lane = loadedPineRuntimeLane()
+    if (!lane) return runtimeLaneNotLoaded(def)
+    const { columns, errors } = lane.runtimeLaneColumns(
       def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
     return withColumnErrors(columns, errors)
   }

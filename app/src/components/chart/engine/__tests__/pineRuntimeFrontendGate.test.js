@@ -199,15 +199,28 @@ export const ALLOWED_LANE_IMPORTERS = Object.freeze([
   'components/chart/engine/runtime/objectLane.js',
 ])
 
-/** The ONLY live files allowed to import the fallback module itself. */
+/** The ONLY live files allowed to import the fallback module itself.
+ *
+ *  ⚰️ 2026-09-27: this listed `memberPaneDefinition.js` and `nativeRegistry.js`,
+ *  both STATIC importers — and `nativeRegistry` is the chart engine every page
+ *  loads, so the whole runtime rode into the eager bundle with the flag off
+ *  (+328 KB on CI's Notebook first-open budget). Both now reach the lane through
+ *  the gate: `isRuntimeFallbackGuard` / `RUNTIME_LANE_KIND` live there, and
+ *  `computeFor` reads the slot the lane fills when it loads. */
 export const ALLOWED_DOOR_IMPORTERS = Object.freeze([
-  // the member door: asks `isRuntimeFallbackGuard` after the host lane refuses
-  'components/chart/builder/memberPane/memberPaneDefinition.js',
-  // builds a runtime-lane document at the member door
+  // builds a runtime-lane document at the member door (itself loaded on demand)
   'components/chart/builder/memberPane/runtimeLaneDefinition.js',
-  // computes one (`computeFor`, kind `pine`) — refused at install when the flag is off
-  'components/chart/engine/nativeRegistry.js',
+  // the lane's lazy loader — a DYNAMIC import, so the lane is its own chunk
+  'components/chart/engine/pineRuntimeLaneGate.js',
 ])
+
+/** Does this text import `mod` STATICALLY (an `import … from` or a bare
+ *  side-effect import)? A dynamic `import()` is a separate chunk; this is not. */
+function importsStatically(text, mod) {
+  return new RegExp(
+    '(?:\\bfrom\\s+|^\\s*import\\s+)[\'"][^\'"]*' + mod + '(?:\\.js)?[\'"]', 'm',
+  ).test(text)
+}
 
 /** Does this text import exactly the module `mod` (its path ENDS there)?
  *  ⛔ `names()` above is a substring test on purpose — over-broad is right for a
@@ -272,6 +285,21 @@ describe('⭐⭐ the runtime lane is reachable ONLY through the gated member-doo
     // …and the document builder is reached from the member door alone.
     expect(liveLaneImporters(FILES, ['memberPane/runtimeLaneDefinition', './runtimeLaneDefinition']))
       .toEqual(['components/chart/builder/memberPane/memberPaneDefinition.js'])
+  })
+
+  it('⛔⛔ THE LANE IS A LAZY CHUNK — no module outside it imports the lane STATICALLY', () => {
+    // ⭐ CONTROL — the static matcher sees `from` and a bare import, and NOT `import()`.
+    expect(importsStatically("import { a } from './pineRuntimeLane'", 'pineRuntimeLane')).toBe(true)
+    expect(importsStatically("import './pineRuntimeLane'", 'pineRuntimeLane')).toBe(true)
+    expect(importsStatically("const m = import('./pineRuntimeLane')", 'pineRuntimeLane')).toBe(false)
+    expect(importsStatically("import { a } from './pineRuntimeLaneGate'", 'pineRuntimeLane')).toBe(false)
+    // The lane and its document builder: the only static importers of each are
+    // modules that are themselves inside the lazy chunk. A static import from
+    // anywhere else pulls the runtime into that module's bundle — measured once,
+    // as +328 KB on every page, flag off.
+    expect(liveLaneImporters(FILES, ['pineRuntimeLane'], importsStatically))
+      .toEqual(['components/chart/builder/memberPane/runtimeLaneDefinition.js'])
+    expect(liveLaneImporters(FILES, ['runtimeLaneDefinition'], importsStatically)).toEqual([])
   })
 })
 

@@ -17,12 +17,12 @@
 // any other failing line is blanked) through the RUNTIME DOOR's own build
 // (`runtimeLaneDefinition`), so a wall is a wall the door itself hits. The peel
 // has that instrument's recorded bias: `0.0` keeps a name and loses its type.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { memberPaneDefinition } from './memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from './memberPaneDefinition'
 import { runtimeLaneDefinition } from './runtimeLaneDefinition'
 import { isRuntimeFallbackGuard } from '../../engine/pineRuntimeLane'
 import { translatePine } from '../../engine/ast/pine'
@@ -80,6 +80,7 @@ function peel(source) {
 }
 
 describe.skipIf(!RUN)('runtime-lane door census (opt-in)', () => {
+  beforeAll(async () => { await loadRuntimeLaneDoor() })
   it('measures every committed corpus script under the four flag combinations', () => {
     const files = fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
     expect(files.length).toBeGreaterThan(200)                    // non-vacuity: the corpus was found

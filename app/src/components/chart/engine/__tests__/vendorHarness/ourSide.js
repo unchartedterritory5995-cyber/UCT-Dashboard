@@ -25,8 +25,11 @@
 // reachability rail's TEST_INFRA rule), invoked by the harness tests and the
 // vitest CLI entry, and must never be imported by a member surface.
 
-import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from '../../../builder/memberPane/memberPaneDefinition'
 import { runtimeLaneDefinition } from '../../../builder/memberPane/runtimeLaneDefinition'
+// ⭐ The member door loads the runtime lane ON DEMAND (it answers `pending` until
+// then); the harness grades the door synchronously, so it loads the lane up front.
+await loadRuntimeLaneDoor()
 import * as registry from '../../nativeRegistry'
 import { createBinder } from '../../binder'
 import { addInstance } from '../../instanceControls'

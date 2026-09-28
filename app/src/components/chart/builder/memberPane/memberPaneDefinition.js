@@ -33,9 +33,44 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
-import { pineRuntimeLaneEnabled } from '../../engine/pineRuntimeLaneGate'
-import { isRuntimeFallbackGuard } from '../../engine/pineRuntimeLane'
-import { runtimeLaneDefinition } from './runtimeLaneDefinition'
+import { pineRuntimeLaneEnabled, isRuntimeFallbackGuard } from '../../engine/pineRuntimeLaneGate'
+
+// ─── ⭐⭐ THE RUNTIME LANE'S DOOR IS LOADED ON DEMAND (2026-09-27) ────────────────
+// `runtimeLaneDefinition.js` pulls in the whole runtime (front end → lowering →
+// VM). Imported statically here it rode into every page's eager bundle with the
+// flag OFF (+328 KB on CI's Notebook first-open budget). It is now loaded only
+// when a member's script needs it: the door answers `pending: 'runtime-lane'`,
+// `MemberPane` calls `loadRuntimeLaneDoor()` and asks again. Loading it also
+// fills the gate's slot `nativeRegistry.computeFor` reads, because it imports
+// `pineRuntimeLane.js` statically.
+let runtimeLaneDoor = null
+let runtimeLaneDoorLoading = null
+
+/** Load the runtime lane's document builder. Resolves to it; a failed load
+ *  clears the in-flight promise so the next ask retries. Not flag-gated on
+ *  purpose — the door reads the flag before it ever asks for this. */
+export function loadRuntimeLaneDoor() {
+  if (runtimeLaneDoor) return Promise.resolve(runtimeLaneDoor)
+  if (!runtimeLaneDoorLoading) {
+    runtimeLaneDoorLoading = import('./runtimeLaneDefinition').then((m) => {
+      runtimeLaneDoor = m.runtimeLaneDefinition
+      return runtimeLaneDoor
+    }, (err) => {
+      runtimeLaneDoorLoading = null
+      throw err
+    })
+  }
+  return runtimeLaneDoorLoading
+}
+
+/** Is the runtime lane's door loaded? (`MemberPane` asks before it loads.) */
+export function runtimeLaneDoorLoaded() {
+  return runtimeLaneDoor !== null
+}
+
+/** The sentence a member reads for the moment the second engine is arriving. */
+export const RUNTIME_LANE_LOADING_REASON =
+  "Loading this chart's second engine for this script…"
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../builderInputs'
@@ -153,7 +188,17 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // ⛔ AND THE FLAG IS READ HERE, BEFORE ANY RUNTIME WORK: off, this is exactly
     // the refusal it always was.
     if (pineRuntimeLaneEnabled() && runtimeFallbackAdmissible(t, gate)) {
-      const rt = runtimeLaneDefinition({
+      // ⭐ NOT A REFUSAL: the lane that can draw this is still arriving. The
+      // caller loads it (`loadRuntimeLaneDoor`) and asks again; the host's own
+      // refusal rides along so nothing is lost if the load never lands.
+      if (!runtimeLaneDoor) {
+        return {
+          ...no(RUNTIME_LANE_LOADING_REASON, 'runtime-door:loading', t),
+          pending: 'runtime-lane',
+          hostRefusal: { guard: gate.guard, reason: gate.reason },
+        }
+      }
+      const rt = runtimeLaneDoor({
         source,
         id: id || MEMBER_PANE_DEF_PREFIX,
         name,
