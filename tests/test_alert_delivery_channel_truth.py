@@ -166,16 +166,25 @@ def _deliver(alert_id, **kw):
 
 def test_CONTROL_a_healthy_delivery_reports_every_channel_ok(armed, channels_up):
     """The positive control. Without it, every "reports failed" claim below
-    could be satisfied by a function that reports failure unconditionally."""
+    could be satisfied by a function that reports failure unconditionally.
+
+    ⚰️ This asserted ``discord: "ok"`` / ``channels_ok == 3`` before TERM-011
+    step 7. A member indicator-alert delivery is a PRIVATE alert (`user_id`
+    set), and step 7 retires that path's Discord leg outright — the member's
+    own bell (`in_app`) and email carry it now, so ``discord`` is
+    unconditionally ``skipped`` here, not a third "ok" channel.
+    """
     assert ias.record_trigger(armed, last_value=75.0) is True
     out = _deliver(armed)
 
     assert out["claimed"] is True
-    assert out["channels"] == {"in_app": "ok", "discord": "ok", "email": "ok"}, out
-    assert out["channels_ok"] == 3 and out["channels_failed"] == 0, out
+    assert out["channels"] == {"in_app": "ok", "discord": "skipped",
+                               "email": "ok"}, out
+    assert out["channels_ok"] == 2 and out["channels_failed"] == 0, out
     assert out["errors"] == {}
     assert ev._delivery_failed(out) is False
-    assert len(channels_up["email"]) == 1 and len(channels_up["discord"]) == 1
+    assert len(channels_up["email"]) == 1 and len(channels_up["discord"]) == 0, (
+        "a private alert must never reach the Discord transport at all")
 
 
 def test_a_channel_that_FAILS_SILENTLY_is_recorded_as_a_failure(armed, channels_up,
@@ -303,7 +312,9 @@ def test_a_PARTIAL_delivery_is_recorded_as_partial_and_is_NOT_retried(
     ev._run_one_cycle()
     row = _row(armed)
 
-    assert row["delivery_channels"] == {"in_app": "ok", "discord": "ok",
+    # ⚰️ `discord: "ok"` before TERM-011 step 7 — a private delivery's Discord
+    # leg is now unconditionally skipped (see the CONTROL test above).
+    assert row["delivery_channels"] == {"in_app": "ok", "discord": "skipped",
                                         "email": "failed"}, row["delivery_channels"]
     assert row["delivered_at"] is not None, (
         "a partial delivery released its lease — the in-app alert the member "
@@ -369,22 +380,38 @@ def test_a_SKIPPED_channel_is_not_a_FAILED_one(armed, channels_up, monkeypatch):
     assert fl.delivery_health(alert_id=armed)["partial"] == 0
 
 
-def test_a_discord_webhook_that_REFUSES_the_post_is_a_failure(armed, channels_up,
-                                                              monkeypatch):
+def test_a_discord_webhook_that_REFUSES_the_post_is_a_failure(monkeypatch):
     """A 403 from a rotated webhook used to leave through the success path —
-    `_fire_discord` swallowed the STATUS as well as the exception."""
+    `_fire_discord` swallowed the STATUS as well as the exception.
+
+    ⚰️ This used to exercise the private member-delivery path (`_deliver(armed)`)
+    — TERM-011 step 7 retires that path's Discord leg outright, so a private
+    alert can no longer reach `_fire_discord` at all (see the CONTROL test
+    above). The refusal-reporting property this test is actually about still
+    applies wherever Discord IS still reached, which today is a BROADCAST
+    alert (`user_id=None`) — `regime_change` is one of the two live ones.
+    """
     import requests
 
     class _Refused:
         status_code = 403
 
     monkeypatch.setattr(requests, "post", lambda url, **kw: _Refused())
+    monkeypatch.setenv("DISCORD_ALERT_WEBHOOK", "https://discord.test/hook")
 
-    assert ias.record_trigger(armed, last_value=75.0) is True
-    out = _deliver(armed)
+    # ⛔ NOT `regime_change`/`exposure_shift` — those two resolve through the
+    # OPS destination (`DISCORD_OPS_WEBHOOK_URL`/`DISCORD_WEBHOOK_URL`), not
+    # `DISCORD_ALERT_WEBHOOK`. A plain broadcast type exercises the admin
+    # webhook this test actually sets. `severity` is explicit because an
+    # unrecognised type defaults to `info`, which never fires Discord.
+    channels: dict = {}
+    alerts_svc.add_alert(
+        "test_broadcast_refusal_probe", "Regime: Distribution",
+        "Market regime shifted.", severity="critical", channels=channels,
+    )
 
-    assert out["channels"]["discord"] == "failed", out
-    assert out["channels"]["in_app"] == "ok", (
+    assert channels["discord"] == "failed", channels
+    assert channels["in_app"] == "ok", (
         "a refused webhook took the in-app channel down with it")
 
 
@@ -438,7 +465,9 @@ def test_MANY_cycles_over_a_true_condition_deliver_exactly_once(armed,
     assert fl.count_fires(armed) == 1, "one armed episode recorded >1 fire"
     assert len(channels_up["email"]) == 1, (
         f"one armed episode sent {len(channels_up['email'])} emails")
-    assert len(channels_up["discord"]) == 1
+    # ⚰️ `== 1` before TERM-011 step 7 — a private (user-scoped) alert never
+    # reaches the Discord transport at all any more.
+    assert len(channels_up["discord"]) == 0
 
 
 def test_a_released_lease_is_retried_and_still_only_ONE_fire_exists(
