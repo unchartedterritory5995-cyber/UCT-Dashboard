@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
@@ -177,6 +177,7 @@ const RENAME_TAG_CHUNK_SIZE = 500
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const noteId = searchParams.get('note')
   // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
   // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
@@ -604,6 +605,12 @@ export default function NotebookTab() {
   const paneHeadingRef = useRef(null)
   // { id, order } -- the note last opened and the row order it was opened from
   const openedFromRef = useRef(null)
+  // D2 (D-1): the note THIS tab opened with `openNote` -- an open that pushed a
+  // history entry over the list it came from. The phone's "Back to notes" goes
+  // back through history for exactly that note, because `openNote` drops `view`
+  // (and a closeNote cannot know it): measured at 390 px on 97cffa4b9, a close
+  // from a note opened on `?view=all` landed on Research Home, not the list.
+  const openedInAppRef = useRef(null)
   // what the NEXT emptying of the pane should focus: { rowId } | { heading: true }
   const paneFocusPlanRef = useRef(null)
   // where an explicit open puts focus once the note loads: { id, to: 'title' | 'landmark' }
@@ -647,6 +654,7 @@ export default function NotebookTab() {
       ? [...mainRef.current.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
       : []
     openedFromRef.current = { id: note.id, order: [...new Set(rows)] }
+    openedInAppRef.current = note.id
     // M-5: a plan left by an earlier delete (split view keeps the side note
     // open, so the pane never emptied and the plan was never spent) belongs to
     // THAT open, not this one.
@@ -741,6 +749,27 @@ export default function NotebookTab() {
       return
     }
     paneHeadingRef.current?.focus()
+  }
+
+  // D2 (D-1): a note reached any other way (a link inside a note, a pasted
+  // `?note=`, Back) was not opened over a list by this tab.
+  useEffect(() => {
+    if (noteId !== openedInAppRef.current) openedInAppRef.current = null
+  }, [noteId])
+
+  // D2 (D-1): the phone's "Back to notes". A note this tab opened from a list goes
+  // back to THAT list (history holds its exact URL -- folder, tag, view); anything
+  // else (a shared `?note=` link opened fresh) closes to the Notebook's own list.
+  const phoneBackToNotes = () => {
+    if (noteId && openedInAppRef.current === noteId) {
+      openedInAppRef.current = null
+      navigate(-1)
+      refresh()
+      refreshAll()
+      refreshSidebarCounts()
+      return
+    }
+    closeNote()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -1662,7 +1691,7 @@ export default function NotebookTab() {
           <button
             type="button"
             className={styles.phoneBack}
-            onClick={() => closeNote()}
+            onClick={phoneBackToNotes}
             data-nb-phone-back=""
           >
             <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />

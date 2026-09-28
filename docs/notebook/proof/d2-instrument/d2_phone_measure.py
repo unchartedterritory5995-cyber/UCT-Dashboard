@@ -111,6 +111,8 @@ SAMPLE_JS = r"""(kind) => {
     nb_first_thing: nbFirst,
     centre_probe: {x: Math.round(vw / 2), y: probeY, region: region(hit)},
     phone_back: box(document.querySelector('[data-nb-phone-back]')),
+    // the Notebook's own landing (Research Home) -- where a bare /journal/notebook opens
+    home_visible: !!(pane && /Continue working/i.test(pane.textContent || '')),
   };
 }"""
 
@@ -243,6 +245,25 @@ def run_viewport(br, base: str, notes: dict[str, str], vw: int, vh: int, mobile:
                                          "path_after_back": backed["path"], "note_param_gone": "note=" not in backed["path"],
                                          "list_row_visible": backed["first_list_row"] is not None,
                                          "title_gone": backed["note_title"] is None}
+
+        # BACK (c): list -> tap a note -> the phone's own back control (when the page has one).
+        back_c = {"control_present": False}
+        open_page(pg, base, "/journal/notebook?view=all", "[data-note-card-id]")
+        card = pg.locator(f'#notebook-pane [data-note-card-id="{alpha}"]').first
+        card.scroll_into_view_if_needed(timeout=5000)
+        card.click(timeout=5000)
+        pg.wait_for_selector("[data-note-title]", timeout=15000)
+        pg.wait_for_timeout(1200)
+        if pg.locator("[data-nb-phone-back]").count() and pg.locator("[data-nb-phone-back]").first.is_visible():
+            back_c["control_present"] = True
+            pg.locator("[data-nb-phone-back]").first.click(timeout=5000)
+            pg.wait_for_timeout(1500)
+            top0(pg)
+            s2 = pg.evaluate(SAMPLE_JS, "after-phone-back-from-list")
+            back_c.update({"path": s2["path"], "note_param_gone": "note=" not in s2["path"],
+                           "list_row_visible": s2["first_list_row"] is not None, "sample": s2})
+            pg.screenshot(path=str(art / f"back-control-from-list-{vw}.png"))
+        row["back_control_from_list"] = back_c
 
         # MENUS on the Notebook route.
         open_page(pg, base, "/journal/notebook?view=all", "[data-note-card-id]")
