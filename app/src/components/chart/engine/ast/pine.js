@@ -3280,6 +3280,34 @@ function containsFreeSelfSeries(node, table) {
   return walk(node)
 }
 
+/** `tree` with its FREE `self` read as the previous bar of `column`.
+ *
+ *  `self` → `column[1]` and `self[k]` → `column[k + 1]`. A nested recurrence's
+ *  own BODY is left alone — its `self` is its own (the same rule
+ *  `containsFreeSelfSeries` walks by) — while its seed and window, which sit
+ *  outside that binding, are walked like anything else. Used by
+ *  `Resolver.partialStateRead`; returns new nodes and never mutates `tree`.
+ */
+function previousBarOf(tree, column, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return tree
+  const bind = spec.recurrence.binds
+  const isSelf = (n) => !!n && typeof n === 'object' && n.type === 'series' && n.name === bind
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return n
+    if (isSelf(n)) return { type: 'offset', value: 1, args: [column] }
+    if (n.type === 'offset' && isSelf(n.args && n.args[0])) {
+      return { type: 'offset', value: n.value + 1, args: [column] }
+    }
+    if (!Array.isArray(n.args)) return n
+    const inner = n.type === 'call' && table.functions[n.name]
+      && table.functions[n.name].recurrence
+    const args = n.args.map((a, i) => (inner && i === inner.body ? a : walk(a)))
+    return args.every((a, i) => a === n.args[i]) ? n : { ...n, args }
+  }
+  return walk(tree)
+}
+
 /** ⭐⭐ IS THIS UPDATE A MONOTONE FOLD OVER ITS OWN PAST? (ruling R-A2, 2026-09-12)
  *
  *  `var x := math.max(x, y)` / `math.min` / `x + y` — the shapes a member writes for
@@ -5370,6 +5398,101 @@ export class Resolver {
      *  inside that name's own update and the whole accumulator offset a bar
      *  anywhere else; without this marker the two cannot be told apart. */
     this.buildingRecurrence = null
+    /** The `var` accumulators being built RIGHT NOW, innermost last, keyed by
+     *  the chain's SEED object (every binding of one `var` shares it — see
+     *  `reassignState` and `foldIfChain`). Read only by `partialStateRead`. */
+    this.stateBuilds = []
+  }
+
+  /** The LAST binding of the `var` whose binding in scope is `bound`, when
+   *  `bound` is not itself the last word on the name — or null.
+   *
+   *  ⭐ ONE `var` IS ONE CHAIN: `reassignState` and `foldIfChain` both carry the
+   *  prior binding's `seed` OBJECT forward, so "same seed object" is "same
+   *  variable", and nothing else in the program shares it. Top level first
+   *  (`finalBindings`, by name), then a function body's own last words
+   *  (`finalLocals`, by identity).
+   *
+   *  ⛔ NULL WHEN NO LAST WORD IS A `state` BINDING OF THIS CHAIN — a name the
+   *  closing pass forced opaque, for one. Those keep the behaviour they had. */
+  finalStateOf(bound, name) {
+    if (!bound || bound.kind !== 'state') return null
+    if (this.finalLocals.has(bound)) return null
+    const top = name ? this.finalBindings.get(name) : null
+    if (top === bound) return null
+    if (top && top.kind === 'state' && top.seed === bound.seed) return top
+    for (const b of this.finalLocals) {
+      if (b && b !== bound && b.kind === 'state' && b.seed === bound.seed) return b
+    }
+    return null
+  }
+
+  /** ⭐⭐ A `var` READ BEFORE A LATER REASSIGNMENT OF IT IN THE SAME BAR.
+   *
+   *  Pine runs the script top to bottom once per bar. A `var` holds, at any
+   *  line, the value it ENDED the previous bar with, carried through only the
+   *  reassignments written ABOVE that line. So with the chain's last binding
+   *  folded to `E = accum(seed, U_all(self), W)`, a read at a line whose binding
+   *  is `U_p(self)` is `U_p` applied to `E[1]` — the previous bar's FINAL value
+   *  — never an accumulator of `U_p` alone:
+   *
+   *      var bool fired = false
+   *      if close < open
+   *          fired := false          // U_p = close < open ? 0 : self
+   *      sig = close > open and not fired
+   *      if sig
+   *          fired := true           // U_all = sig ? 1 : U_p
+   *
+   *  ⚰️ MEASURED 2026-09-28 on TradingView (`inside-bar-range-mother-candle-…`,
+   *  NYSE:RDDT 1D, 632 bars): a hand replay of the script top to bottom matches
+   *  the vendor's two plotshape columns on all 632 bars. This door had folded
+   *  `fired` at the `sig` line to `accum(0, close < open ? 0 : self, 250)` — a
+   *  variable that is reset and never set, so the latch it guards never closed.
+   *
+   *  THREE CASES, by where the read sits:
+   *    - inside the chain's OWN update, innermost: `self` there already IS the
+   *      start-of-bar value, so the partial update is inlined as it stands;
+   *    - inside the chain's own update but under ANOTHER `var`'s accumulator:
+   *      two `var`s that each read the other's value before setting their own.
+   *      One accumulator carries one `self`, so there is no single tree for it
+   *      — it REFUSES, by name, rather than drawing either half alone;
+   *    - anywhere else: `U_p` with its free `self` replaced by `E[1]`
+   *      (`self[k]` by `E[k+1]`), nested accumulators' own bodies untouched. */
+  partialStateRead(bound, finalState, tok, name) {
+    const spec = this.table.functions.accum
+    if (!spec) {
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${name}\``, bound.at || locate(tok))
+    }
+    const at = this.stateBuilds.lastIndexOf(bound.seed)
+    const prevEnv = this.env
+    if (at >= 0 && at === this.stateBuilds.length - 1) {
+      try {
+        this.env = bound.updateEnv || prevEnv
+        return this.resolve(bound.update)
+      } finally { this.env = prevEnv }
+    }
+    if (at >= 0) {
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${name}\` is read, before it is set, inside the `
+        + 'update of another `var` that is itself read before it is set in this one\'s, '
+        + 'so the two carry each other\'s previous bar and one accumulator holds only one',
+        bound.at || locate(tok))
+    }
+    const column = this.resolveBinding(finalState, tok, name)
+    const prevReads = this.selfReads
+    let update
+    try {
+      this.env = bound.updateEnv || prevEnv
+      // ⛔ NOT counted against an enclosing build's `varSeedOf`: this `self` is
+      // THIS chain's, and it is about to be replaced by `E[1]`.
+      this.selfReads = null
+      update = this.resolve(bound.update)
+    } finally {
+      this.env = prevEnv
+      this.selfReads = prevReads
+    }
+    return previousBarOf(update, column, this.table)
   }
 
   /** Resolve THROUGH a binding: swap to the environment the binding was written
@@ -5473,6 +5596,13 @@ export class Resolver {
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
     if (bound.kind === 'state') {
+      // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
+      // `bound` is then not the last word on the name, and folding IT into an
+      // accumulator builds a DIFFERENT variable — one whose "previous bar" is the
+      // previous bar's value at THIS line rather than at the end of the bar. See
+      // `partialStateRead` for the rule and the capture it was derived from.
+      const finalState = this.finalStateOf(bound, name)
+      if (finalState) return this.partialStateRead(bound, finalState, tok, name)
       // ⭐ THE SEED AND THE UPDATE RESOLVE IN THEIR OWN ENVIRONMENTS, and they
       // are different ones: the seed was written before the first `:=` and the
       // update after it. Sharing one env is how `x := x + 1`'s right-hand `x`
@@ -5521,7 +5651,22 @@ export class Resolver {
         const reads = { bare: 0, history: 0, guarded: 0, guardDepth: 0 }
         this.selfReads = reads
         let update
-        try { update = this.resolve(bound.update) } finally { this.selfReads = prevReads }
+        // ⭐ THE BUILD IS ON A STACK so a read of this same `var` INSIDE its own
+        // update — through a binding written between two of its reassignments —
+        // can tell that `self` already means its value at the start of the bar
+        // (`partialStateRead`).
+        // ⭐ AND A FRESH CYCLE STACK, for the reason the plain form takes one: a
+        // binding the OUTER resolution is inside (`sig` in `partialStateRead`'s
+        // example) is legally re-read inside this update, where it means a
+        // different tree.
+        this.stateBuilds.push(bound.seed)
+        const prevStack = this.stack
+        this.stack = new Set()
+        try { update = this.resolve(bound.update) } finally {
+          this.stack = prevStack
+          this.stateBuilds.pop()
+          this.selfReads = prevReads
+        }
         // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
         // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
         // the SAME reassignment folded straight to `accum(0, self + volume, 250)`
@@ -5723,9 +5868,14 @@ export class Resolver {
     // `shortStop[1]` is the accumulator outside and `self` inside. The shared
     // stack read that as a cycle. Scoping it keeps genuine self-cycles caught.
     const prevStack = this.stack
+    // ⭐ A PLAIN RECURRENCE IS AN ACCUMULATOR WITH ITS OWN `self` TOO, so it
+    // goes on the build stack as its own marker: a `var` read inside it cannot
+    // inline its partial update there (`partialStateRead`).
+    const buildMarker = (isFinalOfMutable || isSelfRef) ? { plain: name } : null
     if (isFinalOfMutable || isSelfRef) {
       this.buildingRecurrence = name
       this.stack = new Set()
+      this.stateBuilds.push(buildMarker)
     }
     this.stack.add(bound)
     const prevEnv = this.env
@@ -5813,6 +5963,10 @@ export class Resolver {
       this.stack = prevStack
       this.env = prevEnv
       this.buildingRecurrence = wasBuilding
+      if (buildMarker) {
+        const k = this.stateBuilds.lastIndexOf(buildMarker)
+        if (k >= 0) this.stateBuilds.splice(k, 1)
+      }
     }
   }
 
@@ -14205,7 +14359,7 @@ function translatePineResult(source, opts = {}) {
 
     // ── outputs ────────────────────────────────────────────────────────────
     if (own(OUTPUT_CALLS, word) && isPunct(toks[1], '(')) {
-      outputs.push({ kind: word, toks, tok: first })
+      outputs.push({ kind: word, toks, tok: first, envAt: new Map(env) })
       continue
     }
 
@@ -14216,7 +14370,7 @@ function translatePineResult(source, opts = {}) {
     // behaves.
     if (own(MULTI_OUTPUT_CALLS, word) && isPunct(toks[1], '(')) {
       MULTI_OUTPUT_CALLS[word].forEach((role, roleIndex) => {
-        outputs.push({ kind: word, role, roleIndex, toks, tok: first })
+        outputs.push({ kind: word, role, roleIndex, toks, tok: first, envAt: new Map(env) })
       })
       continue
     }
@@ -14357,7 +14511,8 @@ function translatePineResult(source, opts = {}) {
         // each handle names. It was discarded here; the binding stays opaque
         // (nothing can read a chart object as a number), and this is only a
         // label for the fill reader below.
-        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0], handle: nameTok.value })
+        outputs.push({ kind: rhs[0].value, toks: rhs, tok: rhs[0], handle: nameTok.value,
+          envAt: new Map(env) })
         markOpaque(nameTok.value, 'pine:drawing', locate(rhs[0]),
           `\`${nameTok.value}\` holds a plot handle, which is a chart object rather than a number`)
         continue
@@ -14757,8 +14912,8 @@ function translatePineResult(source, opts = {}) {
    * step budget across a resolution; handing the same object to every output would
    * make each one's limits depend on how much the previous output spent.
    */
-  const makeResolver = () => {
-    const r = new Resolver(env, table, declaredTypes,
+  const makeResolver = (scopeEnv = env) => {
+    const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
         strict: opts.strict === true, pineVersion: version,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
@@ -14781,9 +14936,38 @@ function translatePineResult(source, opts = {}) {
     return r
   }
 
+  /** ⭐⭐ AN OUTPUT READS EACH REASSIGNED NAME AS IT STANDS AT THE OUTPUT'S OWN
+   *  LINE (2026-09-28). Pine evaluates `plot(x)` where it is written, once per
+   *  bar, so a reassignment BELOW it has not happened yet on that bar. Resolving
+   *  every output against the end-of-program env handed it the value AFTER the
+   *  rest of the bar ran — `plotshape(sig and not fired)` above `if sig` /
+   *  `fired := true` read `fired` already set by `sig` itself, and never drew.
+   *  Measured on TradingView: `inside-bar-range-mother-candle-…` (RDDT 1D).
+   *
+   *  ⛔ ONLY REASSIGNED NAMES MOVE, and only onto a binding the walk made: every
+   *  other name has one binding, and Pine allows no read before a declaration.
+   *  A name the closing pass forced opaque STAYS opaque — its later
+   *  reassignment is one this door could not read, so its value at any line
+   *  after the first unreadable write is unknown. `[k]` reads keep asking
+   *  `finalBindings`: history is the previous bar's LAST value wherever it is
+   *  read from. */
+  const positionEnv = (out) => {
+    if (!out.envAt) return env
+    let scoped = null
+    for (const name of reassigned.keys()) {
+      const here = out.envAt.get(name)
+      const last = env.get(name)
+      if (!here || !last || here === last) continue
+      if (last.kind === 'opaque' || here.kind === 'opaque') continue
+      if (!scoped) scoped = new Map(env)
+      scoped.set(name, here)
+    }
+    return scoped || env
+  }
+
   const resolved = []
   for (const out of outputs) {
-    const resolver = makeResolver()
+    const resolver = makeResolver(positionEnv(out))
     let row
     try {
       // ⛔ THE CALL IS BOUNDED HERE, NOT JUST EACH RESOLVER. One output that ate
