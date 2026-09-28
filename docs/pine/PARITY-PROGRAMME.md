@@ -72,6 +72,50 @@ non-vacuity ×2, the bare-passthrough control).
 `MULTI_OUTPUT_NOT_DRAWN` from `candleNotDrawn.js` so the two lanes cannot drift. Both
 branches make the same one-word `export const MULTI_OUTPUT_CALLS` change in `pine.js`.
 
+### ⛔ 2026-09-28 — H14's SECOND SITE: the builder's own Import door (branch `pine/builder-candle-refuse`, on `pine/host-candle-refuse`)
+
+**Confirmed, measured through the real sheet.** `PineBox` offered each candle arm as
+a radio column, **selected one by default** for a candle-only script (`translatePine`'s
+`selected` is the first usable row — a candle arm for both corpus scripts above), and
+carried the other arms in `onPick`'s `outputs`; `BuilderSheet` writes every handed row
+as a `style: 'line'` plot (`newPlotRow`). Pasting a derived candle plus one ordinary
+plot and saving wrote compute sources `ema(close, 7) · highest(high, 3) · lowest(low, 3)
+· wma(close, 9) · sma(close, 20)` — four candle arms as lines, one of them plot 1.
+**Reachable in production, no flag:** the Import tab is unconditional in
+`BuilderSheet.jsx`; the sheet mounts from `ChartToolbar.jsx` whenever the chart can
+manage indicators and from the screener's *New scan* (`ScreensManager.jsx`). Neither
+flag ledger names this door.
+
+**Fixed, same rule, same words.** A non-hidden candle arm is neither offered nor
+carried (`PineBox.jsx::isCandleArm` / `isOffered` / `defaultChoice`); its row stays on
+screen without a radio and reads the host door's sentence; a script whose only drawable
+rows were the candle is refused by name through the box's existing `Refusal` chrome
+(`pine-candle-refusal`). The refusal sentence now lives ONCE, in
+`candleNotDrawn.js::multiOutputOnlyRefusal`, read by both doors
+(`memberPaneDefinition`'s output is byte-identical). Passthrough / `display.none`
+candles are already `hidden` and unchanged. ⚠️ **Cost:** a candle arm can no longer be
+the column a member wraps into a screen in this door — that path saved the arm as plot
+1, a drawn line. Offering it back needs a hidden-row carriage for plot 1 that the sheet
+does not have; an owner decision, not built here.
+
+**Other consumers, checked from source:** `libraryIntake.js` (a text manifest and four
+counts, draws nothing — but its *save* count still counts a candle-only script this door
+now refuses; recorded, not changed), `builderInputs.js` (annotates outputs; its
+`pineMemberInputs` has test-only callers), `paneGate.js` (a gate feeding the host door),
+`objectLane.js` (object program only), `oosHarness.js` (measurement), and
+`paramEdit.js` / `pineParamManifest.js` / `nativeRegistry.js` (no translation outputs).
+None reaches a drawn line.
+
+**Rail:** `app/src/components/chart/builder/pineBoxCandleNotDrawn.test.jsx` (14) — both
+corpus scripts and synthetic `plotcandle`/`plotbar` through the real `ImportBox` and a
+real `BuilderSheet` save, rendered DOM text, a control plot still handed back and saved
+as a line, a passthrough control. **Red before the fix: 9 of 14.** Mutation (8
+mutations, sha-verified capture/restore over this rail + `candleNotDrawn.test.jsx`, 28
+cases): all 8 red — whole-file revert 9, `isCandleArm` pinned false 9, `defaultChoice`
+keeps the candle 9, siblings on the old filter 5, refusal block removed 4, candle-row
+branch removed 4, offered count on the old filter 4, the shared sentence changed in
+`candleNotDrawn.js` 4 (two per door — the single authority is read by both).
+
 ---
 
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
