@@ -92,7 +92,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     try {
       const tree = fold(nodeTree(graph, node))
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget,
-        undefined, { tf: opts.tf, crossMemo })
+        undefined, { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, crossMemo })
       columns.set(node, col)
     } catch (err) {
       failed.push(node)
@@ -143,10 +143,22 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
  *                                         the node table, so binding is identity
  *   V2 (`compute.graph`)                  program is BOUND to the shared graph
  *
- * @param {object} [opts] `{ inputs, tf }` — the INSTANCE's inputs (merged here
- *        over the definition's declared defaults by the plot lane's own
- *        `resolveInputs`) and the chart's timeframe. The document's budget is
- *        read off the definition, never passed in.
+ * @param {object} [opts] `{ inputs, tf, newestBarIsForming }` — the INSTANCE's
+ *        inputs (merged here over the definition's declared defaults by the plot
+ *        lane's own `resolveInputs`), the chart's timeframe, and whether the
+ *        newest bar is still forming. The document's budget is read off the
+ *        definition, never passed in.
+ *
+ *        ⚰️⚰️ `newestBarIsForming` IS THE FOURTH ARGUMENT THIS LANE WAS DEAF TO,
+ *        after `inputs`, `budget` and `tf` (see this file's header). `interpret`
+ *        seeds the four BARSTATE realtime columns from it and leaves them `NaN`
+ *        when it is absent — fail-closed, correctly — so `barstate.isconfirmed`
+ *        read `na` in EVERY object tree while the plot beside it read 1.
+ *        MEASURED against TradingView 2026-09-28: `liquidity-pools` guards its
+ *        swings with `barstate.isconfirmed ? ta.pivothigh(…) : na`; the vendor
+ *        draws 182 lines and 91 labels and every one of our guards was
+ *        truthy on 0 of 632 bars. `?? null` keeps UNKNOWN unknown, exactly as
+ *        `computeFor` does.
  * @returns {{program, readNode, failed, form}} or null when there is nothing to read
  */
 export function objectReaderFor(definition, bars, opts = {}) {
@@ -182,6 +194,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
     inputs,
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
+    newestBarIsForming: opts.newestBarIsForming ?? null,
     fold,
   }
   const graph = definition.compute && definition.compute.graph
@@ -203,7 +216,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   for (const i of graphNodesReferenced(bound)) {
     try {
       columns.set(i, interpret(fold(trees[i]), bars, evalOpts.inputs, evalOpts.budget,
-        undefined, { tf: evalOpts.tf, crossMemo }))
+        undefined, { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, crossMemo }))
     } catch (err) {
       failed.push(i)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
