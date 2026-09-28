@@ -115,6 +115,14 @@ function fromCanonical(node, tok) {
       if (parts.length === 2) {
         return { type: 'binary', op: node.name, left: parts[0], right: parts[1], tok: at }
       }
+      // ⭐ THE CANONICAL TERNARY IS `op '?:'` WITH THREE ARGUMENTS; this lane's
+      // parse form is `ternary {test, yes, no}` — the node its own `?:` lowering
+      // (and its vendor-pinned `na`-condition rule) reads. Without this hop a
+      // host rewrite that produces a ternary (`iff`) arrived as "an operator
+      // the runtime has no instruction for — `?:` with 3 operands".
+      if (node.name === '?:' && parts.length === 3) {
+        return { type: 'ternary', test: parts[0], yes: parts[1], no: parts[2], tok: at }
+      }
       if (parts.length === 1) {
         // ⭐ Back to the SPELLING this lane's unary case reads: it takes `-`
         // and `not`, and maps them to the VM's `u-` and `!` itself.
@@ -402,6 +410,18 @@ export const runtimeOwnsPineTwin = (name, argc) => {
 /** How many firings back `ta.valuewhen` will look. The ring is allocated from
  *  this, and the corpus's largest occurrence is a small literal. */
 export const MAX_VALUEWHEN_OCCURRENCE = 1000
+
+/** ⭐ The Pine names this lane lowers through `pine.js::BUILTIN_CALL_TREE`, the
+ *  host lane's own exact rewrites. `key` is the builder; `lengths` are the
+ *  argument positions folded to a constant before the builder sees them (the
+ *  builders read `{type:'num'}` there and return null for anything else). */
+export const RUNTIME_TREE_REWRITES = Object.freeze({
+  iff: Object.freeze({ key: 'iff', arity: 3, lengths: Object.freeze([]) }),
+  vwma: Object.freeze({ key: 'vwma', arity: 2, lengths: Object.freeze([1]) }),
+  'ta.vwma': Object.freeze({ key: 'vwma', arity: 2, lengths: Object.freeze([1]) }),
+  linreg: Object.freeze({ key: 'linreg', arity: 3, lengths: Object.freeze([1, 2]) }),
+  'ta.linreg': Object.freeze({ key: 'linreg', arity: 3, lengths: Object.freeze([1, 2]) }),
+})
 
 const OBJECT_NS = /^(line|label|box|table|polyline|linefill)\./
 const ARRAY_NS = /^(array|matrix|map)\./
@@ -3766,6 +3786,47 @@ export function buildRuntimeIr(source, opts = {}) {
               `\`${node.name}\` averages two or more values`, locate(node.tok))
           }
           return lowerExpr(fromCanonical(BUILTIN_CALL_TREE.avg(args), node.tok), scope)
+        }
+        // ⭐ 2026-09-27 — THE HOST LANE'S EXACT REWRITES, IN THIS LANE TOO:
+        // `iff(c, a, b)` IS `c ? a : b`; `ta.vwma(s, n)` IS
+        // `sma(s·volume, n) / sma(volume, n)`; `ta.linreg(s, n, off)` IS the
+        // closed-form least-squares value over `sum` and `wma`. The columnar lane
+        // applies these during resolution, which a subtree reading a slot never
+        // gets, so over mutable state they arrived as "a builtin the closed table
+        // does not declare" (the `runtime:call-undeclared-builtin-state` row:
+        // pivot-high-low-points, momentum-based-zigzag, the AlgoAlpha gaussian
+        // filter). The SAME builders run here, never a copy, so both lanes mean
+        // one thing by each name.
+        //
+        // ⛔ A LENGTH (and linreg's offset) is folded by `foldConstNode`, the
+        // frozen resolver every other window in this lane uses: the author's
+        // default, known before bar 0. A length the engine cannot know then
+        // refuses by name, exactly as `ta.sma(x, len)` does.
+        if (fnIndex === undefined && typeof node.name === 'string'
+            && Object.prototype.hasOwnProperty.call(RUNTIME_TREE_REWRITES, node.name)) {
+          const { key, arity, lengths } = RUNTIME_TREE_REWRITES[node.name]
+          for (const arg of node.args) {
+            if (arg && arg.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          if (args.length !== arity) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` takes ${arity} arguments, given ${args.length}`, locate(node.tok))
+          }
+          for (const i of lengths) {
+            args[i] = { type: 'num', value: foldConstNode(args[i], locate(node.tok),
+              `the ${i === 2 ? 'offset' : 'length'} of \`${node.name}\``, scope) }
+          }
+          const built = BUILTIN_CALL_TREE[key](args)
+          if (!built) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` needs a whole-number length it can read before bar 0`,
+              locate(node.tok))
+          }
+          return lowerExpr(fromCanonical(built, node.tok), scope)
         }
         // ⛔⛔ PLACED HERE, NOT AT THE TOP OF THIS ARM, AND THE ORDER IS
         // DOCUMENTED ABOVE: `Foo.new(…)` must be read before the user-function

@@ -271,8 +271,9 @@ plot(a)
     // are one mistake: a specimen chosen for what it happened to be that day,
     // asserted as if it were a claim about the CATEGORY. `ta.vwma` is the
     // undeclared name today, verified by driving it — and it will need the same
-    // treatment the day it lands.
-    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
+    // treatment the day it lands. ⚰️ It landed 2026-09-27 (`RUNTIME_TREE_REWRITES`);
+    // `ta.cog` is the undeclared name now, verified by driving it.
+    ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
     ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
     ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(int(x))\n`, 'runtime:call-conversion-state'],
     ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],

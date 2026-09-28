@@ -200,8 +200,9 @@ describe("an input's label cannot decide its lane", () => {
     it('⛔ CONTROL — a genuinely undeclared builtin over state still says the table', () => {
       // Without this, the new family is equally satisfied by relabelling
       // everything, and the row the completion matrix reserves for "blocked on
-      // the builtin existing" would quietly empty out.
-      const r = build('var x = 0.0\nx := close\nplot(ta.vwma(x, 3))')
+      // the builtin existing" would quietly empty out. `ta.vwma` was the specimen
+      // until the runtime lane declared it (2026-09-27); `ta.cog` is undeclared.
+      const r = build('var x = 0.0\nx := close\nplot(ta.cog(x, 3))')
       expect(r.ok).toBe(false)
       expect(r.refusal.guard).toBe('runtime:call-undeclared-builtin-state')
     })
