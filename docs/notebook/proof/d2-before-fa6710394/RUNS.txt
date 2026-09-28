@@ -1,0 +1,3 @@
+run3: the member setup failed before any row was measured (no rows in its json); its console was not captured (piped through tail).
+It is kept as a failed run, not evidence. run4 (the top-level d2-phone.json) is the BEFORE evidence run, same instrument, console in run4-console.out.
+run1 used instrument v1 (first_note_row counted the folder panel Recents); run2 timed out locating a Recents card. Both kept raw.
