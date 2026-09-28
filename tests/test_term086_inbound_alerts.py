@@ -157,7 +157,9 @@ def test_flag_OFF_the_hook_is_BYTE_IDENTICAL_to_an_unknown_route(env):
     hook = _fire(env, token)
     unknown = env["client"].post(UNKNOWN_ROUTE + token, content=json.dumps(GOOD).encode(),
                                  headers={"content-type": "application/json"})
-    assert hook.status_code == 404
+    # Not a literal 404: with a built app/dist the SPA catch-all answers a POST
+    # with 405, and "as if not mounted" means whatever an unknown route answers.
+    assert hook.status_code == unknown.status_code and hook.status_code in (404, 405)
     assert _shape(hook) == _shape(unknown)
     assert env["delivered"] == [] and _receipts(env) == []
 
@@ -197,7 +199,10 @@ def test_the_flag_is_read_PER_REQUEST(env):
     token = _mint(env)
     assert _fire(env, token).status_code == 202
     _off(env)
-    assert _fire(env, token, {"ticker": "AMD"}).status_code == 404
+    off = _fire(env, token, {"ticker": "AMD"})
+    unknown = env["client"].post(UNKNOWN_ROUTE + token, content=json.dumps(GOOD).encode(),
+                                 headers={"content-type": "application/json"})
+    assert off.status_code == unknown.status_code and off.status_code in (404, 405)
     _on(env)
     assert _fire(env, token, {"ticker": "AMD"}).status_code == 202
 

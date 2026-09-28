@@ -32,6 +32,11 @@ def store(tmp_path, monkeypatch):
     path = str(tmp_path / "auth.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     monkeypatch.setenv("AUTH_DB_PATH", path)                  # coach_chat reads the env
+    # voice_usage binds auth_db.get_connection AT IMPORT. If another suite imported
+    # it while get_connection was patched to that suite's temp DB, it keeps the stale
+    # binding and this file reads the wrong store (order-dependent red, 2026-09-28).
+    from api.services import voice_usage
+    monkeypatch.setattr(voice_usage, "get_connection", auth_db.get_connection)
     monkeypatch.setattr(note_ask, "_et_day", lambda: DAY)
     monkeypatch.delenv("NOTEBOOK_WRITING_HELP_PERUSER_CAP", raising=False)
     monkeypatch.delenv(ai_population_cap.FLAG, raising=False)
