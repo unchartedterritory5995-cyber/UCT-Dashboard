@@ -32,6 +32,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
+import { OOS_ABSENT, partialNote, itNeedsLocalOnly } from './__tests__/oosLocalOnly.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const ARTIFACT = path.join(REPO, 'docs/pine/param-ids.json')
@@ -59,15 +60,39 @@ for (const dir of SOURCES) {
   }
 }
 
+/** ⏭ Licence-held pine_oos members absent on this machine, keyed as the artifact
+ *  keys them. They cannot be measured here, so the map check leaves them to the
+ *  named skip at the bottom rather than reporting them as "gone". */
+const ABSENT = new Set(OOS_ABSENT.map((n) => `tests/fixtures/pine_oos/${n}`))
+
+// ⛔⛔ A REGENERATION ON A PARTIAL RIG MUST NOT ERASE WHAT IT COULD NOT READ.
+// ⚰️ 2026-09-28: a plain write here, on a checkout without the licence-held
+// members, dropped 29 pinned maps — every one of them would then have read as
+// "added" on a complete rig, and their old ids would have been lost. So an absent
+// licence-held member KEEPS its pinned map, carried over verbatim; only what was
+// actually measured is rewritten. Key order follows the pinned file, then new keys.
+export function mergeForWrite(pinned, measured, absent) {
+  const out = {}
+  for (const k of Object.keys(pinned)) {
+    if (k in measured) out[k] = measured[k]
+    else if (absent.has(k)) out[k] = pinned[k]
+  }
+  for (const k of Object.keys(measured)) if (!(k in out)) out[k] = measured[k]
+  return out
+}
+
 if (process.env.PARAM_IDS_WRITE) {
-  fs.writeFileSync(ARTIFACT, `${JSON.stringify(MEASURED, null, 2)}\n`, 'utf8')
+  const pinned = fs.existsSync(ARTIFACT) ? JSON.parse(fs.readFileSync(ARTIFACT, 'utf8')) : {}
+  const merged = mergeForWrite(pinned, MEASURED, ABSENT)
+  fs.writeFileSync(ARTIFACT, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')
 }
 
 describe('parameter ids are an address, and addresses do not move', () => {
-  it('⛔⛔ NON-VACUITY — the corpus is here and parameters really are minted', () => {
+  it(`⛔⛔ NON-VACUITY — the corpus is here and parameters really are minted${partialNote()}`, () => {
     // Every assertion below is satisfied by an empty corpus or a manifest that
-    // never ran, so the premise is pinned first.
-    expect(Object.keys(MEASURED).length).toBeGreaterThan(300)
+    // never ran, so the premise is pinned first. Named absentees are accounted
+    // for in the title, never counted as measured.
+    expect(Object.keys(MEASURED).length).toBeGreaterThan(300 - ABSENT.size)
     const withParams = Object.values(MEASURED).filter((m) => Object.keys(m).length > 0)
     expect(withParams.length, 'nothing mints — the manifest is off').toBeGreaterThan(50)
   })
@@ -83,19 +108,21 @@ describe('parameter ids are an address, and addresses do not move', () => {
       .toMatch(/HVE lookback/i)
   })
 
-  it('⛔⛔ EVERY SCRIPT\'S MAP IS UNCHANGED — reported by NAME, id, old and new', () => {
+  it(`⛔⛔ EVERY SCRIPT'S MAP IS UNCHANGED — reported by NAME, id, old and new${partialNote()}`, () => {
     expect(fs.existsSync(ARTIFACT),
       'the committed map is missing — regeneration is an owner-ruled act').toBe(true)
     const pinned = JSON.parse(fs.readFileSync(ARTIFACT, 'utf8'))
 
     const added = Object.keys(MEASURED).filter((k) => !(k in pinned))
-    const gone = Object.keys(pinned).filter((k) => !(k in MEASURED))
+    // ⏭ A licence-held absentee is not "gone" — it is unmeasurable here, and the
+    // skip below says so by name. Anything else missing is a real move.
+    const gone = Object.keys(pinned).filter((k) => !(k in MEASURED) && !ABSENT.has(k))
     expect({ added, gone }, 'the corpus membership moved').toEqual({ added: [], gone: [] })
 
     // ⛔ A SET-AND-ORDER DIFF THAT NAMES BOTH TITLES. "The counts match" is the
     // answer that lets two knobs swap ids unnoticed — which is the whole defect.
     const moved = []
-    for (const script of Object.keys(pinned)) {
+    for (const script of Object.keys(pinned).filter((k) => !ABSENT.has(k))) {
       const was = pinned[script]
       const now = MEASURED[script]
       const ids = [...new Set([...Object.keys(was), ...Object.keys(now)])].sort()
@@ -106,5 +133,32 @@ describe('parameter ids are an address, and addresses do not move', () => {
       }
     }
     expect(moved, `parameter ids moved:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
+  })
+
+  // ⏭ The maps the check above could not read: skipped by NAME while any
+  // licence-held member is absent, and a real comparison on a complete rig.
+  it('⛔ A PARTIAL-RIG REGENERATION CARRIES ABSENT LICENCE-HELD MAPS OVER, AND DROPS ONLY WHAT LEFT', () => {
+    const pinned = {
+      'a.pine': { __uct_param_1: 'old A' },
+      'held.pine': { __uct_param_1: 'kept' },
+      'deleted.pine': { __uct_param_1: 'gone' },
+    }
+    const measured = { 'a.pine': { __uct_param_1: 'new A' }, 'b.pine': {} }
+    const out = mergeForWrite(pinned, measured, new Set(['held.pine']))
+    // measured wins; the absent licence-held map survives verbatim; a script that
+    // left the corpus (not licence-held) is dropped; a new one is appended.
+    expect(out).toEqual({
+      'a.pine': { __uct_param_1: 'new A' },
+      'held.pine': { __uct_param_1: 'kept' },
+      'b.pine': {},
+    })
+    expect(Object.keys(out)).toEqual(['a.pine', 'held.pine', 'b.pine'])
+  })
+
+  itNeedsLocalOnly('ALL', 'every licence-held pine_oos script\'s map is unchanged too', () => {
+    const pinned = JSON.parse(fs.readFileSync(ARTIFACT, 'utf8'))
+    const oos = Object.keys(pinned).filter((k) => k.startsWith('tests/fixtures/pine_oos/'))
+    const drift = oos.filter((k) => JSON.stringify(pinned[k]) !== JSON.stringify(MEASURED[k]))
+    expect(drift).toEqual([])
   })
 })

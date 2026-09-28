@@ -27,6 +27,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
+import { OOS_ABSENT, partialNote } from './__tests__/oosLocalOnly.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 
@@ -86,11 +87,13 @@ const disagreed = rows.filter((r) => r.strict.outputs !== r.lenient.outputs
   || r.strict.threw !== r.lenient.threw)
 
 describe('a7.2 — both lanes agree on the facts, across every source', () => {
-  it('⭐⭐ the rail reaches all three sources, and Clouds is one of them', () => {
+  it(`⭐⭐ the rail reaches all three sources, and Clouds is one of them${partialNote()}`, () => {
     // ⛔ THE INSTRUMENT MUST BE SEEN TO SEE. A per-script comparison over an empty set
     // passes perfectly, so the population is asserted before anything is concluded
-    // from it.
-    expect(ALL.length, 'the corpus is not being read at all').toBeGreaterThan(300)
+    // from it. ⏭ Licence-held pine_oos members absent on this machine are named in
+    // the title and counted as accounted for — never as read.
+    expect(ALL.length, 'the corpus is not being read at all')
+      .toBeGreaterThan(300 - OOS_ABSENT.length)
     const byDir = {}
     for (const s of ALL) byDir[s.dir] = (byDir[s.dir] || 0) + 1
     expect(Object.keys(byDir).sort()).toEqual(['committed', 'member', 'pine_oos'])
