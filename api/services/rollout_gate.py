@@ -257,7 +257,50 @@ def require_cohort(cohort: str, *, kill_switch: Callable[[], bool]):
             raise HTTPException(status_code=404, detail=NOT_FOUND)
         return user
 
+    # ⭐ THE SURFACE MARK (TERM-068). Every gate this builds says which cohort it
+    # guards, so `cohort_gated_routes` can DERIVE the set of dark surfaces from
+    # the served app instead of anybody typing a list — and a route that mounts
+    # a gate tomorrow is in the master kill-switch rail tomorrow. ⛔ The mark
+    # records the cohort only, never the kill switch: the rail must not trust a
+    # gate's own account of whether it obeys the switch, it throws the switch
+    # and watches.
+    setattr(_require_cohort, SURFACE_MARK, cohort)
     return _require_cohort
+
+
+#: The attribute `require_cohort` stamps on each gate it builds (see above).
+SURFACE_MARK = "__rollout_cohort__"
+
+
+def cohort_gated_routes(app, cohort: str) -> list[tuple[str, str]]:
+    """Every `(METHOD, path)` in `app` whose dependency tree carries a
+    `require_cohort` gate for `cohort` — the DERIVED set of that cohort's
+    server surfaces. Pure introspection: no request, no handler, no store.
+
+    Walks the WHOLE tree, because a gate is as often router-level
+    (`APIRouter(dependencies=[Depends(...)])`) or nested inside another
+    dependency as it is a handler parameter. ⚠️ Blind to a sub-application
+    mounted with `app.mount(...)`, whose routes are not on `app.routes` — no
+    Terminal-Next surface is mounted that way, and a rail that needed it would
+    have to walk the mount.
+    """
+    found: set[tuple[str, str]] = set()
+    for route in getattr(app, "routes", ()) or ():
+        dependant = getattr(route, "dependant", None)
+        if dependant is None:
+            continue
+        stack, seen, gated = [dependant], set(), False
+        while stack and not gated:
+            d = stack.pop()
+            if id(d) in seen:
+                continue
+            seen.add(id(d))
+            gated = getattr(getattr(d, "call", None), SURFACE_MARK, None) == cohort
+            stack.extend(getattr(d, "dependencies", None) or [])
+        if gated:
+            for method in sorted(getattr(route, "methods", None) or {"WEBSOCKET"}):
+                found.add((method, route.path))
+    return sorted(found)
 
 
 #: Terminal-Next's door, composed once. ⭐ Building the closure at import time
