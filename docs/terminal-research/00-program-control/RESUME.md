@@ -2,6 +2,43 @@
 
 ---
 
+## ⭐⭐⭐ READ THIS FIRST — session of 2026-09-27/28 (build night, after the PC restart)
+
+**Branch `integrate/terminal-fixes` in `C:\Users\Patrick\uct-worktrees\_merge-master`, pushed. NOT on master — the owner
+has not said "deploy".** Everything below is merged there, each with scoped tests green and a mutation proof.
+
+| ticket | state | flag (default) |
+|---|---|---|
+| TERM-011 step 7 (info-severity literals deleted) | merged, awaiting deploy | — |
+| TERM-027 panel header inside the widget boundary | merged | — |
+| TERM-029 AC(b) no-upsell rail | merged (test only) | — |
+| TERM-030 week-contract schema assertion (calendar_alerts FROZEN by S7) | merged | — |
+| TERM-031 Fed-speaker roster (dated file) | merged | — |
+| TERM-033 sectionFetch adoption (+ useTranscript) | merged | — |
+| TERM-034 I1 spec railed (2 xfail violations recorded) | merged | — |
+| TERM-036 dividends/splits → Massive; parity in `10-roadmap/evidence/2026-09-28-term036-parity/` | merged | — |
+| TERM-083 store backup + restore rehearsal | merged, dark | `STORE_BACKUP_ENABLED` |
+| TERM-026 auditor sees GET → **158 anonymous reads; owner confirmed 200s on prod** | merged | — |
+| OPEN_READS_GATE (146 staged, 7 open by reason) | merged, dark | `OPEN_READS_GATE` off/shadow/enforce |
+| TERM-015 cadence heartbeat + daily roll-up | merged, dark | `CADENCE_ROLLUP_ENABLED` (monitor) |
+| TERM-016 durable chart-health cooldowns | merged | — |
+| TERM-013 bars push-rail reader | merged, page dark | `BARS_RAIL_PAGE_ENABLED` |
+| TERM-024 panel contract + ratchet | merged | — |
+| TERM-074 Wire reachable by the view ladder (**default-view change**) | merged | — |
+| TERM-071 one regime authority railed | merged | — |
+| TERM-021 versioned workspace doc — inner slice; retention policy OWED | merged, dark | `WORKSPACE_DOC_STORE_ENABLED` |
+| TERM-028 / TERM-032 | NO-OP (premises void) | — |
+| TERM-035 | PARKED — sub-agent denied reading its spec | — |
+
+**Owner decisions open:** deploy · pre-split dividend markers as-declared vs adjusted · BTC/VIX still on yfinance (3 surfaces) ·
+`/api/flow-scoreboard` paid vs "public by design" · TERM-021 version retention · TERM-074 new-member default = Wire on print days.
+**Master already red, not ours:** `reachable.test.js` (3 Pine engine files), `test_yf_guard_binds` (`financial_statements.py`),
+`test_shared_data_root_guard` (2).
+**Next buildable:** TERM-022 (Massive adapter, lane C) · TERM-019 adoption + TERM-050 · TERM-020 CP3 · TERM-023 · band 5.
+TERM-014/017 held via TERM-007. TERM-025 needs per-type owner authorization. Step 8 of TERM-011 needs a week of `fallback=0`.
+
+---
+
 ## ⭐⭐ READ THIS FIRST — session of 2026-09-25/26, and it is the largest single night this programme has had
 
 **Branch `terminal-research`, pushed and ancestry-verified at every step. Nothing is uncommitted.**
