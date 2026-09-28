@@ -17,6 +17,25 @@ from pathlib import Path
 from typing import Any
 
 
+#: The task index's invalidation triggers (`j2_note_task_digest`, see its table in
+#: `_J2_SCHEMA`), defined BEFORE the schema so the schema splices this one text in.
+#: ⛔ Part of the task index's DERIVATION: an edit here bumps `TASK_DIGEST_VERSION`, and
+#: the next boot drops these triggers and recreates them from this text in the same
+#: transaction that refills the rows (`backfill_note_task_digest`). `IF NOT EXISTS`
+#: alone never replaces an existing body, so without that an edit reached fresh
+#: databases only (review N-4). tests/test_journal_two_derivation_versions.py pins it.
+_TASK_DIGEST_TRIGGERS_DDL = """CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ai AFTER INSERT ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = new.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_au AFTER UPDATE OF body_json ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
+END;"""
+_TASK_DIGEST_TRIGGERS = ("j2_note_task_digest_ai", "j2_note_task_digest_au", "j2_note_task_digest_ad")
+
+
 _J2_SCHEMA = """
 CREATE TABLE IF NOT EXISTS j2_settings (
     id           TEXT PRIMARY KEY,
@@ -542,15 +561,10 @@ CREATE TABLE IF NOT EXISTS j2_note_task_digest (
     user_id     TEXT NOT NULL,
     tasks_json  TEXT NOT NULL
 );
-CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ai AFTER INSERT ON j2_notes BEGIN
-    DELETE FROM j2_note_task_digest WHERE note_id = new.id;
-END;
-CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_au AFTER UPDATE OF body_json ON j2_notes BEGIN
-    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
-END;
-CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ad AFTER DELETE ON j2_notes BEGIN
-    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
-END;
+-- The invalidation triggers are spliced in from `_TASK_DIGEST_TRIGGERS_DDL` (the top of
+-- this file): ONE text, run here for a fresh database and dropped-and-recreated by
+-- `backfill_note_task_digest` when the index's version changes (wave 10 follow-up F2).
+""" + _TASK_DIGEST_TRIGGERS_DDL + """
 
 -- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
 -- the initial executescript would run BEFORE run_notebook_migration_v2 adds
@@ -2665,20 +2679,80 @@ def _ensure_fts_map_note_rowid_column(conn: sqlite3.Connection) -> None:
 #     boot rebuilds through the same guarded path
 #     (tests/test_journal_two_derivation_versions.py pins each version to a hash of
 #     its derivation's source).
+#
+# ⛔⛔ Wave 10 follow-up F2 (review N-1): the unmark is itself a WRITE, and a write can
+# lose to `database is locked`. A record that could not be withdrawn from a database
+# whose structure no longer matches it would be trusted, and a renumbered map answers
+# `[]`. So the two structures a drift can falsify -- the map's `note_rowid` and the tag
+# index, both copies of j2_notes' implicit rowid -- are WITHHELD in this process from
+# the start of their boot check until that check proves them (in shape, or rebuilt and
+# recorded). Any exception on the way leaves them withheld: `schema_built` answers False
+# for them in this process whatever the table holds, and the readers take the fallback
+# until the next boot. The withdrawal itself is retried with backoff first
+# (`_unmark_built`). The task index is not withheld: its rows key on `note_id`, not on a
+# rowid, and its version is in the record's NAME, so an old record never answers.
 _SCHEMA_BUILDS_DDL = (
     "CREATE TABLE IF NOT EXISTS j2_schema_builds (name TEXT PRIMARY KEY, built_at TEXT NOT NULL)"
 )
-_FTS_MAP_BUILD = "j2_notes_fts_map.note_rowid"
+
+#: ⛔ BUMP THIS when the search map's DERIVATION changes -- the trigger SQL
+#: (`_J2_NOTES_FTS_TRIGGERS_DDL` and its `_J2_SCHEMA` twin), the map's DDL, the covering
+#: index (`_FTS_MAP_INDEX_DDL`) or the repair (`_repair_fts_map_note_rowid`,
+#: `_fts_map_drift`). The record carries the version, so the next boot drops the three
+#: FTS triggers and recreates them from this code inside the upgrade's one transaction
+#: (review N-4: the triggers are `CREATE TRIGGER IF NOT EXISTS`, which never replaces an
+#: existing body, and the old staleness test only asked whether a body named
+#: `note_rowid`). tests/test_journal_two_derivation_versions.py pins it to a hash.
+FTS_MAP_VERSION = 1
+_FTS_MAP_FAMILY = "j2_notes_fts_map.note_rowid"
+_FTS_MAP_BUILD = f"{_FTS_MAP_FAMILY}@{FTS_MAP_VERSION}"
+_FTS_MAP_INDEX_DDL = ("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
+                      " ON j2_notes_fts_map(fts_rowid, note_rowid)")
+
+#: The withdrawal's retries: the seconds slept before each further attempt, on top of
+#: the connection's own busy wait (3 s on auth.db). Only a drifted or re-versioned
+#: structure withdraws a record at boot, so this is paid once, and only under a lock.
+_UNMARK_RETRY_WAITS_S = (0.5, 1.0, 2.0)
+
+#: (database, family) pairs this PROCESS does not trust, whatever `j2_schema_builds`
+#: holds. Written only by the boot checks; empty in a healthy process, so the readers'
+#: `schema_built` pays nothing for it.
+_WITHHELD: set[tuple[str, str]] = set()
 
 
-def schema_built(conn: sqlite3.Connection, name: str) -> bool:
-    """Whether `name` was built on this database (and not since unmarked). A
-    database without the table has built nothing."""
+def _db_key(conn: sqlite3.Connection) -> str:
+    """The database file behind `conn` (its `main`), so a withholding reaches every
+    connection to that file and no other. An in-memory database is its connection."""
+    for row in conn.execute("PRAGMA database_list"):
+        if row[1] == "main":
+            return os.path.normcase(os.path.abspath(row[2])) if row[2] else f"memory:{id(conn)}"
+    return f"memory:{id(conn)}"
+
+
+def _withhold(conn: sqlite3.Connection, family: str) -> None:
+    _WITHHELD.add((_db_key(conn), family))
+
+
+def _trust(conn: sqlite3.Connection, family: str) -> None:
+    _WITHHELD.discard((_db_key(conn), family))
+
+
+def _recorded(conn: sqlite3.Connection, name: str) -> bool:
+    """Whether the TABLE holds `name` (the boot checks read this; readers ask
+    `schema_built`). A database without the table has built nothing."""
     try:
         return conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
                             (name,)).fetchone() is not None
     except sqlite3.OperationalError:
         return False
+
+
+def schema_built(conn: sqlite3.Connection, name: str) -> bool:
+    """Whether `name` was built on this database (and not since unmarked), and this
+    process has not withheld its family (a boot check that could not prove it)."""
+    if _WITHHELD and (_db_key(conn), name.split("@", 1)[0]) in _WITHHELD:
+        return False
+    return _recorded(conn, name)
 
 
 def _mark_built(conn: sqlite3.Connection, name: str) -> None:
@@ -2690,11 +2764,34 @@ def _mark_built(conn: sqlite3.Connection, name: str) -> None:
 def _unmark_built(conn: sqlite3.Connection, family: str) -> int:
     """Forget every record of `family` (its bare name and every `family@<version>`),
     in its OWN commit: the readers fall back from this instant, before any rebuild
-    starts. Returns the records removed."""
-    cur = conn.execute("DELETE FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
-                       (family, family + "@%"))
-    conn.commit()
-    return cur.rowcount
+    starts. Returns the records removed.
+
+    ⛔ Review N-1: a lock can refuse this DELETE. It is retried after each wait in
+    `_UNMARK_RETRY_WAITS_S`; if every attempt is refused it prints a line of its own
+    (not the step's generic abort) and raises. The caller has already withheld a
+    family a drift can falsify, so that refusal costs speed in this process, never a
+    wrong answer."""
+    waits = (0.0, *_UNMARK_RETRY_WAITS_S)
+    for attempt, wait in enumerate(waits):
+        if wait:
+            time.sleep(wait)
+        try:
+            cur = conn.execute("DELETE FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                               (family, family + "@%"))
+            conn.commit()
+            return cur.rowcount
+        except sqlite3.OperationalError as e:
+            try:
+                conn.rollback()
+            except sqlite3.Error:
+                pass
+            if "locked" not in str(e) and "busy" not in str(e):
+                raise
+            if attempt == len(waits) - 1:
+                print(f"[notebook-schema-builds] could NOT withdraw the record of {family} after"
+                      f" {len(waits)} attempts ({e}); this process does not trust it until a"
+                      f" boot proves it")
+                raise
 
 
 def _script_statements(script: str) -> list[str]:
@@ -2798,39 +2895,58 @@ def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
     work is UNMARKED FIRST, in its own commit. So a failed upgrade leaves the map
     unmarked and every search takes the pre-wave-10 `note_id` hop: slower, and the
     same answer. It used to answer `[]` for every note an old map row had not
-    re-derived (a NULL never satisfies `IN`)."""
-    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0, "marked": False}
+    re-derived (a NULL never satisfies `IN`).
+
+    ⛔⛔ Follow-up F2. (N-1) The family is WITHHELD in this process for the whole check
+    and trusted again only when the check proves it: in shape at this version, or
+    rebuilt and recorded. A withdrawal a lock refuses therefore leaves this process on
+    the `note_id` hop instead of on `note_rowid`s a restore renumbered. (N-4) The record
+    is `_FTS_MAP_BUILD` = family@`FTS_MAP_VERSION`; a database recorded by another
+    version (today's bare name included) is rebuilt, and every rebuild DROPS the three
+    triggers and recreates them from `_J2_NOTES_FTS_TRIGGERS_DDL`, statement by
+    statement, inside the one `BEGIN IMMEDIATE` -- a failure rolls the swap back with
+    everything else, so the old triggers stay whole."""
+    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0, "marked": False,
+                           "reason": None}
     has_map = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts_map'").fetchone()
     has_fts = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'").fetchone()
     if not has_map or not has_fts:
         return out
+    _withhold(conn, _FTS_MAP_FAMILY)              # this process falls back until proved
     conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
-    if schema_built(conn, _FTS_MAP_BUILD):
+    if _recorded(conn, _FTS_MAP_BUILD):
         if _fts_map_in_shape(conn):
+            _trust(conn, _FTS_MAP_FAMILY)
             return out
-        _unmark_built(conn, _FTS_MAP_BUILD)       # the readers fall back from here on
+        out["reason"] = "rebuilt_for_drift"
+    else:
+        other = conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                             (_FTS_MAP_FAMILY, _FTS_MAP_FAMILY + "@%")).fetchone()
+        out["reason"] = "rebuilt_for_version" if other else "built"
+    if out["reason"] != "built":
+        _unmark_built(conn, _FTS_MAP_FAMILY)      # every process falls back from here on
     conn.execute("BEGIN IMMEDIATE")
     try:
         _ensure_fts_map_note_rowid_column(conn)
-        if _fts_triggers_stale(conn):
-            for name in ("j2_notes_fts_ai", "j2_notes_fts_ad", "j2_notes_fts_au"):
-                conn.execute(f"DROP TRIGGER IF EXISTS {name}")
-            for stmt in _script_statements(_J2_NOTES_FTS_TRIGGERS_DDL):
-                conn.execute(stmt)
-            out["triggers_replaced"] = True
+        for name in ("j2_notes_fts_ai", "j2_notes_fts_ad", "j2_notes_fts_au"):
+            conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+        for stmt in _script_statements(_J2_NOTES_FTS_TRIGGERS_DDL):
+            conn.execute(stmt)
+        out["triggers_replaced"] = True
         out["rows_repaired"] = _repair_fts_map_note_rowid(conn)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
-                     " ON j2_notes_fts_map(fts_rowid, note_rowid)")
+        conn.execute(_FTS_MAP_INDEX_DDL)
         conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
         _mark_built(conn, _FTS_MAP_BUILD)
         conn.commit()
     except Exception:
         conn.rollback()
+        out["triggers_replaced"] = False
         raise
     out["marked"] = True
+    _trust(conn, _FTS_MAP_FAMILY)
     return out
 
 
@@ -2957,12 +3073,19 @@ def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
     Every record of the index is DELETED FIRST, in its own commit, so the readers
     (`notes._tag_index_ready`) take the per-note scan while the rebuild runs -- and
     stay on it if the rebuild fails. The rebuild then drops the triggers and the
-    table and recreates them from this code, all in one `BEGIN IMMEDIATE`."""
+    table and recreates them from this code, all in one `BEGIN IMMEDIATE`.
+
+    ⛔⛔ Follow-up F2 (review N-1): the family is WITHHELD in this process for the whole
+    check (`_withhold`), and trusted again only when the check proves it -- so a
+    withdrawal a lock refuses leaves this process on the per-note scan, not on rowids a
+    restore renumbered."""
     out = {"built": False, "rebuilt_for_drift": False, "rebuilt_for_version": False}
+    _withhold(conn, _NOTE_TAG_INDEX_FAMILY)         # this process scans until proved
     conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
-    if schema_built(conn, _NOTE_TAG_INDEX_BUILD):
+    if _recorded(conn, _NOTE_TAG_INDEX_BUILD):
         if _tag_index_in_shape(conn):
+            _trust(conn, _NOTE_TAG_INDEX_FAMILY)
             return out
         reason = "rebuilt_for_drift"
     else:
@@ -2984,6 +3107,7 @@ def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
         conn.rollback()
         raise
     out[reason] = True
+    _trust(conn, _NOTE_TAG_INDEX_FAMILY)
     return out
 
 
@@ -2995,7 +3119,11 @@ def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
 #: the next boot empties the table and refills it from this code, and until that
 #: commits `list_tasks` parses the bodies. tests/test_journal_two_derivation_versions.py
 #: pins it to a hash of those sources.
-TASK_DIGEST_VERSION = 1
+#: ⛔ The invalidation triggers are part of the derivation too (`_TASK_DIGEST_TRIGGERS_DDL`,
+#: review N-4): a mismatch also drops and recreates them in the refill's transaction.
+#: Version 2 (follow-up F2, 2026-09-28): no extraction change; the pinned sources gained
+#: the trigger DDL, and the bump makes every existing database take the new swap once.
+TASK_DIGEST_VERSION = 2
 _TASK_DIGEST_FAMILY = "j2_note_task_digest"
 _TASK_DIGEST_BUILD = f"{_TASK_DIGEST_FAMILY}@{TASK_DIGEST_VERSION}"
 
@@ -3023,12 +3151,18 @@ def backfill_note_task_digest(conn: sqlite3.Connection) -> int:
     from api.services.journal_two.note_tasks import extract_tasks
     conn.execute(_SCHEMA_BUILDS_DDL)
     conn.commit()
-    current = schema_built(conn, _TASK_DIGEST_BUILD)
+    current = _recorded(conn, _TASK_DIGEST_BUILD)
     if not current:
         _unmark_built(conn, _TASK_DIGEST_FAMILY)        # the reader parses bodies from here on
     conn.execute("BEGIN IMMEDIATE")
     try:
         if not current:
+            # ⛔ Follow-up F2 (review N-4): this version's invalidation triggers, in the
+            # same transaction as the refill -- `IF NOT EXISTS` alone never replaces a body.
+            for name in _TASK_DIGEST_TRIGGERS:
+                conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+            for stmt in _script_statements(_TASK_DIGEST_TRIGGERS_DDL):
+                conn.execute(stmt)
             conn.execute("DELETE FROM j2_note_task_digest")
         rows = conn.execute(
             "SELECT n.id, n.user_id, n.body_json FROM j2_notes n"
