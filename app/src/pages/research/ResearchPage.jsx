@@ -19,6 +19,7 @@ import OwnershipTab from './tabs/OwnershipTab'
 import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
 import AskAiTab from './tabs/AskAiTab'
+import DecisionRecordTab from './tabs/DecisionRecordTab'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -98,7 +99,15 @@ import styles from './ResearchPage.module.css'
 // merged panel, which would have violated this page's own "MY RESEARCH vs
 // MARKET DATA" boundary below). Ships DARK behind RESEARCH_FLOW_TAB_ENABLED,
 // same mechanism and polarity as RESEARCH_TECHNICAL_TAB_ENABLED.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Filings', 'Ask AI', 'My Research']
+//
+// TERM-088 (item 15 ACC-02): "Decision Record" joins the "what we have said
+// about this name" grouping, right after Model Book -- what UCT's own Morning
+// Wire considered about this ticker, issue by issue, and the stage each
+// rejection happened at. It is the firm's record, not the member's, so it sits
+// on the market-view side of the MY RESEARCH boundary. Ships DARK behind
+// DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled), same
+// mechanism and polarity as the Flow tab.
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -107,13 +116,14 @@ const SECTION_TO_TAB = {
   overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
+  'decision-record': 'Decision Record',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
 
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -135,7 +145,8 @@ export default function ResearchPage() {
   // RESEARCH_FLOW_TAB_ENABLED — same reasoning, independent flag.
   const tabs = TABS.filter(t =>
     (t !== 'Technical' || researchTechnicalTabEnabled) &&
-    (t !== 'Flow' || researchFlowTabEnabled))
+    (t !== 'Flow' || researchFlowTabEnabled) &&
+    (t !== 'Decision Record' || decisionRecordEnabled === true))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -182,6 +193,7 @@ export default function ResearchPage() {
       {active === 'Ownership' && <OwnershipTab sym={sym} />}
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
       {active === 'Model Book' && <ModelBookTab sym={sym} />}
+      {active === 'Decision Record' && <DecisionRecordTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (

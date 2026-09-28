@@ -193,6 +193,17 @@ def _notebook_flag_key(env_name: str) -> str:
     return env_name.lower()
 
 
+def _decision_record_enabled() -> bool:
+    """TERM-088: the Research "Decision Record" tab's switch -- the SAME reader
+    the route's dark gate uses, so the two cannot disagree. Never raises: a
+    broken import must not take every auth response down with it."""
+    try:
+        from api.services import decision_record
+        return bool(decision_record.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _notebook_flags() -> dict:
     """Every Notebook capability flag, read from the environment PER REQUEST."""
     out = {}
@@ -377,6 +388,12 @@ def _access_payload(user: dict, plan: str) -> dict:
         "research_flow_tab_enabled": os.environ.get(
             "RESEARCH_FLOW_TAB_ENABLED", "0"
         ).strip().lower() in ("1", "true", "yes", "on"),
+        # ── Research "Decision Record" tab (TERM-088, item 15 ACC-02) ──
+        # ENABLEMENT polarity, read per request. ⛔ ONE AUTHORITY: the same
+        # `decision_record.is_enabled()` the route's `_armed` reads, never a
+        # second env read of the same name here -- so the tab and the route
+        # cannot disagree about whether the surface exists.
+        "decision_record_enabled": _decision_record_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten
