@@ -41,7 +41,9 @@ _MARKERS_REFRESH_SECONDS = 24 * 3600
 # Finnhub's premium-gated endpoints). v3 = adds the forward "estimate" row (the upcoming-
 # earnings grey marker), which pre-v3 blobs lack. v4 = TERM-036: splits/dividends from
 # Massive reference data (source-stamped), so no yfinance-sourced value outlives the swap.
-_MARKERS_DISK_VERSION = 4
+# v5 = dividend amounts SPLIT-ADJUSTED (Massive returns them as declared; v4 blobs carry
+# pre-split amounts on a different basis than the adjusted price scale).
+_MARKERS_DISK_VERSION = 5
 _MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
 _markers_refresh_inflight: set[str] = set()
 _markers_refresh_lock = threading.Lock()
@@ -1183,7 +1185,13 @@ def _build_chart_markers(ticker: str) -> dict:
     from api.services import reference_corp_actions
 
     # Splits — deep lookback (rare + highly relevant on a since-inception chart).
+    # The same rows split-adjust the dividends below, so `split_factors` stays
+    # None unless the WHOLE read succeeded: a partial or failed split read must
+    # not produce dividend amounts that look adjusted but are not.
+    split_factors = None          # [(execution_date, ratio)] once the read succeeds
+    unparsed_split_dates: list[str] = []
     try:
+        _factors: list[tuple[str, float]] = []
         for row in reference_corp_actions.fetch_ticker_splits(
                 ticker, gte=splits_from_date, lte=to_date):
             date_str = row.get("execution_date")
@@ -1191,7 +1199,9 @@ def _build_chart_markers(ticker: str) -> dict:
                 continue
             r = reference_corp_actions.split_ratio(row.get("split_from"), row.get("split_to"))
             if r is None:
+                unparsed_split_dates.append(date_str)
                 continue
+            _factors.append((date_str, r))
             # r is shares-after per share-before: 4.0 = 4-for-1, 0.5 = 1-for-2 reverse.
             result["splits"].append({
                 "date": date_str,
@@ -1200,32 +1210,54 @@ def _build_chart_markers(ticker: str) -> dict:
                 "to_factor": r,
                 "source": reference_corp_actions.SOURCE,
             })
+        split_factors = _factors
     except reference_corp_actions.CorpActionsUnavailable as exc:
         _logger.warning("get_chart_markers: Massive splits unavailable for %s: %s", ticker, exc)
     except Exception as exc:
         _logger.warning("get_chart_markers splits failed for %s: %s", ticker, exc)
 
     # Dividends — 5-year lookback (a full history would clutter with 100+ ex-dates).
-    try:
-        for row in reference_corp_actions.fetch_ticker_dividends(
-                ticker, gte=from_date, lte=to_date):
-            date_str = row.get("ex_dividend_date")
-            if not date_str or date_str < from_date:
-                continue
-            try:
-                amount_f = float(row.get("cash_amount"))
-            except (TypeError, ValueError):
-                continue
-            if amount_f <= 0:
-                continue
-            result["dividends"].append({
-                "date": date_str,
-                "amount": amount_f,
-                "source": reference_corp_actions.SOURCE,
-            })
-    except reference_corp_actions.CorpActionsUnavailable as exc:
-        _logger.warning("get_chart_markers: Massive dividends unavailable for %s: %s", ticker, exc)
-    except Exception as exc:
-        _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
+    # Massive returns cash AS DECLARED; the chart draws split-ADJUSTED prices, so
+    # each amount is divided by the cumulative ratio of every split executed
+    # STRICTLY AFTER its ex-date (a same-day split does not adjust it: that bar is
+    # already on the post-split basis). Without a good split read the section is
+    # withheld — an as-declared amount must never be labelled as adjusted.
+    if split_factors is None:
+        _logger.warning(
+            "get_chart_markers: dividends withheld for %s — the split read failed, "
+            "so amounts could not be split-adjusted", ticker)
+    else:
+        try:
+            for row in reference_corp_actions.fetch_ticker_dividends(
+                    ticker, gte=from_date, lte=to_date):
+                date_str = row.get("ex_dividend_date")
+                if not date_str or date_str < from_date:
+                    continue
+                try:
+                    amount_f = float(row.get("cash_amount"))
+                except (TypeError, ValueError):
+                    continue
+                if amount_f <= 0:
+                    continue
+                if any(d > date_str for d in unparsed_split_dates):
+                    _logger.warning(
+                        "get_chart_markers: dividend %s %s withheld — a later split has "
+                        "no readable ratio, so it cannot be split-adjusted", ticker, date_str)
+                    continue
+                factor = 1.0
+                for split_date, r in split_factors:
+                    if split_date > date_str:
+                        factor *= r
+                if factor != 1.0:
+                    amount_f = round(amount_f / factor, 8)
+                result["dividends"].append({
+                    "date": date_str,
+                    "amount": amount_f,
+                    "source": reference_corp_actions.SOURCE,
+                })
+        except reference_corp_actions.CorpActionsUnavailable as exc:
+            _logger.warning("get_chart_markers: Massive dividends unavailable for %s: %s", ticker, exc)
+        except Exception as exc:
+            _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
 
     return result
