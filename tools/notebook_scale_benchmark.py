@@ -169,6 +169,12 @@ TIMED_OPS = [
     "switcher_search (word start)",
     "switcher_search (fuzzy, in order)",
     "list_tasks (open, ?view=tasks)",
+    # Wave 10, follow-up F6: a query no title holds, so the switcher fills its page from the
+    # search box's relevance pass -- the new path, timed where it is dearest (~30% of bodies)
+    # and cheapest (one note). The two switcher rows above fill their page from titles and
+    # never reach it.
+    "switcher_search (body fallback, common term)",
+    "switcher_search (body fallback, rare term)",
 ]
 
 # ── Wave 10 (lane 10A): the 10k-attachment tier (clause 14b) ──
@@ -646,6 +652,8 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
         "switcher_search (word start)": lambda: notes_svc.switcher_search(U, "nvda setup", conn=conn),
         "switcher_search (fuzzy, in order)": lambda: notes_svc.switcher_search(U, "ntvds", conn=conn),
         "list_tasks (open, ?view=tasks)": lambda: note_tasks.list_tasks(U, status="open", now=now_et, conn=conn),
+        "switcher_search (body fallback, common term)": lambda: notes_svc.switcher_search(U, _COMMON_MARKER, conn=conn),
+        "switcher_search (body fallback, rare term)": lambda: notes_svc.switcher_search(U, _RARE_MARKER, conn=conn),
     }
     assert list(ops) == TIMED_OPS, "TIMED_OPS and the op table drifted"
     if atruth is not None:
@@ -738,6 +746,13 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
             results["get_symbol_backlinks"]["count"] == truth["backlink_notes"],
         "list_tasks returns every open task on an active note": tasks["count"] == truth["open_tasks"],
         "switcher finds titles": len(results["switcher_search (word start)"]["notes"]) > 0,
+        "switcher fills a page from bodies no title names":
+            len(results["switcher_search (body fallback, common term)"]["notes"])
+            == min(notes_svc.SWITCHER_DEFAULT_LIMIT, truth["common_count"])
+            and all(r["matchTier"] == notes_svc.SWITCHER_TIER_BODY
+                    for r in results["switcher_search (body fallback, common term)"]["notes"]),
+        "switcher body fallback finds exactly the one rare note":
+            len(results["switcher_search (body fallback, rare term)"]["notes"]) == truth["rare_count"],
     }
     if atruth is not None:
         with _auth_db_is(db_path):

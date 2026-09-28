@@ -64,5 +64,28 @@ def test_a_planted_ranker_regression_falls_below_the_baseline(labelled):
     assert falls and not any("no baseline" in f for f in falls), falls
 
 
+def test_the_switcher_finds_what_the_search_box_finds(measured):
+    """Wave 10, F6 (clause 13c): the switcher's floor, and the search box's numbers untouched by it.
+    The baseline rail above holds both readers at their recorded numbers; this names the
+    target the switcher's baseline was raised to meet."""
+    sw = measured["readers"]["switcher"]
+    assert sw["recall_at_10"] >= 0.80, sw["recall_at_10"]
+    # every query the search box answers with a relevant note in its top 3 leaves the switcher non-empty
+    box = {p["q"]: p for p in measured["readers"]["search_box"]["per_query"]}
+    empty = [p["q"] for p in sw["per_query"]
+             if not p["top"] and (box[p["q"]]["first_relevant_rank"] or 99) <= 3]
+    assert empty == [], empty
+
+
+def test_a_planted_switcher_regression_falls_below_the_switchers_baseline(labelled):
+    """The control for the switcher's rail: with its body half switched off (the switcher as
+    it was before F6), the comparison names the switcher, and only the switcher."""
+    with R.planted_switcher_regression():
+        bad = R.measure(labelled)
+    falls = R.compare(bad, labelled.get("baseline"))
+    assert falls and all(f.startswith("switcher.") for f in falls), falls
+    assert bad["readers"]["switcher"]["recall_at_10"] < 0.80
+
+
 def test_no_baseline_is_never_a_pass(measured):
     assert R.compare(measured, None) and R.compare(measured, {})
