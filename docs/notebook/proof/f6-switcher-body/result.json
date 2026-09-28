@@ -1,0 +1,106 @@
+{
+ "integrity": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T00-19-36.md",
+ "integrity_status": "CLEAN",
+ "checkpoints": [
+  {
+   "label": "pre-boot (baseline)",
+   "at": "2026-09-28 00:19:42",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "post-boot (+15s)",
+   "at": "2026-09-28 00:20:22",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "post-prewarm (+120s)",
+   "at": "2026-09-28 00:22:13",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  },
+  {
+   "label": "shutdown",
+   "at": "2026-09-28 00:22:21",
+   "root": "C:\\data",
+   "db_files": 62,
+   "verdict": "CLEAN"
+  }
+ ],
+ "error": null,
+ "result": {
+  "run": "3c14b5",
+  "word": "zqbodyword3c14b5",
+  "widths": {
+   "1200": {
+    "options": [
+     "Note: Weekly plan 3c14b5, found in note text, in Unfiled. Enter to open."
+    ],
+    "aria_label": "Note: Weekly plan 3c14b5, found in note text, in Unfiled. Enter to open.",
+    "visible_text": "Weekly plan 3c14b5\nIn note text \u00b7 Unfiled",
+    "cue_count": 1,
+    "cue_text": "In note text \u00b7 ",
+    "cue_box": {
+     "x": 353,
+     "y": 204,
+     "width": 67.140625,
+     "height": 12
+    },
+    "cue_inside_viewport": true,
+    "cue_color": "rgb(147, 147, 154)",
+    "page_scroll_width": 1200,
+    "screenshot": "palette-1200.png",
+    "selected_before_enter": "true",
+    "url_after_enter": "/journal/notebook?note=a4a1c1f7cfdf47cca5168021ba398edf",
+    "opened_the_body_note": true,
+    "control_aria_label": "Note: Zq title 3c14b5, in Unfiled. Enter to open.",
+    "control_cue_count": 0
+   },
+   "390": {
+    "options": [
+     "Note: Weekly plan 3c14b5, found in note text, in Unfiled. Enter to open."
+    ],
+    "aria_label": "Note: Weekly plan 3c14b5, found in note text, in Unfiled. Enter to open.",
+    "visible_text": "Weekly plan 3c14b5\nIn note text \u00b7 Unfiled",
+    "cue_count": 1,
+    "cue_text": "In note text \u00b7 ",
+    "cue_box": {
+     "x": 68.59375,
+     "y": 163.515625,
+     "width": 67.140625,
+     "height": 12
+    },
+    "cue_inside_viewport": true,
+    "cue_color": "rgb(147, 147, 154)",
+    "page_scroll_width": 390,
+    "screenshot": "palette-390.png",
+    "selected_before_enter": "true",
+    "url_after_enter": "/journal/notebook?note=a4a1c1f7cfdf47cca5168021ba398edf",
+    "opened_the_body_note": true,
+    "control_aria_label": "Note: Zq title 3c14b5, in Unfiled. Enter to open.",
+    "control_cue_count": 0
+   }
+  },
+  "notes": {
+   "body_match": "a4a1c1f7cfdf47cca5168021ba398edf",
+   "title_match": "c112b76e7f064108aa6321c5e204b669"
+  },
+  "api_answer": [
+   {
+    "id": "a4a1c1f7cfdf47cca5168021ba398edf",
+    "title": "Weekly plan 3c14b5",
+    "matchTier": 8,
+    "strong": false,
+    "matched": "text"
+   }
+  ],
+  "cleanup": [
+   200,
+   200
+  ]
+ }
+}
