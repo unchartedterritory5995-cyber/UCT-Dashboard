@@ -14,6 +14,7 @@
  * palette name to a colour, never a second copy of it here.
  */
 import { useEffect, useId, useRef } from 'react'
+import { useEditorState } from '@tiptap/react'
 import Sheet from '../../../../components/mobile/Sheet'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import { NOTE_COLORS, highlightClass, textColorClass } from '../../lib/textColor'
@@ -35,9 +36,19 @@ export default function TextColorMenu({ id, editor, onClose, toggleRef }) {
   const isTouch = useIsTouch()
   const panelRef = useRef(null)
 
-  const textColor = editor.getAttributes('textColor').color || null
-  const highlighted = editor.isActive('highlight')
-  const highlightColor = highlighted ? (editor.getAttributes('highlight').color || 'yellow') : null
+  // Wave 10 F1: the page no longer re-renders on an editor transaction, so the
+  // picker subscribes itself -- a Mod-Shift-H or an undo while it is open still
+  // moves the pressed swatch -- and re-renders only when these three change.
+  const { textColor, highlightColor } = useEditorState({
+    editor,
+    selector: () => {
+      const highlighted = editor.isActive('highlight')
+      return {
+        textColor: editor.getAttributes('textColor').color || null,
+        highlightColor: highlighted ? (editor.getAttributes('highlight').color || 'yellow') : null,
+      }
+    },
+  })
 
   const close = (refocusToggle) => {
     onClose()
@@ -109,7 +120,7 @@ export default function TextColorMenu({ id, editor, onClose, toggleRef }) {
         <button
           type="button"
           className={styles.swatch}
-          aria-pressed={!highlighted}
+          aria-pressed={!highlightColor}
           aria-label="No highlight"
           title="None"
           onMouseDown={keep}

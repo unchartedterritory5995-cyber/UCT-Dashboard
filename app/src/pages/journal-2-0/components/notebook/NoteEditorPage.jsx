@@ -1,6 +1,6 @@
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, useEditorState, EditorContent } from '@tiptap/react'
 import {
-  Suspense, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+  Suspense, useCallback, useEffect, useId, useMemo, useRef, useState,
 } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -207,6 +207,56 @@ const EMIT_NOTHING = { emitUpdate: false }
 export function canRunHistory(editor, cmd) {
   if (!editor || editor.isDestroyed || !editor.isEditable) return false
   try { return Boolean(editor.can()[cmd]?.()) } catch { return false }
+}
+
+/**
+ * ⛔⛔ Wave 10 F1 (clause 4d) — EVERYTHING THE TOOLBAR ROW SHOWS THAT MOVES WITH
+ * THE CARET, read in ONE place. `EditorToolbarState` runs this on every editor
+ * transaction and re-renders the row only when the answer changed (a deep
+ * compare), so typing a word re-renders the row once at most (Undo becomes
+ * available) and the page not at all. The row reads these facts ONLY through
+ * this object: a new active state read straight off the editor in the row would
+ * go stale while the member types, which is why a rail
+ * (NoteEditorPage.toolbarIdentity.test.jsx) holds every `isActive(` /
+ * `getAttributes(` call in this file to this function.
+ */
+export function toolbarStateOf(editor) {
+  if (!editor || editor.isDestroyed) return IDLE_TOOLBAR_STATE
+  const textStyle = editor.getAttributes('textStyle')
+  return {
+    canUndo: canRunHistory(editor, 'undo'),
+    canRedo: canRunHistory(editor, 'redo'),
+    fontFamily: textStyle.fontFamily || '',
+    fontSize: textStyle.fontSize || '',
+    textColor: editor.getAttributes('textColor').color || null,
+    bold: editor.isActive('bold'),
+    italic: editor.isActive('italic'),
+    h1: editor.isActive('heading', { level: 1 }),
+    h2: editor.isActive('heading', { level: 2 }),
+    bulletList: editor.isActive('bulletList'),
+    orderedList: editor.isActive('orderedList'),
+    blockquote: editor.isActive('blockquote'),
+    codeBlock: editor.isActive('codeBlock'),
+  }
+}
+const IDLE_TOOLBAR_STATE = Object.freeze({
+  canUndo: false, canRedo: false, fontFamily: '', fontSize: '', textColor: null,
+  bold: false, italic: false, h1: false, h2: false, bulletList: false,
+  orderedList: false, blockquote: false, codeBlock: false,
+})
+
+/**
+ * The toolbar row's own subscription (wave 10 F1). `children` is a function of
+ * `toolbarStateOf(editor)`, handed down by the page's latest render, so it
+ * closes over the page's current state; this component re-renders it on a
+ * transaction without the page re-rendering. The selector reads the `editor`
+ * PROP, never the store's snapshot: TipTap's store keeps the editor it was
+ * built with until that editor's next transaction, and a note switch hands
+ * this row a new editor.
+ */
+function EditorToolbarState({ editor, children }) {
+  const state = useEditorState({ editor, selector: () => toolbarStateOf(editor) })
+  return children(state)
 }
 
 // G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
@@ -1921,17 +1971,22 @@ export default function NoteEditorPage({
   // reach the live editor instance.
   editorRef.current = editor
   const unreadable = useUnreadableNote(editor)
-  // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
-  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
-  // counter on every selection/mark change to keep the toolbar in sync.
-  const [, bumpToolbar] = useReducer((x) => x + 1, 0)
-  useEffect(() => {
-    if (!editor) return undefined
-    const update = () => bumpToolbar()
-    editor.on('transaction', update)
-    editor.on('selectionUpdate', update)
-    return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
-  }, [editor])
+  // ⛔⛔ Wave 10 F1 (clause 4d): THIS PAGE DOES NOT RE-RENDER ON AN EDITOR
+  // TRANSACTION. It used to bump a counter on every `transaction` and
+  // `selectionUpdate` so the toolbar's active states stayed current, and that
+  // re-ran this whole component -- header, properties, thesis, backlinks, side
+  // panels -- on every keystroke (lane 10A's attribution). What genuinely reads
+  // per-transaction state now subscribes to it itself, and re-renders only when
+  // what it shows changed: the toolbar row (`EditorToolbarRow`, below), the text
+  // colour menu, the table toolbar, the find bar's Undo, the link-paste offer,
+  // the word count and the outline.
+  // ⭐ The one editor fact THIS component reads in render is `editor.isEditable`
+  // (the Ask insert door, the find bar, the toolbar's mic and writing help), and
+  // it changes WITHOUT a transaction (`setEditable` below, the unreadable
+  // guard's `setOptions`). `editableSeen` is not a second authority over it --
+  // nothing reads the value -- it re-renders the page when, and only when, the
+  // editor's own answer moved. Rail: NoteEditorPage.toolbarIdentity.test.jsx.
+  const [, setEditableSeen] = useState(() => (editor ? editor.isEditable : null))
 
   // Wave 10 fix round 1 (review M-5): on a phone the chrome is NOT sticky
   // (`.chrome { position: static }` at <=640 -- a wrapped header + toolbar would
@@ -1987,9 +2042,11 @@ export default function NoteEditorPage({
   // owns that. This effect used to hand such a note `setEditable(true)` on
   // mount and on every unlock, until the guard re-locked it a render later.
   useEffect(() => {
-    if (!editor || editor.isDestroyed || unreadable || editor.isEditable === !locked) return
-    editor.setEditable(!locked, false)
-    bumpToolbar()
+    if (!editor || editor.isDestroyed) return
+    if (!unreadable && editor.isEditable !== !locked) editor.setEditable(!locked, false)
+    // Runs after the unreadable guard's layout effect, so this is the editor's
+    // settled answer for this render's lock and guard.
+    setEditableSeen(editor.isEditable)
   }, [editor, locked, unreadable])
 
   /**
@@ -3438,6 +3495,7 @@ export default function NoteEditorPage({
           across a crowded header line. Sticky via the shared .chrome wrapper;
           data-export-exclude keeps the row out of the PNG rasterization. */}
       {editor && (
+        <EditorToolbarState editor={editor}>{(ts) => (
         <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
           {/* Wave 6: a locked note shows no editing controls at all -- a
               control that would do nothing is hidden, never silent. */}
@@ -3459,7 +3517,7 @@ export default function NoteEditorPage({
                 className={`${styles.toolBtn} ${styles.historyBtn}`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => editor.chain().focus().undo().run()}
-                disabled={!canRunHistory(editor, 'undo')}
+                disabled={!ts.canUndo}
                 aria-label="Undo"
                 title="Undo the last change"
               >
@@ -3470,7 +3528,7 @@ export default function NoteEditorPage({
                 className={`${styles.toolBtn} ${styles.historyBtn}`}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => editor.chain().focus().redo().run()}
-                disabled={!canRunHistory(editor, 'redo')}
+                disabled={!ts.canRedo}
                 aria-label="Redo"
                 title="Redo the change you undid"
               >
@@ -3479,7 +3537,7 @@ export default function NoteEditorPage({
             </span>
             <select
               className={styles.fontSelect}
-              value={editor.getAttributes('textStyle').fontFamily || ''}
+              value={ts.fontFamily}
               onChange={(e) => {
                 const v = e.target.value
                 if (v) editor.chain().focus().setFontFamily(v).run()
@@ -3496,7 +3554,7 @@ export default function NoteEditorPage({
             </select>
             <select
               className={styles.fontSizeSelect}
-              value={editor.getAttributes('textStyle').fontSize || ''}
+              value={ts.fontSize}
               onChange={(e) => {
                 const v = e.target.value
                 if (v) editor.chain().focus().setFontSize(v).run()
@@ -3509,12 +3567,12 @@ export default function NoteEditorPage({
               {FONT_SIZES.map((s) => <option key={s} value={`${s}px`}>{s}</option>)}
             </select>
             <ToolButton
-              active={editor.isActive('bold')}
+              active={ts.bold}
               onClick={() => editor.chain().focus().toggleBold().run()}
               label="B"
             />
             <ToolButton
-              active={editor.isActive('italic')}
+              active={ts.italic}
               onClick={() => editor.chain().focus().toggleItalic().run()}
               label="I"
             />
@@ -3536,39 +3594,39 @@ export default function NoteEditorPage({
                 aria-label={TEXT_COLOR_MENU_LABEL}
                 title={`${TEXT_COLOR_MENU_LABEL} — ${modKeyLabel()}+Shift+H highlights`}
               >
-                <span className={`${styles.colorGlyph} ${editor.getAttributes('textColor').color ? textColorClass(editor.getAttributes('textColor').color) : ''}`}>A</span>
+                <span className={`${styles.colorGlyph} ${ts.textColor ? textColorClass(ts.textColor) : ''}`}>A</span>
               </button>
               {colorOpen && (
                 <TextColorMenu id={colorMenuId} editor={editor} onClose={() => setColorOpen(false)} toggleRef={colorToggleRef} />
               )}
             </span>
             <ToolButton
-              active={editor.isActive('heading', { level: 1 })}
+              active={ts.h1}
               onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
               label="H1"
             />
             <ToolButton
-              active={editor.isActive('heading', { level: 2 })}
+              active={ts.h2}
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
               label="H2"
             />
             <ToolButton
-              active={editor.isActive('bulletList')}
+              active={ts.bulletList}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               label="• List"
             />
             <ToolButton
-              active={editor.isActive('orderedList')}
+              active={ts.orderedList}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
               label="1. List"
             />
             <ToolButton
-              active={editor.isActive('blockquote')}
+              active={ts.blockquote}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               label="❝"
             />
             <ToolButton
-              active={editor.isActive('codeBlock')}
+              active={ts.codeBlock}
               onClick={() => editor.chain().focus().toggleCodeBlock().run()}
               label="</>"
             />
@@ -3677,6 +3735,7 @@ export default function NoteEditorPage({
               onBeforeExport={sendPendingEdits} />
           </div>
         </div>
+        )}</EditorToolbarState>
       )}
       {/* Absolute child of the sticky chrome — anchored to its bottom edge,
           so it follows the pinned chrome regardless of how many rows the

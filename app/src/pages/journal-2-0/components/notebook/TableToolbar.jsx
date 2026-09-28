@@ -28,6 +28,7 @@
  * Touch tier (≤1024px): every control meets `var(--tap-min)`.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useEditorState } from '@tiptap/react'
 import { selectedRect } from '@tiptap/pm/tables'
 import UIcon from '../../../../components/ui/UIcon'
 import {
@@ -84,6 +85,18 @@ const CONTROLS = [
 
 export default function TableToolbar({ editor }) {
   const barRef = useRef(null)
+
+  // Wave 10 F1: the page no longer re-renders on an editor transaction, so the
+  // bar subscribes itself. While the caret is in an editable table it re-renders
+  // on every transaction (its commands, sort and width all move with the caret);
+  // anywhere else the answer stays `null`, so typing re-renders it not at all.
+  useEditorState({
+    editor,
+    selector: ({ transactionNumber }) => (
+      editor && !editor.isDestroyed && editor.isEditable && tableAtSelection(editor.state)
+        ? transactionNumber : null
+    ),
+  })
 
   const table = editor && !editor.isDestroyed && editor.isEditable ? tableAtSelection(editor.state) : null
 

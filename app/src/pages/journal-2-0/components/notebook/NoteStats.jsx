@@ -3,8 +3,8 @@
  * ("1,204 words · 5 min read"), which becomes the selection's share while
  * text is selected ("38 of 1,204 words selected").
  *
- * ⛔ OFF THE KEYSTROKE PATH. The page already re-renders on every transaction;
- * counting a large note is a full walk of its text, so the NOTE count is
+ * ⛔ OFF THE KEYSTROKE PATH. Counting a large note is a full walk of its
+ * text, so the NOTE count is
  * recomputed a beat after typing pauses (`DOC_DEBOUNCE_MS`), never inside the
  * keystroke. The selection count walks only the selection, on a shorter beat.
  * Not a live region: a count that changes with every word must not talk over

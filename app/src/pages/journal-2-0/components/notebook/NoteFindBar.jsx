@@ -27,6 +27,7 @@
  * A read-only editor gets no replace row at all.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useEditorState } from '@tiptap/react'
 import UIcon from '../../../../components/ui/UIcon'
 import { chordText, modKeyLabel, replaceChordKeys } from '../../lib/platform'
 import styles from './NoteFindBar.module.css'
@@ -188,7 +189,13 @@ export default function NoteFindBar({ editor, onClose, initialReplace = false })
 
   // The note moved on since Replace all: the Undo is withdrawn at this render,
   // and the reason takes its place in the live region.
-  const undoWithdrawn = Boolean(undoable && editor && !editor.isDestroyed && editor.state.doc !== undoable)
+  // Wave 10 F1: the page no longer re-renders on an editor transaction, so the
+  // bar subscribes itself -- it redraws when the member types after a Replace
+  // all, and only when this answer flips.
+  const undoWithdrawn = useEditorState({
+    editor,
+    selector: () => Boolean(undoable && editor && !editor.isDestroyed && editor.state.doc !== undoable),
+  })
   const countText = (undoWithdrawn ? undoWithdrawnText() : notice)
     || (term ? `${matchCount > 0 ? activeIndex + 1 : 0}/${matchCount}` : '')
   const showUndo = Boolean(undoable && editor && !editor.isDestroyed && !undoWithdrawn)
