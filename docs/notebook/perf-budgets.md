@@ -699,9 +699,11 @@ benchmark can seed more than one.)
 ### Fix round 1 (the lane 10A task review)
 
 **The integer hop has a readiness record (review I-2).** The `note_rowid` upgrade -- the
-column, the repair of every NULL or drifted row, the new index, the dropped old one and the
-three FTS triggers rewritten to keep the column -- now runs in ONE `BEGIN IMMEDIATE`
-transaction, and records `j2_notes_fts_map.note_rowid` in `j2_schema_builds` inside that same
+repair of every NULL or drifted row, the new index, the dropped old one and the three FTS
+triggers rewritten to keep the column -- now runs in ONE `BEGIN IMMEDIATE` transaction. (On the
+boot path the COLUMN itself is added earlier, by `_PHASE_2_ALTERS`, in its own commit; that is
+harmless because no reader trusts the column -- they trust the record below -- re-review N-3.)
+That transaction records `j2_notes_fts_map.note_rowid` in `j2_schema_builds`, inside the same
 transaction. The trigger swap no longer goes through `executescript` (which COMMITS whatever is
 open before it runs): the trigger DDL is split into whole statements (`_script_statements`, by
 `sqlite3.complete_statement`) and executed one by one inside the transaction. Every reader --
