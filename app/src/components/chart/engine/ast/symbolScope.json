@@ -66,21 +66,30 @@
     "NASDAQ": {
       "minmov": 1,
       "pricescale": 100,
-      "witnesses": ["NASDAQ:AAPL", "NASDAQ:SNDL", "NASDAQ:NKLA"],
+      "witnesses": [
+        "NASDAQ:AAPL",
+        "NASDAQ:SNDL",
+        "NASDAQ:NKLA"
+      ],
       "captured": "2026-09-27",
       "how": "tests/fixtures/vendor/vw-mintick-{aapl,sndl,nkla}-1d-2026-09-27.json — plot M01 (`syminfo.mintick`) constant on every bar, and the capture's own `symbol` block carries `minmov`/`pricescale` with M01 = minmov / pricescale. Price regimes $341 / $1.40 / $0.18."
     },
     "NYSE": {
       "minmov": 1,
       "pricescale": 100,
-      "witnesses": ["NYSE:BRK.A", "NYSE:RDDT"],
+      "witnesses": [
+        "NYSE:BRK.A",
+        "NYSE:RDDT"
+      ],
       "captured": "2026-09-27",
       "how": "tests/fixtures/vendor/vw-mintick-brka-1d-2026-09-27.json — plot M01 (`syminfo.mintick`) constant on every bar, and the capture's own `symbol` block carries `minmov`/`pricescale` with M01 = minmov / pricescale; NYSE:RDDT's `symbol` block (minmov 1, pricescale 100) in every tests/fixtures/vendor/harness/*-rddt-1d-2026-09-27.json capture."
     },
     "NYSE Arca": {
       "minmov": 1,
       "pricescale": 100,
-      "witnesses": ["AMEX:SPY"],
+      "witnesses": [
+        "AMEX:SPY"
+      ],
       "captured": "2026-09-27",
       "how": "tests/fixtures/vendor/vw-mintick-spy-1d-2026-09-27.json — plot M01 (`syminfo.mintick`) constant on every bar, and the capture's own `symbol` block carries `minmov`/`pricescale` with M01 = minmov / pricescale. ⚠️ Pine's listed exchange for SPY is `AMEX`, which `NYSE American` ALSO maps to (`confirmed._many_to_one`), so this witness counts for `NYSE Arca` ONLY because `confirmed['NYSE Arca'].witness` is this same symbol."
     },
