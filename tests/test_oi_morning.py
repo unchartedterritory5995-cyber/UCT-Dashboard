@@ -210,3 +210,56 @@ def test_gate_walks_past_drops_to_fill_top_n(tmp_path, monkeypatch):
     monkeypatch.setattr(oim, "_contract_window_volume", lambda *a: 10000)
     rows, _ = oim.build_rows(days=1, top_n=1, min_delta=500)   # only ONE slot
     assert [r["sym"] for r in rows] == ["REAL"]   # BADX dropped, REAL took the slot
+
+
+# ── TERM-011 step 5: fails CLOSED, never falls back to DISCORD_WEBHOOK_URL ─────
+
+def test_webhook_reads_the_named_variable_at_CALL_time(monkeypatch):
+    monkeypatch.delenv(oim.WEBHOOK_ENV, raising=False)
+    monkeypatch.delenv("ALPHA_GOLD_EOD_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("DISCORD_MASSIVE_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("DISCORD_LIVE_FLOW_WEBHOOK_URL", raising=False)
+    assert oim._webhook() == ""
+
+    monkeypatch.setenv(oim.WEBHOOK_ENV, "https://discord.example/oi-morning")
+    assert oim._webhook() == "https://discord.example/oi-morning"
+
+    # CALL time, not import time -- the same process sees the flip immediately.
+    monkeypatch.delenv(oim.WEBHOOK_ENV, raising=False)
+    assert oim._webhook() == ""
+
+
+def test_webhook_NEVER_reads_DISCORD_WEBHOOK_URL(monkeypatch):
+    """THE ACCEPTANCE TEST. With the admin webhook SET and every one of this
+    card's own variables unset, `_webhook()` must still answer "" -- never the
+    admin channel. This is the one property TERM-011 step 5 exists to establish."""
+    monkeypatch.delenv(oim.WEBHOOK_ENV, raising=False)
+    monkeypatch.delenv("ALPHA_GOLD_EOD_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("DISCORD_MASSIVE_WEBHOOK_URL", raising=False)
+    monkeypatch.delenv("DISCORD_LIVE_FLOW_WEBHOOK_URL", raising=False)
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.example/ADMIN-ROOM")
+    assert oim._webhook() == ""
+
+
+def test_run_oi_morning_posts_NOTHING_with_no_webhook_configured(monkeypatch, caplog):
+    """With no webhook configured anywhere, the card must not post -- and must
+    log the variable an operator sets to turn it back on."""
+    for var in (oim.WEBHOOK_ENV, "ALPHA_GOLD_EOD_WEBHOOK_URL",
+                "DISCORD_MASSIVE_WEBHOOK_URL", "DISCORD_LIVE_FLOW_WEBHOOK_URL"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.example/ADMIN-ROOM")
+    monkeypatch.setenv("OI_MORNING_ENABLED", "1")
+    monkeypatch.setattr(oim, "build_rows", lambda **k: ([{"sym": "NVDA"}], "window"))
+    monkeypatch.setattr(oim, "render_card", lambda *a, **k: b"\x89PNG")
+
+    def _boom(*a, **k):
+        raise AssertionError("posted with no webhook configured")
+    monkeypatch.setattr(oim, "_post_discord_image", _boom)
+
+    with caplog.at_level("ERROR"):
+        res = oim.run_oi_morning(force=True)
+
+    assert res["posted"] is False
+    assert "https://discord.example/ADMIN-ROOM" not in str(res)
+    assert any(oim.WEBHOOK_ENV in rec.message for rec in caplog.records), (
+        "the failure did not name the variable that turns this card back on")

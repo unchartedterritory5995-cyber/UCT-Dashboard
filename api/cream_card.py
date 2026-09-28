@@ -101,13 +101,24 @@ def _armed() -> bool:
     return os.getenv("CREAM_EOD_ENABLED", "0") == "1"
 
 
+#: ⛔ TERM-011 step 5 -- THE VARIABLE THAT TURNS THIS POSTER BACK ON, named
+#: once so a log line cannot drift from the one actually read.
+WEBHOOK_ENV = "CREAM_EOD_WEBHOOK_URL"
+
+
 def _webhook() -> str:
-    # Fallback chain mirrors alpha_gold_eod so it can never default to a public channel.
+    """This poster's own webhook, read AT CALL TIME. "" = do not post.
+
+    ⛔⛔ TERM-011 step 5 -- NO LONGER FALLS BACK TO DISCORD_WEBHOOK_URL. The
+    admin/ops channel is not a fallback destination for a member-facing content
+    card -- landing there silently would read as a success. The other names below
+    are this card's OWN shared flow-channel names (the same room the sibling EOD
+    cards post to), not the admin room.
+    """
     return (os.getenv("CREAM_EOD_WEBHOOK_URL")
             or os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
             or os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
-            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-            or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
+            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL", "")).strip()
 
 
 def _date_text(mdy: str) -> str:
@@ -145,6 +156,9 @@ def run_cream_eod(*, target_date=None, force: bool = False, post: bool = True) -
             wh = _webhook()
             if not wh:
                 detail = "no webhook configured"
+                log.error("[cream-eod] NOT posted — no webhook configured, and "
+                          "this card no longer falls back to DISCORD_WEBHOOK_URL. "
+                          "Set %s to turn it back on.", WEBHOOK_ENV)
             else:
                 # No message text — the webhook bot name already reads
                 # "UCT Intelligence · Top Flow" and the card itself carries the

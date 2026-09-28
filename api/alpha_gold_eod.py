@@ -76,11 +76,19 @@ _MIXED_CONSISTENCY_MIN = float(os.getenv("ALPHA_GOLD_EOD_MIXED_CONSISTENCY_MIN",
 _SHOW_NEUTRAL = os.getenv("ALPHA_GOLD_EOD_SHOW_NEUTRAL", "0") == "1"
 
 
+#: TERM-011 step 5 -- the variable an operator sets to turn this poster
+#: back on, named once so a log line cannot drift from the name read.
+WEBHOOK_ENV = "ALPHA_GOLD_EOD_WEBHOOK_URL"
+
+
 def _webhook() -> str:
-    return (os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
+    """TERM-011 step 5 -- fails CLOSED. This card no longer falls back to
+    DISCORD_WEBHOOK_URL: an unset dedicated variable stops the post rather
+    than redirecting a member-facing card into the admin/ops room."""
+    return (os.getenv(WEBHOOK_ENV)
             or os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
             or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-            or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
+            or "").strip()
 
 
 # ── data ───────────────────────────────────────────────────────────────────
@@ -703,7 +711,11 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
 
         wh = _webhook()
         if not wh:
-            res.update(posted=False, reason="no webhook (set ALPHA_GOLD_EOD_WEBHOOK_URL)")
+            # TERM-011 step 5 -- VISIBLE SILENCE, naming the variable.
+            log.error("[alpha-gold-eod] NOT posted -- no webhook configured, and "
+                      "this card no longer falls back to DISCORD_WEBHOOK_URL. "
+                      "Set %s to turn it back on.", WEBHOOK_ENV)
+            res.update(posted=False, reason=f"no webhook (set {WEBHOOK_ENV})")
             return res
         # Post the image ONLY — no text line above it (owner preference). The card
         # already carries the title + totals. (_summary_line kept for reuse/tests.)
