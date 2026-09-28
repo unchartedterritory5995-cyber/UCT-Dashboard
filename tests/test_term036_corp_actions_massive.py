@@ -53,13 +53,15 @@ class _FakeMassive:
         self.fail = set(fail or ())
         self.urls: list[str] = []
 
-    def _get(self, url, timeout=None):
+    def _typed_get(self, url, *, timeout=None):
+        # TERM-022: the reads go through `massive_adapter`, which calls the
+        # client's TYPED transport with a host-relative path.
         self.urls.append(url)
         from urllib.parse import urlparse, parse_qs
         q = parse_qs(urlparse(url).query)
         tk = (q.get("ticker") or [""])[0]
         if tk in self.fail:
-            raise RuntimeError("HTTP 503 from Massive")
+            raise massive.MassiveTransient("HTTP 503 from Massive", vendor="massive", status=503)
         if "/v3/reference/splits" in url:
             return {"status": "OK", "results": list(self.splits.get(tk, []))}
         if "/v3/reference/dividends" in url:
@@ -206,7 +208,7 @@ def test_adapter_builds_per_ticker_urls_maps_class_shares_and_paginates(monkeypa
         _api_key = "k"
         urls: list = []
 
-        def _get(self, url, timeout=None):
+        def _typed_get(self, url, *, timeout=None):
             self.urls.append(url)
             return pages.pop(0)
 
@@ -217,7 +219,7 @@ def test_adapter_builds_per_ticker_urls_maps_class_shares_and_paginates(monkeypa
     assert "/v3/reference/dividends" in client.urls[0]
     assert "ticker=BRK.B" in client.urls[0], "Massive answers n=0 for the hyphen form"
     assert f"ex_dividend_date.gte={_future(0)}" in client.urls[0]
-    assert client.urls[1].startswith("https://api.massive.com/v3/reference/dividends?cursor=abc")
+    assert client.urls[1].startswith("/v3/reference/dividends?cursor=abc")
     assert "apiKey=k" in client.urls[1]
 
 

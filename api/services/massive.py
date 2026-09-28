@@ -95,7 +95,13 @@ _FORBIDDEN_TTL = 86_400  # 24h, same precedent as fmp_client.py / finnhub_client
 
 def _take_token() -> bool:
     """Non-blocking — never sleeps, same reasoning as fmp_client.py's
-    `_take_token`: this runs on the shared request-path threadpool."""
+    `_take_token`: this runs on the shared request-path threadpool.
+
+    ⚠️ PER-PROCESS BUCKET (STATE-7, ARCH-07 §3 Q8) — TERM-022. This is a
+    correctness guard, not a cache, and it is only a GLOBAL bound while one
+    process serves Massive. TRIGGER: the day `web` runs more than one replica,
+    or a second process (a worker) routes through `massive_adapter`, the real
+    ceiling becomes N × this value — move the bucket to a shared store then."""
     global _bucket_tokens, _bucket_updated, _bucket_denied_total
     with _bucket_lock:
         now = time.monotonic()
@@ -191,7 +197,11 @@ class _MassiveRestClient:
         try:
             resp = _http.get(url, timeout=timeout)
         except Exception as exc:
-            raise _ERR.transient(f"Massive request failed: {exc}") from exc
+            # TERM-022: an exception's text can carry the request URL, and the URL
+            # carries `apiKey=` -- the key must never reach an error message.
+            from api.services.log_redaction import redact as _redact
+            raise _ERR.transient(
+                f"Massive request failed: {type(exc).__name__}: {_redact(str(exc))}") from exc
 
         if resp.status_code == 429:
             raise _ERR.rate_limited(f"Massive rate-limited ({path.split('?')[0]})", status=429)
