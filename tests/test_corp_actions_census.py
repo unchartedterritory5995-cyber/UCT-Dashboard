@@ -58,16 +58,25 @@ def test_the_census_finds_the_sites_we_KNOW_are_there(rows):
         ("api/services/bars_sanitize.py", cac.ADJUSTMENT_APPLIED),
         ("api/services/bars_split_repair.py", cac.ADJUSTMENT_APPLIED),
         ("api/services/bars_fetch.py", cac.VENDOR_ADJUSTED),
-        # ⛔ added 2026-09-24: the yfinance-Ticker-attribute blind spot fix.
-        # Both were invisible to the detector from CP1 (2026-09-12) until
-        # this line existed — losing either one silently re-opens it.
-        ("api/services/dividends_calendar.py", cac.PROVIDER_READ),
-        ("api/services/earnings_estimates.py", cac.PROVIDER_READ),
+        # ⚰️ dividends_calendar.py / earnings_estimates.py were named here
+        # (2026-09-24, the yfinance-Ticker-attribute blind spot). TERM-036
+        # migrated both onto `reference_corp_actions` on 2026-09-27, so they
+        # are asserted ABSENT below instead — the blind-spot detector itself
+        # stays proven by the planted-module tests further down.
+        ("api/services/reference_corp_actions.py", cac.PROVIDER_READ),
     ):
         assert expected in found, (
             f"the census no longer sees {expected[0]} as {expected[1]}. Either "
             "it was migrated — in which case say so in the REGISTER — or the "
             "detector broke.")
+    # TERM-036: the two yfinance corporate-action readers are migrated. A
+    # PROVIDER_READ row reappearing for either means a yfinance (or other
+    # unowned) corporate-action read came back into that module.
+    for migrated in ("api/services/dividends_calendar.py",
+                     "api/services/earnings_estimates.py"):
+        assert (migrated, cac.PROVIDER_READ) not in found, (
+            f"{migrated} reads a corporate-action feed again; TERM-036 routed "
+            "it through reference_corp_actions")
     assert len({r.kind for r in rows}) == len(cac.CLASSES), (
         "one of the three classes found nothing at all; a class that never "
         "fires is a detector that is broken, not a repo that is clean")

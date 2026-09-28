@@ -1,10 +1,12 @@
 """Forward dividends and splits calendar service.
 
-Uses yfinance to build a forward-looking (date >= today) list of
-dividends and splits for a set of symbols.
+Builds a forward-looking (date >= today) list of dividends and splits for a
+set of symbols from Massive reference data (`/v3/reference/dividends` and
+`/v3/reference/splits`), read through `reference_corp_actions` -- the one
+owned wrapper around that feed.
 
 Normalized output per event:
-  { sym, type: 'dividend' | 'split', date, amount | ratio, entity }
+  { sym, type: 'dividend' | 'split', date, amount | ratio, source, entity }
 
   dividend: { sym, type='dividend', date (YYYY-MM-DD ex-date), amount (float) }
   split:    { sym, type='split',    date (YYYY-MM-DD),         ratio (str, e.g. '4:1') }
@@ -13,16 +15,22 @@ Cached 12 hours per symbol-set key.  Never raises — returns [] on any failure.
 
 2026-09-03 A5 modernization: every event carries a canonical `entity` from
 Entity Master (`resolve_entity`) — never a raw ticker as the row's only
-identity. This module has no FMP leg (yfinance only, per the readiness
-review's explicit finding) — the provider-swap question surfaced in that
-review stays open/deferred, unaffected by this entity-resolution wiring.
+identity.
+
+2026-09-27 TERM-036 (FB-D5-02): the source moved off yfinance (an explicit
+risk-acceptance, D-004 — Yahoo sells no licence) onto Massive reference, the
+one Massive class already cleared for external publication. Every event is
+stamped `source: 'massive'`. A symbol whose Massive read FAILED is counted as
+incomplete (short cache TTL), never as "no dividend, no split". The dividend
+`amount` is now the DECLARED cash amount of that ex-date, where yfinance gave
+the most recent PAID amount.
 """
 
 from __future__ import annotations
 import logging
-from datetime import date, timezone, datetime
+from datetime import date
 
-from api.services import yf_util
+from api.services import reference_corp_actions
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.research.entity_resolution import resolve_entity
@@ -39,88 +47,46 @@ def _syms_cache_key(syms: list[str]) -> str:
     return f"dividends_calendar_{key_syms}"
 
 
-def _to_date_str(ts) -> str | None:
-    """Convert a pandas Timestamp / datetime.date / datetime.datetime → YYYY-MM-DD or None."""
-    if ts is None:
-        return None
-    if isinstance(ts, date) and not isinstance(ts, datetime):
-        return ts.strftime("%Y-%m-%d")
-    try:
-        # pandas Timestamp (may be tz-aware)
-        if hasattr(ts, "date"):
-            return ts.date().strftime("%Y-%m-%d")
-        return str(ts)[:10]
-    except Exception:
-        return None
-
-
-def _get_forward_dividend(ticker_obj, sym: str, today: date) -> dict | None:
-    """Extract the next forward ex-dividend event from yfinance.calendar."""
-    try:
-        cal = ticker_obj.calendar
-        if not isinstance(cal, dict):
-            return None
-        ex_raw = cal.get("Ex-Dividend Date")
-        if ex_raw is None:
-            return None
-        ex_date_str = _to_date_str(ex_raw)
-        if not ex_date_str:
-            return None
-        ex_date = date.fromisoformat(ex_date_str)
-        if ex_date < today:
-            return None  # already paid
-
-        # Try to get the dividend amount from .dividends (most recent)
-        amount: float | None = None
+def _get_forward_dividend(sym: str, today: date) -> dict | None:
+    """The next forward ex-dividend event (ONE per symbol, as before).
+    Raises `reference_corp_actions.CorpActionsUnavailable` on a vendor failure."""
+    today_iso = today.isoformat()
+    for row in reference_corp_actions.fetch_ticker_dividends(sym, gte=today_iso):
+        ex = row.get("ex_dividend_date")
+        if not ex or ex < today_iso:
+            continue  # already gone ex
         try:
-            divs = ticker_obj.dividends
-            if divs is not None and not divs.empty:
-                amount = float(divs.iloc[-1])
-        except Exception:
-            pass
-
+            amount = float(row["cash_amount"]) if row.get("cash_amount") is not None else None
+        except (TypeError, ValueError):
+            amount = None
         return {
             "sym":    sym.upper(),
             "type":   "dividend",
-            "date":   ex_date_str,
+            "date":   ex,
             "amount": amount,
+            "source": reference_corp_actions.SOURCE,
         }
-    except Exception as exc:
-        _logger.debug("dividends_calendar: forward dividend fetch failed for %s: %s", sym, exc)
-        return None
+    return None
 
 
-def _get_forward_splits(ticker_obj, sym: str, today: date) -> list[dict]:
-    """Extract forward-looking splits from yfinance.splits."""
+def _get_forward_splits(sym: str, today: date) -> list[dict]:
+    """Every forward-dated split. Raises `CorpActionsUnavailable` on a vendor failure."""
+    today_iso = today.isoformat()
     results = []
-    try:
-        splits = ticker_obj.splits
-        if splits is None or splits.empty:
-            return []
-        for ts, ratio_val in splits.items():
-            date_str = _to_date_str(ts)
-            if not date_str:
-                continue
-            try:
-                split_date = date.fromisoformat(date_str)
-            except ValueError:
-                continue
-            if split_date < today:
-                continue
-            # ratio_val is a float (e.g. 4.0 for 4-for-1); express as "N:1"
-            try:
-                r = float(ratio_val)
-                ratio_str = f"{int(r)}:1" if r == int(r) else f"{r}:1"
-            except (ValueError, TypeError):
-                ratio_str = str(ratio_val)
-            results.append({
-                "sym":   sym.upper(),
-                "type":  "split",
-                "date":  date_str,
-                "ratio": ratio_str,
-            })
-    except Exception as exc:
-        _logger.debug("dividends_calendar: splits fetch failed for %s: %s", sym, exc)
+    for row in reference_corp_actions.fetch_ticker_splits(sym, gte=today_iso):
+        date_str = row.get("execution_date")
+        if not date_str or date_str < today_iso:
+            continue
+        r = reference_corp_actions.split_ratio(row.get("split_from"), row.get("split_to"))
+        if r is None:
+            continue
+        results.append({
+            "sym":    sym.upper(),
+            "type":   "split",
+            "date":   date_str,
+            "ratio":  reference_corp_actions.split_ratio_label(r),
+            "source": reference_corp_actions.SOURCE,
+        })
     return results
 
 
@@ -142,7 +108,7 @@ def get_events(syms: list[str]) -> list[dict]:
         return []
 
     # Cap at 200 to prevent a large My-Stocks set from hanging the request
-    # with sequential yfinance fetches (each ~1s).
+    # (two Massive reads per symbol).
     clean_syms = clean_syms[:200]
 
     cache_key = _syms_cache_key(clean_syms)
@@ -153,40 +119,30 @@ def get_events(syms: list[str]) -> list[dict]:
     today = date.today()
     results: list[dict] = []
 
-    # Import inside function to allow easy mocking in tests
-    try:
-        import yfinance as yf
-    except ImportError:
-        _logger.warning("dividends_calendar: yfinance not installed")
-        cache.set(cache_key, [], ttl=_CACHE_TTL)
-        return []
-
-    # Parallelize + hard-deadline the per-symbol yfinance work. Sequentially this
-    # was up to 200 × ~1s (tens of seconds) and a hung yfinance call had no
-    # timeout — it could pin the request forever. An 8-wide pool + a 25s total
+    # Parallelize + hard-deadline the per-symbol vendor work. Sequentially this
+    # was up to 200 x ~1s (tens of seconds). An 8-wide pool + a 25s total
     # deadline + non-blocking shutdown keeps the request bounded. (2026-07-01)
     from concurrent.futures import ThreadPoolExecutor
     import time as _time
 
-    def _one(sym: str) -> list[dict]:
-        # The whole per-symbol yfinance body goes through the shared guard, not
-        # just `yf.Ticker(sym)` — constructing a Ticker makes no request; the
-        # network happens when `_get_forward_dividend` / `_get_forward_splits`
-        # touch `.dividends` / `.splits` / `.calendar`. Guarding the constructor
-        # alone would be a gate that cannot fail.
-        def _work() -> list[dict]:
-            out: list[dict] = []
-            try:
-                ticker = yf.Ticker(sym)
-                div_event = _get_forward_dividend(ticker, sym, today)
-                if div_event:
-                    out.append(div_event)
-                out.extend(_get_forward_splits(ticker, sym, today))
-            except Exception as exc:
-                _logger.debug("dividends_calendar: error processing %s: %s", sym, exc)
-            return out
-
-        return yf_util.bounded_call(_work, []) or []
+    def _one(sym: str) -> tuple[list[dict], bool]:
+        """(events, answered). `answered` is False when either Massive read
+        failed -- that symbol's missing events are UNKNOWN, not absent."""
+        out: list[dict] = []
+        answered = True
+        try:
+            div_event = _get_forward_dividend(sym, today)
+            if div_event:
+                out.append(div_event)
+        except reference_corp_actions.CorpActionsUnavailable as exc:
+            answered = False
+            _logger.warning("dividends_calendar: Massive dividends unavailable for %s: %s", sym, exc)
+        try:
+            out.extend(_get_forward_splits(sym, today))
+        except reference_corp_actions.CorpActionsUnavailable as exc:
+            answered = False
+            _logger.warning("dividends_calendar: Massive splits unavailable for %s: %s", sym, exc)
+        return out, answered
 
     ex = ThreadPoolExecutor(max_workers=8, thread_name_prefix="div-cal")
     futures = [ex.submit(_one, s) for s in clean_syms]
@@ -194,8 +150,10 @@ def get_events(syms: list[str]) -> list[dict]:
     completed = 0
     for fut in futures:
         try:
-            results.extend(fut.result(timeout=max(0.0, deadline - _time.monotonic())))
-            completed += 1
+            events, answered = fut.result(timeout=max(0.0, deadline - _time.monotonic()))
+            results.extend(events)
+            if answered:
+                completed += 1
         except Exception:
             pass
     ex.shutdown(wait=False, cancel_futures=True)
@@ -216,10 +174,11 @@ def get_events(syms: list[str]) -> list[dict]:
         event["entity"] = _entity_by_sym[sym]
 
     # The 25s deadline shed above is correct (bounds the request path against
-    # a hung yfinance call) -- but caching the SHED result at the 12h success
+    # a hung vendor call) -- but caching the SHED result at the 12h success
     # TTL is not: the missing symbols' events are indistinguishable from
-    # "pays no dividend, no splits." `completed < len(futures)` is the exact
-    # per-leg signal (every symbol either finished or timed out), not a
+    # "pays no dividend, no splits." The same holds for a symbol whose Massive
+    # read FAILED (TERM-036). `completed < len(futures)` is the exact
+    # per-leg signal (every symbol either answered, failed or timed out), not a
     # truthiness check on `results` (a fully-completed but genuinely
     # dividend-free batch must still get the full TTL).
     set_by_completeness(

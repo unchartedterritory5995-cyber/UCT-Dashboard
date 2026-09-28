@@ -1,7 +1,13 @@
-"""Tests for api/services/dividends_calendar.py + GET /api/calendar/dividends endpoint."""
+"""Tests for api/services/dividends_calendar.py + GET /api/calendar/dividends endpoint.
+
+TERM-036 (2026-09-27): the feed reads Massive reference data through
+`reference_corp_actions`, not yfinance. The vendor is faked at the adapter
+boundary (`massive._get_client`) so the URL build and the parse both run and no
+test touches the network.
+"""
 import concurrent.futures
 import time
-from datetime import date
+from datetime import date, timedelta
 from unittest import mock
 
 import pytest
@@ -12,199 +18,139 @@ client = TestClient(app)
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _make_mock_ticker(calendar=None, dividends=None, splits=None):
-    """Build a minimal mock yfinance.Ticker object."""
-    import pandas as pd
+def _day(offset: int) -> str:
+    return (date.today() + timedelta(days=offset)).isoformat()
 
-    m = mock.MagicMock()
 
-    # .calendar — dict or None
-    m.calendar = calendar
+class _FakeMassive:
+    """Answers /v3/reference/{dividends,splits} per ticker from fixtures."""
+    _api_key = "k"
 
-    # .dividends — pd.Series with DatetimeIndex (tz-aware, ET) or empty Series
-    if dividends is not None:
-        m.dividends = dividends
-    else:
-        m.dividends = pd.Series([], dtype=float)
+    def __init__(self, dividends=None, splits=None, fail=()):
+        self.dividends = dividends or {}
+        self.splits = splits or {}
+        self.fail = set(fail)
+        self.urls = []
 
-    # .splits — pd.Series with DatetimeIndex or empty Series
-    if splits is not None:
-        m.splits = splits
-    else:
-        m.splits = pd.Series([], dtype=float)
+    def _get(self, url, timeout=None):
+        from urllib.parse import urlparse, parse_qs
+        self.urls.append(url)
+        tk = (parse_qs(urlparse(url).query).get("ticker") or [""])[0]
+        if tk in self.fail:
+            raise RuntimeError("HTTP 503")
+        if "/v3/reference/dividends" in url:
+            return {"results": list(self.dividends.get(tk, []))}
+        if "/v3/reference/splits" in url:
+            return {"results": list(self.splits.get(tk, []))}
+        raise AssertionError(url)
 
-    return m
+
+def _patch_massive(fake):
+    return mock.patch("api.services.massive._get_client", return_value=fake)
+
+
+def _div(sym, ex, cash):
+    return {"ticker": sym, "ex_dividend_date": ex, "cash_amount": cash}
+
+
+def _split(sym, ex, frm, to):
+    return {"ticker": sym, "execution_date": ex, "split_from": frm, "split_to": to}
+
+
+def _no_cache():
+    return (mock.patch("api.services.dividends_calendar.cache.get", return_value=None),
+            mock.patch("api.services.dividends_calendar.cache.set"))
 
 
 # ── Service-level tests ────────────────────────────────────────────────────────
 
 class TestGetEventsService:
+    def _run(self, fake, syms):
+        from api.services.dividends_calendar import get_events
+        g, s = _no_cache()
+        with g, s, _patch_massive(fake):
+            return get_events(syms)
+
     def test_returns_empty_for_no_syms(self):
         from api.services.dividends_calendar import get_events
-        result = get_events([])
-        assert result == []
+        assert get_events([]) == []
 
     def test_forward_dividend_included(self):
-        """A ticker with an ex-div date in the future should appear as a dividend event."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
-
-        future_ex = date(2099, 12, 31)  # guaranteed future
-        mock_ticker = _make_mock_ticker(
-            calendar={"Ex-Dividend Date": future_ex},
-            dividends=pd.Series([0.27], dtype=float),  # most recent dividend amount
-        )
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["AAPL"])
-
+        """A ticker with a declared future ex-date appears as a dividend event."""
+        result = self._run(_FakeMassive(dividends={"AAPL": [_div("AAPL", "2099-12-31", 0.27)]}),
+                           ["AAPL"])
         assert len(result) == 1
         ev = result[0]
         assert ev["sym"] == "AAPL"
         assert ev["type"] == "dividend"
         assert ev["date"] == "2099-12-31"
         assert ev["amount"] == pytest.approx(0.27)
+        assert ev["source"] == "massive"
 
     def test_past_dividend_excluded(self):
-        """An ex-div date in the past should not appear."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
+        """An ex-date in the past does not appear (defensive client-side filter too)."""
+        result = self._run(_FakeMassive(dividends={"AAPL": [_div("AAPL", "2000-01-01", 0.25)]}),
+                           ["AAPL"])
+        assert [e for e in result if e["type"] == "dividend"] == []
 
-        past_ex = date(2000, 1, 1)  # guaranteed past
-        mock_ticker = _make_mock_ticker(
-            calendar={"Ex-Dividend Date": past_ex},
-            dividends=pd.Series([0.25], dtype=float),
-        )
+    def test_only_the_NEXT_forward_dividend_is_emitted(self):
+        """Massive can return several declared ex-dates; the feed keeps its
+        one-next-dividend-per-symbol shape."""
+        fake = _FakeMassive(dividends={"KO": [_div("KO", _day(10), 0.51),
+                                              _div("KO", _day(100), 0.53)]})
+        result = self._run(fake, ["KO"])
+        assert [(e["date"], e["amount"]) for e in result] == [(_day(10), 0.51)]
 
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["AAPL"])
-
-        dividend_events = [e for e in result if e["type"] == "dividend"]
-        assert dividend_events == []
-
-    def test_no_calendar_key_produces_no_dividend(self):
-        """If ticker.calendar has no Ex-Dividend Date, no dividend event emitted."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
-
-        mock_ticker = _make_mock_ticker(calendar={"Earnings Date": [date(2026, 7, 30)]})
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["NVDA"])
-
-        dividend_events = [e for e in result if e["type"] == "dividend"]
-        assert dividend_events == []
+    def test_no_dividend_rows_produces_no_dividend(self):
+        result = self._run(_FakeMassive(), ["NVDA"])
+        assert [e for e in result if e["type"] == "dividend"] == []
 
     def test_forward_split_included(self):
-        """A split with a future date should appear as a split event."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
-
-        # pandas Timestamp for a future date (tz-aware like yfinance returns)
-        future_ts = pd.Timestamp("2099-12-01", tz="America/New_York")
-        splits_series = pd.Series([4.0], index=pd.DatetimeIndex([future_ts]))
-
-        mock_ticker = _make_mock_ticker(calendar={}, splits=splits_series)
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["TSLA"])
-
+        """A split with a future execution date appears as a split event."""
+        result = self._run(_FakeMassive(splits={"TSLA": [_split("TSLA", "2099-12-01", 1, 4)]}),
+                           ["TSLA"])
         split_events = [e for e in result if e["type"] == "split"]
         assert len(split_events) == 1
         ev = split_events[0]
         assert ev["sym"] == "TSLA"
-        assert ev["type"] == "split"
         assert ev["date"] == "2099-12-01"
         assert ev["ratio"] == "4:1"
+        assert ev["source"] == "massive"
+
+    def test_reverse_split_reads_one_for_n(self):
+        result = self._run(_FakeMassive(splits={"XYZ": [_split("XYZ", "2099-12-01", 10, 1)]}),
+                           ["XYZ"])
+        assert [e["ratio"] for e in result] == ["1:10"]
 
     def test_past_split_excluded(self):
-        """A split with a past date should not appear."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
+        result = self._run(_FakeMassive(splits={"AAPL": [_split("AAPL", "2020-08-31", 1, 4)]}),
+                           ["AAPL"])
+        assert [e for e in result if e["type"] == "split"] == []
 
-        past_ts = pd.Timestamp("2020-08-31", tz="America/New_York")
-        splits_series = pd.Series([4.0], index=pd.DatetimeIndex([past_ts]))
-
-        mock_ticker = _make_mock_ticker(calendar={}, splits=splits_series)
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["AAPL"])
-
-        split_events = [e for e in result if e["type"] == "split"]
-        assert split_events == []
-
-    def test_cached_result_returned_without_yfinance(self):
-        """When cache is warm, yfinance.Ticker should not be called."""
+    def test_cached_result_returned_without_calling_massive(self):
         from api.services.dividends_calendar import get_events
         cached = [{"sym": "AAPL", "type": "dividend", "date": "2099-12-31", "amount": 0.27}]
-
+        fake = _FakeMassive()
         with mock.patch("api.services.dividends_calendar.cache.get", return_value=cached), \
-             mock.patch("yfinance.Ticker") as mock_yf:
+             _patch_massive(fake):
             result = get_events(["AAPL"])
-
-        mock_yf.assert_not_called()
+        assert fake.urls == []
         assert result == cached
 
     def test_empty_safe_when_all_fails(self):
-        """If yfinance raises for every sym, returns []."""
-        from api.services.dividends_calendar import get_events
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", side_effect=RuntimeError("network error")):
-            result = get_events(["AAPL", "NVDA"])
-
-        assert result == []
+        """Massive failing for every sym returns [] and never raises."""
+        assert self._run(_FakeMassive(fail={"AAPL", "NVDA"}), ["AAPL", "NVDA"]) == []
 
     def test_multiple_syms_merged(self):
         """Events from multiple tickers are all returned, sorted by date."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
+        fake = _FakeMassive(dividends={"AAPL": [_div("AAPL", "2099-12-01", 0.27)],
+                                       "MSFT": [_div("MSFT", "2099-11-15", 0.65)]})
+        result = self._run(fake, ["AAPL", "MSFT"])
+        assert [e["sym"] for e in result] == ["MSFT", "AAPL"]
 
-        def make_ticker(sym):
-            future_ex = date(2099, 12, 1) if sym == "AAPL" else date(2099, 11, 15)
-            return _make_mock_ticker(
-                calendar={"Ex-Dividend Date": future_ex},
-                dividends=pd.Series([0.27 if sym == "AAPL" else 0.65], dtype=float),
-            )
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", side_effect=lambda sym: make_ticker(sym)):
-            result = get_events(["AAPL", "MSFT"])
-
-        # Should get 2 dividend events; sorted → MSFT (Nov) before AAPL (Dec)
-        assert len(result) == 2
-        assert result[0]["sym"] == "MSFT"
-        assert result[1]["sym"] == "AAPL"
-
-    def test_event_fields_null_safe_no_dividends_series(self):
-        """When .dividends raises, amount is None (not a crash)."""
-        import pandas as pd
-        from api.services.dividends_calendar import get_events
-
-        future_ex = date(2099, 12, 31)
-        mock_ticker = _make_mock_ticker(
-            calendar={"Ex-Dividend Date": future_ex},
-        )
-        # Make .dividends raise
-        type(mock_ticker).dividends = mock.PropertyMock(side_effect=RuntimeError)
-
-        with mock.patch("api.services.dividends_calendar.cache.get", return_value=None), \
-             mock.patch("api.services.dividends_calendar.cache.set"), \
-             mock.patch("yfinance.Ticker", return_value=mock_ticker):
-            result = get_events(["AAPL"])
-
+    def test_unparseable_cash_amount_is_None_not_a_crash(self):
+        result = self._run(_FakeMassive(dividends={"AAPL": [_div("AAPL", "2099-12-31", "n/a")]}),
+                           ["AAPL"])
         assert len(result) == 1
         assert result[0]["amount"] is None
 
@@ -212,7 +158,7 @@ class TestGetEventsService:
 # ── Deadline-shed completeness (data-dependability C10) ────────────────────────
 #
 # The 25s deadline shed in get_events is correct (bounds the request path
-# against a hung yfinance call) -- caching the SHED result at the 12h success
+# against a hung vendor call) -- caching the SHED result at the 12h success
 # TTL is not: the missing symbols' events become indistinguishable from
 # "pays no dividend, no splits." A deterministic FakeExecutor stands in for
 # ThreadPoolExecutor so the test proves the `completed < len(futures)`
@@ -248,32 +194,22 @@ class _FakeExecutor:
 class TestDeadlineShedCompleteness:
     def setup_method(self):
         from api.services.dividends_calendar import _syms_cache_key
-        # Clear any real cache entries these keys might collide with.
         from api.services.cache import cache as _cache
-        _cache.invalidate(_syms_cache_key(["AAPL"]))
-        _cache.invalidate(_syms_cache_key(["AAPL", "MSFT"]))
+        for syms in (["AAPL"], ["AAPL", "MSFT"], ["NFLX"]):
+            _cache.invalidate(_syms_cache_key(syms))
 
     def _run_with_shed(self, syms, slow_syms):
-        import pandas as pd
         from api.services import dividends_calendar as dc
-
-        future_ex = date(2099, 12, 31)
-
-        def _mk_ticker(sym):
-            return _make_mock_ticker(
-                calendar={"Ex-Dividend Date": future_ex},
-                dividends=pd.Series([1.0], dtype=float),
-            )
-
-        with mock.patch("yfinance.Ticker", side_effect=lambda s: _mk_ticker(s)), \
+        fake = _FakeMassive(dividends={s: [_div(s, "2099-12-31", 1.0)] for s in syms})
+        with _patch_massive(fake), \
              mock.patch("concurrent.futures.ThreadPoolExecutor",
-                       lambda *a, **kw: _FakeExecutor(slow_syms)):
+                        lambda *a, **kw: _FakeExecutor(slow_syms)):
             return dc.get_events(syms)
 
     def test_shed_symbol_gets_short_ttl_and_result_still_served(self):
         """One symbol times out (shed by the 25s deadline). The OTHER
-        symbol's real result is still served (a partial is worth serving),
-        but the cache write must use the short partial TTL, not the 12h one."""
+        symbol's real result is still served, but the cache write uses the
+        short partial TTL, not the 12h one."""
         from api.services.dividends_calendar import (
             _syms_cache_key, _CACHE_TTL, _CACHE_TTL_PARTIAL,
         )
@@ -281,52 +217,42 @@ class TestDeadlineShedCompleteness:
 
         result = self._run_with_shed(["AAPL", "MSFT"], slow_syms={"MSFT"})
 
-        # The completed symbol's dividend is still in the served result.
         assert any(e["sym"] == "AAPL" for e in result)
         # The shed symbol's absence must not look like "verified no dividend."
         assert not any(e["sym"] == "MSFT" for e in result)
 
-        key = _syms_cache_key(["AAPL", "MSFT"])
-        _, expires_at = _cache._store[key]
+        _, expires_at = _cache._store[_syms_cache_key(["AAPL", "MSFT"])]
         ttl_remaining = expires_at - time.time()
         assert ttl_remaining <= _CACHE_TTL_PARTIAL + 5
-        assert ttl_remaining < _CACHE_TTL  # never the full 12h
+        assert ttl_remaining < _CACHE_TTL
 
     def test_all_completed_gets_full_ttl(self):
-        """Control: nothing shed -> the normal 12h success TTL applies, even
-        though the completeness predicate changed."""
+        """Control: nothing shed -> the normal 12h success TTL applies."""
         from api.services.dividends_calendar import _syms_cache_key, _CACHE_TTL
         from api.services.cache import cache as _cache
 
         result = self._run_with_shed(["AAPL"], slow_syms=set())
 
         assert any(e["sym"] == "AAPL" for e in result)
-        key = _syms_cache_key(["AAPL"])
-        _, expires_at = _cache._store[key]
-        ttl_remaining = expires_at - time.time()
-        assert ttl_remaining > _CACHE_TTL - 5  # ~12h, not the short partial one
+        _, expires_at = _cache._store[_syms_cache_key(["AAPL"])]
+        assert expires_at - time.time() > _CACHE_TTL - 5
 
     def test_all_completed_but_genuinely_empty_still_gets_full_ttl(self):
-        """A fully-completed batch that legitimately has no dividends/splits
-        is NOT a failure -- it must still get the long TTL (this is the
-        honest-emptiness-vs-failure distinction, not a truthiness check)."""
+        """A fully-answered batch that legitimately has no dividends/splits
+        is NOT a failure -- it still gets the long TTL (honest emptiness vs
+        failure, not a truthiness check)."""
         from api.services.dividends_calendar import _syms_cache_key, _CACHE_TTL
         from api.services.cache import cache as _cache
-        import pandas as pd
         from api.services import dividends_calendar as dc
 
-        empty_ticker = _make_mock_ticker(calendar={})  # no Ex-Dividend Date, no splits
-
-        with mock.patch("yfinance.Ticker", return_value=empty_ticker), \
+        with _patch_massive(_FakeMassive()), \
              mock.patch("concurrent.futures.ThreadPoolExecutor",
-                       lambda *a, **kw: _FakeExecutor(set())):
+                        lambda *a, **kw: _FakeExecutor(set())):
             result = dc.get_events(["NFLX"])
 
         assert result == []
-        key = _syms_cache_key(["NFLX"])
-        _, expires_at = _cache._store[key]
-        ttl_remaining = expires_at - time.time()
-        assert ttl_remaining > _CACHE_TTL - 5
+        _, expires_at = _cache._store[_syms_cache_key(["NFLX"])]
+        assert expires_at - time.time() > _CACHE_TTL - 5
 
 
 # ── Endpoint tests ─────────────────────────────────────────────────────────────

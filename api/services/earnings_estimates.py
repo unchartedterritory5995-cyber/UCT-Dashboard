@@ -39,8 +39,9 @@ _MARKERS_REFRESH_SECONDS = 24 * 3600
 # Bump when the marker BUILD logic changes so stale disk copies are rebuilt instead
 # of served forever. v2 = splits/dividends sourced from yfinance (were empty under
 # Finnhub's premium-gated endpoints). v3 = adds the forward "estimate" row (the upcoming-
-# earnings grey marker), which pre-v3 blobs lack.
-_MARKERS_DISK_VERSION = 3
+# earnings grey marker), which pre-v3 blobs lack. v4 = TERM-036: splits/dividends from
+# Massive reference data (source-stamped), so no yfinance-sourced value outlives the swap.
+_MARKERS_DISK_VERSION = 4
 _MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
 _markers_refresh_inflight: set[str] = set()
 _markers_refresh_lock = threading.Lock()
@@ -55,8 +56,8 @@ def _markers_disk_read(ticker: str):
     try:
         with open(_markers_disk_path(ticker)) as f:
             blob = _json.load(f)
-        # Version gate: a pre-v2 blob has empty splits/dividends (old Finnhub
-        # source) — ignore it so get_chart_markers rebuilds from yfinance.
+        # Version gate: a blob from an older build (empty Finnhub splits, then
+        # yfinance-sourced corporate actions) is ignored so it gets rebuilt.
         if int(blob.get("v") or 0) != _MARKERS_DISK_VERSION:
             return None
         data = blob.get("data")
@@ -1026,36 +1027,6 @@ def get_chart_markers(ticker: str) -> dict:
     return result
 
 
-def _ts_date(ts) -> str | None:
-    """A pandas Timestamp / date → 'YYYY-MM-DD' (None on failure)."""
-    try:
-        if hasattr(ts, "date"):
-            return ts.date().strftime("%Y-%m-%d")
-        return str(ts)[:10]
-    except Exception:
-        return None
-
-
-def _yf_corporate_actions(ticker: str):
-    """Return (splits, dividends) as lists of (YYYY-MM-DD, value) tuples from
-    yfinance's corporate-action series — split ratio float / dividend amount.
-    Network-bound: call via yf_util.bounded_call. Returns ([], []) if empty."""
-    import yfinance as yf
-    t = yf.Ticker(ticker)
-
-    def _pairs(series):
-        out = []
-        if series is None or getattr(series, "empty", True):
-            return out
-        for ts, val in series.items():
-            ds = _ts_date(ts)
-            if ds is not None:
-                out.append((ds, val))
-        return out
-
-    return _pairs(t.splits), _pairs(t.dividends)
-
-
 def _build_chart_markers(ticker: str) -> dict:
     """Fetch + assemble the markers blob (earnings history + fiscal-quarter join +
     splits + dividends). Wrapped by get_chart_markers' memory + disk cache layers.
@@ -1201,46 +1172,48 @@ def _build_chart_markers(ticker: str) -> dict:
         except Exception as exc:
             _logger.warning("get_chart_markers quarter-join failed for %s: %s", ticker, exc)
 
-    # ── Stock splits + dividends (yfinance corporate actions) ─────────────────
-    # Finnhub's /stock/split + /stock/dividend are premium and return empty on
-    # this tier, so the toggles rendered nothing. yfinance's actions series carry
-    # full split-adjusted history and cost nothing — the same source
-    # dividends_calendar.py uses. One bounded fetch feeds both.
-    try:
-        # `yf_util` is already imported at module scope — import the MODULE,
-        # never the function (lesson_from_import_severs_a_module_from_its_guards).
-        yf_splits, yf_divs = yf_util.bounded_call(
-            lambda: _yf_corporate_actions(ticker), ([], []), timeout=12.0)
+    # ── Stock splits + dividends (Massive reference data) ─────────────────────
+    # TERM-036 (FB-D5-02): read from Massive's /v3/reference/{splits,dividends}
+    # through `reference_corp_actions`, the one owned wrapper around that feed —
+    # the one Massive class already cleared for external publication. It was
+    # yfinance (an explicit risk acceptance, D-004: Yahoo sells no licence).
+    # Finnhub's /stock/split + /stock/dividend are premium and empty on this tier.
+    # Each read is guarded on its own so one failing leaves the other's markers,
+    # and a Massive failure is LOGGED, never silently rendered as "no splits".
+    from api.services import reference_corp_actions
 
-        # Splits — deep lookback (rare + highly relevant on a since-inception chart).
-        for date_str, ratio_val in yf_splits:
+    # Splits — deep lookback (rare + highly relevant on a since-inception chart).
+    try:
+        for row in reference_corp_actions.fetch_ticker_splits(
+                ticker, gte=splits_from_date, lte=to_date):
+            date_str = row.get("execution_date")
             if not date_str or date_str < splits_from_date:
                 continue
-            try:
-                r = float(ratio_val)
-            except (TypeError, ValueError):
+            r = reference_corp_actions.split_ratio(row.get("split_from"), row.get("split_to"))
+            if r is None:
                 continue
-            if r <= 0:
-                continue
-            # yfinance ratio is a float: 4.0 = 4-for-1, 0.5 = 1-for-2 reverse.
-            if r >= 1:
-                ratio_str = f"{int(r)}:1" if r == int(r) else f"{round(r, 2)}:1"
-            else:
-                inv = 1.0 / r
-                ratio_str = f"1:{int(inv)}" if inv == int(inv) else f"1:{round(inv, 2)}"
+            # r is shares-after per share-before: 4.0 = 4-for-1, 0.5 = 1-for-2 reverse.
             result["splits"].append({
                 "date": date_str,
-                "ratio": ratio_str,
+                "ratio": reference_corp_actions.split_ratio_label(r),
                 "from_factor": 1,
                 "to_factor": r,
+                "source": reference_corp_actions.SOURCE,
             })
+    except reference_corp_actions.CorpActionsUnavailable as exc:
+        _logger.warning("get_chart_markers: Massive splits unavailable for %s: %s", ticker, exc)
+    except Exception as exc:
+        _logger.warning("get_chart_markers splits failed for %s: %s", ticker, exc)
 
-        # Dividends — 5-year lookback (a full history would clutter with 100+ ex-dates).
-        for date_str, amount in yf_divs:
+    # Dividends — 5-year lookback (a full history would clutter with 100+ ex-dates).
+    try:
+        for row in reference_corp_actions.fetch_ticker_dividends(
+                ticker, gte=from_date, lte=to_date):
+            date_str = row.get("ex_dividend_date")
             if not date_str or date_str < from_date:
                 continue
             try:
-                amount_f = float(amount)
+                amount_f = float(row.get("cash_amount"))
             except (TypeError, ValueError):
                 continue
             if amount_f <= 0:
@@ -1248,8 +1221,11 @@ def _build_chart_markers(ticker: str) -> dict:
             result["dividends"].append({
                 "date": date_str,
                 "amount": amount_f,
+                "source": reference_corp_actions.SOURCE,
             })
+    except reference_corp_actions.CorpActionsUnavailable as exc:
+        _logger.warning("get_chart_markers: Massive dividends unavailable for %s: %s", ticker, exc)
     except Exception as exc:
-        _logger.warning("get_chart_markers splits/dividends failed for %s: %s", ticker, exc)
+        _logger.warning("get_chart_markers dividends failed for %s: %s", ticker, exc)
 
     return result

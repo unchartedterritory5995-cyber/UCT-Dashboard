@@ -126,7 +126,11 @@ REGISTER: dict[tuple, tuple] = {
         MIGRATED,
         "D5 CP3 — the one confirmed splits source. Massive /v3/reference/"
         "splits, its own pagination, writes confirmed_splits rows. Nothing "
-        "reads the ledger yet (CP4/CP7 are the readers)."),
+        "reads the ledger yet (CP4/CP7 are the readers). TERM-036 "
+        "(2026-09-27) added per-ticker /v3/reference/splits and "
+        "/v3/reference/dividends reads here — no table — which "
+        "dividends_calendar.py and earnings_estimates.py now call instead of "
+        "yfinance."),
     ("api/services/polygon_extras.py", PROVIDER_READ): (
         OUTSIDE,
         "Massive /v3/reference/splits AND /v3/reference/dividends — the only "
@@ -144,26 +148,14 @@ REGISTER: dict[tuple, tuple] = {
         "change; product-architecture.md already calls it its own project. D5 "
         "makes the divergence nameable and does not get to resolve it."),
 
-    # ⛔ THE TWO THE DETECTOR MISSED UNTIL THE 2026-09-24 ROADMAP
-    # RE-VERIFICATION PASS. Neither has a URL for `_PROVIDER_URL_RX` to see —
-    # both read a yfinance Ticker's own attribute surface — so both were
-    # invisible to CP1's census from 2026-09-12 through today, a third blind
-    # spot of the exact same shape the register's own history already names
-    # twice (URL-only, then kwarg-only). `_yf_ticker_attr_sites` closes it.
-    ("api/services/dividends_calendar.py", PROVIDER_READ): (
-        OUTSTANDING,
-        "yfinance .dividends / .splits / .calendar — the Calendar page's "
-        "forward-looking dividend+split display feed. Named in the gate "
-        "PRD's own provider table (reference-corp-actions-prd.md row 5: "
-        "'REPLACE the read') but never registered here, because a Ticker "
-        "attribute access is not a URL."),
-    ("api/services/earnings_estimates.py", PROVIDER_READ): (
-        OUTSTANDING,
-        "yfinance .splits / .dividends, read by _yf_corporate_actions() to "
-        "build a chart's split/dividend markers — a SIXTH corporate-action "
-        "feed the gate PRD's own §2.1 five-provider table never enumerated "
-        "at all (same blind spot as dividends_calendar.py above, in a "
-        "different module)."),
+    # ⚰️ TERM-036 (2026-09-27) RETIRED TWO OUTSTANDING ROWS HERE:
+    # `api/services/dividends_calendar.py` (the Calendar's forward
+    # dividend+split feed) and `api/services/earnings_estimates.py` (the chart
+    # "S"/"D" markers) both read a yfinance Ticker's `.dividends` / `.splits` /
+    # `.calendar` — found by `_yf_ticker_attr_sites` in the 2026-09-24 re-
+    # verification pass. Both now call `reference_corp_actions` (row above),
+    # so neither produces a PROVIDER_READ row any more and keeping them would
+    # be the phantom the rail below refuses.
 
     # ── ADJUSTMENT_APPLIED ───────────────────────────────────────────────────
     ("api/services/bars_sanitize.py", ADJUSTMENT_APPLIED): (
