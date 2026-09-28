@@ -5207,6 +5207,12 @@ export class Resolver {
      *  working unchanged. ⛔ It is a FUNCTION rather than an array, so one
      *  resolver cannot accidentally share another's note list. */
     this.noteSink = typeof opts.noteSink === 'function' ? opts.noteSink : () => {}
+    /** ⭐ AN OBSERVER OF EVERY BOOL CONTEXT THIS RESOLVER MEETS — `null` for every
+     *  shipped caller. It exists so `boolContext.measure.test.js` can DERIVE the
+     *  census of numeric-in-a-condition sites from the translator's own decision
+     *  instead of re-reading the source with a second typer. It sees; it never
+     *  steers — the tree is identical whether or not it is set. */
+    this.onCondition = typeof opts.onCondition === 'function' ? opts.onCondition : null
     /** ⭐⭐ THE BARS THIS TRANSLATION IS FOR. `interpret.js`'s 2026-09-01 ruling on
      *  `D` ends: *"what would unblock this is a BASE, not a bucketing rule"*. This is
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
@@ -6638,6 +6644,21 @@ export class Resolver {
     return null
   }
 
+  /** A resolved tree about to be read as a condition → the tree Pine's version
+   *  reads there. See `implicitBoolCast` for the rule and its evidence status.
+   *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
+  condition(tree, site, tok) {
+    const out = implicitBoolCast(tree, this.pineVersion, this.table)
+    if (this.onCondition) {
+      const at = locate(tok)
+      this.onCondition({
+        site, kind: out.kind, cast: out.cast, version: this.pineVersion,
+        line: at && at.line, column: at && at.column, tree,
+      })
+    }
+    return out.tree
+  }
+
   resolve(node) {
     this.checkBudget(node && node.tok)
     switch (node.type) {
@@ -6661,7 +6682,9 @@ export class Resolver {
       }
       case 'unary': {
         const inner = this.resolve(node.arg)
-        return cOp(node.op === 'not' ? '!' : 'u-', [inner])
+        // ⭐ `not` IS A BOOL CONTEXT — see `implicitBoolCast`. `-x` is not.
+        if (node.op === 'not') return cOp('!', [this.condition(inner, 'not', node.tok)])
+        return cOp('u-', [inner])
       }
       case 'binary': {
         // ⭐⭐ A COMPARISON CAN BOUND WHAT ITS OPERAND CANNOT — and like the
@@ -6803,17 +6826,23 @@ export class Resolver {
         // Left-to-right refusal reporting is worth more than that spelling.
         const annihilator = logicalAnnihilator(mapped)
         if (annihilator !== null) {
-          const decidedBy = this.resolve(node.left)
+          // ⭐ BOTH OPERANDS OF `and`/`or` ARE BOOL CONTEXTS (`implicitBoolCast`).
+          // The left one is cast BEFORE the annihilator check, so `5 or x` —
+          // true in v5 — short-circuits exactly as `true or x` does.
+          const decidedBy = this.condition(this.resolve(node.left), node.op, node.tok)
           if (decidedBy.type === 'num' && decidedBy.value === annihilator) {
             return cNum(annihilator)
           }
-          return foldLogicalIdentity(mapped, decidedBy, this.resolve(node.right), this.table)
+          return foldLogicalIdentity(mapped, decidedBy,
+            this.condition(this.resolve(node.right), node.op, node.tok), this.table)
         }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
       }
       case 'ternary': {
-        const test = this.resolve(node.test)
+        // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
+        // one cast covers `c ? a : b`, `if c`, and `else if c`.
+        const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
         // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
         // the same rule as "a statement no output reaches is a note": refusing a
         // script over an arm its own folded input makes unreachable would be
@@ -8768,6 +8797,9 @@ export class Resolver {
       // this line" rather than "the expansion is broken", and sent me looking at
       // the script template instead of at this expression.
       const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      // ⭐ `iff`'s first argument is its CONDITION — the same bool context as
+      // the `?:` it expands to (`implicitBoolCast`), so it takes the same cast.
+      if (bare === 'iff' && built.length === 3) built[0] = this.condition(built[0], 'iff', tok)
       if (bare === 'roc' && (built.length !== 2 || built[1].type !== 'num')) {
         throw new PineRefusal('pine:window',
           `\`${pineName}\` needs a written whole-number length`, locate(tok))
@@ -9381,6 +9413,20 @@ export class Resolver {
         }
       }
       out.push(resolved)
+    }
+    // ⭐⭐ AN ARGUMENT WHOSE DECLARED ROLE IS A CONDITION IS A BOOL CONTEXT TOO.
+    // `closedTable._functions_arg_role_kinds` declares which roles demand a 0/1
+    // column (`condition` → `bool`) and `interpret.js::assertArgRoles` REFUSES a
+    // numeric one — so `ta.valuewhen(ph, …)` with `ph` a pivot translated, attached,
+    // and then threw at evaluation. Under v5 that numeric IS a condition by the
+    // implicit cast, so the same `implicitBoolCast` makes it one here; the kinds are
+    // read off the table, never listed, so a second role is covered the day it lands.
+    const roles = this.table.functions[key] && this.table.functions[key].argRoles
+    if (Array.isArray(roles)) {
+      const kinds = this.table._functions_arg_role_kinds || {}
+      for (let i = 0; i < roles.length && i < out.length; i += 1) {
+        if (kinds[roles[i]] === 'bool' && out[i]) out[i] = this.condition(out[i], `arg:${roles[i]}`, tok)
+      }
     }
     return cCall(key, out)
   }
@@ -12972,7 +13018,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [live] } : live)
         continue
       }
-      const ast = canonicalOf(node)
+      let ast = canonicalOf(node)
       if (!ast) return undefined
       // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
       //
@@ -12990,6 +13036,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // the guard reader accepts `and`, and `BIN` maps `and` to `&&`. One
       // spelling for one meaning.
       const tok = ast && ast.tok
+      // ⭐ A GUARD IS A BOOL CONTEXT TOO, and the two wrappers below — `!` for
+      // an `else` arm, `&&` for a nested `if` — are exactly where a NUMERIC
+      // guard's `na` used to leak: `if ph … else …` with `ph` a pivot read the
+      // `else` arm as `!na` = `na` = "did not fire", where v5 reads `na` as
+      // false and RUNS the else. Canonical mode only: a raw parse node is the
+      // runtime lane's to lower (`pineRuntimeFrontend`), and casting a node of
+      // the other language here would be the hybrid the paragraph below forbids.
+      if (!rawTrees && ast && (g.negate || guards.length > 1)) {
+        ast = makeResolver().condition(ast, 'guard', tok || (node && node.tok))
+      }
       // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
       // UNCONDITIONALLY, directly under the paragraph that says they must not.
       // The comment described the corrected behaviour and the code did the old
@@ -14588,7 +14644,8 @@ function translatePineResult(source, opts = {}) {
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
         basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
-        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
+        budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,
+        onCondition: opts.onCondition })
     // ⭐ DECLARE MODE IS OPT-IN AND OFF BY DEFAULT, which is what keeps every
     // shipped caller, every committed corpus digest and every saved definition
     // byte-identical. `opts.declareInputs` is `'all'` or a list of bound names.
@@ -15105,7 +15162,8 @@ function translatePineResult(source, opts = {}) {
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
           strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
-          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
+          budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,
+        onCondition: opts.onCondition })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP
       // ABOVE TAKES, and for the identical reason. `declareInputs` is what turns
       // `input.int(5, "Offset")` from a welded literal into an identifier the
@@ -16568,6 +16626,157 @@ function rulesFor(table) {
  *  design; three readers in ONE lane was the defect. */
 export function treeYieldsBool(node, table = TABLE) {
   return yieldsOf(node, rulesFor(table)) === 'bool'
+}
+
+// ─── ⭐⭐ A NUMBER WHERE PINE WANTS A BOOL — the v5 implicit cast ──────────────
+//
+// TradingView's v6 migration guide, verbatim
+// (https://www.tradingview.com/pine-script-docs/migration-guides/to-pine-version-6/):
+//
+//   "In Pine v5, values of "int" and "float" types can be implicitly cast to
+//    "bool" when an expression or function requires a boolean value. In such
+//    cases, `na`, `0`, or `0.0` are considered `false`, and any other value is
+//    considered `true`."
+//   "In v6, scripts must explicitly cast a numeric value to "bool" to use it
+//    where a "bool" type is required."
+//
+// ⛔⛔ WHY THIS IS A WRONG-ANSWER CLASS AND NOT A NICETY. This engine's `&&`,
+// `||`, `!` and `?:` PROPAGATE NaN (`interpret.js`: the {0,1,NaN} domain keeps
+// "not computable yet" apart from "did not happen"). That is right for a BOOL
+// operand and wrong for a NUMERIC one under v5: `OR_t and not(OR_t[1])`, with
+// `OR_t = time(tf, session)` — `na` outside the session — answered `na` on every
+// bar where TradingView answers false, and the opening-range script's
+// `opening := … ? open : opening[1]` never left its seed (0/300 finite on the
+// SPY 60m capture). Non-NaN numbers were already right: `logical` tests
+// `x !== 0`, which is the cast. So the cast only ever changes the `na` bars —
+// which is exactly where the two answers differ.
+//
+// ⭐ THE CAST IS `x != 0`, THE SAME IDENTITY `bool(x)` FOLDS TO (see the `bool`
+// branch in `resolveCall`): `cmp` answers 0 for NaN, so `na`→false, 0→false,
+// anything else→true. No new node type, both lanes already implement `!=`.
+//
+// ⚠️ EVIDENCE STATUS — DOCUMENTED, NOT CAPTURED. No vendor capture under
+// `tests/fixtures/vendor/` exercises a numeric in a bool context; the probe that
+// would settle it is queued in `docs/pine/capture-queue-2026-09-28.md` (Q-B1).
+// ⚠️ v1–v4 ARE INFERRED, NOT QUOTED: the v5 sentence is the only published
+// one, and the v4→v5 migration guide lists no change to it. They take the v5
+// rule; the same probe run as `//@version=4` (Q-B2) is what would confirm it.
+// ⛔ v6 IS UNCHANGED: TradingView refuses to COMPILE a numeric in a bool
+// context there, so a v6 site this door meets is either a script the vendor
+// would not run or a mis-typed operand — never one to cast.
+
+/** Which Pine versions carry the implicit numeric → bool cast. `null` is the
+ *  formula box (our own vocabulary, no Pine semantics) and is never cast. */
+export function implicitBoolCastApplies(pineVersion) {
+  return Number.isFinite(pineVersion) && pineVersion >= 1 && pineVersion <= 5
+}
+
+/** The KIND of values a resolved tree can hold, three-valued:
+ *
+ *    'bool'     provably within {0, 1, NaN}
+ *    'num'      provably a number that can be something else (a price, a
+ *               timestamp, a count, an arithmetic result)
+ *    'unknown'  neither can be shown — `self`, a bare `na`, a name no
+ *               vocabulary declares
+ *
+ *  ⛔⛔ IT FAILS TO `unknown`, NEVER TO `num`, and that is the opposite of
+ *  `yieldsOf`'s floor for a reason. `yieldsOf` answers "may this be SCANNED as a
+ *  condition" and failing closed to `num` costs a member an error message. This
+ *  answers "may the translator CHANGE this operand", and a bool operand
+ *  wrongly cast would turn its warm-up `na` into a confident `false`. So only a
+ *  PROVEN number is cast; `unknown` is left exactly as it was, and counted.
+ *
+ *  ⭐ `accum` IS THE JOIN OF ITS SEED AND ITS BODY with `self` neutral: `var
+ *  opening = 0.0` / `opening := c ? open : opening[1]` holds prices because its
+ *  body can hand back `open`, whatever its seed says; `var bool f = false` /
+ *  `f := c ? true : f` stays within 0/1. A seed of 0 cannot decide it alone —
+ *  `0.0` and `false` are the same literal here. */
+export function conditionKindOf(node, table = TABLE) {
+  const r = rulesFor(table)
+  const selfName = table && table.functions && table.functions.accum
+    && table.functions.accum.recurrence ? table.functions.accum.recurrence.binds : 'self'
+  const NEUTRAL = 'neutral'
+  const join = (kinds) => {
+    const real = kinds.filter((k) => k !== NEUTRAL)
+    if (real.some((k) => k === 'num')) return 'num'
+    if (real.some((k) => k === 'unknown')) return 'unknown'
+    if (real.length && real.every((k) => k === 'bool')) return 'bool'
+    return NEUTRAL
+  }
+  const kindOf = (n, depth) => {
+    if (!n || typeof n !== 'object' || depth > 64) return 'unknown'
+    switch (n.type) {
+      case 'num':
+        if (!Number.isFinite(n.value)) return NEUTRAL
+        return n.value === 0 || n.value === 1 ? 'bool' : 'num'
+      case 'series': {
+        if (n.name === selfName) return NEUTRAL
+        if (own(table && table.series, n.name)) return 'num'
+        const clock = (r && r.clock) || {}
+        if (own(clock, n.name)) return clock[n.name].yields === 'bool' ? 'bool' : 'num'
+        const scalars = (r && r.scalars) || {}
+        if (own(scalars, n.name)) return scalars[n.name].yields === 'bool' ? 'bool' : 'num'
+        return 'unknown'
+      }
+      case 'op': {
+        const args = Array.isArray(n.args) ? n.args : []
+        // ⭐ `na` IS NEUTRAL, NOT A NUMBER: `c ? true : na` is a v5 BOOL.
+        if (isStaticNa(n)) return NEUTRAL
+        if (n.name === 'u-' && args.length === 1 && args[0] && args[0].type === 'num') {
+          return args[0].value === 0 ? 'bool' : 'num'
+        }
+        const ops = (r && r.operators) || {}
+        const declared = own(ops, n.name) ? ops[n.name].yields : null
+        if (declared === 'bool') return 'bool'
+        if (declared === 'num') return 'num'
+        if (declared === 'passthrough') return join(args.slice(1).map((a) => kindOf(a, depth + 1)))
+        return 'unknown'
+      }
+      case 'call': {
+        const args = Array.isArray(n.args) ? n.args : []
+        if (n.name === 'accum' && table && table.functions && table.functions.accum) {
+          const rec = table.functions.accum.recurrence
+          return join([kindOf(args[rec.seed], depth + 1), kindOf(args[rec.body], depth + 1)])
+        }
+        // ⭐ The calls that hand back one of their own arguments.
+        if (n.name === 'nz') return join(args.map((a) => kindOf(a, depth + 1)))
+        if (n.name === 'valuewhen' || n.name === 'valuewhenOccurrence') return kindOf(args[1], depth + 1)
+        const fns = (r && r.functions) || {}
+        if (!own(fns, n.name)) return 'unknown'
+        return fns[n.name].yields === 'bool' ? 'bool' : 'num'
+      }
+      case 'offset':
+      case 'sym':
+      case 'tf':
+      case 'tf_live':
+        return Array.isArray(n.args) && n.args.length === 1 ? kindOf(n.args[0], depth + 1) : 'unknown'
+      case 'textop':
+        return 'bool'
+      default:
+        return 'unknown'
+    }
+  }
+  const k = kindOf(node, 0)
+  return k === NEUTRAL ? 'unknown' : k
+}
+
+/** A tree in a BOOL CONTEXT → the tree Pine's version would evaluate there.
+ *
+ *  Returns `{ tree, kind, cast }`. `cast` is true only for a PROVEN number under a
+ *  version that carries the implicit cast; everything else comes back as the
+ *  very same object it went in as. A numeric CONSTANT folds to its truth value
+ *  (`cNum(1)`/`cNum(0)`) rather than printing `5 != 0`. */
+export function implicitBoolCast(tree, pineVersion, table = TABLE) {
+  const kind = conditionKindOf(tree, table)
+  if (kind !== 'num' || !implicitBoolCastApplies(pineVersion)) return { tree, kind, cast: false }
+  if (tree && tree.type === 'num' && Number.isFinite(tree.value)) {
+    return { tree: cNum(tree.value !== 0 ? 1 : 0), kind, cast: true }
+  }
+  if (tree && tree.type === 'op' && tree.name === 'u-' && tree.args && tree.args[0]
+      && tree.args[0].type === 'num') {
+    return { tree: cNum(tree.args[0].value !== 0 ? 1 : 0), kind, cast: true }
+  }
+  return { tree: cOp('!=', [tree, cNum(0)]), kind, cast: true }
 }
 
 /** A plot's `offset`, folded through the resolver to a whole number.

@@ -20,6 +20,98 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-28 — A NUMBER IN A BOOL CONTEXT: Pine v5's implicit cast, sized and fixed (branch `pine/bool-na-cast`)
+
+> Base `d7646568e` (`pine/vocab-2` = PR #234). Census tool (opt-in, committed):
+> `app/src/components/chart/engine/ast/boolContext.measure.test.js` (`BOOL_CONTEXT_CENSUS=1`).
+> Capture queue: `docs/pine/capture-queue-2026-09-28.md`.
+
+**The class.** Pine v1–v5 read a numeric operand of `and`/`or`/`not`, a `?:`/`if` test, an
+object guard and a condition-role argument (`ta.valuewhen(cond, …)`, `ta.barssince(cond)`) as a
+bool implicitly — `na` and `0` false, anything else true. This door emitted a bare `&&`/`||`/`!`/
+`?:`, which PROPAGATE `na` (`interpret.js`: the {0,1,NaN} domain). For every non-`na` value the
+two agree already (`logical` tests `x !== 0`); on every `na` bar they differed. And a numeric
+condition-role argument was worse than wrong: it translated, attached at the member door, and
+then THREW at evaluation (`assertArgRoles`: *"a condition argument must be a 0/1 column"*).
+
+**The rule, by version, and its evidence.**
+
+| version | rule | evidence |
+|---|---|---|
+| v5 | `na`/0 false, else true | **documented** — v6 migration guide, quoted in `pine.js::implicitBoolCast` |
+| v1–v4 | the same | **inferred** (no published sentence; the v4→v5 guide lists no change) — and **partly captured**: `harness/engulfingcandle-rddt-1d-2026-09-27.json` (v4) plots `rsiValue >= 70 and rsiValue` as **0**, not `na`, on the RSI warm-up bars — the `na → false` half. Nothing on disk shows the `0 → false` half for any version. |
+| v6 | unchanged — a numeric in a bool context does not compile there | documented |
+
+Probes `vw-bool-cast.pine` (v5) and `vw-bool-cast-v4.pine` (Q-B1/Q-B2) settle the rest; every
+row there has a different answer under each candidate reading (cast · `not na(x)` · propagate).
+
+**The fix.** `implicitBoolCast(tree, pineVersion)` in `pine.js`: a PROVEN number becomes
+`tree != 0` (the same identity `bool(x)` already folds to — no new node type, both lanes already
+implement `!=`); a numeric constant folds to its truth value. `Resolver.condition()` is the one
+funnel, called from `not`, both operands of `and`/`or`, the `?:` test (which `if` chains fold
+to), `iff`'s condition, every argument whose `argRoles` entry the table declares `bool`
+(`_functions_arg_role_kinds`, read, not listed), and an object guard wrapped in `!`/`&&`.
+`conditionKindOf` is three-valued and fails to `unknown`, NEVER to `num` — a bool operand is
+never cast, so its warm-up `na` stays `na`. `self` and `na` are neutral inside the `accum` join.
+
+**The census (296 scripts: 266 `corpus/committed` + 30 `pine_oos` present on this machine; 29
+licence-held `pine_oos` members absent by name).** Derived from the translator's own decision
+point — the `onCondition` observer on `Resolver.condition` — never from a second typer.
+
+| | count |
+|---|---|
+| scripts with a numeric operand in a bool context | **15** (v4 **4**, v5 **10**, v6 **1**) |
+| … whose numeric operand is `na` on some bar of the SPY 1D/60m captures | **15** |
+| scripts attaching at the member door with both production flags on | 64 |
+| **attaching AND affected — LIVE wrong answers (H14)** | **4**, named below |
+| attach verdict changed by the fix | **0** of 296 |
+| operands the classifier could not type (`unknown`, left uncast) | 1 site, `volatility-stop-mtf__K5XG42uHV9` (v6, refused `pine:module`) |
+
+**⛔⛔ H14 — the four that attach in production today and computed a different answer from
+TradingView** (before/after = the census's per-output fingerprints over the SPY 60m and 1D
+vendor bars, diffed with `pine.js` at `HEAD` and with the fix):
+
+| script | v | what was wrong | after |
+|---|---|---|---|
+| `opening-range-initial-balance-opening-price__4a7416ab01` | 5 | "Opening price" plot + its `OP` label: `na` on **every** bar (0/300 on SPY 60m) — `OR_t and not(OR_t[1])` over a `time()` timestamp | 50/300 finite = every bar past the 250-bar `accum` warm-up; all seven titled lines equal a Pine-v5 reference built on the vendor's own session membership, bar for bar (`openingRangeBoolCast.vendor.test.js`) |
+| `price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7` | 5 | **36 of its 38 object-program trees THREW at evaluation** — every `ta.valuewhen(ph, …)` over a pivot | all 38 compute; the Fibonacci / support / resistance drawings have coordinates again |
+| `liquidity-pools__fa7b28e733` | 5 | alert columns "Buy Side Liquidity Raid" / "Sell Side Liquidity Raid" THREW at evaluation (`ta.valuewhen(swing_h, …)`) | compute (284/300 and 283/300 finite on 60m) |
+| `engulfingcandle__0df91dc775` | 4 | "bullish" / "bearish" `na` on the RSI warm-up bars (284/300) where TradingView plots 0 | 298/300 finite; the v4 capture above already records 0 there (the harness grades the steady state, so its MATCH did not move) |
+
+**Not live (refused at the door today), recorded for when they attach:** `chart-champions-part-1`
+(22 sites), `smarter-snr` (26), `wyckoff-accumulation-distribution` (8; six plots go from ~16/300
+finite to 300/300), `pivot-point-supertrend` (5), `trendlines` (2), `liquidity-levels-sonarlab`,
+`trendline-pivots-quantvue`, `trend-levels-chartprime`, `initial-balance-ib-and-previous-day…`,
+`tradingview-alerts-to-mt4-mt5-strategy-example`.
+
+**⚠️ v6: `smt-divergence-ict-killzones__c932d56665` shows 2 numeric sites (`ta.change(is_london)
+and is_london`) that are left UNCAST by design.** They are not a Pine numeric: in v6
+`ta.change(<bool>)` returns a bool, and this door expands every `ta.change` to a difference. The
+v6 answer is still right on every non-first bar (a nonzero difference reads true); the first bar
+propagates `na`. That is a `ta.change(bool)` modelling question, not this cast's.
+
+**⚠️ FOUND BY THE PROOF, NOT CAUSED BY THE FIX — the `var` seed.** `var opening = 0.0` +
+`opening := cond ? open : opening[1]` folds to `accum(0, cond ? open : self, 250)`; `self` at a
+window start is the SEED, while Pine's `opening[1]` on bar 0 is `na`, so the seed is never
+observable in Pine. Where the OR session never opens inside the window — every extended-hours 60m
+bar (the vendor's own S11 is `na` on all 300), and 2h/4h grids — the door now draws a flat
+**0.0** where TradingView draws nothing. Before this change the line was `na` everywhere, so it
+never showed; the cast exposed it. Pinned as a KNOWN DIVERGENCE in
+`openingRangeBoolCast.vendor.test.js` (it goes red the day the seed is fixed). Any
+`var x = c` + `x := … x[1]` whose condition never fires in 250 bars has the same shape.
+
+**The runtime lane.** `pineRuntimeFrontend.js` lowers `and`/`or`/`not`/`?:` over mutable values
+itself (`lowerExpr` → `binary('&&')`, `unary('!')`, `ternary`) and has NO value-type system to
+decide "numeric", so it still propagates `na` there. Not fixed here, deliberately: the lane is
+wired to no member (`runtime/objectLane.js`: *"THIS MODULE WIRES NOTHING TO A MEMBER"*; ruling D2
+keeps the member pane on the host lane), and its `if` STATEMENTS already read `na` as false
+(`vm.js` `JUMP_IF_FALSE`). Its pure sub-expressions that reach `pine.js`'s Resolver are cast.
+
+**Also left:** `alertcondition(<numeric>)` and `plotshape(<numeric>)` are output channels, not
+tree bool contexts — a scan reads a condition as `<ast> != 0`, which is already the cast.
+
+---
+
 ## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
 
 > Base `0a16dd9ab` (`pine/object-pass-integrated`). Door = `memberPaneDefinition` over the

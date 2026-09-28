@@ -379,11 +379,12 @@ describe('⭐ the payoff — the corpus script whose sole last wall was `time(<s
     expect(t.outputs.map((o) => o.formula || '').join('\n')).toMatch(/floor\(time \/ 60\) \+ -240/)
     const door = memberPaneDefinition({ source, id: 'u_member-pane-or', name: 'OR/IB/OP' })
     expect(door.ok, door.reason).toBe(true)
-    // ⚠️ ATTACHING IS NOT THE SAME AS COMPUTING. The script's `OR_t and
-    // not(OR_t[1])` is Pine v5's IMPLICIT float→bool cast, which this door
-    // passes through as a bare `&&`/`!` that PROPAGATES `na` instead of reading
-    // it as false — so its level outputs are `na` on every bar. That is the
-    // v5-implicit-cast path the `bool(x)` ruling in pine.js already names, not
-    // the session clock (the membership plot itself is exact above).
+    // ⚰️ ATTACHING WAS NOT THE SAME AS COMPUTING, until 2026-09-28. The script's
+    // `OR_t and not(OR_t[1])` is Pine v5's IMPLICIT float→bool cast, which this
+    // door passed through as a bare `&&`/`!` that PROPAGATED `na` — so its
+    // "Opening price" line was `na` on every bar (0/300 on SPY 60m; the OR/IB
+    // level lines were never affected — they test `not na(OR_t)`, a bool).
+    // `implicitBoolCast` in pine.js now reads it the v5 way, and
+    // `openingRangeBoolCast.vendor.test.js` holds all seven lines bar for bar.
   })
 })
