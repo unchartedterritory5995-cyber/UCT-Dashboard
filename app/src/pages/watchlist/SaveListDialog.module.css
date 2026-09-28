@@ -1,0 +1,113 @@
+/* TERM-077 — "Save to My Lists" (copy or link) + a saved list's provenance line. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.lede {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.choices {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.choice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: var(--tap-min);
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.choiceOn { border-color: var(--ut-gold-glow); }
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.choiceLabel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.choiceDetail {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.nameRow {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.nameLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.nameInput {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 7px 10px;
+  min-height: var(--tap-min);
+}
+
+.err {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--warn);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* The provenance line under a saved list's header. */
+.origin {
+  font-family: var(--font-mono);
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  color: var(--text-muted);
+  padding: 2px 14px 4px 28px;
+  line-height: 1.4;
+}
+.originStale { color: var(--warn); }

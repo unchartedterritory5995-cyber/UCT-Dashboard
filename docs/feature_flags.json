@@ -1363,6 +1363,11 @@
       ],
       "note": ""
     },
+    "WATCHLIST_COPY_OR_LINK_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "TERM-077 / FB-A12-03, 2026-09-28. Enablement gate for saving another watchlist (community, prebuilt or your own) into My Lists as a COPY (a snapshot, independent thereafter) or a LINK (the source stays authoritative: the list follows it on every full read, is read-only here, and says when the source is unavailable or the list was edited while unguarded). The member must choose; there is no default mode. Unset means OFF and that is the decision until the owner releases it: POST /api/watchlists/{id}/save-as answers 404, no watchlist response carries an `origin` key, the item routes never 409, and the auth payload does not carry watchlist_copy_or_link_enabled. Read per call (api/services/watchlist_origin.enabled), so a flip needs no rebuild. The table watchlist_origins (auth.db) is created lazily on the ON path only. Turning it OFF never deletes a recorded choice: a linked list stops following and becomes editable again, and on re-enable a list edited meanwhile reports 'paused_edited' rather than being overwritten. Rails: tests/test_watchlist_copy_or_link.py, app/src/pages/watchlist/SaveListDialog.test.jsx."
+    },
     "WEEKLY_FLOW_ENABLED": {
       "status": "armed",
       "where": [
