@@ -38,7 +38,7 @@ import { methodFormCall, splitMethodName } from './ufcs.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
-  callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName,
+  callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -315,7 +315,8 @@ export function collectObjectOps(stmts, h) {
   const walk = (list, guards, inLoop, scope) => {
     let prevIfCond = null
     let localScope = scope
-    for (const st of list) {
+    // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
+    for (const st of splitCommaStatements(list, h)) {
       const t = st.header
       if (!t || !t.length) continue
       const first = t[0]
