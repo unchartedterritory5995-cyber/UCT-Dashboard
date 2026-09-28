@@ -46,6 +46,9 @@ function arg(name, dflt) {
 const REPS = Number(arg('reps', '3'))
 const SIZES = arg('sizes', '1000,2000,3000').split(',').map(Number)
 const ONLY = arg('only', '')
+// ⭐ `--stat min` on a contended box: the fastest of N runs is the one least
+// disturbed by other processes, so A/B comparisons read it rather than a median.
+const STAT = arg('stat', 'median')
 
 const ALL = JSON.parse(fs.readFileSync(
   path.join(REPO, 'tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json'), 'utf8')).bars
@@ -74,8 +77,9 @@ function runOnce(source, bars) {
 }
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] }
+const pick = (xs) => (STAT === 'min' ? Math.min(...xs) : median(xs))
 
-console.log(`node ${process.version} · reps ${REPS} (median) · SPY 1D fixture`)
+console.log(`node ${process.version} · reps ${REPS} (${STAT}) · SPY 1D fixture`)
 console.log('script'.padEnd(34), 'bars'.padStart(5), 'build ms/1k'.padStart(12),
   'run ms/1k'.padStart(10), 'total ms/1k'.padStart(12), 'instr/bar'.padStart(10))
 for (const name of SCRIPTS) {
@@ -85,8 +89,8 @@ for (const name of SCRIPTS) {
     const bars = ALL.slice(-size)
     const runs = []
     for (let r = 0; r < REPS; r += 1) runs.push(runOnce(source, bars))
-    const b = median(runs.map((x) => x.buildMs)) / (size / 1000)
-    const e = median(runs.map((x) => x.runMs)) / (size / 1000)
+    const b = pick(runs.map((x) => x.buildMs)) / (size / 1000)
+    const e = pick(runs.map((x) => x.runMs)) / (size / 1000)
     console.log(name.slice(0, 34).padEnd(34), String(size).padStart(5), b.toFixed(1).padStart(12),
       e.toFixed(1).padStart(10), (b + e).toFixed(1).padStart(12),
       String(Math.round(runs[0].instructions / size)).padStart(10))

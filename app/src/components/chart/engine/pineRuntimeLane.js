@@ -47,6 +47,7 @@ import { buildRuntimeIr } from './ast/pineRuntimeFrontend'
 import { runtimeClockOpts, newestBarIsFormingFrom } from './ast/pineRuntimeClock'
 import { lowerIrProgram } from './runtime/lowerIr'
 import { execute } from './runtime/vm'
+import { RuntimeLimitError } from './runtime/limits'
 import { pineRuntimeLaneEnabled, providePineRuntimeLane } from './pineRuntimeLaneGate'
 
 // ⭐ THE CONSTANTS LIVE IN THE GATE, which is eager and tiny, so the door and the
@@ -240,8 +241,12 @@ export function runtimeLaneColumns(def, bars, inputs, ctx) {
     try {
       run = runOnce(compute, list, runtimeInputs, ctx)
     } catch (err) {
+      // ⭐ A RESOURCE STOP CARRIES ITS NAME AS A VALUE (`code`, e.g.
+      // `WALL_TIME_EXCEEDED`, `LOOP_ITERATIONS_EXCEEDED`) beside the sentence, so
+      // a surface can say which ceiling the member met without parsing prose.
       run = { ok: false, error: { guard: 'runtime-door:run',
-        message: String((err && err.message) || err) } }
+        message: String((err && err.message) || err),
+        ...(err instanceof RuntimeLimitError ? { code: err.code, limit: err.limit } : {}) } }
     }
     if (byBars.size >= RUNS_PER_BARS) byBars.delete(byBars.keys().next().value)
     byBars.set(runKey, run)

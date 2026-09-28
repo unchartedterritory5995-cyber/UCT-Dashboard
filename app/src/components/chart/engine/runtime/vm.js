@@ -17,10 +17,17 @@
 // whole-series pass and a per-bar walk: history indexing, ordering, emit
 // alignment and warm-up NaN patterns.
 //
-// ⛔ NO CLOCK, NO NETWORK, NO MODULE STATE — the same purity contract
-// `interpret.js` states. The same (program, context) produces the same series
-// forever, and the budget lives on the call rather than the module so that a
-// screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
+// ⛔ NO NETWORK, NO MODULE STATE — the same purity contract `interpret.js`
+// states. The same (program, context) produces the same series forever, and the
+// budget lives on the call rather than the module so that a screener pass over
+// 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
+//
+// ⭐ ONE CLOCK, AND IT DECIDES ONLY WHETHER TO STOP (2026-09-28). `WALL_TIME` is
+// the one limit a count cannot express, so the loop reads a clock every
+// `WALL_CHECK_EVERY` instructions and stops with `WALL_TIME_EXCEEDED` past the
+// ceiling. It never feeds a value: a run that completes answers exactly what it
+// answered without the clock (`runtimeSpeedParity.test.js`), and the clock is
+// injectable (`opts.clock`) so a test drives it rather than sleeping.
 
 import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
@@ -33,7 +40,7 @@ import { ARRAY_FNS, kindOf, argKind } from './collections.js'
 import {
   udtRecord, fieldGet as recFieldGet, fieldSet as recFieldSet,
 } from './records.js'
-import { Budget } from './limits.js'
+import { Budget, WALL_CHECK_EVERY, defaultClock } from './limits.js'
 import { etClockAt } from '../../indicators.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
@@ -447,6 +454,22 @@ export function execute(program, ctx, limits, opts) {
   // program that never reaches its bad call into one that refuses to start.
   const pwFns = (program.pointwise || []).map((name) => PW[name])
 
+  // ⭐⭐ WALL_TIME — THE ONE LIMIT THAT READS A CLOCK. The run's first `execute`
+  // starts the wall (`Budget.startWall`); a request's nested run shares the
+  // budget and therefore the SAME wall, as it shares every other ceiling. The
+  // count runs across bars, so a bar with a runaway loop and a run of many tiny
+  // bars are both checked, and the clock is read once per `WALL_CHECK_EVERY`
+  // instructions — never per instruction.
+  //
+  // ⭐ AND IT COSTS NO COMPARISON OF ITS OWN. `wallAt` is the next check point in
+  // THIS BAR's instruction numbering (it carries across bars by subtracting each
+  // bar's count at the bar's end), and `stopAt` is whichever of it and the
+  // per-bar ceiling comes first — so the loop keeps the ONE `perBar > …` test it
+  // always had, and only the rare instruction that crosses it asks which limit
+  // is due. The per-bar ceiling is asked first, as it was before the wall.
+  budget.startWall((opts && typeof opts.clock === 'function') ? opts.clock : defaultClock)
+  let wallAt = WALL_CHECK_EVERY
+
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -455,6 +478,7 @@ export function execute(program, ctx, limits, opts) {
     let sp = 0
     let pc = entryPc
     let perBar = 0
+    let stopAt = perBarCeiling < wallAt - 1 ? perBarCeiling : wallAt - 1
     let loopTicks = 0
     let depth = 0
     let localsBase = 0
@@ -470,8 +494,13 @@ export function execute(program, ctx, limits, opts) {
       const b = code[base + 2]
       pc += 1
       perBar += 1
-      if (perBar > perBarCeiling) {
-        budget.charge('INSTRUCTIONS_PER_BAR', perBar)
+      if (perBar > stopAt) {
+        if (perBar > perBarCeiling) budget.charge('INSTRUCTIONS_PER_BAR', perBar)
+        if (perBar === wallAt) {
+          budget.checkWall()
+          wallAt += WALL_CHECK_EVERY
+        }
+        stopAt = perBarCeiling < wallAt - 1 ? perBarCeiling : wallAt - 1
       }
 
       // ⭐⭐ THE CASE LABELS ARE LITERALS, AND THAT IS THE SPEED WORK (2026-09-28).
@@ -1020,9 +1049,9 @@ export function execute(program, ctx, limits, opts) {
           // daily bars while the 600-bar rails stayed green. A runaway is a
           // property of ONE bar's execution — TradingView's own loop limit is
           // per-loop wall time, not a total over the chart — and the whole run
-          // stays bounded by TOTAL_INSTRUCTIONS (⚠️ `WALL_TIME` is declared in
-          // `limits.js` and charged nowhere, so it bounds nothing). The
-          // high-water mark is what the budget records.
+          // stays bounded by TOTAL_INSTRUCTIONS and, since 2026-09-28, by
+          // `WALL_TIME` (checked at the top of this loop). The high-water mark
+          // is what the budget records.
           loopTicks += 1
           budget.peak('LOOP_ITERATIONS', loopTicks)
           budget.peak('LOOP_NESTING', a)
@@ -1074,6 +1103,8 @@ export function execute(program, ctx, limits, opts) {
       if (pc >= n) throw new VmError('ran off the end of the program without HALT')
     }
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
+    // the next wall check, renumbered into the next bar's count
+    wallAt -= perBar
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
 
     // ⛔⛔ A BAR MUST LEAVE THE STACK AS IT FOUND IT. The stack is allocated ONCE

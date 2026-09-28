@@ -118,15 +118,59 @@ them from "plausible" to "graded". No capture-queue question was opened: every s
 this branch relies on is settled by the Pine reference (`#RRGGBBAA`, `,` as a statement
 separator, history before bar 0 is `na`) or by the host lane's existing rule.
 
-### ⚠️ Open — kernel-channel is correct and SLOW
+### ✅ Closed 2026-09-28 (`pine/runtime-walls-4`) — kernel-channel is correct, faster, and walled
 
-kernel-channel-backquant attaches and computes finite, in-band values, but its three
-100-iteration kernel loops cost ~27,000 VM instructions a bar: **~5 s per 1,000 daily
-bars** in this VM (≈200 ns/instruction; 134 M instructions on 5,000 bars, inside the
-200 M `TOTAL_INSTRUCTIONS` ceiling). Measured with `execute()`'s own budget counts. The
-flag is dark, so no member meets it; **arming the runtime lane needs either VM throughput
-or an enforced wall-time ceiling first**, and a main-thread freeze of that length is not
-acceptable on a member's chart.
+⚰️ *This heading read "⚠️ Open — kernel-channel is correct and SLOW": ~5 s per 1,000
+daily bars, and "arming the runtime lane needs either VM throughput or an enforced
+wall-time ceiling first". Both are now done; the measurement behind each follows.*
+
+**The "~5 s" was the test runner's number, not the VM's.** Measured with
+`app/scripts/pine-runtime-bench.mjs` (esbuild-bundled, plain Node 24 — the shape the
+browser runs) against `runtimeThroughput.measure.test.js` (`PINE_BENCH=1`, vitest),
+kernel-channel's RUN was ~390–480 ms per 1,000 bars in Node and ~5,300–6,600 under
+vitest. A CPU profile named the cause in both: 83% self time in `execute`
+(`runtime/vm.js`), spread across the dispatch switch's `case OP.X:` labels. A label that
+is an expression is evaluated in order on every dispatch — V8 builds a jump table only
+for integer-LITERAL labels — so each instruction walked a chain of property loads to its
+case (LOAD_LOCAL, 36% of kernel-channel's instructions, sat ~27th). Under vitest every
+one of those loads was also a module-namespace getter call.
+
+**The fix** writes each label as a literal (`case /* LOAD_LOCAL */ 50:`), with
+`dispatchLiterals.test.js` parsing `vm.js` and failing by name if a literal disagrees
+with `program.js::OP`, two cases collide, or an implemented opcode has no case; and
+hoists three per-instruction property walks out of the loop. Run ms per 1,000 bars,
+2,000 SPY daily bars, before → after:
+
+| script | Node | vitest |
+|---|---|---|
+| kernel-channel-backquant | 391–496 → 270–276 | 6,617 → 253 |
+| atr-stepped-pdf-ma-loxx | 33–53 → 32–34 | 456 → 25 |
+| nadaraya-watson-rational-quadratic | 35–48 → 25–26 | 600 → 24 |
+| wyckoff-accumulation-distribution | 52–86 → 50–59 | 652 → 71 |
+| nonlinear-regression-zero-lag-ma | 44–68 → 28–39 | 905 → 37 |
+
+Byte-identical: `runtimeSpeedParity.golden.json` was written by the unoptimised VM (its
+own commit) — SHA-256 of every output's raw `Float64Array` plus every budget count, for
+nine corpus scripts on 2,000 SPY bars — and the optimised VM matches it 9/9.
+
+**`WALL_TIME` is enforced** (it was declared and charged nowhere). `vm.js` reads a clock
+every `WALL_CHECK_EVERY` (4,096) instructions, counted across bars, folded into the
+per-bar ceiling's existing comparison so no instruction pays a second test, and stops
+with `RuntimeLimitError` code **`WALL_TIME_EXCEEDED`** past `DEFAULT_LIMITS.WALL_TIME`
+(5,000 ms). The clock is `opts.clock` or `limits.js::defaultClock` (reads
+`performance.now()` at call time); a request's nested run shares the wall. At the member
+door the column error carries `code`/`limit` beside the sentence, for every limit. Rails:
+`wallTime.test.js` (injected clock — stops by name, exact clock-read count, across bars,
+default ceiling; four loop scripts on a real 3,000-bar chart under the real wall) and
+`runtimeWallTimeDoor.test.js` (through the member door). Mutation-proved: deleting the
+check reds 6; deleting the cross-bar renumbering reds 2.
+
+⚠️ **What is still true.** kernel-channel on 3,000 bars is ~0.8 s on a quiet box but was
+measured at 2.1–4.8 s while other sessions held this machine at 100% CPU — so on a slow
+device a 5,000-bar chart can meet the wall. That is the stop working (a named column
+error instead of a frozen tab), not a defect, but it is why kernel-channel is MEASURED
+beside the wall rail rather than asserted against it. A stop is remembered for that bars
+array (the lane's run cache), so it is not re-run on every recompute.
 
 ### Still walled — the nearest, and why not this branch
 
