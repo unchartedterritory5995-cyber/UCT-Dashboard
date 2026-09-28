@@ -20,6 +20,13 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two.calendar import et_today
 from api.services.journal_two import coach_data_assembler
+from api.services.journal_two import compass_daily_caps
+
+
+class VerdictLimitReached(RuntimeError):
+    """The member's daily pre-trade verdict ceiling refused the LLM stage. The
+    message is the sentence to show them. The route answers 429 with it; the
+    chat tool's executor error carries it to the model."""
 
 
 class AnthropicVerdictClient:
@@ -356,6 +363,13 @@ def generate_verdict(
         settings = accounts_service.get_account_settings(user_id, account_id, conn=_conn) or {}
         account_size = float(settings.get("accountSize") or 0)
         risk_pct = _compute_risk_pct(params, account_size)
+
+        # Charged here -- after the hard checks (no model call, never charged)
+        # and before the model -- so the route AND the chat tool, which both
+        # land in this function, spend the same daily allowance.
+        door = compass_daily_caps.PRE_TRADE_VERDICT
+        if not compass_daily_caps.take(door, user_id):
+            raise VerdictLimitReached(door.sentence)
 
         active_client = client or AnthropicVerdictClient()
         llm = _llm_verdict(
