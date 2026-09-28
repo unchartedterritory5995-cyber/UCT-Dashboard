@@ -197,7 +197,12 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // for the chart's OWN timeframe (vw-time-session). This script asks it of
       // a timeframe argument that is not the chart's, which stays refused.
       ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:function', /OWN timeframe/],
-      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function-def', /f_round_up_to_tick/],
+      // ⚰️ WAS pine:function-def /f_round_up_to_tick/. Moved 2026-09-28
+      // (`pineHostWalls5.test.js`): a body ending in a declaration now returns
+      // what it declares, so `f_round_up_to_tick` folds and the script meets its
+      // next wall — `syminfo.mintick`, the value it passes that helper. Still
+      // refuses, still not on `timenow`.
+      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:builtin', /syminfo\.mintick/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]
     for (const [file, guard, messagePattern] of cases) {

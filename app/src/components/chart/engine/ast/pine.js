@@ -8777,7 +8777,23 @@ export class Resolver {
     // special case below fires only for `ta.valuewhen(...)`, never for a
     // bare `valuewhen(...)` call, which keeps meaning this table's own
     // bar-window entry untouched.
-    const valuewhenOccurrence = bare === 'valuewhen' && pineName !== base
+    // ⭐⭐ …EXCEPT IN A v1–v4 SCRIPT, WHERE THE BARE SPELLING *IS* PINE'S OWN
+    // (2026-09-28). Pine v4's reference: `valuewhen(condition, source,
+    // occurrence)` — the name v5 moved under `ta.` unchanged (the v4→v5 guide
+    // lists it among the renamed-into-a-namespace functions, no semantic
+    // change). A `//@version=4` script writing `valuewhen(hih, high[right], 0)`
+    // is therefore writing the OCCURRENCE function, and before this line it met
+    // `pine:role-order` (the house `valuewhen` has two price slots) — the first
+    // wall of `support-and-resistance__UgNPprOr8h` and
+    // `support-and-resistance-multi-time-frame__Ph230jpfC9`.
+    // ⛔ THE SAME BOUND AS `PINE_NAMESPACED_TREE`'s LEGACY ROUTE (search
+    // "THE LEGACY BARE SPELLING, RESOLVED BY THE SCRIPT'S OWN VERSION"): the
+    // version, and only the version. v5/v6 removed the bare name, and the
+    // formula box has no version (`pineVersion === null`), so both keep the
+    // house bar-window `valuewhen` exactly as before.
+    const legacyPineValuewhen = bare === 'valuewhen' && pineName === 'valuewhen'
+      && this.pineVersion !== null && this.pineVersion <= 4
+    const valuewhenOccurrence = bare === 'valuewhen' && (pineName !== base || legacyPineValuewhen)
     const shape = valuewhenOccurrence
       ? { table: 'valuewhenOccurrence', pineArity: 3, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }] }
       : PINE_CALL_SHAPES[normaliseName(base)] || null
@@ -11411,6 +11427,89 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
   }
 }
 
+/** ⭐⭐ A `switch` STATEMENT WHOSE ARMS REASSIGN (2026-09-28).
+ *
+ *    ret = close
+ *    switch srcIn
+ *        "close" => ret := close
+ *        "wicks" => ret := isUpperBand ? high : low
+ *        => ret := close
+ *
+ *  Pine's statement form: the subject is compared with each arm's label in
+ *  order, the FIRST equal arm runs, the bare `=>` arm runs when none does, and
+ *  when nothing matches and there is no default nothing runs — every name keeps
+ *  the value it had before the `switch`. (Pine v5 reference, `switch`.)
+ *
+ *  Each reassigned name becomes ONE `kind: 'switch'` binding — the same shape
+ *  `switchBinding` builds for `x = switch …`, reduced by the same resolver arm
+ *  (a subject the script FIXES, i.e. a string input or literal, else it refuses
+ *  at `pine:block`). Per name: an arm that assigns it contributes that value; an
+ *  arm that does not, and the no-match case with no default, contribute the
+ *  name's PRIOR binding — which is exactly "the statement did not touch it".
+ *
+ *  ⛔ NARROW ON PURPOSE — null (so the caller falls through to the value form
+ *  and its own refusal, unchanged) unless EVERY arm is `label => a := e[, b := f]`
+ *  on its own line: no nested block, no compound operator (`+=`), no repeated
+ *  name within an arm, at most one default, and every reassigned name already
+ *  bound to an ordinary (non-`var`, non-opaque) value. A `var` prior is the
+ *  history lane's; an arm with a block needs the statement folder, not this.
+ *  First wall of `atr-bands__ad60b125e6` (`getBandOffsetSource`). */
+function switchAssignmentBindings(subjectToks, subStmts, env, firstTok) {
+  const arms = []
+  let fallback = null
+  let sawDefault = false
+  if (!subStmts || !subStmts.length) return null
+  for (const arm of subStmts) {
+    const header = arm && arm.header
+    if (!header || !header.length) continue
+    if (arm.sub && arm.sub.length) return null
+    const at = findTop(header, (t) => isPunct(t, '=>'))
+    if (at < 0) return null
+    const rhs = header.slice(at + 1)
+    if (!rhs.length) return null
+    const assigns = new Map()
+    for (const part of splitTopLevel(rhs, ',')) {
+      if (part.length < 3 || part[0].kind !== 'ident' || !isPunct(part[1], ':=')) return null
+      if (findTop(part.slice(2), (t) => t.kind === 'punct' && MUTATORS.has(t.value)) >= 0) return null
+      if (assigns.has(part[0].value)) return null
+      assigns.set(part[0].value, part.slice(2))
+    }
+    if (!assigns.size) return null
+    if (at === 0) {
+      if (sawDefault) return null
+      sawDefault = true
+      fallback = assigns
+    } else {
+      arms.push({ match: header.slice(0, at), assigns })
+    }
+  }
+  if (!arms.length) return null
+  const names = new Set()
+  for (const arm of [...arms, ...(fallback ? [{ assigns: fallback }] : [])]) {
+    for (const name of arm.assigns.keys()) names.add(name)
+  }
+  const at = locate(firstTok)
+  const subject = parseWholeExpression(subjectToks)
+  const out = new Map()
+  for (const name of names) {
+    const prior = env.get(name)
+    if (!prior || prior.kind === 'opaque' || prior.kind === 'state' || prior.kind === 'param'
+        || prior.kind === 'fn' || prior.kind === 'vector') return null
+    const bindingOf = (assigns) => (assigns && assigns.has(name)
+      ? exprBinding(parseWholeExpression(assigns.get(name)), new Map(env), at)
+      : prior)
+    out.set(name, {
+      kind: 'switch',
+      subject,
+      env: new Map(env),
+      arms: arms.map((arm) => ({ match: arm.match, binding: bindingOf(arm.assigns) })),
+      fallback: bindingOf(fallback),
+      at,
+    })
+  }
+  return out
+}
+
 function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   const arms = []
   let fallback = null
@@ -11437,8 +11536,62 @@ function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   }
 }
 
-function foldStatements(stmts, ctx, env) {
+/** ⭐⭐ THE NAME A FUNCTION BODY'S LAST STATEMENT DECLARES, when that statement
+ *  is a plain single-name declaration — `Y = m * ts + b`, `float v = x * 2` —
+ *  else null (2026-09-28).
+ *
+ *  Pine returns the value of a function body's LAST statement, and a variable
+ *  declaration's value is the value it declares: `get_y(m, b, ts) =>` /
+ *  `Y = m * ts + b` returns `m * ts + b`. The corpus is the witness —
+ *  `trendlines__43QQg9nDN0` (v4) plots `get_y(...)` and
+ *  `mtf-key-levels-support-and-resistance__29f470a089` (v4) calls
+ *  `f_round_up_to_tick(...)` as a value, and both compile on TradingView, which
+ *  refuses a void function used as a value. `foldStatements` only records a
+ *  BARE expression as the body's value, so before this both met
+ *  `pine:function-def — … ends in no value this engine can read`, and a body
+ *  with a bare expression EARLIER and a declaration LAST returned the earlier
+ *  expression (a stale value, not Pine's).
+ *
+ *  ⛔ DECLARATIONS ONLY, ON PURPOSE. A declaration cannot read its own name's
+ *  history (Pine rejects `x = x[1]` as an undeclared identifier), so its
+ *  binding is exactly what a trailing bare `x` would resolve to — the identity
+ *  this relies on. A trailing REASSIGNMENT (`_wild := nz(_wild[1]) + …`) is
+ *  NOT served here: its self-history is the `var`/history lane's question, and
+ *  folding it would compute the `[1]` against the pre-loop seed.
+ *  ⛔ Also out: `var`/`varip` (state), a destructure `[a, b] = …`, and a
+ *  declaration whose right side opens an `if`/`switch` chain (its `else`
+ *  statements follow it, so it is never the last statement anyway). */
+function trailingDeclarationName(stmts) {
+  let last = null
+  for (let k = (stmts || []).length - 1; k >= 0; k -= 1) {
+    if (stmts[k] && stmts[k].header && stmts[k].header.length) { last = stmts[k]; break }
+  }
+  if (!last || (last.sub && last.sub.length)) return null
+  const toks = last.header
+  const first = toks[0]
+  if (!first || first.kind !== 'ident') return null
+  if (BLOCK_KEYWORDS.has(first.value) || STATE_KEYWORDS.has(first.value)
+      || TYPE_KEYWORDS.has(first.value)) return null
+  if (findTop(toks, (t) => isPunct(t, '=>')) >= 0) return null
+  if (findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value)) >= 0) return null
+  const eq = findTop(toks, (t) => isPunct(t, '='))
+  if (eq <= 0) return null
+  const nameTok = boundName(toks, eq)
+  if (!nameTok) return null
+  // Everything before the name must be type words (`float`, `series float`, …).
+  for (let k = 0; k < eq - 1; k += 1) {
+    if (toks[k].kind !== 'ident' || !TYPE_WORDS.has(toks[k].value)) return null
+  }
+  const rhs0 = toks[eq + 1]
+  if (!rhs0 || (rhs0.kind === 'ident' && (rhs0.value === 'if' || rhs0.value === 'switch'))) return null
+  return nameTok.value
+}
+
+function foldStatements(stmts, ctx, env, trace = null) {
   let value = null
+  // ⭐ WHETHER `value` CAME FROM THE LAST STATEMENT — see the function-def
+  // branch's stale-value guard. False after any statement that sets no value.
+  let fresh = false
   let i = 0
   /** ⭐⭐ R2 STEP 1 — THE WALK RECORDS WHAT IT BOUND, PER STATEMENT.
    *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
@@ -11456,6 +11609,7 @@ function foldStatements(stmts, ctx, env) {
     const toks = st.header
     const first = toks[0]
     if (!first) { i += 1; continue }
+    fresh = false
 
     if (first.kind === 'ident' && STATE_KEYWORDS.has(first.value)) {
       // ⭐ `var x = seed` BINDS A RECURRENCE, IT NO LONGER REFUSES. The seed is
@@ -11493,8 +11647,21 @@ function foldStatements(stmts, ctx, env) {
     // chosen. So the whole `switch` becomes ONE binding carrying its subject and
     // its arms, and `resolveBinding` reduces it once the subject can be read.
     if (first.kind === 'ident' && first.value === 'switch' && toks.length > 1) {
+      // ⭐ THE STATEMENT FORM FIRST — arms that REASSIGN rather than answer.
+      // See `switchAssignmentBindings`; it returns null for any other shape, so
+      // the value form below is reached exactly as before.
+      const assigned = switchAssignmentBindings(toks.slice(1), st.sub, env, first)
+      if (assigned) {
+        for (const [name, binding] of assigned) {
+          env.set(name, binding)
+          record(st, name)
+        }
+        consumeMutators(ctx, st.body || toks)
+        i += 1
+        continue
+      }
       const built = switchBinding(toks.slice(1), st.sub, ctx, env, first)
-      if (built) { value = built; i += 1; continue }
+      if (built) { value = built; fresh = true; i += 1; continue }
     }
     if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
       throw new PineRefusal('pine:block',
@@ -11505,6 +11672,7 @@ function foldStatements(stmts, ctx, env) {
       consumeMutators(ctx, st.body)
       for (let k = i + 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
       value = folded.value || value
+      fresh = !!folded.value
       i = folded.next
       continue
     }
@@ -11621,6 +11789,7 @@ function foldStatements(stmts, ctx, env) {
         // it as one would give a destructure a shape Pine never wrote.
         if (parts.length > 1) {
           value = { kind: 'tuple', parts, at: locate(first) }
+          fresh = true
           i += 1
           continue
         }
@@ -11630,8 +11799,10 @@ function foldStatements(stmts, ctx, env) {
     // A bare expression. In a function body the LAST one is the value; anywhere
     // else it is a side effect (`label.new(…)`) that nothing reads.
     value = exprBinding(parseWholeExpression(toks), new Map(env), locate(first))
+    fresh = true
     i += 1
   }
+  if (trace) trace.valueIsLast = fresh
   return value
 }
 
@@ -14159,9 +14330,35 @@ function translatePineResult(source, opts = {}) {
         // final one. Snapshotting before and diffing after is the only way to say
         // that without re-implementing the walk.
         const beforeFn = new Map(fnEnv)
-        const value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv)
+        const bodyTrace = {}
+        let value = arrow === toks.length - 1
+          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace)
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
+        // ⭐ A BODY WHOSE LAST STATEMENT IS A DECLARATION RETURNS WHAT IT DECLARES
+        // — see `trailingDeclarationName`. The binding read here is the one the
+        // fold just left for that name, i.e. exactly what a trailing bare `Y`
+        // would have resolved to.
+        if (arrow === toks.length - 1) {
+          const tail = trailingDeclarationName(stmt.sub)
+          if (tail && fnEnv.has(tail) && fnEnv.get(tail) !== beforeFn.get(tail)) {
+            value = fnEnv.get(tail)
+          } else if (value && bodyTrace.valueIsLast === false) {
+            // ⛔⛔ A STALE VALUE IS A WRONG ANSWER, NOT A VALUE (2026-09-28). The
+            // fold records only a BARE expression (or a valued `if`/`switch`/tuple)
+            // as the body's value, so `f(x) =>` / `x + 100` / `y := y + 1`
+            // returned `x + 100` — an EARLIER statement — where Pine returns the
+            // LAST statement's value (the reassigned `y`). Measured before this
+            // guard: `plot(f(close))` translated to `close + 100` and attached.
+            // A trailing reassignment, `var`, or value-less `if` is not served
+            // (its self-history is the history lane's), so it refuses by name
+            // rather than answering with the wrong statement.
+            throw new PineRefusal('pine:function-def',
+              `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in a statement `
+              + 'that is not a value this engine can read (a reassignment, a `var`, or an '
+              + '`if` with no value), and Pine returns that LAST statement, not an earlier '
+              + 'expression', locate(toks[arrow]))
+          }
+        }
         for (const [localName, localBound] of fnEnv) {
           if (beforeFn.get(localName) !== localBound) finalLocals.add(localBound)
         }

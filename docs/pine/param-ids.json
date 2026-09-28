@@ -65,7 +65,9 @@
   },
   "corpus/committed/asianrange-and-killzones__ef41eb5ad6.pine": {},
   "corpus/committed/atr-bands__ad60b125e6.pine": {
-    "__uct_param_1": "Show opposite bands for take-profit zones"
+    "__uct_param_1": "ATR Period",
+    "__uct_param_2": "ATR Band Scale Factor",
+    "__uct_param_3": "Show opposite bands for take-profit zones"
   },
   "corpus/committed/atr-god-strategy-by-tradesmart__4369755a29.pine": {
     "__uct_param_1": "ATR Multiplier 1",
@@ -904,14 +906,17 @@
   },
   "corpus/committed/supply-demand-mtf-flux-charts__7fb4bff229.pine": {},
   "corpus/committed/support-and-resistance-logistic-regression-flux-charts__9d844269d6.pine": {},
-  "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine": {},
+  "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine": {
+    "__uct_param_1": "Number of bars to go back"
+  },
   "corpus/committed/support-and-resistance__1505.pine": {
     "__uct_param_1": "Alternative source:",
     "__uct_param_2": "lookback window 1:",
     "__uct_param_3": "lookback window 2:"
   },
   "corpus/committed/support-and-resistance__UgNPprOr8h.pine": {
-    "__uct_param_1": "left"
+    "__uct_param_1": "left",
+    "__uct_param_2": "right"
   },
   "corpus/committed/support-and-resistance__c4792aabd0.pine": {},
   "corpus/committed/support-resistance-mtf-flux-charts__dd04862677.pine": {},
