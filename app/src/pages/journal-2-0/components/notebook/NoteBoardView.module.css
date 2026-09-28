@@ -54,6 +54,22 @@
   padding-bottom: 8px;
   min-height: 0;
   flex: 1;
+  /* Wave 10 follow-up F5 (design review D-5; proof walk 10E-1 6b). The row scrolled, but
+     not ALONE, and nothing showed that it did:
+     * Each card's visually-hidden "Move <note> to" label is `position: absolute`, and
+       nothing between it and the Notebook panel was positioned -- so its containing block
+       was the panel, OUTSIDE this scroller, and the labels of cards in columns scrolled
+       out of view stayed where the columns would be. At 390 px they widened the app's
+       <main> to 1154 px and the whole page panned 764 px sideways; at 820 / 1200 they
+       gave the panel (overflow: hidden) a hidden sideways range. `position: relative`
+       makes this row their containing block, so they scroll -- and clip -- with it.
+     * The app's global scrollbar style (tokens.css) sets a width and no height, so this
+       row's horizontal scrollbar measured 0 px tall at 390, 820 and 1200: a column was
+       simply cut at the edge with nothing to say the row scrolls. It is a visible, thin
+       bar now, in theme tokens. Rail: NoteBoardView.scrollsAlone.test.js. */
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
 }
 
 .column {

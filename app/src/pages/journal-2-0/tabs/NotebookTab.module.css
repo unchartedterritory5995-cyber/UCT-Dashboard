@@ -279,6 +279,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* Wave 10 follow-up F5: at 390 px its seven 44 px view buttons plus Save view
+     came to 401 px inside a 350 px line, and <main> (which scrolls sideways as well
+     as down) grew to 445 px: the whole page panned sideways on 11 surfaces (proof
+     walk 10E-1 6b). Guards that never bind while there is room: it wraps onto a
+     second line instead. Rail: tabs/NotebookTab.viewSwitcherFits.test.js. */
+  flex-wrap: wrap;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 2px;
