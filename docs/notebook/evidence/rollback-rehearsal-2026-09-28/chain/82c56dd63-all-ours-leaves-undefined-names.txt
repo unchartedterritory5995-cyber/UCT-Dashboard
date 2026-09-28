@@ -1,0 +1,19 @@
+# 82c56dd63 cherry-picked onto the primary chain's 13b commit b7aa0c49d; merged tree 6b2768ab76947794d7ef088e53f4f0d31c8d8e47 (conflict markers in blobs).
+# Resolving every conflict hunk to OURS keeps only the text OUTSIDE the hunks from 82c56dd63's side.
+# Below: in the text OUTSIDE every hunk, the lines that USE the names, and the lines that IMPORT or DEFINE them.
+## app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+uses outside hunks: 9
+   715 const carriedRef = useRef(OWN_READ)
+   716 const editorWrittenSchema = () => bodyWrittenSchema(
+   718 carriedRef.current === OWN_READ ? OWN_READ : carriedRef.current.writtenSchema,
+   721 const carryRecovered = (stamp) => { carriedRef.current = { writtenSchema: writtenSchemaOf(stamp) } }
+   883 if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
+   915 if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
+   1806 if (carriedRef.current === carriedAtSend) carriedRef.current = OWN_READ
+   1851 if (isSchemaRefusal(e) && await keepRefusedWords(carriedAtSend)) return
+   1852 if (status === 409 && !conflictRetriedRef.current && !isSchemaRefusal(e)) {
+imports/definitions outside hunks: 0
+## app/src/pages/journal-2-0/lib/offline/recoverLocalState.js
+uses outside hunks: 1
+   233 ...a, writtenSchema: lowerStamp(a.writtenSchema, b.writtenSchema),
+imports/definitions outside hunks: 0
