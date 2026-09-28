@@ -25,6 +25,9 @@ from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag
 # where the kill switch is read. `_access_payload`'s `cohorts` field is its only
 # caller today.
 from api.services import rollout_gate
+# TERM-021: the versioned workspace document. Its hooks in `upsert_preference` do no I/O
+# while WORKSPACE_DOC_STORE_ENABLED is unset.
+from api.services import workspace_doc_store
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -2367,7 +2370,13 @@ def get_preferences(user: dict = Depends(get_current_user)):
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
     _validate_preference(req.key, req.value)
+    # TERM-021 WRITE-BOTH / READ-OLD. ⛔ Order is the whole point: the document is snapshotted
+    # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
+    # default board, STATE-2) survives as the version before it. Both calls return without any
+    # I/O while the flag is off, and neither can raise into this write.
+    ticket = workspace_doc_store.begin_pref_write(user["id"], req.key, get_user_preferences)
     set_user_preference(user["id"], req.key, req.value)
+    workspace_doc_store.finish_pref_write(ticket, req.value)
     return {"ok": True}
 
 

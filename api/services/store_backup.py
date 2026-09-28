@@ -80,6 +80,9 @@ STORES: tuple[Store, ...] = (
     Store("ai_search_member", CLASS_MEMBER, "api.services.ai_search_member", "_db_path"),
     Store("discord_chart_prefs", CLASS_MEMBER, "api.services.discord_chart_prefs", "_db_path"),
     Store("wire_feedback", CLASS_MEMBER, "api.services.wire_feedback_store", "_DB_PATH"),
+    # TERM-021: the versioned workspace document. Registered the day it was built, so its
+    # backup exists the night it is armed; until then the file is absent and reported so.
+    Store("workspace_docs", CLASS_MEMBER, "api.services.workspace_doc_store", "_DB_PATH"),
     Store("modelbook", CLASS_CURATED, "api.services.modelbook_service", "_DB_PATH"),
     Store("education", CLASS_CURATED, "api.services.education_service", "_DB_PATH"),
     Store("desk", CLASS_CURATED, "api.services.desk_store", "_DB_PATH"),
