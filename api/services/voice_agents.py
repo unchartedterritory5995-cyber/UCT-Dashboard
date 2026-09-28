@@ -429,9 +429,8 @@ def _compass_tool_union() -> set[str]:
     # Fresh broad news search via Google News RSS — fills the gap when
     # the cached get_news doesn't have a topic and web_search is overkill.
     out.add("search_news")
-    # Options chain + Greeks via yfinance + Black-Scholes (delta, gamma,
-    # theta, vega, rho). Free starting point — upgrade to Polygon/ORATS
-    # later if reliability requires it.
+    # Options chain + exchange-derived Greeks/IV/OI via Massive
+    # (polygon_options). The yfinance + Black-Scholes leg is retired (TERM-069).
     out.add("list_option_expirations")
     out.add("get_option_chain")
     out.add("get_option_contract")

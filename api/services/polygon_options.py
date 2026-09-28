@@ -4,6 +4,10 @@ Uses the existing MASSIVE_API_KEY (Polygon Advanced tier, $200/mo gives
 real-time NBBO + Greeks + IV + options trade flow). Replaces the
 yfinance + Black-Scholes path with native exchange data.
 
+TERM-069: this is the ONE options-chain implementation. The yfinance +
+Black-Scholes leg (`options_chain.py`) is deleted, and nothing falls back to it;
+tests/test_term069_chain_leg_retired.py rails that no second chain appears.
+
 Endpoints used:
   - /v3/snapshot/options/{underlying}              — full chain snapshot
   - /v3/snapshot/options/{underlying}/{contract}   — single contract detail

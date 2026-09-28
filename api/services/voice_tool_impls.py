@@ -224,21 +224,24 @@ def _deep_research(question: str = "", ticker: str = "") -> dict:
     }
 
 
+# ── Options chain — ONE implementation, on Massive (TERM-069) ─────────────
+# `polygon_options` (Massive `/v3/snapshot/options`, native exchange greeks/IV)
+# is the only chain. The yfinance + local Black-Scholes leg that used to answer
+# here when Massive failed is RETIRED: it published an X-class (Yahoo) number
+# exactly when the licensed source was down, so a failure read as an answer.
+# A Massive failure now comes back as Massive's own error, and the model says
+# the chain is unavailable rather than quoting a second vendor's greeks.
+
 def _list_option_expirations(ticker: str = "") -> dict:
-    """Upcoming option expirations via Polygon (Massive Advanced)."""
+    """Upcoming option expirations via Massive."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
-        # Polygon primary — institutional data
         from api.services.polygon_options import list_expirations
         result = list_expirations(ticker)
-        if not result.get("error"):
-            return result
-        # Fallback to yfinance if Polygon is down / unconfigured
-        _log.info("polygon expirations failed, falling back to yfinance: %s",
-                  result.get("error"))
-        from api.services.options_chain import list_expirations as yf_list
-        return yf_list(ticker)
+        if result.get("error"):
+            _log.info("massive expirations failed for %s: %s", ticker, result.get("error"))
+        return result
     except Exception as e:
         _log.warning("list_option_expirations failed: %s", e)
         return {"error": f"options unavailable: {e}"}
@@ -246,21 +249,16 @@ def _list_option_expirations(ticker: str = "") -> dict:
 
 def _get_option_chain(ticker: str = "", expiration: str = "",
                      strikes_around_spot: int = 6) -> dict:
-    """Option chain with REAL Greeks + IV + OI via Polygon (Massive Advanced).
-    Falls back to yfinance + Black-Scholes if Polygon is unavailable."""
+    """Option chain with exchange-derived greeks + IV + OI via Massive."""
     if not ticker or not (ticker := ticker.strip()):
         return {"error": "ticker required"}
     try:
         from api.services.polygon_options import get_chain
         result = get_chain(ticker, expiration=expiration or "",
                           strikes_around_spot=strikes_around_spot or 6)
-        if not result.get("error"):
-            return result
-        _log.info("polygon chain failed, falling back to yfinance: %s",
-                  result.get("error"))
-        from api.services.options_chain import get_chain as yf_chain
-        return yf_chain(ticker, expiration=expiration or "",
-                       strikes_around_spot=strikes_around_spot or 6)
+        if result.get("error"):
+            _log.info("massive chain failed for %s: %s", ticker, result.get("error"))
+        return result
     except Exception as e:
         _log.warning("get_option_chain failed: %s", e)
         return {"error": f"options chain unavailable: {e}"}
@@ -268,21 +266,16 @@ def _get_option_chain(ticker: str = "", expiration: str = "",
 
 def _get_option_contract(ticker: str = "", strike: float = 0,
                          expiration: str = "", call_or_put: str = "call") -> dict:
-    """Single option contract with REAL Greeks via Polygon. Falls back to
-    yfinance + Black-Scholes if Polygon unavailable."""
+    """Single option contract with exchange-derived greeks via Massive."""
     if not ticker or not strike or not expiration:
         return {"error": "ticker, strike, expiration required"}
     try:
         from api.services.polygon_options import get_contract
         result = get_contract(ticker, strike=float(strike), expiration=expiration,
                              call_or_put=call_or_put or "call")
-        if not result.get("error"):
-            return result
-        _log.info("polygon contract failed, falling back to yfinance: %s",
-                  result.get("error"))
-        from api.services.options_chain import get_contract as yf_contract
-        return yf_contract(ticker, strike=float(strike), expiration=expiration,
-                          call_or_put=call_or_put or "call")
+        if result.get("error"):
+            _log.info("massive contract failed for %s: %s", ticker, result.get("error"))
+        return result
     except Exception as e:
         _log.warning("get_option_contract failed: %s", e)
         return {"error": f"option contract unavailable: {e}"}
@@ -2363,9 +2356,9 @@ def _register_all() -> None:
         description=(
             "Option chain for a ticker — REAL exchange-derived Greeks (delta, "
             "gamma, theta, vega), IV, open interest, bid/ask, volume, VWAP, "
-            "break-even via Polygon (Massive Advanced, $200/mo tier). Falls "
-            "back to yfinance + Black-Scholes if Polygon down. Returns N "
-            "strikes around spot for both calls and puts."
+            "break-even via Massive. If Massive is unavailable it returns an "
+            "error; say the chain is unavailable rather than estimating. "
+            "Returns N strikes around spot for both calls and puts."
         ),
         parameters={
             "ticker": {"type": "string"},

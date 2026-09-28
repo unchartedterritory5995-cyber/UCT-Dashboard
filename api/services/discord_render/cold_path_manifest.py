@@ -53,7 +53,8 @@ DEFAULT_THRESHOLD_MS = 50.0
 #: that does not exist, and it would visually bury the entries below it that ARE real risks
 #: (`api.services.options_chain` at 13.4 s, lazily imported from three live voice-tool call
 #: sites in `voice_tool_impls.py` with no such guarantee, is the actual most urgent finding this
-#: run produced). Excluded by name, not by a general "is this the entry point" heuristic — the
+#: run produced -- that module was since RETIRED by TERM-069 and removed from the manifest).
+#: Excluded by name, not by a general "is this the entry point" heuristic — the
 #: entry point has exactly one name in this codebase and inventing a broader rule for a
 #: population of one would be guessing ahead of evidence.
 EXCLUDED_SELF_REFERENTIAL_MODULES = frozenset({"api.main"})
