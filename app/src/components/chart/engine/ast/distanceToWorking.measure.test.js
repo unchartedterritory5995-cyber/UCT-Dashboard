@@ -109,8 +109,17 @@ describe('⭐⭐ how far the corpus is from building, measured by peeling', () =
     // distances instead is the mistake `nearestToWorking` already paid for: a
     // rail that breaks every time the engine improves.
     const LOOK = 20
+    // ⚰️⚰️ `position-size-calc` WAS THE FIRST NAME HERE, AND ITS "kept = 2" WAS
+    // AN ARTIFACT OF A DEFECT FIXED 2026-09-26. Its second peel blanks the `if`
+    // header at :55, and the orphaned cells under it fold into the body of the
+    // `ignored_list(sym) =>` definition just above — which the object reader
+    // used to walk as TOP-LEVEL code, so the cells "built". A definition's body
+    // now runs only where it is called (`objectFnInline.js`), and measured on
+    // this tree the script reaches neither way (kept ∞, blanked ∞). Replaced by a
+    // script where keeping the binding helps for a reason that is still true:
+    // `momentum-volatility-scanner`, kept 3 / blanked 12 (measured, full corpus).
     const named = [
-      'position-size-calc__a42db1a620.pine',
+      'momentum-volatility-scanner__4d1deaa855.pine',
       'vold-market-breadth__9c5cde9557.pine',
       'wyckoff-accumulation-distribution__d9ae726e21.pine',
     ]

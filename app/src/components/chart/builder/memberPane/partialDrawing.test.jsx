@@ -52,8 +52,12 @@ const CASES = [
   // ── partial, nothing removed: drawn, disclosed ───────────────────────────
   { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
     objectsOnly: true, kind: 'partial', text: partial(199, 246), also: '`line.set_xloc`' },
+  // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
+  // each call site, and most of it sits behind guards this chart cannot read
+  // (7 of 21 when the helper's body was walked once as top-level code). Its lost
+  // `line.delete`s still remove nothing drawn.
   { cls: 'partial objects-only, lost deletes remove nothing drawn', script: 'htf-liquidity-dashboard-tfo__ec8f8316a4',
-    objectsOnly: true, kind: 'partial', text: partial(7, 21) },
+    objectsOnly: true, kind: 'partial', text: partial(138, 152) },
   // ── partial with a removal, drawing-only: refused by name ────────────────
   { cls: 'removal lost: a delete', script: 'rsi-horizontal-resistance-levels__a3f8454f81',
     objectsOnly: true, kind: 'refused', what: 'a delete' },
@@ -72,8 +76,16 @@ const CASES = [
     objectsOnly: false, kind: 'partial',
     text: /^This script uses `table\.merge_cells`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
-  { cls: 'plots + removal lost', script: 'fibonacci-pivot-points-cc__p8DQ3RIR97',
-    objectsOnly: false, kind: 'withheld', what: 'a delete' },
+  // ⚠️ Since the call-site inliner this corpus row's program is EMPTY (all 7 of
+  // its drawing steps are refused calls to its own helpers), so it proves the
+  // SENTENCE and not the withholding; `plots + removal lost, with a real program`
+  // below is the case that can tell withheld from drawn.
+  { cls: 'plots + removal lost in a refused helper', script: 'trend-lines-supports-and-resistances__413ee2ee3b',
+    objectsOnly: false, kind: 'withheld', what: 'a function of its own that deletes' },
+  // ⭐ 2026-09-27 — was the `withheld` row (its `line.delete(sup[1])`s were
+  // dropped). A drawing variable's history (`{r:'reg', back:1}`) completes it.
+  { cls: 'clean plots + objects, completed by `line.delete(sup[1])`', script: 'fibonacci-pivot-points-cc__p8DQ3RIR97',
+    objectsOnly: false, kind: 'clean' },
 ]
 
 const setMemberPane = (v) => {
@@ -142,6 +154,70 @@ describe.each(CASES)('$cls — $script', (c) => {
     // ⭐ DRAWN: a partial program still reaches the pane, it is not withheld.
     const lossyWithOps = !!(door.translation.objects && door.translation.objects.ops.length)
     if (lossyWithOps) expect(installed.objects && installed.objects.ops.length).toBeGreaterThan(0)
+  })
+})
+
+describe('plots + removal lost, with a real program — the drawing is WITHHELD, not drawn', () => {
+  // ⛔ No committed corpus script has this shape since the call-site inliner (the
+  // only plotting script that loses a removal has an empty program), so a
+  // fixture that can tell "withheld" from "drawn" is written here: a drawn
+  // label, and its delete behind a condition this chart cannot read.
+  const SOURCE = [
+    '//@version=6',
+    'indicator("withheld", overlay = true)',
+    'var label lb = label.new(bar_index, high, "x")',
+    'if weird_unreadable_fn(close)',
+    '    label.delete(lb)',
+    'plot(close)',
+  ].join('\n')
+
+  it('plots drawn, objects null although the program has ops, the sentence rendered', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '')
+    const door = memberPaneDefinition({ source: SOURCE, id: DEF_ID })
+    expect(door.ok, door.reason || '').toBe(true)
+    // non-vacuity: there IS a program to withhold
+    expect(door.translation.objects && door.translation.objects.ops.length).toBeGreaterThan(0)
+    render(<MemberPane sym="SPY" tf="D" source={SOURCE} defId={DEF_ID} />)
+    const installed = engineRegistry.getDefinition(DEF_ID)
+    expect(installed.objects || null).toBe(null)
+    expect(installed.plots.some((p) => !p.hidden)).toBe(true)
+    const drawings = drawingItems().filter((t) => /drawing/.test(t))
+    expect(drawings).toHaveLength(1)
+    const m = drawings[0].match(WITHHELD)
+    expect(m, drawings[0]).toBeTruthy()
+    expect(m[1]).toBe('a delete')
+  })
+
+  // ⭐ INTEGRATION (2026-09-27): the object-pass branch adds the inputs an object
+  // tree reads to the document (`withObjectInputs`) — an input DECLARED by a
+  // declined row (the alertcondition here) and read by the label. When the
+  // drawing is withheld that input moves nothing on the chart, so it must not be
+  // offered as a knob. Control: the same script with no lost removal draws the
+  // label AND declares the input.
+  const withInput = (removalLost) => [
+    '//@version=6',
+    'indicator("withheld inputs", overlay = true)',
+    'len = input.int(5, "Len")',
+    'var label lb = label.new(bar_index, high + len, "x")',
+    removalLost ? 'if weird_unreadable_fn(close)' : 'if close > open',
+    removalLost ? '    label.delete(lb)' : '    label.set_text(lb, "y")',
+    'plot(close)',
+    'alertcondition(close > len, "A", "a")',
+  ].join('\n')
+  const inputKeys = (d) => (d.definition.inputs || []).map((i) => i.key)
+
+  it('a withheld drawing brings none of its own inputs into the document', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '')
+    const withheld = memberPaneDefinition({ source: withInput(true), id: DEF_ID })
+    const drawn = memberPaneDefinition({ source: withInput(false), id: `${DEF_ID}-c` })
+    expect(withheld.ok && drawn.ok).toBe(true)
+    // both translations declare `len` — the difference is only the door's
+    expect(withheld.translation.declared).toContain('len')
+    expect(drawn.translation.declared).toContain('len')
+    expect(drawn.definition.objects).toBeTruthy()
+    expect(inputKeys(drawn)).toContain('len')
+    expect(withheld.definition.objects || null).toBe(null)
+    expect(inputKeys(withheld)).not.toContain('len')
   })
 })
 
