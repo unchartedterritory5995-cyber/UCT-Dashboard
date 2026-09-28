@@ -37,6 +37,7 @@ import { fullBarsFor } from '../../../../utils/barsBackfill'
 import { DEFAULT_BUDGET } from './budget'
 import { ALL_MENU_CODES } from '../../timeframes'
 import { timeframeFlags } from '../../indicators'
+import { OOS_ABSENT, partialNote } from './__tests__/oosLocalOnly.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const OOS = path.join(REPO, 'tests/fixtures/pine_oos')
@@ -103,11 +104,12 @@ describe('⭐⭐ the deepest recurrence any real script declares', () => {
   const all = [...[...perScript.values()].flat(), ...v2Warmups]
   const maxWarmup = all.length ? Math.max(...all) : 0
 
-  it('the corpus is the one on disk, and it was actually walked', () => {
+  it(`the corpus is the one on disk, and it was actually walked${partialNote()}`, () => {
     // ⛔ THE DENOMINATOR, STATED. A measurement over a corpus that failed to load
     // is a measurement of nothing, and `Math.max()` of an empty list is
     // `-Infinity` — which would derive a ceiling of zero and look decisive.
-    expect(SCRIPTS.length).toBe(59)
+    // ⏭ Every member is either walked or a NAMED licence-held absentee (see title).
+    expect(SCRIPTS.length + OOS_ABSENT.length).toBe(59)
     expect(perScript.size, 'no script in the corpus declared a recurrence').toBeGreaterThan(0)
     expect(all.length).toBeGreaterThan(0)
     expect(v2Warmups.length, 'v2 declares the accum this ruling is about').toBeGreaterThan(0)

@@ -343,44 +343,29 @@ const AWAITING_A_DECISION = {
   // DELETE this block in the same commit — do not let it become the parking
   // space the comment above warns about. If the pane build is abandoned, these
   // files go with it.
-  'app/src/components/chart/engine/runtime/ir.js':
-    'PINE RUNTIME (C4 Phase 2) — the instruction set. Mounted by the plotted '
-    + 'pane at step 6, behind a flag. Delete this entry when the pane lands.',
-  'app/src/components/chart/engine/runtime/vm.js':
-    'PINE RUNTIME (C4 Phase 2) — the bar loop. Same mount, same expiry.',
+  // ⚰️ EXPIRED 2026-09-28 — THE RUNTIME LANE IS MOUNTED. PR #216 puts it on the
+  // member door as a dark fallback (`memberPaneDefinition.js` lazy-imports
+  // `runtimeLaneDefinition`), which is exactly the event this block named as
+  // its expiry. The entries for ir.js, vm.js, lowerIr.js, program.js,
+  // limits.js, pineRuntimeFrontend.js, collections.js, colours.js, text.js,
+  // handles.js and records.js stood here until then and are deleted, not
+  // renewed: the rail below reds on an entry for a file that IS reachable.
+  // What the mount does NOT reach stays, each with its own reason.
   'app/src/components/chart/engine/runtime/lower.js':
-    'PINE RUNTIME (C4 Phase 2) — source -> IR. Same mount, same expiry.',
-  'app/src/components/chart/engine/runtime/lowerIr.js':
-    'PINE RUNTIME (C4 Phase 2) — the lowering pass. Same mount, same expiry.',
-  'app/src/components/chart/engine/runtime/program.js':
-    'PINE RUNTIME (C4 Phase 2) — the program artifact. Same mount, same expiry.',
-  'app/src/components/chart/engine/runtime/limits.js':
-    'PINE RUNTIME (C4 Phase 2) — the runtime budget. Same mount, same expiry.',
-  'app/src/components/chart/engine/ast/pineRuntimeFrontend.js':
-    'PINE RUNTIME (C4 Phase 2) — the version-aware front end that decides which '
-    + 'lane a script takes. Same mount, same expiry.',
-  // ── THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20) ───────────────────────
-  //
-  // ⛔ SAME MOUNT, SAME EXPIRY as the block above, and recorded for the same
-  // reason: each is imported by `pineRuntimeFrontend.js` and by nothing a member
-  // can navigate to, so the rail is RIGHT that no route reaches them. They are
-  // listed individually rather than waved through by directory, because a
-  // directory rule would silently adopt whatever lands there next.
-  'app/src/components/chart/engine/runtime/collections.js':
-    'PINE RUNTIME — typed arrays (`array.new<T>`, get/set/push). Same mount, '
-    + 'same expiry.',
-  'app/src/components/chart/engine/runtime/colours.js':
-    'PINE RUNTIME — the colour channel (`color.new`/`color.rgb` to a packed '
-    + '0xTTBBGGRR int). Same mount, same expiry.',
-  'app/src/components/chart/engine/runtime/text.js':
-    'PINE RUNTIME — the text channel (`str.tostring` and friends). Same mount, '
-    + 'same expiry.',
+    'PINE RUNTIME (C4 Phase 2) — source -> IR, superseded on the member path '
+    + 'by `lowerIr.js`; still imported by runtime tests only. Delete or mount '
+    + 'it when the lane\'s front end is settled.',
   'app/src/components/chart/engine/runtime/objectLane.js':
     'PINE RUNTIME — the LANE SEAM: runs the runtime lane and feeds its outputs '
     + 'to an object program, so a table cell can hold a value only that lane can '
     + 'compute (arrays, loops, sorts). Deliberately unmounted: ruling D2 keeps '
     + 'the member pane on the HOST lane\'s saved definition, and wiring this to a '
-    + 'member is a separate, flagged decision. Same mount, same expiry.',
+    + 'member is a separate, flagged decision.',
+  'app/src/components/chart/engine/ast/peelToBuilding.js':
+    'CORPUS INSTRUMENT — the one peeler shared by the distance-to-working '
+    + 'censuses; it reads `corpus/committed` from disk and is imported by '
+    + 'measurement tests only. No member route by design and NOT waiting on '
+    + 'the pane.',
   'app/src/components/chart/engine/ast/oosHarness.js':
     'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
     + 'corpus against both lanes and is invoked by tooling and tests only. It '
@@ -446,14 +431,9 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/zorder.js':
     'R0.5 RENDERER PRIMITIVE — Pine\'s nine z-buckets onto lightweight-charts\' '
     + 'four slots. Same wave, same expiry.',
-  'app/src/components/chart/engine/colorInt.js':
-    'RENDERER PRIMITIVE — the `0xTTBBGGRR` colour integer and its byte order. '
-    + 'Same wave, same expiry.',
-  'app/src/components/chart/engine/ast/pineRuntimeClock.js':
-    'T4 — the `newestBarIsForming` producer for the RUNTIME lane. Held off the '
-    + 'pane by ruling D2, exactly like the `runtime/*` block above, so it '
-    + 'expires on the SAME condition: the commit that puts the IR lane on the '
-    + 'pane path.',
+  // ⚰️ `colorInt.js` and `ast/pineRuntimeClock.js` stood here until #216 put
+  // the runtime lane on the member door (2026-09-28); both are reached through
+  // it now, so their entries are deleted rather than renewed.
   'app/src/components/chart/builder/memberPane/seriesCompare.js':
     'T5 — per-series vendor agreement. An INSTRUMENT, not a member surface, in '
     + 'the same class as `oosHarness.js`: invoked by tooling and tests, with no '
@@ -781,7 +761,6 @@ const PARKING_EXPIRES = {
   // it dated was removed from AWAITING_A_DECISION. The short expiry was never
   // tested by time; do not read its absence as evidence the mechanism works.
   'THE PINE RUNTIME, NOT YET MOUNTED (2026-09-09)': '2026-11-30',
-  "THE RUNTIME LANE'S VALUE CHANNELS (2026-09-20)": '2026-11-30',
   // ⚰️ THIS IS THE BLOCK THAT LAPSED, and it is renewed SHORT on purpose.
   // `objectPool.js` has been removed from it (RC-B wired it), but five
   // primitives remain — and three of them, `zorder.js`, `colorInt.js` and

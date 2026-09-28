@@ -27,6 +27,9 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
+import {
+  LOCAL_ONLY, OOS_ABSENT, COMMITTED_ABSENT, absentOf, partialNote, itNeedsLocalOnly,
+} from './__tests__/oosLocalOnly.js'
 
 const DIR = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 const ARTIFACT = path.resolve(__dirname, 'oos-measured-baseline.json')
@@ -64,9 +67,10 @@ if (process.env.OOS_MEASURED_WRITE) {
 }
 
 describe('the OOS corpus is measured, not merely exercised', () => {
-  it('⛔⛔ NON-VACUITY — the corpus is really here and really translates', () => {
+  it(`⛔⛔ NON-VACUITY — the corpus is really here and really translates${partialNote()}`, () => {
     // Without this, every assertion below passes over an empty directory.
-    expect(FILES.length).toBeGreaterThan(50)
+    // ⏭ Licence-held absentees are named in the title and accounted for, never read.
+    expect(FILES.length).toBeGreaterThan(50 - OOS_ABSENT.length)
     const threw = Object.entries(MEASURED).filter(([, m]) => m.threw)
     expect(threw, 'a script threw rather than refusing').toEqual([])
     // …and the instrument separates the corpus, so it cannot pass by grading
@@ -98,18 +102,41 @@ describe('the OOS corpus is measured, not merely exercised', () => {
     expect(moved, `OOS measurements moved:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
   })
 
-  it('⭐ THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED', () => {
-    // ⚰️ These are the six R33a's first re-baseline silently omitted. Naming them
-    // here means a future re-baseline cannot lose them the same way.
-    const SIX = [
-      'high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine',
-      'high_engagement__22-reversal-probability-profile-algoalpha.pine',
-      'long_tail__06-sector-rotation-leadership-persistence.pine',
-      'mid_engagement__09-relative-volume-breakout-context.pine',
-      'mid_engagement__22-rsi-levels-regime-map.pine',
-      'mid_engagement__23-distilled-htf-po3.pine',
-    ]
-    const missing = SIX.filter((f) => !FILES.includes(f))
+  // ⚰️ These are the six R33a's first re-baseline silently omitted. Naming them
+  // here means a future re-baseline cannot lose them the same way.
+  const SIX = [
+    'high_engagement__13-ultimate-opening-range-breakout-luxalgo.pine',
+    'high_engagement__22-reversal-probability-profile-algoalpha.pine',
+    'long_tail__06-sector-rotation-leadership-persistence.pine',
+    'mid_engagement__09-relative-volume-breakout-context.pine',
+    'mid_engagement__22-rsi-levels-regime-map.pine',
+    'mid_engagement__23-distilled-htf-po3.pine',
+  ]
+
+  it('⭐ THE SIX CENSUS-NAMED SCRIPTS THAT LIVE HERE ARE COVERED — or named licence-held absentees', () => {
+    // Three of the six are licence-held local-only members; absent, they go to the
+    // named skip below. Any OTHER one missing is a script that left the corpus.
+    const missing = SIX.filter((f) => !FILES.includes(f) && absentOf([f]).length === 0)
     expect(missing, 'a census-named OOS script left the corpus').toEqual([])
+  })
+
+  itNeedsLocalOnly(SIX, '⭐ …and all six are on disk, so all six are measured', () => {
+    expect(SIX.filter((f) => !FILES.includes(f))).toEqual([])
+  })
+
+  // ⛔⛔ THE ONE PLACE THE LOCAL-ONLY ALLOWANCE IS BOUNDED (see oosLocalOnly.js).
+  // Every skip and every PARTIAL title in the pine suites rests on "only
+  // licence-held members may be absent"; this is what keeps that true.
+  it('⛔⛔ ONLY LICENCE-HELD MEMBERS MAY BE ABSENT — a missing committed fixture is a hard red', () => {
+    expect(COMMITTED_ABSENT, 'committed (storage: "git") pine_oos members are missing — '
+      + 'that is a deleted fixture, not a licence decision').toEqual([])
+    // …and "local-only" in the manifest must really be uncommittable: every such
+    // member is listed in the directory's .gitignore, so an absentee is never a
+    // file somebody forgot to add.
+    const ignored = fs.readFileSync(path.join(DIR, '.gitignore'), 'utf8')
+      .split(/\r?\n/).map((l) => l.trim()).filter((l) => l.endsWith('.pine'))
+    expect(LOCAL_ONLY.length, 'the manifest names no local-only member — the allowance '
+      + 'is reading the wrong file').toBeGreaterThan(0)
+    expect(LOCAL_ONLY.filter((n) => !ignored.includes(n))).toEqual([])
   })
 })
