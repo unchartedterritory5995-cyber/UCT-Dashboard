@@ -1,0 +1,813 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10s2/app
+
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > every card in the list view carries a checkbox; the board view carries none
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > selecting shows the toolbar with a count; clicking a card body still opens the note
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > every card in the list view carries a checkbox; the board view carries none 284ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Shift+click selects the range between
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > selecting shows the toolbar with a count; clicking a card body still opens the note 248ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Select all N shown" selects every note in view
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Shift+click selects the range between 109ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Esc clears the selection
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Escape on an open "Export selected" keeps the selection and the focus in the bar; the next Escape clears and lands on the list heading
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Select all N shown" selects every note in view 198ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Esc clears the selection 79ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Clear" in the bar lands focus on the list heading, not on <body>
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Escape on an open "Export selected" keeps the selection and the focus in the bar; the next Escape clears and lands on the list heading 245ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > ⛔ Esc while typing a tag does NOT throw the selection away
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Clear" in the bar lands focus on the list heading, not on <body> 361ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > going to another folder starts a fresh selection
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > ⛔ Esc while typing a tag does NOT throw the selection away 417ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > the table view selects too, with a select-all header
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > going to another folder starts a fresh selection 353ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > the table view selects too, with a select-all header 363ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > move: one request, every advanced revision LANDED, and a sentence saying where 613ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > telemetry — the bulk bar's Move sends ONE bulk_used with the op and counts, no ids or names 610ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > add a tag, remove a tag 1016ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > the tag field suggests the member's tag TREE — a parent offers what sits below it 530ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > favorite lands nothing — it never advances a revision 361ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > trash: the notice OUTLIVES the toolbar, Undo takes focus, and Undo restores exactly those notes 640ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a partial failure names the note that did not change, and why 592ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > ⛔ a note waiting to sync is never sent, and the member is told which 452ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a refused request is an alert with the reason, lands nothing, and keeps the selection
+[notebook] bulk action failed Error: folder not found
+    at runNoteBatch (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/lib/noteBatch.js:197:19)
+    at runBulk (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/tabs/NotebookTab.jsx:1119:23) {
+  status: 400,
+  detail: 'folder not found'
+}
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a refused request is an alert with the reason, lands nothing, and keeps the selection 554ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export: the selected notes, minus any waiting to sync, and a sentence saying so 674ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as Web page (HTML): the choice reaches the request and the sentence names it (never "Markdown") 510ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as JSON: the choice reaches the request and the sentence names it (never "Markdown") 498ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as Word (.docx): the choice reaches the request and the sentence names it (never "Markdown") 474ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > in the Trash, the only bulk action is Restore 425ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — B1: a bulk move can be taken back > Undo puts every note back in the folder it LEFT, through the same door, and lands the revisions 1105ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-N3: an Undo that could not put every note back > says which stayed and why — never "try again" after an Undo 840ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > Undo pressed while another batch runs is QUEUED, said so, and restores when that batch ends 1119ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > a later action's sentence appears BESIDE the Undo, never in place of it 750ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R1-S2: the Undo keeps its OWN slot — a later sentence is a sibling in the stack, never over or around it 772ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R1-S2 / R23-N6: only the STACK is fixed — no notice positions itself in ANY rule, media or duplicate 3ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > item 9: the notice stack sits ABOVE the joystick resting layer and BELOW the open fan scrim 3ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R23-N6: at the touch tier the buttons wrap UNDER the sentence — canonical breakpoint, no new custom property 2ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > a queued note the drain has not retired is refused for trash, and named 422ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > …and left out of an export, by name 485ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > ⛔ CONTROL — a move still goes through for that note (it rebases, the words still arrive) 497ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > trash: the true sentence, nothing sent, and "Trash anyway" proceeds only after the confirmation 1034ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > Cancel goes back to the sentence and sends nothing 918ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > a partial trash: the Undo for what moved and the offer for what could not be checked stand side by side 686ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > export: the same truth, and "Export anyway" exports only after the confirmation 947ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > ⛔ CONTROL — a device that CAN be checked is never offered "anyway" 552ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-N4: a bulk action re-asks the tag counts only when it can move them > a move or a favourite does not; a tag edit and a trash do 2046ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > its notes JOIN the Undo on screen: one Undo restores the whole trash, and focus follows the decision 950ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > the first half's Undo does not run out while the offer to finish the action is still open 472ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > when nothing moved, "Trash anyway" takes focus as it appears, and gets it back after Cancel 1814ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N6: the notice column clears the joystick pad > where the joystick can be, the column starts above its resting box — from the hub's OWN constants 362ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N6: the notice column clears the joystick pad > ⛔ CONTROL — where the joystick cannot be, the stylesheet's own bottom stands 362ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > opening the PDF preview resolves the documentId from the note's own document list 3506ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > saving an excerpt POSTs to the excerpts endpoint and inserts a real documentExcerpt node 344ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > re-reads the evidence-candidate list after an excerpt is saved, without a reload 261ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > a failed excerpt save shows a toast and inserts no node 191ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > ⛔⛔ the excerpt door lands its revision > hands the excerpt response to the settle, for THIS note 208ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > ⛔⛔ the excerpt door lands its revision > ⛔ CONTROL — a FAILED excerpt save settles nothing 163ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that gives up (a 4xx) is reported once, as http, not retrying
+autosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:74:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: 404
+}
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 1 in 1000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 2 in 2000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 3 in 4000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 4 in 8000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 5 in 15000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that gives up (a 4xx) is reported once, as http, not retrying 783ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt 83ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that lands reports nothing 77ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that fails reports no save_success (the SLO would read a failure as a success)
+autosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:129:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: 404
+}
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > conflict_forked > the editor's fork is counted once, door "editor", with no text or ids 116ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that lands reports ONE save_success {door: editor}, with no text or ids 73ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that fails reports no save_success (the SLO would read a failure as a success) 82ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > a move lands exactly the revisions the server says advanced 2ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — a favourite never advances a revision, so nothing lands 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — a refused request throws the server's reason and lands nothing 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — signed out, nothing lands (the account gate holds at this door too) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > holds it back, reports it with the wave's sentence, and sends the rest 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > when EVERY note is blocked, no request is made at all 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > a favourite IS allowed on a blocked note — it never touches the note row 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > renameTag is a note-writing op — refused for a blocked note, like addTag/removeTag 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > says what happened, where 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > names the notes that did not change, and why 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > an invalid note carries the server's own reason 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > more than three failures are summarised, not listed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > posts the ids with the format it was given, downloads the zip, and reports what the server counted 3ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the md choice as the same format= the format routes take 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the html choice as the same format= the format routes take 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the json choice as the same format= the format routes take 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the docx choice as the same format= the format routes take 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > names the file from filename* first (the ONE reader, filenameFromDisposition), so a name outside Latin-1 arrives whole 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > a busy export slot is said in plain words 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > a refused format is the server's own sentence, as it stands 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a queued note the drain has NOT retired is refused for trash, named, and the rest is sent 3ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a dirty record that is not queued yet is refused too 15ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ the RAW signal whatever the door-guard mode — unknown-only still refuses a queued note 15ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: a store that cannot be OPENED is UNCHECKED — held back, and never called "still syncing" 2ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: an open that never SETTLES (a blocked upgrade) is unchecked after the timeout — the action does not hang 28ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: a note whose own read fails is unchecked; the rest of the answer still stands 16ms
+Not implemented: navigation to another Document
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: the CONFIRMED "anyway" sends the unchecked note — and ONLY that: a note the re-check finds unsent is still refused 16ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ CONTROL — without the confirmation the same selection holds the unchecked note back 2ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: the export offer says "included", and its confirmation says what the file would miss 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N1 (final, wave 6 fix round 3): a rename the device cannot check names the notes, says it keeps the old tag, and offers NOTHING 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N1 (final): the plural form reads correctly for more than one unchecked note 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N-c (wave 6 fix round 3): an op with no row of its own gets NEUTRAL copy, never trash's "anyway" 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a queued note the drain has NOT retired is refused for renameTag, named, and the rest is sent 13ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > one store connection for the whole selection, closed afterwards 30ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > holdsUnsentWork reads the raw answer out of every verdict shape 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > a trash is undone by restoring exactly the notes it trashed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > a move is undone per note, back to the folder each one LEFT, only while it is still here 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > nothing changed, a tag, a favourite, or an Undo itself: nothing to take back 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > the Undo of a move says where the notes went 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — every note left out is named > names a retired note and a still-sending note, each with its own reason 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — every note left out is named > nothing exported says so 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > md is said as its EXPORT_FORMATS label, Markdown 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > html is said as its EXPORT_FORMATS label, Web page (HTML) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > json is said as its EXPORT_FORMATS label, JSON 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > docx is said as its EXPORT_FORMATS label, Word (.docx) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > ⛔ a Word export never says "Markdown" (and neither does a web page or JSON) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > an unknown id invents no name 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > the skipped count is said the same way in every format (trashed or no longer there) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > names each note and why it stayed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > a note whose folder is gone and sits in Unfiled says Unfiled 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > ⛔ CONTROL — an ordinary move that raced still says "try again": it CAN be retried 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > a live restore Undo takes the new notes: one Undo for the whole action 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > a note in both is counted once 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > never joins a QUEUED Undo (a promise about its own notes), a missing one, or a different kind 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > the sentence counts the earlier part of the action too 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a bulk tag sends ONE bulk_used with the op and two counts 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a refused batch (the request itself failed) sends nothing 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a selection export sends ONE export_used with the format, the scope and the count 5ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > fires ONCE when the search settles, with the time since it was asked — never the query 15ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > a NEW search is a new reading; one answered from cache reads 0 ms; filters-only reads "filter" 2ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > a disabled search (the panel closed, nothing asked) sends nothing 1ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > fires notebook_capture_saved with widgetId/target/hasTradeRef after a successful send 2ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > hasTradeRef is false when no trade link was attached 1ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > never fires telemetry when the capture itself fails 0ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > capture_used — the capture door counts a capture, and nothing of it > a chart sent to the inbox sends ONE capture_used {inbox, chart} 0ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > capture_used — the capture door counts a capture, and nothing of it > any other widget is a widget; a failed capture sends nothing 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > the event set > is the core Notebook actions (the seven of wave 6 + the R-16 eight of wave 10), each with a schema 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > a search query or a note title in a string prop becomes "other" 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > a key that is not on the event schema never leaves 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > numbers must be finite and are rounded; booleans must be booleans 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > an unknown event is not sent at all 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > transport > posts to the existing J2 telemetry door 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > transport > never throws, whether fetch throws or rejects 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > note open timer > measures from start to stop, and fires once however often stop is called 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > the table names study tasks T1..T10 and the seven named actions, each to a known event 2ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > every wave-10 event carries at least one core action (none is an orphan) 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > import_used.source is exactly the adapter ids of the importer registry (read, not typed) 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > export_used.format covers every EXPORT_FORMATS id, plus png and print 0ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > every CAPTURE_TARGETS key is counted as a capture or declared not-a-capture 1ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > CONTROL: a destination added to the registry and mapped nowhere is reported by name 0ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > the two lists are disjoint, name only real keys, and map only to words the schema accepts 1ms
+
+ Test Files  8 passed (8)
+      Tests  140 passed (140)
+   Start at  09:11:05
+   Duration  40.68s (transform 3.26s, setup 1.07s, import 1.61s, tests 32.84s, environment 4.12s)
+

@@ -1,4 +1,5 @@
-"""Build and verify docs/notebook/parity-scorecard.md — the Notebook's parity re-score (wave 9, lane 9B).
+"""Build and verify docs/notebook/parity-scorecard.md — the Notebook's parity re-score (wave 9 lane
+9B's tool; re-scored after wave 10 by follow-up F3, 2026-09-28).
 
     python tools/parity_scorecard.py --verify [--rev REV]   # offline: re-check every cited file:line
                                                              #   at the revision the scorecard records
@@ -7,12 +8,14 @@
     python tools/parity_scorecard.py --write   [--pages DIR] # rebuild the scorecard
 
 WHAT IT NEEDS. Nothing over the network: this tool never fetches. It reads the gap ledger, the plan,
-the committed evidence under docs/notebook/evidence/wave9-9b-8a0098029/ (browser-check JSONs, rail
-logs), the wave-7 and wave-8 walk reports, and the flag ledger as it stood on master at be9ca78b6
-(`git show be9ca78b6:docs/feature_flags.json` — that commit must be in the local object store). The
-competitor quotes and the metadata of every page they were cut from (URL, where the text was read,
-fetch time, sha256) are embedded below as data (QUOTES, SOURCES), recorded 2026-09-26 by lane 9B's
-fetch pass (research ledger R12-R16).
+the committed evidence of waves 5-10 (wave 9's browser check under
+docs/notebook/evidence/wave9-9b-8a0098029/, the wave-7 and wave-8 walk reports, wave 10's L1a walk,
+10C/10D evidence, 10E's docs/notebook/proof/ and the follow-up lanes' records), and the flag ledger
+`docs/feature_flags.json` AT THE REVISION THE SCORECARD RECORDS (wave 10, F3: it read master's copy
+at be9ca78b6 before; a flag armed since then made every such cell wrong). The competitor quotes and
+the metadata of every page they were cut from (URL, where the text was read, fetch time, sha256)
+are embedded below as data (QUOTES, SOURCES), recorded 2026-09-26 by lane 9B's fetch pass (research
+ledger R12-R16) and 10E-1's Evernote fold.
 
 --pages DIR re-verifies every quote verbatim against the text extracted from those fetches (one
 <page id>.txt per page; Obsidian's markdown has its links rendered to their display text first).
@@ -21,19 +24,46 @@ length only, and the tool says so. A competitor page is re-fetched by hand (ruli
 
 --verify is the offline half the rails run (tests/test_parity_scorecard.py): it parses the COMMITTED
 scorecard and re-checks every `CODE|RULING|RECORD|MEASURE path:line "fragment"`, every WALK check id
-and verdict in its report, and every TEST totals line in its log, all read through `git show REV:path`
-at ONE revision; and every flag RECORD against be9ca78b6. The scorecard is a MEASUREMENT AT A COMMIT:
+and verdict in its report, every TEST totals line in its log, and every flag RECORD, all read through
+`git show REV:path` at ONE revision (a flag RECORD must also name the revision the scorecard records).
+The scorecard is a MEASUREMENT AT A COMMIT:
 REV defaults to the revision its own header records ("Document written at"), so an unrelated edit
 that moves a cited line later never reds it. `--rev HEAD` asks the other question, "has the code
 moved since?", and a line that moved fails by name there (re-read it; never trust it). A revision
 that is not in the local object store is never a pass: it fails as "unverifiable: <sha> not in this
-clone" (the recorded revision and be9ca78b6 alike; a clone needs full history, e.g. fetch-depth 0).
+clone" (a clone needs full history, e.g. fetch-depth 0).
 
 --write refuses to write while any check fails: a quote not verbatim (with --pages), a fragment not
-on its line, a walk check not PASS, a flag state that differs from master's ledger, a log without
-its totals line, a verdict of AHEAD/PARITY/BEHIND against a vendor with no citation. It also refuses
-unless the built text verifies at the revision its header records (HEAD): a cited input that is
-edited but not committed would make that header a revision the citations are not true at.
+on its line, a walk check whose verdict is not the one cited, a flag state that differs from the
+ledger at HEAD, a log without its totals line, a verdict of AHEAD/PARITY/BEHIND against a vendor with
+no citation, an evidence-index (§0) property that does not hold. It also refuses unless the built
+text verifies at the revision its header records (HEAD): a cited input that is edited but not
+committed would make that header a revision the citations are not true at.
+
+§0, THE EVIDENCE INDEX (redesigned in wave 10, F3; tightened in F3 fix round 1). Wave 9 checked
+"every wave-tip SHA is an ancestor of HEAD". Waves 5-10 land on master as SQUASH merges (one parent),
+so a wave's head is never an ancestor of master and that check could only pass on the wave's own
+branch. It did, however, prove the one thing the index is for: the code a walk measured SHIPPED. The
+redesign keeps that property through the squash:
+  (1) pinned -- each wave's SQUASHED head is pinned by a tag (refs/tags only) resolving to the
+      recorded SHA. Waves 5 and 7's `-tip-` tags are not the heads their PRs squashed (#186 squashed
+      d251cbb98, #196 bba8bcb4d; each squash's tree equals that head's tree), so new `-tip2-` tags pin
+      the squashed heads and the old tags are left where they are;
+  (2) landed -- the wave's squash is an ancestor of HEAD;
+  (5) tied -- the squash CARRIES the head: its tree is the head merged onto the squash's parent,
+      `git merge-tree --write-tree <squash>^ <head>` == `<squash>^{tree}` (F3 fix round 3: a squash onto
+      a master that moved is a 3-way merge, so a file both sides touched holds the merge, not the head's
+      blob); non-vacuous: a head that changed nothing against merge-base(head, squash^) fails.
+      Wave 10's L1c has no squash yet: its tag is created at the final L1c tip; while that head is in
+      HEAD's own history it is its own landing, and after the squash the tool finds the earliest
+      commit of HEAD's history (topological order) that carries the head by that rule;
+  (3) unchanged -- every cited evidence file's blob at its wave's landing equals its blob at HEAD;
+  (4) reachable -- every tree a browser check or walk measured is an ancestor of the tag of the
+      declared wave it was on, and that wave passed (1), (2) and (5). A ref that is not HEAD or a
+      declared wave tag -- a bare SHA, or a tag of a branch that never landed -- is refused.
+Every evidence path and walked tree the built scorecard cites must be a row here (`cited_b0_gaps`), so a
+new citation cannot escape the index. `evidence_index()` checks all five; tests/test_parity_scorecard.py
+shows each failing on a planted defect.
 """
 from __future__ import annotations
 
@@ -48,14 +78,24 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gap_ledger_summary as GLS  # noqa: E402
 
-DATE = '2026-09-26'
+DATE = '2026-09-28'              # this re-score (wave 10, follow-up F3)
+FETCH_DATE = '2026-09-26'        # the day every competitor page cited here was fetched (R12-R17)
 EVD = 'docs/notebook/evidence/wave9-9b-8a0098029'
 LEDGER = 'docs/notebook/competitive-gap-ledger.md'
 PLAN = 'docs/notebook/NOTEBOOK-10-OF-10-PLAN.md'
 PB = 'docs/notebook/perf-budgets.md'
 SCORECARD = 'docs/notebook/parity-scorecard.md'
-FLAGS_REV = 'be9ca78b6'          # master's flag ledger the RECORD cells cite ("per record, not re-read")
+FLAGS = 'docs/feature_flags.json'  # read at the revision the scorecard records (never a fixed older one)
 INVENTORY_REV = '00742b54c'      # the plan the §B1 inventory was built from (lane 9B's starting HEAD)
+
+# ── wave 10's evidence (every path is committed; the tips named are the trees each run measured) ──
+W10_WALK = 'docs/notebook/gate-runs/wave10/walk-L1a-14310c206.json'   # the L1a landing walk (10B rows)
+W10_WALK_TOOL = 'tools/notebook_wave10b_walk.py'
+PROOF = 'docs/notebook/proof'                                          # 10E-1 + the follow-up lanes
+KBD_F4 = 'docs/notebook/evidence/a11y-f4-keyboard-2026-09-27/walk-all.json'   # the keyboard re-walk (F4)
+KBD_TOOL = 'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'
+W10C = 'docs/notebook/evidence/wave10-10c'
+W10D = 'docs/notebook/evidence/wave10-10d'
 
 # ── the quote bank: key -> (page id, verbatim quote <= 25 words), cut 2026-09-26 ──
 QUOTES = {
@@ -1352,7 +1392,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313438-Restore-a-note-from-the-trash",
   "read_from": "help.evernote.com Zendesk article JSON, read in a real Chrome (controller)",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1361,7 +1401,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313858-Use-note-history-to-view-and-restore-older-versions-of-a-note",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1370,7 +1410,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/360056549574-Permanently-close-your-Evernote-account",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1379,7 +1419,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005917-Access-notes-offline",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1388,7 +1428,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/208313828-Use-advanced-search-syntax",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1397,7 +1437,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005647-Find-what-you-need",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1406,7 +1446,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/45706285591955-Semantic-search",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1415,7 +1455,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/46319409880211-AI-Assistant",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  },
@@ -1424,7 +1464,7 @@ SOURCES = {
   "kind": "browser-read",
   "public_url": "https://help.evernote.com/hc/en-us/articles/209005267-Saved-searches",
   "read_from": "help.evernote.com Zendesk article JSON, real Chrome",
-  "rrow": "W10-E (controller)",
+  "rrow": "R17",
   "sha256": None,
   "fetched_utc": "2026-09-26"
  }
@@ -1513,20 +1553,38 @@ def verify_quotes(pages_dir=None):
     return bad
 
 
-def _master_flags():
-    rc, out = git('show', f'{FLAGS_REV}:docs/feature_flags.json')
-    if rc != 0 or not out:
+def _flags_of(text):
+    """The flag ledger's `flags` map from its JSON text (None when there is no text)."""
+    if not text:
         return None
-    d = json.loads(out)
+    d = json.loads(text)
     return d.get('flags', d)
+
+
+def _flags_now():
+    """The flag ledger in the working tree -- what --write records, and (because --write refuses an
+    uncommitted cited input) what HEAD holds when it does."""
+    with open(os.path.join(ROOT, FLAGS), encoding='utf-8') as fh:
+        return _flags_of(fh.read())
 
 
 # ── the offline verifier ──────────────────────────────────────────────────────────────────────
 _CITE = re.compile(r'(CODE|RULING|RECORD|MEASURE) `([^`]+)`:(\d+(?:-\d+)?) "(.*?)"'
                    r'(?=\s*(?:;|\(D\d+\)|\(ledger\)|—|$))')
-_WALK = re.compile(r'WALK `([^`]+)`:(\w+) (\w+) — report `([^`]+)`')
-_TEST = re.compile(r'TEST `([^`]+)` — run by 9B: `([^`]+)`, "([^"]+)"')
-_FLAG = re.compile(r'RECORD `docs/feature_flags\.json` as on master (\w+), key (\w+): status (\w+)')
+_WALK = re.compile(r'WALK `([^`]+)`:([\w-]+) (\w+) — report `([^`]+)`')
+_TEST = re.compile(r'TEST `([^`]+)` — run by (?:9B|F3): `([^`]+)`, "([^"]+)"')
+_FLAG = re.compile(r'RECORD `docs/feature_flags\.json` at (\w+), key (\w+): status (\w+)')
+
+
+def walk_verdicts(d):
+    """{check id: verdict} of a walk report: its `checks` (a dict, or a list of {id|check, verdict|
+    status}) or, for a step-by-step walk (the keyboard walks), its `steps` list."""
+    c = d.get('checks')
+    if c is None:
+        c = d.get('steps', [])
+    if isinstance(c, dict):
+        return {k: (v.get('verdict') if isinstance(v, dict) else v) for k, v in c.items()}
+    return {(x.get('id') or x.get('check')): (x.get('verdict') or x.get('status')) for x in c}
 _WRITTEN_AT = re.compile(r'\*\*Document written at:\*\* `([0-9a-f]{7,40})`')
 
 
@@ -1590,6 +1648,7 @@ def verify(text=None, rev=None):
     rd = _Reader(rev)
     problems, counts = [], Counter()
     flags = None
+    written = recorded_rev(text) or ''
     seen = set()
     for cell in _cells_of(text):
         for item in cell.split(' ; '):
@@ -1600,15 +1659,18 @@ def verify(text=None, rev=None):
             m = _FLAG.match(item)
             if m:
                 if flags is None:
-                    flags = _master_flags()
+                    flags = _flags_of(rd.text(FLAGS))
                     if flags is None:
-                        problems.append(f'unverifiable: {FLAGS_REV} not in this clone')
+                        problems.append(f'flag records: {FLAGS} does not exist at {rev}')
                         flags = {}
                 rev_, key, want = m.groups()
                 got = (flags.get(key) or {}).get('status')
                 counts['FLAG'] += 1
-                if rev_ != FLAGS_REV[:len(rev_)] or got != want:
-                    problems.append(f'flag {key}: the record says {want!r} at {rev_}, {FLAGS_REV} says {got!r}')
+                if not written or not (written.startswith(rev_) or rev_.startswith(written)):
+                    problems.append(f'flag {key}: the record names revision {rev_}, the scorecard was '
+                                    f'written at {written or "no recorded revision"}')
+                if got != want:
+                    problems.append(f'flag {key}: the record says {want!r}, {FLAGS} at {rev} says {got!r}')
                 continue
             for mm in _CITE.finditer(item):
                 kind, path, span, frag = mm.groups()
@@ -1634,12 +1696,7 @@ def verify(text=None, rev=None):
                 if t is None:
                     problems.append(f'WALK report {report} missing at {rev}')
                     continue
-                checks = json.loads(t)['checks']
-                if isinstance(checks, dict):
-                    got = (checks.get(cid) or {}).get('verdict') if isinstance(checks.get(cid), dict) else checks.get(cid)
-                else:
-                    got = next(((c.get('verdict') or c.get('status')) for c in checks
-                                if (c.get('id') or c.get('check')) == cid), None)
+                got = walk_verdicts(json.loads(t)).get(cid)
                 if got != verdict:
                     problems.append(f'WALK {cid}: the scorecard says {verdict}, {report} says {got}')
             for mm in _TEST.finditer(item):
@@ -1654,6 +1711,459 @@ def verify(text=None, rev=None):
                 if fname.replace('app/', '', 1) not in t:
                     problems.append(f'TEST {log}: {fname} is not in the log')
     return counts, problems
+
+
+# ── §0, the evidence index (redesigned in wave 10, F3; tightened in F3 fix round 1) ────────────────
+# (wave, the tag that pins the head that was SQUASHED, that head, the wave's squash on master).
+# ⚰️ Fix round 1 (review I-1): waves 5 and 7 recorded their `-tip-` tags, which are NOT the heads the
+# PRs squashed -- #186 squashed d251cbb98 and #196 squashed bba8bcb4d (each squash's tree equals that
+# head's tree, measured). The old tags are left where they are; the `-tip2-` tags below were created
+# at the squashed heads. Wave 10's L1c has no squash yet: its tag is created by the controller at the
+# final L1c tip immediately before the squash, so its head and squash are resolved at run time (None).
+L1C_TAG = 'notebook-wave10-L1c-tip-2026-09-28'
+B0_WAVES = (
+    ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
+    ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
+    ('wave 7', 'notebook-wave7-tip2-2026-09-26', 'bba8bcb4d', 'f883e0996'),
+    ('wave 8', 'notebook-wave8-tip-2026-09-26', '2dde8fed1', 'caf6d1b9e'),
+    ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74'),
+    ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
+    ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
+    ('wave 10 L1c', L1C_TAG, None, None),
+)
+# (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
+# ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
+# do not carry, so it cannot be derived from them without making property 3 true by definition. What IS
+# derived is the other direction: `cited_b0_gaps()` reads every evidence path and walked tree out of the
+# built scorecard and refuses one this list does not name (review M-6).
+B0_EVIDENCE = (
+    ('docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave5-landing/2026-09-24T21-37-17.md', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave5-landing/2026-09-25T20-10-16.md', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave5-landing/2026-09-25T21-07-34.md', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave5/walk-f84cb5add.json', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave5/walk-fe6d15926.json', '2c3ed3093'),
+    ('docs/notebook/gate-runs/wave6-landing/2026-09-25T23-28-08.md', '271a078b6'),
+    ('docs/notebook/gate-runs/wave6/walk-787a993f5.json', '271a078b6'),
+    ('docs/notebook/gate-runs/wave7-landing/2026-09-26T02-50-58.md', 'f883e0996'),
+    ('docs/notebook/evidence/wave7-walk-8f232d21d/walk-8f232d21d.json', 'f883e0996'),
+    ('docs/notebook/gate-runs/wave8-landing/2026-09-26T13-16-51.md', 'caf6d1b9e'),
+    ('docs/notebook/gate-runs/wave8/walk-341bbccf3.json', 'caf6d1b9e'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser-check.json', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser-check-pass2.json', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-pytest-rA.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest-a11y.log', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/notebook_perf_budgets-bytes.log', '1c4b0bf74'),
+    # F3 fix round 3 (review R12-M5): the walk instruments and integrity records the cells cite beside their runs
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b.py', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b_pass2.py', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md', '1c4b0bf74'),
+    (W10_WALK, '4f708a0d2'),
+    (f'{W10C}/burst-probe-raw.json', '4f708a0d2'),
+    (f'{W10C}/f5-results-run3-tag-applied.md', '4f708a0d2'),
+    (f'{W10D}/personal-api-walk-20260927T043218Z.json', 'd9e887ca0'),
+    (f'{W10D}/browser-check-20260927T050752Z.json', 'd9e887ca0'),
+    (f'{PROOF}/README.md', 'wave 10 L1c'),
+    (f'{PROOF}/walk-fd7d1f42d/run.json', 'wave 10 L1c'),
+    (f'{PROOF}/walk-fd7d1f42d/census.json', 'wave 10 L1c'),
+    (f'{PROOF}/f5-after-aa2417c2c/run.json', 'wave 10 L1c'),
+    (f'{PROOF}/f5-after-aa2417c2c/axe.json', 'wave 10 L1c'),
+    (f'{PROOF}/rail-census-fd7d1f42d.json', 'wave 10 L1c'),
+    (f'{PROOF}/f6-switcher-body/perf/fr1-50k.log', 'wave 10 L1c'),
+    (f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 'wave 10 L1c'),
+    (KBD_F4, 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/pytest-f3-rails.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r2.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py', 'wave 10 L1c'),   # R12-M5
+    (f'{PROOF}/evernote-evidence-2026-09-26.jsonl', 'wave 10 L1c'),                            # R12-M5
+)
+# (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
+# declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
+# no row names HEAD any more, because every one of these trees is left behind by a squash; each names
+# the earliest declared wave tag it is an ancestor of.
+B0_TIPS = (
+    ('787a993f5', 'notebook-wave6-tip-2026-09-26'),    # the wave-6 walk
+    ('8f232d21d', 'notebook-wave7-tip2-2026-09-26'),   # the wave-7 walk
+    ('341bbccf3', 'notebook-wave8-tip-2026-09-26'),    # the wave-8 walk
+    ('8a0098029', 'notebook-wave9-tip-2026-09-26'),    # wave 9's browser check (9B)
+    ('9532e67ac', 'notebook-wave9-tip-2026-09-26'),    # 9D: the folder Publish glyph
+    ('fccff2f63', 'notebook-wave9-tip-2026-09-26'),    # 9D/D1: Export selected, four formats
+    ('39a71dd3c', 'notebook-wave9-tip-2026-09-26'),    # 9D/D2: Publish on every folder row
+    ('14310c206', 'notebook-wave10-L1a-tip2-2026-09-26'),  # the L1a walk
+    ('fd7d1f42d', 'notebook-wave10-L1b-tip-2026-09-27'),   # 10E-1's proof walk
+    ('aa2417c2c', L1C_TAG),                            # F5's after-run (axe, geometry)
+    ('0555889ef', L1C_TAG),                            # F4's keyboard re-walk
+    ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
+)
+_PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
+
+
+def _tag_commit(tag):
+    """The commit a TAG resolves to, or ''. Only refs/tags/ is consulted, so a bare SHA is never a tag."""
+    rc, sha = git('rev-parse', '--verify', '--quiet', f'refs/tags/{tag}^{{commit}}')
+    return sha if rc == 0 else ''
+
+
+def _tie(tip, landing):
+    """Property 5: (changed, differing). `changed` is the files `tip` changed against merge-base(tip, landing^)
+    -- empty means the tie would compare nothing, which the caller refuses as vacuous. `differing` is empty
+    exactly when `landing` carries `tip`: its tree is `tip` merged onto its parent,
+    `git merge-tree --write-tree <landing>^ <tip>` == `<landing>^{tree}` (F3 fix round 3, review R12-I1).
+    Merge-aware, because a GitHub squash onto a master that moved is a 3-way merge: a file both sides touched
+    holds the MERGE, not the head's blob, and the old per-file blob comparison refused that ordinary squash.
+    `--no-renames` everywhere a file list is read (R12-M1): with rename detection a rename lists only the new
+    name, so a landing that kept the old file passed. When the trees differ, `differing` names the files
+    (conflicted ones on a conflict), never an empty set."""
+    rc, base = git('merge-base', tip, f'{landing}^')
+    if rc != 0:
+        return set(), {'(no merge base)'}
+    changed = {x for x in git('diff', '--no-renames', '--name-only', base, tip)[1].splitlines() if x}
+    rc, out = git('merge-tree', '--write-tree', '--name-only', '--no-messages', f'{landing}^', tip)
+    lines = out.splitlines()
+    if rc not in (0, 1) or not lines:
+        return changed, {f'(git merge-tree failed: {out[:80]!r})'}
+    if rc == 1:   # conflict: the head does not even merge onto the squash's parent
+        return changed, {f'(conflict) {x}' for x in lines[1:] if x} or {'(conflict)'}
+    rc2, want = git('rev-parse', '--verify', '--quiet', f'{landing}^{{tree}}')
+    if rc2 != 0:
+        return changed, {'(no tree at the landing)'}
+    if lines[0] == want:
+        return changed, set()
+    differ = {x for x in git('diff', '--no-renames', '--name-only', lines[0], want)[1].splitlines() if x}
+    return changed, differ or {'(trees differ)'}
+
+
+def _find_squash(tip, head):
+    """For a wave whose squash is not recorded yet (L1c): the EARLIEST commit of HEAD's history (topological
+    order, oldest first) that carries `tip` by `_tie`'s rule (its tree is `tip` merged onto its parent), among
+    the commits that touch a file `tip` changed. None when none does.
+    Not the first-parent line: measured on origin/master, wave 9's squash 1c4b0bf74 is not on it (a later
+    merge took master's first parent through another branch), so a first-parent walk misses a real squash."""
+    rc, base = git('merge-base', tip, head)
+    if rc != 0:
+        return None
+    changed = sorted(x for x in git('diff', '--no-renames', '--name-only', base, tip)[1].splitlines() if x)
+    if not changed:
+        return None
+    order = [x for x in git('rev-list', '--topo-order', '--reverse', f'{base}..{head}')[1].splitlines() if x]
+    touched = set()
+    for i in range(0, len(changed), _PATHSPEC_CHUNK):
+        out = git('log', '--full-history', '--format=%H', f'{base}..{head}', '--', *changed[i:i + _PATHSPEC_CHUNK])[1]
+        touched.update(x for x in out.splitlines() if x)
+    for c in order:
+        if c in touched and not _tie(tip, c)[1]:
+            return c
+    return None
+
+
+def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
+    """§0: (rows, problems). rows are (item, command, result) for the table; problems are the rows
+    whose property does not hold. The five properties are in the module docstring."""
+    waves = B0_WAVES if waves is None else waves
+    evidence = B0_EVIDENCE if evidence is None else evidence
+    tips = B0_TIPS if tips is None else tips
+    rows, problems = [], []
+
+    def ok(*a):
+        return git(*a)[0] == 0
+
+    landing_of = {}     # wave name AND recorded squash -> the commit that landed it (None: did not land)
+    tag_ok = {}         # declared wave tag -> (its commit, whether its wave landed and is tied)
+    for wave, tag, tip, landing in waves:
+        sha = _tag_commit(tag)
+        pinned = bool(sha) and (tip is None or sha.startswith(tip)) and (tip is None or ok('cat-file', '-e', f'{tip}^{{commit}}'))
+        want = tip or 'the commit it was created at'
+        rows.append((f'{wave}: tag `{tag}`', 'git rev-parse --verify refs/tags/<tag>^{commit}',
+                     f'{sha[:9]} ({"the recorded head" if tip else "created at the final L1c tip"})' if pinned
+                     else f'{sha[:9] or "no such tag"} -- NOT {want}'))
+        if not pinned and tip is None:
+            problems.append(f'B0 {wave}: tag {tag} does not resolve (it is created at the final L1c tip, before the squash)')
+        elif not pinned:
+            problems.append(f'B0 {wave}: tag {tag} does not resolve to the recorded head {tip} ({sha[:9] or "missing"})')
+        head_c = tip or sha[:9]
+        land, tied = None, False
+        if landing is not None:
+            landed = ok('merge-base', '--is-ancestor', landing, head)
+            rows.append((f'{wave}: squash `{landing}`', f'git merge-base --is-ancestor <squash> {head}',
+                         'landed (an ancestor)' if landed else 'NOT an ancestor'))
+            if not landed:
+                problems.append(f'B0 {wave}: its squash {landing} is not an ancestor of {head}')
+            else:
+                land = landing
+        elif sha and ok('merge-base', '--is-ancestor', sha, head):
+            land = sha
+            rows.append((f'{wave}: landing', f'git merge-base --is-ancestor <tag> {head}',
+                         'the tagged head is itself in this tree\'s history (not squashed yet)'))
+        elif sha:
+            land = _find_squash(sha, head)
+            rows.append((f'{wave}: landing', f'earliest commit of {head} carrying the tag\'s files',
+                         f'squash {land[:9]}' if land else 'NOT FOUND'))
+            if not land:
+                problems.append(f'B0 {wave}: no commit of {head} carries the files {tag} changed')
+        else:
+            rows.append((f'{wave}: landing', 'needs the tag', 'unknown (no tag)'))
+        if land and land == sha and landing is None:
+            tied = True
+            rows.append((f'{wave}: head tied to its landing', 'the landing IS the tagged head', 'tied'))
+        elif land and head_c and pinned:
+            changed, bad = _tie(head_c, land)
+            tied = bool(changed) and not bad
+            rows.append((f'{wave}: head tied to its landing',
+                         'git merge-tree --write-tree <squash>^ <head> == <squash>^{tree} (the head changed files)',
+                         f'the squash is the head merged onto its parent; the head changed {len(changed)} files' if tied else
+                         ('VACUOUS: the head changed no file' if not changed else
+                          f'NOT the head merged onto its parent: {len(bad)} file(s) differ: ' + ', '.join(sorted(bad)[:4]))))
+            if not changed:
+                problems.append(f'B0 {wave}: the tie is vacuous -- {head_c} changed no file against its squash\'s parent')
+            elif bad:
+                problems.append(f'B0 {wave}: its squash {land[:9]} is not the head {head_c} merged onto its parent -- '
+                                f'{len(bad)} file(s) differ: ' + ', '.join(sorted(bad)[:4]))
+        landing_of[wave] = land if tied else None
+        if landing is not None:
+            landing_of[landing] = land if tied else None
+        tag_ok[tag] = (sha, tied)
+    for path, lref in evidence:
+        here = git('rev-parse', f'{head}:{path}')
+        if here[0] != 0:
+            rows.append((f'`{path}`', f'git rev-parse {head}:<path>', 'MISSING'))
+            problems.append(f'B0 evidence missing at {head}: {path}')
+            continue
+        if lref not in landing_of:
+            rows.append((f'`{path}`', 'the wave that landed it', f'{lref} is no wave or wave squash listed above'))
+            problems.append(f'B0 evidence {path}: {lref} is not a listed wave squash (or wave name)')
+            continue
+        land = landing_of[lref]
+        if not land:
+            rows.append((f'`{path}`', 'the wave that landed it', f'{lref} did not land (see above)'))
+            problems.append(f'B0 evidence {path}: its wave {lref} did not land on {head}')
+            continue
+        then = git('rev-parse', f'{land}:{path}')
+        same = then[0] == 0 and then[1] == here[1]
+        rows.append((f'`{path}`', f'git rev-parse <landing>:<path> vs {head}:<path>',
+                     f'unchanged since {land[:9]}' if same else f'CHANGED since {land[:9]} (or absent there)'))
+        if not same:
+            problems.append(f'B0 evidence {path}: its blob at {land[:9]} is not its blob at {head}')
+    for sha, frm in tips:
+        if frm == 'HEAD':
+            reach = ok('merge-base', '--is-ancestor', sha, head)
+            rows.append((sha, f'git merge-base --is-ancestor <tree> {head}', 'reachable' if reach else 'NOT reachable'))
+            if not reach:
+                problems.append(f'B0 tip {sha} is not reachable from HEAD')
+            continue
+        if frm not in tag_ok:
+            rows.append((sha, f'the ref `{frm}`', 'REFUSED: not HEAD and not a declared wave tag'))
+            problems.append(f'B0 tip {sha}: {frm} is not HEAD or a declared wave tag')
+            continue
+        tcommit, tied = tag_ok[frm]
+        if not tcommit or not tied:
+            rows.append((sha, f'the ref `{frm}`', 'REFUSED: its wave did not land on this tree'))
+            problems.append(f'B0 tip {sha}: the wave of {frm} did not land on {head}')
+            continue
+        reach = ok('merge-base', '--is-ancestor', sha, tcommit)
+        rows.append((sha, f'git merge-base --is-ancestor <tree> {frm}', 'reachable' if reach else 'NOT reachable'))
+        if not reach:
+            problems.append(f'B0 tip {sha} is not reachable from {frm}')
+    return rows, problems
+
+
+_B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
+_B0_PATH = re.compile(r'`(docs/notebook/(?:evidence|gate-runs|proof)/[^`]+)`')
+
+
+def cited_b0_paths(text):
+    """Every backticked evidence path the scorecard cites OUTSIDE §0 (§0 is the index itself), in any form --
+    a CODE/RULING/RECORD/MEASURE citation, a walk report, a walk instrument, an integrity record, a quote's
+    evidence file (F3 fix round 3, review R12-M5: the kind-list regex this replaces saw 20 of the 26)."""
+    NL = chr(10)
+    start = text.find('## §0')
+    if start >= 0:
+        end = text.find(NL + '## ', start + 5)
+        text = text[:start] + (text[end:] if end >= 0 else '')
+    return sorted(set(_B0_PATH.findall(text)))
+
+
+def cited_b0_gaps(text, evidence=None, tips=None):
+    """Review M-6: every evidence file and every walked tree the scorecard CITES must be one §0 checks.
+    Returns the names of the ones it does not (an empty list is the pass)."""
+    evidence = B0_EVIDENCE if evidence is None else evidence
+    tips = B0_TIPS if tips is None else tips
+    listed = {p for p, _ in evidence}
+    listed_tips = {t for t, _ in tips}
+    gaps = []
+    for p in cited_b0_paths(text):
+        if p not in listed:
+            gaps.append(f'evidence {p} is cited but §0 does not check it')
+    for _, t in sorted(set(_B0_WALK_TIP.findall(text))):
+        if not any(t.startswith(x) or x.startswith(t) for x in listed_tips):
+            gaps.append(f'walked tree {t} is cited but §0 does not check it')
+    return gaps
+
+
+# F3 fix round 2 (controller ruling 2): clause 15b is DERIVED, never typed. Every event R-16's core actions
+# map to (`CORE_ACTION_EVENTS`, read from the source each build) must have a call-site rail here, and the rail
+# must ASSERT it (F3 fix round 3, review R12-M2): a test that is not skipped, in executable code, whose
+# expect(...) chain the event's name reaches (tools/telemetry_rail_asserts.mjs, an acorn AST -- a comment is not
+# a node), and that test, by its full title, must show a green tick in F3's telemetry log. An event with more than
+# one door may name one rail per door (a tuple); every one of them must hold. save_success names two: the
+# editor's (T1/T3/T9) and the outbox drain's (T8, `useOutboxDrain.js:302`).
+_TNB = 'app/src/pages/journal-2-0/components/notebook'
+TELEMETRY_RAILS = {
+    'note_open_ms': f'{_TNB}/NoteEditorPage.wave6.test.jsx',
+    'save_success': (f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+                     'app/src/pages/journal-2-0/lib/offline/useOutboxDrain.test.jsx'),
+    'save_failed': f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+    'capture_used': f'{_TNB}/NoteEditorPage.excerpts.test.jsx',
+    'switcher_used': 'app/src/components/CommandPalette.test.jsx',
+    'search_used': f'{_TNB}/FolderSidebar.test.jsx',
+    'bulk_used': 'app/src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx',
+    'ask_used': f'{_TNB}/AskPanel.telemetry.test.jsx',
+    'export_used': f'{_TNB}/NoteExportControls.test.jsx',
+    'share_used': f'{_TNB}/NoteShareControls.test.jsx',
+    'publish_used': f'{_TNB}/NoteShareControls.test.jsx',
+    'import_used': f'{_TNB}/import/ImportWizard.test.jsx',
+    'writing_help_used': f'{_TNB}/NoteEditorPage.writingHelp.test.jsx',
+    'dictation_used': f'{_TNB}/NoteEditorPage.dictation.test.jsx',
+}
+
+
+def _js_frozen_object(src, name):
+    """The body of `export const <name> = Object.freeze({ ... })` in a JS source, or None."""
+    m = re.search(r'export const ' + re.escape(name) + r' = Object\.freeze\(\{(.*?)\n\}\)', src.replace('\r\n', '\n'), re.S)
+    return m.group(1) if m else None
+
+
+_JS_ENTRY = re.compile(r"""\s*(?://[^\n]*\n\s*)*(?:'([^']*)'|"([^"]*)"|([A-Za-z_$][\w$]*))\s*:\s*\[([^\]]*)\]\s*,?""")
+
+
+def core_action_table(src):
+    """`CORE_ACTION_EVENTS` read from the JS source: {core action: [event, ...]}. Every element must be a string
+    literal or a `NOTEBOOK_EVENTS.<KEY>` reference that the same file's NOTEBOOK_EVENTS resolves; anything else,
+    an action with no event, or text the parser does not consume raises ValueError -- an event is never
+    silently dropped from the derivation (F3 fix round 3, review R12-M3)."""
+    body = _js_frozen_object(src, 'CORE_ACTION_EVENTS')
+    if body is None:
+        raise ValueError('CORE_ACTION_EVENTS: no `export const CORE_ACTION_EVENTS = Object.freeze({...})` in the source')
+    consts = {}
+    ne = _js_frozen_object(src, 'NOTEBOOK_EVENTS')
+    for k, v in re.findall(r"([A-Z_][A-Z0-9_]*)\s*:\s*'([^']*)'", ne or ''):
+        consts[k] = v
+    table, pos = {}, 0
+    while True:
+        m = _JS_ENTRY.match(body, pos)
+        if not m:
+            break
+        key = next(g for g in m.groups()[:3] if g is not None)
+        events = []
+        for el in (x.strip() for x in m.group(4).split(',')):
+            if not el:
+                continue
+            lit = re.fullmatch(r"'([^']*)'", el) or re.fullmatch(r'"([^"]*)"', el)
+            ref = re.fullmatch(r'NOTEBOOK_EVENTS\.([A-Z_][A-Z0-9_]*)', el)
+            if lit:
+                events.append(lit.group(1))
+            elif ref and ref.group(1) in consts:
+                events.append(consts[ref.group(1)])
+            else:
+                raise ValueError(f'CORE_ACTION_EVENTS[{key!r}]: element {el!r} is not a string literal or a '
+                                 'NOTEBOOK_EVENTS.<KEY> this file defines')
+        if not events:
+            raise ValueError(f'CORE_ACTION_EVENTS[{key!r}]: maps to no event')
+        table[key] = events
+        pos = m.end()
+    rest = re.sub(r'//[^\n]*', '', body[pos:]).strip()
+    if rest:
+        raise ValueError(f'CORE_ACTION_EVENTS: could not read {rest[:60]!r}')
+    if not table:
+        raise ValueError('CORE_ACTION_EVENTS: no entries read')
+    return table
+
+
+def core_action_events(src):
+    """The distinct event names `CORE_ACTION_EVENTS` maps R-16's core actions to, read from the JS source.
+    Raises ValueError (via core_action_table) rather than return a shortened list."""
+    return sorted({e for evs in core_action_table(src).values() for e in evs})
+
+
+RAIL_ASSERTS_TOOL = 'tools/telemetry_rail_asserts.mjs'
+
+
+def rail_assertions(sources, events):
+    """{path: {'error': str|None, 'tests': [{'titles', 'line', 'skipped', 'asserts'}]}} for each rail source, from
+    the acorn walk in tools/telemetry_rail_asserts.mjs. Raises RuntimeError when node cannot run it or answers for
+    a different set of files: an unreadable rail must never read as a rail that asserts nothing, or as one that
+    asserts everything."""
+    if not sources:
+        return {}
+    try:
+        r = subprocess.run(['node', os.path.join(ROOT, RAIL_ASSERTS_TOOL)], cwd=ROOT, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', timeout=300,
+                           input=json.dumps({'events': sorted(events), 'files': sources}))
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} did not run: {e}') from e
+    if r.returncode != 0:
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} exited {r.returncode}: {r.stderr.strip()[:300]}')
+    out = json.loads(r.stdout or '{}')
+    if set(out) != set(sources):
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} answered for {sorted(out)}, not {sorted(sources)}')
+    return out
+
+
+def _rails_of(rails, ev):
+    v = rails.get(ev)
+    return () if not v else ((v,) if isinstance(v, str) else tuple(v))
+
+
+def _ran_green(log_text, path, titles):
+    """The test `path > titles...` shows a green tick in the vitest log (verbose reporter: one line per test)."""
+    want = ' '.join(['\u2713', path.replace('app/', '', 1), '>', ' > '.join(titles)])
+    for line in log_text.splitlines():
+        line = line.strip()
+        if line == want or (line.startswith(want + ' ') and re.fullmatch(r' \d+(?:\.\d+)?m?s', line[len(want):])):
+            return True
+    return False
+
+
+def telemetry_rail_gaps(events, rails, read, log_text, asserts=None, where=None):
+    """Every core-action event, and the reason it is not railed (an empty list is the pass). `read(path)` returns a
+    rail's source, or None if the file is missing; `log_text` is the vitest log the rails ran in; `asserts` is
+    rail_assertions (injectable for tests). No events at all is itself a gap: an empty list read from a moved
+    table must not pass. `where`, when given, is filled with {event: ['<rail>:<line>', ...]}: the tests that
+    assert it and ran green -- the citation."""
+    if not events:
+        return ['CORE_ACTION_EVENTS: no events read from the source']
+    asserts = rail_assertions if asserts is None else asserts
+    files = sorted({f for ev in events for f in _rails_of(rails, ev)})
+    sources = {f: read(f) for f in files}
+    parsed = asserts({f: src for f, src in sources.items() if src is not None}, events)
+    gaps = []
+    for ev in events:
+        fs = _rails_of(rails, ev)
+        if not fs:
+            gaps.append(f'{ev}: no call-site rail is named for it')
+            continue
+        for f in fs:
+            if sources[f] is None:
+                gaps.append(f'{ev}: {f} does not exist')
+                continue
+            info = parsed.get(f) or {'error': 'no answer for this file', 'tests': []}
+            if info.get('error'):
+                gaps.append(f'{ev}: {f} could not be parsed ({info["error"][:80]})')
+                continue
+            hits = [t for t in info['tests'] if ev in t['asserts'] and not t['skipped']]
+            if not hits:
+                gaps.append(f'{ev}: {f} has no test that asserts it (a comment, a skipped test, or a name that '
+                            f'never reaches an expect(...) does not count)')
+                continue
+            green = [t for t in hits if t['titles'] and _ran_green(log_text, f, t['titles'])]
+            if not green:
+                gaps.append(f'{ev}: no test of {f} that asserts it ran green in the telemetry log')
+            elif where is not None:
+                where.setdefault(ev, []).extend(f'{f}:{t["line"]}' for t in green)
+    return gaps
 
 
 _PLAN_AT = {}
@@ -1672,10 +2182,9 @@ def plan_at(rev, n):
 def build(pages_dir=None):
     """Build the scorecard text. Returns (text, problems, summary); writes nothing."""
     PROBLEMS = []
-    FLAGS = _master_flags()
-    if FLAGS is None:
-        PROBLEMS.append(f'unverifiable: {FLAGS_REV} not in this clone (flag records cannot be checked)')
-        FLAGS = {}
+    FLAGS_NOW = _flags_now() or {}
+    HEAD_SHORT = subprocess.run(['git', '-C', ROOT, 'rev-parse', '--short=9', 'HEAD'], capture_output=True,
+                                text=True).stdout.strip()
 
 
     def git(*a):
@@ -1724,7 +2233,14 @@ def build(pages_dir=None):
         else:
             fr = frag_of(line_text(path, int(line)), contains)
         if fr is None:
-            PROBLEMS.append(f'{kind} {path}:{line} does not hold {contains!r}')
+            # A hint for whoever re-points it, never an automatic move: a fragment that moved must be
+            # re-read at its new line before the citation is trusted (the scorecard is a measurement).
+            if path not in _CACHE:
+                _CACHE[path] = lines_of(path)
+            hits = [i for i, l in enumerate(_CACHE[path], 1) if contains in l]
+            hint = f' (it is on line {hits[0]})' if len(hits) == 1 else (
+                f' (it is on {len(hits)} lines: {hits[:6]})' if hits else ' (it is on no line)')
+            PROBLEMS.append(f'{kind} {path}:{line} does not hold {contains!r}{hint}')
             fr = contains
         s = f'{kind} `{path}`:{line} "{fr}"'
         return s + (f' {tail}' if tail else '')
@@ -1747,11 +2263,11 @@ def build(pages_dir=None):
 
 
     def flag(key, want):
-        f = FLAGS.get(key)
+        f = FLAGS_NOW.get(key)
         got = (f or {}).get('status')
         if got != want:
-            PROBLEMS.append(f'flag {key}: master says {got!r}, evidence says {want!r}')
-        return (f'RECORD `docs/feature_flags.json` as on master be9ca78b6, key {key}: status {want} '
+            PROBLEMS.append(f'flag {key}: the ledger at HEAD says {got!r}, the scorecard says {want!r}')
+        return (f'RECORD `docs/feature_flags.json` at {HEAD_SHORT}, key {key}: status {want} '
                 f'— per record, not re-read')
 
 
@@ -1765,11 +2281,25 @@ def build(pages_dir=None):
         W9P2 = json.load(open(os.path.join(ROOT, EVD, 'browser-check-pass2.json'), encoding='utf-8'))
 
 
-    def _walk_checks(d):
-        c = d['checks']
-        if isinstance(c, dict):
-            return {k: (v.get('verdict') if isinstance(v, dict) else v) for k, v in c.items()}
-        return {x.get('id') or x.get('check'): (x.get('verdict') or x.get('status')) for x in c}
+    _walk_checks = walk_verdicts
+    _REPORTS = {}
+
+    def walk_at(tool, report, tip, cid, want='PASS'):
+        """A WALK cell for any committed walk report: the cited verdict must be the report's own
+        (a FAIL or INCONCLUSIVE row is cited as what it is, never as a pass)."""
+        if report not in _REPORTS:
+            with open(os.path.join(ROOT, report), encoding='utf-8') as fh:
+                _REPORTS[report] = walk_verdicts(json.load(fh))
+        got = _REPORTS[report].get(cid)
+        if got != want:
+            PROBLEMS.append(f'walk {report} {cid}: the report says {got!r}, the scorecard says {want!r}')
+        return f'WALK `{tool}`:{cid} {got} — report `{report}`, tip {tip}'
+
+    def walk10(cid, want='PASS'):
+        return walk_at(W10_WALK_TOOL, W10_WALK, '14310c206', cid, want)
+
+    def kbd(cid, want):
+        return walk_at(KBD_TOOL, KBD_F4, '0555889ef', cid, want)
 
 
     def walk9(cid):
@@ -1827,6 +2357,37 @@ def build(pages_dir=None):
         return f'TEST `{fname}` — run by 9B: `{log}`, "{tot}"'
 
 
+    # Wave 10, F3: the rails this re-score leans on, run once by F3 (scoped pytest, -rA so every node id
+    # is in the log) and committed before the scorecard was written. The totals line is READ from the
+    # log (its last "N passed" line) and refused if it names any failure or error.
+    F3_LOG = 'docs/notebook/evidence/wave10-f3/pytest-f3-rails.log'
+    _f3_text = open(os.path.join(ROOT, F3_LOG), encoding='utf-8', errors='replace').read()
+    _f3_tot = [l.strip().strip('=').strip() for l in _f3_text.splitlines() if re.search(r'\d+ passed', l)]
+    F3_TOT = _f3_tot[-1] if _f3_tot else ''
+    if not F3_TOT or re.search(r'failed|error', F3_TOT):
+        PROBLEMS.append(f'{F3_LOG}: no clean totals line ({F3_TOT!r})')
+
+
+    def test_f3(fname):
+        _check_log(F3_LOG, F3_TOT, fname)
+        return f'TEST `{fname}` — run by F3: `{F3_LOG}`, "{F3_TOT}"'
+
+
+    # F3 fix round 1 (review I-5): the telemetry wiring rails, run once by F3 on this tree (scoped vitest,
+    # verbose, no colour codes) and committed before the scorecard was written; totals read, never typed.
+    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log'  # fix round 3: + the outbox door's rail (T8)
+    _f3vt_text = open(os.path.join(ROOT, F3VT_LOG), encoding='utf-8', errors='replace').read()
+    _f3vt_tot = [re.sub(r'\s+', ' ', l.strip()) for l in _f3vt_text.splitlines() if re.match(r'\s*Tests\s+\d+ passed', l)]
+    F3VT_TOT = _f3vt_tot[-1] if _f3vt_tot else ''
+    if not F3VT_TOT or re.search(r'failed|error', F3VT_TOT):
+        PROBLEMS.append(f'{F3VT_LOG}: no clean totals line ({F3VT_TOT!r})')
+
+
+    def test_f3vt(fname):
+        _check_log(F3VT_LOG, F3VT_TOT, fname.replace('app/', '', 1))
+        return f'TEST `{fname}` — run by F3: `{F3VT_LOG}`, "{F3VT_TOT}"'
+
+
     def plan_line(prefix):
         for i, l in enumerate(lines_of(PLAN), 1):
             if l.startswith(prefix):
@@ -1862,6 +2423,18 @@ def build(pages_dir=None):
         return record(LEDGER, ledger_line(rid), contains)
 
 
+    # ── wave 10's evidence cells, reused across §A and §B (each a verified citation) ─────────────────
+    PAPI = f'{W10D}/personal-api-walk-20260927T043218Z.json'
+    PAPI_CMD = ('python tools/notebook_personal_api_walk.py (run by lane 10D in production as the synthetic '
+                'member bench@)')
+    PAPI_READBACK = measure(PAPI, '48-49', 'read it back as the member: both texts, in order', PAPI_CMD)
+    PAPI_REVOKED = measure(PAPI, '65-66', 'the revoked token is refused on its next request', PAPI_CMD)
+    QUIET_SLOT = record(PB, '775-776', 'are taken by the controller in a held quiet slot')
+    PROOF_CMD = 'python tools/notebook_proof_walk.py --boot (10E-1 instrument; F5 re-ran it)'
+    AXE_AFTER = measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '15-18', '"findings": 0', PROOF_CMD)
+    PR = f'{PROOF}/README.md'
+
+
     # ── competitor cells ──────────────────────────────────────────────────────────────────────────
     VENDOR = {'N': 'notion', 'E': 'evernote', 'O': 'obsidian'}
     RROW = {'notion': 'R12', 'obsidian': 'R13', 'evernote': 'R14'}
@@ -1879,7 +2452,7 @@ def build(pages_dir=None):
         pid, q = QUOTES[key]
         m = SOURCES[pid]
         USED.setdefault(key, []).append(rid)
-        return f'{m["public_url"]} "{q}" ({DATE})'
+        return f'{m["public_url"]} "{q}" ({FETCH_DATE})'
 
 
     PARA_WORD = {'HAS': 'has it', 'PARTIAL': 'has part of it', 'LACKS': 'lacks it',
@@ -1893,7 +2466,7 @@ def build(pages_dir=None):
             ev = spec['para']
             return (f'{v}: not verified (PARAPHRASE, never a quote) — {ev["url"]} read {ev["fetched"]} in a real '
                     f'browser; the reader\'s summary, not Evernote\'s words: {PARA_WORD.get(ev["verdict"], ev["verdict"])} '
-                    f'({ev.get("paraphrase") or ev.get("note") or "no note"}) [W10-E evidence `{EVERNOTE_EVIDENCE}`]')
+                    f'({ev.get("paraphrase") or ev.get("note") or "no note"}) [R17 evidence `{EVERNOTE_EVIDENCE}`]')
         return f'{v}: ' + '; '.join(qref(k, rid) for k in spec)
 
 
@@ -1910,7 +2483,7 @@ def build(pages_dir=None):
         raise ValueError(v)
 
 
-    UI_NOT = 'UI not confirmed in 9B\'s browser check on the scored tip — not scored as met.'
+    UI_NOT = 'UI not confirmed in any browser walk (wave 9\'s check or a wave-10 walk) — not scored as met.'
     ROWS = OrderedDict()
 
 
@@ -1934,50 +2507,59 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 3755, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4012, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3123, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3369, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
-    R('G-003', ('P', 'P', 'NV'), [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
+    R('G-003', 'NV', [code(f'{JT}/account_purge.py', 53, '"j2_notes",')],
       {'N': ['N_delete_acct'], 'E': ['E_delete_acct'], 'O': NFO},
-      'A server-side purge; no UI behaviour to confirm. PARITY is account deletion as named on each side.')
+      'A server-side purge; no UI behaviour to confirm. NOT-VERIFIED against every competitor: the UCT side stands on '
+      'a code reading alone, and no committed walk or quote shows an account deletion on UCT, so the competitors\' '
+      'quotes are cited but no comparative verdict is published. Evernote by review M-4 (F3 fix round 1); Notion by '
+      'controller ruling 1, F3 fix round 2 (consistency with M-4) -- it was wave 9\'s PARITY on the same code reading.',
+      'a committed walk of an account deletion on UCT (sign up, write a note, delete the account, confirm the notes are gone)')
     R('G-004', ('P', 'NV', 'P'), [L('G-004', 'owner-accepted 2026-09-22')],
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named.')
-    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 181, 'const DRAFT_KEY')],
+    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 185, 'const DRAFT_KEY')],
       {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
     # Search / Retrieval
-    R('G-010', 'P', [code(NS, 1339, 'exact_ticker'), walk9('B20_more_older_rows')],
+    R('G-010', 'P', [code(NS, 1451, 'exact_ticker'), walk9('B20_more_older_rows')],
       {'N': ['N_searchfilter'], 'E': ['E_search'], 'O': ['O_search']},
       'B20: a sidebar search returned the target with highlighted matches.')
     R('G-011', 'NV', [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
-                              'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks')],
+                              'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks'),
+                      QUIET_SLOT],
       {'N': SPEED, 'E': SPEED, 'O': SPEED},
-      'UCT\'s own 50k search budget is BREACHED (§C); competitor latency is not this lane\'s to state.')
-    R('G-012', 'NA', [code(f'{NB}/FolderSidebar.jsx', 610, 'P0-2 fix')], {'N': NA, 'E': NA, 'O': NA},
+      'Wave 9 measured UCT\'s own 50k search budget BREACHED; wave 10 (10A) built every named lever, and its '
+      'quiet-box verdict waits on the controller\'s quiet slot (§C); competitor latency is not this file\'s to state.')
+    R('G-012', 'NA', [code(f'{NB}/FolderSidebar.jsx', 619, 'P0-2 fix')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT correctness bug row.')
-    R('G-013', ('P', 'P', 'NV'), [code(NS, 1176, 'date_from'), walk9('B20_more_older_rows')],
+    R('G-013', ('P', 'P', 'NV'), [code(NS, 1493, 'date_from'), walk9('B20_more_older_rows')],
       {'N': ['N_datefilter'], 'E': ['E_datefilter'], 'O': NFO}, 'B20: the filter panel carries "Note created from".')
-    R('G-014', ('NV', 'P', 'P'), [code(NS, 1523, 'def _snippets_for('), walk9('B20_more_older_rows')],
+    R('G-014', ('NV', 'P', 'P'), [code(NS, 1666, 'def _snippets_for('), walk9('B20_more_older_rows')],
       {'N': NFN, 'E': ['E_snippet'], 'O': ['O_snippet']}, 'B20: 4 highlighted matches in the result snippets.')
-    R('G-015', ('P', 'P', 'NV'), [code(NS, 1630, 'relevance ranking is opt-in')],
+    R('G-015', ('P', 'NV', 'NV'), [code(NS, 1812, 'relevance ranking is opt-in')],
       {'N': ['N_relevance'], 'E': ['E_meaning'], 'O': NFO},
       'Ranking is a server behaviour (the search box asks for sort=relevance); Obsidian\'s fetched page documents a '
-      'name sort by default, which says nothing about relevance, so no verdict.')
-    R('G-016', 'NA', [code(NS, 2695, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+      'name sort by default, which says nothing about relevance, so no verdict. Evernote NOT-VERIFIED (F3 fix round 1, '
+      'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
+      'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
+      '(G-017, G-127).')
+    R('G-016', 'NA', [code(NS, 2941, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
       {'N': NFN, 'E': ['E_semantic'], 'O': NFO},
       'Built, dark until the embedding vendor confirms zero retention in writing (D7).', 'ZDR in writing (owner, external)')
-    R('G-018', 'NA', [code(NS, 1339, 'exact_ticker')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
+    R('G-018', 'NA', [code(NS, 1451, 'exact_ticker')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
     # Organization
-    R('G-020', 'P', [code(NS, 49, 'MAX_FOLDER_DEPTH = 6'), walk9('B21_folders_nested')],
+    R('G-020', 'P', [code(NS, 51, 'MAX_FOLDER_DEPTH = 6'), walk9('B21_folders_nested')],
       {'N': ['N_subpage'], 'E': ['E_mention'], 'O': ['O_folder']},
       'B21: a folder and a subfolder made in the sidebar; the server nests one under the other. PARITY is nesting as named '
       '(Notion nests pages, Evernote has notebooks and stacks, Obsidian folders).')
@@ -1986,12 +2568,12 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2377, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'NV', 'P'), [code(NS, 2623, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 2692, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3082, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'NV', 'NV'), [code(NS, 3800, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4286, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
     R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
@@ -2003,7 +2585,7 @@ def build(pages_dir=None):
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 30, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 33, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
@@ -2012,10 +2594,11 @@ def build(pages_dir=None):
     R('G-034', 'NA', [code('app/src/widgets/registry.js', 267, 'journal: true'), walk9('B28_widget_insert')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (live market widgets in a note). B28 inserted a chart widget from the palette; its saved body carries it.')
     R('G-035', 'NV', [L('G-035', 'OPEN, DELIBERATELY'),
-                      measure(PB, '398-399', 'typing per char', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')],
+                      measure(PB, '401-402', 'typing per char', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')],
       {'N': SPEED, 'E': SPEED, 'O': SPEED},
-      'Open by owner ruling (the row\'s own status); typing is over 16 ms/char even at 1,000-2,000 paragraphs (§C).',
-      'owner ruling on G-035 stands; the typing lever is unattributed (perf-budgets.md:401-405)')
+      'Open by owner ruling (the row\'s own status). Wave 10 (10A) attributed typing in a real browser and fixed two '
+      'causes; the loaded p95 sits at the 16 ms line at 1,000-2,000 paragraphs and no quiet reading exists (§C).',
+      'owner ruling on G-035 stands at the cap; below it, the controller\'s quiet slot (and F1, in flight)')
     R('G-036', 'P', [code(f'{NB}/NoteEditorPage.jsx', 9, 'ALLOWED_ATTACHMENT_MIMES'), walk9('B29_pdf_upload_preview_search')],
       {'N': ['N_pdf'], 'E': ['E_searchimg'], 'O': ['O_attach']},
       'B29: a PDF uploaded through Attach a file became an attachment chip in the note.')
@@ -2035,13 +2618,15 @@ def build(pages_dir=None):
                       D(4, 'the web clipper (publish the extension already built, G-043)')],
       {'N': ['N_clipper'], 'E': ['E_clipper'], 'O': ['O_clipper']},
       'Built and packaged; the Chrome Web Store submission is the owner\'s (plan §5 item 4).', 'owner: store submission')
-    R('G-044', 'BO', [code('app/public/manifest.json', 36, '"share_target": {'),
+    R('G-044', 'NV', [code('app/public/manifest.json', 36, '"share_target": {'),
                       code('api/routers/notebook_personal_api.py', 16, 'NOTEBOOK_PERSONAL_API_ENABLED'),
-                      flag('NOTEBOOK_PERSONAL_API_ENABLED', 'dark'), walk9('B18_dark_doors_answer_404'),
-                      D(5, 'PWA + Apple Shortcuts over the personal API')],
+                      flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), PAPI_READBACK,
+                      D(5, 'PWA + Apple Shortcuts over the personal API'), L('G-044', 'has not been run on an iPhone')],
       {'N': NFN, 'E': ['E_share_ext'], 'O': ['O_ios']},
-      'Android share target in the manifest; the iOS Shortcuts path is built and dark (B18: its door answers 404).',
-      'owner: arm NOTEBOOK_PERSONAL_API_ENABLED')
+      'Android share target in the manifest. The iOS path (Shortcuts over the personal API) is no longer behind a dark '
+      'gate: the API is armed and walked in production as bench@ (10D), but no Shortcut has run on an iPhone, so the '
+      'member-facing iOS capture is unconfirmed.',
+      'owner: run the iOS Shortcut on an iPhone (docs/notebook/ios-shortcuts.md)')
     R('G-045', 'NV', [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'), flag('J2_OCR_ENABLED', 'armed'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_searchimg', 'E_scan'], 'O': NFO},
@@ -2063,7 +2648,7 @@ def build(pages_dir=None):
                       walk7('W20_compass_notes_tool_dark')], {'N': NA, 'E': NA, 'O': NA},
       'An internal architecture row (Compass reads notes through the Ask retrieval).')
     # Temporal correctness / provenance
-    R('G-060', 'NA', [code(f'{JT}/db.py', 892, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
+    R('G-060', 'NA', [code(f'{JT}/db.py', 954, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 309, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: frozen as of insertion).')
     R('G-062', 'BO', [code(f'{JT}/fact_registry.py', 52, '"analyst_price_target_consensus": FactTypeDef('),
@@ -2086,7 +2671,7 @@ def build(pages_dir=None):
     R('G-073b', 'NA', [code('api/services/journal_two/thesis_changelog.py', 215, 'def _verdict_events(')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-074', 'NA', [code('api/services/awareness/rules.py', 127, 'def rule_thesis_stop_review(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: thesis-invalidation alerts).')
-    R('G-075', 'NA', [code(f'{NB}/TickerResearchWorkspace.jsx', 62, 'export default function TickerResearchWorkspace'),
+    R('G-075', 'NA', [code(f'{NB}/TickerResearchWorkspace.jsx', 63, 'export default function TickerResearchWorkspace'),
                       walk9('B17_older_rows'), walk9('B30_live_research_tab')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique; B17 opened /journal/notebook/research/NVDA and B30 the same workspace on /research/NVDA.')
     # Collaboration / offline / mobile / extensibility
@@ -2102,17 +2687,19 @@ def build(pages_dir=None):
                      walk9('B16_offline_open_tab')],
       {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'PARITY is editing offline in an open tab (B16). A cold start offline is OUT by D6 and scored under G-163.')
-    R('G-083', 'P', [code(f'{NB}/NoteEditorPage.jsx', 40, 'OFFLINE_VIEWING_BANNER'), walk9('B16_offline_open_tab')],
+    R('G-083', 'P', [code(f'{NB}/NoteEditorPage.jsx', 44, 'OFFLINE_VIEWING_BANNER'), walk9('B16_offline_open_tab')],
       {'N': ['N_offline'], 'E': ['E_offline_plan'], 'O': ['O_offline']},
       'B16: offline, a second note rendered from its saved copy with the banner "Viewing an earlier saved copy".')
-    R('G-084', 'BO', [L('G-084', 'DUPLICATE of G-044 — tracked there')], {'N': NFN, 'E': ['E_share_ext'], 'O': ['O_ios']},
+    R('G-084', 'NV', [L('G-084', 'DUPLICATE of G-044 — tracked there')], {'N': NFN, 'E': ['E_share_ext'], 'O': ['O_ios']},
       'DUPLICATE of G-044 by controller ruling (the ledger counts it in its own DUPLICATE bucket); scored under '
       'G-044, mirrored here.', 'as G-044')
-    R('G-085', 'BO', [code('api/routers/notebook_personal_api.py', 16, 'NOTEBOOK_PERSONAL_API_ENABLED'),
-                      flag('NOTEBOOK_PERSONAL_API_ENABLED', 'dark'), walk9('B18_dark_doors_answer_404'), walk7('W15_personal_api')],
+    R('G-085', ('P', 'NV', 'NV'), [code('api/routers/notebook_personal_api.py', 16, 'NOTEBOOK_PERSONAL_API_ENABLED'),
+                                  flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), PAPI_READBACK, PAPI_REVOKED,
+                                  walk7('W15_personal_api')],
       {'N': ['N_api'], 'E': ['E_mcp'], 'O': ['O_uri']},
-      'Built and documented (docs/notebook/personal-api.md), dark: B18 found its door answering 404.',
-      'owner: arm NOTEBOOK_PERSONAL_API_ENABLED')
+      'Armed and documented (docs/notebook/personal-api.md); 10D walked it in production as bench@: mint, create, '
+      'append, read back, revoke. PARITY is a documented API a member can call, as Notion names it. Evernote\'s cited '
+      'door is an MCP server for AI clients and Obsidian\'s a local URI scheme: different mechanisms, so no verdict.')
     R('G-086', 'D4', [D(4, 'a plugin marketplace (G-086)')], {'N': NFN, 'E': EB, 'O': ['O_plugins']},
       'Recorded scope, not an oversight.')
     # Portability / export
@@ -2122,7 +2709,7 @@ def build(pages_dir=None):
       'B09: the bulk export panel offers Markdown, web page, JSON and Word.')
     R('G-091', 'P', [code(f'{JT}/notes_export.py', 2397, 'def build_single_note_export('), walk9('B13_share_publish_export')],
       {'N': ['N_export'], 'E': ['E_pdfexport'], 'O': ['O_local']}, 'B13: the note\'s Export menu has four items.')
-    R('G-092', 'NA', [code(f'{JT}/notes_export.py', 1351, 'linked_trades')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
+    R('G-092', 'NA', [code(f'{JT}/notes_export.py', 1356, 'linked_trades')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-093', 'NA', [L('G-093', 'DONE (as scoped)')], {'N': NA, 'E': NA, 'O': NA},
       'Read-only connectors by design; the two-way-sync clause of standard #11 is scored in §B, not here.')
     R('G-094', 'NA', [code(f'{JT}/note_connectors/engine.py', 51, 'sync-conflict')], {'N': NA, 'E': NA, 'O': NA},
@@ -2130,22 +2717,22 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3054, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3126, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 6, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
-    R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 24, 'import ConfirmModal'), walk9('B20_more_older_rows')],
+    R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 28, 'import ConfirmModal'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B20 read the "Delete this note?" dialog.')
     R('G-104', 'NA', [code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain'),
                       test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT convention row.')
-    R('G-105', 'NA', [code(f'{NB}/AskPanel.jsx', 321, 'aria-label="Close Ask"'), walk9('B20_more_older_rows')],
+    R('G-105', 'NA', [code(f'{NB}/AskPanel.jsx', 331, 'aria-label="Close Ask"'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT convention row; B20 found the close control is an svg icon.')
-    R('G-106', 'NA', [code('app/src/pages/journal-2-0/tabs/NotebookTab.jsx', 31, 'SkeletonLine')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-106', 'NA', [code('app/src/pages/journal-2-0/tabs/NotebookTab.jsx', 34, 'SkeletonLine')], {'N': NA, 'E': NA, 'O': NA},
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 300, 'Continue working'), walk9('B17_older_rows')],
+    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 322, 'Continue working'), walk9('B17_older_rows')],
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
@@ -2153,18 +2740,21 @@ def build(pages_dir=None):
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
-    R('G-113', 'NV', [code(f'{JT}/db.py', 1140, 'j2_note_document_pages_fts'), walk9('B29_pdf_upload_preview_search')],
+    R('G-113', 'NV', [code(f'{JT}/db.py', 1202, 'j2_note_document_pages_fts'), walk9('B29_pdf_upload_preview_search'),
+                      code(f'{LB}/bestMatches.js', 28, 'export const RRF_K = 60'), walk10('B4_best_matches')],
       {'N': NFN, 'E': ['E_searchimg'], 'O': NFO},
       'B29: a word inside the uploaded PDF was found by the sidebar search, in its own "1 DOCUMENT PAGE" section naming '
-      'the file and p.1. Evernote searches inside documents too, but whether its results are page-aware and sectioned is '
-      'not evidenced by the fetched text, so no verdict.')
+      'the file and p.1; since wave 10 a "Best matches" group fuses the top rows of every section above them (L1a B4). '
+      'Evernote searches inside documents too, but whether its results are page-aware and sectioned is not evidenced '
+      'by the fetched text, so no verdict.')
     R('G-114', 'NA', [code(f'{JT}/ticker_research.py', 140, 'def _documents_for_symbols(')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
-    R('G-115', 'NA', [code(f'{JT}/db.py', 1040, 'j2_note_documents')], {'N': NA, 'E': NA, 'O': NA}, 'An internal model row.')
-    R('G-116', 'NA', [code(f'{JT}/db.py', 1189, 'j2_note_excerpts')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-115', 'NA', [code(f'{JT}/db.py', 1102, 'j2_note_documents')], {'N': NA, 'E': NA, 'O': NA}, 'An internal model row.')
+    R('G-116', 'NA', [code(f'{JT}/db.py', 1251, 'j2_note_excerpts')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: citable, page-anchored passages). Not driven in 9B\'s browser check.')
-    R('G-117', 'NA', [code(f'{JT}/db.py', 1178, 'quote_prefix')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
+    R('G-117', 'NA', [code(f'{JT}/db.py', 1240, 'quote_prefix')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-118', 'NA', [code(f'{LB}/openCitation.js', 34, 'PASSAGE_GONE')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
-    R('G-119', 'NA', [code(f'{JT}/db.py', 1252, 'j2_note_excerpts_fts')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
+    R('G-119', 'NA', [code(f'{JT}/db.py', 1314, 'j2_note_excerpts_fts'), walk10('B4_best_matches')], {'N': NA, 'E': NA, 'O': NA},
+      'UCT-unique; the Evidence section is one of the four a "Best matches" group fuses above the sections (wave 10).')
     R('G-120', 'NA', [code(f'{JT}/thesis_evidence.py', 7, 'SUPPORTS/OPPOSES')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-121', 'NV', [code(f'{JT}/document_ocr_tesseract.py', 40, 'FLAG = "J2_OCR_ENABLED"'), flag('J2_OCR_ENABLED', 'armed'),
                       walk7('W14_image_ocr_document')], {'N': NFN, 'E': ['E_searchimg'], 'O': NFO},
@@ -2207,11 +2797,13 @@ def build(pages_dir=None):
       'B26: an uploaded image centred (data-align center) and captioned (a figcaption with the typed text). Evernote\'s '
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
     R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 77, "'addRowBefore', 'Row above'"),
-                                 code(f'{LB}/tiptap.js', 114, 'resizable: false'), walk9('B03_table_toolbar')],
+                                 code(f'{LB}/tiptap.js', 120, 'resizable: true'),
+                                 code(f'{NB}/TableToolbar.jsx', 236, 'Sort A→Z'), walk9('B03_table_toolbar'),
+                                 walk10('B2_table_sort_resize_reload')],
       {'N': ['N_tables'], 'E': ['E_editmode'], 'O': ['O_tables']},
-      'B03: add/delete rows and columns and a header row; 0 resize handles, 0 sort controls. PARITY is against '
-      'Notion\'s simple table (which its page says has no sorts) and Obsidian\'s row/column editing; resize and '
-      'sort are misses in §C.', 'resize + sort (unbuilt)')
+      'B03 (wave 9): add/delete rows and columns and a header row. Wave 10 (10B) added resize and sort; L1a\'s B2 '
+      'sorted a column (header pinned, one undo step), dragged a column wider and read both back after a reload. '
+      'PARITY is against Notion\'s simple table (which its page says has no sorts) and Obsidian\'s row/column editing.')
     R('G-135', ('P', 'NV', 'NV'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
       {'N': ['N_drag'], 'E': EB, 'O': NFO})
     R('G-136', 'P', [code(f'{LB}/tableOfContentsNode.js', 94, "name: 'tableOfContents',"),
@@ -2235,10 +2827,11 @@ def build(pages_dir=None):
     R('G-143', ('A', 'NV', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
       {'N': ['N_headings'], 'E': EB, 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six.')
-    R('G-144', 'NV', [code(f'{NB}/NoteFindBar.jsx', 152, 'editor.commands.undo()'), walk9('B07_touch_no_undo')],
+    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 207, 'export function canRunHistory(editor, cmd)'),
+                      walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
       {'N': NFN, 'E': EB, 'O': NFO},
-      'B07: at 390 px touch no undo or redo control exists among the page\'s buttons — a UCT miss whatever the '
-      'competitors do (§C); no competitor page fetched today documents a touch undo.', 'build a touch undo/redo control')
+      'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
+      'B10 reached Undo after 60 lines. No competitor page fetched states a touch undo, so no comparative verdict.')
     R('G-145', ('P', 'NV', 'P'), [code(f'{LB}/noteSwitcher.js', 2, 'find ANY note'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the switcher opened the OLDEST note by title.')
     R('G-146', 'NV', [code(f'{NB}/BulkActionBar.jsx', 47, 'EXPORT OFFERS EVERY FORMAT'), walk9('B09_list_views_bulk')],
@@ -2246,7 +2839,7 @@ def build(pages_dir=None):
       'B09: two notes selected, the bulk export offered four formats. No competitor page fetched today documents multi-select.')
     R('G-147', ('NV', 'NV', 'P'), [code(f'{LB}/tagTree.js', 2, 'Nested tags'), walk9('B09_list_views_bulk')],
       {'N': NFN, 'E': EB, 'O': ['O_tags']}, 'B09: #inbox expanded to #to-read in the sidebar.')
-    R('G-148', ('NV', 'NV', 'P'), [code(f'{NB}/UnlinkedMentions.jsx', 8, 'Unlinked mentions'), walk9('B10_unlinked_mentions')],
+    R('G-148', ('NV', 'NV', 'P'), [code(f'{NB}/UnlinkedMentions.jsx', 9, 'Unlinked mentions'), walk9('B10_unlinked_mentions')],
       {'N': NFN, 'E': EB, 'O': ['O_unlinked']})
     R('G-149', ('P', 'NV', 'NV'), [code(f'{NB}/NoteTimelineView.jsx', 2, 'the Timeline view'), walk9('B09_list_views_bulk')],
       {'N': ['N_timeline'], 'E': EB, 'O': NFO})
@@ -2256,7 +2849,7 @@ def build(pages_dir=None):
       {'N': NFN, 'E': EB, 'O': NFO}, 'B11: a locked note\'s editor is not editable; no competitor page fetched today states a lock.')
     R('G-152', ('NV', 'NV', 'P'), [code(f'{LB}/splitView.js', 2, 'split view'), walk9('B12_split_view')],
       {'N': NFN, 'E': EB, 'O': ['O_tabs']}, 'B12: two editors mounted side by side.')
-    R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 414, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
+    R('G-153', 'NV', [code(f'{JT}/note_tasks.py', 439, 'def run_task_reminders('), test_py('tests/test_note_tasks.py'),
                       walk7('W11_reminders')],
       {'N': ['N_remind'], 'E': ['E_tasks'], 'O': NFO},
       'A reminder has never been observed arriving (wave-6 and wave-7 walks INCONCLUSIVE). ' + UI_NOT,
@@ -2274,19 +2867,26 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'BO', [code(f'{NB}/NoteEditorPage.jsx', 3428, 'Scan a document with the camera'),
-                      flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'dark'), walk9('B07_touch_no_undo')],
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3597, 'Scan a document with the camera'),
+                      flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
+                      walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
-      'B07: the Scan control is there at 390 px; the OCR that makes a scan searchable is dark.',
-      'owner: arm NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED')
-    R('G-160', 'BO', [code(f'{JT}/document_extraction.py', 56, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
-                      flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'dark'), walk7('W14_image_ocr_document')],
+      'B07: the Scan control is there at 390 px; the OCR that makes a photo searchable is now armed (W14 walked image '
+      'OCR on a sandbox). The scan-to-search chain has never run on a device, so no comparative verdict.',
+      'a real-device scan, then search its words (G-164)')
+    R('G-160', ('NV', 'P', 'NV'), [code(f'{JT}/document_extraction.py', 56, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
+                                  flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk7('W14_image_ocr_document'),
+                                  walk10('B3_xlsx_cell_found')],
       {'N': ['N_importdocx'], 'E': ['E_searchimg'], 'O': NFO},
-      'Image OCR and docx text are built and dark; xlsx is not built (§C).', 'owner: arm the gate; xlsx unbuilt')
-    R('G-161', 'BO', [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'), flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'dark'),
-                      walk9('B18_dark_doors_answer_404'), D(13, 'provider-agnostic inbound webhook')],
-      {'N': NFN, 'E': ['E_emailin'], 'O': NFO}, 'Built and dark; activation (DNS + inbound provider) is the owner\'s (D13).',
-      'owner: DNS + inbound provider, then the gate')
+      'Armed since 2026-09-26; W14 made an image\'s words searchable and L1a\'s B3 found a word inside an .xlsx cell '
+      '(both on sandboxes with the gate set). PARITY with Evernote\'s "look inside images and documents"; Notion\'s cited '
+      'page is about importing a .docx as a page, a different act, so no Notion verdict.')
+    R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
+                                  flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
+                                  record(FLAGS, 964, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+      {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
+      'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
+      'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
     R('G-162', 'NV', [code(f'{LB}/dictationInsert.js', 2, 'dictated words go into the note at the caret'),
                       walk9('B01_slash_menu'), walk9('B07_touch_no_undo')],
       {'N': NFN, 'E': ['E_dictation'], 'O': NFO},
@@ -2294,37 +2894,45 @@ def build(pages_dir=None):
       'a browser pass with a model key')
     R('G-163', 'D6', [D(6, 'Cold-start offline is out of scope')], {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'Recorded scope: the rollback story relies on no service worker (D6).')
-    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1050, 'Automate and App Automate are NOT on this account')],
+    R('G-164', 'BO', [L('G-164', 'BLOCKED'), record('CLAUDE.md', 1081, 'Automate and App Automate are NOT on this account')],
       {'N': NA, 'E': NA, 'O': NA}, 'A release process, not a product feature; no competitor claim is made.',
       'owner: a device run per release (BrowserStack Live by hand, or Automate bought)')
-    R('G-165', ('B', 'NV', 'NV'), [code(f'{JT}/writing_help.py', 48, 'ACTIONS = (SUMMARIZE, REWRITE, CONTINUE, TRANSLATE)'),
-                                  flag('NOTEBOOK_WRITING_HELP_ENABLED', 'armed'), walk9('B15_writing_help'),
-                                  test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js')],
+    R('G-165', 'NV', [code(f'{JT}/writing_help.py', 48, 'ACTIONS = (SUMMARIZE, REWRITE, CONTINUE, TRANSLATE)'),
+                      code(f'{JT}/property_autofill.py', 45, 'AUTOFILL_TYPES = ("text", "number", "select"'),
+                      flag('NOTEBOOK_WRITING_HELP_ENABLED', 'armed'), walk9('B15_writing_help'),
+                      walk10('B7_autofill_no_key', 'INCONCLUSIVE'),
+                      test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js')],
       {'N': ['N_aiwrite', 'N_autofill'], 'E': ['E_aiedit'], 'O': NFO},
-      'B15: Summarize, Rewrite, Continue and Translate are offered and Autofill is not; Notion documents Autofill, '
-      'so BEHIND. The AI output itself was not observed (no model key), so no PARITY against Evernote.',
-      'build autofill; a browser pass with a model key')
-    R('G-166', 'BO', [code(f'{JT}/ask_retrieval.py', 456, 'def _document_pages('), flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'dark')],
-      {'N': NFN, 'E': ['E_searchimg'], 'O': NFO}, 'Built; image and docx documents become searchable only behind the dark gate.',
-      'owner: arm NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED')
+      'Wave 9 read BEHIND Notion because Autofill was absent; wave 10 (10B) built a narrow autofill (suggest values '
+      'for the member\'s empty properties, each accepted by hand). No sandbox holds a model key, so no writing-help or '
+      'autofill OUTPUT has been observed (B7 INCONCLUSIVE by construction): no comparative verdict either way.',
+      'a browser pass with a model key')
+    R('G-166', 'NV', [code(f'{JT}/ask_retrieval.py', 456, 'def _document_pages('), flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed')],
+      {'N': NFN, 'E': ['E_searchimg'], 'O': NFO},
+      'Image, .docx and .xlsx documents are searchable now the gate is armed (G-160); an Ask answer drawn from one '
+      'needs a model key and was never observed. ' + UI_NOT, 'a browser pass with a model key')
     R('G-167', ('P', 'NV', 'P'), [code(f'{JT}/note_publish.py', 76, 'flag_on("NOTEBOOK_PUBLISH_ENABLED", False)'),
                                  flag('NOTEBOOK_PUBLISH_ENABLED', 'armed'), walk9('B13_share_publish_export'), walk8('W3_publish')],
       {'N': ['N_publish'], 'E': EB, 'O': ['O_publish']},
       'B13: published from the share sheet; a signed-out stranger read the published page.')
-    R('G-168', 'NV', [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: no'), code('app/package.json', 80, '"axe-core": "4.13.0",'),
-                      walk9('B19_axe_editor_and_list'), test_vt('app/src/pages/journal-2-0/a11y/axeHarness.contract.test.js')],
+    R('G-168', 'NV', [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: yes'), code('app/package.json', 80, '"axe-core": "4.13.0",'),
+                      walk9('B19_axe_editor_and_list'), AXE_AFTER, kbd('S2-23', 'FAIL'),
+                      test_vt('app/src/pages/journal-2-0/a11y/axeHarness.contract.test.js')],
       {'N': NFN, 'E': EB, 'O': NFO},
-      'B19: axe 4.13.0 whole page, WCAG 2.0-2.2 A/AA, no rule excluded: 0 violations on the editor and the list. The '
+      'Real-browser axe: 123 of 123 runs PASS over 43 surfaces x 3 themes after F5; the a11y workflow gates promotion; '
+      'the independent keyboard review ran (10E-2) and F4 fixed its MAJORs, with 7 walk steps still FAIL. The '
       'screen-reader passes are the owner\'s; no competitor accessibility page was fetched.',
-      'second review (a11y-second-review-brief.md) + owner screen-reader passes')
+      'owner screen-reader passes; the remaining keyboard FAIL rows (§B standard #9)')
     R('G-169', ('P', 'P', 'NV'), [code(f'{JT}/notes_export_formats.py', 1, 'a web page (HTML), lossless JSON and Word (.docx)'),
                                  test_py('tests/test_notes_export_formats.py'), walk9('B13_share_publish_export')],
       {'N': ['N_exportfmt'], 'E': ['E_emailin'], 'O': NFO},
       'PDF is the browser\'s Print (the row records it).')
     R('G-170', 'NA', [code('app/src/lib/errorBeacon.js', 856, 'export function installErrorBeacon()'),
-                      code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/journal_two.py', 121, '"note_open_ms"'),
+                      code('app/src/main.jsx', 10, 'installErrorBeacon()'),
+                      code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
+                      code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'),
                       test_vt('app/src/lib/errorBeacon.test.js')], {'N': NA, 'E': NA, 'O': NA},
-      'An operability row; standard #15 scores it.')
+      'An operability row; standard #15 scores it (wave 10, 10D: the core-action events and the SLOs).')
     R('G-171', ('P', 'NV', 'NV'), [code('app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js', 1, 'The sample notebook'),
                                   flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')],
       {'N': ['N_onboard'], 'E': EB, 'O': NFO},
@@ -2387,162 +2995,353 @@ def build(pages_dir=None):
         PROBLEMS.append(f'plan standards parsed {[s["n"] for s in STD]}')
     USK = '`docs/notebook/user-study-kit.md`'
     SOAK = '`docs/notebook/soak-30day.md`'
-    C = {}  # n -> list of (clause, verdict, evidence, lever)
+    # n -> list of (clause, verdict, evidence, lever, group). Wave 10, F3: `group` sorts every clause not MET
+    # into the three lists §C opens with -- 'owner' (only the owner can close it), 'quiet' (waits on the
+    # controller's quiet slot for a timing verdict), 'build' (build or measurement work an agent or the
+    # controller can do); None for a MET clause.
+    OWNER, QUIET, BUILD = 'owner', 'quiet', 'build'
+    NMO = 'NOT MEASURED — OWNER'
+    NMQ = 'NOT MEASURED — QUIET SLOT'
+    PR_CMD = 'python tools/notebook_proof_walk.py --boot (10E-1)'
+    F4_CMD = 'the 10E-2 keyboard walk, re-run by F4 on its tip'
+    C = {}
     C[1] = [
         ('every weekly feature exists for members', 'NOT MET',
-         [walk9('B07_touch_no_undo'), walk9('B03_table_toolbar'), walk9('B15_writing_help'), walk9('B18_dark_doors_answer_404')],
-         'G-144 (no touch undo), G-134 (no resize/sort), G-165 (no autofill), G-160 (xlsx unbuilt); dark gates G-017/G-127, '
-         'G-044/G-085, G-159/G-160/G-166, G-161; G-043 awaits the store'),
+         [walk10('B1_touch_undo_redo'), walk10('B2_table_sort_resize_reload'), walk10('B3_xlsx_cell_found'),
+          flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'),
+          flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), L('G-043', 'Chrome Web Store submission remains')],
+         'wave 10 built G-144 / G-134 / G-165 / G-160 and armed the personal API, image/docx documents and email-in; '
+         'still not reaching members: meaning search (G-017 / G-127, dark until zero retention is confirmed in '
+         'writing) and the browser extension (G-043, the Chrome Web Store submission)', OWNER),
         ('or is a recorded, deliberate "no" with a reason', 'NOT MET',
-         [L('G-144', 'OPEN'), L('G-134', 'PARTIAL')],
-         'G-144, G-134\'s resize/sort, G-165\'s autofill and G-160\'s xlsx carry no ruling; the recorded no\'s are G-081/G-086 '
-         '(D4), G-157 (D10), G-163 (D6)'),
-        ('the list is what Notion/Evernote/Obsidian users actually reach for weekly', 'NOT MEASURED — OWNER',
+         [L('G-144', 'Undo and Redo buttons on the touch tier'), L('G-134', 'column resize (a stored width'),
+          L('G-165', 'the narrow autofill'), D(7, 'Semantic search is built'),
+          D(4, 'the web clipper (publish the extension already built, G-043)'),
+          L('G-043', 'only the Chrome Web Store submission remains'), D(6, 'Cold-start offline is out of scope'),
+          D(10, 'folders + links + backlinks')],
+         'read literally (controller ruling, F3 fix round 1): a feature that does not reach members must be a recorded '
+         'NO. Wave 9\'s four unruled misses (G-144, G-134\'s resize/sort, G-165\'s autofill, G-160\'s xlsx) are built, '
+         'and D6 (G-163), D10 (G-157) and D4\'s OUT list (G-081/G-086) are real no\'s. But D4 puts the web clipper IN '
+         '(G-043: built, not shipped; the Chrome Web Store submission is the owner\'s) and D7 keeps meaning search IN '
+         '(built, dark until zero retention is in writing): neither is a "no", and neither reaches members. Levers: ship '
+         'the web clipper (store submission = owner); arm meaning search once zero retention is in writing (owner)', OWNER),
+        ('the list is what Notion/Evernote/Obsidian users actually reach for weekly', NMO,
          [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')],
-         f'the inventory (§B1) is the plan\'s list, not a census of competitor users; the user study ({USK}) is the owner\'s'),
+         f'the inventory (§B1) is the plan\'s list, not a census of competitor users; the user study\'s screener '
+         f'question ({USK}) is the owner\'s', OWNER),
     ]
     C[2] = [
-        ('every shipped feature does what it says on every path', 'NOT MEASURED', [walk9('B19_axe_editor_and_list')],
-         '9B drove 20 checks, not every path; the wave walks are per-wave, not a census'),
-        ('with a rail', 'NOT MEASURED', [record('docs/notebook/gate-runs/wave8-landing/2026-09-26T13-16-51.md', 1, 'Gate run')], 'no feature-to-rail census exists'),
-        ('no dead clicks', 'NOT MEASURED', [walk9('B20_more_older_rows')], 'no dead-click sweep exists; 9B saw 0 page errors in its checks'),
-        ('no known data-loss path', 'NOT MEASURED', [record(PLAN, plan_line('| 2 | **Functionality**'), 'T-12 smoke')],
-         'D3\'s two fixes landed in wave 5; the 409 during plain typing (T-12 step 3) has no recorded close'),
+        ('every shipped feature does what it says on every path', 'NOT MEASURED',
+         [record(PR, '31-32', 'WORKS 110, N/A 30, NOT-DRIVEN 22, BROKEN 2, NO-DOOR 1'),
+          record(PR, '44-45', 'Classed as an instrument timing artefact until a'),
+          code(f'{NB}/NoteEditorPage.jsx', 207, 'export function canRunHistory(editor, cmd)')],
+         '10E-1\'s path census (on fd7d1f42d, before #224 and every follow-up) read 22 cells NOT-DRIVEN (no model key, '
+         'camera, microphone or connector accounts in a sandbox) and 3 not WORKS: G-160 keyboard (fixed by F4, '
+         '7517d3900), G-131 desktop and G-171 keyboard (timing artefacts until re-run); a re-run on the scored tree '
+         'and the NOT-DRIVEN doors are owed', BUILD),
+        ('with a rail', 'MET',
+         [record(PR, '54-57', 'RAILED 41, NOT-SHIPPED 11'), test_f3('tests/test_notebook_feature_rail_census.py')],
+         'the feature->rail census over the §B1 inventory, re-run by F3 on this tree after the ledger moves: every '
+         'shipped row has a test that imports its code (G-085 needed its implementing file named in the ledger to be '
+         'located; it was)', None),
+        ('no dead clicks', 'NOT MEASURED',
+         [record(PR, '59-65', 'The dead-click sweep is built and its control was validated in the'),
+          code('tools/notebook_proof_walk.py', 142, 'def without_background(')],
+         'the dead-click sweep has never produced a valid reading: 10E-1\'s run was stopped before it, and F7 fixed '
+         'the instrument (a request the page\'s own poll sends is no longer credited to the click) but its browser '
+         'run was refused by the permission layer. Owed: one `--sweeps deadclick` run on a built dist, control VALID', BUILD),
+        ('no known data-loss path', 'MET',
+         [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 732, 'NO door is a loss'),
+          code(f'{JT}/notes.py', 828, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
+          record(f'{W10C}/f5-results-run3-tag-applied.md', 30, 'unsettled 409s: **0** · conflicted copies: **0**')],
+         '10C\'s write-door census classifies every derived door loss / fork / none and fails on any loss: none '
+         'today; the T-12 409 is a benign compare-and-set that settles (0 unsettled, 0 conflicted copies, the '
+         'sentence present after reload); the one loss found (a body too deep to serve back) is refused at every '
+         'body door; every compare-and-set read takes BEGIN IMMEDIATE (the rail\'s control lost words without it). '
+         'Forks (a conflicted copy) are not losses', None),
     ]
     C[3] = [
-        ('zero data-loss incidents over a 30-day window with real members', 'NOT MEASURED — OWNER',
-         [record('docs/notebook/soak-30day.md', 3, 'What it is not:** a result')], f'the soak ({SOAK}) is 9C\'s kit and the owner\'s run'),
-        ('every kill switch and rollback rehearsed', 'NOT MEASURED — OWNER', [record('docs/notebook/soak-30day.md', 3, 'What it is not:** a result')],
-         'no rehearsal record for every switch'),
+        ('zero data-loss incidents over a 30-day window with real members', NMO,
+         [record('docs/notebook/soak-30day.md', 3, 'What it is not:** a result')],
+         f'the soak ({SOAK}) is 9C\'s kit and the owner\'s run: 30 calendar days and an organic cohort', OWNER),
+        ('every kill switch and rollback rehearsed', 'NOT MET',
+         [record('docs/notebook/rehearsal-2026-09-26.md', 12, '9 boots'),
+          record('docs/notebook/rehearsal-2026-09-26.md', 15, 'PASS both ways, 2026-09-27'),
+          record('docs/notebook/wave5-rollback.md', 9, 'for WAVE 9 ONLY')],
+         'the seven per-request Notebook switches are rehearsed on a sandbox (a boot per value) and in production '
+         '(OFF 14:20:39Z, restored 14:32:53Z, 2026-09-27); the rollback is rehearsed for wave 9 only -- waves 8, 7, 6 '
+         'and 5 newest-first are prescribed and unrehearsed, and five switches were not switched (reasons in the '
+         'rehearsal record)', BUILD),
         ('offline gate KEEP on evidence', 'NOT MEASURED',
          [record('docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md', 7, 'What the gate said')],
-         'the gate\'s last verdict is REVERT (2026-09-20); KEEP is ruling D2, not a gate verdict; the next Sunday gate with the '
-         'URL-recording sampler is the measurement'),
+         'the gate\'s last recorded verdict is REVERT (2026-09-20); KEEP is ruling D2, not a gate verdict; no Sunday '
+         'verdict read on the soak-only log is recorded in the repo', BUILD),
     ]
     C[4] = [
-        ('budgets set', 'MET', [code('docs/notebook/perf-budgets.json', 2, '"_": "Notebook performance budgets')], ''),
-        ('enforced in CI', 'NOT MET', [code('.github/workflows/notebook-budgets.yml', 1, 'promotion-gate: no — ADVISORY')],
-         'the CI job is advisory; the local 50k gate is the verdict'),
+        ('budgets set', 'MET', [code('docs/notebook/perf-budgets.json', 2, '"_": "Notebook performance budgets')], '', None),
+        ('enforced in CI', 'MET',
+         [code('.github/workflows/notebook-bytes.yml', 1, 'promotion-gate: yes'),
+          code('.github/workflows/notebook-latency.yml', 1, 'promotion-gate: yes'),
+          record(PB, 585, 'Its first 20 runs: 20 green, no flap.')],
+         'wave 10 ruling R-10: the byte budget gates promotion, and a latency check read as ratios to an in-run '
+         'calibration op was promoted after it was seen red once and green once, then ran 20 of 20 green; the local '
+         '50k gate stays the verdict on absolute p95s (the clause below)', None),
         ('note open p95 < 300 ms (1,000 paragraphs)', 'MET',
-         [measure(PB, 396, '74.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')], ''),
+         [measure(PB, 399, '74.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')], '', None),
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
-         [measure(PB, '398-399', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
-          L('G-035', 'OPEN, DELIBERATELY')],
-         'over the line at 1,000 and 2,000 paragraphs on every reading (perf-budgets.md:421); G-035 at the cap by owner ruling'),
-        ('search p95 < 100 ms at 50k notes', 'NOT MET',
+         [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
+          record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY')],
+         'below the cap: waiting on the controller\'s quiet slot (10A\'s typing A/B; its loaded p95 sits at the line, '
+         'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling', QUIET),
+        ('search p95 < 100 ms at 50k notes', NMQ,
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
-                  'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search')],
-         'levers named at perf-budgets.md:305-317 (note_rowid in the FTS map; a maintained task index)'),
+                  'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search'),
+          record(PB, 658, 'every notes op under its line'), QUIET_SLOT,
+          measure(f'{PROOF}/f6-switcher-body/perf/fr1-50k.log', 40, 'VERDICT: PASS',
+                  'python tools/notebook_scale_benchmark.py --tiers 50000 (F6, fix round 1)')],
+         'waiting on the controller\'s quiet slot. Wave 9\'s breach was measured before 10A\'s levers; since them, W3 '
+         '(quiet at its start only) passed every notes op and F6\'s run read PASS, but neither held a quiet box '
+         'for its whole run, which the rule requires of a verdict', QUIET),
         ('Notebook JS within a byte budget', 'MET',
          [measure(f'{EVD}/notebook_perf_budgets-bytes.log', 1, 'bytes.notebook_first_open',
-                  'python tools/notebook_perf_budgets.py --dist app/dist (run by 9B)')], ''),
+                  'python tools/notebook_perf_budgets.py --dist app/dist (run by 9B)'),
+          code('.github/workflows/notebook-bytes.yml', 1, 'promotion-gate: yes')],
+         'and gated in CI since wave 10', None),
     ]
     C[5] = [
-        ('a task-based test with 5-8 traders', 'NOT MEASURED — OWNER', [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK),
-        ('every core task completed unaided', 'NOT MEASURED — OWNER', [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK),
-        ('SUS >= 80', 'NOT MEASURED — OWNER', [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK),
-        ('no silent failures', 'NOT MEASURED', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')],
-         'raw error text is railed; a silent-failure census does not exist'),
+        ('a task-based test with 5-8 traders', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
+        ('every core task completed unaided', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
+        ('SUS >= 80', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
+        ('no silent failures', 'NOT MEASURED',
+         [code('app/src/pages/journal-2-0/a11y/loadFailedConsumers.test.js', 66,
+               "describe('every endpoint the walk found SILENT is said by its consumer, through the one element'"),
+          code('app/src/pages/journal-2-0/a11y/silentFailures.test.jsx', 43, "describe('a failed WRITE is said, and stays said'"),
+          code('tools/notebook_proof_walk.py', 207, 'SILENT_EXEMPT = {'), record(PR, 69, 'NOT MEASURED in the evidence run')],
+         'in CODE every one of the 29 endpoints the silent sweep read SILENT now says so (or is a reasoned exemption), '
+         'railed per endpoint (F7); the MEASURED clause is not: the browser before/after sweep was refused by the '
+         'permission layer and 10E-1\'s evidence run never reached a read. Owed: one `--sweeps silent` run on a built '
+         'dist, every row SENTENCE or EXEMPT, control VALID', BUILD),
     ]
     C[6] = [
-        ('a design review against the three competitors signs off each surface', 'NOT MEASURED',
-         [record('docs/notebook/notebook-ux-ui-competitive-ledger.md', 3, 'interaction-sequence-level comparison')], 'no sign-off record'),
+        ('a design review against the three competitors signs off each surface', 'NOT MET',
+         [record('docs/notebook/design-review.md', '6-7', 'reviewed, not signed off')],
+         'the independent review ran (10E-2) and does NOT sign off: behind on the first phone screen (D-1), on editor '
+         'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Then the owner\'s '
+         'countersign (S-2)', BUILD),
         ('consistent tokens', 'MET', [test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js'),
-                                     code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], ''),
-        ('no layout regressions at 390/820/1200', 'NOT MEASURED', [walk9('B07_touch_no_undo')], '9B drove 390 px once; no 820/1200 sweep'),
+                                     code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], '', None),
+        ('no layout regressions at 390/820/1200', 'NOT MEASURED',
+         [record(PR, '80-81', 'control VALID'), record(PR, '109-110', 'Leads that need a screenshot before they count'),
+          measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '9-12', '"findings": 2358', PR_CMD)],
+         '10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every CONFIRMED finding and F4 moved '
+         'the skip link off the tab strip, but the sweep\'s leads (controls under the fixed top bar and the Journal '
+         'header, rows under the phone Log button) were never confirmed or cleared, and no sweep ran on the scored tree', BUILD),
     ]
     C[7] = [
-        ('restore rehearsed end-to-end on a schedule', 'NOT MEASURED — OWNER',
-         [code('tools/authdb_restore_drill.py', 1, 'prove the newest one can be restored'), D(15, 'restore-drill tool')], 'the drill runs with production credentials (D15)'),
-        ('account deletion purges backups', 'NOT MET', [D(15, 'document the backup window')],
-         'by ruling D15 the backup window is documented instead of rewriting snapshots'),
+        ('restore rehearsed end-to-end on a schedule', 'NOT MEASURED',
+         [code('tools/authdb_restore_drill.py', 547, 'SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"'), D(15, 'restore-drill tool')],
+         'the drill now checks attachments and replays tombstones, and its weekly task is staged; no full PASS of it '
+         'is recorded (its first scheduled run was INCONCLUSIVE by design: the tarball predated the manifest). Owed: '
+         'the controller\'s hand re-run to a PASS', BUILD),
+        ('account deletion purges backups', 'NOT MET',
+         [record('docs/account-deletion-manifest.md', 183, 'The deletion writes a TOMBSTONE, as its FIRST write'),
+          record('docs/account-deletion-manifest.md', 213, 'one known exception to "snapshots expire"'),
+          record('docs/account-deletion-manifest.md', 221, 'the owner decided on 2026-09-27 to KEEP it'),
+          test_f3('tests/test_account_tombstones.py')],
+         'a deletion writes a tombstone first and every restore replays it (ruling R-9, built in 10C); one exception '
+         'stands: an authdb/archive/ snapshot is never pruned and has no replaying restore path. The owner decided to '
+         'KEEP it (2026-09-27; manifest exception (d), corrected in F3 fix round 1), so the lever is no longer a '
+         'decision: build an archive restore path that runs account_tombstones.replay_on_db before the restored copy '
+         'serves anyone, or prune the archive (which reopens the owner\'s decision)', BUILD),
         ('round-trip export verified every release', 'MET',
          [test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js')],
-         'the round-trip rail is a vitest file, so every six-shard landing gate runs it'),
+         'the round-trip rail is a vitest file, so every six-shard landing gate runs it', None),
     ]
     C[8] = [
         ('vendor data terms verified in writing (zero retention)', 'NOT MET',
-         [record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 34, 'Published terms relied on, not a signed agreement')], 'owner/external: ZDR in writing'),
+         [record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 34, 'Published terms relied on, not a signed agreement')],
+         'owner/external: zero retention in writing', OWNER),
         ('share-link authorization proven', 'MET',
          [record('docs/notebook/share-links-authorization-proof.md', 1, 'the authorization proof'), walk9('B13_share_publish_export'),
-          test_py('tests/test_public_note_payload.py')], ''),
+          test_py('tests/test_public_note_payload.py')], '', None),
         ('plaintext index risk reviewed', 'MET', [L('G-004', 'owner-accepted 2026-09-22')],
-         'the owner accepted infrastructure encryption as the answer (G-004)'),
-        ('a security review of Notebook routes', 'NOT MEASURED', [test_py('tests/test_ask_security.py')],
-         'no route-by-route review record; Ask\'s routes are railed'),
+         'the owner accepted infrastructure encryption as the answer (G-004)', None),
+        ('a security review of Notebook routes', 'MET',
+         [record('docs/notebook/security-review-notebook-routes.md', 5, 'Every Notebook route mounted on the real app is classified'),
+          record('docs/notebook/security-review-notebook-routes.md', 39, '0 leaks'),
+          record('docs/notebook/security-review-notebook-routes.md', 50, 'No major finding.'),
+          test_f3('tests/test_notebook_route_security_census.py')],
+         'an independent session (10E-2) classified all 150 method+path pairs off the real app and probed across two '
+         'members: 94 foreign reads, 0 leaks; 149 anonymous calls, none 2xx; seven minor findings filed, none major', None),
     ]
     C[9] = [
-        ('axe in CI', 'NOT MEASURED', [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: no')],
-         'the workflow is advisory until seen red once and green once in CI; no CI run is recorded'),
+        ('axe in CI', 'MET',
+         [code('.github/workflows/notebook-a11y.yml', 1, 'promotion-gate: yes'),
+          code('.github/workflows/notebook-a11y.yml', 4, 'actions/runs/36294366772'),
+          code('.github/workflows/notebook-a11y.yml', 8, 'actions/runs/36294512061')],
+         'seen red once and green once (ruling D-A2), then promoted: a red refuses production promotion', None),
         ('zero violations on Notebook surfaces', 'NOT MEASURED',
-         [walk9('B19_axe_editor_and_list'), test_vt('app/src/pages/journal-2-0/a11y/axeHarness.contract.test.js')],
-         '0 violations on the editor and the list in a real browser; the jsdom harness excludes color-contrast; graph, sheets and dialogs not run in a browser'),
-        ('a full screen-reader pass (VoiceOver + NVDA)', 'NOT MEASURED — OWNER',
-         [record('docs/notebook/screen-reader-pass.md', 4, 'nothing here has been run on a real screen reader yet')], 'owner; scripts in a11y-second-review-brief.md'),
-        ('keyboard-complete (incl. graph)', 'NOT MEASURED', [test_vt('app/src/pages/journal-2-0/a11y/focusFlows.test.jsx')],
-         'the second reviewer\'s keyboard walk (a11y-second-review-brief.md)'),
+         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings')],
+         'the only zero-violation reading is F5\'s real-browser axe (123 of 123 runs PASS over 43 surfaces x three themes) '
+         'on F5\'s tip aa2417c2c, and 43 non-test Notebook files changed after it (F7\'s LoadFailed / SaveFailed, F4\'s '
+         'skip link and focus rings, F6\'s switcher rows). The jsdom axe harness ran on the scored tree in the L1c '
+         'six-shard gate (docs/notebook/gate-runs/wave10-L1c/2026-09-28T08-46-04.md, on origin/feat/notebook-w10-l1c at '
+         'debf96fc2; 2088 files, 3 NEW rows classified, none a11y), but it has no contrast rule: contrast on the post-F5 '
+         'surfaces is unmeasured. Lever: re-run F5\'s axe instrument (python tools/notebook_proof_walk.py --boot, the axe '
+         'sweep) on the landed tree', BUILD),
+        ('a full screen-reader pass (VoiceOver + NVDA)', NMO,
+         [record('docs/notebook/screen-reader-pass.md', 4, 'nothing here has been run on a real screen reader yet')],
+         'owner; scripts in a11y-second-review-brief.md', OWNER),
+        ('keyboard-complete (incl. graph)', 'NOT MET',
+         [kbd('S2-23', 'FAIL'), kbd('S2-26', 'FAIL'), kbd('S2-27', 'FAIL'), kbd('S2-13', 'FAIL'), kbd('S1-31', 'PASS'),
+          kbd('S2-28', 'PASS')],
+         'the independent keyboard walk (10E-2) found three MAJORs; F4 fixed them and eight FAIL rows now PASS (a '
+         'table row opens on Enter, the Delete confirmation traps focus, the skip link comes first). Still FAIL on '
+         'F4\'s re-walk: focus escapes the Outline, Export and Open-beside disclosures (S2-23/26/27), the [[ link and '
+         '@date keyboard inserts (S2-13/14; the probe is unverified), and 16 px targets at 820 (S6-02, fixed '
+         'since by F5, not re-walked)', BUILD),
     ]
     C[10] = [
-        ('iOS + Android capture parity', 'NOT MET', [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'dark'), walk9('B18_dark_doors_answer_404')],
-         'the iOS path is built and dark (G-044)'),
-        ('cold-start offline', 'NOT MET', [D(6, 'Cold-start offline is out of scope')], 'recorded out by D6 (G-163)'),
-        ('real-device matrix green every release', 'NOT MEASURED — OWNER', [L('G-164', 'BLOCKED')], 'G-164'),
+        ('iOS + Android capture parity', NMO,
+         [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), PAPI_READBACK, L('G-044', 'has not been run on an iPhone')],
+         'Android\'s share target is live; the iOS path (Shortcuts over the personal API) is armed and the API walked '
+         'in production, but no Shortcut has run on an iPhone: the owner\'s device pass (G-044)', OWNER),
+        ('cold-start offline', 'NOT MET', [D(6, 'Cold-start offline is out of scope')],
+         'recorded out by D6 (G-163); only a bar amendment by the owner (wave 10 ruling R-7) can change the clause', OWNER),
+        ('real-device matrix green every release', NMO, [L('G-164', 'BLOCKED')], 'G-164: the owner on BrowserStack Live per landing', OWNER),
     ]
     C[11] = [
-        ('import from every major tool', 'NOT MEASURED', [code('app/src/pages/journal-2-0/lib/importer/registry.js', 16, 'export const ADAPTERS = [uctAdapter, evernoteAdapter, notionAdapter, obsidianAdapter, genericAdapter]')],
-         'importers exist (Notion, Obsidian, Evernote, generic files); "every major tool" has no census'),
+        ('import from every major tool', 'MET',
+         [code('app/src/pages/journal-2-0/lib/importer/census.js', 6, "R-18's list, verbatim and in its order"),
+          code('app/src/pages/journal-2-0/lib/importer/registry.js', 24, 'export const ADAPTERS = ['),
+          walk10('B5_import_google_keep'), walk10('B5_import_logseq'), walk10('B5_import_onenote_docx')],
+         'the ten-tool list of wave 10 ruling R-18 (Notion, Evernote, Obsidian, OneNote, Apple Notes, Google Keep, '
+         'Bear, Roam, Logseq, Joplin): each maps to a registered adapter with a fixture railed through the whole '
+         'import path; three driven in a browser. The fixtures are built from each vendor\'s documented format, not '
+         'captured from real accounts', None),
         ('export markdown/HTML/JSON/PDF/docx', 'MET', [walk9('B13_share_publish_export'), test_py('tests/test_notes_export_formats.py')],
-         'PDF is the browser\'s Print'),
-        ('two-way sync where offered', 'NOT MET', [L('G-093', 'DONE (as scoped)')], 'connectors are read-only by design'),
-        ('a documented API', 'NOT MET', [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'dark')], 'built and documented, dark (G-085)'),
+         'PDF is the browser\'s Print', None),
+        ('two-way sync where offered', 'NOT MET', [L('G-093', 'DONE (as scoped)')],
+         'connectors are read-only by design; only a bar amendment by the owner (wave 10 ruling R-6, a recorded no) '
+         'can change the clause', OWNER),
+        ('a documented API', 'MET',
+         [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), record('docs/notebook/personal-api.md', 1, 'The Notebook personal API'),
+          PAPI_READBACK, PAPI_REVOKED],
+         'documented and armed; walked in production as bench@ (G-085)', None),
     ]
     C[12] = [
         ('grounded, cited, refusing when unsupported', 'MET',
          [test_py('tests/test_ask_evidence.py'), test_py('tests/test_ask_prompt_injection.py'),
-          test_vt('app/src/pages/journal-2-0/lib/askCitation.parity.test.js')], ''),
+          test_vt('app/src/pages/journal-2-0/lib/askCitation.parity.test.js')], '', None),
         ('writing help with provenance', 'NOT MEASURED',
-         [walk9('B15_writing_help'), test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js')],
-         'the panel is live and provenance is railed; no output observed in a browser (no model key); autofill absent (G-165)'),
-        ('semantic retrieval', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'dark until ZDR (G-127)'),
+         [walk9('B15_writing_help'), walk10('B7_autofill_no_key', 'INCONCLUSIVE'), test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js'),
+          test_f3('tests/test_property_autofill.py')],
+         'the panel is live with provenance railed, and autofill is built (G-165); no output has been observed in a '
+         'browser: no sandbox holds a model key. Owed: a pass as bench@ on production, where the gate is armed', BUILD),
+        ('semantic retrieval', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'dark until zero retention in writing (G-127)', OWNER),
         ('all on verified vendor terms', 'NOT MET',
-         [record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 34, 'Published terms relied on, not a signed agreement')], 'owner/external'),
+         [record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 34, 'Published terms relied on, not a signed agreement')], 'owner/external', OWNER),
     ]
     C[13] = [
-        ('keyword + meaning search', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'meaning search dark (G-127)'),
-        ('one ranked result list', 'NOT MET', [code(f'{JT}/db.py', 1140, 'j2_note_document_pages_fts')],
-         'notes, document pages and excerpts are sectioned apart by design (G-113, G-119)'),
-        ('measured recall on a labelled set', 'NOT MEASURED', [record(PLAN, plan_line('| 13 | **Search quality**'), 'measured recall on a labelled set')],
-         'no labelled recall set for the search box'),
-        ('p95 < 100 ms at 50k', 'NOT MET', [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
-                                                    'python tools/notebook_scale_benchmark.py --tiers 50000 --budget search')],
-         'perf-budgets.md:305-317 levers'),
+        ('keyword + meaning search', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'meaning search dark (G-127)', OWNER),
+        ('one ranked result list', 'MET',
+         [code(f'{LB}/bestMatches.js', 28, 'export const RRF_K = 60'), walk10('B4_best_matches')],
+         'wave 10 ruling R-5: a "Best matches" group fuses the top results of every section (notes, document pages, '
+         'saved excerpts, thesis reviews) into one kind-labelled ranked list above them; the sections stay below', None),
+        ('measured recall on a labelled set', 'MET',
+         [measure('docs/notebook/search-recall-set.json', '1431-1433', '"recall_at_10": 0.8837',
+                  'python -m pytest tests/test_notebook_search_recall.py'),
+          measure('docs/notebook/search-recall-set.json', '1435-1437', '"recall_at_10": 0.9302',
+                  'python -m pytest tests/test_notebook_search_recall.py'),
+          test_f3('tests/test_notebook_search_recall.py')],
+         'a labelled set (100 notes, 43 queries): the search box 0.8837 recall@10; the switcher 0.4147 before F6 and '
+         '0.9302 after (its body half); the rail holds both at their baseline and plants a ranker regression that '
+         'must fall below it', None),
+        ('p95 < 100 ms at 50k', NMQ,
+         [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k', 'python tools/notebook_scale_benchmark.py --tiers 50000 --budget search'),
+          QUIET_SLOT],
+         'the same reading as standard #4\'s search clause: the controller\'s quiet slot', QUIET),
     ]
     C[14] = [
-        ('50k notes: all budgets from #4 hold', 'NOT MET', [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
-                                                                 'python tools/notebook_scale_benchmark.py --tiers 50000')], 'as #4'),
-        ('10k attachments', 'NOT MEASURED', [code('docs/notebook/perf-budgets.json', 16, '"tier": 50000')], 'no 10k-attachment tier exists'),
-        ('size-cap notes', 'NOT MET', [L('G-035', 'OPEN, DELIBERATELY')], 'G-035, owner ruling'),
-        ('no super-linear curve', 'NOT MEASURED', [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
-                                                           'python tools/notebook_scale_benchmark.py --tiers 50000')],
-         'no curve fit across tiers is recorded'),
+        ('50k notes: all budgets from #4 hold', NMQ,
+         [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k', 'python tools/notebook_scale_benchmark.py --tiers 50000'),
+          QUIET_SLOT], 'the controller\'s quiet slot (10A\'s 50k command)', QUIET),
+        ('10k attachments', NMQ,
+         [code('docs/notebook/perf-budgets.json', 113, '"attachments": 10000'), QUIET_SLOT],
+         'the 10k-attachment tier and its budget are built (10A); the verdict is the quiet slot\'s 50k run with '
+         '--attachments 10000', QUIET),
+        ('size-cap notes', 'NOT MET', [L('G-035', 'OPEN, DELIBERATELY')], 'G-035, owner ruling', OWNER),
+        ('no super-linear curve', NMQ,
+         [record(PB, 675, "W7's curve BREACHED 9 ops"),
+          measure(f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 177, 'VERDICT: BUDGET BREACH',
+                  'python tools/notebook_scale_benchmark.py --curve (F6, fix round 1)'), QUIET_SLOT],
+         'the curve and its bounds are built (10A); both readings taken so far BREACH (count_notes, folder counts, '
+         'backlinks, list_tasks bending between 10k and 25k) but ran on a loaded box, so neither is a verdict: the '
+         'controller\'s quiet slot', QUIET),
     ]
+    try:
+        TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
+    except ValueError as e:     # an event the parser cannot read is a refusal, never a shorter list (R12-M3)
+        PROBLEMS.append(f'15b: {e}')
+        TELEM_EVENTS = []
+
+    def _read_rail(p):
+        fp = os.path.join(ROOT, p)
+        return open(fp, encoding='utf-8', errors='replace').read() if os.path.isfile(fp) else None
+
+    TELEM_WHERE = {}
+    try:
+        TELEM_GAPS = telemetry_rail_gaps(TELEM_EVENTS, TELEMETRY_RAILS, _read_rail, _f3vt_text, where=TELEM_WHERE)
+    except RuntimeError as e:   # the AST walk could not run: refuse, never read 15b as met or as not met
+        PROBLEMS.append(f'15b: {e}')
+        TELEM_GAPS = [str(e)]
+    TELEM_FILES = sorted({f for e in TELEM_EVENTS for f in _rails_of(TELEMETRY_RAILS, e)})
     C[15] = [
         ('client + server error reporting on', 'MET',
          [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
-          test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)'),
-        ('Notebook telemetry for every core action', 'NOT MET', [code('api/routers/journal_two.py', 121, '"note_open_ms"')],
-         'seven events; no export, import or save-success event'),
-        ('canaries in the repo', 'NOT MET', [code('tools/window_check.py', 1, 'A DAILY MINI-CANARY')],
-         'the canary source is in the repo, but the running copy differs from it (controller\'s dispatch plan, risk R3)'),
-        ('SLOs with alerts', 'NOT MET', [code('.github/workflows/notebook-budgets.yml', 1, 'promotion-gate: no')],
-         'no SLO or alert is defined for save success, Ask latency or search latency'),
+          test_vt('app/src/lib/errorBeacon.test.js')], 'the beacon is installed unconditionally (D14)', None),
+        ('Notebook telemetry for every core action', 'NOT MET' if TELEM_GAPS else 'MET',
+         [code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
+          test_f3vt('app/src/pages/journal-2-0/lib/notebookTelemetry.test.js'),
+          *[test_f3vt(f) for f in TELEM_FILES if ('✓ ' + f.replace('app/', '', 1)) in _f3vt_text],
+          code(f'{NB}/AskPanel.jsx', 235, 'trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED'),
+          code(f'{LB}/offline/useOutboxDrain.js', 302, 'trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS'),
+          measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)')],
+         (f"R-16's core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, "
+          f'dictation) map, in CORE_ACTION_EVENTS, to {len(TELEM_EVENTS)} allow-listed events with closed-enum schemas '
+          f'(constant references resolved, never dropped). Derived, not typed (F3 fix rounds 2 and 3): every event must '
+          f'have a call-site rail, and the rail must ASSERT it -- a test that is not skipped, whose expect(...) chain the '
+          f'event reaches in executable code (an acorn walk, `tools/telemetry_rail_asserts.mjs`; a comment never '
+          f"counts) -- and that test must show a green tick in F3's telemetry log. save_success is railed at both of "
+          f"its doors: the editor's and the outbox drain's (T8, `useOutboxDrain.js:302`). ask_used (T7) was the one "
+          f'gap in round 1; AskPanel.telemetry.test.jsx rails it (one ask_used per answered ask, none without an ask, none '
+          f'on a failed or empty answer, one more on an insert). Asserting tests: '
+          + '; '.join(e + ' ' + ', '.join(os.path.basename(x) for x in TELEM_WHERE[e][:2]) for e in sorted(TELEM_WHERE))
+          + ". 10D's browser check drove only some doors (save, writing help, dictation, export, share + publish, "
+          f'switcher, search, import) and is cited as a corroborating count, not as the proof. Residual, stated: the '
+          f'derivation is per event plus the T8 door; an event with further doors (export from the export dialog and '
+          f'the selection, publish from a folder, writing help from a property) is railed at one door each. '
+          + ('Every event is railed.' if not TELEM_GAPS else
+             'Not railed: ' + '; '.join(TELEM_GAPS) + '. Lever: a call-site rail for each')),
+         None if not TELEM_GAPS else BUILD),
+        ('canaries in the repo', 'MET',
+         [record('docs/notebook/soak-30day.md', 34, 'The out-of-repo copies refreshed and'),
+          test_f3('tests/test_nb_observe.py')],
+         'the running copies of nb_observe, nb_gate, window_check and nb_soak are compared with the repo\'s by a rail '
+         '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
+         'longer holds', None),
+        ('SLOs with alerts', 'MET',
+         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8220, 'id="notebook_slo_check"'),
+          test_f3('tests/test_notebook_slo.py')],
+         'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
+         'registered on the scheduler every 15 minutes', None),
     ]
     C[16] = [
-        ('a new member reaches a first useful note in < 2 minutes unaided', 'NOT MEASURED — OWNER',
-         [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK),
-        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 421, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], ''),
-        ('sample notebook', 'MET', [flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')], ''),
-        ('member templates', 'MET', [walk9('B11_organise')], ''),
+        ('a new member reaches a first useful note in < 2 minutes unaided', NMO,
+         [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
+        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 421, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], '', None),
+        ('sample notebook', 'MET', [flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')], '', None),
+        ('member templates', 'MET', [walk9('B11_organise')], '', None),
     ]
     for n in range(1, 17):
         if n not in C:
@@ -2552,36 +3351,10 @@ def build(pages_dir=None):
     rc, head = git('rev-parse', '--short=9', 'HEAD')
     rc2, app_tree = git('rev-parse', 'HEAD:app')
     rc3, api_tree = git('rev-parse', 'HEAD:api')
-    _, app_diff = git('diff', '--name-only', '8a0098029', 'HEAD', '--', 'app', 'api')
-
-
-    def b0_rows():
-        out = []
-        paths = ['docs/notebook/gate-runs/wave5-landing/2026-09-25T21-07-34.md', 'docs/notebook/gate-runs/wave5-landing/2026-09-24T21-37-17.md',
-                 'docs/notebook/gate-runs/wave5-landing/2026-09-25T20-10-16.md', 'docs/notebook/gate-runs/wave5/walk-f84cb5add.json',
-                 'docs/notebook/gate-runs/wave5/walk-fe6d15926.json', 'docs/notebook/gate-runs/wave6-landing/2026-09-25T23-28-08.md',
-                 'docs/notebook/gate-runs/wave6/walk-787a993f5.json', 'docs/notebook/gate-runs/wave7-landing/2026-09-26T02-50-58.md',
-                 W7P, 'docs/notebook/gate-runs/wave8-landing/2026-09-26T13-16-51.md', W8P]
-        for p in paths:
-            r, _ = git('cat-file', '-e', f'HEAD:{p}')
-            out.append((f'`{p}`', f'git cat-file -e HEAD:<path>', 'exists' if r == 0 else f'MISSING (rc {r})'))
-            if r != 0:
-                PROBLEMS.append(f'B0 path missing {p}')
-        shas = ['145478ec1', '96051c043', 'e6f418194', '2dde8fed1', '9532e67ac', 'fccff2f63', '39a71dd3c',
-                '2c3ed3093', '271a078b6', 'f883e0996', 'caf6d1b9e']
-        for s in shas:
-            r, _ = git('merge-base', '--is-ancestor', s, 'HEAD')
-            out.append((s, 'git merge-base --is-ancestor <sha> HEAD', 'ancestor (rc 0)' if r == 0 else f'NOT an ancestor (rc {r})'))
-            if r != 0:
-                PROBLEMS.append(f'B0 sha not ancestor {s}')
-        for t, want in (('notebook-wave5-tip-2026-09-24', '145478ec1'), ('notebook-wave6-tip-2026-09-26', '96051c043'),
-                        ('notebook-wave7-tip-2026-09-26', 'e6f418194'), ('notebook-wave8-tip-2026-09-26', '2dde8fed1')):
-            r, sha = git('rev-parse', '--short=9', f'{t}^{{commit}}')
-            ok = r == 0 and sha.startswith(want)
-            out.append((t, 'git rev-parse --short=9 <tag>^{commit}', f'{sha}' + ('' if ok else ' (MISMATCH)')))
-            if not ok:
-                PROBLEMS.append(f'B0 tag {t} -> {sha}')
-        return out
+    L1C = '13f9b0a87'   # the wave-10 L1c landing tree this re-score was cut from (every follow-up lane merged)
+    _, app_diff = git('diff', '--name-only', L1C, 'HEAD', '--', 'app', 'api')
+    B0_ROWS, B0_PROBLEMS = evidence_index('HEAD')
+    PROBLEMS.extend(B0_PROBLEMS)
 
 
     def esc(s):
@@ -2592,12 +3365,20 @@ def build(pages_dir=None):
     w = out.append
     w('# Notebook parity scorecard — every ledger row, the 16 standards, the honest misses')
     w('')
-    w(f'**Date:** {DATE} (lane 9B, wave 9). **Product scored:** the trees of tip `8a0098029` — app tree '
-      f'`8a870dd38f92781e53982baa04f2758acaf133ed`, api tree `d6838d6d65f243836096f962716db688bb878caa` — the tree the '
-      f'browser check was built from (`{EVD}/built-trees.txt`). **Document written at:** `{head}` (app tree `{app_tree[:9]}`, '
-      f'api tree `{api_tree[:9]}`); the product files are unchanged since `8a0098029` — `git diff --name-only 8a0098029 HEAD -- app api` '
-      f'lists {len([x for x in app_diff.splitlines() if x])} file(s), all tests: '
-      + (', '.join(f'`{x}`' for x in app_diff.splitlines() if x) or 'none') + '.')
+    w(f'**Date:** {DATE} (the wave-10 re-score, follow-up F3; the tool and method are wave 9 lane 9B\'s). **Product '
+      f'scored:** this tree — app tree `{app_tree[:9]}`, api tree `{api_tree[:9]}` — which is the wave-10 L1c landing '
+      f'tree `{L1C}` (master `4bba30b73` + #225 + 10E-1 + 10E-2 + the follow-up lanes F2, F4, F5, F6 and F7) plus this '
+      f're-score\'s own documents and tool: `git diff --name-only {L1C} HEAD -- app api` lists '
+      f'{len([x for x in app_diff.splitlines() if x])} file(s)'
+      + (': ' + ', '.join(f'`{x}`' for x in app_diff.splitlines() if x) if app_diff.strip() else '') +
+      f'. **Document written at:** `{head}`.')
+    w('')
+    w('**No browser ran on this tree.** The re-score ran no sandbox and no browser (a six-shard gate was due on this '
+      'box). Every `WALK` cell names the tree its run measured -- wave 9\'s browser check (`8a0098029`), the wave-7 and '
+      'wave-8 walks, wave 10\'s L1a walk (`14310c206`), 10E-1\'s proof walk (`fd7d1f42d`), F5\'s after-run '
+      '(`aa2417c2c`), F4\'s keyboard re-walk (`0555889ef`) -- and §0 proves each of those trees reachable from this '
+      'one. A later change to a measured surface is named in the cell\'s notes; nothing measured on an older tree is '
+      'presented as measured here.')
     w('')
     w('**What this is, and what it is not.**')
     w('- The **gap ledger** (`docs/notebook/competitive-gap-ledger.md`) is the STATUS authority (ruling D-9B4). This scorecard '
@@ -2614,24 +3395,39 @@ def build(pages_dir=None):
     w('')
     w('**Verdicts (closed set):** `AHEAD` · `PARITY` · `BEHIND` · `N/A` (no competitor equivalent, or a UCT-internal row) · '
       '`OUT-OF-SCOPE (D#)` · `BLOCKED (owner|external)` · `NOT-VERIFIED`. A verdict of AHEAD, PARITY or BEHIND needs BOTH sides '
-      'evidenced: a UCT behaviour confirmed (a UI behaviour in 9B\'s browser check on the scored tip), and a competitor quote from a '
-      'page fetched today. An absence on a competitor\'s page is never cited, so "AHEAD" appears only where the competitor\'s own page '
-      'states the limit. A capability behind a dark gate is BLOCKED, never "available".')
+      'evidenced: a UCT behaviour confirmed (a browser or API walk at a named tree, never a code reading alone), and a competitor '
+      'quote from a page fetched on the date it cites. An absence on a competitor\'s page is never cited, so "AHEAD" appears only '
+      'where the competitor\'s own page states the limit. A capability behind a dark gate is BLOCKED, never "available". **Clause '
+      'verdicts** (§B): `MET` · `NOT MET` · `NOT MEASURED` · `NOT MEASURED — OWNER` (only the owner can take the reading) · '
+      '`NOT MEASURED — QUIET SLOT` (a timing verdict that waits on the controller\'s held quiet slot).')
     w('')
-    w('**UCT evidence kinds:** `CODE path:line "fragment"` read at the HEAD above; `TEST file` + a run by 9B with its log and totals '
-      'line; `WALK tool:check` + report + tip; `MEASURE doc:line` + the command; `RECORD doc:line` (production state, "per record, '
-      'not re-read"); `RULING doc:line` for a deliberate no. **Competitor cells:** `N:` Notion · `E:` Evernote · `O:` Obsidian, each '
-      'an official URL, a quoted sentence of at most 25 words from the page fetched, and the date — or `not verified` with the reason. '
-      'Every quote was checked verbatim against the fetched text before this file was written (R16).')
+    w('**UCT evidence kinds:** `CODE path:line "fragment"` read at the revision above; `TEST file` + a run (by 9B, or by F3 on this '
+      'tree) with its log and totals line; `WALK tool:check VERDICT` + report + tree; `MEASURE doc:line` + the command; `RECORD '
+      'doc:line` (a record, "per record, not re-read"; a flag record names the revision the ledger was read at); `RULING doc:line` '
+      'for a deliberate no. **Competitor cells:** `N:` Notion · `E:` Evernote · `O:` Obsidian, each an official URL, a quoted '
+      'sentence of at most 25 words from the page fetched, and the fetch date — or `not verified` with the reason. Every quote was '
+      'checked verbatim against the fetched text before it was entered (R16; Evernote\'s against the committed evidence file).')
     w('')
-    w('## §0 — B0: the evidence index, verified at the HEAD above')
+    w('## §0 — B0: the evidence index, verified at the revision above')
+    w('')
+    w('Waves 5-10 land on master as squash merges, so a wave\'s head is never an ancestor of master; wave 9\'s "every tip '
+      'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead: (1) each wave\'s '
+      'SQUASHED head is pinned by a tag and resolves to the recorded SHA (waves 5 and 7 by new `-tip2-` tags: their '
+      '`-tip-` tags are not the heads the PRs squashed, and are left where they are); (2) each wave\'s squash is an '
+      'ancestor of this tree; (5) the squash carries the head: its tree is the head merged onto the squash\'s parent '
+      '(`git merge-tree --write-tree <squash>^ <head>` equals `<squash>^{tree}`, so a squash onto a master that moved '
+      'still ties; L1c, not squashed yet, has its tagged head in this tree\'s own history; after its squash the tool finds '
+      'the earliest commit of this tree\'s history that carries it); (3) every cited evidence file is byte-identical here to the file '
+      'its landing carried; and (4) every tree a browser or walk measured is an ancestor of its declared wave\'s tag, '
+      'and that wave landed; a ref that is not a declared wave tag (a bare SHA, an undeclared tag) is refused. Every '
+      'evidence file and walked tree the cells below cite is one of these rows, or `--write` refuses.')
     w('')
     w('| item | command | result |')
     w('|---|---|---|')
-    for a, b, c in b0_rows():
+    for a, b, c in B0_ROWS:
         w(f'| {a} | `{b}` | {c} |')
     w('')
-    w('Every path exists and every SHA is an ancestor; wave 8\'s gate manifest and walk report are present, so no STOP.')
+    w('Every property holds.' if not B0_PROBLEMS else f'{len(B0_PROBLEMS)} propert(ies) do NOT hold (see the rows above).')
     w('')
     # ── B1 inventory ──
     INV = [
@@ -2762,26 +3558,48 @@ def build(pages_dir=None):
         w('')
         w('| clause | verdict | evidence | lever / owner |')
         w('|---|---|---|---|')
-        for clause, verdict, ev, lever in cl:
+        for clause, verdict, ev, lever, _group in cl:
             w(f'| {esc(clause)} | {verdict} | {" ; ".join(esc(e) for e in ev)} | {esc(lever) or "—"} |')
         w('')
 
     # ── §C ──
     w('## §C — what still misses, and what owns each miss')
     w('')
+    GROUP_NAME = {OWNER: 'Owner-only (only the owner can take the step or the reading)',
+                  QUIET: 'Quiet-slot (a timing verdict the controller takes in a held quiet slot)',
+                  BUILD: 'Build work (an agent or the controller can do it)'}
+    w('### What 10/10 still needs')
+    w('')
+    w(f'**{N_AT_BAR} of 16 standards at bar.** Every clause not MET appears below exactly once, under whoever can close it, '
+      'with its lever. The quiet-slot commands are `docs/notebook/perf-budgets.md` §7 (10A\'s three, run from PowerShell on a box '
+      'that holds quiet for the whole run).')
+    w('')
+    for g in (OWNER, QUIET, BUILD):
+        items = [(s_, c) for s_ in STD for c in C[s_['n']] if c[1] != 'MET' and c[4] == g]
+        w(f'**{GROUP_NAME[g]}** — {len(items)}')
+        w('')
+        for s_, (clause, verdict, ev, lever, _g) in items:
+            w(f'- #{s_["n"]} {s_["name"]}: {clause} ({verdict}) — {lever}')
+        w('')
+    for s_ in STD:
+        for c in C[s_['n']]:
+            if (c[1] == 'MET') != (c[4] is None):
+                PROBLEMS.append(f'standard {s_["n"]} clause {c[0]!r}: verdict {c[1]} but group {c[4]!r} '
+                                '(a MET clause has no group; every other clause has exactly one)')
     w('### Standards: every clause not MET')
     w('')
     w('| standard | clause | verdict | lever / ruling / kit |')
     w('|---|---|---|---|')
     for s in STD:
-        for clause, verdict, ev, lever in C[s['n']]:
+        for clause, verdict, ev, lever, _group in C[s['n']]:
             if verdict != 'MET':
                 w(f'| {s["n"]}. {s["name"]} | {esc(clause)} | {verdict} | {esc(lever) or "—"} |')
     w('')
-    w('Named performance levers (`docs/notebook/perf-budgets.md`:305-317): common-term relevance search — a `note_rowid` column on '
-      '`j2_notes_fts_map` maintained by the FTS triggers, and the page total from the same ranked pass; `list_tasks` — a maintained '
-      'task index; typing — unattributed (`docs/notebook/perf-budgets.md`:401-405, a browser profile per plugin is the next step); '
-      'G-035 at the size cap stands by owner ruling (`docs/notebook/competitive-gap-ledger.md`:88).')
+    w('Named performance levers: the wave-9 set (`docs/notebook/perf-budgets.md`:305-317, the integer hop into the FTS map and '
+      'a maintained task index) is BUILT by 10A (§7); what remains is the quiet-box verdict, the curve\'s bend between 10k and '
+      '25k notes (SQLite\'s default page cache is a named second cause, §7 "The curve"), and typing below the cap (the toolbar\'s '
+      'whole-page re-render, §7 "Typing"). G-035 at the size cap stands by owner ruling '
+      '(`docs/notebook/competitive-gap-ledger.md`:88).')
     w('')
     w('### Rows: every BEHIND, NOT-VERIFIED or BLOCKED verdict')
     w('')
@@ -2819,6 +3637,25 @@ def build(pages_dir=None):
         for cid, c in d['checks'].items():
             w(f'| {cid} | {", ".join(c.get("rows", []))} | {c.get("verdict")} |')
     w('')
+    # Wave 10: the walks the new WALK cells cite, each read from its committed report (never typed here).
+    with open(os.path.join(ROOT, W10_WALK), encoding='utf-8') as fh:
+        L1A = json.load(fh)
+    w(f'**Wave 10, the L1a landing walk** (`{W10_WALK_TOOL}`, report `{W10_WALK}`, tree `{L1A.get("tip")}`): the 10B '
+      f'feature rows in real Chromium on a census-pinned sandbox (no model key). First line of the record: '
+      f'{esc(str(L1A.get("first_line") or "none recorded"))[:220]}')
+    w('')
+    w('| check | verdict |')
+    w('|---|---|')
+    for cid, v in walk_verdicts(L1A).items():
+        w(f'| {cid} | {v} |')
+    w('')
+    with open(os.path.join(ROOT, KBD_F4), encoding='utf-8') as fh:
+        KB = json.load(fh)
+    kb = Counter(walk_verdicts(KB).values())
+    w(f'**Wave 10, the keyboard re-walk** (10E-2\'s `{KBD_TOOL}` re-run by F4, report `{KBD_F4}`, tree '
+      f'`{KB["meta"].get("tip")}`): ' + ', '.join(f'{k} {v}' for k, v in sorted(kb.items())) + '; the FAIL steps are '
+      + ', '.join(sorted(k for k, v in walk_verdicts(KB).items() if v == 'FAIL')) + ' (§B standard #9).')
+    w('')
 
     # ── citations index ──
     w('## Citations index (for the 10% re-fetch control, ruling D-9B3)')
@@ -2849,6 +3686,7 @@ def build(pages_dir=None):
 
 
     text = '\n'.join(out) + '\n'
+    PROBLEMS.extend(f'B0 {g}' for g in cited_b0_gaps(text))
     summary = {'rows': len(ROWS), 'quote_keys_used': len(USED), 'at_bar': N_AT_BAR,
                'clauses': {n: f"{sum(1 for c in C[n] if c[1] == 'MET')}/{len(C[n])}" for n in C},
                'quotes_verbatim_checked': bool(pages_dir)}
