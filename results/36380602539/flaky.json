@@ -326,6 +326,10 @@
     "550",
     "551",
     "553",
+    "554",
+    "555",
+    "556",
+    "558",
     "57",
     "58",
     "59",
@@ -2225,9 +2229,33 @@
     },
     {
       "a": "553",
+      "b": "554",
+      "equivalent": null,
+      "why": "the diff 9eee93976..b0fcf4c7c is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "554",
+      "b": "555",
+      "equivalent": null,
+      "why": "the diff b0fcf4c7c..1fd92f278 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "555",
+      "b": "556",
+      "equivalent": null,
+      "why": "the diff 1fd92f278..e818a15c1 is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "556",
+      "b": "558",
+      "equivalent": null,
+      "why": "the diff e818a15c1..d424f4ada is UNREADABLE (shallow checkout?)"
+    },
+    {
+      "a": "558",
       "b": "57",
       "equivalent": null,
-      "why": ".github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits"
+      "why": "the diff d424f4ada..e3d2a1b1c is UNREADABLE (shallow checkout?)"
     },
     {
       "a": "57",

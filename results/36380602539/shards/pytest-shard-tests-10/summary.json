@@ -5,7 +5,7 @@
   "failed": 24,
   "errored": 0,
   "skipped": 3,
-  "wall_s": 364.81,
+  "wall_s": 657.85,
   "failed_files": [
     "tests/test_screener_saved.py",
     "tests/test_screener_wave1_columndefs.py",
@@ -17,6 +17,6 @@
     "tests/test_starter_library.py"
   ],
   "totals_line_found": true,
-  "runner_line": "24 failed, 2083 passed, 3 skipped, 14780 warnings in 364.81s (0:06:04)",
+  "runner_line": "24 failed, 2083 passed, 3 skipped, 14763 warnings in 657.85s (0:10:57)",
   "ok": true
 }

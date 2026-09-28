@@ -323,7 +323,11 @@
 | #546 → #550 | **UNREADABLE** | the diff f88d18515..1d0066c2f is UNREADABLE (shallow checkout?) |
 | #550 → #551 | **UNREADABLE** | the diff 1d0066c2f..d247e5b81 is UNREADABLE (shallow checkout?) |
 | #551 → #553 | **UNREADABLE** | the diff d247e5b81..9eee93976 is UNREADABLE (shallow checkout?) |
-| #553 → #57 | **UNREADABLE** | .github/workflows/clock-parity-fixture.yml is UNREADABLE at one of the two commits |
+| #553 → #554 | **UNREADABLE** | the diff 9eee93976..b0fcf4c7c is UNREADABLE (shallow checkout?) |
+| #554 → #555 | **UNREADABLE** | the diff b0fcf4c7c..1fd92f278 is UNREADABLE (shallow checkout?) |
+| #555 → #556 | **UNREADABLE** | the diff 1fd92f278..e818a15c1 is UNREADABLE (shallow checkout?) |
+| #556 → #558 | **UNREADABLE** | the diff e818a15c1..d424f4ada is UNREADABLE (shallow checkout?) |
+| #558 → #57 | **UNREADABLE** | the diff d424f4ada..e3d2a1b1c is UNREADABLE (shallow checkout?) |
 | #57 → #58 | **yes** | no changed file can reach a test |
 | #58 → #59 | **UNREADABLE** | .github/workflows/promote-production.yml is UNREADABLE at one of the two commits |
 | #59 → #60 | **UNREADABLE** | .github/workflows/promote-production.yml is UNREADABLE at one of the two commits |
@@ -353,7 +357,7 @@
 | #94 → #96 | no | api/services/calendar_personalization.py is referenced by 10 source file(s); app/src/pages/Calendar.jsx is referenced by 170 source file(s); app/src/pages/calendar/FeedView.jsx is referenced by 10 source file(s) |
 | #96 → #99 | **UNREADABLE** | .github/workflows/promote-production.yml is UNREADABLE at one of the two commits |
 
-⛔ **12 of 340 consecutive pairs were comparable.** A pair that is not comparable contributes NO evidence in either direction — it cannot make a test flaky and it cannot clear one.
+⛔ **12 of 344 consecutive pairs were comparable.** A pair that is not comparable contributes NO evidence in either direction — it cannot make a test flaky and it cannot clear one.
 
 ## `pytest` · `tests.test_discord_close_note`
 

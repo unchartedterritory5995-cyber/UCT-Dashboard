@@ -1,5 +1,5 @@
 {
-  "verdict": "INVALID",
+  "verdict": "COVERAGE_LOST",
   "counts": {
     "new": 98,
     "fixed": 41,
@@ -16,9 +16,7 @@
     "coverage_lost": 1
   },
   "arithmetic": "baseline 122 = unchanged 80 + fixed 41 + missing 1  |  current 178 = unchanged 80 + new 98 + new-but-flaky 0",
-  "invalid_because": [
-    "current: shards_success 17 of 18"
-  ],
+  "invalid_because": [],
   "baseline_run_id": "35008710335",
   "current_run_id": "36380602539",
   "baseline_sha": "03ebbd7f79cdad4febb3a478dae1cea4a8d02a9e",
