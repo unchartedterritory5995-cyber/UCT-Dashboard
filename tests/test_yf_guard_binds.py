@@ -101,6 +101,16 @@ def test_ticker_logos_clearbit_reaches_yfinance_through_the_guard(spy):
     assert spy.fired
 
 
+def test_financial_statements_reaches_yfinance_through_the_guard(spy):
+    """Every statement read in `_build` (income/balance/cash-flow, annual and
+    quarterly) goes through the guard. It was on master (b8c3fdf57) with no
+    proof, so this file's coverage rail was red for every session."""
+    from api.services import financial_statements
+    financial_statements._build("AAPL")
+    assert spy.fired
+    assert len(spy.calls) >= 6, spy.calls   # the six statement reads
+
+
 def test_catalyst_ticker_metadata_reaches_yfinance_through_the_guard(spy):
     from api.services.catalyst import ticker_metadata
     out = ticker_metadata._fetch_via_yfinance("AAPL")
@@ -211,6 +221,7 @@ BOUND_HERE = {
     "api/routers/charts.py",
     "api/services/catalyst/ticker_metadata.py",
     "api/services/engine.py",
+    "api/services/financial_statements.py",
     "api/services/fundamentals.py",
     "api/services/industry_map.py",
     "api/services/institutional_holdings.py",
