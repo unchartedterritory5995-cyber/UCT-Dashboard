@@ -443,6 +443,9 @@
 }
 .toolsToggle {
   display: none;
+  /* the finger floor lives here, not in the phone block: tapFloor.test.js (a target
+     declared at <=640 only would be one the tablet tier never measured) */
+  min-height: var(--tap-min);
 }
 @media (max-width: 640px) {
   .root[data-compact-header] .header {
@@ -463,7 +466,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: var(--tap-min);
     padding: 0 14px;
     background: var(--bg-hover);
     border: 1px solid var(--border-accent);

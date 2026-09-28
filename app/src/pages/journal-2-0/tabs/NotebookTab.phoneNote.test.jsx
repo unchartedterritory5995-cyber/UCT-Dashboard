@@ -214,7 +214,8 @@ describe('D-1 -- the phone rule (structural; d2_phone_measure.py is the verdict)
 
   it('at 390 px the back control shows, at a finger-sized height', () => {
     expect(declaresProp(phone, '.phoneBack', 'display', /^inline-flex$/)).toBe(true)
-    expect(declaresProp(phone, '.phoneBack', 'min-height', /tap-min/)).toBe(true)
+    // the finger floor is declared for every width (tapFloor.test.js), so the phone gets it too
+    expect(declaresProp(baseRules(CSS), '.phoneBack', 'min-height', /tap-min/)).toBe(true)
   })
 
   it('⛔ above a phone the back control is hidden and the panel is NOT', () => {

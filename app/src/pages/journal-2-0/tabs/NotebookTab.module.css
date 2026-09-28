@@ -639,6 +639,8 @@
    Rail: NotebookTab.phoneNote.test.jsx. */
 .phoneBack {
   display: none;
+  /* the finger floor lives here, not in the phone block: tapFloor.test.js */
+  min-height: var(--tap-min);
 }
 @media (max-width: 640px) {
   .wrap[data-note-open] .sidebarSlot {
@@ -648,7 +650,6 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: var(--tap-min);
     margin: 4px 0 8px;
     padding: 0 12px 0 8px;
     background: transparent;

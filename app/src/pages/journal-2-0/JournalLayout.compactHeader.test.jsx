@@ -221,7 +221,8 @@ describe('D-1 -- the phone-only rules (structural; d2_phone_measure.py is the ve
     expect(declaresProp(phone, FOLDED, 'display', /^none$/)).toBe(true)
     expect(declaresProp(phone, '.root[data-compact-header] .heading', 'display', /^none$/)).toBe(true)
     expect(declaresProp(phone, '.root[data-compact-header] .toolsToggle', 'display', /^inline-flex$/)).toBe(true)
-    expect(declaresProp(phone, '.root[data-compact-header] .toolsToggle', 'min-height', /tap-min/)).toBe(true)
+    // the finger floor is declared for every width (tapFloor.test.js), so the phone gets it too
+    expect(declaresProp(base, '.toolsToggle', 'min-height', /tap-min/)).toBe(true)
   })
 
   it('everywhere else the tools are ordinary row items and the disclosure does not exist', () => {
