@@ -83,6 +83,17 @@ describe('⭐ the VM dispatch labels are OP, spelled as literals', () => {
     expect(dup).toEqual([])
   })
 
+  it('no two OP names share a value — reserved ones included', () => {
+    // ⚰️ CARRIED2 and the reserved OBJ_CREATE both held 90 until 2026-09-28. The
+    // case check above cannot see it (a reserved opcode has no case), so the
+    // table itself is checked, and OP_NAME must round-trip every name.
+    const byValue = {}
+    for (const [name, v] of Object.entries(OP)) (byValue[v] = byValue[v] || []).push(name)
+    const shared = Object.entries(byValue).filter(([, names]) => names.length > 1)
+    expect(shared, 'OP values held by more than one name').toEqual([])
+    for (const [name, v] of Object.entries(OP)) expect(OP_NAME[v], name).toBe(name)
+  })
+
   it('every IMPLEMENTED opcode has a case', () => {
     const have = new Set(cases.map((c) => c.value))
     const missing = [...IMPLEMENTED].filter((v) => !have.has(v)).map((v) => OP_NAME[v])
