@@ -82,11 +82,29 @@ export const WORKSPACE_WIDGETS = {
 // a bad opts shape in ONE panel cost every other open widget. `WidgetBody` is the
 // single render path every widget type goes through (see WORKSPACE_WIDGETS above),
 // so one boundary here isolates every widget kind without a per-type wrapper.
-function WidgetErrorFallback({ type }) {
-  return (
-    <div className={styles.unknownWidget} role="alert">
-      This {TYPE_LABEL[type] || type || 'widget'} hit an error. Remove and re-add it, or reload the page.
+// TERM-027: `withHeader` is the PANEL-level fallback (see WidgetHost's render), used
+// when the header itself threw. It cannot re-render WidgetHeader — that is what
+// failed — so it draws a bare bar: still a drag handle, still a way to remove the
+// panel. A panel that loses its header on error is a worse failure than the error.
+function WidgetErrorFallback({ type, onRemove, withHeader = false }) {
+  const label = TYPE_LABEL[type] || type || 'widget'
+  const message = (
+    <div className={styles.unknownWidget} role="alert" data-widget-error-type={type || ''}>
+      This {label} hit an error. Remove and re-add it, or reload the page.
     </div>
+  )
+  if (!withHeader) return message
+  return (
+    <>
+      <div className={`${styles.widgetHeader} charts-widget-drag-handle`} style={{ cursor: 'grab' }}>
+        <span className={styles.widgetLabel}>{label}</span>
+        <span className={styles.headerSpacer} />
+        {onRemove && (
+          <button type="button" className={styles.closeBtn} onClick={onRemove} aria-label="Close widget" title="Remove this widget">×</button>
+        )}
+      </div>
+      <div className={styles.widgetBody}>{message}</div>
+    </>
   )
 }
 
@@ -294,9 +312,16 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
         }`}
         style={chromeStyle}
       >
-        {merged
-          ? <>{mergedTabs}{body}</>
-          : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+        {/* TERM-027: WidgetBody's boundary covers only the body, and the header used
+            to render outside it — a header-side throw escaped to the route boundary
+            and took the whole board. This panel-level boundary catches it for THIS
+            panel only. A body throw is still caught first by WidgetBody's inner
+            boundary, so it keeps the real header; only a header throw lands here. */}
+        <ErrorBoundary key={groupId} fallback={<WidgetErrorFallback type={active.type} onRemove={onRemove} withHeader />}>
+          {merged
+            ? <>{mergedTabs}{body}</>
+            : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+        </ErrorBoundary>
       </div>
     </PlacedThemeContext.Provider>
   )
