@@ -1,4 +1,5 @@
 import useResearchFlow from '../hooks/useResearchFlow'
+import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
 
 // Research "Flow" tab (A13 Wave B). The roadmap's original directive asked for
@@ -111,8 +112,17 @@ export default function FlowTab({ sym }) {
                 </tbody>
               </table>
             </div>
-            <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>
-              Source: live options-flow tape (same aggregation as Options Flow → Search)
+            {/* TERM-019 (FB-S8-01) adoption: the source is S8's <Provenance>,
+                not bare local text. Wording unchanged. No `timestamp`: this
+                payload carries date-only window bounds and a `query_date`,
+                never an observed instant, and the window is already stated in
+                the Net Flow card above. */}
+            <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }} data-testid="flow-source">
+              Source:{' '}
+              <Provenance
+                value="live options-flow tape (same aggregation as Options Flow → Search)"
+                provenance={{ sourceActivity: 'live_massive_router.ticker_flow' }}
+              />
             </div>
           </section>
         </>

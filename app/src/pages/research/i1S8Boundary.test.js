@@ -38,20 +38,24 @@
 // RECORDED_BOUNDARY_DEBT) described the whole Sources block rather than only
 // the three class names that named it.
 //
-// ⚠️ AND WHAT IS OUTSIDE ITS SURFACE BY CONSTRUCTION: it guards the Ask-AI tab
-// `ResearchPage.jsx` mounts, plus what that tab imports. `pages/research/
-// components/ComparisonAskAi.jsx` — a DIFFERENT door, reached from the compare
-// page — still draws its own citation list through the very classes this rail
-// was opened for, and this file cannot see it. Widening the surface to the
-// whole `pages/research/**` tree is a one-line change to `i1Surface`'s roots
-// and a decision somebody has to make, not a gap to paper over here.
+// ⚠️ AND WHAT IS OUTSIDE THE FIRST SECTION'S SURFACE BY CONSTRUCTION: it
+// guards the Ask-AI tab `ResearchPage.jsx` mounts, plus what that tab imports.
+// `pages/research/components/ComparisonAskAi.jsx` — a DIFFERENT door, reached
+// from the compare page — is not in it.
 //
 // ⭐ TERM-034 (2026-09-27) WIDENED THE ROOTS, in its own describe block at the
 // foot of this file: `aiDoorFiles()` derives every Ask-AI door the research
-// pages mount (so ComparisonAskAi is now SEEN), and its current violation is a
-// strict expected-failure (`it.fails`) naming the three classes — recorded, not
-// fixed, because product code is not this ticket's to change. The Ask-AI tab's
-// own section above is untouched.
+// pages mount (so ComparisonAskAi is SEEN). Its violation — its own citation
+// list through three local classes — was recorded there as a strict
+// expected-failure. ⭐ TERM-050 (FB-I1-01) FIXED IT: the compare door's
+// Sources block composes S8's <Provenance>, the `it.fails` is a plain `it`, and
+// a verbatim reconstruction of the deleted list is kept as a control that must
+// stay red. The Ask-AI tab's own section above is untouched.
+//
+// ⚠️ STILL OUTSIDE EVERY SURFACE HERE, stated so a green run is not read as
+// more than it is: AI doors that are not mounted by a research PAGE (the AI
+// Search widget, the catalyst table's citations popover, call recaps, the
+// Notebook's Ask panel) are not roots of either section.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -335,14 +339,11 @@ const ALL_FINDINGS = SURFACE.flatMap((f) => boundaryFindings(f))
  * ⛔ AND IT IS NOT A PARKING SPACE FOR THE NEXT ONE. Adding a line is a
  * decision recorded in a diff with a reason beside it.
  *
- * ⚠️ KNOWN AND DELIBERATELY NOT RECORDED HERE: `pages/research/components/
- * ComparisonAskAi.jsx` still draws the same local citation list through the
- * same three CSS classes. It is NOT in this rail's surface (this rail follows
- * what `ResearchPage.jsx` mounts as the Ask-AI tab, and the compare page is a
- * different door), so an entry for it would be a line in a ledger nothing
- * checks. It is a reported finding, not debt this file can hold.
- * (TERM-034: it IS now checked — by the widened-roots block at the foot of this
- * file, as a strict expected-failure — still deliberately not in this ledger.)
+ * ⚰️ `pages/research/components/ComparisonAskAi.jsx` drew the same local
+ * citation list through the same three CSS classes. It was never recorded
+ * here (it is not in this section's surface); TERM-034 checked it from the
+ * widened-roots block at the foot of this file as a strict expected-failure,
+ * and TERM-050 fixed it in code. Nothing to record, then or now.
  */
 export const RECORDED_BOUNDARY_DEBT = {}
 
@@ -521,11 +522,11 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
 // feeds `i1Surface` a DERIVED root set — every default import a research PAGE
 // mounts whose name says Ask-AI — so a third door joins without editing a list.
 //
-// ⛔ The compare door VIOLATES the boundary today, and product code is not this
-// ticket's to change. Its finding is therefore a strict expected-failure
-// (`it.fails`): green while the violation stands, RED the day it is fixed (so
-// the marker has to come off in the fixing commit), and pinned to its named
-// reason by the test beside it, so a detector that went blind cannot hide there.
+// ⚰️ The compare door VIOLATED the boundary when this block landed, so its
+// finding was a strict expected-failure (`it.fails`) pinned to its named
+// reason. TERM-050 fixed the door and removed the marker in the same commit;
+// the reconstruction control below is what keeps a blind detector from hiding
+// behind the green.
 
 const RESEARCH_DIR = path.join(SRC, 'pages', 'research')
 
@@ -574,23 +575,59 @@ describe('TERM-034 — the boundary, over EVERY Ask-AI door the research pages m
     for (const f of SURFACE) expect(WIDE_SURFACE).toContain(f)
   })
 
-  it('the Ask-AI tab stays clean inside the widened surface — only the compare door is red', () => {
+  it('the Ask-AI tab stays clean inside the widened surface', () => {
     const outsideCompare = WIDE_FINDINGS.filter((f) => f.file !== COMPARE_DOOR)
     expect(outsideCompare.map((f) => f.id)).toEqual([])
   })
 
-  it('the compare door is red for the NAMED reason — its own citation list, three classes', () => {
-    // Pins the xfail below to the violation it records: were the detector to
-    // go blind, `it.fails` would still pass on some OTHER error; this cannot.
-    const what = WIDE_FINDINGS.filter((f) => f.file === COMPARE_DOOR).map((f) => f.what)
-    expect(what).toEqual(['explainCitations', 'explainCitation', 'explainCitationMark'])
+  // ⭐ TERM-050 (FB-I1-01) FIXED THE COMPARE DOOR, and the order was the
+  // evidence, exactly as GATE-I1 slice 2's was: `.fails` came off FIRST, with
+  // the local citation list still in the tree, and this file went RED naming
+  // the three classes at live line numbers. Then ComparisonAskAi's Sources
+  // block was rebuilt on S8's <Provenance> and it went green. The pair of
+  // controls below keeps that red/green pair permanent.
+  it('⭐ EVERY Ask-AI door the research pages mount composes S8 — no findings', () => {
+    expect(WIDE_FINDINGS.map((f) => `${f.id} (line ${f.line}) — ${f.detail}`),
+      'an Ask-AI door renders citation/freshness/coverage/provenance itself instead '
+      + 'of composing S8\'s primitives in app/src/components/provenance/').toEqual([])
   })
 
-  it.fails('XFAIL — VIOLATION: ComparisonAskAi.jsx renders its own citation list '
-    + '(className explainCitations / explainCitation / explainCitationMark) instead of '
-    + 'composing S8\'s <Provenance>/<Cited>. I1-SPEC Part 4 open gap; the product fix is '
-    + 'out of TERM-034\'s scope. Remove `.fails` in the commit that fixes it.', () => {
-    expect(WIDE_FINDINGS.map((f) => `${f.id} (line ${f.line})`)).toEqual([])
+  it('CONTROL: the pre-TERM-050 compare Sources block is RED, by name, at real lines', () => {
+    // The violation this block was opened for, reconstructed verbatim from
+    // the list TERM-050 deleted, classified against the REAL compare-door
+    // anchor so module resolution is the real thing. Without this, the green
+    // above is also satisfied by a detector that stopped looking.
+    const anchor = path.join(ROOT, ...COMPARE_DOOR.split('/'))
+    const preTerm050 = [
+      "import styles from '../ResearchPage.module.css'",
+      'export default ({ data }) => (',
+      '  <div className={styles.explainCitations}>',
+      '    {data.citations.map(c => (',
+      '      <div key={c.id} className={styles.explainCitation}>',
+      '        <span className={styles.explainCitationMark}>[{c.id}]</span>',
+      '        <span>{c.sym} · {c.source} · {c.date}</span>',
+      '      </div>',
+      '    ))}',
+      '  </div>',
+      ')',
+      '',
+    ].join('\n')
+    const findings = boundaryFindings(anchor, preTerm050)
+    expect(findings.map((f) => f.what)).toEqual(
+      ['explainCitations', 'explainCitation', 'explainCitationMark'])
+    for (const f of findings) {
+      expect(f.file).toBe(COMPARE_DOOR)
+      expect(preTerm050.split('\n')[f.line - 1]).toContain(f.what)
+    }
+  })
+
+  it('AND THE SHIPPED COMPARE DOOR IS CLEAN — the fix, not the ledger, is what is green', () => {
+    const anchor = path.join(ROOT, ...COMPARE_DOOR.split('/'))
+    const src = read(anchor)
+    expect(src, 'ComparisonAskAi stopped composing S8 — the TERM-050 fix has been reverted')
+      .toContain('<Provenance')
+    expect(boundaryFindings(anchor, src)).toEqual([])
+    expect(RECORDED_BOUNDARY_DEBT).toEqual({})
   })
 
   it('CONTROL: the door derivation discriminates — a non-Ask-AI default import is not a door', () => {

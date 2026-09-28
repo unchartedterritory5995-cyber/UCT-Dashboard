@@ -14,9 +14,12 @@
     "app/src/components/chart/builder/EvidenceTab.jsx",
     "app/src/components/screener/ScanResults.jsx",
     "app/src/pages/ProvenanceDemo.jsx",
+    "app/src/pages/research/ResearchComparePage.jsx",
+    "app/src/pages/research/components/ComparisonAskAi.jsx",
     "app/src/pages/research/tabs/AnalystRatingsTab.jsx",
     "app/src/pages/research/tabs/AskAiTab.jsx",
     "app/src/pages/research/tabs/CatalystsTab.jsx",
+    "app/src/pages/research/tabs/FlowTab.jsx",
     "app/src/pages/research/tabs/NewsTab.jsx",
     "app/src/pages/research/tabs/OwnershipTab.jsx"
   ]
