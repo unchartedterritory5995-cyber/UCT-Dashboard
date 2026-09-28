@@ -3264,6 +3264,16 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
         )
+    # TERM-078: the population-wide daily cap, AFTER the member's own
+    # reservation (so a member over their own allowance never spends the
+    # membership's). Off unless AI_POPULATION_CAP_MODE is set; on an enforce
+    # refusal the member's question is given back and the refusal NAMES the
+    # shared cap -- never the member's own "today's Ask limit" sentence.
+    from api.services import ai_population_cap
+    _pop_refusal = await run_in_threadpool(ai_population_cap.admit, "notebook_ask")
+    if _pop_refusal:
+        await run_in_threadpool(note_ask.refund_ask, user_id, day=day)
+        raise HTTPException(status_code=429, detail=_pop_refusal)
     # The daily cap bounds spend over a day; this bounds what one member can
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.

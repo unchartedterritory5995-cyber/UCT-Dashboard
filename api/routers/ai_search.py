@@ -527,6 +527,25 @@ def _refund(user_id, units: int) -> None:
     _persist_usage(key, -units)
 
 
+def _reserve_request(user_id, units: int) -> None:
+    """A REQUEST's entry reservation: the member's own daily units (`_reserve`,
+    raises its own 429), THEN one unit of the population-wide daily cap
+    (TERM-078, `ai_population_cap`, off unless AI_POPULATION_CAP_MODE is set).
+    Order matters: a member already over their own allowance never reaches the
+    population counter, so they cannot spend the membership's. On an enforce
+    refusal the member's units are given back first -- the refusal names the
+    shared cap, and costs them nothing. SQLite when a mode is on: an async
+    caller reaches this through `run_in_threadpool` (ruling D-H11). The in-
+    stream top-ups below (`_reserve(user_id, 1)`) are the SAME request and
+    never pass the population gate twice."""
+    _reserve(user_id, units)
+    from api.services import ai_population_cap
+    refusal = ai_population_cap.admit("ai_search")
+    if refusal:
+        _refund(user_id, units)
+        raise HTTPException(status_code=429, detail=refusal)
+
+
 def _quota_snapshot(user_id) -> dict:
     """Member-visible daily budget: used / limit, so the widget can show a
     quiet meter instead of a surprise 429 at the end of the day."""
@@ -2624,13 +2643,13 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
         if resolved is not None:
             account_id, public_system, psalt, pmeta = resolved
             _record_request("personal", stream=False)
-            _reserve(user_id, 1)   # daily cap (raises 429 before any upstream work)
+            _reserve_request(user_id, 1)   # daily cap (raises 429 before any upstream work)
             return asyncio.run(
                 _personal_single(body, puid, account_id, public_system, psalt, pmeta))
         # zero accounts → decline, fall through to the normal public path.
     mode = _auto_mode(body.query, body.mode)
     units = _billing_units(mode)
-    _reserve(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
+    _reserve_request(user_id, units)   # atomic check-and-reserve BEFORE the upstream call
     _record_request(mode, stream=False)
     history = _clean_history(body.history)
     # The asker reaches the Wisdom block through a ContextVar (see _WISDOM_ASKER);
@@ -2847,7 +2866,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
         if resolved is not None:
             account_id, public_system, psalt, pmeta = resolved
             _record_request("personal", stream=True)
-            _reserve(user_id, 1)   # daily cap (raises 429 BEFORE the stream opens)
+            from starlette.concurrency import run_in_threadpool
+            await run_in_threadpool(_reserve_request, user_id, 1)   # daily cap (raises 429 BEFORE the stream opens)
             return StreamingResponse(
                 _personal_gen(body, puid, account_id, public_system, psalt, pmeta),
                 media_type="text/event-stream",
@@ -2868,7 +2888,8 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
             agent_mode = False
     mode = "agent" if agent_mode else _auto_mode(body.query, body.mode)
     units = _billing_units(mode)
-    _reserve(user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
+    from starlette.concurrency import run_in_threadpool
+    await run_in_threadpool(_reserve_request, user_id, units)   # reserve BEFORE opening the stream (bill even if client disconnects)
     _record_request(mode, stream=True)
     history = _clean_history(body.history)
     # Build the grounded system OFF the event loop — grounding reads + the Phase-2
@@ -3169,13 +3190,23 @@ class AiDeepIn(BaseModel):
     query: str
 
 
+@router.get("/meters")
+def ai_search_meters(user: dict = Depends(require_paid)):
+    """TERM-078 (FB-I1-04): the member's AI allowances -- what they have spent
+    today (or this month) at each AI door that can refuse them, and what
+    remains -- read from the SAME counters the doors spend (`ai_meters`).
+    Read-only. Sync `def`, so the SQLite reads run on the threadpool."""
+    from api.services import ai_meters
+    return ai_meters.meters_for(user)
+
+
 @router.post("/deep")
 def ai_search_deep_submit(body: AiDeepIn, user: dict = Depends(require_paid)):
     from api.services import ai_search_deep
     uid = _member_uid(user)
     if not (body.query or "").strip():
         raise HTTPException(status_code=422, detail="Empty question.")
-    _reserve(user.get("id"), ai_search_deep._QUOTA_UNITS)
+    _reserve_request(user.get("id"), ai_search_deep._QUOTA_UNITS)
     out = ai_search_deep.submit(uid, body.query)
     if not out.get("ok"):
         _refund(user.get("id"), ai_search_deep._QUOTA_UNITS)

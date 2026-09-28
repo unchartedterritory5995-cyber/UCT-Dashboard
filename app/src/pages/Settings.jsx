@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import usePreferences from '../hooks/usePreferences'
 import TileCard from '../components/TileCard'
 import JoystickSettingsCard from './settings/JoystickSettingsCard'
+// TERM-078: member-visible AI meters (read-only; GET /api/ai-search/meters).
+import AiMetersCard from './settings/AiMetersCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import useTagColors from '../hooks/useTagColors'
@@ -1627,6 +1629,7 @@ const SEARCH_INDEX = [
   { card: 'activeSessions', section: 'account',     title: 'Active Sessions',            keywords: 'sessions devices browsers logins revoke sign out everywhere lost stolen' },
   { card: 'dangerZone',     section: 'account',     title: 'Delete Account',             keywords: 'delete account danger zone close remove wipe permanent goodbye' },
   { card: 'subscription',   section: 'billing',     title: 'Subscription & Billing',     keywords: 'plan pro upgrade cancel invoice payment card stripe renewal price free' },
+  { card: 'aiMeters',       section: 'billing',     title: 'AI Allowances',              keywords: 'ai usage limit allowance meter quota remaining ask search compass voice dictation chat explain daily monthly' },
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
   { card: 'joystick',       section: 'charts',      title: 'Joystick',                   keywords: 'joystick hub pad thumb touch gesture fan wheel hide hidden restore turn off disable enable mobile phone' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled black light custom uct app themes default chart timeframe appearance' },
@@ -2367,6 +2370,7 @@ export default function Settings() {
     ],
     billing: [
       card('subscription', subscriptionCard),
+      card('aiMeters', <AiMetersCard />),
       card('referral', <ReferralSection />),
     ],
     preferences: [
