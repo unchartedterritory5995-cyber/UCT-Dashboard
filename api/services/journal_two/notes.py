@@ -3403,7 +3403,7 @@ def restore_note_version(
             if began:
                 conn.rollback()
             return None
-        return update_note(
+        out = update_note(
             user_id, note_id,
             {
                 "title": version["title"], "subtitle": version["subtitle"], "bodyJson": version["bodyJson"],
@@ -3418,6 +3418,12 @@ def restore_note_version(
             conn=conn, expected_updated_at=expected_updated_at, force_version=True,
             restored_from_version_id=version_id,
         )
+        # ⛔ A trashed or missing note: update_note answers None inside OUR transaction and does
+        # not roll back (it did not begin it). Release what this restore began, or a caller-supplied
+        # connection keeps the write lock every other note save waits on (10C re-review m1).
+        if out is None and began and conn.in_transaction:
+            conn.rollback()
+        return out
     except BaseException:
         if began and conn.in_transaction:
             conn.rollback()
