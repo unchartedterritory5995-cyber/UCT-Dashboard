@@ -171,6 +171,48 @@
         "commit": "6c0dc5854",
         "quote": "putting stale-swr back into COLD turns two of them red"
       }
+    },
+    {
+      "audit_rows": [],
+      "guard": "api/services/chart_health_alerts.py::_should_email_second_transport",
+      "in_population": true,
+      "observed_by": [
+        "tests/test_ops_second_transport.py::test_ACCEPTANCE_with_the_PRIMARY_channel_BLANK_a_CRITICAL_still_reaches_the_SECOND_transport",
+        "tests/test_ops_second_transport.py::test_the_email_gate_CANNOT_be_gated_on_the_primary_channel",
+        "tests/test_ops_second_transport.py::test_neither_leg_SPENDS_the_others_cooldown"
+      ],
+      "predicate": {
+        "file": "api/services/chart_health_alerts.py",
+        "scope": "_should_email_second_transport",
+        "pinned": "if not recipients_present:",
+        "mutation": "if not recipients_present or not _ops_webhook():"
+      },
+      "proof": {
+        "commit": "3622287d5",
+        "quote": "the second transport coupled to the primary channel (8 red)"
+      },
+      "what_the_guard_decides": "Whether an OPS CRITICAL reaches the second transport at all - and, load-bearingly, WITHOUT consulting the Discord channel's variables. `_should_page_discord` returns False when the webhook is blank, so a second leg that read the same fact would go silent in exactly the case spec section 6 step 4 exists for: 'With the primary channel's variable blanked, a CRITICAL still reaches the second channel' (backlog.md:586-587)."
+    },
+    {
+      "audit_rows": [],
+      "guard": "api/services/chart_health_alerts.py::_email_second_transport",
+      "in_population": true,
+      "observed_by": [
+        "tests/test_ops_second_transport.py::test_ACCEPTANCE_with_the_PRIMARY_channel_BLANK_a_CRITICAL_still_reaches_the_SECOND_transport",
+        "tests/test_ops_second_transport.py::test_one_unroutable_address_does_not_SILENCE_the_rest",
+        "tests/test_ops_second_transport.py::test_the_second_transport_never_carries_a_WEBHOOK_VALUE"
+      ],
+      "predicate": {
+        "file": "api/services/chart_health_alerts.py",
+        "scope": "_email_second_transport",
+        "pinned": "for to in recipients:",
+        "mutation": "for to in ():"
+      },
+      "proof": {
+        "commit": "3622287d5",
+        "quote": "the second transport delivering to nobody (7 red)"
+      },
+      "what_the_guard_decides": "Whether the resolved recipients are actually sent to. It is the transport rather than a threshold, and - like `_page_discord` above - the derivation cannot tell those apart, so it is recorded rather than excluded by a hand-written rule."
     }
   ],
   "declared_unobserved": [

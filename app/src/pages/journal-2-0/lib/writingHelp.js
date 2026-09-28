@@ -17,6 +17,7 @@
  */
 import { closeHistory } from '@tiptap/pm/history'
 import { TextSelection } from '@tiptap/pm/state'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 // ⛔ EAGER, SO KEPT SMALL: the editor page and the slash menu import this file
 // on every note open. The request itself -- the SSE client, the choices, the
@@ -136,6 +137,9 @@ export function acceptWritingHelp(editor, {
   // still reports success, so the DOCUMENT is the only honest witness.
   if (!ok || editor.state.doc.eq(before)) return { ok: false, reason: 'blocked' }
   if (!editor.isDestroyed) editor.view.dispatch(closeHistory(editor.state.tr))
+  // Wave 10 (10D, R-16): writing help reached the note — the action word, the scope and
+  // whether the draft replaced a passage. Never the draft, the passage or the instruction.
+  trackNotebookEvent(NOTEBOOK_EVENTS.WRITING_HELP_USED, { action, scope, replaced })
   return { ok: true, replaced }
 }
 

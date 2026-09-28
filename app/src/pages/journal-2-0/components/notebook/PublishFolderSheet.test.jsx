@@ -33,6 +33,7 @@ beforeEach(() => {
       return S.listStatus === 200 ? json(200, { publications: S.pubs, shares: [] }) : json(S.listStatus, { detail: 'nope' })
     }
     if (String(url) === '/api/j2/publish/folders/f1' && method === 'POST') return S.post()
+    if (String(url) === '/api/j2/telemetry' && method === 'POST') return json(200, { ok: true })
     return json(404, { detail: 'Not found' })
   }))
 })
@@ -54,7 +55,11 @@ async function openSheet(opts) {
   return { ...m, dialog }
 }
 
-const posts = () => S.calls.filter((c) => c.method === 'POST')
+// The feature's own POSTs. The telemetry door is one more POST (wave 10, 10D) and has its
+// own rail below, so it is not counted as a publish here.
+const TELEMETRY = '/api/j2/telemetry'
+const posts = () => S.calls.filter((c) => c.method === 'POST' && c.url !== TELEMETRY)
+const telemetry = () => S.calls.filter((c) => c.url === TELEMETRY).map((c) => c.body)
 const status = (dialog) => within(dialog).getAllByRole('status').map((n) => n.textContent).join(' ')
 
 describe('the confirmation says what becomes public before anything is sent', () => {
@@ -237,5 +242,29 @@ describe('one publish helper, one set of sentences (ruling D-9D2)', () => {
       expect(lib, sentence).toContain(sentence)
       for (const f of DOORS) expect(read(f), `${f} restates: ${sentence}`).not.toContain(sentence)
     }
+  })
+})
+// ⭐ Wave 10 (10D, R-16): the sidebar door's telemetry — fired when the page EXISTS, from the
+// rendered action, carrying a kind and a door word and nothing about the folder.
+describe('publish_used — the sidebar door says a folder was published, and nothing about it', () => {
+  it('a publish sends ONE publish_used; a copy sends one more; the folder never rides along', async () => {
+    const { dialog } = await openSheet()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
+    await waitFor(() => expect(status(dialog)).toMatch(/^Published "Weekly plans"\./))
+    expect(telemetry()).toEqual([
+      { event: 'publish_used', props: { action: 'publish', kind: 'folder', door: 'sidebar' } },
+    ])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link' }))
+    await waitFor(() => expect(status(dialog)).toBe('Page link copied.'))
+    expect(telemetry().map((b) => b.props.action)).toEqual(['publish', 'copy'])
+    expect(JSON.stringify(telemetry())).not.toMatch(/Weekly|slugF|f1/)
+  })
+
+  it('a refused publish sends nothing', async () => {
+    S.post = () => json(429, { detail: 'Too many publishes. Try again in a minute.' })
+    const { dialog } = await openSheet()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
+    await waitFor(() => expect(status(dialog)).toBe('Too many publishes. Try again in a minute.'))
+    expect(telemetry()).toEqual([])
   })
 })

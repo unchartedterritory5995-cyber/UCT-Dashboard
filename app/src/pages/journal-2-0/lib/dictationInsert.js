@@ -23,6 +23,7 @@
  * NoteEditorPage.jsx. Over a node, the words land just after it.
  */
 import { closeHistory } from '@tiptap/pm/history'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 /** Dispatched by SlashMenu's "Dictate" item on ITS editor's own DOM root
  *  (`editor.view.dom`), never `window` — the wave 6 I5 rule: with split view
@@ -60,5 +61,7 @@ export function insertDictation(editor, raw) {
     // Seal the step: typing that follows starts its own undo event.
     editor.view.dispatch(closeHistory(editor.state.tr))
   }
+  // Wave 10 (10D, R-16): dictated words landed — how many, never which.
+  if (ok) trackNotebookEvent(NOTEBOOK_EVENTS.DICTATION_USED, { words: text.trim().split(' ').length })
   return Boolean(ok)
 }

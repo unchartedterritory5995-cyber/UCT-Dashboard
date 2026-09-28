@@ -748,9 +748,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
+        "pine:collection",
         "pine:type"
       ],
       "screenerGuards": [
+        "pine:collection",
         "pine:type"
       ]
     },
@@ -1078,10 +1080,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:builtin"
+        "pine:function"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:function"
       ]
     },
     {
@@ -2062,10 +2064,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin"
+        "pine:collection"
       ],
       "screenerGuards": [
-        "pine:builtin"
+        "pine:collection"
       ]
     },
     {
@@ -2265,6 +2267,7 @@
       "screener": true,
       "hostGuards": [
         "pine:function",
+        "pine:collection",
         "pine:reassign",
         "pine:drawing",
         "pine:request",

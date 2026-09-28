@@ -72,7 +72,7 @@ describe('the typical-price adapters', () => {
     // `atr` and `wpr` fill their series implicitly from a measured order and take
     // no source at all; they must be untouched by a field added for two others.
     expect(formulaOf(screen('ta.atr(14) / close > 0.03')))
-      .toBe('atr(high, low, close, 14) / close > 0.03 ? 1 : 0')
+      .toBe('atrPine(high, low, close, 14) / close > 0.03 ? 1 : 0')
     expect(formulaOf(screen('ta.wpr(14) < -80')))
       .toBe('williamsR(high, low, close, 14) < -80 ? 1 : 0')
   })
@@ -85,6 +85,11 @@ describe('the typical-price adapters', () => {
     // spelling members actually write, which is the worse trade. This case is
     // here so that trade stays visible rather than being quietly reversed.
     expect(formulaOf(screen('close > ta.vwap'))).toBe('close > vwap() ? 1 : 0')
-    expect(screen('close > ta.vwap(hlc3)').ok).toBe(false)
+    // ⭐ 2026-09-27: HELD AT THE KEY, NOT AS A SHAPE — so the bare variable above
+    // keeps working AND the hlc3 form now translates to the same column
+    // (vendor-measured identical, `groupb-round-max-vwap-spy-1d-2026-09-10.json`).
+    // Every other source still refuses: that is the trade this case guards now.
+    expect(formulaOf(screen('close > ta.vwap(hlc3)'))).toBe('close > vwap() ? 1 : 0')
+    expect(screen('close > ta.vwap(close)').ok).toBe(false)
   })
 })

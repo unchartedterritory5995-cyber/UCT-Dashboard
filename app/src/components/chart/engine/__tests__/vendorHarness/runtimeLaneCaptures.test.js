@@ -23,7 +23,7 @@
 //     vendor's 631 bars EXACTLY under (a)+(b), and reproduces OUR runtime-lane
 //     column EXACTLY under the engine's current rulings — so nothing else differs.
 //     The right-hand tie rule is NOT exercised by this capture; it is queued as a
-//     probe (docs/pine/capture-queue-2026-09-27.md).
+//     probe (docs/pine/capture-queue-runtime-walls-2026-09-27.md).
 //
 // Duplicate untitled vendor titles ('Plot' ×3, 'Shapes' ×2) are INCONCLUSIVE by the
 // harness's own design and are ignored here; so is the objects verdict (these three

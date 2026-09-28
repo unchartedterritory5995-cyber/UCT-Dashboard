@@ -239,6 +239,101 @@ consumer — left for the owner of that file.
 `opacity` (the member door sets it; the document never carries it), for host and
 runtime documents alike.
 
+## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
+
+> Base `0a16dd9ab` (`pine/object-pass-integrated`). Door = `memberPaneDefinition` over the
+> 266 committed scripts, objects-only flag off/on. Census tool (opt-in, committed):
+> `app/src/components/chart/builder/memberPane/vocabularyWalls.census.measure.test.js`
+> (`VOCAB_CENSUS=1`). Capture queue: `docs/pine/capture-queue-2026-09-27.md`.
+
+**How "last wall" was measured.** For every script the door refuses with a vocabulary
+guard (`pine:function` 7 · `pine:builtin` 6 · `pine:input-kind` 2 · `pine:arity` 1 = **16
+scripts**, identical flag off and on), the refused name was replaced — every occurrence —
+by a correct-TYPE value (`time(...)` → `time`, `ta.nvi` → `close`, `syminfo.mintick` →
+`0.01`, …) and the door re-run until it attached or met a non-vocabulary wall. Never by
+deleting a binding line (that removes a name and manufactures `pine:undefined`). The chain
+is identical flag off and on for all 16.
+
+**The result, measured: only FOUR scripts have a vocabulary name as their last wall, and
+every one of the four is held by a RULING or an unmeasured semantics, not by a missing
+table row.**
+
+| name / form (first site) | first wall of | inside (masked) | LAST wall of | class | built? | evidence |
+|---|---:|---:|---:|---|---|---|
+| `time(tf, session[, tz])` (`opening-range…4a7416ab01:12`, `session-highs…c0ca8cf749:49`) | 2 | 0 | **1** (`opening-range-initial-balance-opening-price`) | C | no | 5m only (`r11-time-session…`); 1D unread → probe `vw-time-session` |
+| `input.time` (`session-hilo…WM2g5GtC4h:44`, `open-interest-profile…875691ab51:85`) | 2 | 0 | **1** (`session-hilo`) | B, **ruled** | no | ruling: `pine:input-kind` "under the threshold"; value confirm in `vw-time-tf` T16 |
+| `ta.nvi` + `ta.pvi` (`smart-money-interest-index…:13-14`, `smart-money-volume-index…:17-18`) | 2 | 0 | **2, jointly** (neither alone) | C, **ruled** | no | nvi seed on disk; pvi unread; `_functions_excluded.nvi/.pvi` refuses the fetch-dependent level → probe `vw-nvi-pvi` |
+| `time(<tf ≠ D>)` (`smart-money-concepts…:250`, `zigzag-ma…1302:24`, + 4 inside) | 2 | 4 | 0 (→ `pine:reassign`, `pine:request`) | A for W on 1D, C otherwise | no (needs a new clock column, both lanes) | `r11-time-tf…` (W, 610 bars, summary only) → probe `vw-time-tf` |
+| `syminfo.mintick` (`chart-champions…:73`, `renko…:40`) | 2 | 2 | 0 (→ `pine:state` ×2) | C (data) | no | `symbolScope.json::unserved` → probe `vw-mintick` |
+| `barstate.isnew` (`liquidity-engulfing…:24`, `smart-money-volume-activity…:81`) | 2 | 0 | 0 (→ `pine:request`, `pine:reassign`) | A, **ruled** | no | `barstate-full-spy-1d-closed-2026-09-10.json`: 1 on history, 0 on the newest closed bar; `_barstate.refused.isnew` |
+| `ta.vwap(src)` / v4 `vwap(src)` (`cpr…:205`, `camarilla…:313-316`, `rsi-vwap…:21`) | 1 | 2 | 0 (→ `pine:state`) | **A** for `hlc3` | **yes — `hlc3` only** | `groupb-round-max-vwap…`: `vwap(hlc3) − vwap` all 0 over 40 bars; `vwap(close)` is a different column and still refuses |
+| `year/month/dayofmonth(time)` (`initial-balance…M0u1uaug4Q:113`) | 1 | 0 | 0 (→ `time(session)`) | **B** | **yes** (+ `dayofweek`, `hour`, `minute`) | Pine reference: `year(time)` with no zone IS bare `year` (exchange zone, measured by `r11-nine-safe`); confirm probe `vw-clock-vwap` |
+| `timeframe.in_seconds(<non-literal>)` (`multiple-mtf…aArjfk9ShG:177`) | 1 | 0 | 0 (→ `pine:state`) | B for a literal (already served) | — | the literal form folds today; `vw-time-tf` T10–T15 confirm per code |
+| `int(<fractional>)` (`smarter-snr…:75`, `atr-god…:148`) | 1 | 1 | 0 (→ `pine:window`) | C | no | the `int` branch's own refusal; probe `vw-int-cast` |
+| `str.length(<non-literal>)` (`renko…:26`) | 0 (2nd) | — | 0 | C (text) | no | — |
+| `chart.right_visible_bar_time` (`open-interest-profile…:88`) | 0 (2nd) | — | 0 (→ no-output) | never matchable statically (viewport) | no | — |
+| `ta.alma` (`delta-volume-candles-lucf…:296,300`) | 0 | 1 (`pine:module`) | 0 | B | no (new table fn, zero unlock) | probe `vw-alma` |
+| bare `alma` (`highlow-channel-swing…:30`, `relative-volume…:71`) | 0 | 2 | 0 | **vendor REFUSES** | **must never be added** | `r11-alma-spy-2026-09-11.json` |
+| `ta.barssince(cond)` 1-arg unbounded · bare `barssince` 1-arg | 0 | 3 | 0 | ruled (unbounded; `r11-barssince…`) | no | — |
+| library / UDT names (`zen.`, `mymas.`, `pc.`, `PCvc.`, `kernels.`, `LucfTa.`, `breakout` arity, `input.enum`, `chart.bars/leftBarIndex/rightBarIndex`) | 0 | 11 | 0 | not vocabulary (Group C) | no | `r11-vocabulary-gap.md` |
+
+**Door counts, measured with `partialDrawing.census.measure.test.js` before and after:**
+flag off **34 → 34**, flag on **54 → 54**. **No script newly attaches** — the expected
+answer, since no last wall was an A/B name. One wall MOVED: `initial-balance-ib-and-
+previous-day-week-high-low-close` now refuses on the `time(<session>)` session clock
+instead of on `year(time)` (both flags). `pineTimenowAccept.test.js` records the move.
+
+**What shipped (the two names are IDENTITIES onto columns the engine already carries — no
+table name, no Python lane, no frozen digest moved — plus one guard their first consequence
+needed):**
+1. `ta.vwap(hlc3)` / `vwap(hlc3)` / the spelled-out `(high + low + close) / 3` → `vwap()`.
+   Any other source still refuses (`pine:arity`), now saying it is a different column and
+   naming `ta.vwap(hlc3)`. `ta.vwap(src, anchor)` unchanged.
+   ⚠️ An `input.source` DEFAULTING to `hlc3` translates too — the same behaviour
+   `sourceMustBe` already has for `ta.cci`/`ta.mfi`: an edit to another source is a
+   re-translation, which then refuses.
+2. `year|month|dayofmonth|dayofweek|hour|minute(time)` → the bare field, for a VERSIONED
+   script (whose `time` is `time * 1000`; recognised by identity with
+   `PINE_CLOCK_TRANSFORM.time()`). `time[1]`, a computed timestamp, a zone string and a
+   versionless script still refuse. `dayofweek(timenow)` refuses (no `lastbardayofweek`).
+3. **`pine:budget` — screener lane only.** Once `ta.vwap(hlc3)` translated,
+   `26-spy-to-es-qqq-to-nq` (community fixtures, non-strict) offered `sma(vwap(), 3)`, which
+   the budget refuses ("nothing can be wrapped around" the session-long `vwap()`): a
+   translation `doorScorecard` rightly calls unsaveable. The translate door now refuses a
+   column whose tree `checkBudget` rejects for `budget:lookback` AND that contains a
+   session-anchored call, in the budget's own sentence, on the SCREENER lane only.
+   ⚰️ **A blanket version was built first and measured wrong:** on the member door it
+   detached `volume-spikes-growing-volume-signals-with-alerts-scanner` (lookback 1000 > 960)
+   and `liquidity-pools__fa7b28e733` — the chart pane does not save under that budget, so
+   refusing there was an over-refusal. Narrowed to one cause and one lane; measured reach over
+   `pine`, `pine_community`, `pine_oos` and the 266, both lanes: script 26 only.
+   ⚰️ **And a second over-reach, caught by the suite:** measuring every screener tree
+   turned four trees the budget cannot MEASURE (a folded zero window — the C10 seam) into
+   `pine:statement` refusals. The session test now runs first and the measure is guarded;
+   an unmeasurable tree keeps meeting the engine's own refusal later, as before.
+   `REFUSALS` grows 43 → 44 (`symbolRosterSpeaks` re-pinned, with the reason).
+   `pine.guardCensus`: `pine:arity` joins the unexercised list (its only corpus firing was
+   that `ta.vwap(input_vwap_source)`), `pine:budget` is exercised.
+
+Rail: `app/src/components/chart/engine/ast/pineVocabularyWave.test.js` (12 tests; the vwap
+half READS the capture and asserts both its zero and its non-zero control). Mutation-proved
+8 ways, each red, restored from captured bytes and sha256-verified, unmutated control green:
+bar-time branch dead (1 red) · any argument accepted as bar time (3) · vwap accepts any
+source (1) · vwap branch removed (2) · the refusal gate forgets `dayofweek` (2) · budget check
+removed (1) · budget check on the host lane too (1) · budget check not narrowed to a session
+anchor (1).
+
+**Open, for the owner — each is a ruling, not a build:**
+1. `time(<session>)` on a daily bar — the refusal says "this engine screens daily bars,
+   where there is no inside to be in". Whether TradingView agrees is unread (probe #1). It
+   is the sole last wall of one script.
+2. `input.time` — sole last wall of `session-hilo`; blocked by the input-kind threshold
+   ruling, not by semantics.
+3. `ta.nvi`/`ta.pvi` — the fetch-dependence ruling; probe #3 turns its premise into a
+   measurement (two depths, same dates).
+4. `barstate.isnew` — the capture on disk already says TradingView answers 1 on every
+   historical bar and 0 on the newest closed bar; the ruling refuses on per-tick grounds.
+
 ---
 
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
@@ -495,6 +590,114 @@ conditional on the script removing anything; (c) prop-level losses inside a kept
 (`droppedProps`, `unsupportedProps`) are not disclosed; (d) reader-level losses are
 named but not counted in N/M, because they never became ops; (e) the acceptance
 dashboard is now refused with the flag ON.
+
+## ⭐⭐ 2026-09-27 — THE ATR SEED, HOST LANE: CLOSED (`atrPine`), and the house column untouched
+
+**Scheduled by the owner ("do it all"); decision 2 below and §"THE ATR SEED" are
+superseded for the host lane by this section.** Branch `pine/atr-seed-host`.
+
+### The vendor rule, derived from the capture's own bars (measured)
+
+`harness/keltner-channels-bands-rddt-1d-2026-09-27.json` — Pine v4
+`ma = ema(close,20)`, bands `ma ± k·atr(10)`, NYSE:RDDT 1D, all 631 bars from
+listing (`startsAtBar0: true`). The vendor's ATR on any plotted bar is
+`(Upper k − Basis)/k` or `(Basis − Lower k)/k` — six independent readings per bar.
+
+| step | value |
+|---|---|
+| TR on bar 0 | `high − low` = 57.8 − 45.05 = **12.75** (`ta.tr(true)`: no previous close) |
+| TR on bars 1..9 | 5.66, 15.9399, 15.10, 9.49, 8.65, 4.925, 7.35, 4.6899, 3.33 (max of the three gaps) |
+| seed | mean of the first 10 TRs, **on bar 9 (= n−1)**: **8.78848** |
+| after | Wilder: `atr = (atr·(n−1) + tr)/n` |
+| vendor bars 19–23 | 5.207212319146947 · 5.052491087232255 · 4.753241978509031 · 4.501747780658128 · 4.203573002592314 |
+| hand rule, same bars | agrees to ≤ 2.7e-15 on all five; max |err| over all 612 × 6 readings 2.3e-14 |
+| control: bar 0 = `na` (Wilder's TR from bar 1) | max |err| **1.53e-1** — the prefix the harness saw |
+
+Cross-check: `seed-warmup-spy-12m-2026-09-21.json` (`ta.atr(5)`, bar_index 0..33):
+the same rule reproduces all 34 bars with max |err| **0** (bar 4 = 13.96875).
+So: **`ta.atr(n)` = `ta.rma(ta.tr(true), n)`, bar 0's TR = high − low, SMA seed of
+the first n TRs landing on bar n−1, Wilder's step thereafter.**
+
+### What changed, lane by lane
+
+| lane | before | now |
+|---|---|---|
+| **host / columnar JS** (`interpret.js`) | Pine `ta.atr`/v4 `atr` → table `atr` → shipped `computeATR` (Wilder, TR from bar 1, seed on bar n) | → **`atrPine`** = `carriedFn('rma')` over `trueRangeTrue` (built from the same `POINTWISE`/`BINARY`/`TERNARY` scalars a written-out `ta.tr(true)` tree uses) |
+| **Python twin** (`ast_interpret.py`) | `_fn_atr` → `compute_atr_raw` | **`_fn_atr_pine`** = `_rma_col(_true_range_true(...))` — the key set stays TABLE's, both directions |
+| translator (`pine.js`) | `PINE_CALL_SHAPES.atr.table = 'atr'` | `'atrPine'` — the only door onto it |
+| manifest (`closedTable.json`) | 75 functions | 76: `atrPine`, same args/roles as `atr`, `lookback: "arg3"`, own sentence |
+| runtime request path (`pineRuntimeFrontend.js`) | already `rma` over `nz(close[1], close)` = Pine's seed | **unchanged code**; its stale comment ("raw `close[1]`") corrected. One recorded difference: a malformed bar-0 close outside its own high/low |
+| **house `atr`** (ThinkScript `ATR`, PCF `ATR<n>`, native ATR/ATR-bands, pattern levels, a typed formula) | Wilder | **unchanged**, with its `vendorNote` — by the standing ruling |
+
+### Why it was "not a one-line change", and how each reason was answered
+
+| reason on file | answer |
+|---|---|
+| a new name in `closedTable.json` needs a Python implementation | `_fn_atr_pine`, composed from `_rma_col`; `tests/test_atr_pine_parity.py` pins it to the vendor numbers |
+| `screenerColumns.test.js` freezes the columns for Python | regenerated (`10-atr-percent` now reads `atrPine`); the Python lane-parity rail runs both interpreters over it |
+| the "window" contract (`lookback`, `finiteTailStart`) | `lookback: "arg3"` = n bars, which is exactly the Pine rule's reach (seed from bars 0..n−1) — the sma convention; the tree-sum readers and `tools/lookback_agreement.json` regenerate with no disagreement. `finiteTailStart` is NOT used: the composition inherits `rma`'s vendor-pinned hold-on-`na`, i.e. the answer `ta.rma(ta.tr(true), n)` gives, and the rail asserts the identity with a hole in `close` |
+| 23 failures across count pins, sentence round-trip, vendor-note roster, corpus snapshot, formula reference | the same class again (23 on the first run) — each fixed at its cause: counts 75→76 / 259→260 / 122→123, a hand-written `atrPine` sentence form, `GRAMMAR.md` + `pineCorpus.json` + `screener_columns.json` + `graph_wire` regenerated, the vendor-note rails rewritten (a paste now owes NO note; the house `atr` still does), the two `it.fails` markers removed because the identity now holds |
+| re-seeding the shared column moves money | not done — the house column is byte-identical |
+
+### Harness, before → after (tolerance unchanged: REL 1e-9, 1e-6 of a tick)
+
+| capture | plot | before | after |
+|---|---|---|---|
+| keltner RDDT 1D (from bar 0) | Basis | MATCH 612/612 | MATCH 612/612 |
+| | Upper 1 / Lower 1 | DIVERGE 137 / 138 bars, converging prefix from bar 19 | **MATCH 612/612** (maxRel 4.8e-16 / 5.7e-16) |
+| | Upper 2 / Lower 2 | DIVERGE 141 / 143 | **MATCH 612/612** |
+| | Upper 3 / Lower 3 | DIVERGE 144 / 147 | **MATCH 612/612** |
+| | objects | INCONCLUSIVE (object lane did not run) | same — pre-existing, unrelated; it is why the capture-level verdict reads INCONCLUSIVE rather than MATCH |
+| SPY 12M seed (from bar 0) | N10_atr5 | DIVERGE 30/34 (ours `na` on bar 4) | **MATCH 34/34** |
+| | N11 rma(tr(true),5) | MATCH | MATCH |
+| SPY 1D `atr-14-2026-09-06` (window starts 2021, **not bar 0**) | atr14 | DIVERGE: converging prefix bars 180..207 (28) | DIVERGE: converging prefix bars 180..206 (27) — **kept, correctly**: the vendor's decades of prior smoothing vs our fetch-local seed (`recursive-smoother-cold-start-in-a-finite-capture`). Not touched by tolerance |
+
+Corpus totals (`tests/fixtures/vendor`, 17 captures): MATCH 7 → 8, DIVERGE 9 → 7,
+INCONCLUSIVE 1 → 2 (the Keltner capture, on its `objects` item only).
+
+⚠️ The legacy observation `atr-14-2026-09-06` names its plot by formula; it now
+carries `script.pasteLowersTo` (`atrPine(high, low, close, 14)`, dated, with the
+reason), which `adapters.mjs` maps by and `vendorTruth.test.js` asserts the paste
+produces. Its `engine` block stays on the house formula — it is the evidence the
+house ruling cites, and `test_vendor_parity_rsi_atr.py` still grades it.
+
+### Reach (measured over `corpus/committed`, 266 scripts)
+
+By source text: `atr` 73 · `rma` 21 · `tr` 20 · any of the three 91. Through the
+host translator today: 52 scripts translate, **5 carry `atrPine`** in a usable
+output (2 in the selected one) — including `keltner-channels-bands__T5FsnX45Dn.pine`,
+the captured script. ⚠️ Runtime/object-lane reach was not counted separately.
+Door counts: unchanged — the corpus snapshot moved only two formula strings.
+
+### Rails and mutations
+
+Rails pinned to the VENDOR numbers, not to our own: `atrPine.vendor.test.js` (JS)
+and `tests/test_atr_pine_parity.py` (Python), both reading the two captures, each
+with a house-`atr` control that must MISS the vendor; `runtime/__tests__/atr.test.js`
+now measures the Pine route against the vendor rule and asserts the house column
+still differs at the seed. 
+
+Mutations (bytes + sha256 capture/restore, every restore verified by sha; never git checkout), each
+run against the three JS rail files or the Python rail file:
+
+| mutation | result |
+|---|---|
+| M1 `pine.js`: route `ta.atr` back to the house `atr` | 10 JS tests red |
+| M2 `interpret.js`: bar-0 TR `na` (Wilder's TR-from-bar-1) | 13 JS tests red |
+| M3 `interpret.js`: `ema` smoother instead of `rma` | 8 JS tests red |
+| M4 `ast_interpret.py`: bar-0 TR `na` | 8 of 9 Python tests red |
+| M5 `ast_interpret.py`: `ema` alpha instead of Wilder's | 6 of 9 Python tests red |
+
+
+### Open
+
+* The runtime request path spells `ta.tr(true)` as `nz(close[1], close)`; equal
+  on every well-formed bar, different only for a bar-0 close outside its range.
+* `ta.kc`/`ta.kcw` smooth `ta.tr` (the bare, bar-0-`na` form) with `ema` —
+  unmeasured at bar 0; not changed here.
+* `divergences.json::atr-tr-starts-at-bar-1` stays **accepted** for the house
+  column and is narrowed (`narrowed_2026_09_27`); X-VENDOR-1 is now owed only
+  where the house `atr` is reached.
 
 ---
 
@@ -1100,6 +1303,10 @@ strategies"*, and at 9.4% that asterisk is half as expensive as this file though
 
 ### 2. The ATR seed — **RULING CONFIRMED, HOST-LANE WORK NOT SCHEDULED NOW**
 
+> ⭐ **SUPERSEDED 2026-09-27 — scheduled ("do it all") and DONE.** See
+> §"2026-09-27 — THE ATR SEED, HOST LANE: CLOSED (`atrPine`)" at the top. The
+> ruling below held: Pine got its own seeding, Wilder's original stays everywhere else.
+
 The ruling on file is right and stands: **Pine gets its own seeding; Wilder's
 original stays everywhere else.** The vendor is measured
 (`seed-warmup-spy-12m-2026-09-21.json`), the request path has shipped, and the
@@ -1537,6 +1744,9 @@ harness executes a request, only builds its IR). **The mutation of that desugar
 had survived every behavioural test in the file** — the path had no coverage.
 
 ### ⛔⛔ OPEN — the host/columnar path, and it is NOT a one-line change
+
+> ✅ **CLOSED 2026-09-27** — `atrPine` (see the dated section at the top of this
+> file). Kept below as the record of what it cost and why.
 Routing Pine to a separately-seeded column **was built and reverted**. It works:
 `ta.atr(5)` matched the vendor at **delta 0** across the captured series. What
 stopped it:

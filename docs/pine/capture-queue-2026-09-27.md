@@ -1,140 +1,170 @@
-# Live-capture queue — 2026-09-27 (branch `pine/runtime-walls`)
+# Capture queue — 2026-09-27 vocabulary wave
 
-Semantics the runtime-walls work could not settle from the reference or from a
-capture already on disk. Each entry is a probe script under
-`tools/visual_conformance/probes/`, what TradingView must show for each possible
-answer, what this engine answers today, and the one place in the code that changes
-for each outcome. Capture per `docs/pine/capture-procedure.md` (NYSE:RDDT 1D from
-listing is the house chart; any daily chart with ties/`na` bars works).
+Branch `pine/vocabulary-wave`. Seven probes under `tools/visual_conformance/probes/vw-*.pine`,
+written for the parent session to run on the live TradingView rig with
+`tools/vendor_harness/tv_capture.js` (procedure: `docs/pine/VENDOR-HARNESS.md` on master —
+visibility gate, scratch layout, **Create new ▸ Indicator**, "Add to chart" binding gate,
+`__uctVH.capture({...})`, chunks, `verify_capture.mjs --assemble`). Every probe keeps inputs
+at their defaults, plots each quantity under its own title, and carries a `bar_index`
+control plus the discriminator channels that prove the capture could have answered.
 
-A capture is read ROW BY ROW. Every probe carries an `N01_bar_index_CONTROL` plot so
-a study that did not evaluate cannot read as an answer, and a sentinel `-2` where a
-bar is not evidence for the question — count only the other rows.
+⛔ Read a probe's header before capturing it: several need TWO charts (1D and intraday),
+and one needs the symbol's FULL history loaded. A capture that does not span what the
+header names answers nothing while looking conclusive (`r11-time-session`, 2026-09-11).
 
-## ✅ ANSWERED — captured 2026-09-27, every capture's source sha-identical to its probe
+The door census these probes serve is in `PARITY-PROGRAMME.md` → "2026-09-27 — THE
+VOCABULARY WAVE". "Last wall" below means: substitute a correct-type value for the name
+(never delete a binding) and the script ATTACHES at the member door
+(`memberPaneDefinition`, objects-only flag on AND off — identical for every script here).
 
-| Q | TradingView's answer | capture (`tests/fixtures/vendor/harness/`) | runtime lane now |
+## Priority order
+
+| # | probe | class | what it settles | last-wall scripts it could unblock |
+|---|---|---|---|---|
+| 1 | `vw-time-session.pine` | C | `time(tf, session[, tz])` on a **daily** bar, on straddling 60m bars, day-suffix and zone argument | **1** — `opening-range-initial-balance-opening-price__4a7416ab01` (sole last wall) |
+| 2 | `vw-time-tf.pine` | A-partial / C | `time("W")` in holiday-Monday weeks, `time("M"/"3M"/"12M"/"60")`, `timeframe.in_seconds` per code, `input.time`'s default value | 0 as a last wall; first wall of 2 (`smart-money-concepts-by-welotrades`, `zigzag-ma-pattern-recognition`) and inside 4 more; `input.time` is the sole last wall of `session-hilo__WM2g5GtC4h` (**1**, blocked by a ruling, below) |
+| 3 | `vw-nvi-pvi.pine` | C (ruling input) | `ta.pvi` seed + rule (unread), and the fetch dependence of the `nvi` level measured instead of argued | **2 jointly** — `smart-money-interest-index-algoalpha__effdd7852c`, `smart-money-volume-index-algoalpha__6663950b80` (both need nvi AND pvi); **refused by ruling** today |
+| 4 | `vw-int-cast.pine` | C | `int(x)` on a fractional float: truncate, floor or round | 0 (first wall of `smarter-snr__ac98ab25d5`, whose next wall is `pine:window`) |
+| 5 | `vw-clock-vwap.pine` | B confirm + A re-read | the two identities SHIPPED on this branch (`field(time)`, `ta.vwap(hlc3)`) | 0 — confirmation of shipped behaviour |
+| 6 | `vw-mintick.pine` | C (data) | the vendor's `syminfo.mintick` across price regimes and asset classes | 0 (first wall of 2, inside 2) |
+| 7 | `vw-alma.pine` | B (not built) | `ta.alma` warm-up, `floor`, orientation, `na` in the window | 0 (masked by a library import in its one script) |
+
+## Per probe — what it measures and what our implementation must match
+
+### 1. `vw-time-session.pine` — the session clock on a daily bar
+**Capture:** AMEX:SPY **1D** (≥ 300 bars, spanning both DST changes), AMEX:SPY **60**
+extended OFF, AMEX:SPY **60** extended ON.
+**On disk already:** 5m, extended ON — `na` outside, the bar's own `time` inside, window
+half-open `[09:30, 16:00)` (`r11-time-session-spy-5m-2026-09-11.json`).
+**Unread, and each is a fork in the implementation:**
+- S03–S08: on a **1D** bar, is `time(tf, "0930-1600")` the bar's time (S04 = 0) or `na`?
+  And for a window that does NOT contain 09:30 (`"1000-1100"`, S07)? If S07 is `na` while
+  S05 (`"0930-1000"`) is not, membership is the bar's OPEN time; if both are non-`na`, it is
+  overlap. The engine's current refusal assumes a daily bar has "no inside to be in" — S03
+  decides whether that is TradingView's answer or ours.
+- S09/S10 + S18: the day suffix — `:1234567` (all days) vs `:23456` (Mon–Fri) against
+  `dayofweek`.
+- S11–S14: the zone argument. The corpus form is a FIXED `"GMT-4"` (not DST-aware), so in
+  EST months the window shifts an hour against New York — S11 vs S13 across November.
+- S15: an overnight window, S16/S17 the IB window (`0930-1030`) that straddles 60m bars.
+
+**What we must match** before `time(<session>)` can be admitted: S03/S05/S07/S09/S10/S11
+on the **1D** capture, bar for bar. If a daily bar is always inside a window containing its
+open time, the translation is a membership test over the engine's `hour`/`minute`/
+`dayofweek` clock (no new column) — but only for zone arguments the capture shows how to
+honour; `"GMT-4"` needs its own DST-shifted rule, read off S11, not inferred.
+
+### 2. `vw-time-tf.pine` — periods beyond "D", and two constants
+**Capture:** AMEX:SPY **1D**, ≥ 800 bars (must include holiday Mondays), plus a 60m capture
+for T06.
+**On disk already:** `time("W")` on 1D = the forming week's open, equal to the first daily
+bar of the week (`r11-time-tf-spy-1d-2026-09-11.json`, 610 bars, summary only — per-bar
+rows were not kept).
+**Unread:** T01 in weeks whose Monday is a holiday (is the weekly open Tuesday's bar time,
+delta 0 on Tuesday, or a Monday with no bar, delta −1?); T02–T04 for M/3M/12M (does the
+monthly open sit on the first TRADING day?); T06 on 1D (an intraday period on a daily chart);
+T10–T15 `timeframe.in_seconds` per code (the reference gives `"M"` = 2 628 003 s; the door
+folds only the chart's own period today); T16 `input.time` at its default.
+**What we must match:** a `weekopentime`/`monthopentime` clock column (both lanes — this is
+a NEW table name, so it owes a corpus case and a Python twin, the `dayopentime` precedent in
+`8a4b8ddd1`) must reproduce T01–T02 on every bar, holiday weeks included; the new-period
+idiom T07–T09 must follow from it. `timeframe.in_seconds(<literal>)` must equal T10–T15.
+
+### 3. `vw-nvi-pvi.pine` — input to a ruling, not a build
+**Capture:** AMEX:SPY 1D **twice** — full history loaded to 1993 (`startsAtBar0: true`), and
+only the last ~1,000 bars.
+**On disk:** nvi seeds at 1 and multiplies by `1 + Δclose/close[1]` only when volume fell
+(`r11-nvi-spy-2026-09-11.json`).
+**Unread:** `pvi` (P02/P04/P05) — the ruling calls it "the exact mirror" from TradingView's
+published example, not from a capture; and whether P01 on the same date differs between
+the two captures (the fetch dependence `_functions_excluded.nvi` reasons from). P06/P07
+are the corpus's own quantity, `x - ta.ema(x, 255)`, so a decision can size the drift.
+**What we would have to match** if the ruling were ever reopened: P01/P02 on every bar at
+the vendor's own depth — which a bounded fetch cannot do unless P01 is depth-independent.
+The ruling stands until the owner reopens it.
+
+### 4. `vw-int-cast.pine` — truncate, floor or round
+**Capture:** AMEX:SPY 1D, ≥ 200 bars. A compile failure on any line is itself the reading.
+**What each row decides:** I01–I05 constants whose answer differs under every candidate rule
+(table in the probe header); I06–I08 the same on a series, where exactly one of
+`int(x) - trunc(x)`, `- floor(x)`, `- round(x)` must be 0 on every bar; I09 `int(na)`.
+**What we must match:** if I06 is all-zero, `int(x)` becomes `idiv(x, 1)` (declared: "rounded
+toward zero"); if I07, `floor(x)`; if I08, `round(x)` — each already a table function, so no
+new name. Until then the door keeps refusing a fractional argument (`pine.js`, the `int`
+branch).
+
+### 5. `vw-clock-vwap.pine` — confirm what shipped
+**Capture:** AMEX:SPY 1D (≥ 400 bars, spanning a year boundary) and AMEX:SPY 5m, extended ON.
+**What we must match (already built):** V01–V06 exactly 0 on every bar (the engine now reads
+`year(time)` as `year`, etc.); V07 exactly 0 and V08 NOT all-zero (the engine reads
+`ta.vwap(hlc3)` as `vwap()` and refuses every other source). V09–V12 are the raw columns the
+vendor harness compares bar by bar against the member door. If V01–V06 is ever non-zero,
+the identity is wrong and `clockFieldAt` must go back to refusing — the rail
+`pineVocabularyWave.test.js` names both halves.
+
+### 6. `vw-mintick.pine` — a data value, per symbol
+**Capture:** 1D, ≥ 5 bars each, on SPY, AAPL, a sub-$1 US listing, a $1–$5 name, BRK.A,
+SP:SPX, CME_MINI:ES1!, FX:EURUSD, BINANCE:BTCUSDT.
+**What we would have to match:** M01 per symbol. The engine holds no tick size
+(`symbolScope.json::unserved`); a serving rule ("US equities ≥ $1 → 0.01") is a proposal
+only this table can justify, and it must list every class it does NOT cover.
+
+### 7. `vw-alma.pine` — priced, not built
+**Capture:** AMEX:SPY 1D, ≥ 300 bars. Alone in its file (the bare-`alma` probe failed to
+compile and took every plot with it — bare `alma` must NEVER be added).
+**What we must match** if built: A01/A02 to float precision, first non-`na` at A03, A05's
+`na` behaviour. It is a new table function (both lanes), and its one corpus script is
+masked by a library import, so it unblocks nothing today.
+
+## Blocked by a RULING, not by a missing capture — for the owner
+
+| name | evidence on disk | ruling that blocks it | scripts |
 |---|---|---|---|
-| Q1 | pivots: LEFT tie **inclusive**, RIGHT tie **strict** (NYSE:F: right-tie highs and lows fire 0 times, left-tie highs and lows fire every time) | `rtwalls-pivot-ties-f-1d-…`, `rtwalls-pivot-ties-rddt-1d-…` | **unchanged** — ruling R1 below; railed as evidence only |
-| Q2 | `x[na]` reads **`x[0]`** (158 of 158 `na` bars carry the current close) | `rtwalls-dyn-history-na-rddt-1d-…` | follows it: `vm.js::dynamicOffset` maps `na` to 0 |
-| Q3 | a negative run-time offset **stops the study with a runtime error**; no rows drawn. ⚠️ The error's exact text was not recorded, so none is quoted here. | none (nothing to capture) | follows it: `dynamicOffset` throws a named `VmError`, and the door reports `runtime-door:run` |
-| Q4 | the control and the no-`max_bars_back` variant **agree on every bar**; no buffer error | `rtwalls-dyn-history-rddt-1d-…`, `rtwalls-dyn-history-nomaxbars-rddt-1d-…` | already matched; now graded bar by bar |
-| Q5 | statistics **skip** `na` (`[1, na, 3]` → max 3, min 1, sum 4, avg 2); `max`/`avg` of an **empty** array are **`na`** | `rtwalls-array-stats-na-rddt-1d-…` | follows it: `collections.js::finiteElements` skips `na`; an empty `max`/`min`/`avg` is `na`. ⛔ An empty `sum` still STOPS by name, because no capture measured it. |
+| `barstate.isnew` | `barstate-full-spy-1d-closed-2026-09-10.json`: `1` on every historical bar, `0` on the newest bar of a closed chart | `closedTable.json::_barstate.refused.isnew` — "requires per-tick evaluation" | first wall of 2; last wall of 0 (next walls `pine:request`, `pine:reassign`) |
+| `input.time` | none needed for the default value (T16 confirms it) | `pine:input-kind` — "under the threshold", item (c) | sole last wall of `session-hilo__WM2g5GtC4h` (1) |
+| `ta.nvi` / `ta.pvi` | nvi seed + rule; pvi unread | `_functions_excluded.nvi` / `.pvi` — fetch-dependent level | joint last wall of 2 |
+| `time(<session>)` on daily bars | 5m only | the refusal text: "This engine screens daily bars" | sole last wall of 1 |
 
-Rail: `app/src/components/chart/engine/__tests__/vendorHarness/runtimeWallsCaptures.test.js`.
-It grades every probe title on every bar through `runOurSide(capture, { lane: 'runtime' })`.
+## CAPTURED — 2026-09-27, the parent session (rig layout 01f1AcIj)
 
-⭐ Q2 also needed a ROUTE fix. `close[kn]` with `kn = bar_index % 4 == 0 ? na : 1` reads no
-mutable slot, so `needsRuntime` sent it to the columnar lane, which refused
-`pine:offset-literal`. `pineRuntimeFrontend.js::offsetIsPerBarSeries` asks the question
-`offsetPlan` already asked: does the offset resolve to a constant? Both places use it.
-`pine:offset-literal` joined `RUNTIME_FALLBACK_GUARDS` on that script's proof.
+Seventeen captures under `tests/fixtures/vendor/`, every one verified by
+`verify_capture.mjs --assemble` (VERDICT PASS), every embedded source byte-identical to
+its probe on this branch (sources fetched from the branch's own commit `4b21c2474` and
+sha-checked in the page before they ran). Depth was forced with **Go to date**, never
+the `All` button.
 
-⛔ The sections below are kept as written, because they are the predictions the captures were read against.
+| probe | capture | bars | what it covers |
+|---|---|---|---|
+| `vw-time-session` | `vw-time-session-spy-1d-2026-09-27.json` | 8472 | the **1D** leg — full SPY history 1993→, every DST change |
+| `vw-time-tf` | `vw-time-tf-spy-1d-2026-09-27.json` | 8472 | ≥ 800 bars incl. every holiday Monday |
+| `vw-nvi-pvi` | `vw-nvi-pvi-spy-1d-full-2026-09-27.json` | 8472 | FULL history (starts at SPY's first bar, 1993) |
+| `vw-nvi-pvi` | `vw-nvi-pvi-spy-1d-truncated-2026-09-27.json` | 1040 | the same chart with ~1,000 bars loaded — the fetch-dependence ratio |
+| `vw-int-cast` | `vw-int-cast-spy-1d-2026-09-27.json` | 300 | ≥ 200 |
+| `vw-clock-vwap` | `vw-clock-vwap-spy-1d-2026-09-27.json` | 8472 | the **1D** leg, spans every year and month boundary |
+| `vw-alma` | `vw-alma-spy-1d-2026-09-27.json` | 8472 | ≥ 300 |
+| `vw-mintick` | `vw-mintick-<sym>-1d-2026-09-27.json` ×10 | 374–1040 | the nine symbols named, plus a second sub-$1 name |
 
----
+⛔ **STILL OWED — the intraday legs:** `vw-time-session` on AMEX:SPY **60** with extended
+hours OFF and ON, and `vw-clock-vwap` on AMEX:SPY **5m** extended ON. The 1D legs above
+answer S03–S11 and V13–V14 on their own; the straddle rows (S16/S17) and the intraday
+clock rows need those charts.
 
-## Q1 — pivot ties: does `ta.pivothigh`/`ta.pivotlow` accept a tie on the RIGHT?
+### `syminfo.mintick`, read off the captures (M01; constant on every bar of every capture)
 
-**Probe:** `rtwalls-pivot-ties.pine` (v6, leftbars = rightbars = 2).
+| symbol | last close (M03) | mintick | pricescale / minmove |
+|---|---|---|---|
+| AMEX:SPY | 771.35 | 0.01 | 100 |
+| NASDAQ:AAPL | 341.07 | 0.01 | 100 |
+| NYSE:BRK.A | 758505.68 | 0.01 | 100 |
+| NASDAQ:SNDL | 1.40 ($1–5) | 0.01 | 100 |
+| NASDAQ:NKLA | 0.183 (sub-$1) | 0.01 | 100 |
+| OTC:AITX | 0.003 (sub-cent) | 0.0001 | 10000 |
+| SP:SPX | 7743.41 (index) | 0.01 | 100 |
+| CME_MINI:ES1! | 7803.75 (future) | 0.25 | 4 |
+| FX:EURUSD | 1.13902 (forex) | 0.00001 | 100000 |
+| BINANCE:BTCUSDT | 84432.01 (crypto) | 0.01 | 100 |
 
-**Already pinned (LEFT):** `tests/fixtures/vendor/harness/pivot-point-supertrend-rddt-1d-2026-09-27.json`
-needs RDDT bar 474 (high 152.44, equal to bar 473's) to be a pivot high; an independent
-re-implementation reproduces all 631 vendor bars ONLY with a left-inclusive rule
-(`app/src/components/chart/engine/__tests__/vendorHarness/runtimeLaneCaptures.test.js`).
-
-**What the vendor must show:**
-- `N02`/`N03` must read 1 on some bars (the native call fires) — else the capture is void.
-- `N04` must read 1 on some bars (the right-tie population exists) — else Q1 is unanswered.
-- On every bar where `N04 = 1`: **`N05 = 1` ⇒ right ties are INCLUSIVE; `N05 = 0` ⇒ STRICT.**
-- Control: `N07` must read 1 wherever it is not `-2` (the pinned left-inclusive rule).
-- `N08`/`N09`: the same two answers for `pivotlow`.
-
-**Today:** strict on BOTH sides (`interpret.js::FN.pivothigh/pivotlow`, `v > w` / `v < w`;
-Python twin `api/services/ast_interpret.py::_pivot_col`). The left half is already
-known wrong (above). **Open ruling R1** (below).
-
----
-
-## Q2 — `x[n]` with `n` = `na` at run time
-
-**Probe:** `rtwalls-dyn-history-na.pine`.
-
-**What the vendor must show:** `N02` (and `N03` for a price series) on every 4th bar:
-`na` ⇒ matches this engine; a number ⇒ report which bar it read; a runtime error ⇒ the
-study shows an error and no rows (record the error text).
-
-**Today:** `na` — `runtime/vm.js` `READ_HIST_SLOT_DYN` (variables, new on this branch)
-and `READ_HIST_DYN` (columns, pre-existing). If TradingView answers otherwise, both
-opcodes change together.
-
----
-
-## Q3 — `x[n]` with `n` negative at run time
-
-**Probe:** `rtwalls-dyn-history-neg.pine`.
-
-**What the vendor must show:** `N02` on even bars (`n = -1`): `na` ⇒ matches; a runtime
-error ⇒ record it (Pine may reject a negative history reference at run time).
-
-**Today:** `na` — never a bar that has not happened. Same two opcodes as Q2.
-
----
-
-## Q4 — the history buffer: a run-time offset reaching bar 0 with no `max_bars_back`
-
-**Probe:** `rtwalls-dyn-history-nomaxbars.pine`; control `rtwalls-dyn-history.pine`
-(declares `max_bars_back = 5000`).
-
-**What the vendor must show:**
-- control `N03` = 1 on every bar, `N04` = `na`, `N02` = `acc − k` (with `na` before bar k),
-  `N05` = `4·acc − 6` from bar 3, `N06` = `3·acc − 3` from bar 2 ⇒ the dynamic-history
-  semantics of this branch are TradingView's (`runtime/__tests__/dynamicHistory.test.js`
-  asserts exactly these numbers on synthetic bars).
-- no-max-bars `N02`: 1 on every bar ⇒ matches; a `max_bars_back` runtime error ⇒ TradingView
-  refuses where this engine answers. The engine keeps a variable's WHOLE history once it is
-  read at a run-time offset (`history[i].dynamic`, sized to the bar count by the VM), so it
-  answers the true value; it can never answer a wrong one. If TradingView errors, the
-  divergence is "we draw what a correctly-configured script draws" and is to be recorded,
-  not "fixed" by adding a failure.
-
----
-
-## Q5 — `array.max`/`min`/`sum`/`avg` over an `na` element, and over an empty array
-
-**Probe:** `rtwalls-array-stats-na.pine` (array `[1, na, 3]`, and an array that is empty on
-every 4th bar).
-
-**What the vendor must show:**
-- Control `N06` = 3142 on every bar (the all-finite array: max 3, min 1, sum 4, avg 2) —
-  else the capture is void.
-- `N02..N05`: **3 / 1 / 4 / 2 ⇒ `na` elements are SKIPPED**; `na` for all four ⇒ an `na`
-  PROPAGATES; a runtime error ⇒ record the text. Any other number ⇒ report it as found.
-- `N07`/`N08` on bars where `bar_index % 4 == 0` (the array is empty): `na` ⇒ an empty
-  array answers `na`; a runtime error ⇒ record it. On the other bars both read 5.
-
-**Today:** the engine STOPS the script by name for both cases
-(`runtime/collections.js::finiteElements`, pinned by
-`runtime/__tests__/arrayRoster.test.js`). The all-finite case is exact. Once measured, the
-change is confined to `finiteElements`: skip ⇒ filter the non-finite elements out (and
-decide the all-`na` case from the same capture); propagate ⇒ return `NaN`.
-
-**Why it matters:** wyckoff-accumulation-distribution builds `array.max` over `high[i]` for
-`i` up to its length, which holds `na` on the first bars of every chart — with the stop in
-place it will not run on a real chart even after its other walls fall.
-
----
-
-## Open rulings (not this lane's to take)
-
-- **R1 — pivot left-tie on the shared closed-table pivots.** Vendor-pinned (Q1 above).
-  Changing `pivotCol`'s left comparison to non-strict moves the host lane, the Python twin
-  and the frozen pivot digests (`tests/test_ast_pivots.py` pins 20/15 plateau bars); a
-  Pine-only route would be a `pivothighPine`-style table name, the path `pine/atr-seed-host`
-  took for `ta.atr`. With it (and that branch's ATR seed), Pivot Point SuperTrend
-  reproduces TradingView on all 631 bars — measured by the re-implementation above.
-- **R2 — the HOST lane's `?:` over an `na` condition.** The runtime lane now takes the else
-  arm (vendor-pinned by the same capture, bar 9). Applying the same rule to the host lane
-  (`Resolver` option `pineNaCondition`, one line at each host factory) moved 55 test rows on
-  2026-09-27 — persisted trees, the Python screener's frozen columns, the recurrence
-  recognisers — so it is queued, not taken. `pineTernaryNa.test.js` pins the host as unchanged.
+⭐ **Price regime does not decide it for a listed US name:** a $0.18 NASDAQ listing is
+0.01 like a $758,505 one. Only the sub-cent OTC name, the future and the forex pair differ.
+So "US-listed equities and ETFs → 0.01" is supported by this table; OTC, futures, forex
+and any crypto pair other than BTCUSDT are NOT covered by it and must stay unserved.

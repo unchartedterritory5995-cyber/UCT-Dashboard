@@ -58,3 +58,31 @@ describe('sendCaptureToJournal — Stage A member-validation instrumentation', (
     expect(telemetryCall()).toBeUndefined()
   })
 })
+
+// ⭐ Wave 10 (10D, R-16, study tasks T2/T6): `capture_used` was declared in wave 6 and fired
+// from no door. It now fires from the ONE function every capture door funnels through,
+// on success only, with a destination word and a kind word — never the capture.
+describe('capture_used — the capture door counts a capture, and nothing of it', () => {
+  beforeEach(() => {
+    runMock.mockClear()
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ ok: true }) })))
+  })
+  afterEach(() => vi.unstubAllGlobals())
+  const bodies = () => fetch.mock.calls
+    .filter(([u]) => String(u) === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+    .filter((b) => b.event === 'capture_used')
+
+  it('a chart sent to the inbox sends ONE capture_used {inbox, chart}', async () => {
+    await sendCaptureToJournal('chart', { symbol: 'NVDA' }, { target: 'inbox', comment: 'my secret thesis' })
+    expect(bodies()).toEqual([{ event: 'capture_used', props: { target: 'inbox', widget: 'chart' } }])
+    expect(JSON.stringify(bodies())).not.toMatch(/NVDA|secret/)
+  })
+
+  it('any other widget is a widget; a failed capture sends nothing', async () => {
+    await sendCaptureToJournal('breadth', { date: '2026-09-25' }, { target: 'inbox' })
+    runMock.mockRejectedValueOnce(new Error('network down'))
+    await sendCaptureToJournal('chart', { symbol: 'AMD' }, { target: 'inbox' })
+    expect(bodies().map((b) => b.props)).toEqual([{ target: 'inbox', widget: 'widget' }])
+  })
+})

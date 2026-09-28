@@ -10,15 +10,38 @@ from datetime import datetime, timezone
 
 DISCORD_ADMIN_WEBHOOK = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
-def _send_webhook(embed: dict):
-    """Fire-and-forget Discord webhook in a background thread."""
-    if not DISCORD_ADMIN_WEBHOOK:
+def _send_webhook(embed: dict, url: str | None = None):
+    """Fire-and-forget Discord webhook in a background thread.
+
+    ⭐ TERM-011 / RM-N09 step 6 — `url` lets ONE caller supply its own destination
+    while every other caller keeps door C's `DISCORD_ADMIN_WEBHOOK` verbatim. It
+    exists so the three step-6 rows that reach Discord THROUGH this sender
+    (`catalyst/digest.py` row 10, `desk_daily_session.py` rows 11 and 12) can resolve
+    the OPS class through `alert_destination.ops_webhook()` without door C itself
+    being reclassified — door C is the shared sink for the BUSINESS notifiers below
+    and a later step's decision, pinned as such in `tests/test_alert_destination.py`.
+
+    ⛔ IT IS A DESTINATION, NOT A TRANSPORT CHANGE. The thread, the payload shape,
+    the timeout and the swallow-everything contract are untouched, so a converted
+    caller sends the same bytes to the same place while the new variables are unset.
+
+    ⛔⛔ `url=None` MEANS DOOR C; `url=""` MEANS NOTHING IS CONFIGURED AND THIS POSTS
+    NOTHING. The two are deliberately NOT collapsed with `url or DISCORD_ADMIN_WEBHOOK`,
+    which is the tempting one-liner and is wrong: `DISCORD_ADMIN_WEBHOOK` is captured
+    at IMPORT (`:11`), so falling back to it would let a stale value answer for a
+    converted producer whose live resolution said "nowhere" — a SECOND AUTHORITY over
+    one destination, with the stale one winning exactly when the live one is blank.
+    A converted caller resolving to "" is inert, which is precisely what the literal
+    read it replaced did when the variable was blank.
+    """
+    webhook = DISCORD_ADMIN_WEBHOOK if url is None else url
+    if not webhook:
         return
 
     def _post():
         try:
             requests.post(
-                DISCORD_ADMIN_WEBHOOK,
+                webhook,
                 json={"embeds": [embed]},
                 timeout=5,
             )

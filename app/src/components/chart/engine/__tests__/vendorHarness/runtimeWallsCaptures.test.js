@@ -2,7 +2,7 @@
 //
 // ─── THE FIVE CAPTURE-QUEUE QUESTIONS, ANSWERED BY TRADINGVIEW (2026-09-27) ───
 //
-// `docs/pine/capture-queue-2026-09-27.md` queued five semantics this engine had
+// `docs/pine/capture-queue-runtime-walls-2026-09-27.md` queued five semantics this engine had
 // been refusing or guessing. Each was captured live, its probe source byte-identical
 // to the probe committed at 0543ef03e, and the runtime lane now follows the answers
 // that apply to it:

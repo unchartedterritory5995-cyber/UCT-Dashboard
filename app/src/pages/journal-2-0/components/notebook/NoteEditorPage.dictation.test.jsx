@@ -152,6 +152,24 @@ describe('NoteEditorPage — dictation (wave 7 H1)', () => {
     act(() => { main.editor.commands.undo() })
     expect(main.editor.state.doc.textContent).toBe('Main body.')
   })
+
+  // Wave 10 10D fix round 1 (review M-8): the RENDERED door. The toolbar mic hands its
+  // transcript to the page's `onTranscript`, and THAT insert is what sends
+  // `dictation_used` — a count, never the words. (Mutation: delete the emit in
+  // dictationInsert.js -> red.)
+  it('telemetry — the mic\'s transcript insert sends dictation_used once, with a count and no words', async () => {
+    const { telemetryBodies } = await import('../../lib/testing/telemetryFetch')
+    const dict = () => telemetryBodies(fetchMock).filter((b) => b.event === 'dictation_used')
+    const main = await mountEditorInPane('main', 'n1')
+    const mic = await micIn(main.root)
+    expect(dict(), 'nothing before the mic hears anything').toEqual([])
+    act(() => { main.editor.commands.setTextSelection(main.editor.state.doc.content.size - 1) })
+    act(() => { fireEvent.click(mic) })
+    expect(main.editor.state.doc.textContent).toBe('Main body. spoken words')
+    await waitFor(() => expect(dict()).toHaveLength(1))
+    expect(dict()[0]).toEqual({ event: 'dictation_used', props: { words: 2 } })
+    expect(JSON.stringify(telemetryBodies(fetchMock))).not.toContain('spoken')
+  })
 })
 
 describe('NoteEditorPage — the camera "Scan" door (wave 7 G5)', () => {

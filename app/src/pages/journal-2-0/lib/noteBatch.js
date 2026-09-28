@@ -59,6 +59,7 @@ import { openNotebookDb } from './offline/notebookDb'
 import {
   DEFAULT_EXPORT_FORMAT, EXPORT_FORMATS, saveResponse,
 } from '../components/notebook/export/exportFormats'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
 
 /** Ops that write the note row — refused for a blocked note. Favourites live
  *  in their own table and never touch the note, so they are allowed. So are
@@ -217,13 +218,20 @@ export async function runNoteBatch({
     ...unchecked.map((id) => ({ id, status: 'unchecked' })),
   ]
   const count = (pred) => results.filter(pred).length
-  return {
+  const outcome = {
     op,
     results,
     changed: count((r) => r.status === 'changed'),
     unchanged: count((r) => r.status === 'unchanged'),
     failed: count((r) => r.status !== 'changed' && r.status !== 'unchanged'),
   }
+  // Wave 10 (10D, R-16, study task T5): ONE bulk action on many notes, from the
+  // one bulk door. The op and two counts — never an id, a folder or a tag.
+  if (send.length) {
+    trackNotebookEvent(NOTEBOOK_EVENTS.BULK_USED,
+      { op, changed: outcome.changed, failed: outcome.failed })
+  }
+  return outcome
 }
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
@@ -565,8 +573,11 @@ export async function exportSelectedNotes(ids, format = DEFAULT_EXPORT_FORMAT) {
     throw new Error(detail ? String(detail) : `The export could not be prepared (server answered ${res.status}).`)
   }
   await saveResponse(res, 'notebook-selection.zip')
+  const count = Number(res.headers.get('x-export-count') ?? ids.length)
+  // Wave 10 (10D, R-16): the selected notes left as a file — the format and a count.
+  trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format, scope: 'selection', count })
   return {
-    count: Number(res.headers.get('x-export-count') ?? ids.length),
+    count,
     skipped: Number(res.headers.get('x-export-skipped') ?? 0),
     format,
   }

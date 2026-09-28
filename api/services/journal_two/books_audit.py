@@ -36,6 +36,9 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+# ⭐ TERM-011 / RM-N09 step 6 row 9 — the OPS-class destination reader for the weekly
+# summary post below. MODULE level, matching step 3's six producers.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 from api.services.auth_db import get_connection
 from api.services.journal_two import analytics as analytics_service
 from api.services.journal_two import calendar as calendar_service
@@ -295,8 +298,18 @@ def run_weekly_sweep(conn: sqlite3.Connection | None = None) -> dict[str, Any]:
 
 
 def _post_discord_summary(user_count: int, failures: list[dict[str, Any]]) -> None:
-    import os
-    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 6 row 9 — the OPS-class destination, resolved at CALL
+    # time. A drop-in for the `DISCORD_WEBHOOK_URL` literal read that stood here: with
+    # DISCORD_OPS_WEBHOOK_URL unset or blank (absent on all seven services, read
+    # 2026-09-27) this returns that variable's value, and "" where the literal returned
+    # None. Same channel, same bytes; proved at the wire in tests/test_alert_destination.py.
+    #
+    # ⛔ THE GREEN WEEKLY HEARTBEAT IS UNCHANGED, DELIBERATELY. The 🟢 "all N books
+    # balance" branch below still posts on the healthy case. Whether it should is a
+    # SEPARATE decision the packet DEFERS to after step 8 (§4 row 9): removing the only
+    # weekly proof-of-life before the ops room exists and is being read would make "the
+    # sweep is quiet" and "the sweep is dead" indistinguishable. Do not build it here.
+    url = _ops_webhook()
     if not url:
         return
     try:
