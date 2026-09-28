@@ -57,8 +57,22 @@ const RUNTIME = path.join(APP, 'src', 'components', 'chart', 'engine', 'ast', 'p
 const MEMBER_PANE = path.join(APP, 'src', 'components', 'chart', 'builder', 'memberPane', 'MemberPane.jsx')
 const rel = (f) => (path.isAbsolute(f) ? path.relative(APP, f).split(path.sep).join('/') : f)
 
-/** Does this module CALL the gate? Comments stripped — CODE, NEVER PROSE. */
-const consultsGate = (f) => stripComments(fs.readFileSync(f, 'utf8')).includes('memberPaneEnabled()')
+/** Does this module CALL a gate? Comments stripped — CODE, NEVER PROSE.
+ *
+ *  ⭐ TWO GATES COUNT SINCE 2026-09-28. #216 gave the runtime lane its own door
+ *  (`engine/pineRuntimeLaneGate.js`, `VITE_PINE_RUNTIME_LANE_ENABLED`, default
+ *  OFF), which superseded ruling D2 for ONE path, the host-refusal fallback.
+ *  The chart engine (`nativeRegistry`) loads the lane lazily for an installed
+ *  runtime document, which is not the member pane, so the pane's flag cannot be
+ *  the consult on that path; the lane's own flag is, and both the registry and
+ *  the loader call it before the `import()`. ⛔ A CALL, with empty parens: the
+ *  gate module's own `pineRuntimeLaneEnabled(env)` definition does not count,
+ *  and the control below proves it. */
+const consultsGateText = (src) => {
+  const code = stripComments(src)
+  return code.includes('memberPaneEnabled()') || code.includes('pineRuntimeLaneEnabled()')
+}
+const consultsGate = (f) => consultsGateText(fs.readFileSync(f, 'utf8'))
 
 /** The non-test import graph of app/src: file → the app/src files it imports,
  *  statically, by re-export, for side effect, or through a dynamic `import()`
@@ -235,6 +249,18 @@ describe('the member-pane gate', () => {
     g.set('app', ['door', 'side']); g.set('side', ['lane'])
     expect(ungatedPathTo(g, 'main', 'runtime', (f) => f === 'door'))
       .toEqual(['main', 'app', 'side', 'lane', 'runtime'])
+  })
+
+  it('⛔ …CONTROL: a gate counts only when CALLED, never when defined or mentioned', () => {
+    expect(consultsGateText('if (memberPaneEnabled()) render()')).toBe(true)
+    expect(consultsGateText('if (!pineRuntimeLaneEnabled()) return')).toBe(true)
+    // the gate module's own definition is not a consult of itself
+    expect(consultsGateText('export function pineRuntimeLaneEnabled(env) { return false }')).toBe(false)
+    // prose is not a consult
+    expect(consultsGateText('// callers ask pineRuntimeLaneEnabled() first')).toBe(false)
+    // and the real loader really does call it — the consult this rail credits
+    const gate = path.join(APP, 'src', 'components', 'chart', 'engine', 'pineRuntimeLaneGate.js')
+    expect(consultsGate(gate)).toBe(true)
   })
 
   it('⭐⭐ THE GATE NOW HAS A CONSUMER, AND IT CONSULTS THE GATE (T5)', () => {

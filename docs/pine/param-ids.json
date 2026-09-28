@@ -408,7 +408,10 @@
     "__uct_param_1": "Turn on H,L,C and IBs for daily?",
     "__uct_param_2": "Plot previous days High, Low and Close?",
     "__uct_param_3": "Look back two trading days?",
-    "__uct_param_4": "Plot previous weeks High and Low?"
+    "__uct_param_4": "Plot previous weeks High and Low?",
+    "__uct_param_5": "Show all historical IB data during trading hours?",
+    "__uct_param_6": "Plot IB?",
+    "__uct_param_7": "Plot previous days IB?"
   },
   "corpus/committed/inside-bar-boxes__2f747d848b.pine": {
     "__uct_param_1": "Show boxes break"

@@ -113,6 +113,14 @@ export function loadedPineRuntimeLane() {
  *  instead of caching the failure for the life of the tab. */
 export function loadPineRuntimeLane() {
   if (laneApi) return Promise.resolve(laneApi)
+  // ⛔ FAIL CLOSED AT THE ONE EDGE THAT CARRIES THE IMPORT. Every caller already
+  // asks the flag first; asking here too means the lazy `import()` below cannot
+  // be reached on a build with the lane OFF, whoever calls it next. The
+  // member-pane gate rail reads this call as the consult on the path
+  // `nativeRegistry` → here → the lane.
+  if (!pineRuntimeLaneEnabled()) {
+    return Promise.reject(new Error('runtime-door:off — the runtime lane is off on this build'))
+  }
   if (!laneLoading) {
     laneLoading = import('./pineRuntimeLane').then(() => laneApi, (err) => {
       laneLoading = null
