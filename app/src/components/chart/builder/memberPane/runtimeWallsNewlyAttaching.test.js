@@ -12,12 +12,16 @@
 //   · a `plot` line, once it has started, never falls back to `na` (NaN-poisoning),
 //     and sits inside a plausible band of the price it overlays,
 //   · a `plotshape` fires 0/1 only, and fires on SOME bar without firing on most.
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { memberPaneDefinition } from './memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from './memberPaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
+
+// ⭐ The door loads the runtime lane on demand (`runtimeLaneLazyDoor.test.jsx`);
+// load it up front so the door answers these scripts at once.
+beforeAll(async () => { await loadRuntimeLaneDoor() })
 
 afterEach(() => {
   vi.unstubAllEnvs()
