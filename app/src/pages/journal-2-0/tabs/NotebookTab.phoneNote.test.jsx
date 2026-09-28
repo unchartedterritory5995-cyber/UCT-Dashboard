@@ -40,9 +40,26 @@ vi.mock('../components/notebook/NoteCard', () => ({
     <button type="button" data-note-card-id={note.id} onClick={() => onOpen(note)}>{note.title}</button>
   ),
 }))
-vi.mock('../components/notebook/NoteEditorPage', () => ({
-  default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
-}))
+// The editor stand-in pushes the SAME-NOTE entries the real one does
+// (NoteEditorPage.jsx): a review citation (`?note=A&review=R`, a push) and an Ask
+// citation into this note's own PDF (`&doc=D&page=N`, a push, then a replace that
+// strips doc/page).
+vi.mock('../components/notebook/NoteEditorPage', async () => {
+  const { useSearchParams } = await import('react-router-dom')
+  return {
+    default: function EditorStandIn({ noteId }) {
+      const [, setSearchParams] = useSearchParams()
+      const edit = (fn, replace) => setSearchParams((prev) => { const n = new URLSearchParams(prev); fn(n); return n }, { replace })
+      return (
+        <div data-testid="note-editor" data-note-id={noteId}>
+          <button type="button" onClick={() => edit((n) => n.set('review', 'r1'), false)}>review citation</button>
+          <button type="button" onClick={() => edit((n) => { n.set('doc', 'd1'); n.set('page', '3') }, false)}>ask citation</button>
+          <button type="button" onClick={() => edit((n) => { n.delete('doc'); n.delete('page') }, true)}>strip doc</button>
+        </div>
+      )
+    },
+  }
+})
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({
@@ -124,6 +141,43 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
     expect(search()).toBe('?view=all')
     expect(screen.queryByTestId('research-home')).toBeNull()
     expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
+  })
+
+  it('⛔ I-1 -- list -> note -> a same-note REVIEW citation push -> ONE tap returns to the list', async () => {
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Beta review' }))
+    await waitFor(() => expect(search()).toBe('?note=n2'))
+    fireEvent.click(screen.getByRole('button', { name: 'review citation' }))
+    await waitFor(() => expect(search()).toBe('?note=n2&review=r1'))
+    fireEvent.click(backButton())
+    await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
+    expect(search()).toBe('?view=all')
+    expect(screen.queryByTestId('research-home')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Beta review' })).toBeInTheDocument()
+  })
+
+  it('⛔ I-1 -- list -> note -> an ASK citation push, then its replace -> ONE tap returns to the list', async () => {
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Alpha thesis' }))
+    await waitFor(() => expect(search()).toBe('?note=n1'))
+    fireEvent.click(screen.getByRole('button', { name: 'ask citation' }))
+    await waitFor(() => expect(search()).toBe('?note=n1&doc=d1&page=3'))
+    fireEvent.click(screen.getByRole('button', { name: 'strip doc' }))
+    await waitFor(() => expect(search()).toBe('?note=n1'))
+    fireEvent.click(backButton())
+    await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
+    expect(search()).toBe('?view=all')
+  })
+
+  it('a fresh ?note= link with a same-note push still closes to the Notebook list (no blind back)', async () => {
+    renderAt('/journal/notebook?view=all&note=n1')
+    fireEvent.click(screen.getByRole('button', { name: 'review citation' }))
+    await waitFor(() => expect(search()).toBe('?view=all&note=n1&review=r1'))
+    fireEvent.click(backButton())
+    await waitFor(() => expect(screen.queryByTestId('note-editor')).toBeNull())
+    // closed, not walked back through history: the page stays the Notebook
+    expect(search()).not.toMatch(/note=/)
+    expect(search()).toMatch(/view=all/)
   })
 
   it('keyboard: the back control takes focus and Enter/click activates it', async () => {
