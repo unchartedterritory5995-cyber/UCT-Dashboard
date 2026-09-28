@@ -23,9 +23,14 @@
 // (`plotshape(ph, …, offset=-rightbars)` and the two untitled `plot(…,
 // offset=-rightbars)`) disagree on COLOUR only, and only in one way — on every
 // compared bar the vendor has the plot's colour and our drawn colour is `null`.
-// Their VALUES agree bar for bar. The cause is NOT established here: it is in the
-// colour read of a DISPLACED plot (the harness reads the renderer's points by bar
-// time), not in the translation this lane changed. Recorded, not guessed at.
+// Their VALUES agree bar for bar. MEASURED 2026-09-28 (a probe over
+// `runOurSide`): the colour IS drawn — on bar i-15, where the renderer places a
+// point of an `offset=-15` plot (pivot high values at bars 237/367/389, colours at
+// 222/352/374). The vendor's study data is keyed to the computation bar i. So
+// `ourSide.drawnColours`, which reads the renderer's points by the UNDISPLACED
+// bar time, finds nothing there: a harness alignment gap for displaced plots,
+// not a product defect and not the translation this lane changed. Left for the
+// harness's owner; this pin goes red the day the read is aligned.
 import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 
