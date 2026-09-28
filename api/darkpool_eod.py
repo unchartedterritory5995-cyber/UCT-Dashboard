@@ -69,15 +69,25 @@ def _adv_color(pct):
     return _TXT
 
 
+#: ⛔ TERM-011 step 5 -- THE VARIABLE THAT TURNS THIS POSTER BACK ON, named
+#: once so a log line cannot drift from the one actually read.
+WEBHOOK_ENV = "DARKPOOL_EOD_WEBHOOK_URL"
+
+
 def _webhook() -> str:
-    # Same channel as the options EOD / weekly alerts (owner decision): prefer the
-    # Alpha Gold EOD webhook, then the shared Massive/LiveFlow ones. A dedicated
-    # DARKPOOL_EOD_WEBHOOK_URL overrides if we ever want a separate channel.
+    """This poster's own webhook, read AT CALL TIME. "" = do not post.
+
+    ⛔⛔ TERM-011 step 5 -- NO LONGER FALLS BACK TO DISCORD_WEBHOOK_URL. Same
+    channel as the options EOD / weekly alerts (owner decision): prefer the Alpha
+    Gold EOD webhook, then the shared Massive/LiveFlow ones -- all this family's
+    OWN flow-channel names, never the admin room, which would read as a success
+    while landing in the wrong place. A dedicated DARKPOOL_EOD_WEBHOOK_URL
+    overrides if we ever want a separate channel.
+    """
     return (os.getenv("DARKPOOL_EOD_WEBHOOK_URL")
             or os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
             or os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
-            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-            or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
+            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL", "")).strip()
 
 
 # ── market-cap bands (mirror flowCompute.capBand) ──────────────────────────
@@ -656,6 +666,9 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         wh = _webhook()
         if not wh:
             res.update(posted=False, reason="no webhook (set DARKPOOL_EOD_WEBHOOK_URL)")
+            log.error("[darkpool-eod] NOT posted — no webhook configured, and "
+                      "this card no longer falls back to DISCORD_WEBHOOK_URL. "
+                      "Set %s to turn it back on.", WEBHOOK_ENV)
             return res
         ok, detail = _post_discord_image(wh, png, "")
         res.update(posted=ok, detail=detail)

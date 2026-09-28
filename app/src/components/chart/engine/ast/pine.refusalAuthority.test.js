@@ -79,7 +79,9 @@ describe('a refusal names the authority that actually disagrees', () => {
     // the shape the member wrote is the shape the engine reads back.
     const out = run('plot(ta.atr(14))')
     expect(out.ok).toBe(true)
-    expect(out.outputs[out.selected].formula).toBe('atr(high, low, close, 14)')
+    // (2026-09-27) the four-argument entry Pine's `ta.atr` lands on is `atrPine` —
+    // the same signature as the house `atr`, with Pine's own seed.
+    expect(out.outputs[out.selected].formula).toBe('atrPine(high, low, close, 14)')
   })
 
   it('⭐⭐ THE CONTROL — a real table mismatch STILL opens with the shared clause', () => {

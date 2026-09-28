@@ -275,6 +275,11 @@ function pointColour(colColors, condColumn, i) {
   // that bar, and picking a side paints every warm-up bar the "false" colour —
   // which reads as a real signal for as many bars as the condition's lookback.
   if (!Number.isFinite(c)) return null
+  // ⭐⭐ A PALETTE: the column is the entry's index. ⛔ An index outside the
+  // palette is a column this rule did not write — no colour, never a neighbour's.
+  if (colColors.palette) {
+    return (Number.isInteger(c) && c >= 0 && c < colColors.palette.length) ? colColors.palette[c] : null
+  }
   return c !== 0 ? colColors.up : colColors.down
 }
 
@@ -1269,15 +1274,16 @@ export function createBinder({ chart, LWC }) {
       const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
+      const palette = cc && cc.palette ? cc.palette.join('|') : null
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would
       // serve the previous pass's colours — the memo would be answering a
       // question nobody asked.
       if (m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
-          && m.up === up && m.down === down && m.cond === cond) return m.points
+          && m.up === up && m.down === down && m.palette === palette && m.cond === cond) return m.points
       const points = toPoints(column, bars, adjustTime, sc, cc, cond)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, cond, points })
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, points })
       return points
     }
 

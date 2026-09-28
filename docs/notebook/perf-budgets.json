@@ -91,5 +91,51 @@
     "ops": [
       "list_tasks (open, ?view=tasks)"
     ]
+  },
+  "attachments": {
+    "tier": 50000,
+    "attachments": 10000,
+    "p95_ms_max": 100,
+    "why": "Clause 14b (wave 10, lane 10A): the reads that grow with ATTACHMENTS rather than notes -- the search box's document half (GET /notes/documents/search, a common and a rare term) and the editor's per-note document list -- at the 50k gate with 10,000 extracted documents (3 pages each) seeded beside the notes. Held to the search line. The budget holds only on a tier that carried the attachments (tools/notebook_perf_budgets.check_search); run the gate with --attachments 10000 and every other 50k budget is checked on the same library.",
+    "ops": [
+      "GET /notes/documents/search q=common (search box)",
+      "GET /notes/documents/search q=rare (search box)",
+      "GET /notes/{id}/documents (note with 50 documents)"
+    ]
+  },
+  "curve": {
+    "tiers": [1000, 5000, 10000, 25000, 50000],
+    "stat": "p50_ms",
+    "max_slope": 1.1,
+    "max_last_segment_slope": 1.3,
+    "why": "Clause 14d, no super-linear curve (wave 10, lane 10A). The least-squares log-log slope of every timed op's p50 over the five tiers is held at 1.1: linear, plus a stated allowance for timing noise over a 50x range (doubling the library may cost at most 2^1.1 = 2.14x). The last segment, 25k -> 50k, is held on its own at 1.3, because a curve that bends up at the top is the symptom the clause names and a five-point fit dilutes it; a two-point slope over a 2x range carries about twice the fit's noise, so its allowance is wider. Both set BEFORE the curve was measured; never raised to fit a reading. An op missing at any tier, or a tier not run, is a breach."
+  },
+  "ratio_ci": {
+    "tier": 10000,
+    "line_ms": 100,
+    "op_line_ms": {
+      "list_tasks (open, ?view=tasks)": 150
+    },
+    "calibration_ref_ms": 43.45,
+    "calibration_ref": "The calibration op (tools/notebook_scale_benchmark.py, CALIBRATION_OP) on the REFERENCE box, this lane's dev machine: 2026-09-27 01:02 CT, a QUIET window (no test process running, 14,005 MB available, CPU 11.5%), 9 rounds of 10 reps after 1 warm-up, median of the round p50s 43.45 ms (range 42.95 - 44.61). A property of that machine, not a budget: re-read it only on that machine and say so here.",
+    "rounds": 5,
+    "reps": 5,
+    "why": "Ruling R-10 (wave 10, lane 10A): the CI latency check a shared runner cannot flap. Every CI-budgeted read (the search_ci, reads_ci and tasks_ci ops, the two formerly informational ones included) is timed as a ratio to the calibration op, interleaved per round, median of `rounds`, and re-measured with fresh rounds before it can breach. The line is the SAME 100 ms (tasks 150 ms) the CI tier always used, divided by calibration_ref_ms: under it, the op would read under that line at the reference box's speed whatever the runner's own. It compares P50s (fix round 1, review M-2): each round is the op's p50 over the calibration's p50, so the number held to the line is a p50 ratio, never a p95 -- a regression that lands only in the tail passes here. On purpose: a round's p95 on a shared runner is one burst away from a flake, and this check gates promotion. The tail is the local 50k gate's, which stays the verdict (its p95 lines).",
+    "ops": [
+      "GET /notes default (list+count)",
+      "GET /notes q=common (list+count)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)",
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks",
+      "list_tasks (open, ?view=tasks)"
+    ]
   }
 }

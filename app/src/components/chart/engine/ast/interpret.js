@@ -1839,6 +1839,26 @@ const carriedFn = (name) => (series, n) => {
   return out
 }
 
+/** Pine's `ta.tr(true)` as a column, built from the SAME scalar entries a
+ *  formula `na(c[1]) ? h - l : max(h - l, max(abs(h - c[1]), abs(l - c[1])))`
+ *  evaluates through (`POINTWISE`, `BINARY`, `TERNARY`), so `atrPine` and that
+ *  written-out tree cannot disagree about a NaN. Bar 0 has no previous close,
+ *  so it is `high - low` — the vendor's rule, not a clamp. Called at run time,
+ *  so `BINARY`/`TERNARY` (declared further down) are initialised by then. */
+function trueRangeTrue(h, l, c) {
+  const out = nan(c.length)
+  for (let i = 0; i < c.length; i++) {
+    const prev = i > 0 ? c[i - 1] : NaN
+    const range = BINARY['-'](h[i], l[i])
+    const far = POINTWISE.max(
+      POINTWISE.abs(BINARY['-'](h[i], prev)),
+      POINTWISE.abs(BINARY['-'](l[i], prev)),
+    )
+    out[i] = TERNARY(POINTWISE.na(prev), range, POINTWISE.max(range, far))
+  }
+  return out
+}
+
 export const FN = Object.freeze({
   sma: windowFn('sma'),
   ema: carriedFn('ema'),
@@ -1995,6 +2015,23 @@ export const FN = Object.freeze({
     : bindShipped(['c'], [s], s.length, (bars) => computeMACD(bars, fast, slow, 1).macd)),
 
   atr: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeATR(bars, n)),
+  // ⭐⭐ `atrPine` — PINE'S `ta.atr(n)`, AND THE ONLY DOOR TO IT IS THE PINE
+  // TRANSLATOR (`pine.js::PINE_CALL_SHAPES.atr`). TradingView publishes
+  // `ta.atr(n)` as `ta.rma(ta.tr(true), n)`, and measured at the vendor
+  // (`keltner-channels-bands-rddt-1d-2026-09-27`, 631 bars from listing; the
+  // SPY 12M seed capture) that is exactly: bar 0's true range is `high - low`,
+  // the seed is the mean of the first `n` true ranges and lands on bar `n-1`,
+  // Wilder's step after that. So this is COMPOSED, never a new average: the
+  // table's own `rma` (the same `carriedFn` the `rma` entry above runs — seed,
+  // hold-on-a-hole and all) over the `trGuarded` column `ta.tr(true)`
+  // translates to. `atrPine(h,l,c,n)` IS `rma(na(c[1]) ? h-l : max(h-l,
+  // max(abs(h-c[1]), abs(l-c[1]))), n)` on every bar, and `atrPine.test.js`
+  // holds it to that identity rather than to a copy of this loop.
+  // ⛔ `atr` ABOVE IS UNTOUCHED ON PURPOSE: ThinkScript's `ATR`, the native ATR
+  // and ATR-bands indicators and the pattern engine's levels read Wilder's
+  // original, and `divergences.json::atr-tr-starts-at-bar-1` records the
+  // ruling that keeps it. Python twin: `ast_interpret.py::_fn_atr_pine`.
+  atrPine: (h, l, c, n) => carriedFn('rma')(trueRangeTrue(h, l, c), n),
   // ⭐ BOUND TO THE SHIPPED IMPLEMENTATION, NEVER COMPOSED. `computeADX`
   // already returns all three lines and is what the chart draws, so `adx`
   // cannot drift from the +DI/-DI a member sees beside it. Composing it from

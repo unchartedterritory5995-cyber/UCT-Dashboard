@@ -14,6 +14,9 @@ import logging
 import os
 from zoneinfo import ZoneInfo
 
+# ⭐ TERM-011 / RM-N09 step 6 row 10 — the OPS-class destination reader for the Discord
+# leg of the digest. MODULE level, matching step 3's six producers.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 from api.services.catalyst import store
 
 logger = logging.getLogger(__name__)
@@ -120,7 +123,22 @@ def send_digest(market_date: str | None = None) -> dict:
 
     try:
         from api.services import discord_notify
-        discord_notify._send_webhook(_discord_embed(digest))
+        # ⭐ TERM-011 / RM-N09 step 6 row 10 — the OPS-class destination, resolved at
+        # CALL time, posted through door C's sender (thread, payload and swallow
+        # contract untouched).
+        #
+        # ⛔ NOT A BOTH ROW — the spec said this digest is "also emailed to members and
+        # pushed to bells" and the tree contradicts it: `_admin_recipients()` is
+        # `SELECT id, email FROM users WHERE role = 'admin'`, and it is what BOTH the
+        # email loop and the bell loop below iterate. All three legs are admin-only, so
+        # there is no second audience to lose and this is an ordinary conversion.
+        # Decision packet §3 T4 and §4 row 10.
+        #
+        # ⛔ With DISCORD_OPS_WEBHOOK_URL unset or blank — absent on all seven services,
+        # read 2026-09-27 — this is DISCORD_WEBHOOK_URL's value, which is what
+        # `discord_notify.DISCORD_ADMIN_WEBHOOK` captured at import. Same room, same
+        # bytes; proved at the wire in tests/test_alert_destination.py.
+        discord_notify._send_webhook(_discord_embed(digest), url=_ops_webhook())
         out["discord"] = True
     except Exception:
         logger.exception("[catalyst-digest] discord send failed")
@@ -147,6 +165,36 @@ def send_digest(market_date: str | None = None) -> dict:
                     message=f"Top: {top}. Open Stock Catalysts for the full brief.",
                     source="catalyst_digest",
                     extra_data={"market_date": md, "count": digest["count"]},
+                    # ⛔⛔ A LIVE DAILY DUPLICATE, FIXED — and it was nobody's decision.
+                    # This call passed NO severity, so it took
+                    # `deliver_alert_payload`'s `severity: str = "warning"` DEFAULT.
+                    # `add_alert` computes `fires_discord = severity in (warning,
+                    # critical)`, so every bell entry ALSO posted the digest to
+                    # `discord_webhook()` — ONCE PER ADMIN RECIPIENT, inside this loop,
+                    # on top of the intended single post above.
+                    #
+                    # ⭐ AND IT LANDED IN THE SAME ROOM, NOT A SECOND ONE. The decision
+                    # packet reasoned it went to "a *second* room" because door A reads
+                    # DISCORD_ALERT_WEBHOOK while this module's own post reaches door C.
+                    # Measured on Railway 2026-09-27 (values never printed; compared by
+                    # sha256 and by Discord webhook id): those two variables are
+                    # BYTE-EQUAL on `web`. So the morning digest was posting 1 + N copies
+                    # of itself into ONE channel every day.
+                    #
+                    # ⭐ "info" IS THE HONEST PRIORITY HERE, NOT A CHANNEL TRICK. This is
+                    # a once-a-day informational brief, not a warning about anything, so
+                    # unlike the two `"info"` literals at `ai_search_briefings.py:282`
+                    # and `ai_search_deep.py:530` — which the packet §4 row 5 calls
+                    # severity lies told to control a channel, to be deleted once
+                    # audience decides the channel — this one stays correct after step
+                    # 7's `user_id` branch lands and needs no later removal.
+                    #
+                    # ⛔ THE STRUCTURAL FIX IS STILL STEP 7's, not this. While
+                    # `alerts.py`'s Discord gate reads severity, every producer that
+                    # wants to be quiet must state a priority, and every producer that
+                    # forgets is loud. This closes one live duplicate; it does not close
+                    # the class.
+                    severity="info",
                 )
                 out["alertbell"] += 1
             except Exception:

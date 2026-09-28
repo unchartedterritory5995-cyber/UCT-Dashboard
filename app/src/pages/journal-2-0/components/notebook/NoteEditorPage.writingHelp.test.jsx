@@ -153,6 +153,49 @@ describe('writing help — the preview, then Accept or Discard', () => {
     expect(await screen.findByText(/Added from writing help/)).toBeInTheDocument()
   })
 
+  // Wave 10 10D fix round 1 (review M-8): the RENDERED door, not the library function.
+  // Pressing Accept in the panel is what sends `writing_help_used` — a panel change that
+  // placed the draft without going through `acceptWritingHelp` would drop the event with
+  // every library rail green. (Mutation: delete the emit in writingHelp.js -> red.)
+  it('telemetry — Accept in the panel sends writing_help_used once; the preview and Discard send none', async () => {
+    const { telemetryBodies } = await import('../../lib/testing/telemetryFetch')
+    const wh = () => telemetryBodies(fetchMock).filter((b) => b.event === 'writing_help_used')
+    const editor = await mount()
+    selectPhrase(editor, 'I sold', 'scared.')
+    fireEvent.click(screen.getByRole('button', { name: 'Writing help' }))
+    let dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Rewrite shorter' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Write it' }))
+    await within(dialog).findByText('Fear sold my NVDA early.')
+    expect(wh(), 'a draft in the preview is not a use').toEqual([])
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Accept' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(wh()).toHaveLength(1))
+    expect(wh()[0]).toEqual({ event: 'writing_help_used', props: { action: 'rewrite', scope: 'selection', replaced: true } })
+    // ⛔ closed words only: nothing the member wrote, nothing the model wrote
+    const blob = JSON.stringify(telemetryBodies(fetchMock))
+    for (const w of ['NVDA', 'scared', 'Fear sold']) expect(blob, w).not.toContain(w)
+    // Discard on a second draft sends nothing more
+    selectPhrase(editor, 'Keep', 'this.')
+    fireEvent.click(screen.getByRole('button', { name: 'Writing help' }))
+    dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Write it' }))
+    await within(dialog).findByText('Fear sold my NVDA early.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(wh()).toHaveLength(1)
+  })
+
+  // Wave 10 10D fix round 1 (concern 4): the panel is a dialog with a NAME, taken from its
+  // own visible title (aria-labelledby) — never an unnamed "dialog". (Mutation: drop
+  // `labelledByTitle` from WritingHelpPanel's Sheet -> the named query finds nothing.)
+  it('the panel is a dialog named by its visible title', async () => {
+    await mount()
+    fireEvent.click(screen.getByRole('button', { name: 'Writing help' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Writing help' })
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby'))?.textContent).toBe('Writing help')
+  })
+
   it('Discard removes NOTHING, because nothing was ever added', async () => {
     const editor = await mount()
     const before = JSON.stringify(editor.getJSON())

@@ -204,6 +204,41 @@ def test_a_restore_of_a_snapshot_from_BEFORE_the_deletion_does_not_bring_the_mem
         c.close()
 
 
+def test_an_account_deleted_BEFORE_the_snapshot_but_still_in_it_FAILS_the_drill(
+        authdb, tmp_path, monkeypatch, capsys):
+    """A deletion that wrote its tombstone and then failed leaves the account in production.
+    A snapshot taken AFTER the tombstone still holds it -- the drill must say so, by name of
+    the hazard, instead of quietly replaying it away on the copy."""
+    from tools import authdb_restore_drill as drill
+    store = at.LocalObjectStore(tmp_path / "bucket")
+    monkeypatch.setenv(at.LOCAL_STORE_ENV, str(tmp_path / "bucket"))
+    _seed(authdb, GONE)
+    _seed(authdb, KEPT)
+    c = authdb.get_connection()
+    try:
+        assert at.record_tombstone(GONE, c, store=store)["recorded"]   # the tombstone, and NO purge
+    finally:
+        c.close()
+    later = dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=1)
+    snap = _snapshot(authdb, tmp_path / later.strftime("%Y%m%dT%H%M%SZ.db.gz"))   # taken AFTER it
+    code = drill.run(_drill_args(file=str(snap)), now=later + dt.timedelta(hours=1), store=store)
+    text = capsys.readouterr().out
+    assert code == drill.FAIL, text
+    assert "deleted BEFORE this snapshot are still in it" in text
+    assert "deleted BEFORE this snapshot was taken (an unfinished deletion): **1**" in text
+
+
+def test_unfinished_deletions_places_each_tombstone_before_or_after_the_snapshot():
+    from tools import authdb_restore_drill as drill
+    taken = dt.datetime(2026, 9, 27, 12, 0, tzinfo=dt.timezone.utc)
+    got = drill.unfinished_deletions(
+        ["before", "after", "undated", "naive"],
+        {"before": "2026-09-27T11:00:00+00:00", "after": "2026-09-27T13:00:00Z",
+         "undated": "", "naive": "2026-09-27T10:00:00"}, taken)
+    assert got == ["before", "naive"]                      # after and undated are not counted
+    assert drill.unfinished_deletions(["before"], {"before": "2026-09-27T11:00:00+00:00"}, None) == []
+
+
 def test_a_real_restore_REFUSES_without_the_offsite_tombstones(authdb, tmp_path, capsys):
     from tools import authdb_restore_drill as drill
     _seed(authdb, KEPT)

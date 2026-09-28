@@ -2,13 +2,37 @@
 
 No network, no threads — classifier, alert state machine, market calendar,
 and scorecard grading only.
+
+TERM-011 / RM-N09 step 5 addendum — `_post_discord` + `start_liveflow_monitor`'s
+webhook gate now resolve through `alert_destination.ops_webhook()`. This is the
+OPS member of D7's nine and it does NOT fail closed like the other eight: it is
+the outage oracle, and a monitor that goes silent when unconfigured means a real
+outage reports nothing. So the property under test here is the OPPOSITE of
+`test_discord_watchlist_webhook.py`'s: with everything unconfigured this module
+still resolves to today's admin channel via the shared compatibility floor, and
+only truly nothing (both variables blank) makes it inert.
 """
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from api.services import liveflow_monitor as lm
+from api.services import alert_routing as ar
 
 ET = ZoneInfo("America/New_York")
+
+TODAY = "https://discord.com/api/webhooks/111/TODAYS-ADMIN-CHANNEL-TOKEN"
+OPS_ONLY = "https://discord.com/api/webhooks/222/A-DEDICATED-OPS-CHANNEL-TOKEN"
+
+
+@pytest.fixture(autouse=True)
+def _no_leaked_ops_vars(monkeypatch):
+    """Same posture as `tests/test_alert_destination.py`'s `production_env`:
+    the two destination variables absent, matching Railway on 2026-09-27."""
+    for name in (ar.OPS_WEBHOOK_ENV, ar.BUSINESS_WEBHOOK_ENV, ar.OPS_EMAIL_ENV,
+                 ar.ROUTING_FLAG_ENV):
+        monkeypatch.delenv(name, raising=False)
 
 
 def _dt(y, mo, d, h, mi):
@@ -164,3 +188,101 @@ def test_scorecard_due_timing():
     # early close posts from 13:15
     assert lm._scorecard_due(_dt(2026, 11, 27, 13, 16), False) is True
     assert lm._scorecard_due(_dt(2026, 11, 26, 17, 0), False) is False  # holiday
+
+
+# --- Discord destination: the OUTAGE ORACLE must NOT fail closed ---------------
+#
+# ⛔⛔ THE ACCEPTANCE PROPERTY, and it is the inverse of a fail-closed poster's:
+# with the OPS variable unset or blank and the admin webhook SET, this module
+# must still post — to today's channel. It is the compatibility-floor half of
+# `alert_destination`'s invariant, exercised on the one producer that would be
+# a real regression if a future edit made it fail closed like its eight siblings.
+
+class _Wire:
+    """Records `(url, data, headers)` from urllib.request's two-call shape.
+    Never opens a socket."""
+
+    def __init__(self):
+        self.posts: list[tuple[str, bytes, dict]] = []
+
+    def Request(self, url, data=None, headers=None):          # noqa: N802
+        self.posts.append((url, data, dict(headers or {})))
+        return object()
+
+    def urlopen(self, _req, timeout=None):                     # noqa: ARG002
+        return _Response()
+
+
+class _Response:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+    def read(self, _n=None):
+        return b""
+
+
+def test_post_discord_resolves_TODAYS_channel_with_the_ops_variable_unset(monkeypatch):
+    """⛔⛔ THE ACCEPTANCE TEST. Neither `DISCORD_OPS_WEBHOOK_URL` nor the retired
+    `LIVEFLOW_ALERT_WEBHOOK_URL` is set — production's actual shape, measured via
+    `railway variables --service worker --kv` on 2026-09-27 — and the post must
+    still land on the admin channel rather than going silent."""
+    import urllib.request as urllib_request
+
+    monkeypatch.delenv("LIVEFLOW_ALERT_WEBHOOK_URL", raising=False)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+
+    wire = _Wire()
+    monkeypatch.setattr(urllib_request, "Request", wire.Request)
+    monkeypatch.setattr(urllib_request, "urlopen", wire.urlopen)
+
+    assert lm._post_discord("worker down") is True
+    assert wire.posts[0][0] == TODAY
+
+
+def test_post_discord_follows_the_ops_variable_once_it_is_SET(monkeypatch):
+    """⛔ THE CONTROL — without this, the test above would also pass on a module
+    that ignores the OPS variable entirely."""
+    import urllib.request as urllib_request
+
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, TODAY)
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, OPS_ONLY)
+
+    wire = _Wire()
+    monkeypatch.setattr(urllib_request, "Request", wire.Request)
+    monkeypatch.setattr(urllib_request, "urlopen", wire.urlopen)
+
+    assert lm._post_discord("worker down") is True
+    assert wire.posts[0][0] == OPS_ONLY
+
+
+def test_post_discord_returns_False_never_raises_with_NOTHING_configured(monkeypatch):
+    """The one legitimate silent case: BOTH the ops and admin webhooks blank.
+    Must return False, not raise — this fires from inside a monitor loop, and an
+    exception here would be worse than a missed page."""
+    import urllib.request as urllib_request
+
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+
+    wire = _Wire()
+    monkeypatch.setattr(urllib_request, "Request", wire.Request)
+    monkeypatch.setattr(urllib_request, "urlopen", wire.urlopen)
+
+    assert lm._post_discord("worker down") is False
+    assert wire.posts == []
+
+
+def test_start_liveflow_monitor_still_refuses_with_no_destination_at_all(monkeypatch):
+    """The pre-existing startup gate ("do not start with nowhere to report") is
+    PRESERVED exactly — this asserts the boolean now comes from `ops_webhook()`
+    rather than a retired module constant, not that the gate changed shape."""
+    monkeypatch.setenv("LIVEFLOW_MONITOR_ENABLED", "1")
+    monkeypatch.setattr(lm, "ENABLED", True)
+    monkeypatch.setenv(ar.ADMIN_WEBHOOK_ENV, "")
+    monkeypatch.setenv(ar.OPS_WEBHOOK_ENV, "")
+    monkeypatch.setattr(lm, "_thread", None)
+
+    assert lm.start_liveflow_monitor() is False

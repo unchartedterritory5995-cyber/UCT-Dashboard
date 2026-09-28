@@ -23,8 +23,18 @@ p3-success-systems.md):
 
 Env (worker service): LIVEFLOW_MONITOR_ENABLED=1 (master gate),
 LIVEFLOW_SCORECARD_ENABLED (default 1), LIVEFLOW_STATUS_URL,
-LIVEFLOW_CONSUMER_STATE_URL, LIVEFLOW_ALERT_WEBHOOK_URL (falls back to
-DISCORD_WEBHOOK_URL), LIVEFLOW_STALE_THRESHOLD_SEC (default 180).
+LIVEFLOW_CONSUMER_STATE_URL, LIVEFLOW_STALE_THRESHOLD_SEC (default 180).
+
+TERM-011 / RM-N09 step 5 (2026-09-27) — this is the OPS member of D7's nine, and
+it does NOT fail closed like the other eight: it is the OUTAGE ORACLE, so going
+silent when unconfigured would mean an actual outage reports nothing. Its
+Discord destination now resolves through `alert_destination.ops_webhook()` —
+the shared OPS-class resolver, `DISCORD_OPS_WEBHOOK_URL` falling back to
+`DISCORD_WEBHOOK_URL` — read at CALL time, matching step 3/6's other producers.
+`LIVEFLOW_ALERT_WEBHOOK_URL` is DROPPED, not layered in front of the resolver:
+measured absent on the worker service (`railway variables --service worker
+--kv`, with `DISCORD_WEBHOOK_URL`'s own presence as the positive control that
+the read was real), so today's resolution is byte-identical either way.
 """
 import json
 import logging
@@ -33,6 +43,10 @@ import threading
 import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+# ⭐ TERM-011 / RM-N09 step 5 — the OPS-class destination reader for this outage
+# oracle's Discord post below. MODULE level, matching step 3/6's other producers.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 
 log = logging.getLogger(__name__)
 
@@ -44,8 +58,6 @@ WEB_ORIGIN = os.environ.get("LIVEFLOW_WEB_ORIGIN", "https://uctintelligence.com"
 STATUS_URL = os.environ.get("LIVEFLOW_STATUS_URL", f"{WEB_ORIGIN}/api/live/massive/status")
 CONSUMER_STATE_URL = os.environ.get(
     "LIVEFLOW_CONSUMER_STATE_URL", f"{WEB_ORIGIN}/api/liveflow/consumer-state")
-WEBHOOK = (os.environ.get("LIVEFLOW_ALERT_WEBHOOK_URL")
-           or os.environ.get("DISCORD_WEBHOOK_URL") or "").strip()
 STALE_THRESHOLD_SEC = float(os.environ.get("LIVEFLOW_STALE_THRESHOLD_SEC", "180"))
 POLL_INTERVAL_SEC = float(os.environ.get("LIVEFLOW_POLL_INTERVAL_SEC", "60"))
 SCORECARD_DIR = os.environ.get(
@@ -344,13 +356,23 @@ def _http_get_json(url: str, timeout: float = 15.0):
 
 def _post_discord(content: str) -> bool:
     """Best-effort Discord webhook post. Never raises. (Copied from
-    worker_main — importing it from there risks module side effects.)"""
-    if not WEBHOOK:
+    worker_main — importing it from there risks module side effects.)
+
+    ⭐ TERM-011 step 5 — the destination is `_ops_webhook()`, resolved at CALL
+    time, never captured at import. This is the outage oracle: it must NOT fail
+    closed, so unlike the fail-closed content posters this module has no
+    "unconfigured" state of its own to log per-post — `ops_webhook()` already
+    falls back to today's channel, and `start_liveflow_monitor` below is the
+    one place that logs when NOTHING is configured at all (the monitor does
+    not even start).
+    """
+    webhook = _ops_webhook()
+    if not webhook:
         return False
     try:
         import urllib.request
         data = json.dumps({"content": content[:1900]}).encode()
-        req = urllib.request.Request(WEBHOOK, data=data,
+        req = urllib.request.Request(webhook, data=data,
                                      headers={"Content-Type": "application/json",
                                               "User-Agent": "uct-liveflow-monitor/1"})
         with urllib.request.urlopen(req, timeout=10) as r:
@@ -586,9 +608,13 @@ def start_liveflow_monitor() -> bool:
     if not ENABLED:
         log.info("[liveflow-monitor] disabled (LIVEFLOW_MONITOR_ENABLED != 1)")
         return False
-    if not WEBHOOK:
-        log.warning("[liveflow-monitor] no webhook configured "
-                    "(LIVEFLOW_ALERT_WEBHOOK_URL / DISCORD_WEBHOOK_URL) -- not starting")
+    if not _ops_webhook():
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE. Preserves the pre-existing gate
+        # exactly (the monitor still does not start with nowhere to report),
+        # naming the resolver's own destination check rather than a retired
+        # dedicated variable.
+        log.warning("[liveflow-monitor] no OPS destination configured "
+                    "(DISCORD_OPS_WEBHOOK_URL / DISCORD_WEBHOOK_URL) -- not starting")
         return False
     if _thread is not None and _thread.is_alive():
         return False
