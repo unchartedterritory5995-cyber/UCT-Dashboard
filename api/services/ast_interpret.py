@@ -1726,6 +1726,39 @@ def _fn_atr(h, l, c, n):  # noqa: E741
     return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_atr_raw(bars, n))
 
 
+def _true_range_true(h, l, c):  # noqa: E741
+    """Pine's ``ta.tr(true)`` as a column -- the twin of ``interpret.js::
+    trueRangeTrue``, built from the SAME scalar entries a written-out
+    ``na(c[1]) ? h - l : max(h - l, max(abs(h - c[1]), abs(l - c[1])))`` runs
+    through here (``_guarded_na``, ``_BINARY['-']``, ``_guarded_abs``,
+    ``_guarded_max``, ``_ternary``). Bar 0 has no previous close, so it is
+    ``high - low``: the vendor's rule, measured, not a clamp."""
+    out = _nan_col(len(c))
+    minus = _BINARY["-"]
+    for i in range(len(c)):
+        prev = c[i - 1] if i > 0 else NAN
+        rng = minus(h[i], l[i])
+        far = _guarded_max(_guarded_abs(minus(h[i], prev)), _guarded_abs(minus(l[i], prev)))
+        out[i] = _ternary(_guarded_na(prev), rng, _guarded_max(rng, far))
+    return out
+
+
+def _fn_atr_pine(h, l, c, n):  # noqa: E741
+    """⭐⭐ PINE'S ``ta.atr(n)`` -- reached ONLY through the Pine translator
+    (``pine.js::PINE_CALL_SHAPES.atr`` -> ``atrPine``), never by ThinkScript,
+    PCF or the native indicators, which keep Wilder's original ``_fn_atr``.
+
+    TradingView publishes ``ta.atr(n)`` as ``ta.rma(ta.tr(true), n)`` and the
+    vendor captures agree to the last bit (Keltner RDDT 1D from listing; SPY
+    12M): bar 0's true range is ``high - low``, the seed is the mean of the
+    first ``n`` true ranges on bar ``n - 1``, Wilder's step after that. So this
+    is COMPOSED from this lane's own ``_rma_col`` -- the same smoother the
+    ``rma`` entry runs -- and adds no averaging of its own; the JS twin is
+    ``interpret.js::FN.atrPine`` and ``tests/test_atr_pine_parity.py`` holds
+    both lanes to the vendor's numbers."""
+    return _rma_col(_true_range_true(h, l, c), n)
+
+
 def _fn_adx(h, l, c, n):  # noqa: E741
     # Bound to the SHIPPED implementation, never composed — the same rule as
     # its +DI/-DI siblings, and for a sharper reason: ADX smooths DX with
@@ -1869,6 +1902,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "rsi": _fn_rsi,
     "macd": _fn_macd,
     "atr": _fn_atr,
+    "atrPine": _fn_atr_pine,
     "adx": _fn_adx,
     "plusDI": _fn_plus_di,
     "minusDI": _fn_minus_di,

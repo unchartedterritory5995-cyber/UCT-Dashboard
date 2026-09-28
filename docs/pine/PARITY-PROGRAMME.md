@@ -372,6 +372,114 @@ conditional on the script removing anything; (c) prop-level losses inside a kept
 named but not counted in N/M, because they never became ops; (e) the acceptance
 dashboard is now refused with the flag ON.
 
+## ⭐⭐ 2026-09-27 — THE ATR SEED, HOST LANE: CLOSED (`atrPine`), and the house column untouched
+
+**Scheduled by the owner ("do it all"); decision 2 below and §"THE ATR SEED" are
+superseded for the host lane by this section.** Branch `pine/atr-seed-host`.
+
+### The vendor rule, derived from the capture's own bars (measured)
+
+`harness/keltner-channels-bands-rddt-1d-2026-09-27.json` — Pine v4
+`ma = ema(close,20)`, bands `ma ± k·atr(10)`, NYSE:RDDT 1D, all 631 bars from
+listing (`startsAtBar0: true`). The vendor's ATR on any plotted bar is
+`(Upper k − Basis)/k` or `(Basis − Lower k)/k` — six independent readings per bar.
+
+| step | value |
+|---|---|
+| TR on bar 0 | `high − low` = 57.8 − 45.05 = **12.75** (`ta.tr(true)`: no previous close) |
+| TR on bars 1..9 | 5.66, 15.9399, 15.10, 9.49, 8.65, 4.925, 7.35, 4.6899, 3.33 (max of the three gaps) |
+| seed | mean of the first 10 TRs, **on bar 9 (= n−1)**: **8.78848** |
+| after | Wilder: `atr = (atr·(n−1) + tr)/n` |
+| vendor bars 19–23 | 5.207212319146947 · 5.052491087232255 · 4.753241978509031 · 4.501747780658128 · 4.203573002592314 |
+| hand rule, same bars | agrees to ≤ 2.7e-15 on all five; max |err| over all 612 × 6 readings 2.3e-14 |
+| control: bar 0 = `na` (Wilder's TR from bar 1) | max |err| **1.53e-1** — the prefix the harness saw |
+
+Cross-check: `seed-warmup-spy-12m-2026-09-21.json` (`ta.atr(5)`, bar_index 0..33):
+the same rule reproduces all 34 bars with max |err| **0** (bar 4 = 13.96875).
+So: **`ta.atr(n)` = `ta.rma(ta.tr(true), n)`, bar 0's TR = high − low, SMA seed of
+the first n TRs landing on bar n−1, Wilder's step thereafter.**
+
+### What changed, lane by lane
+
+| lane | before | now |
+|---|---|---|
+| **host / columnar JS** (`interpret.js`) | Pine `ta.atr`/v4 `atr` → table `atr` → shipped `computeATR` (Wilder, TR from bar 1, seed on bar n) | → **`atrPine`** = `carriedFn('rma')` over `trueRangeTrue` (built from the same `POINTWISE`/`BINARY`/`TERNARY` scalars a written-out `ta.tr(true)` tree uses) |
+| **Python twin** (`ast_interpret.py`) | `_fn_atr` → `compute_atr_raw` | **`_fn_atr_pine`** = `_rma_col(_true_range_true(...))` — the key set stays TABLE's, both directions |
+| translator (`pine.js`) | `PINE_CALL_SHAPES.atr.table = 'atr'` | `'atrPine'` — the only door onto it |
+| manifest (`closedTable.json`) | 75 functions | 76: `atrPine`, same args/roles as `atr`, `lookback: "arg3"`, own sentence |
+| runtime request path (`pineRuntimeFrontend.js`) | already `rma` over `nz(close[1], close)` = Pine's seed | **unchanged code**; its stale comment ("raw `close[1]`") corrected. One recorded difference: a malformed bar-0 close outside its own high/low |
+| **house `atr`** (ThinkScript `ATR`, PCF `ATR<n>`, native ATR/ATR-bands, pattern levels, a typed formula) | Wilder | **unchanged**, with its `vendorNote` — by the standing ruling |
+
+### Why it was "not a one-line change", and how each reason was answered
+
+| reason on file | answer |
+|---|---|
+| a new name in `closedTable.json` needs a Python implementation | `_fn_atr_pine`, composed from `_rma_col`; `tests/test_atr_pine_parity.py` pins it to the vendor numbers |
+| `screenerColumns.test.js` freezes the columns for Python | regenerated (`10-atr-percent` now reads `atrPine`); the Python lane-parity rail runs both interpreters over it |
+| the "window" contract (`lookback`, `finiteTailStart`) | `lookback: "arg3"` = n bars, which is exactly the Pine rule's reach (seed from bars 0..n−1) — the sma convention; the tree-sum readers and `tools/lookback_agreement.json` regenerate with no disagreement. `finiteTailStart` is NOT used: the composition inherits `rma`'s vendor-pinned hold-on-`na`, i.e. the answer `ta.rma(ta.tr(true), n)` gives, and the rail asserts the identity with a hole in `close` |
+| 23 failures across count pins, sentence round-trip, vendor-note roster, corpus snapshot, formula reference | the same class again (23 on the first run) — each fixed at its cause: counts 75→76 / 259→260 / 122→123, a hand-written `atrPine` sentence form, `GRAMMAR.md` + `pineCorpus.json` + `screener_columns.json` + `graph_wire` regenerated, the vendor-note rails rewritten (a paste now owes NO note; the house `atr` still does), the two `it.fails` markers removed because the identity now holds |
+| re-seeding the shared column moves money | not done — the house column is byte-identical |
+
+### Harness, before → after (tolerance unchanged: REL 1e-9, 1e-6 of a tick)
+
+| capture | plot | before | after |
+|---|---|---|---|
+| keltner RDDT 1D (from bar 0) | Basis | MATCH 612/612 | MATCH 612/612 |
+| | Upper 1 / Lower 1 | DIVERGE 137 / 138 bars, converging prefix from bar 19 | **MATCH 612/612** (maxRel 4.8e-16 / 5.7e-16) |
+| | Upper 2 / Lower 2 | DIVERGE 141 / 143 | **MATCH 612/612** |
+| | Upper 3 / Lower 3 | DIVERGE 144 / 147 | **MATCH 612/612** |
+| | objects | INCONCLUSIVE (object lane did not run) | same — pre-existing, unrelated; it is why the capture-level verdict reads INCONCLUSIVE rather than MATCH |
+| SPY 12M seed (from bar 0) | N10_atr5 | DIVERGE 30/34 (ours `na` on bar 4) | **MATCH 34/34** |
+| | N11 rma(tr(true),5) | MATCH | MATCH |
+| SPY 1D `atr-14-2026-09-06` (window starts 2021, **not bar 0**) | atr14 | DIVERGE: converging prefix bars 180..207 (28) | DIVERGE: converging prefix bars 180..206 (27) — **kept, correctly**: the vendor's decades of prior smoothing vs our fetch-local seed (`recursive-smoother-cold-start-in-a-finite-capture`). Not touched by tolerance |
+
+Corpus totals (`tests/fixtures/vendor`, 17 captures): MATCH 7 → 8, DIVERGE 9 → 7,
+INCONCLUSIVE 1 → 2 (the Keltner capture, on its `objects` item only).
+
+⚠️ The legacy observation `atr-14-2026-09-06` names its plot by formula; it now
+carries `script.pasteLowersTo` (`atrPine(high, low, close, 14)`, dated, with the
+reason), which `adapters.mjs` maps by and `vendorTruth.test.js` asserts the paste
+produces. Its `engine` block stays on the house formula — it is the evidence the
+house ruling cites, and `test_vendor_parity_rsi_atr.py` still grades it.
+
+### Reach (measured over `corpus/committed`, 266 scripts)
+
+By source text: `atr` 73 · `rma` 21 · `tr` 20 · any of the three 91. Through the
+host translator today: 52 scripts translate, **5 carry `atrPine`** in a usable
+output (2 in the selected one) — including `keltner-channels-bands__T5FsnX45Dn.pine`,
+the captured script. ⚠️ Runtime/object-lane reach was not counted separately.
+Door counts: unchanged — the corpus snapshot moved only two formula strings.
+
+### Rails and mutations
+
+Rails pinned to the VENDOR numbers, not to our own: `atrPine.vendor.test.js` (JS)
+and `tests/test_atr_pine_parity.py` (Python), both reading the two captures, each
+with a house-`atr` control that must MISS the vendor; `runtime/__tests__/atr.test.js`
+now measures the Pine route against the vendor rule and asserts the house column
+still differs at the seed. 
+
+Mutations (bytes + sha256 capture/restore, every restore verified by sha; never git checkout), each
+run against the three JS rail files or the Python rail file:
+
+| mutation | result |
+|---|---|
+| M1 `pine.js`: route `ta.atr` back to the house `atr` | 10 JS tests red |
+| M2 `interpret.js`: bar-0 TR `na` (Wilder's TR-from-bar-1) | 13 JS tests red |
+| M3 `interpret.js`: `ema` smoother instead of `rma` | 8 JS tests red |
+| M4 `ast_interpret.py`: bar-0 TR `na` | 8 of 9 Python tests red |
+| M5 `ast_interpret.py`: `ema` alpha instead of Wilder's | 6 of 9 Python tests red |
+
+
+### Open
+
+* The runtime request path spells `ta.tr(true)` as `nz(close[1], close)`; equal
+  on every well-formed bar, different only for a bar-0 close outside its range.
+* `ta.kc`/`ta.kcw` smooth `ta.tr` (the bare, bar-0-`na` form) with `ema` —
+  unmeasured at bar 0; not changed here.
+* `divergences.json::atr-tr-starts-at-bar-1` stays **accepted** for the house
+  column and is narrowed (`narrowed_2026_09_27`); X-VENDOR-1 is now owed only
+  where the house `atr` is reached.
+
 ---
 
 ## ⭐⭐ 2026-09-26 — `pine:plot-offset` (11) SIZED, AND IT WAS NOT A PINE GAP
@@ -971,6 +1079,10 @@ strategies"*, and at 9.4% that asterisk is half as expensive as this file though
 
 ### 2. The ATR seed — **RULING CONFIRMED, HOST-LANE WORK NOT SCHEDULED NOW**
 
+> ⭐ **SUPERSEDED 2026-09-27 — scheduled ("do it all") and DONE.** See
+> §"2026-09-27 — THE ATR SEED, HOST LANE: CLOSED (`atrPine`)" at the top. The
+> ruling below held: Pine got its own seeding, Wilder's original stays everywhere else.
+
 The ruling on file is right and stands: **Pine gets its own seeding; Wilder's
 original stays everywhere else.** The vendor is measured
 (`seed-warmup-spy-12m-2026-09-21.json`), the request path has shipped, and the
@@ -1408,6 +1520,9 @@ harness executes a request, only builds its IR). **The mutation of that desugar
 had survived every behavioural test in the file** — the path had no coverage.
 
 ### ⛔⛔ OPEN — the host/columnar path, and it is NOT a one-line change
+
+> ✅ **CLOSED 2026-09-27** — `atrPine` (see the dated section at the top of this
+> file). Kept below as the record of what it cost and why.
 Routing Pine to a separately-seeded column **was built and reverted**. It works:
 `ta.atr(5)` matched the vendor at **delta 0** across the captured series. What
 stopped it:
