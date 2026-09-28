@@ -162,6 +162,18 @@ def catalysts_history(sym: str = Path(...), user=Depends(require_paid)):
     return {"ticker": sym, "entries": entries}
 
 
+@router.get("/catalysts/ep-base-rate")
+def catalysts_ep_base_rate(user=Depends(require_paid)):
+    """TERM-090: how often the engine's Episodic Pivot flag has followed
+    through, derived from the Brain Pack's outcome record on every request --
+    always with its n and window, and with NO percentage below the floor
+    (`api/services/ep_base_rate.py` owns both rules). Paid-gated: it is the
+    firm's own track record, and the free Morning Wire table renders the EP
+    label without it."""
+    from api.services import ep_base_rate
+    return ep_base_rate.compute()
+
+
 @router.post("/catalysts/refresh")
 def catalysts_refresh(user=Depends(require_admin)):
     """Trigger an immediate refresh. Runs in a background thread so the HTTP

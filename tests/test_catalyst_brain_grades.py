@@ -10,6 +10,16 @@ def test_infer_scanner_bucket_wins():
     assert brain_grades._infer_setup(c) == "Episodic Pivot"
 
 
+@pytest.mark.parametrize("bucket", ["GAPPER_NEWS", "GAPPER", "GAPPERS"])
+def test_a_scanner_gapper_that_just_reported_is_never_labelled_ep(bucket):
+    """TERM-090: EP is prohibited on an earnings gapper -- that is a PEG. The
+    scanner's gapper bucket used to win before the earnings check ran, so an
+    earnings gapper in a gapper bucket was graded (and shown) as an EP."""
+    c = {"scanner_setup": {"setup_type": bucket}, "gap_pct": 9.0,
+         "earnings_just_reported": True}
+    assert brain_grades._infer_setup(c) == "Power Earnings Gap"
+
+
 def test_infer_remount():
     c = {"scanner_setup": {"setup_type": "REMOUNT"}}
     assert brain_grades._infer_setup(c) == "Remount"

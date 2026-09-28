@@ -15,6 +15,7 @@ import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import UIcon from '../ui/UIcon'
+import EpFlag, { isEpSetup } from './EpBaseRate'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -189,8 +190,14 @@ function FlowChip({ flow }) {
 // Firm edge — the desk's historical win-rate/expectancy for this candidate's
 // setup, from the Brain. Display-only. `edge` = {setup, win_rate_pct, expectancy,
 // sample} or null.
-function EdgeChip({ edge }) {
-  if (!edge || edge.win_rate_pct == null) return null
+//
+// TERM-090: an Episodic Pivot grade renders as the EP flag plus its DERIVED base
+// rate (n + window, or "not enough history") from `EpBaseRate.jsx` -- never the
+// `setup_performance` % below, and never on an earnings gapper.
+function EdgeChip({ edge, row, rs }) {
+  if (!edge) return null
+  if (isEpSetup(edge.setup)) return <EpFlag row={row} rs={rs} />
+  if (edge.win_rate_pct == null) return null
   const wr = Math.round(Number(edge.win_rate_pct))
   const exp = edge.expectancy != null ? `${Number(edge.expectancy).toFixed(2)} expectancy` : ''
   const title = `Firm edge: ${edge.setup} — ${wr}% win${exp ? `, ${exp}` : ''}${edge.sample ? ` over ${edge.sample} logged trades` : ''}`
@@ -885,7 +892,7 @@ export default function CatalystTable({
                                 <PreMoveChip preMove={r.pre_move} />
                                 <RatingChangeChip rc={r.rating_change} />
                                 <FlowChip flow={rs.options_flow} />
-                                <EdgeChip edge={rs.brain_grade} />
+                                <EdgeChip edge={rs.brain_grade} row={r} rs={rs} />
                                 <HighlightThesis text={r.thesis_text} />
                               </span>
                               <UIcon
