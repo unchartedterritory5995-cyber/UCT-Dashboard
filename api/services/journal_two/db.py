@@ -9,12 +9,15 @@ Spec §4 (data model), audit §5 (schema commitment).
 """
 
 import json
+import logging
 import os
 import sqlite3
 import time
 import uuid
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 #: The task index's invalidation triggers (`j2_note_task_digest`, see its table in
@@ -2232,10 +2235,12 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     # Wave 10 (lane 10A): the search's integer hop. LAST among the FTS steps, so
     # whatever migration v4/v5 rebuilt, the map, its triggers and its covering index
     # end in the wave-10 shape -- on a fresh database and on one that predates it.
+    withheld_reasons: dict[str, str] = {}
     try:
         _upgrade_fts_map_note_rowid(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         conn.rollback()
+        withheld_reasons[_FTS_MAP_FAMILY] = f"{type(e).__name__}: {e}"
         print(f"[notebook-fts-map] note_rowid upgrade aborted: {e}")
 
     # Wave 10 (lane 10A): the tag index -- created, built once, drift-checked. The
@@ -2245,6 +2250,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         _ensure_note_tag_index(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         conn.rollback()
+        withheld_reasons[_NOTE_TAG_INDEX_FAMILY] = f"{type(e).__name__}: {e}"
         print(f"[notebook-tag-index] ensure aborted: {e}")
 
     # Wave 10 (lane 10A): the task index, filled in place for any note that has no
@@ -2255,6 +2261,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         conn.rollback()
         print(f"[notebook-task-digest] backfill aborted: {e}")
+
+    # Follow-up F2 fix round 1 (review m-2): a withheld family is otherwise visible only
+    # as the step's abort line, and it stays withheld until the next boot. ONE structured
+    # WARNING at the end of the boot check names each family and why.
+    _warn_withheld(conn, withheld_reasons)
 
 
 def _data_dir() -> Path:
@@ -2712,12 +2723,25 @@ _FTS_MAP_INDEX_DDL = ("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_not
 #: The withdrawal's retries: the seconds slept before each further attempt, on top of
 #: the connection's own busy wait (3 s on auth.db). Only a drifted or re-versioned
 #: structure withdraws a record at boot, so this is paid once, and only under a lock.
+#: ⚠️ Worst case, every attempt refused: 3.5 s of sleep + 4 busy waits x 3 s = ~15.5 s
+#: PER FAMILY. Three families can withdraw on one boot (the FTS map, the tag index and
+#: the task index -- the first boot after F2 withdraws two of them by version alone), so
+#: ~46.5 s, run in `lifespan` before uvicorn binds (review m-3).
 _UNMARK_RETRY_WAITS_S = (0.5, 1.0, 2.0)
 
 #: (database, family) pairs this PROCESS does not trust, whatever `j2_schema_builds`
 #: holds. Written only by the boot checks; empty in a healthy process, so the readers'
 #: `schema_built` pays nothing for it.
 _WITHHELD: set[tuple[str, str]] = set()
+
+#: ⛔ Review m-4: an in-memory database has no file, so its key is `memory:<id(conn)>` --
+#: and CPython hands a freed object's id() to the next one. A withholding on an
+#: in-memory key therefore HOLDS its connection object here (a live object's id cannot
+#: be reused), and a reader matches it only when it is that SAME object. A closed held
+#: connection is pruned, with its withholdings, the next time anything withholds or
+#: trusts. (`sqlite3.Connection` takes no weak reference, so a WeakKeyDictionary token
+#: is not available.)
+_MEMORY_HOLDS: dict[str, Any] = {}
 
 
 def _db_key(conn: sqlite3.Connection) -> str:
@@ -2729,12 +2753,53 @@ def _db_key(conn: sqlite3.Connection) -> str:
     return f"memory:{id(conn)}"
 
 
+def _is_closed(conn: Any) -> bool:
+    try:
+        conn.total_changes
+    except sqlite3.ProgrammingError:
+        return True
+    return False
+
+
+def _prune_memory_holds() -> None:
+    """Drop every closed in-memory connection this module holds, and its withholdings."""
+    for key, held in list(_MEMORY_HOLDS.items()):
+        if _is_closed(held):
+            del _MEMORY_HOLDS[key]
+            for entry in [e for e in _WITHHELD if e[0] == key]:
+                _WITHHELD.discard(entry)
+
+
 def _withhold(conn: sqlite3.Connection, family: str) -> None:
-    _WITHHELD.add((_db_key(conn), family))
+    _prune_memory_holds()
+    key = _db_key(conn)
+    if key.startswith("memory:"):
+        _MEMORY_HOLDS[key] = conn
+    _WITHHELD.add((key, family))
 
 
 def _trust(conn: sqlite3.Connection, family: str) -> None:
-    _WITHHELD.discard((_db_key(conn), family))
+    key = _db_key(conn)
+    _WITHHELD.discard((key, family))
+    if key in _MEMORY_HOLDS and not any(e[0] == key for e in _WITHHELD):
+        del _MEMORY_HOLDS[key]
+    _prune_memory_holds()
+
+
+def _is_withheld(conn: sqlite3.Connection, family: str) -> bool:
+    key = _db_key(conn)
+    if (key, family) not in _WITHHELD:
+        return False
+    return not key.startswith("memory:") or _MEMORY_HOLDS.get(key) is conn
+
+
+def _warn_withheld(conn: sqlite3.Connection, reasons: dict[str, str]) -> None:
+    """One structured WARNING naming every family this boot left withheld on this
+    database, and why (review m-2). A healthy boot logs nothing."""
+    held = [f for f in (_FTS_MAP_FAMILY, _NOTE_TAG_INDEX_FAMILY) if _WITHHELD and _is_withheld(conn, f)]
+    if held:
+        logger.warning("[notebook-schema-builds] withheld until a boot proves them: %s", json.dumps(
+            [{"family": f, "reason": reasons.get(f, "the boot check did not complete")} for f in held]))
 
 
 def _recorded(conn: sqlite3.Connection, name: str) -> bool:
@@ -2750,7 +2815,7 @@ def _recorded(conn: sqlite3.Connection, name: str) -> bool:
 def schema_built(conn: sqlite3.Connection, name: str) -> bool:
     """Whether `name` was built on this database (and not since unmarked), and this
     process has not withheld its family (a boot check that could not prove it)."""
-    if _WITHHELD and (_db_key(conn), name.split("@", 1)[0]) in _WITHHELD:
+    if _WITHHELD and _is_withheld(conn, name.split("@", 1)[0]):
         return False
     return _recorded(conn, name)
 
@@ -2761,7 +2826,13 @@ def _mark_built(conn: sqlite3.Connection, name: str) -> None:
                  (name, time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())))
 
 
-def _unmark_built(conn: sqlite3.Connection, family: str) -> int:
+def _backoff_sleep(seconds: float) -> None:
+    """The withdrawal's wait between attempts. ⛔ This is the seam a test patches -- never
+    `time.sleep` itself, which every thread in the process shares (review m-1)."""
+    time.sleep(seconds)
+
+
+def _unmark_built(conn: sqlite3.Connection, family: str, sleep_fn=None) -> int:
     """Forget every record of `family` (its bare name and every `family@<version>`),
     in its OWN commit: the readers fall back from this instant, before any rebuild
     starts. Returns the records removed.
@@ -2770,11 +2841,15 @@ def _unmark_built(conn: sqlite3.Connection, family: str) -> int:
     `_UNMARK_RETRY_WAITS_S`; if every attempt is refused it prints a line of its own
     (not the step's generic abort) and raises. The caller has already withheld a
     family a drift can falsify, so that refusal costs speed in this process, never a
-    wrong answer."""
+    wrong answer.
+
+    `sleep_fn` is resolved in the BODY (late-bound): a default of `_backoff_sleep` would
+    be bound at import, and a module-level patch would reach nothing."""
+    sleep = sleep_fn if sleep_fn is not None else _backoff_sleep
     waits = (0.0, *_UNMARK_RETRY_WAITS_S)
     for attempt, wait in enumerate(waits):
         if wait:
-            time.sleep(wait)
+            sleep(wait)
         try:
             cur = conn.execute("DELETE FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
                                (family, family + "@%"))

@@ -159,7 +159,7 @@ def test_a_lock_released_during_the_backoff_lets_the_retry_withdraw(tmp_path, da
         if len(slept) == 1:
             holder.execute("ROLLBACK")
     monkeypatch.setattr(j2db, "_UNMARK_RETRY_WAITS_S", (0.25, 0.5))
-    monkeypatch.setattr(j2db.time, "sleep", sleep)
+    monkeypatch.setattr(j2db, "_backoff_sleep", sleep)     # the seam, never time.sleep itself
     c = _conn(path, timeout=0.05)
     fts_out, tag_out = _boot_steps(c)
     holder.close()
@@ -225,4 +225,147 @@ def test_a_check_that_raises_before_the_withdrawal_also_withholds(tmp_path, data
     assert j2db._recorded(c, j2db._FTS_MAP_BUILD)                   # never examined, never withdrawn
     assert not notes_svc._fts_map_ready(c) and not notes_svc._tag_index_ready(c)
     assert _answers(c) == want
+    c.close()
+
+
+# ── fix round 1 (task review m-1, m-2, m-4) ─────────────────────────────────────
+
+def test_the_backoff_seam_is_late_bound_and_the_patch_is_CALLED(tmp_path, data_dir, monkeypatch):
+    """m-1: the retry test used to patch `time.sleep` for the whole process, so any other
+    thread sleeping meanwhile hit the fake. The withdrawal now waits through
+    `_backoff_sleep`, resolved in the BODY of `_unmark_built`. Proved by the patch being
+    CALLED (a signature check alone passes a body that ignores the parameter), while a
+    thread sleeping at the same time never reaches the fake."""
+    import inspect
+    import threading
+    import time
+    assert inspect.signature(j2db._unmark_built).parameters["sleep_fn"].default is None
+    path = tmp_path / "restored.db"
+    _drifted(path, "wal")
+    calls = []
+
+    def fake(seconds):
+        calls.append((seconds, threading.get_ident()))
+    monkeypatch.setattr(j2db, "_backoff_sleep", fake)
+    monkeypatch.setattr(j2db, "_UNMARK_RETRY_WAITS_S", (0.01, 0.02))
+    stop = threading.Event()
+    background = []
+
+    def other_thread():                   # a poller elsewhere in the process
+        while not stop.is_set():
+            time.sleep(0.001)
+            background.append(1)
+    t = threading.Thread(target=other_thread, daemon=True)
+    t.start()
+    holder = _hold_write_lock(path)
+    c = _conn(path, timeout=0.05)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            j2db._unmark_built(c, j2db._FTS_MAP_FAMILY)
+    finally:
+        stop.set()
+        t.join()
+        holder.execute("ROLLBACK")
+        holder.close()
+    assert [s for s, _ in calls] == [0.01, 0.02]                 # the module seam was called
+    assert {tid for _, tid in calls} == {threading.get_ident()}   # only by this thread
+    assert background                     # non-vacuity: the other thread really slept meanwhile
+    # and a caller-supplied sleeper wins over the module seam
+    explicit = []
+    holder = _hold_write_lock(path)
+    try:
+        with pytest.raises(sqlite3.OperationalError):
+            j2db._unmark_built(c, j2db._FTS_MAP_FAMILY, sleep_fn=explicit.append)
+    finally:
+        holder.execute("ROLLBACK")
+        holder.close()
+    assert explicit == [0.01, 0.02] and len(calls) == 2
+    c.close()
+
+
+def test_an_in_memory_withholding_is_not_inherited_through_a_reused_id(data_dir):
+    """m-4: an in-memory database is keyed by id(conn), and CPython reuses a freed id.
+    Withhold on one connection, close it, then open new ones until one gets the SAME id
+    (forced: each trial succeeds about half the time on CPython 3.14, so 40 trials fail to
+    force it with probability ~1e-12). The new connection must not be withheld."""
+    import gc
+    reused = False
+    for _ in range(40):
+        a = sqlite3.connect(":memory:")
+        j2db._withhold(a, j2db._FTS_MAP_FAMILY)
+        old = id(a)
+        assert j2db._is_withheld(a, j2db._FTS_MAP_FAMILY)          # non-vacuity
+        a.close()
+        del a
+        j2db._prune_memory_holds()        # what the next withhold or trust does first
+        gc.collect()
+        for _ in range(50):
+            b = sqlite3.connect(":memory:")
+            if id(b) == old:
+                reused = True
+                break
+            b.close()
+            del b
+        if reused:
+            break
+    assert reused, "could not force id() reuse on this interpreter"
+    try:
+        assert not j2db._is_withheld(b, j2db._FTS_MAP_FAMILY)
+        assert not any(k == f"memory:{old}" for k, _ in j2db._WITHHELD)
+    finally:
+        b.close()
+
+
+def test_a_held_in_memory_connection_cannot_be_matched_by_another_object(data_dir):
+    """The identity half of m-4: even under a key that matches, only the SAME connection
+    object is withheld, and trusting it releases the hold."""
+    a = sqlite3.connect(":memory:")
+    j2db._withhold(a, j2db._NOTE_TAG_INDEX_FAMILY)
+    key = j2db._db_key(a)
+    assert j2db._MEMORY_HOLDS[key] is a
+
+    class Impostor:                       # same key, different object
+        def execute(self, sql, *args):
+            return [(0, "main", "")]
+    impostor = Impostor()
+    j2db_key = j2db._db_key
+    try:
+        j2db._db_key = lambda conn: key
+        assert j2db._is_withheld(a, j2db._NOTE_TAG_INDEX_FAMILY)
+        assert not j2db._is_withheld(impostor, j2db._NOTE_TAG_INDEX_FAMILY)
+    finally:
+        j2db._db_key = j2db_key
+    j2db._trust(a, j2db._NOTE_TAG_INDEX_FAMILY)
+    assert key not in j2db._MEMORY_HOLDS and not j2db._is_withheld(a, j2db._NOTE_TAG_INDEX_FAMILY)
+    a.close()
+
+
+def test_a_withheld_boot_ends_in_one_structured_warning(tmp_path, data_dir, monkeypatch, caplog):
+    """m-2: the boot names each family it left withheld, and why, in ONE WARNING at the end
+    of `ensure_schema` -- the only signal otherwise was each step's abort line."""
+    import logging
+    path = tmp_path / "restored.db"
+    _drifted(path, "delete")
+    c = _conn(path)
+
+    def cannot_read(conn):
+        raise sqlite3.OperationalError("disk I/O error")
+    monkeypatch.setattr(j2db, "_fts_map_in_shape", cannot_read)
+    monkeypatch.setattr(j2db, "_tag_index_in_shape", cannot_read)
+    with caplog.at_level(logging.WARNING, logger=j2db.logger.name):
+        j2db.ensure_schema(c)
+    records = [r for r in caplog.records if "withheld until a boot proves them" in r.getMessage()]
+    assert len(records) == 1 and records[0].levelno == logging.WARNING
+    payload = json.loads(records[0].getMessage().split(": ", 1)[1])
+    assert payload == [
+        {"family": j2db._FTS_MAP_FAMILY, "reason": "OperationalError: disk I/O error"},
+        {"family": j2db._NOTE_TAG_INDEX_FAMILY, "reason": "OperationalError: disk I/O error"},
+    ]
+    # CONTROL: the next, healthy boot proves both and logs nothing
+    monkeypatch.undo()
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=j2db.logger.name):
+        j2db.ensure_schema(c)
+    assert not [r for r in caplog.records if "withheld until" in r.getMessage()]
+    assert notes_svc._fts_map_ready(c) and notes_svc._tag_index_ready(c)
     c.close()
