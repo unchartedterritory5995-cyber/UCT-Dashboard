@@ -97,6 +97,11 @@ describe('⭐ a comma that ends a line separates it from a same-indent line belo
     expect(headers('f = math.max(1,\n     2)\nplot(f)\n'))
       .toEqual(['f = math.max ( 1 , 2 )', 'plot ( f )'])
     expect(headers('a = 1,\n     b = 2\n')).toEqual(['a = 1', 'b = 2'])
+    // ⛔ the discriminating case: an INDENTED line after a line-end `,` is a
+    // continuation, so a mixed binding-and-call line stays exactly one header,
+    // as it always did. (A cut at every line-end comma would split it — the
+    // mutation that survived this file until this line was added.)
+    expect(headers('a = 1,\n     plot(close)\n')).toEqual(['a = 1 , plot ( close )'])
   })
 
   it('⭐ through the lane: the plot on the line after the comma is drawn', () => {
