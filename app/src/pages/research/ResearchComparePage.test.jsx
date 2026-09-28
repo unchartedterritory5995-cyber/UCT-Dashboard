@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderWithProviders, screen, fireEvent } from '../../test-utils'
+import { renderWithProviders, screen, fireEvent, within } from '../../test-utils'
 import ResearchComparePage from './ResearchComparePage'
 import { withResearchReturnParam } from '../../lib/journal-2-0'
 
@@ -202,6 +202,111 @@ describe('ResearchComparePage', () => {
       renderWithProviders(<ResearchComparePage />, { route })
       expect(screen.getByText('Comparison unavailable.')).toBeInTheDocument()
       expect(screen.getByTestId('compare-return-link')).toHaveTextContent('Back to Trade')
+    })
+  })
+
+  // ── TERM-019 adoption: the analyst legs' S8 envelopes, rendered per side ──
+  // comparison.py ships `consensus_meta` / `price_target_meta` "as-is so two
+  // securities with different freshness/vendor state show that difference
+  // rather than reading as equally current". Until TERM-019 this page dropped
+  // both. These pin that they are now SHOWN, through S8, per side.
+  describe('analyst provenance, per side (TERM-019)', () => {
+    const META = (freshnessClass, sourceActivity) => ({
+      vendor: 'fmp', sourceActivity, sourceObservedAt: 1735689600, tieBreak: null,
+      freshnessClass, licensingClass: 'R', degraded: null,
+    })
+    function withMeta() {
+      const d = fullData()
+      d.a.analyst = { ...d.a.analyst,
+        consensus_meta: META('end_of_day', 'fmp_client.get_grades_consensus'),
+        price_target_meta: META('end_of_day', 'fmp_client.get_price_target_consensus') }
+      d.b.analyst = { ...d.b.analyst,
+        consensus_meta: META('stale', 'fmp_client.get_grades_consensus'),
+        price_target_meta: META('end_of_day', 'fmp_client.get_price_target_consensus') }
+      return d
+    }
+
+    it('renders an S8 <Provenance> + <FreshnessBadge> for every side of every analyst leg', () => {
+      mockComparisonReturn = { data: withMeta(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const block = screen.getByTestId('compare-analyst-provenance')
+      expect(within(block).getAllByTestId('provenance-present')).toHaveLength(4)
+      expect(within(block).getAllByTestId('freshness-badge')).toHaveLength(4)
+      const sides = within(block).getAllByTestId('compare-analyst-provenance-side')
+      expect(sides.map(s => `${s.getAttribute('data-leg')}:${s.getAttribute('data-side')}`)).toEqual([
+        'consensus:AAPL', 'consensus:MSFT', 'price_target:AAPL', 'price_target:MSFT',
+      ])
+    })
+
+    it('two securities with different freshness READ differently, which is the envelope\'s stated purpose', () => {
+      mockComparisonReturn = { data: withMeta(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const sides = screen.getAllByTestId('compare-analyst-provenance-side')
+      const tier = (el) => within(el).getByTestId('freshness-tier').getAttribute('data-freshness-tier')
+      expect(tier(sides[0])).toBe('end_of_day')
+      expect(tier(sides[1])).toBe('stale')
+      expect(within(sides[1]).getByTestId('source-stale-note')).toBeInTheDocument()
+    })
+
+    it('the detail disclosure names the real source activity from the envelope', () => {
+      mockComparisonReturn = { data: withMeta(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const side = screen.getAllByTestId('compare-analyst-provenance-side')[2]
+      fireEvent.click(within(side).getByTestId('provenance-detail-toggle'))
+      expect(within(side).getByTestId('provenance-detail-panel'))
+        .toHaveTextContent('Source: fmp_client.get_price_target_consensus')
+    })
+
+    it('a value with NO envelope states "provenance unavailable", never a bare blank and never a badge', () => {
+      mockComparisonReturn = { data: fullData(), isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const block = screen.getByTestId('compare-analyst-provenance')
+      expect(within(block).getAllByTestId('provenance-degraded')).toHaveLength(4)
+      expect(within(block).queryAllByTestId('provenance-present')).toHaveLength(0)
+      expect(within(block).queryAllByTestId('freshness-badge')).toHaveLength(0)
+    })
+
+    it('a side with no analyst value says so, and cites nothing for it', () => {
+      const d = withMeta()
+      d.b.analyst = { consensus: null, price_target: null, consensus_meta: null, price_target_meta: null, outage: false }
+      mockComparisonReturn = { data: d, isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const sides = screen.getAllByTestId('compare-analyst-provenance-side')
+      const msft = sides.filter(s => s.getAttribute('data-side') === 'MSFT')
+      expect(msft).toHaveLength(2)
+      for (const s of msft) {
+        expect(s).toHaveTextContent('no analyst data')
+        expect(within(s).queryByTestId('provenance-present')).toBeNull()
+        expect(within(s).queryByTestId('provenance-degraded')).toBeNull()
+      }
+      expect(screen.getAllByTestId('provenance-present')).toHaveLength(2)
+    })
+
+    it('a side missing its value because the source FAILED says so on S8\'s availability axis, not as "no data"', () => {
+      // Seam 29's `outage` flag: a genuine provider outage this round, which
+      // must not read like a ticker with no analyst coverage.
+      const d = withMeta()
+      d.b.analyst = { consensus: null, price_target: null, consensus_meta: null, price_target_meta: null, outage: true }
+      mockComparisonReturn = { data: d, isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      const msft = screen.getAllByTestId('compare-analyst-provenance-side')
+        .filter(s => s.getAttribute('data-side') === 'MSFT')
+      expect(msft).toHaveLength(2)
+      for (const s of msft) {
+        expect(within(s).getByTestId('provenance-unavailable'))
+          .toHaveAttribute('data-availability', 'provider_error')
+        expect(s).not.toHaveTextContent('no analyst data')
+      }
+    })
+
+    it('is a real control: no analyst value on either side renders no sources block', () => {
+      const d = fullData()
+      d.a.analyst = { consensus: null, price_target: null }
+      d.b.analyst = { consensus: null, price_target: null }
+      mockComparisonReturn = { data: d, isLoading: false }
+      renderWithProviders(<ResearchComparePage />, { route: '/research/AAPL/compare/MSFT' })
+      expect(screen.getByTestId('research-compare-page')).toBeInTheDocument()
+      expect(screen.queryByTestId('compare-analyst-provenance')).toBeNull()
     })
   })
 })

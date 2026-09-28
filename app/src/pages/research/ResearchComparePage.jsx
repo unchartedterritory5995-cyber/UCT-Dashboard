@@ -8,6 +8,13 @@ import TileCard from '../../components/TileCard'
 import UIcon from '../../components/ui/UIcon'
 import PaywallTeaser from './PaywallTeaser'
 import ComparisonAskAi from './components/ComparisonAskAi'
+import Provenance from '../../components/provenance/Provenance'
+import FreshnessBadge from '../../components/provenance/FreshnessBadge'
+import { mapAvailability, AVAILABLE, PROVIDER_ERROR } from '../../components/provenance/availabilityContract'
+import { epochSecondsToIso } from '../../components/provenance/presentationFormat'
+import { computeSessionStale } from '../../components/provenance/sessionStale'
+import { sessionModel } from '../../components/dashboard/sessionModel'
+import useMarketOpen from '../../hooks/useMarketOpen'
 import styles from './ResearchComparePage.module.css'
 
 // Cross-Security Comparison V1 (owner authorization, Phase B). Deterministic
@@ -47,6 +54,104 @@ function EntityLabel({ side }) {
   return null
 }
 
+// ─── TERM-019 (FB-S8-01) adoption: the analyst legs' provenance, per side ──
+// comparison.py surfaces each side's `consensus_meta` / `price_target_meta` --
+// the S8 envelopes analyst_grades.py already attached upstream -- "as-is so
+// two securities with different freshness/vendor state show that difference
+// rather than reading as equally current". Until TERM-019 this page dropped
+// both, so the Analyst Consensus / Price Target rows showed FMP values with no
+// source and no as-of while AnalystRatingsTab showed the SAME envelopes.
+// Rendered with the same TrustStrip recipe AnalystRatingsTab uses
+// (Provenance + FreshnessBadge off the envelope), one per side per leg.
+//
+// Four honest states per side, and none of them is a blank:
+//   * value + envelope      -> S8 Provenance + FreshnessBadge;
+//   * value, no envelope    -> Provenance's own degraded state ("provenance
+//                              unavailable"), never a fabricated receipt;
+//   * no value, `outage`    -> Provenance on S8's availability axis
+//                              (provider_error) -- Seam 29: an outage must
+//                              not read like "no coverage";
+//   * no value, no outage   -> "no analyst data", citing nothing.
+// ⛔ The block is omitted only when NEITHER side has a value or an outage for
+// either leg -- then the table's own em dashes already say everything.
+const ANALYST_LEGS = [
+  { leg: 'consensus', label: 'Analyst consensus', value: (s) => s?.analyst?.consensus?.label, meta: (s) => s?.analyst?.consensus_meta },
+  { leg: 'price_target', label: 'Analyst price target', value: (s) => s?.analyst?.price_target?.consensus, meta: (s) => s?.analyst?.price_target_meta },
+]
+
+const present = (v) => v !== null && v !== undefined && v !== ''
+
+function AnalystSide({ leg, sym, side, value, meta, sessionContext }) {
+  let body
+  if (!present(value)) {
+    body = side?.analyst?.outage
+      ? <Provenance value="FMP" availability={PROVIDER_ERROR} />
+      : <span>no analyst data</span>
+  } else if (!meta) {
+    body = <Provenance value="FMP" provenance={null} />
+  } else {
+    const availability = mapAvailability({ value: true, degraded: meta.degraded })
+    const asOfIso = epochSecondsToIso(meta.sourceObservedAt)
+    body = (
+      <>
+        <Provenance
+          value="FMP"
+          availability={availability}
+          provenance={availability === AVAILABLE ? {
+            sourceActivity: meta.sourceActivity,
+            timestamp: asOfIso,
+            tieBreak: meta.tieBreak,
+          } : null}
+        />
+        {availability === AVAILABLE && (
+          <FreshnessBadge
+            freshnessClass={meta.freshnessClass}
+            asOf={asOfIso}
+            sessionState={sessionContext}
+            sessionStale={computeSessionStale(asOfIso)}
+          />
+        )}
+      </>
+    )
+  }
+  return (
+    <span
+      data-testid="compare-analyst-provenance-side"
+      data-leg={leg}
+      data-side={sym}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+    >
+      <b>{sym}</b> {body}
+    </span>
+  )
+}
+
+function AnalystProvenance({ sides, sessionContext }) {
+  const any = ANALYST_LEGS.some(({ value }) =>
+    sides.some(([, side]) => present(value(side)) || !!side?.analyst?.outage))
+  if (!any) return null
+  return (
+    <div className={styles.footnote} data-testid="compare-analyst-provenance">
+      {ANALYST_LEGS.map(({ leg, label, value, meta }) => (
+        <div key={leg} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 4 }}>
+          <span>{label}:</span>
+          {sides.map(([sym, side]) => (
+            <AnalystSide
+              key={sym}
+              leg={leg}
+              sym={sym}
+              side={side}
+              value={value(side)}
+              meta={meta(side)}
+              sessionContext={sessionContext}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SummaryRow({ label, a, b, fmt = (v) => (v == null ? '—' : v) }) {
   return (
     <tr>
@@ -65,6 +170,7 @@ export default function ResearchComparePage() {
   const sym = (rawSym || '').toUpperCase()
   const comparator = (rawComparator || '').toUpperCase()
   const { data, isLoading } = useComparison(sym, comparator)
+  const sessionContext = sessionModel(useMarketOpen())
   const [searchParams] = useSearchParams()
   // Seam 22. All THREE writers already send this page a return marker --
   // PositionDetailPage, TradeDetailPage and TradeDrawer each route their
@@ -206,6 +312,7 @@ export default function ResearchComparePage() {
               As of: {sym} {a?.ratings?.price_as_of || '—'} · {comparator} {b?.ratings?.price_as_of || '—'}
             </div>
           )}
+          <AnalystProvenance sides={[[sym, a], [comparator, b]]} sessionContext={sessionContext} />
         </TileCard>
       </div>
 
