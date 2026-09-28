@@ -65,8 +65,26 @@ for (const dir of SOURCES) {
  *  named skip at the bottom rather than reporting them as "gone". */
 const ABSENT = new Set(OOS_ABSENT.map((n) => `tests/fixtures/pine_oos/${n}`))
 
+// ⛔⛔ A REGENERATION ON A PARTIAL RIG MUST NOT ERASE WHAT IT COULD NOT READ.
+// ⚰️ 2026-09-28: a plain write here, on a checkout without the licence-held
+// members, dropped 29 pinned maps — every one of them would then have read as
+// "added" on a complete rig, and their old ids would have been lost. So an absent
+// licence-held member KEEPS its pinned map, carried over verbatim; only what was
+// actually measured is rewritten. Key order follows the pinned file, then new keys.
+export function mergeForWrite(pinned, measured, absent) {
+  const out = {}
+  for (const k of Object.keys(pinned)) {
+    if (k in measured) out[k] = measured[k]
+    else if (absent.has(k)) out[k] = pinned[k]
+  }
+  for (const k of Object.keys(measured)) if (!(k in out)) out[k] = measured[k]
+  return out
+}
+
 if (process.env.PARAM_IDS_WRITE) {
-  fs.writeFileSync(ARTIFACT, `${JSON.stringify(MEASURED, null, 2)}\n`, 'utf8')
+  const pinned = fs.existsSync(ARTIFACT) ? JSON.parse(fs.readFileSync(ARTIFACT, 'utf8')) : {}
+  const merged = mergeForWrite(pinned, MEASURED, ABSENT)
+  fs.writeFileSync(ARTIFACT, `${JSON.stringify(merged, null, 2)}\n`, 'utf8')
 }
 
 describe('parameter ids are an address, and addresses do not move', () => {
@@ -119,6 +137,24 @@ describe('parameter ids are an address, and addresses do not move', () => {
 
   // ⏭ The maps the check above could not read: skipped by NAME while any
   // licence-held member is absent, and a real comparison on a complete rig.
+  it('⛔ A PARTIAL-RIG REGENERATION CARRIES ABSENT LICENCE-HELD MAPS OVER, AND DROPS ONLY WHAT LEFT', () => {
+    const pinned = {
+      'a.pine': { __uct_param_1: 'old A' },
+      'held.pine': { __uct_param_1: 'kept' },
+      'deleted.pine': { __uct_param_1: 'gone' },
+    }
+    const measured = { 'a.pine': { __uct_param_1: 'new A' }, 'b.pine': {} }
+    const out = mergeForWrite(pinned, measured, new Set(['held.pine']))
+    // measured wins; the absent licence-held map survives verbatim; a script that
+    // left the corpus (not licence-held) is dropped; a new one is appended.
+    expect(out).toEqual({
+      'a.pine': { __uct_param_1: 'new A' },
+      'held.pine': { __uct_param_1: 'kept' },
+      'b.pine': {},
+    })
+    expect(Object.keys(out)).toEqual(['a.pine', 'held.pine', 'b.pine'])
+  })
+
   itNeedsLocalOnly('ALL', 'every licence-held pine_oos script\'s map is unchanged too', () => {
     const pinned = JSON.parse(fs.readFileSync(ARTIFACT, 'utf8'))
     const oos = Object.keys(pinned).filter((k) => k.startsWith('tests/fixtures/pine_oos/'))
