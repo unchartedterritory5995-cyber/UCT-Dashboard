@@ -610,11 +610,27 @@ const isSecondsCode = (code) => typeof code === 'string' && /^[0-9]+S$/.test(cod
  *  compared against literal second counts (`<= 3600`) all over the corpus, so a
  *  plausible-but-wrong number does not degrade the answer, it INVERTS the branch
  *  a member's script takes. */
+// ⚰️⚰️ (2026-09-28) `M` WAS `30 * 24 * 60 * 60` = 2,592,000, "a MONTH IS 30
+// DAYS", and the paragraph above called these three "NOT VENDOR-WITNESSED". They
+// are witnessed now, and the month was WRONG: `tests/fixtures/vendor/vw-time-tf-
+// spy-1d-2026-09-27.json` (T10–T15, constant on all 8472 bars) reads "1" 60,
+// "60" 3600, "D" 86400, "W" 604800, **"M" 2628003** (a 30.4167-day month, the
+// value Pine's reference gives) and **"12M" 31536036 — exactly 12 × "M"**, not
+// 365 days. A month-length compared against `<= 2592000` in a member's script
+// took the other branch. `pineVocabularyWave.test.js` holds all six.
 const TF_SECONDS_DAILY_AND_ABOVE = Object.freeze({
   D: 24 * 60 * 60,
   W: 7 * 24 * 60 * 60,
-  M: 30 * 24 * 60 * 60,
+  M: 2628003,
 })
+
+/** `timeframe.in_seconds("<n>M")` — n months, measured as n × the one-month
+ *  length (the vendor's "12M" is exactly 12 × "M"). Null for anything else. */
+const monthsSeconds = (text) => {
+  const m = /^([0-9]+)M$/.exec(String(text).trim().toUpperCase())
+  const n = m ? Number(m[1]) : 0
+  return n >= 1 && n <= 12 ? n * TF_SECONDS_DAILY_AND_ABOVE.M : null
+}
 
 /** `timeframe.multiplier` for a code, or `null` when this engine does not hold
  *  the code at all.
@@ -7860,6 +7876,14 @@ export class Resolver {
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
       code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+      // ⭐ A MULTI-MONTH CODE ("3M", "12M") IS NOT A TIMEFRAME THIS ENGINE
+      // SERVES, but its LENGTH is measured — "12M" read exactly 12 × "M" on the
+      // vendor (vw-time-tf, T15) — so the number is answered without pretending
+      // the code is one the charts hold.
+      if (code === null && lit !== null) {
+        const months = monthsSeconds(lit)
+        if (months !== null) return cNum(months)
+      }
     }
     if (code === null) return null
     const secs = timeframeSeconds(code)

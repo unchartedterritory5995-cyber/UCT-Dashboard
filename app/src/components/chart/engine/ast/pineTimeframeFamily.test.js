@@ -88,13 +88,14 @@ describe('the arithmetic is derived, and it fails CLOSED', () => {
   })
 
   it('⛔ D/W/M are PINE\'S CONVENTION, and the relation is what is pinned', () => {
-    // ⚠️ NOT vendor-witnessed here. A month is 30 days because TradingView says
-    // so, not because any calendar does — so the relation is asserted rather
-    // than three magic numbers, and a reader can see the choice being made.
+    // ⚰️ This pinned `M === 30 * day` under "NOT vendor-witnessed here". It is
+    // witnessed now (`tests/fixtures/vendor/vw-time-tf-spy-1d-2026-09-27.json`,
+    // T12–T14), and the month is 2,628,003 s — a 30.4167-day month — not 30
+    // days. `pineVocabularyWave.test.js` compares all six codes to the capture.
     const day = timeframeSeconds('D')
     expect(day).toBe(86400)
     expect(timeframeSeconds('W')).toBe(7 * day)
-    expect(timeframeSeconds('M')).toBe(30 * day)
+    expect(timeframeSeconds('M')).toBe(2628003)
   })
 
   it('⛔ every code the SPELLING map can produce has both answers', () => {
@@ -266,7 +267,7 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
   it('⭐⭐ `in_seconds` takes an OPTIONAL argument, and reads it as bind-time text', () => {
     expect(numberIn('plot(close + timeframe.in_seconds("60"))')).toBe('close + 3600')
     expect(numberIn('plot(close + timeframe.in_seconds("W"))')).toBe('close + 604800')
-    expect(numberIn('plot(close + timeframe.in_seconds("M"))')).toBe('close + 2592000')
+    expect(numberIn('plot(close + timeframe.in_seconds("M"))')).toBe('close + 2628003')
     // ⭐ A PINE SPELLING, not only the engine's own code — the spelling map is
     // asked rather than copied, so `1H` and `1D` work where `60` and `D` do.
     expect(numberIn('plot(close + timeframe.in_seconds("1H"))')).toBe('close + 3600')

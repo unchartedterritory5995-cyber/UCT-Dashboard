@@ -242,3 +242,29 @@ describe('⭐⭐ int(x) TRUNCATES TOWARD ZERO — vw-int-cast, I01–I09 on ever
     expect(Number.isNaN(na[0])).toBe(true)
   })
 })
+
+describe('⭐⭐ timeframe.in_seconds(<literal>) — the measured constants, vw-time-tf T10–T15', () => {
+  const ROWS = ['T10_in_seconds_1', 'T11_in_seconds_60', 'T12_in_seconds_D',
+    'T13_in_seconds_W', 'T14_in_seconds_M', 'T15_in_seconds_12M']
+
+  it('the capture carries the six constants the door is held to', () => {
+    // Read, not restated: every bar of the 1D capture holds one value per row.
+    const d = JSON.parse(fs.readFileSync(path.join(VENDOR, 'vw-time-tf-spy-1d-2026-09-27.json'), 'utf8'))
+    const titles = d.study.plots.map((p) => p.title)
+    const one = (t) => [...new Set(d.plotValues.rows.map((r) => r[1 + titles.indexOf(t)]))]
+    expect(ROWS.map(one)).toEqual([[60], [3600], [86400], [604800], [2628003], [31536036]])
+  })
+
+  it('matches T10–T15 on every bar of the 1D capture and of the 60m capture', () => {
+    expectRowsMatch(againstCapture('vw-time-tf-spy-1d-2026-09-27.json', 'D'), ROWS, 8000)
+    expectRowsMatch(againstCapture('harness/vw-time-tf-spy-60-2026-09-28.json', '60'), ROWS, 100)
+  })
+
+  it('"12M" is exactly 12 × "M", and a code with no measured length still refuses', () => {
+    expect(formulaOf(`${V6}plot(close + timeframe.in_seconds("3M"))`).formula).toBe(`close + ${3 * 2628003}`)
+    const t = tr(`${V6}plot(close + timeframe.in_seconds("30S"))`)
+    expect(t.ok).toBe(false)
+    expect(t.refusal.guard).toBe('pine:builtin')
+    expect(t.refusal.message).toMatch(/timeframe\.in_seconds/)
+  })
+})
