@@ -14,6 +14,14 @@ the model can talk about WHY the regime is what it is.
 
 Refreshes on every call via TTLCache (15min). Sources from engine.get_breadth
 which is fed by the morning wire push.
+
+⛔ THE ONE REGIME AUTHORITY (DEC-13, LOCKED; enforced by TERM-071). Every
+market-regime reader calls `get_current_regime()` here, and every reader that
+needs the 4-tier GREEN/YELLOW/ORANGE/RED band calls `band_of()` here — never a
+local map. `tests/test_regime_authority.py` fails by file name on a regime label
+spelled anywhere else in `api/`, and proves the readers follow by MOVING this
+module's values. `journal_two/regime.py` is NOT a second authority: it is the
+Exposure Backdrop, a bucket of the wire's exposure score (Packet W).
 """
 
 import logging
@@ -22,6 +30,28 @@ from typing import Any
 _log = logging.getLogger(__name__)
 
 REGIMES = ("bull_trend", "bull_correction", "distribution", "chop", "bear_trend")
+
+#: The ONE home of the label -> sizing-band derivation. grade_ticker's verdict
+#: gate, brain_service's sizing band and grade_watchlist's watch-only synthesis
+#: all read it through `band_of`; before TERM-071 two of them carried identical
+#: private copies of this dict.
+REGIME_BAND = {
+    "bull_trend": "GREEN",
+    "bull_correction": "YELLOW",
+    "chop": "YELLOW",
+    "distribution": "ORANGE",
+    "bear_trend": "RED",
+}
+
+#: What an unknown or missing label bands to (both former copies used YELLOW).
+BAND_DEFAULT = "YELLOW"
+
+
+def band_of(label: Any) -> str:
+    """The GREEN/YELLOW/ORANGE/RED band for a regime label; BAND_DEFAULT when
+    the label is missing or not one of REGIMES. Read at call time, so the
+    band follows this module wherever it moves."""
+    return REGIME_BAND.get(str(label or "").lower(), BAND_DEFAULT)
 
 
 def _to_float(v: Any) -> float | None:
