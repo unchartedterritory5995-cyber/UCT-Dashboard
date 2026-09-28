@@ -44,3 +44,16 @@ Raw output only, committed before any summary (R-RAW). The interpretation is in 
 through `docs/notebook/proof/e2-d9e887ca0/e2_sandbox.py` (data dir passed from PowerShell,
 single-quoted); identity proved by `scripts/sandbox_identity.verify` before any request; the walk
 account is a paid-equivalent sandbox member (`e2-kbd@local.dev`), never production.
+
+## After (added with the run)
+
+| path | what |
+|---|---|
+| `after/walk-all.json`, `after/shots/`, `after/walk-console.log` | the same walk at `75c7ef596`, a fresh boot of the same sandbox (`C:\data-w10k2`, :8227) |
+| `after/attempt1-*` | the first "after" attempt: S1, S2 and S2b died on 30 s page loads right after boot, and every S2-2x door read NOT RUN because "Beta rates note" was not in the list. It had been ARCHIVED by the before walk's own S2-31 (its "undo" Enter did not unarchive it). Stopped; the note was unarchived through the product's own `PATCH /api/j2/notes/{id}/archive` and the walk re-run from the start. |
+| `after/control-reset/` | a control run of S2b and S4 (`--only S2b,S4`). `K2_FRESH_EMAIL` gives S4-07 an account that has never seen the tour: the walk's fixed "fresh" account had seen it in the before run, so a second walk on one data dir cannot show it again. (The note reset it logs was refused, 409: the walked note carries a newer schema level.) |
+| `after/control-s2-18/` | a keyboard-only probe of the block move (Ctrl+Home, Alt+Shift+ArrowDown, Alt+Shift+ArrowUp) on two notes at the K2 tip |
+| `mutations/` | the lane's mutation harness and its raw results |
+
+`keyboard_walk.py` gained one more change for the control run: `FRESH_EMAIL` reads `K2_FRESH_EMAIL`
+(default unchanged).

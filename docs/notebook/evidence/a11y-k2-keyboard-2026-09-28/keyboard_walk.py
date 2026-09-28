@@ -42,7 +42,7 @@ import kbd_lib as K  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 WALK_EMAIL = "e2-kbd@local.dev"
-FRESH_EMAIL = "e2-kbd-fresh@local.dev"
+FRESH_EMAIL = os.environ.get("K2_FRESH_EMAIL", "e2-kbd-fresh@local.dev")
 
 
 def doc(*blocks):
