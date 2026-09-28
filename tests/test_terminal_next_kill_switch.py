@@ -352,7 +352,15 @@ def probed_app(real_app):
     def ignores(thing: str, user: dict = Depends(ignores_gate)):
         return {"reached": user["id"], "thing": thing}
 
+    n = len(real_app.router.routes)
     real_app.include_router(probe)
+    # Production routers are included at import, BEFORE api/main.py's SPA
+    # catch-all (`/{full_path:path}`, mounted only when app/dist is built).
+    # Appended after it, the probes would be shadowed by the catch-all in any
+    # checkout with a built bundle and the control would measure the SPA shell.
+    added = real_app.router.routes[n:]
+    del real_app.router.routes[n:]
+    real_app.router.routes[0:0] = added
     try:
         yield real_app
     finally:
