@@ -40,6 +40,9 @@ export default function ResponsiveTable({
   // the Notebook hub's `data-note-card-id` contract, R-18). Every
   // pre-existing caller omits it and is unaffected.
   rowDataAttrs,
+  // F4 / A2R-02: an optional `(row, i) => string` naming what activating a
+  // row DOES ("Open NVDA thesis"). Only read when `onRowClick` is set.
+  rowLabel,
 }) {
   const isPhone = useIsPhone()
 
@@ -50,6 +53,30 @@ export default function ResponsiveTable({
     col.render ? col.render(row, i) : row[col.key]
 
   const dataAttrsOf = (row, i) => (rowDataAttrs ? rowDataAttrs(row, i) : undefined)
+
+  // ⛔⛔ F4 / A2R-02 (WCAG 2.1.1): A ROW THAT OPENS ON CLICK OPENS ON THE KEYBOARD TOO.
+  // Lane 10E-2's keyboard walk found a Table-view row opened only on a mouse click -- no
+  // tabindex, no key handler -- so a keyboard member could not open a note from the table
+  // at all. When `onRowClick` is set the row is a Tab stop and Enter or Space activates
+  // it, in BOTH renderings. ⛔ Only a key pressed ON THE ROW ITSELF: a checkbox's Space and
+  // a button's Enter inside the row belong to that control. ⛔ Without `onRowClick` the row
+  // stays exactly what it was -- not focusable, no handler -- so a read-only table grows no
+  // dead Tab stops. The <tr> keeps its row role (a row with a name); the phone card, which
+  // has no role of its own, takes `group` so it may carry that name.
+  const activationProps = (row, i, { card = false } = {}) => {
+    if (!onRowClick) return {}
+    const label = rowLabel ? rowLabel(row, i) : undefined
+    return {
+      tabIndex: 0,
+      onKeyDown: (e) => {
+        if (e.target !== e.currentTarget || e.repeat) return
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+        e.preventDefault()
+        onRowClick(row, i)
+      },
+      ...(label ? { 'aria-label': label, ...(card ? { role: 'group' } : {}) } : {}),
+    }
+  }
 
   // ── Real table (desktop, tablet, or phone scroll mode) ──
   const renderTable = (phoneScroll) => (
@@ -78,6 +105,7 @@ export default function ResponsiveTable({
               key={keyOf(row, i)}
               onClick={onRowClick ? () => onRowClick(row, i) : undefined}
               className={onRowClick ? styles.clickable : ''}
+              {...activationProps(row, i)}
               {...dataAttrsOf(row, i)}
             >
               {columns.map((col) => (
@@ -119,6 +147,7 @@ export default function ResponsiveTable({
           key={keyOf(row, i)}
           className={`${styles.card} ${onRowClick ? styles.clickable : ''}`}
           onClick={onRowClick ? () => onRowClick(row, i) : undefined}
+          {...activationProps(row, i, { card: true })}
           {...dataAttrsOf(row, i)}
         >
           <div className={styles.cardHead}>
