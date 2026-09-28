@@ -637,6 +637,30 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       expect(late.stats.firstDivergence.kind).toBe('color')
     })
 
+    it('⭐ `cond ? colour : na` — drawn in nothing where TradingView drew nothing, read as the colour the renderer was handed', () => {
+      // The vendor's palette holds ONLY the green entry; a down bar's colorer
+      // reads `null` — the Ultimate Pivot Points shape, measured 2026-09-28.
+      const src = '//@version=6\nindicator("uct-na-colour")\nplot(close, "c", color = close > open ? color.new(#00FF00, 10) : na)\n'
+      const plots = [
+        { id: 'plot_0', type: 'line', title: 'c' },
+        { id: 'plot_1', type: 'colorer', target: 'plot_0', palette: 'palette_0' },
+      ]
+      const mk = (idx) => captureFrom({
+        source: src, rows, plots, values: rows.map((r) => [r[0], r[4], idx(r)]),
+        extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } }, palettes: { palette_0: { valToIndex: { 4: 0 }, colors: { 0: { color: 'rgba(0,255,0,0.9)' } } } } } },
+      })
+      const g = gradeCapture(mk((r) => (r[4] > r[1] ? 4 : null))).verdict.plots.find((x) => x.id === 'plot_0')
+      // ⚰️ The harness used to REPLACE the drawn colour's alpha with the plot's
+      // opacity, reading the renderer's `rgba(0, 0, 0, 0)` as a visible #000000e6.
+      expect(g.verdict, g.reason).toBe('MATCH')
+      expect(g.stats.colorCompared).toBeGreaterThan(1000)
+      // ⛔ CONTROL — a vendor that coloured EVERY bar green disagrees on the down bars
+      const all = gradeCapture(mk(() => 4)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(all.verdict).toBe('DIVERGE')
+      expect(all.stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#00ff00e6' })
+      expect(all.stats.firstDivergence.ourColor).toMatch(/00$/)
+    })
+
     it('objects: a table the script draws is counted, and its cell text compared', () => {
       const src = '//@version=6\nindicator("uct-table", overlay = true)\nplot(close, "c")\nvar t = table.new(position.top_right, 1, 1)\nif barstate.islast\n    table.cell(t, 0, 0, "UCT")\n'
       const cvals = rows.map((r) => [r[0], r[4]])

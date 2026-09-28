@@ -155,7 +155,16 @@ function drawnColours(def, bars, ctx) {
       if (at < 0) return undefined
       const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
-      return withOpacity(p.color || seriesColor || plot.color, plot.opacity)
+      // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
+      // plot's opacity into a point colour and a series colour (`withAlpha`,
+      // which MULTIPLIES through); re-applying `opacity` here REPLACED the
+      // colour's alpha. ⚰️ Measured 2026-09-28 on Ultimate Pivot Points' Pivot:
+      // the `na` branch is a palette entry `rgba(0, 0, 0, 0)`, the plot's
+      // opacity is 0.9, the renderer drew it at alpha 0 — and this read it
+      // `#000000e6`, a visible black line nobody drew. Only the definition's
+      // own colour, when the renderer was handed none, still takes the opacity.
+      const drawn = p.color || seriesColor
+      return drawn ? normalizeColor(drawn) : withOpacity(plot.color, plot.opacity)
     })
     out.set(b.plotKey, colors)
   }

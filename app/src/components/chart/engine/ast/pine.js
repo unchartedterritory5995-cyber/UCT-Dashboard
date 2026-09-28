@@ -16296,16 +16296,47 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
  * — which the resolver already canonicalises like any other series, so the chain
  * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
  *
- * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
- * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * ⛔ EVERY LEAF A STATIC COLOUR, `na`, OR NOTHING. One leaf this grammar cannot
+ * fold (a gradient, a series alpha) and the whole chain declines — carrying the
  * readable branches would paint the unreadable ones a neighbour's colour.
  * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
  * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
  * would carry the colour, not its position.
- * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
- * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ *
+ * ⭐⭐ 2026-09-28 — `na` IS A LEAF, AND IT IS A TRANSPARENT ONE. Pine draws nothing
+ * where a plot's colour is `na` (`cond ? color.green : na` shows the line only
+ * while `cond` holds). That was declined as "no per-point visibility for a
+ * line" — but a per-point colour whose alpha is 0 IS per-point visibility, and
+ * the palette already carries a colour per point. Measured against TradingView
+ * (vendor harness, RDDT 1D 2026-09-28): Ultimate Pivot Points' three
+ * `x == nz(x[1]) ? color.new(c, 10) : na` lines and Zero-Lag MA's
+ * `up : dn : na` chain drew in the pane's gold where TradingView drew green,
+ * red or orange at 90% — and drew a line where TradingView drew none.
+ * ⛔ A chain of ONLY `na` leaves carries nothing (it is a hidden plot, not a
+ * colour rule) and declines.
+ *
+ * ⭐⭐ 2026-09-28 — AND EACH ENTRY KEEPS ITS OWN ALPHA. When every colour leaf
+ * agrees on one transparency it rides the plot's `opacity`, exactly as before;
+ * when they DISAGREE, the alpha is baked into that entry (`rgba(…)`, which
+ * `pool.paletteOf` and `designTokens.withAlpha` already read), instead of the
+ * whole palette being drawn opaque. ⚰️ Measured: Momentum Volatility Scanner's
+ * histogram (`weakUp = input.color(color.new(#81C784, 40))` beside opaque
+ * `upMomentum`) drew `#81c784ff` where TradingView drew `#81c78499` on 532 bars.
+ * Two leaves with one hex and two alphas are two entries, never one.
  */
-function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+const TRANSPARENT_PALETTE_ENTRY = 'rgba(0, 0, 0, 0)'
+const isNaColourLeaf = (n) => !!n && ((n.type === 'name' && n.name === 'na')
+  || (n.type === 'call' && n.name === 'na'))
+
+/** `#RRGGBB` at alpha `a` (0..1) → `rgba(r, g, b, a)`; null for anything else. */
+function paletteEntryWithAlpha(hex, a) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex))
+  if (!m || !Number.isFinite(a)) return null
+  const ch = [m[1], m[2], m[3]].map((x) => parseInt(x, 16))
+  return `rgba(${ch[0]}, ${ch[1]}, ${ch[2]}, ${Math.round(a * 1e4) / 1e4})`
+}
+
+function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
@@ -16320,12 +16351,33 @@ function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas
     if (!no) return null
     return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
   }
-  const hex = staticColourOf(node, env, 0, ctx)
-  if (!hex) return null
-  let idx = acc.palette.indexOf(hex)
-  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
-  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  let entry
+  if (isNaColourLeaf(node)) {
+    entry = { na: true, key: 'na' }
+  } else {
+    const hex = staticColourOf(node, env, 0, ctx)
+    if (!hex) return null
+    const alpha = colourHelperAlpha(node, env, ctx)
+    entry = { hex, alpha, key: `${hex}@${alpha}` }
+  }
+  let idx = acc.keys.indexOf(entry.key)
+  if (idx < 0) { idx = acc.keys.length; acc.keys.push(entry.key); acc.entries.push(entry) }
   return { tree: { type: 'number', value: idx }, acc }
+}
+
+/** A finished chain's `acc` → `{palette, opacity}`, or null when no entry is a
+ *  colour. See `colourIndexChain` for the alpha rule. */
+function chainPalette(acc) {
+  const colours = acc.entries.filter((e) => !e.na)
+  if (!colours.length || acc.entries.length < 2) return null
+  const a0 = colours[0].alpha
+  const agree = colours.every((e) => e.alpha === a0)
+  const palette = acc.entries.map((e) => {
+    if (e.na) return TRANSPARENT_PALETTE_ENTRY
+    if (agree || e.alpha === null || e.alpha >= 1) return e.hex
+    return paletteEntryWithAlpha(e.hex, e.alpha) || e.hex
+  })
+  return { palette, opacity: agree && a0 !== null ? a0 : null }
 }
 
 function colourConditional(node, env, depth = 0, ctx = null) {
@@ -16383,23 +16435,28 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     // is measured per output rather than estimated once.
     // ⭐ `cond ? <colour> : na` IS A VISIBILITY GATE WEARING A COLOUR ARGUMENT,
     // and it is the single largest uncarried class in the corpus. Pine hides the
-    // plot on those bars; this schema has no per-point visibility for a line, and
-    // carrying only the INNER colour would draw a line exactly where the author
-    // hid one — a confident wrong picture, which is worse than declining.
-    // Reported under its own name so the gap register can carry the capability
-    // rather than the symptom.
-    const isNa = (n) => !!n && ((n.type === 'name' && n.name === 'na')
-      || (n.type === 'call' && n.name === 'na'))
-    if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
+    // plot on those bars. Carrying only the INNER colour would draw a line exactly
+    // where the author hid one — a confident wrong picture — so it was declined
+    // as `naGated`.
+    // ⭐⭐ 2026-09-28 — NOW CARRIED, because `na` is a TRANSPARENT palette entry
+    // (`colourIndexChain`): the line is drawn in the author's colour where the
+    // condition holds and in nothing where it does not. `naGated` remains the
+    // answer only for a gate whose other leaves this grammar cannot read.
+    const hasNa = isNaColourLeaf(node.yes) || isNaColourLeaf(node.no)
     const arity = staticColourArity(node, env)
     // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
     // answer so a chain the RESOLVER then refuses still reports its size.
-    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
-    if (chain && chain.acc.palette.length >= 2) {
-      const al = chain.acc.alphas
-      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
-      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    const chain = (arity > 2 || hasNa || (!up !== !down)) ? colourIndexChain(node, env, ctx) : null
+    const pal = chain ? chainPalette(chain.acc) : null
+    if (pal) {
+      return {
+        arity: pal.palette.length, indexTree: chain.tree, palette: pal.palette, opacity: pal.opacity,
+        // A chain that carries only because `na` became an entry is new — see
+        // `resolveColourTree`.
+        withholdMint: chain.acc.entries.some((e) => e.na),
+      }
     }
+    if (hasNa) return { naGated: true }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -16561,7 +16618,18 @@ function outputPresentation(args, ctx) {
     // `args[0].type` looks at the PAIR and finds nothing — the second time this
     // wave read one level too shallow and got a silent "the author said nothing".
     const flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
-    if (flat) {
+    if (!flat && isNaColourLeaf(c.value)) {
+      // ⭐⭐ 2026-09-28 — `color = na` IS A COLOUR: THE ABSENT ONE. Pine draws the
+      // plot in nothing (its values still feed `fill()` and the data window), and
+      // TradingView records it as `rgba(0,0,0,0)` in the study's own style state.
+      // ⚰️ It reached this door as "a colour expression we cannot say" and drew in
+      // the pane's gold — measured on Artemis Oscillator Pro's `VP Base`
+      // (`plot(vpShow ? 50 : na, "VP Base", color=na)`), a gold line at 50 on
+      // 632 of 632 bars where TradingView drew nothing. Carried as black at zero
+      // opacity: the same colour TradingView stores, and invisible either way.
+      pres.color = '#000000'
+      pres.opacity = 0
+    } else if (flat) {
       pres.color = flat
       const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
       if (a !== null) pres.opacity = a
@@ -16689,7 +16757,9 @@ function outputPresentation(args, ctx) {
   }
 
   const tr = numberValue((arg('transp') || {}).value)
-  if (tr !== null) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
+  // opacity 0 whatever transparency the author also wrote.
+  if (tr !== null && !(c && isNaColourLeaf(c.value))) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
   return pres
 }
 
