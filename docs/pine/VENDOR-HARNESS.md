@@ -26,6 +26,11 @@ double of the chart model (see "What is and is not proven" below).
 | `…/vendorHarness/vendorHarness.test.js` | rails + controls (36 tests) |
 | `…/vendorHarness/vendorHarness.corpus.test.js` | the corpus run and the CLI entry |
 | `tests/fixtures/vendor/harness/` | where NEW captures go |
+| `tools/vendor_harness/batch_capture.py` | the UNATTENDED batch: steps 1–12 per manifest script, resumable, plus `recon` and `grade` (see "Unattended batch") |
+| `tools/vendor_harness/batch_manifest.py` | derives the batch's target list from the member-door census |
+| `tools/vendor_harness/batch_double.py` | the recording double of the TradingView page the batch is proved against (`--self-check`) |
+| `…/vendorHarness/memberDoorCensus.measure.test.js` | opt-in census: every corpus script through `enterMemberDoor`, both door-flag states |
+| `docs/pine/vendor-harness/batch-manifest.json` | the committed manifest (derived; regenerate, never hand-edit) |
 | `docs/pine/vendor-harness/{verdicts.json,summary.md}` | the last corpus run's output |
 
 ## The capture format, v1 (`schema: "uct.vendor-capture/v1"`)
@@ -240,3 +245,127 @@ see `docs/pine/vendor-harness/summary.md`). **MATCH 7 · DIVERGE 8 · INCONCLUSI
 ⚠️ Every DIVERGE above except `atr5` is a capture-window artefact (DATA axis),
 not a maths difference: the observations start deep in SPY's history. A capture
 from bar 0 (a young listing, or SPY `12M`) is what settles them.
+
+## Unattended batch (2026-09-28) — many scripts, no keyboard after one sign-in
+
+`tools/vendor_harness/batch_capture.py` runs steps 1–12 above for every script in a
+manifest, in the SESSION-OWNED browser of `tools/pine_vendor_capture.py`. The owner
+signs in once, in the window it opens; nothing after that needs a person.
+
+⚠️ **Status: built and proved against a recording double only. It has NOT been run
+against live TradingView.** The first live run is the owner's (steps below).
+
+### What it does per script
+
+gate v2.1 → the session is still signed in (the layout answers 200) → the scratch
+layout reads **0 studies** (anything else STOPS the batch) → symbol and timeframe set
+and READ BACK (J2) → Pine editor open → **Create new ▸ Indicator** by a real pointer
+(script-title control → hover *Create new* → *Indicator*), verified by a fresh Monaco
+model appearing → the corrected **binding gate** (own-text `Add to chart` exactly once,
+`Update on chart` never) → the source written through the Monaco handle, **gate
+re-checked inside the same evaluation**, sha256 of the buffer compared to the committed
+file → gate v2.1 again → **Add to chart** (gate re-checked inside the click's own
+evaluation; a refusing gate never clicks) → wait for `status()`/`dataLength()` →
+`requestMoreData` until the loaded history stops growing → `tv_capture.js` →
+`__uctVH.studies()` (census control, exactly one indicator) → `__uctVH.capture(…)` →
+every chunk pulled verbatim → `verify_capture.mjs --assemble` (exit code AND `VERDICT:`
+line, then the written file re-verified) → **cleanup, always**: remove the study it added
+(and only that — a study that was on the rig before is never touched), put symbol /
+resolution / pane stretch back, `__uctVH.cleanup()`, assert no `__uct*` globals. After
+the last script the chart is put back on the symbol and resolution it started on.
+
+`startsAtBar0` is asserted ONLY when the history stopped growing AND the first loaded
+bar is the symbol's listing day in its own timezone (known for `NYSE:RDDT` =
+2024-03-21; pass `--listing-date` for another young listing). `newestBarIsForming`
+defaults to `auto` (a weekday inside 09:30–16:00 ET says forming) — **run it after the
+close** so every capture says `false`.
+
+### What each outcome means (`results/<slug>.json`, `ledger.jsonl`)
+
+| outcome | meaning | on resume |
+|---|---|---|
+| **CAPTURED** | a capture file verified by `verify_capture.mjs`, written and re-verified | skipped while the file still verifies and carries the same source sha |
+| **REFUSED_BY_TV** | TradingView would not run the script; its own message is recorded (e.g. a compile error) | skipped (terminal) |
+| **GATE_FAILED** | a gate this tool owes refused — visibility, scratch layout not empty, binding, buffer receipt, census. Nothing past the gate was clicked | retried |
+| **INCONCLUSIVE** | could not measure — a timeout, an unreadable model, a UI step not found, the transport refused. Never a pass, never a fail | retried |
+| **INCOMPLETE** | the process stopped mid-script. Written BEFORE the first step, so a crash can only ever leave this, never a stale pass | retried; the study it recorded adding is removed first (by recorded id only) |
+
+Exit codes of `run`: `0` every script reached a terminal result · `1` a measured rig
+problem (the scratch layout was not empty, cleanup left the chart dirty — the batch
+stops) · `2` INCONCLUSIVE (no sign-in, the browser went away).
+
+### Owner steps — the first live run
+
+Run these from the repo root, **after the close**, on a machine that will stay awake.
+
+1. **Prove the tool on this machine** (no network, no TradingView):
+   `python tools/vendor_harness/batch_capture.py --self-check` → expect `VERDICT: PASS`.
+2. **Recon — sign in once, click nothing:**
+   `python tools/vendor_harness/batch_capture.py recon`
+   A browser window opens on the rig layout (`01f1AcIj`). **If the console says SIGN IN,
+   sign in to TradingView in THAT window** — use the **Email** option, not *Continue with
+   Google* (Google refuses the bundled browser; see `pine_vendor_capture.py`). The tool
+   notices the sign-in by itself; you do not press anything in the console. It never
+   reads, stores or logs what you type. It then prints its readings and exits
+   `recon OK`. The profile is the same one `pine_vendor_capture.py` uses
+   (`%LOCALAPPDATA%\uct-capture-profile\tradingview`), so the sign-in lasts across runs.
+   - If `title` reads `ok: false`, the script-title control was not found: rerun with
+     `--title-selector "<css>"` (for `recon` and `run`).
+   - If recon says the rig carries studies, remove them by hand first; the tool will not.
+3. **One script, watched:**
+   `python tools/vendor_harness/batch_capture.py run --limit 1`
+   It prints its run directory (default `%LOCALAPPDATA%\uct-vendor-batch\runs\<id>`).
+   Leave the window alone while it works. Read `results/<slug>.json`: `CAPTURED` with
+   `cleanup.ok: true` means the whole route works live.
+4. **The rest, unattended:**
+   `python tools/vendor_harness/batch_capture.py run --run-dir <that directory>`
+   It resumes: the first script is skipped (its capture re-verifies), everything else
+   runs, 30 s apart by default (`--throttle-s`; it is your own account — do not lower it
+   much). Do not use the window or open a second run on the same profile. If anything
+   stops it (the machine sleeps, the window is closed), run the same command again.
+5. **Grade:**
+   `python tools/vendor_harness/batch_capture.py grade --run-dir <that directory>`
+   → `verdicts.json` + `summary.md` in the run directory (the corpus harness above,
+   unchanged, over the run's `captures/`; `summary.md` gains a "Batch outcomes" table).
+6. **Keep what you accept:** copy the capture files from `<run>/captures/` into
+   `tests/fixtures/vendor/harness/` and commit them with their verdicts. They then drop
+   out of the next manifest by source sha.
+
+### The manifest — derived, never typed
+
+`python tools/vendor_harness/batch_manifest.py` (add `--check` to compare without
+writing) runs `memberDoorCensus.measure.test.js`, which puts every
+`corpus/committed/*.pine` through `enterMemberDoor` — the same builder + install door
+`ourSide.js` grades with — under both states of `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`,
+selects the state production runs (read from `docs/frontend_feature_flags.json`), and
+subtracts every source sha already captured under `tests/fixtures/vendor/harness/`.
+Measured 2026-09-28: **266 corpus → 55 attach (flag on; 33 with it off) → 6 already
+captured → 49 targets.** `grade` runs the harness with the flag state the manifest was
+selected on (recorded in the run's `manifest.json`), so a script the census counted is
+never refused by the grader for a flag reason.
+
+⚠️ Six of the twelve corpus scripts already captured on RDDT (e.g. `adx-and-di-for-v4`,
+`fvg-trend`, `trendlines`) do NOT attach at today's member door, so their captures grade
+INCONCLUSIVE on our side. The manifest does not target scripts like those.
+
+### What is and is not proven
+
+- **Proven against the recording double** (`batch_double.py`, `--self-check`,
+  `tests/test_vendor_batch_capture.py`): the step order; each outcome class; INCOMPLETE on
+  a process death with the claim on disk before step one; resume (skip a re-verifying
+  capture, retake one that no longer verifies, retry the rest); orphan removal by recorded
+  id only, and an unrecorded study stopping the batch untouched; the binding gate never
+  writing or clicking, in Python and inside the click's evaluation; cleanup after every
+  outcome; the throttle between scripts only; no text entry anywhere in the driver; the
+  profile refused inside a worktree or the owner's own browser profile. The double's
+  captures are assembled by the REAL `verify_capture.mjs` and graded by the REAL corpus
+  harness (its `plot(close)` script MATCHes, the others DIVERGE).
+- **Not proven until the first live run:** that TradingView's current page has the
+  script-title menu, the Pine editor launcher, `TradingViewApi.activeChart()`,
+  `getStudyById().status()/dataLength()`, `removeEntity()` and
+  `mainSeries().requestMoreData()` where the snippets look. Each step verifies its
+  EFFECT, so a miss reads INCONCLUSIVE or GATE_FAILED — never a wrong click. `recon`
+  prints every reading first.
+- ⚠️ Every `Create new ▸ Indicator` leaves an unsaved buffer in the editor; nothing is
+  ever saved. Whether TradingView accumulates editor tabs across a long batch is
+  unmeasured.
