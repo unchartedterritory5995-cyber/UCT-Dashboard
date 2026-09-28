@@ -563,9 +563,17 @@
   font-weight: 600;
   text-decoration: none;
   transform: translateY(-200%);
+  /* H14, measured on the live build 2026-09-27: at <=640 px `.wrap` is `overflow: visible`, so the
+     translated link was painted 88 px above the panel, over the Journal's Today and Trades tabs, and a
+     tap on either landed on this link instead. Unfocused, it is invisible and lets the pointer through;
+     a keyboard focus still shows it. Rail: a11y/skipLinkUntappable.test.js. */
+  opacity: 0;
+  pointer-events: none;
 }
 .skipLink:focus {
   transform: none;
+  opacity: 1;
+  pointer-events: auto;
   outline: 2px solid var(--ut-gold);
   outline-offset: 2px;
 }
