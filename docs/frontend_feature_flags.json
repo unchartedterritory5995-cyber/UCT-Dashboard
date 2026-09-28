@@ -38,12 +38,14 @@
       "note": "Whether a member's own translated Pine script may reach a chart pane. ON IN PRODUCTION as of the flip above -- verified end to end on the live site, not just in a local instance: Chart Settings -> Indicators -> New Formula -> Import -> paste a Pine script -> 'Add this script to my chart' now renders (previously absent). Confirmed with tests/fixtures/member/uncharted-clouds.pine on a real SPY/SMCI chart: the 20-layer teal/maroon gradient band drew correctly, matching the vendor-parity captures in docs/pine/capture/. With it ON, a saved definition reaches the member's own chart through the shipped doors; the OFF path (attach control absent, MemberPane returns null) is still driven on the REAL route by attachedPineDisclosures.test.jsx for regression coverage. Declared as a build ARG in Dockerfile.web: Railway hands service variables to the build as build args and drops undeclared ones silently, so without that line the flag could never have been switched on in production."
     },
     "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": {
-      "status": "dark",
+      "status": "armed",
+      "where": "web",
       "since": "2026-09-20",
+      "flipped": "2026-09-27 ~00:07 CT -- railway variables --service web --set (owner-run); the rebuild that carried it was web deploy 00:49 CT SUCCESS. Verified IN THE SERVED BUNDLE, not from --kv: BuilderSheet-*.js carries VITE_PINE_OBJECTS_ONLY_PANE_ENABLED:\"1\" (read 2026-09-27 08:47 CT after PR #207's deploy). R-27 client smoke PASS the same minute (21 routes clicked, 4 surfaces stable).",
       "readBy": [
         "app/src/components/chart/builder/memberPane/memberPaneDefinition.js::objectsOnlyPaneEnabled"
       ],
-      "note": "A D2 revisit, owner decision 2026-09-20. `pine:objects-only` is a script that DRAWS -- a table, labels, boxes -- and offers no plot or alert condition, so `ok` is false for the SCREENER and the drawing is real. Measured: 19 of the 266 committed corpus scripts are in that state, plus the acceptance dashboard. OFF means the pane refuses them exactly as it did before. Rollback is the variable, not a revert."
+      "note": "A D2 revisit, owner decision 2026-09-20. `pine:objects-only` is a script that DRAWS -- a table, labels, boxes -- and offers no plot or alert condition, so `ok` is false for the SCREENER and the drawing is real. Measured: 19 of the 266 committed corpus scripts are in that state, plus the acceptance dashboard. OFF means the pane refuses them exactly as it did before. Rollback is the variable, not a revert. ARMED 2026-09-27 on owner ruling, and admission is governed by the partial-drawing rule (PR #207, owner ruling option b): a drawing that loses any removal is refused (or, for a plotting script, its drawings withheld), and any other partial drawing attaches with an 'N of M drawing elements in this script aren't supported yet' disclosure. Measured on the 266 corpus under #207: 47 attach flag-on, 11 refused for a lost removal, 30 disclosed. Rollback: set the variable to 0 (the CLI refuses an empty value; the gate reads anything but '1' as off)."
     }
   }
 }

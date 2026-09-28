@@ -32,7 +32,7 @@
 // decision (`paneObjectsGate`), for the reason its header gives: one place, not
 // four slightly different `if`s.
 
-/** The four answers a lost operation can have. */
+/** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
   /** Its loss leaves on screen something Pine removed. Never drawn around. */
   REMOVES: 'removes',
@@ -45,6 +45,11 @@ export const LOSS = Object.freeze({
    *  held (`objectDiagnostics.unconvertedLoopOps`), since no other counter sees
    *  those ops. */
   LOOP: 'loop',
+  /** A call to a drawing function of the script's own that the reader refused
+   *  (`objectFnInline.js`), so its body was never converted. Classified by what
+   *  that body held (`objectDiagnostics.lostRemovals` / `unconvertedFnOps`), the
+   *  same question LOOP asks of a loop body. */
+  BODY: 'body',
   /** A drawing missing or mis-drawn — never an extra one. Drawn, disclosed. */
   PARTIAL: 'partial',
 })
@@ -77,6 +82,13 @@ export const DROP_KEYS = Object.freeze({
   'coll:push': C(LOSS.LIST, 'an object never entered into the list a later delete reads'),
   'coll:set': C(LOSS.LIST, 'a list slot never overwritten, so a later delete reads the old handle'),
   'coll:remove': C(LOSS.LIST, 'a handle never taken out of the list, so a later delete hits it twice'),
+  // ⭐ 2026-09-27 — the call-site inliner (`objectFnInline.js`). `x := f(…)`
+  // copies the handle an inlined body returned into the caller's register; when
+  // that copy cannot be read, the register keeps what it held before, so a later
+  // `line.delete(x)` removes the OLD object and leaves the new one. The same
+  // failure as a list slot never overwritten.
+  'copy:source': C(LOSS.LIST,
+    "a function's returned handle never stored in the caller's variable, so a later delete of that variable removes the previous object"),
 })
 
 /** `guard:<op kind>` — the op's CONDITION could not be read, so the op is
@@ -97,6 +109,35 @@ export const GUARD_KINDS = Object.freeze({
   coll_pop: C(LOSS.LIST, 'a list pop whose condition cannot be read'),
   coll_shift: C(LOSS.LIST, 'a list shift whose condition cannot be read'),
   coll_clear: C(LOSS.LIST, 'a list clear whose condition cannot be read'),
+  copy: C(LOSS.LIST,
+    "a returned handle whose condition cannot be read — the caller's variable keeps the previous object for a later delete"),
+})
+
+/** `fn:<why>` — a call to a drawing function of the script's own that the reader
+ *  REFUSED (`pineObjects.js::refuseCall`, `objectFnInline.js` for the Pine
+ *  semantics). Every exact `why` is listed, with the reason it sits where it
+ *  does; `objectLoss.test.js` reads the `why`s out of the reader's source and
+ *  fails by name on one this table does not classify.
+ *
+ *  Every refusal but one is made BEFORE the body is walked, so nothing it would
+ *  have drawn, changed or removed reached the program: those are BODY, and the
+ *  door classifies them by what the body held. `return-type` is made AFTER the
+ *  body was inlined — only the returned handle is lost, which is `copy:source`'s
+ *  failure. */
+const BODY_REFUSED = (why) => C(LOSS.BODY,
+  `a call to a drawing function the chart refused (${why}), so nothing in its body is drawn; classified by what that body would have removed`)
+export const FN_REFUSALS = Object.freeze({
+  method: BODY_REFUSED("a drawing METHOD — its receiver's type decides which body runs"),
+  'var-init': BODY_REFUSED('`var x = f()` runs once, on the first bar'),
+  'in-expression': BODY_REFUSED('the call sits inside an expression whose order is not modelled'),
+  unknown: BODY_REFUSED("the function's definition could not be found"),
+  loop: BODY_REFUSED('the call sits in a loop this chart cannot run'),
+  depth: BODY_REFUSED('helpers call helpers deeper than any real script'),
+  arity: BODY_REFUSED('the arguments do not match the parameters'),
+  'conditional-history': BODY_REFUSED('a conditional call whose body reads history'),
+  receiver: BODY_REFUSED('a receiver parameter bound to something that is not a name'),
+  'return-type': C(LOSS.LIST,
+    "a function's returned handle is a different kind than the variable it is stored in, so a later delete of that variable removes the previous object"),
 })
 
 /** The TEMPLATED keys: `create:<family>`, `cellpatch:<property>`, `coll:<method>`.
@@ -121,6 +162,10 @@ export function classifyDropKey(key) {
   if (k.startsWith('guard:')) {
     const kind = k.slice('guard:'.length)
     return Object.prototype.hasOwnProperty.call(GUARD_KINDS, kind) ? GUARD_KINDS[kind] : UNCLASSIFIED
+  }
+  if (k.startsWith('fn:')) {
+    const why = k.slice('fn:'.length)
+    return Object.prototype.hasOwnProperty.call(FN_REFUSALS, why) ? FN_REFUSALS[why] : UNCLASSIFIED
   }
   for (const f of DROP_KEY_FAMILIES) if (k.startsWith(f.prefix)) return { cls: f.cls, why: f.why }
   return UNCLASSIFIED
@@ -183,6 +228,9 @@ export function assessObjectLoss(t) {
   const unconv = (d.unconvertedLoopOps && typeof d.unconvertedLoopOps === 'object')
     ? d.unconvertedLoopOps : {}
   const loopLists = Object.keys(unconv).some((k) => k.startsWith('coll_'))
+  const unconvFn = (d.unconvertedFnOps && typeof d.unconvertedFnOps === 'object')
+    ? d.unconvertedFnOps : {}
+  const fnLists = Object.keys(unconvFn).some((k) => k.startsWith('coll_'))
   // ⭐ `lostRemovals` is the pass's own record of every lost `*.delete` /
   // `table.clear` and whether its target could hold anything DRAWN. A key with no
   // record at all is read as reaching — a translation from before the record
@@ -198,14 +246,18 @@ export function assessObjectLoss(t) {
   for (const key of Object.keys(reasons).sort()) {
     if (!(reasons[key] > 0)) continue
     let { cls, why } = classifyDropKey(key)
-    if (cls === LOSS.LOOP) {
-      // A loop dropped whole is classified by what its body would have removed.
+    if (cls === LOSS.LOOP || cls === LOSS.BODY) {
+      // A loop dropped whole, or a refused call to a drawing function, is
+      // classified by what its body would have removed. ⛔ A missing record reads
+      // as reaching (see `reaches`), so a translation from before the record
+      // existed is never waved through.
       const r = reaches(key)
       if (r === true) {
         cls = LOSS.REMOVES
         why = `${why} — and that body deletes or clears something this chart draws`
       } else {
-        cls = loopLists ? LOSS.LIST : LOSS.PARTIAL
+        const lists = cls === LOSS.LOOP ? loopLists : fnLists
+        cls = lists ? LOSS.LIST : LOSS.PARTIAL
       }
     } else if (cls === LOSS.REMOVES && classifyDropKey(key) !== UNCLASSIFIED
                && reaches(key) === false) {
@@ -252,6 +304,7 @@ function whatOf(key, cls) {
   if (cls !== LOSS.REMOVES) return 'list'
   if (/clear/.test(key)) return 'clear'
   if (/loop/.test(key)) return 'loop'
+  if (/^fn:/.test(key)) return 'fn'
   return 'delete'
 }
 
@@ -260,12 +313,13 @@ const WHAT_WORDS = Object.freeze({
   delete: 'a delete',
   clear: 'a table clear',
   loop: 'a loop that deletes',
+  fn: 'a function of its own that deletes',
   list: 'a change to the list it deletes from',
 })
 
 function whatPhrase(loss) {
   const kinds = uniq((loss.removes || []).map((r) => r.what))
-  const order = ['delete', 'clear', 'loop', 'list']
+  const order = ['delete', 'clear', 'loop', 'fn', 'list']
   const words = order.filter((k) => kinds.includes(k)).map((k) => WHAT_WORDS[k])
   if (!words.length) return 'a step that removes drawings'
   if (words.length === 1) return words[0]
@@ -314,8 +368,9 @@ export function objectLossNote(loss, opts = {}) {
     parts.push(`${loss.dropped} of ${loss.attempted} drawing elements in this script aren't `
       + 'supported yet, so what it draws is incomplete. (The '
       + `${loss.attempted} are every drawing step this chart tried to carry: each line, label, `
-      + 'box or table created, changed or written to, each change to a list of them, and '
-      + 'each loop.)')
+      + 'box or table created, changed or written to, each change to a list of them, '
+      + 'each loop, and each call to a drawing function of the script\'s own that could '
+      + 'not be followed.)')
   }
   if (loss.readerNames.length) {
     const names = loss.readerNames.map((n) => `\`${n}\``).join(', ')

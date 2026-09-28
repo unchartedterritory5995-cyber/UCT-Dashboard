@@ -518,12 +518,22 @@ def render_card(rows: list, window: list) -> bytes:
 
 
 # ── orchestration ──────────────────────────────────────────────────────────
+#: ⛔ TERM-011 step 5 -- THE VARIABLE THAT TURNS THIS POSTER BACK ON, named
+#: once so a log line cannot drift from the one actually read.
+WEBHOOK_ENV = "OI_MORNING_WEBHOOK_URL"
+
+
 def _webhook() -> str:
+    """This poster's own webhook, read AT CALL TIME. "" = do not post.
+
+    ⛔⛔ TERM-011 step 5 -- NO LONGER FALLS BACK TO DISCORD_WEBHOOK_URL. The
+    other names are this card's OWN shared flow-channel names (the same room the
+    sibling EOD cards post to), never the admin room.
+    """
     return (os.getenv("OI_MORNING_WEBHOOK_URL")
             or os.getenv("ALPHA_GOLD_EOD_WEBHOOK_URL")
             or os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
-            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-            or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
+            or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL", "")).strip()
 
 
 def run_oi_morning(*, force: bool = False, post: bool = True,
@@ -553,6 +563,9 @@ def run_oi_morning(*, force: bool = False, post: bool = True,
         wh = _webhook()
         if not wh:
             res.update(posted=False, reason="no webhook (set OI_MORNING_WEBHOOK_URL)")
+            log.error("[oi-morning] NOT posted — no webhook configured, and this "
+                      "card no longer falls back to DISCORD_WEBHOOK_URL. Set %s to "
+                      "turn it back on.", WEBHOOK_ENV)
             return res
         ok, detail = _post_discord_image(wh, png, "", filename="oi_morning.png")
         res.update(posted=ok, detail=detail)

@@ -4951,11 +4951,16 @@ def get_thresholds(_auth: dict = Depends(require_flow_user)):
 # back to the LiveFlow channel so "same channel for now" works with no config.
 # Never hardcode the URL — it's a secret; set DISCORD_MASSIVE_WEBHOOK_URL in the
 # environment (Railway) and rotate there without a code change.
-_MASSIVE_WEBHOOK = (
-    os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
-    or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-    or os.getenv("DISCORD_WEBHOOK_URL", "")
-).strip()
+# TERM-011 step 5 -- read at CALL TIME, no fallback to DISCORD_WEBHOOK_URL.
+# A member-facing card must stop rather than land in the admin/ops room when
+# unconfigured; and an import-time capture would need a pod restart to honour
+# a blanked variable, which is a kill switch a restart is required to work.
+def _massive_webhook() -> str:
+    return (
+        os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
+        or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
+        or ""
+    ).strip()
 _UCT_LOGO_URL = os.getenv(
     "UCT_LOGO_URL",
     "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
@@ -5328,13 +5333,19 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
 
 def _post_massive_discord(embed: dict) -> tuple:
     """POST an embed to the Massive webhook. Returns (ok, detail)."""
-    if not _MASSIVE_WEBHOOK:
+    wh = _massive_webhook()
+    if not wh:
+        # TERM-011 step 5 -- VISIBLE SILENCE, naming the variable.
+        logging.getLogger(__name__).error(
+            "[live-massive] Discord push NOT sent -- no webhook configured, and "
+            "this no longer falls back to DISCORD_WEBHOOK_URL. Set "
+            "DISCORD_MASSIVE_WEBHOOK_URL to turn it back on.")
         return (False, "no webhook configured (set DISCORD_MASSIVE_WEBHOOK_URL)")
     import urllib.request
     import urllib.error
     data = json.dumps({"embeds": [embed]}).encode("utf-8")
     req = urllib.request.Request(
-        _MASSIVE_WEBHOOK, data=data,
+        wh, data=data,
         headers={
             "Content-Type": "application/json",
             # Discord's Cloudflare edge blocks urllib's default UA with error

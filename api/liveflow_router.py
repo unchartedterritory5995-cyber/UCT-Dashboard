@@ -290,7 +290,9 @@ async def test_discord_post(_auth: dict = Depends(require_flow_admin)):
     """
     Manually fire a test Discord post to verify the webhook + embed rendering
     end-to-end. Synthesizes a realistic aggregate, runs it through the actual
-    _build_embed() helper, and pushes via the configured DISCORD_WEBHOOK_URL.
+    _build_embed() helper, and pushes via `liveflow_worker.webhook_url()`
+    (TERM-011 step 5 — call-time, fail-closed; DISCORD_WEBHOOK_URL is no
+    longer consulted).
 
     Accepts both GET and POST so it can be fired from a browser address bar
     (GET) for convenience, or via fetch/curl (POST) for scripting. Either
@@ -311,10 +313,13 @@ async def test_discord_post(_auth: dict = Depends(require_flow_admin)):
     import traceback
     import httpx
 
-    if not liveflow_worker.DISCORD_WEBHOOK_URL:
+    if not liveflow_worker.webhook_url():
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE, naming the real variable. Was
+        # `liveflow_worker.DISCORD_WEBHOOK_URL`, an attribute read that bypassed
+        # `webhook_url()`'s call-time, fail-closed contract entirely.
         return {
             "ok": False,
-            "error": "DISCORD_WEBHOOK_URL not configured. Set env var first.",
+            "error": f"No webhook configured. Set {liveflow_worker.WEBHOOK_ENV}.",
         }
 
     # Wrap everything in try/except so future bugs surface as JSON instead of
@@ -374,7 +379,7 @@ async def test_discord_post(_auth: dict = Depends(require_flow_admin)):
 
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.post(
-                liveflow_worker.DISCORD_WEBHOOK_URL + "?wait=true",
+                liveflow_worker.webhook_url() + "?wait=true",
                 json=payload,
             )
             r.raise_for_status()
@@ -532,9 +537,14 @@ async def admin_force_push_discord(
 
     # Get the Discord webhook URL from the worker module (same one the live
     # worker uses for normal posts).
-    webhook = getattr(liveflow_worker, "DISCORD_WEBHOOK_URL", "")
+    # ⛔ TERM-011 step 5 — was `getattr(liveflow_worker, "DISCORD_WEBHOOK_URL", "")`,
+    # a THIRD reader of the retired attribute this pass found by re-grepping
+    # after the first two fixes (a string-keyed `getattr` doesn't match a plain
+    # attribute-access search). Call-time via `webhook_url()`, visible silence
+    # naming the real variable.
+    webhook = liveflow_worker.webhook_url()
     if not webhook:
-        return {"ok": False, "error": "DISCORD_WEBHOOK_URL not configured on web service env"}
+        return {"ok": False, "error": f"No webhook configured. Set {liveflow_worker.WEBHOOK_ENV}."}
 
     # Build a single-fire aggregate from the alert dict and call _build_embed.
     # Same shape construction csv_ingest uses for replay posts.
