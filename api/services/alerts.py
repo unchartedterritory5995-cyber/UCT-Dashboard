@@ -180,6 +180,18 @@ _TYPE_SEVERITY = {
     "exposure_shift": SEVERITY_WARNING,
 }
 
+# TERM-011 rows 1/3 (docs/terminal-research/07-technical-architecture/
+# term-011-routing-decisions.md, ruling (a) BOTH — resolve twice): these two
+# BROADCAST types' Discord copy moves from the admin webhook to the OPS
+# destination. The member bell entry above is completely untouched — this set
+# decides a URL, never whether the alert is stored or who it is stored for.
+# ⛔ `stop_hit`/`scanner_match`/`ep_resolved` are deliberately absent: the
+# packet's own §0 scan (and this file's header table) shows they reach nobody,
+# so classing them would be guessing at a destination for an alert that never
+# fires. Class one the day it is wired, same as `resolve_channel` forces for
+# any other producer.
+_OPS_ROUTED_TYPES = frozenset({"regime_change", "exposure_shift"})
+
 
 def _now_et() -> str:
     return datetime.now(_ET).isoformat()
@@ -402,9 +414,25 @@ def add_alert(
     except Exception:  # noqa: BLE001
         pass
 
-    # Fire Discord webhook for warning/critical
+    # Fire Discord webhook for warning/critical -- BROADCAST alerts only.
+    #
+    # TERM-011 step 7 (the packet's rows 4/5): a private alert's Discord leg is
+    # retired outright, whatever its severity. The member's own bell (:392
+    # above) and email already carry it; this room is for something an
+    # operator or the WHOLE audience should see, not one member's brief. Before
+    # this, `severity="warning"` on a per-member delivery (11 of 13
+    # `deliver_alert_payload` call sites; the two "info" AI-search briefings are
+    # a later, separate commit -- landing them first would have flooded this
+    # room while it was still door A, and landing this gate first is what makes
+    # that later commit safe) put every triggered price alert, indicator fire
+    # and briefing into the SAME admin channel as a market-wide regime change.
+    # `severity` keeps ranking, colouring and glyphing the in-app row; it no
+    # longer decides Discord for a private alert.
     fires_discord = alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL)
-    if discord_webhook() and fires_discord:
+    if user_id is not None:
+        if channels is not None:
+            channels[CHANNEL_DISCORD] = CHANNEL_SKIPPED
+    elif fires_discord and _discord_destination(alert):
         landed = _fire_discord(alert)
         if channels is not None:
             channels[CHANNEL_DISCORD] = CHANNEL_OK if landed else CHANNEL_FAILED
@@ -414,6 +442,40 @@ def add_alert(
         channels[CHANNEL_DISCORD] = CHANNEL_SKIPPED
 
     return alert
+
+
+def _discord_destination(alert: dict) -> str:
+    """Which webhook URL ``alert``'s Discord copy goes to, read NOW. ``""``
+    when nothing is configured for it.
+
+    TERM-011 rows 1/3: a type in ``_OPS_ROUTED_TYPES`` (currently
+    ``regime_change``/``exposure_shift``) resolves through the OPS
+    destination instead of the admin webhook. Every other broadcast type is
+    completely unaffected — this only ever narrows which two types take the
+    new branch, never widens what the admin webhook itself does.
+
+    ⛔ LOCAL IMPORT, DELIBERATELY. ``alert_routing.py`` imports severity/channel
+    constants FROM THIS MODULE at ITS OWN module level (the chain is
+    ``alert_destination -> alert_routing -> alerts``), so a module-level
+    ``from api.services.alert_destination import ...`` here would close
+    ``alerts -> alert_destination -> alert_routing -> alerts`` into a cycle.
+    Deferred to call time, both modules are already fully initialized —
+    the same reason `add_alert` already imports `alert_durability` locally
+    a few lines above rather than at the top of this file.
+
+    ⚠️ ``ops_webhook`` is TOTAL for ``CLASS_OPS`` (it is a member of
+    ``ALERT_CLASSES``, so `resolve_channel` cannot refuse it) and never raises
+    by its own docstring — the ``try`` is for the IMPORT, not the call, kept
+    defensive anyway because a raised exception here must never cost the
+    alert its fallback destination.
+    """
+    if alert["type"] in _OPS_ROUTED_TYPES:
+        try:
+            from api.services.alert_destination import ops_webhook
+            return ops_webhook(alert["severity"], producer=alert["type"])
+        except Exception:  # noqa: BLE001
+            pass  # fall through to the admin webhook rather than losing the post
+    return discord_webhook()
 
 
 def mark_read(alert_id: str, user_id: str) -> bool:
@@ -545,6 +607,14 @@ def _fire_discord(alert: dict) -> bool:
     on a mock/stubbed response raises, and reading that as a failure would make
     every test double a "Discord outage" — a guard that fires on the harness
     instead of on the product.
+
+    ⚠️ SIGNATURE KEPT AT ONE ARGUMENT ON PURPOSE. TERM-011 rows 1/3 route
+    ``_OPS_ROUTED_TYPES`` through a different URL (`_discord_destination`,
+    also what `add_alert`'s own gate consults to decide whether to call this
+    at all) — that resolution lives THERE, re-read here, rather than as a
+    second parameter on this function. A dozen tests replace this whole
+    function with a bare ``lambda payload: None``; a second parameter would
+    raise ``TypeError`` through every one of them the day a caller passed it.
     """
     try:
         import requests
@@ -557,7 +627,7 @@ def _fire_discord(alert: dict) -> bool:
             "footer": {"text": f"UCT Alert · {alert['type']} · {alert['timestamp'][:16]}"},
         }
         resp = requests.post(
-            discord_webhook(),
+            _discord_destination(alert),
             json={"embeds": [embed]},
             timeout=5,
         )
