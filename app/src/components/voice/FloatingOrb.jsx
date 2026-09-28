@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useVoice } from '../../context/VoiceContext'
+import { useFirstRunSlot, useFirstRunStageHeld } from '../firstRun/firstRunStage'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
@@ -39,6 +41,43 @@ function clampToViewport(x, y, w, h) {
     x: clamp(x, EDGE_PADDING_PX, window.innerWidth - w - EDGE_PADDING_PX),
     y: clamp(y, EDGE_PADDING_PX, window.innerHeight - h - EDGE_PADDING_PX),
   }
+}
+
+/**
+ * The one-time "Meet Compass" card (wave 10 follow-up F5).
+ *
+ * ⛔ IT LIVES IN THE PAGE FLOW, NEVER OVER THE PAGE. It used to hang off the orb in the
+ * orb's fixed layer, so it sat over whatever was under it: the Notebook's Unfiled /
+ * Archived / Trash rows at 390 px, the editor's evidence area at 1200 (proof walk 10E-1
+ * 6b, design review D-2). It is portaled into the first-run slot Layout keeps at the top
+ * of <main> (components/firstRun/firstRunStage.js), so it takes its own space and pushes
+ * the page down -- it cannot cover a control at any width.
+ *
+ * Its arrival and its dismissal move everything below it, so it says so with a `resize`:
+ * a surface that sizes itself to "the viewport below my own top" (the Notebook's panel)
+ * measures on resize only, and would otherwise keep a height that no longer fits.
+ */
+function OrbCoachmark({ onDismiss }) {
+  const titleId = useId()
+  useLayoutEffect(() => {
+    window.dispatchEvent(new Event('resize'))
+    return () => { window.dispatchEvent(new Event('resize')) }
+  }, [])
+  return (
+    <div className={styles.coachmark} role="note" aria-labelledby={titleId} data-orb-coachmark="">
+      <div className={styles.coachmarkText}>
+        <p id={titleId} className={styles.coachmarkTitle}>Meet Compass</p>
+        <p className={styles.coachmarkBody}>
+          Tap the compass button{' '}
+          <UIcon name="compass" size={13} style={{ verticalAlign: '-2px' }} />{' '}
+          to talk to your trading coach — markets, setups, and your journal, all by voice.
+        </p>
+      </div>
+      <button type="button" className={styles.coachmarkDismiss} onClick={onDismiss}>
+        Got it
+      </button>
+    </div>
+  )
 }
 
 /**
@@ -83,6 +122,12 @@ export default function FloatingOrb({ context = 'global' }) {
     setShowCoachmark(false)
     try { localStorage.setItem(COACHMARK_KEY, '1') } catch { /* noop */ }
   }, [])
+  // Wave 10 follow-up F5: the card shows only IN the page's first-run slot (never over
+  // the page), and only while no first-run tour holds the stage -- the tour goes first,
+  // the card after it (firstRunStage.js).
+  const firstRunSlot = useFirstRunSlot()
+  const firstRunStageHeld = useFirstRunStageHeld()
+  const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
@@ -93,9 +138,10 @@ export default function FloatingOrb({ context = 'global' }) {
   const [hovered, setHovered] = useState(false)
   const [idleTucked, setIdleTucked] = useState(false)
   const idleTimerRef = useRef(null)
-  // A live session or drag pins the orb out; the coachmark must stay readable.
+  // A live session or drag pins the orb out; while the coachmark is up, the button it
+  // tells the member to tap stays out where they can see it.
   const inSessionLive = voice.mode === 'c' && voice.status !== 'idle' && voice.status !== 'error'
-  const tuckBlocked = hovered || inSessionLive || dragging || showCoachmark
+  const tuckBlocked = hovered || inSessionLive || dragging || coachmarkOn
   useEffect(() => {
     if (tuckBlocked) {
       clearTimeout(idleTimerRef.current)
@@ -126,7 +172,15 @@ export default function FloatingOrb({ context = 'global' }) {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  if (voice.mode === 'a' && voice.status === 'playing') return null
+  // The first-run card is IN the page, not in the orb's layer, so it stays put whatever
+  // the orb does -- hidden for audio playback or behind a modal, the page under it has
+  // not changed. The card's place in this component's output is FIXED (the second slot
+  // of one fragment on every path), so the orb hiding and coming back never remounts it.
+  const coachmarkPortal = coachmarkOn && !inSessionLive && !minimized
+    ? createPortal(<OrbCoachmark onDismiss={dismissCoachmark} />, firstRunSlot)
+    : null
+
+  if (voice.mode === 'a' && voice.status === 'playing') return <>{null}{coachmarkPortal}</>
 
   const status = voice.status
   let stateClass = styles.idle
@@ -163,7 +217,7 @@ export default function FloatingOrb({ context = 'global' }) {
   const inTrainMode = inSession && voice.sessionContext === 'train_me'
   // Hide entirely when a modal/sheet is open (so the orb never covers its bottom
   // CTA on mobile) — unless we're mid live call.
-  if (scrollLocked && !inSession) return null
+  if (scrollLocked && !inSession) return <>{null}{coachmarkPortal}</>
   // Tuck the orb away while scrolling or idle — but never during a live call,
   // a drag, or while the pointer/focus is on it (hover always wins the tuck).
   const tucked = (hiddenOnScroll || idleTucked) && !inSession && !dragging && !hovered
@@ -278,86 +332,56 @@ export default function FloatingOrb({ context = 'global' }) {
     ? { top: `${pos.y}px`, left: `${pos.x}px`, right: 'auto', bottom: 'auto' }
     : undefined
 
+  // The cluster and the first-run card are SIBLINGS in the React tree: the card is
+  // portaled into the page (not the orb's fixed layer), and a portal's events bubble
+  // through its React parents -- inside the cluster, a press on the card would start an
+  // orb drag and a focus on "Got it" would read as hovering the orb.
   return (
-    <div
-      ref={clusterRef}
-      className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
-      style={clusterStyle}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
-    >
-      <button
-        type="button"
-        className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''} ${minimized ? styles.minimized : ''}`}
-        onClick={onClick}
-        aria-label={minimized ? 'Expand Compass' : label}
-        title={minimized ? 'Compass minimized — tap to expand' : (inTrainMode ? 'In Train Me mode — tap to exit' : label)}
+    <>
+      <div
+        ref={clusterRef}
+        className={`${styles.orbCluster} ${dragging ? styles.dragging : ''} ${tucked ? (tuckSide === 'left' ? styles.tuckedLeft : styles.tuckedRight) : ''}`}
+        style={clusterStyle}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        onFocus={() => setHovered(true)}
+        onBlur={() => setHovered(false)}
       >
-        <CompassOrb state={orbState} />
-        {errorGlyph && <span className={styles.errorBadge}><UIcon name={errorGlyph} size={12} /></span>}
-      </button>
-      {!inSession && !minimized && !tucked && (
         <button
           type="button"
-          className={styles.trainBtn}
-          onClick={onTrainClick}
-          aria-label="Train Me — teach the assistant a preference"
-          title="Train Me — teach me a preference or correction"
+          className={`${styles.orb} ${stateClass} ${inTrainMode ? styles.training : ''} ${minimized ? styles.minimized : ''}`}
+          onClick={onClick}
+          aria-label={minimized ? 'Expand Compass' : label}
+          title={minimized ? 'Compass minimized — tap to expand' : (inTrainMode ? 'In Train Me mode — tap to exit' : label)}
         >
-          <UIcon name="education" size={16} />
+          <CompassOrb state={orbState} />
+          {errorGlyph && <span className={styles.errorBadge}><UIcon name={errorGlyph} size={12} /></span>}
         </button>
-      )}
-      {!inSession && !minimized && !tucked && <VisionAttachButton />}
-      {!inSession && !minimized && !tucked && <AgentPicker onMinimize={() => setMin(true)} />}
-      {inTrainMode && (
-        <div className={styles.trainBadge}>Training</div>
-      )}
-      {inSession && voice.sessionContext && voice.sessionContext !== 'global' && voice.sessionContext !== 'train_me' && (
-        <div className={styles.agentBadge}>{voice.sessionContext.replace('_', ' ')}</div>
-      )}
-      {showCoachmark && !inSession && !minimized && !tucked && !dragging && (
-        <div
-          onPointerDown={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: '100%',
-            right: 0,
-            marginBottom: 10,
-            width: 224,
-            padding: '10px 12px',
-            borderRadius: 12,
-            background: 'rgba(20,20,24,0.97)',
-            border: '1px solid rgba(201,168,76,0.4)',
-            boxShadow: '0 8px 28px rgba(0,0,0,0.45)',
-            color: '#f4f4f5',
-            font: '12.5px/1.45 Instrument Sans, system-ui, sans-serif',
-            pointerEvents: 'auto',
-          }}
-        >
-          <div style={{ fontWeight: 600, color: '#e8d59a', marginBottom: 2 }}>Meet Compass</div>
-          Tap to talk to your trading coach — markets, setups, and your journal, all by voice.
+        {!inSession && !minimized && !tucked && (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); dismissCoachmark() }}
-            style={{
-              display: 'block', marginTop: 4, marginLeft: 'auto',
-              background: 'transparent', border: 'none', color: '#a1a1aa',
-              cursor: 'pointer', fontSize: 12,
-              /* a dismiss too small to hit keeps the coach-mark up forever —
-                 audited at 29x14 on every route (wave 14) */
-              minHeight: 'var(--tap-min)', padding: '0 10px',
-            }}
+            className={styles.trainBtn}
+            onClick={onTrainClick}
+            aria-label="Train Me — teach the assistant a preference"
+            title="Train Me — teach me a preference or correction"
           >
-            Got it
+            <UIcon name="education" size={16} />
           </button>
-        </div>
-      )}
-    </div>
+        )}
+        {!inSession && !minimized && !tucked && <VisionAttachButton />}
+        {!inSession && !minimized && !tucked && <AgentPicker onMinimize={() => setMin(true)} />}
+        {inTrainMode && (
+          <div className={styles.trainBadge}>Training</div>
+        )}
+        {inSession && voice.sessionContext && voice.sessionContext !== 'global' && voice.sessionContext !== 'train_me' && (
+          <div className={styles.agentBadge}>{voice.sessionContext.replace('_', ' ')}</div>
+        )}
+      </div>
+      {coachmarkPortal}
+    </>
   )
 }

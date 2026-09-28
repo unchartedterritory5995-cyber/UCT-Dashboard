@@ -5,6 +5,7 @@ import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
+import { registerFirstRunSlot } from './firstRun/firstRunStage'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -162,6 +163,11 @@ export default function Layout({ children }) {
                   the nav would restore the old behaviour.
 
                   Rail: components/Layout.routeSuspense.test.jsx. */}
+              {/* Wave 10 follow-up F5: the first-run slot. A one-time card (the voice orb's
+                  "Meet Compass") is portaled HERE, so it sits in the page flow and pushes the
+                  page down instead of floating over a control. Empty, it has no box at all.
+                  components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
+              <div ref={registerFirstRunSlot} data-first-run-slot="" />
               <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
                 {children ?? <Outlet />}
               </Suspense>

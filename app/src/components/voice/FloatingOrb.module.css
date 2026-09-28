@@ -296,3 +296,42 @@
 @media (max-width: 1024px) {
   .trainBtn { width: var(--tap-min); height: var(--tap-min); }
 }
+
+/* Wave 10 follow-up F5: the one-time "Meet Compass" card. It is portaled into the
+   first-run slot at the top of <main> (Layout.jsx), so it lives IN the page flow and
+   pushes the page down -- it never floats over a control, at any width. Theme tokens
+   only, so it reads on the light theme as well as the dark ones (the floating card was
+   a fixed dark panel). */
+.coachmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 20px 0;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--border-accent);
+  border-left: 3px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.coachmarkText { flex: 1; min-width: 0; }
+.coachmarkTitle { margin: 0 0 2px; font-weight: 600; }
+.coachmarkBody { margin: 0; }
+.coachmarkDismiss {
+  flex: none;
+  min-height: var(--tap-min);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  cursor: pointer;
+}
+.coachmarkDismiss:hover { border-color: var(--ut-gold); }
+.coachmarkDismiss:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .coachmark { margin: 10px 12px 0; }
+}
