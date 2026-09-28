@@ -1852,7 +1852,9 @@ const clockFieldAt = (field, a) => {
   return null
 }
 
-const BUILTIN_CALL_TREE = Object.freeze({
+// ⭐ EXPORTED FOR THE RUNTIME LANE (2026-09-27), which applies `avg` to an
+// argument list that reads mutable state — the same builder, never a copy.
+export const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
   // ⛔ GROUPED LEFT, AS THE LINE ABOVE READS: `(100 * (src - src[n])) / src[n]`.
@@ -4403,6 +4405,49 @@ const isStaticNa = (n) => !!n && n.type === 'op' && n.name === '/'
   && Array.isArray(n.args) && n.args.length === 2
   && n.args.every((a) => a && a.type === 'num' && a.value === 0)
 
+/** ⭐⭐⭐ PINE'S `?:` TAKES THE ELSE ARM WHEN ITS CONDITION IS `na` — VENDOR-PINNED.
+ *
+ *  The shared `TERNARY` (`interpret.js`) propagates a NaN test, which is this
+ *  engine's cross-language `{0,1,NaN}` decision and stays exactly as it is for
+ *  every other language. PINE does not propagate: a condition that is `na` —
+ *  a float used as a bool (`ph ? ph : pl ? pl : na`), an `na` bool, a logical
+ *  over an `na` operand — is FALSE, and the else arm is the answer.
+ *
+ *  ⭐ MEASURED, NOT READ: `tests/fixtures/vendor/harness/pivot-point-supertrend-
+ *  rddt-1d-2026-09-27.json` bar 9 = 38.23456 is `center - 3·atr` with
+ *  `lastpp = pl = 44` taken through the else arm of `ph ? ph : pl ? pl : na` on a
+ *  bar where `ph` is `na`; propagating gives `na` there, and every later bar of
+ *  the ratcheting trail inherits it (`pineTernaryNa.test.js`).
+ *
+ *  ⛔ SAID IN PINE'S OWN TERMS, NOT A NEW OPERATOR: `c != 0` is `0` for an `na`
+ *  `c` (a comparison against NaN is 0 in `cmp`), `0` for zero and `1` otherwise —
+ *  which is exactly Pine's float-as-bool, with `na` false.
+ *
+ *  ⭐ A CONDITION THAT CAN NEVER BE NaN IS LEFT EXACTLY AS WRITTEN — a comparison
+ *  (`cmp` answers 0 against NaN), `na(x)`, and `not`/`and`/`or` over those — so the
+ *  tree every `a > b ? …` and `na(x) ? seed : …` script has always produced does not
+ *  move, and neither do the recurrence recognisers that read that shape. Only a
+ *  condition that CAN be `na` (a float, a value bound to a `?:`, a logical over one)
+ *  is wrapped.
+ *  ⚠️ RESIDUAL, STATED: a boolean BUILTIN that is `na` in its warm-up
+ *  (`crossover`, `rising`, …) is not wrapped either, so on those warm-up bars a
+ *  `?:` over it is still `na` where Pine takes the else arm. */
+const COMPARISONS = new Set(['>', '<', '>=', '<=', '==', '!='])
+const neverNaNCondition = (n) => {
+  if (!n || typeof n !== 'object') return false
+  if (n.type === 'num') return true
+  if (n.type === 'call') return n.name === 'na'
+  if (n.type !== 'op') return false
+  if (COMPARISONS.has(n.name)) return true
+  if (n.name === '!') return neverNaNCondition((n.args || [])[0])
+  if (n.name === '&&' || n.name === '||') return (n.args || []).every(neverNaNCondition)
+  return false
+}
+export const pineTruthy = (v) => !Number.isNaN(v) && v !== 0
+export const pineCondition = (test) => (neverNaNCondition(test)
+  ? test
+  : cOp('!=', [test, cNum(0)]))
+
 /** ⭐⭐ A TRANSLATE-TIME FOLD IS A COMPUTE BUDGET, NOT JUST A DEPTH LIMIT.
  *  A member can paste `1 + 1 + … ` ten thousand times and every term of it IS a
  *  constant, so a fold with no ceiling would happily walk the whole thing on the
@@ -5186,6 +5231,13 @@ export class Resolver {
     /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
      *  identity fold on an intraday base; never to produce a value. */
     this.newestBarIsForming = opts.newestBarIsForming === true
+    /** ⭐ PINE'S `na`-IS-FALSE CONDITION for `?:` and `iff` (`pineCondition`).
+     *  Asked for by the RUNTIME lane only (`pineRuntimeFrontend.js`), where it is
+     *  vendor-pinned. ⛔ OFF for every other caller: the host lane's trees are
+     *  persisted, hashed, frozen for the Python screener lane and read by the
+     *  recurrence recognisers, and moving them is a ruling of its own —
+     *  measured 2026-09-27 at 55 test rows (docs/pine/PARITY-PROGRAMME.md). */
+    this.pineNaCondition = opts.pineNaCondition === true
     /** The member's own script, when the caller passed it — an offer quotes
      *  their text back rather than re-printing a tree, so what lands in the box
      *  is what they wrote. */
@@ -6789,8 +6841,12 @@ export class Resolver {
         // the same rule as "a statement no output reaches is a note": refusing a
         // script over an arm its own folded input makes unreachable would be
         // reading a different document than the one the member pasted.
-        if (test.type === 'num') return this.resolve(test.value !== 0 ? node.yes : node.no)
-        return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+        // ⭐ A CONSTANT `na` TEST TAKES THE ELSE ARM, for the reason below.
+        if (test.type === 'num') {
+          return this.resolve(pineTruthy(test.value) ? node.yes : node.no)
+        }
+        return cOp('?:', [this.pineNaCondition ? pineCondition(test) : test,
+          this.resolve(node.yes), this.resolve(node.no)])
       }
       case 'offset': {
         // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
@@ -8651,7 +8707,13 @@ export class Resolver {
           + `bar's own value${CLOCK_IDENTITY_FIELDS.has(bare) ? `, or \`${bare}(timenow)\` for the newest fetched bar's` : ''}.`,
           locate(tok))
       }
-      return BUILTIN_CALL_TREE[bare](built)
+      const expanded = BUILTIN_CALL_TREE[bare](built)
+      // ⭐ `iff` IS A `?:`, so under `pineNaCondition` its condition reads `na` as
+      // false exactly as the operator does (see `pineCondition`).
+      if (bare === 'iff' && this.pineNaCondition && expanded && expanded.name === '?:') {
+        return cOp('?:', [pineCondition(expanded.args[0]), expanded.args[1], expanded.args[2]])
+      }
+      return expanded
     }
     // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
     //

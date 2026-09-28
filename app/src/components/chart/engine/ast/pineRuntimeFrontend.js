@@ -32,7 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf,
+  OWN_TF_NAMES, basePeriodOf, constantValueOf, BUILTIN_CALL_TREE,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -40,7 +40,7 @@ import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './inter
 import { bindConstsFor, foldBound } from './bind.js'
 import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
-  declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
+  declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot, histSlotDyn,
   histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing,
@@ -129,16 +129,28 @@ function fromCanonical(node, tok) {
     // catch a NAMED argument. A bare node in that position answers with its own
     // `name` — so a nested `max(...)` handed to `max` was read as
     // `a named argument \`max\` on \`max\``. Measured, second run.
-    case 'call': return {
-      type: 'call',
-      name: node.name,
-      tok: at,
-      args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
-    }
-    case 'offset': return {
-      type: 'offset', value: node.value, tok: at,
-      args: (node.args || []).map((a) => fromCanonical(a, at)),
-    }
+    // ⛔⛔ `call` AND `offset` ARE SPELLED THE SAME IN BOTH DIALECTS, so a
+    // caller's own argument that is a PARSE call or a PARSE history read must
+    // pass through untouched — it is not a canonical node to translate. A parse
+    // call's arguments are `{name?, value}` records; a parse offset carries `arg`
+    // and `n`. ⚰️ Measured 2026-09-27: `math.avg(m, close[1])` rebuilt the parse
+    // `close[1]` as a canonical offset with no arguments and died in lowering
+    // with "Cannot read properties of undefined (reading 'type')".
+    case 'call':
+      if ((node.args || []).some((a) => a && a.type === undefined
+          && Object.prototype.hasOwnProperty.call(a, 'value'))) return node
+      return {
+        type: 'call',
+        name: node.name,
+        tok: at,
+        args: (node.args || []).map((a) => ({ value: fromCanonical(a, at) })),
+      }
+    case 'offset':
+      if (node.arg !== undefined || node.n !== undefined) return node
+      return {
+        type: 'offset', value: node.value, tok: at,
+        args: (node.args || []).map((a) => fromCanonical(a, at)),
+      }
     // ⭐ ANYTHING ELSE IS ALREADY A PARSE NODE — a caller's own argument, which
     // a builder embeds verbatim. Rewriting it would be this bridge inventing a
     // translation for a dialect it was not asked about.
@@ -147,6 +159,18 @@ function fromCanonical(node, tok) {
 }
 
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
+/** `+=` `-=` `*=` `/=` `%=` — ONE predicate, read by the mutability pre-scan and
+ *  by the lowering that desugars it, so the two cannot disagree. */
+const isCompoundAssign = (t) => !!t && t.kind === 'punct'
+  && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0])
+
+/** Pine's condition over an IR value: `na` and `0` are false (see
+ *  `pine.js::pineCondition`, which carries the vendor evidence). A comparison
+ *  can never be NaN, so it passes through unwrapped. */
+const IR_COMPARISONS = new Set(['<', '>', '<=', '>=', '==', '!='])
+const irCondition = (t) => (t && t.kind === EXPR.BINARY && IR_COMPARISONS.has(t.op)
+  ? t
+  : binary('!=', t, num(0)))
 
 export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:loop': 'a loop — the runtime has no iteration yet',
@@ -530,6 +554,16 @@ const isInputName = (name) => typeof name === 'string'
 /** Is this node a call to Pine's input family? */
 const isInputCall = (node) => !!(node && node.type === 'call' && isInputName(node.name))
 
+/** The DEFAULT of an `input.color(…)` call — `defval` by name, else the first
+ *  positional argument — or null. */
+const inputColourDefault = (node) => {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  const pick = named || args.find((a) => a && !a.name)
+  if (!pick) return null
+  return pick.value !== undefined ? pick.value : pick
+}
+
 /** The NAMED arguments of an input call that a reader in EITHER lane consults.
  *
  *  ⭐⭐ DERIVED FROM THE READERS, NOT FROM THE REFERENCE MANUAL. `pine.js`'s
@@ -603,7 +637,11 @@ const MAX_HISTORY_SLOTS = 512
  *  and fold it, which is the silent-wrong-result shape this whole program exists
  *  to prevent. */
 export function scanMutability(stmts, out) {
-  const acc = out || { mutated: new Set(), persistent: new Set() }
+  // ⭐ `reassigned` is the narrower set: names a `:=` or compound operator WRITES.
+  // `mutated` also holds every `var` name, which is right for the slot decision
+  // (a `var` persists) and wrong for "does its value ever change" — a `var` with a
+  // literal initialiser that nothing reassigns holds that literal on every bar.
+  const acc = out || { mutated: new Set(), persistent: new Set(), reassigned: new Set() }
   for (const st of stmts) {
     const toks = st.header || []
     const first = toks[0]
@@ -615,6 +653,20 @@ export function scanMutability(stmts, out) {
     const walrus = findTop(toks, (t) => isPunct(t, ':='))
     if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
       acc.mutated.add(toks[walrus - 1].value)
+      acc.reassigned.add(toks[walrus - 1].value)
+    }
+    // ⭐ 2026-09-27 — A COMPOUND ASSIGNMENT IS A REASSIGNMENT. `num += w * v` is
+    // desugared to `num := num + (w * v)` at lowering (the `compoundAt` arm), so it
+    // mutates `num` exactly as `:=` does — but this scan only looked for `:=`, so
+    // `float num = 0.0` followed by `num += …` in a loop classified `num` as pure,
+    // folded its declaration, and the rewritten write then found no slot: "`num` is
+    // reassigned before it is declared" (kernel-channel, nadaraya-watson,
+    // nonlinear-regression). The predicate is the lowering's own, so the two cannot
+    // disagree about which tokens are a compound operator.
+    const compound = findTop(toks, isCompoundAssign)
+    if (compound > 0 && toks[compound - 1] && toks[compound - 1].kind === 'ident') {
+      acc.mutated.add(toks[compound - 1].value)
+      acc.reassigned.add(toks[compound - 1].value)
     }
     if (st.sub && st.sub.length) scanMutability(st.sub, acc)
   }
@@ -984,8 +1036,10 @@ export function buildRuntimeIr(source, opts = {}) {
   // ⛔ OFF BY DEFAULT — no other caller's build moves by one byte.
   const inputMint = opts.collectInputs === true
     ? { counter: 0, byNode: new Map(), metadata: [] } : null
+  // ⭐ `pineNaCondition` — a pure `?:` over an `na` condition takes its else arm
+  // here, as Pine's does and as this lane's own `?:` lowering does (`irCondition`).
   const makeResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint, pineNaCondition: true })
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
   }
@@ -1022,7 +1076,7 @@ export function buildRuntimeIr(source, opts = {}) {
   //  with this option so does this lane. ⛔ OFF BY DEFAULT: every other build
   //  keeps the owner's 2026-08-11 rule exactly (`history.test.js`).
   const makeFrozenResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint, pineNaCondition: true })
     if (opts.inputsReachEveryFold === true && inputs && typeof inputs === 'object') {
       r.inputValues = inputs
     }
@@ -1277,8 +1331,16 @@ export function buildRuntimeIr(source, opts = {}) {
     // else — `parseOffsetIndex` hands the expression over rather than refusing,
     // *"precisely so a consumer can decide"*. A literal has no `.expr` and
     // recurses into nothing, so a constant offset routes exactly as before.
+    //
+    // ⭐⭐ 2026-09-27 — AND A PURE SERIES AS THE OFFSET IS PER-BAR TOO.
+    // `kn = bar_index % 4 == 0 ? na : 1` reads no slot, so the test above said
+    // "pure", `close[kn]` went to the columnar lane, and that lane refused
+    // `pine:offset-literal` — a whole-bar constant is all it can hold. TradingView
+    // answers it bar by bar (capture `rtwalls-dyn-history-na`: `x[na]` reads
+    // `x[0]` on 158 of 158 bars). `offsetIsPerBarSeries` is the SAME question
+    // `offsetPlan` already asks for a slot's history — one answer, two callers.
     if (node.type === 'offset' && node.n && typeof node.n === 'object'
-        && needsRuntime(node.n.expr, scope)) return true
+        && (needsRuntime(node.n.expr, scope) || offsetIsPerBarSeries(node.n.expr))) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
       if (needsRuntime(node[k], scope)) return true
     }
@@ -1290,6 +1352,18 @@ export function buildRuntimeIr(source, opts = {}) {
     return false
   }
   const readsSlot = needsRuntime
+
+  /** ⭐ Does this offset expression resolve to something per-bar rather than a
+   *  whole-bar constant? Asked through the FROZEN resolver, exactly as
+   *  `offsetPlan` asks it, so a saved definition still bakes an input's default.
+   *  ⛔ A resolution that FAILS answers `false`, so a typo is left to the lane
+   *  whose refusal names it (`close[zzNope]` → "never given a value"). */
+  function offsetIsPerBarSeries(expr) {
+    if (!expr) return false
+    let canonical = null
+    try { canonical = makeFrozenResolver().resolve(expr) } catch { return false }
+    return !!canonical && canonical.type !== 'num'
+  }
 
   /** Does this subtree carry TEXT?
    *
@@ -1452,6 +1526,10 @@ export function buildRuntimeIr(source, opts = {}) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ `input.color(<colour>)` is a colour when its default is (see its lowering).
+    if (node.type === 'call' && node.name === 'input.color') {
+      return holdsColour(inputColourDefault(node), scope)
+    }
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
     // would send a price into a colour slot with no complaint.
@@ -2089,7 +2167,11 @@ export function buildRuntimeIr(source, opts = {}) {
     // result to be a compile-time string keeps the honest half of that check
     // (an input default that is only known while the bar runs is not a
     // default) without failing the ordinary case.
-    const loweredDefault = lowerExpr(first, scope)
+    // ⭐ A READ OF A FIXED `var` TEXT (see the `var` branch) is that text.
+    const fixedTextOf = (e) => (e && e.kind === EXPR.READ && slots[e.slot]
+      && typeof slots[e.slot].fixedText === 'string' ? slots[e.slot].fixedText : null)
+    let loweredDefault = lowerExpr(first, scope)
+    if (fixedTextOf(loweredDefault) !== null) loweredDefault = { kind: EXPR.STR, value: fixedTextOf(loweredDefault) }
     if (!loweredDefault || loweredDefault.kind !== EXPR.STR) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${node.name}\` needs a text default that is fixed when the script is `
@@ -2108,7 +2190,16 @@ export function buildRuntimeIr(source, opts = {}) {
       // than silently treated as an empty one, which would refuse every value.
       const v = optArg.value
       if (v && v.type === 'collection' && Array.isArray(v.elements)) {
-        const strs = v.elements.filter((x) => x && x.type === 'string').map((x) => x.value)
+        // ⭐ An element may name a fixed `var` text, read the same way the default is.
+        const textOf = (x) => {
+          if (x && x.type === 'string') return x.value
+          if (x && x.type === 'name') {
+            const s = scope.lookup(x.name)
+            return s !== null && slots[s] && typeof slots[s].fixedText === 'string' ? slots[s].fixedText : null
+          }
+          return null
+        }
+        const strs = v.elements.map(textOf).filter((x) => typeof x === 'string')
         if (strs.length === v.elements.length && strs.length) options = strs
       }
     }
@@ -2629,6 +2720,18 @@ export function buildRuntimeIr(source, opts = {}) {
       return touchesText(node.test, scope)
         || touchesText(node.yes, scope) || touchesText(node.no, scope)
     }
+    // ⭐ 2026-09-27 — A NAME BOUND TO SUCH A SUBTREE TOUCHES IT TOO. `size =
+    // array.size(array.from(src))` binds a NUMBER, so the name is not a
+    // collection and `holdsArray` rightly says no — but the columnar lane expands
+    // the binding when the name is read and refuses the collection inside it
+    // (`pine:collection`, "`this name` is read as an array here"), and this
+    // predicate never looked through the name. nadaraya-watson-rqk was walled on
+    // exactly this line. ⛔ ONLY an env binding (never a slot, which lowers here
+    // anyway), and this is only consulted AFTER the columnar lane has refused.
+    if (node.type === 'name' && scope.lookup(node.name) === null) {
+      const bound = env.get(node.name)
+      return !!(bound && bound.kind === 'expr' && touchesText(bound.node, scope))
+    }
     return false
   }
 
@@ -2675,6 +2778,37 @@ export function buildRuntimeIr(source, opts = {}) {
     // true of it, and a typo still says what is true of that.
     return foldConstNode(e, at,
       'a bar offset that is only known while the bar is running', scope)
+  }
+
+  /** ⭐⭐ CONSTANT, OR ONLY KNOWN WHILE THE BAR RUNS? — the question every `x[n]`
+   *  over a VARIABLE asks (2026-09-27). → `{back}` or `{dyn: <parse node>}`.
+   *
+   *  A literal, or an offset that folds (an input, a constant binding) is still a
+   *  constant — `foldOffset`'s tiers, unchanged, and the frozen-default rule with
+   *  them. An offset that READS A SLOT — a loop counter, a function parameter, a
+   *  mutable variable — is a per-bar value, and becomes a RUN-TIME offset read
+   *  through a ring the VM sizes to the whole chart (`READ_HIST_SLOT_DYN`), so no
+   *  offset a bar can ask for is ever past it.
+   *
+   *  ⛔ A SLOT IS ASKED FIRST, BEFORE THE RESOLVER. The frozen resolver sees only
+   *  the TOP-LEVEL environment, so a function parameter `len` that shares its name
+   *  with a top-level input `len` would otherwise fold to the INPUT — the wrong
+   *  value, silently. In Pine the inner name shadows; so does this.
+   *  ⛔ Anything else refuses exactly as `foldOffset` does — a typo keeps its own
+   *  sentence, a negative or fractional constant keeps its. */
+  const offsetPlan = (n, at, scope) => {
+    if (Number.isInteger(n) && n >= 0) return { back: n }
+    const e = n && typeof n === 'object' ? n.expr : null
+    if (e && scope && readsSlot(e, scope)) return { dyn: e }
+    // ⭐ A PURE SERIES (`bar_index % 2 == 0 ? na : 1`) is per-bar too: it resolves,
+    // and to something that is not a number. A resolution that FAILS is left to
+    // `foldOffset`, which refuses with the sentence that belongs to it.
+    if (e) {
+      let canonical = null
+      try { canonical = makeFrozenResolver().resolve(e) } catch { canonical = null }
+      if (canonical && canonical.type !== 'num') return { dyn: e }
+    }
+    return { back: foldOffset(n, at, scope) }
   }
 
   /** ⭐ Fold ONE parsed expression to a compile-time whole number, or refuse.
@@ -2739,6 +2873,15 @@ export function buildRuntimeIr(source, opts = {}) {
       }
       throw err
     }
+    // ⭐ CONSTANT ARITHMETIC FOLDS THE WAY THE HOST LANE'S WINDOW SLOT FOLDS IT
+    // (2026-09-27) — `wper = t * 2 - 1` with `t` a specialised constant. The
+    // Resolver does not reduce `27 * 2 - 1`; `constantValueOf` (the host lane's
+    // own window fold, `+ - * /`, `u-` and manifest-pointwise calls over a tree
+    // that names NO bar, non-finite failing closed) does. One fold, both lanes.
+    if (canonical && canonical.type !== 'num') {
+      const v = constantValueOf(canonical)
+      if (v !== null) canonical = { type: 'num', value: v }
+    }
     if (!canonical || canonical.type !== 'num'
       || !Number.isInteger(canonical.value) || canonical.value < 0) {
       note('runtime:history-dynamic-offset')
@@ -2758,7 +2901,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  A script reading `x[1]` gets one cell. Reserving 5,000 bars per mutable slot
    *  "because history" is what makes a whole-market scan infeasible, and the
    *  census says the real answer is almost always 1. */
-  const historySlotFor = (varSlot, back, at) => {
+  const historySlotFor = (varSlot, back, at, dynamic = false) => {
     let h = historyByVarSlot.get(varSlot)
     if (h === undefined) {
       h = history.length
@@ -2772,6 +2915,10 @@ export function buildRuntimeIr(source, opts = {}) {
     } else if (back > history[h].depth) {
       history[h].depth = back
     }
+    // ⭐⭐ A RUN-TIME OFFSET (`x[i]`) MAKES THE RING DYNAMIC: the VM sizes it to the
+    // chart's bar count before bar 0, so no offset a bar can ask for is past it.
+    // Sticky — a constant `x[1]` elsewhere reads the same, deeper ring correctly.
+    if (dynamic) history[h].dynamic = true
     if (history.length > MAX_HISTORY_SLOTS) {
       throw new RuntimeRefusal('runtime:statement',
         `this script keeps history for more than ${MAX_HISTORY_SLOTS} values`, at)
@@ -2792,7 +2939,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  ⛔ KEYED BY THE **DECLARATION**, never by the name. Two `x`es in sibling
    *  blocks of one function are two slots, and giving them one ring would let a
    *  branch that never ran answer for one that did. */
-  const fnHistorySlotFor = (fnIndex, varSlot, back, at) => {
+  const fnHistorySlotFor = (fnIndex, varSlot, back, at, dynamic = false) => {
     const fn = functions[fnIndex]
     if (!fn.historyLocals) { fn.historyLocals = []; fn.historyByVarSlot = new Map() }
     let h = fn.historyByVarSlot.get(varSlot)
@@ -2803,6 +2950,8 @@ export function buildRuntimeIr(source, opts = {}) {
     } else if (back > fn.historyLocals[h].depth) {
       fn.historyLocals[h].depth = back
     }
+    // ⭐ A RUN-TIME OFFSET MAKES THE RING DYNAMIC — sized to the chart by the VM.
+    if (dynamic) fn.historyLocals[h].dynamic = true
     if (fn.historyLocals.length > MAX_HISTORY_SLOTS) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${fn.name}\` keeps history for more than ${MAX_HISTORY_SLOTS} values`, at)
@@ -3389,7 +3538,13 @@ export function buildRuntimeIr(source, opts = {}) {
             'runtime:operator',
             'text used as a condition — a `?:` test is a boolean', locate(node.tok))
         }
-        return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+        // ⭐⭐ AN `na` CONDITION TAKES THE ELSE ARM — Pine's rule, the one `if`
+        // already has here (`JUMP_IF_FALSE` treats NaN as false) and the one the
+        // columnar lane now has for a pure `?:` (`pine.js::pineCondition`, which
+        // carries the vendor evidence). One rule, both routes: a `?:` beside a
+        // mutable value and the same `?:` over columns must not disagree.
+        return ternary(irCondition(lowerExpr(node.test, scope)),
+          lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
         // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS
         // BAR. The columnar lane owns price history everywhere else, but it
@@ -3428,11 +3583,17 @@ export function buildRuntimeIr(source, opts = {}) {
               note('runtime:history-expression')
               throw new RuntimeRefusal('runtime:history-expression', null, at)
             }
-            // ⛔ THE OFFSET IS FOLDED AFTER THE HOIST, NOT BEFORE, so an offset
-            // only known while the bar runs refuses by ITS OWN name
-            // (`runtime:history-dynamic-offset`) rather than being reported as
+            // ⛔ THE OFFSET IS PLANNED AFTER THE HOIST, NOT BEFORE, so an offset
+            // that refuses does so by ITS OWN name rather than being reported as
             // the expression problem this line just solved.
-            const hb = foldOffset(node.n, at, scope)
+            const hp = offsetPlan(node.n, at, scope)
+            // ⭐ A RUN-TIME OFFSET reads the hoisted series through a dynamic ring.
+            // (A hoist happens only at the root statement list, so no frame here.)
+            if (hp.dyn) {
+              return histSlotDyn(hoisted.slot, historySlotFor(hoisted.slot, 1, at, true),
+                lowerExpr(hp.dyn, scope))
+            }
+            const hb = hp.back
             // ⭐ `e[0]` IS `e`. Routing it through the ring would answer with
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
@@ -3443,7 +3604,19 @@ export function buildRuntimeIr(source, opts = {}) {
             note('runtime:function-global-state')
             throw new RuntimeRefusal('runtime:function-global-state', `\`${node.arg.name}\``, at)
           }
-          const back = foldOffset(node.n, at, scope)
+          const plan = offsetPlan(node.n, at, scope)
+          // ⭐⭐ A RUN-TIME OFFSET (2026-09-27) — `src[k]` in a loop, `s[i]`, a
+          // parameter as the offset. Exact Pine: `x[0]` is the live value, 1..bar
+          // the committed history, past the first bar / na / negative → `na`. The
+          // ring is DYNAMIC (sized to the chart), so no offset is ever past it.
+          if (plan.dyn) {
+            const off = lowerExpr(plan.dyn, scope)
+            if (owner !== null) {
+              return histSlotDyn(varSlot, fnHistorySlotFor(owner, varSlot, 1, at, true), off)
+            }
+            return histSlotDyn(varSlot, historySlotFor(varSlot, 1, at, true), off)
+          }
+          const back = plan.back
           // ⭐ `x[0]` IS `x`. Pine says so, and routing it through the ring would
           // answer with the PREVIOUS bar — one bar wrong in the one case nobody
           // would think to check.
@@ -3469,7 +3642,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // resolver's rule that a saved definition bakes the AUTHOR'S default.
         const offAt = locate(node.tok)
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && needsRuntime(offExpr, scope)) {
+        if (offExpr && (needsRuntime(offExpr, scope) || offsetIsPerBarSeries(offExpr))) {
           return histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope))
         }
         const back = Number(node.n)
@@ -3500,6 +3673,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // ⛔ A DEFERRED REFUSAL COMES BACK HERE, AT THE CALL. The definition
         // could not be compiled; this is the first line that actually needs it,
         // so this is where a member is told.
+        let specialised = null
         if (deferredFnRefusals.has(node.name)) {
           const held = deferredFnRefusals.get(node.name)
           // ⭐⭐ INSIDE A REQUEST, TRY LOWERING THE BODY HERE BEFORE RE-RAISING.
@@ -3521,10 +3695,27 @@ export function buildRuntimeIr(source, opts = {}) {
           if (inl) {
             try { return lowerInlineCall(node.name, inl, node, scope, opts) } catch { /* the held refusal below is the better message */ }
           }
-          note(held && held.guard ? held.guard : 'runtime:function')
-          throw held
+          // ⭐⭐ A LENGTH OR OFFSET THAT IS A PARAMETER — compile this call's own
+          // specialisation (`specializeCall`). If the specialisation refuses on a
+          // DIFFERENT wall, that is the true next wall and it is what the member is
+          // told; if it hits the same one, the constants did not help and the held
+          // refusal stands.
+          if (!inRequestValue && held && SPECIALISABLE.has(held.guard)) {
+            try {
+              specialised = specializeCall(node.name, node, scope)
+            } catch (err) {
+              if (!(err && err.guard && err.guard !== held.guard)) { note(held.guard); throw held }
+              throw err
+            }
+          }
+          if (!specialised) {
+            note(held && held.guard ? held.guard : 'runtime:function')
+            throw held
+          }
         }
-        const fnIndex = fnByName.get(node.name)
+        const fnIndex = specialised ? specialised.fnIndex : fnByName.get(node.name)
+        // ⭐ A SPECIALISED CALL PASSES ONLY THE PARAMETERS LEFT IN ITS FRAME.
+        if (specialised) node = { ...node, args: node.args.filter((_, i) => !specialised.bound.has(i)) }
         // ⭐⭐ THE NAMESPACED TRANSFORM, IN THIS LANE TOO.
         //
         // `PINE_NAMESPACED_TREE` rewrites a Pine call into the tree that means
@@ -3553,6 +3744,28 @@ export function buildRuntimeIr(source, opts = {}) {
             throw new RuntimeRefusal('runtime:statement', built.refusal, locate(node.tok))
           }
           if (built) return lowerExpr(fromCanonical(built, node.tok), scope)
+        }
+        // ⭐ 2026-09-27 — `math.avg(a, b, …)` OVER MUTABLE STATE. The columnar lane
+        // expands it through `pine.js::BUILTIN_CALL_TREE.avg` — the mean OF ITS
+        // ARGUMENTS, `(a + b + …) / n` — during resolution, which a subtree that
+        // reads a slot never gets, so it arrived here as "a builtin the closed
+        // table does not declare" (trend-targets, implied-volatility-suite). The
+        // SAME builder is applied, never a copy, so an `na` argument propagates
+        // exactly as it does in the other lane.
+        if (fnIndex === undefined && (node.name === 'avg' || node.name === 'math.avg'
+            || node.name === 'ta.avg')) {
+          for (const arg of node.args) {
+            if (arg && arg.name) {
+              throw new RuntimeRefusal('runtime:statement',
+                `a named argument \`${arg.name}\` on \`${node.name}\``, locate(node.tok))
+            }
+          }
+          const args = node.args.map((x) => (x && x.value !== undefined ? x.value : x))
+          if (args.length < 2) {
+            throw new RuntimeRefusal('runtime:statement',
+              `\`${node.name}\` averages two or more values`, locate(node.tok))
+          }
+          return lowerExpr(fromCanonical(BUILTIN_CALL_TREE.avg(args), node.tok), scope)
         }
         // ⛔⛔ PLACED HERE, NOT AT THE TOP OF THIS ARM, AND THE ORDER IS
         // DOCUMENTED ABOVE: `Foo.new(…)` must be read before the user-function
@@ -3664,6 +3877,22 @@ export function buildRuntimeIr(source, opts = {}) {
               '`color.new` takes a colour to recolour, and this is not one', locate(node.tok))
           }
           return colourCall(node.name, given.map((x) => lowerExpr(x, scope)))
+        }
+        // ⭐ 2026-09-27 — `input.color(<colour>, …)` IS ITS DEFAULT COLOUR. This is
+        // the host presentation's own rule (`pine.js::staticColourOf`: "Its
+        // DEFAULT is a real static colour … the KNOB does not come across") — a
+        // colour input is not a Track F kind, so a member has no control that
+        // could move it, and the loss is disclosed by `skippedInputs`. Reading
+        // the default is therefore the value TradingView draws with, not a guess.
+        // ⛔ ONLY A DEFAULT THAT IS ITSELF A COLOUR; anything else keeps the
+        // columnar lane's `pine:input-kind`.
+        if (node.name === 'input.color') {
+          const dv = inputColourDefault(node)
+          if (!dv || !holdsColour(dv, scope)) {
+            throw new RuntimeRefusal('runtime:colour',
+              '`input.color` whose default is not a colour this lane can read', locate(node.tok))
+          }
+          return lowerExpr(dv, scope)
         }
         if (node.name === 'request.security') return admitRequest(node, scope, opts)
         if (TEXT_INPUTS.has(node.name)) return admitTextInput(node, scope)
@@ -4733,8 +4962,7 @@ export function buildRuntimeIr(source, opts = {}) {
       // handles and persistence; desugaring into it inherits all of that, where
       // a second assignment path would be a second authority over what a write
       // means — the defect this file records paying for repeatedly.
-      const compoundAt = findTop(toks, (t) => t.kind === 'punct'
-        && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0]))
+      const compoundAt = findTop(toks, isCompoundAssign)
       if (compoundAt > 0) {
         const opTok = toks[compoundAt]
         const target = toks.slice(0, compoundAt)
@@ -4914,6 +5142,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // diagnostic instead, so "unreachable" is a measurement and not a
           // silence.
           try {
+            if (toks[0] && toks[0].kind === 'ident') fnSourceByName.set(toks[0].value, { st, toks, arrow })
             defineFunction(st, toks, arrow)
           } catch (err) {
             const nameTok = toks[0]
@@ -5265,6 +5494,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
         // which is what makes `s := "cd"` route out of the columnar lane too.
         if (holdsText(value, scope)) slots[slot].text = true
+        // ⭐ A `var` TEXT LITERAL THAT NOTHING REASSIGNS IS A FIXED TEXT. Its
+        // initialiser runs once and no `:=`/compound write names it, so it holds
+        // that literal on every bar — which is what lets it be an input's default
+        // (bollinger-band-width-percentile: `var string txt5point = '…'`, then
+        // `input.string(txt5point, …, [txt2point, txt3point, txt5point])`).
+        // ⛔ Only a literal, only unreassigned — a `var` that any branch writes is
+        // not fixed, and one whose initialiser is an expression is not read here.
+        if (value && value.type === 'string' && typeof value.value === 'string'
+            && !mut.reassigned.has(nameTok.value)) {
+          slots[slot].fixedText = value.value
+        }
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and
         // `bgcolor(c)` is refused for a `c` that plainly holds a colour.
@@ -5496,13 +5736,19 @@ export function buildRuntimeIr(source, opts = {}) {
         // "array.push"; the dotted branch is for a different shape and never
         // sees it. Established from the refusal's own stack after two rounds of
         // reasoning about the wrong branch.
-        if (isVoid(word)) {
+        //
+        // ⭐ 2026-09-27 — AND A COLLECTION CALL THAT ANSWERS A VALUE, used on a
+        // line of its own. `array.shift(z)` removes an element and hands it back;
+        // as a statement Pine discards what it hands back. The call is lowered
+        // with a DROP of its one result, so the effect happens and the stack
+        // stays level — the same contract a call-for-effect already has.
+        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
           const callNode = parseWholeExpression(toks)
           if (!callNode || callNode.type !== 'call') {
             throw new RuntimeRefusal('runtime:statement',
               `\`${word}()\` is not a shape this front end reads`, locate(first))
           }
-          out.push(exprStmt(admitArrayCall(callNode, scope, true)))
+          out.push(exprStmt(admitArrayCall(callNode, scope, true), isVoid(word) ? 0 : 1))
           continue
         }
         const f = callFamily(word)
@@ -5540,7 +5786,7 @@ export function buildRuntimeIr(source, opts = {}) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
-              out.push(exprStmt(admitArrayCall(rew.node, scope, true)))
+              out.push(exprStmt(admitArrayCall(rew.node, scope, true), isVoid(rew.node.name) ? 0 : 1))
               continue
             }
             note('runtime:array')
@@ -5611,6 +5857,20 @@ export function buildRuntimeIr(source, opts = {}) {
         throw new RuntimeRefusal('runtime:expression-statement', `\`${name}()\``, locate(first))
       }
 
+      // ── a bare NAME as a statement — `countBuy` as the last line of an `if` ──
+      //
+      // ⭐ 2026-09-27. In Pine a block's last line is the block's VALUE; an `if` or
+      // `for` written as a statement discards it. So a lone name there reads a
+      // value and does nothing with it — no write, no call, no effect — and
+      // skipping it is the whole of its meaning. The btc-charlie scanner ends each
+      // counter `if` this way (`countBuy += 1` then `countBuy`).
+      //
+      // ⛔ ONLY A NAME THIS SCRIPT BOUND TO A SLOT. A name nothing binds is a
+      // TradingView compile error, and skipping it would accept a script the
+      // vendor rejects; it keeps the named refusal below. A block whose value IS
+      // used (`x = if …`) never reaches here — the block-valued binding lowers it.
+      if (toks.length === 1 && word && !(st.sub && st.sub.length) && scope.lookup(word) !== null) continue
+
       throw new RuntimeRefusal('runtime:statement', null, locate(first))
     }
     } finally {
@@ -5623,7 +5883,83 @@ export function buildRuntimeIr(source, opts = {}) {
    *  name, parameters, its own frame, its own persistent-local count, a body and
    *  a result. Not a macro, and not re-parsed at each call: the CODE is shared and
    *  only the state is per call site. */
-  const defineFunction = (st, toks, arrow) => {
+  /** name → the definition's own tokens, kept so a call site can compile a
+   *  SPECIALISATION of a body the shared frame could not compile. */
+  const fnSourceByName = new Map()
+  /** `name|binds` → the specialised function's index, one per distinct binding. */
+  const specByKey = new Map()
+  const specialisingNow = new Set()
+  /** The held refusals a specialisation can answer — and only these. */
+  const SPECIALISABLE = new Set(['runtime:history-dynamic-offset'])
+
+  /** ⭐⭐ A CALL-SITE SPECIALISATION (2026-09-27) — `ema(x, t)` inside `f(x, t, m)`.
+   *
+   *  A window length and a history offset are sized before bar 0, so a body whose
+   *  length is a PARAMETER cannot be compiled once for every call site: `t` is a
+   *  frame slot. But Pine's lengths are `simple` — fixed for the whole run at each
+   *  call — and at `smoothrng(source, per1, mult1)` the argument IS a constant.
+   *  So the body is compiled again FOR THIS CALL, with every parameter whose
+   *  argument folds to a number bound to that number (an `env` constant, exactly
+   *  what `wper = t * 2 - 1` then folds through), and the rest left as frame
+   *  parameters. Two call sites with different constants are two specialisations;
+   *  two with the same share one body — their STATE is still per call site.
+   *
+   *  ⛔ EXACT, NOT APPROXIMATE: a parameter bound to a constant has that value on
+   *  every bar, which is all a frame slot holding it would ever answer.
+   *  ⛔ A PARAMETER READ WITH HISTORY (`t[1]`) STAYS A FRAME PARAMETER — the history
+   *  of a constant argument is `na` on the first call, not the constant.
+   *  ⛔ NEVER INSIDE A REQUEST'S VALUE, which has its own inlining path.
+   *  @returns {{fnIndex: number, bound: Set<number>}|null} */
+  const specializeCall = (name, node, scope) => {
+    const src = fnSourceByName.get(name)
+    if (!src) return null
+    const params = functionParams(src.toks, src.arrow)
+    const args = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+    if (!params || args.length !== params.length || node.args.some((a) => a && a.name)) return null
+    const historyRead = new Set()
+    const scan = (list) => {
+      for (const ln of list || []) {
+        const t = ln.header || []
+        for (let i = 0; i + 1 < t.length; i += 1) {
+          if (t[i].kind === 'ident' && isPunct(t[i + 1], '[')) historyRead.add(t[i].value)
+        }
+        scan(ln.sub)
+      }
+    }
+    scan([{ header: src.toks.slice(src.arrow + 1), sub: src.st.sub }])
+    const binds = new Map()
+    params.forEach((p, i) => {
+      const a = args[i]
+      if (!a || historyRead.has(p) || readsSlot(a, scope)) return
+      let c = null
+      try { c = makeFrozenResolver().resolve(a) } catch { c = null }
+      if (c && c.type === 'num' && Number.isFinite(c.value)) binds.set(p, c.value)
+    })
+    if (!binds.size) return null
+    const key = `${name}|${JSON.stringify([...binds])}`
+    const bound = new Set(params.map((p, i) => (binds.has(p) ? i : -1)).filter((i) => i >= 0))
+    if (specByKey.has(key)) return { fnIndex: specByKey.get(key), bound }
+    if (specialisingNow.has(name)) {
+      note('runtime:recursion')
+      throw new RuntimeRefusal('runtime:recursion', `\`${name}\``, locate(node.tok))
+    }
+    // ⛔ THE BODY IS COMPILED FROM A CLEAN LOWERING STATE — it is a function body,
+    // not a continuation of whatever expression reached this call.
+    const saved = { hoistSink, stmtHoistSink, inRequestValue }
+    hoistSink = null; stmtHoistSink = null; inRequestValue = false
+    specialisingNow.add(name)
+    try {
+      const fnIndex = defineFunction(src.st, src.toks, src.arrow, { binds, id: specByKey.size })
+      specByKey.set(key, fnIndex)
+      return { fnIndex, bound }
+    } finally {
+      specialisingNow.delete(name)
+      hoistSink = saved.hoistSink; stmtHoistSink = saved.stmtHoistSink
+      inRequestValue = saved.inRequestValue
+    }
+  }
+
+  const defineFunction = (st, toks, arrow, spec = null) => {
     const nameTok = toks[0]
     if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[1], '(') || !isPunct(toks[arrow - 1], ')')) {
       throw new RuntimeRefusal('runtime:function',
@@ -5652,14 +5988,24 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⭐ REGISTERED BEFORE ITS BODY IS COMPILED, so a self-call is caught as
     // RECURSION by name rather than reaching a depth limit and reporting
     // exhaustion for what is actually a Pine rule violation (§19).
+    // ⭐ A SPECIALISATION (`specializeCall`) binds some parameters to constants:
+    // they are `env` constants for the length of this compile, not frame slots,
+    // and the call site passes only the rest.
+    const kept = spec ? params.filter((p) => !spec.binds.has(p)) : params
     const fnIndex = functions.length
     const record = {
-      name: nameTok.value, params: params.length, compiling: true,
+      name: spec ? `${nameTok.value}#${spec.id}` : nameTok.value, params: kept.length, compiling: true,
       frameSize: 0, persistCount: 0, body: [], result: null,
       effects: null, at: locate(nameTok),
     }
     functions.push(record)
-    fnByName.set(nameTok.value, fnIndex)
+    if (!spec) fnByName.set(nameTok.value, fnIndex)
+    const envBefore = spec ? new Map(env) : null
+    if (spec) {
+      for (const [p, v] of spec.binds) {
+        env.set(p, { kind: 'expr', node: { type: 'number', value: v, tok: nameTok }, at: locate(nameTok) })
+      }
+    }
 
     const prevOwner = owner
     const prevGuard = guardOuter
@@ -5671,7 +6017,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // can see two lines up.
     guardOuter = root
     const fnScope = new Scope(null)
-    params.forEach((p, k) => fnScope.declare(p, newSlot(p, false, k)))
+    kept.forEach((p, k) => fnScope.declare(p, newSlot(p, false, k)))
 
     // ⭐⭐ THE BODY IS ALSO KEPT AS AN AST, for the call sites that must lower it
     // THEMSELVES rather than share the compiled copy.
@@ -5736,6 +6082,8 @@ export function buildRuntimeIr(source, opts = {}) {
         return { params, lines: null, result: null, body: lines }
       } catch { return null }
     })()
+    // ⛔ A specialisation is never an inlining source — the name's own record is.
+    if (spec) record.inlineBody = null
     if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
 
     const sitesBefore = callSites.length
@@ -5819,11 +6167,21 @@ export function buildRuntimeIr(source, opts = {}) {
       const callsImpure = callSites.slice(sitesBefore)
         .some((cs) => !(functions[cs.fn].effects && functions[cs.fn].effects.pure))
       record.effects = { pure: record.persistCount === 0 && !callsImpure }
+    } catch (err) {
+      // ⛔ A SPECIALISATION THAT REFUSES LEAVES NOTHING BEHIND — the half-built
+      // record would otherwise reach `makeIrProgram` with frameSize 0.
+      if (spec && fnIndex === functions.length - 1) functions.pop()
+      throw err
     } finally {
       record.compiling = false
       owner = prevOwner
       guardOuter = prevGuard
+      if (envBefore) {
+        env.clear()
+        for (const [k, v] of envBefore) env.set(k, v)
+      }
     }
+    return fnIndex
   }
 
   let statements
@@ -6089,7 +6447,8 @@ export function buildRuntimeIr(source, opts = {}) {
       const locals = fn.historyLocals || []
       cs.historyBase = hbase
       for (const h of locals) {
-        history.push({ name: `${fn.name}.${h.name}`, varSlot: h.varSlot, depth: h.depth, site: callSites.indexOf(cs) })
+        history.push({ name: `${fn.name}.${h.name}`, varSlot: h.varSlot, depth: h.depth, site: callSites.indexOf(cs),
+          ...(h.dynamic ? { dynamic: true } : {}) })
       }
       hbase += locals.length
     }

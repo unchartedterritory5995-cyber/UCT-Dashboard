@@ -238,9 +238,18 @@ export function lowerIrProgram(ir) {
           'only a column and a variable have committed history in this runtime yet')
       }
       case EXPR.HIST_DYN: {
+        // ⭐⭐ A VARIABLE READ AT A RUN-TIME OFFSET (2026-09-27): the LIVE value is
+        // pushed first and the offset on top, so the opcode can answer `x[0]` — which
+        // is `x`, never the previous bar — without a second instruction. The ring is
+        // the history entry's, sized to the chart by the VM (`dynamic`).
+        if (e.of.kind === EXPR.READ) {
+          expr(e.of)
+          expr(e.back)
+          emit(OP.READ_HIST_SLOT_DYN, e.slot)
+          return
+        }
         // ⭐ THE OFFSET IS PUSHED FIRST, so the opcode pops exactly one value.
-        // `of` is a COLUMN or a SERIES by construction — `ir.js` refuses a READ
-        // here, because a ring's depth is fixed before bar 0.
+        // `of` is a COLUMN or a SERIES here.
         expr(e.back)
         if (e.of.kind === EXPR.SERIES) {
           const si = SERIES_NAMES.indexOf(e.of.name)
@@ -612,6 +621,8 @@ export function lowerIrProgram(ir) {
     // two different answers to the same question.
     history: (ir.history || []).map((h) => ({
       name: h.name, varSlot: h.varSlot, slot: h.slot, persist: h.persist, depth: h.depth,
+      // ⭐ A DYNAMIC ring is sized by the VM to the bar count, not to `depth`.
+      dynamic: h.dynamic === true,
       // ⭐ `site` is null for a main-program series and the CALL SITE index for a
       // function-local one. The commit phase branches on it: a main entry reads
       // its live slot at end of bar; a site entry commits what that site last

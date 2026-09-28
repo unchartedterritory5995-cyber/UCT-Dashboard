@@ -1,0 +1,12 @@
+//@version=6
+indicator("UCTPROBE_DYN_HISTORY_NOMAXBARS", overlay = false)
+
+// ⭐ THE BUFFER QUESTION. With no `max_bars_back`, TradingView sizes a series'
+// history buffer itself. Does a read that grows past what the first bars asked for
+// (`acc[bar_index]` reaches bar 0 from every bar) answer a number, or raise the
+// max_bars_back runtime error? This engine keeps the whole history for a variable read
+// at a run-time offset, so it answers 1 on every bar.
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+var float acc = 0.0
+acc := acc + 1
+plot(acc[bar_index], "N02_acc_at_bar_index_EXPECT_1_or_ERROR")                  // N02

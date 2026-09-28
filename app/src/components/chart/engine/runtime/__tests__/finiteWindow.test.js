@@ -325,7 +325,7 @@ describe('⭐ length semantics and resources', () => {
     expect(r.message).not.toMatch(/^a history offset/)
   })
 
-  it('⚠️ MEASURED GAP — ARITHMETIC over an input does NOT fold yet', () => {
+  it('⭐ ARITHMETIC over an input FOLDS (2026-09-27) — the gap this case pinned, closed', () => {
     // A bare input name folds because `pine.js` substitutes the frozen default
     // and the canonical node IS a `num`. `k + 2` stays an `op` node, so the
     // fold refuses. That is CONSERVATIVE — a refusal, never a wrong width — but
@@ -334,8 +334,13 @@ describe('⭐ length semantics and resources', () => {
     // budget), which touches history offsets too and is therefore NOT 2F-2B's
     // to change. ⛔ If this test ever goes red because the length now folds,
     // that is the fix landing — assert the value, do not delete the case.
+    // ⭐ LANDED: `foldConstNode` now consults `constantValueOf` when the canonical
+    // tree is not a bare `num`, so `k + 2` is 7 — asserted by VALUE against the
+    // literal spelling, as this case asked.
     const src = `${head}k = input.int(5, "K")\nvar x = 0.0\nx := close\nplot(ta.sma(x, k + 2))\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-dynamic-offset')
+    const lit = `${head}var x = 0.0\nx := close\nplot(ta.sma(x, 7))\n`
+    expect(runPine(src).out).toEqual(runPine(lit).out)
+    expect(runPine(lit).out.filter(Number.isFinite).length).toBeGreaterThan(0)
   })
 
   it('⛔ a FRACTIONAL or NEGATIVE length refuses — a ring has whole cells', () => {

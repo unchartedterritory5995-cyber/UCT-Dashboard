@@ -69,6 +69,27 @@ export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
 }
 
+/** A run-time history offset, normalised by the two vendor-measured rules
+ *  (tests/fixtures/vendor/harness/rtwalls-dyn-history-*-rddt-1d-2026-09-27.json):
+ *  `na` reads the current bar, and a negative offset STOPS THE SCRIPT the way
+ *  TradingView stops the study. Anything else is returned as given. */
+export function dynamicOffset(n) {
+  if (n !== n) return 0
+  if (n < 0) {
+    throw new VmError(`the script reads history at ${n} bars back — a history-referencing length `
+      + 'must be 0 or more, and TradingView stops the script here with a runtime error')
+  }
+  return n
+}
+
+/** `col[bar - n]` for a run-time `n`: before bar 0 and a fractional offset are `na`. */
+function readDynamicColumn(col, bar, raw) {
+  const n = dynamicOffset(raw)
+  if (!Number.isInteger(n)) return NaN
+  const idx = bar - n
+  return idx >= 0 ? col[idx] : NaN
+}
+
 /**
  * The execution context. ⭐ AN OBJECT, NOT A BARE BAR ARRAY, and that is a
  * design commitment rather than tidiness: a forming bar has to be re-executable
@@ -249,8 +270,18 @@ export function execute(program, ctx, limits, opts) {
   // hops in a loop that runs once per bar per slot across 5,000 symbols.
   const histPlan = program.history
   const nHist = histPlan.length
+  // ⭐⭐ A DYNAMIC RING IS AS DEEP AS THE CHART (2026-09-27). An entry read at a
+  // run-time offset (`x[i]` in a loop) is sized here, before bar 0, to the bar
+  // count — so every offset a bar can ask for, 0..bar, is inside it and the "read
+  // past the ring" that kept `READ_HIST_SLOT_DYN` reserved cannot occur. It costs
+  // `bars` cells per such ring, which `HISTORY_VALUES` still bounds.
+  const histDepth = new Int32Array(nHist)
+  for (let i = 0; i < nHist; i += 1) {
+    histDepth[i] = histPlan[i].dynamic === true
+      ? Math.max(histPlan[i].depth, ctx.bars, 1) : histPlan[i].depth
+  }
   const histOffset = new Int32Array(nHist + 1)
-  for (let i = 0; i < nHist; i += 1) histOffset[i + 1] = histOffset[i] + histPlan[i].depth
+  for (let i = 0; i < nHist; i += 1) histOffset[i + 1] = histOffset[i] + histDepth[i]
   const histTotal = histOffset[nHist]
   budget.peak('HISTORY_SLOTS', nHist)
   budget.peak('HISTORY_VALUES', histTotal)
@@ -480,24 +511,25 @@ export function execute(program, ctx, limits, opts) {
           break
         }
         case OP.READ_HIST_DYN: {
-          // ⛔⛔ EVERY UNANSWERABLE OFFSET IS `na`, AND THERE ARE THREE OF THEM.
-          // A NaN offset (the value was itself `na`), a NEGATIVE one (Pine reads
-          // backwards; forwards is a bar that has not happened), and one that
-          // reaches before bar 0. None may clamp: answering with the earliest
-          // bar is how a warm-up window silently becomes a real number, which is
-          // exactly what `READ_HIST` refuses to do with a constant offset.
-          //
-          // ⚠️ `n | 0` IS NOT USED. It turns 2.7 into 2 and NaN into 0 — the
-          // second of which would read bar 0 and call it an answer.
-          const n = stack[--sp]
-          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
-          stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
+          // ⭐⭐ THE THREE RUN-TIME OFFSET RULES ARE VENDOR-MEASURED (2026-09-27,
+          // NYSE:RDDT 1D, tests/fixtures/vendor/harness/rtwalls-dyn-history-*):
+          //   • `na` offset  → reads the CURRENT bar, exactly `x[0]` — 158 of 158
+          //     `na` bars (`dynHistoryOffset`). ⚰️ This answered `na`.
+          //   • NEGATIVE     → TradingView STOPS THE STUDY with a runtime error
+          //     (`dynHistoryNegativeStop`). ⚰️ This answered `na` — a chart where
+          //     TradingView draws nothing at all.
+          //   • before bar 0 → `na`, never a clamp (the control capture's N04).
+          // ⚠️ A FRACTIONAL offset is unmeasured and stays `na`; `n | 0` is not used.
+          // ⛔ POP FIRST, into a local. `stack[sp++] = f(stack[--sp])` evaluates the
+          // TARGET index before the pop, so it writes one slot high and reads the
+          // slot above the operand — measured: `close[i]` summed to a flat 3.
+          const raw = stack[--sp]
+          stack[sp++] = readDynamicColumn(columns[a], bar, raw)
           break
         }
         case OP.READ_SERIES_HIST_DYN: {
-          const n = stack[--sp]
-          const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
-          stack[sp++] = idx >= 0 ? series[a][idx] : NaN
+          const raw = stack[--sp]
+          stack[sp++] = readDynamicColumn(series[a], bar, raw)
           break
         }
         case OP.ADD: { const y = stack[--sp]; stack[sp - 1] = ADD(stack[sp - 1], y); break }
@@ -552,9 +584,29 @@ export function execute(program, ctx, limits, opts) {
           // reads at base 0 and an invocation reads at its SITE’s base, so one
           // compiled body serves every call site without sharing a ring.
           const hi = historyBase + a
-          const plan = histPlan[hi]
-          const cell = histOffset[hi] + ((committed - b) % plan.depth)
+          const cell = histOffset[hi] + ((committed - b) % histDepth[hi])
           stack[sp++] = hist[cell]
+          break
+        }
+        case OP.READ_HIST_SLOT_DYN: {
+          // ⭐ `x[n]` WITH `n` KNOWN ONLY NOW. The live value sits under the offset.
+          //   n = 0            → the live value (`x[0]` IS `x`, never the previous bar)
+          //   1 ≤ n ≤ committed → the ring (a dynamic ring holds every committed bar)
+          //   n > committed    → `na`: before the first bar, exactly as `READ_HIST_SLOT`
+          //   na               → the live value (vendor-measured, like `x[0]`)
+          //   negative         → STOPS the script (vendor-measured runtime error)
+          //   fractional       → `na`, never `n | 0` (unmeasured)
+          // ⭐ `na` reads the live value and a negative offset stops the script —
+          // the same two vendor rules `READ_HIST_DYN` documents for a column.
+          const n = dynamicOffset(stack[--sp])
+          const live = stack[--sp]
+          if (n === 0) { stack[sp++] = live; break }
+          if (!Number.isInteger(n) || n > committed) { stack[sp++] = NaN; break }
+          const hi = historyBase + a
+          // ⛔ A FIXED-DEPTH RING NEVER ANSWERS PAST ITSELF — belt to the lowering's
+          // braces: the front end only emits this over a dynamic entry.
+          if (n > histDepth[hi]) { stack[sp++] = NaN; break }
+          stack[sp++] = hist[histOffset[hi] + ((committed - n) % histDepth[hi])]
           break
         }
         case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
@@ -766,9 +818,8 @@ export function execute(program, ctx, limits, opts) {
           buf[span - 1] = live
           if (span > 1) {
             const hi = historyBase + w.historySlot
-            const plan = histPlan[hi]
             const off = histOffset[hi]
-            const depth = plan.depth
+            const depth = histDepth[hi]
             for (let k = 1; k < span; k += 1) {
               buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
             }
@@ -1021,7 +1072,7 @@ export function execute(program, ctx, limits, opts) {
         // and reading at `committed-back` is the off-by-one this comment exists
         // to stop somebody reintroducing: it is invisible on bar 0 and wrong on
         // every bar after.
-        const cell = histOffset[i] + (committed % plan.depth)
+        const cell = histOffset[i] + (committed % histDepth[i])
         // ⭐ THE LIVE VALUE IS READ FROM ITS OWN LIFETIME'S ARRAY. A history slot
         // names a `local` or a `persist`; the plan says which, so this never has
         // to guess and a local can never be silently promoted to a `var` (§21).

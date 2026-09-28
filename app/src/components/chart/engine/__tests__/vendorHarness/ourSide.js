@@ -31,7 +31,7 @@ import { runtimeLaneDefinition } from '../../../builder/memberPane/runtimeLaneDe
 // then); the harness grades the door synchronously, so it loads the lane up front.
 await loadRuntimeLaneDoor()
 import * as registry from '../../nativeRegistry'
-import { createBinder } from '../../binder'
+import { createBinder, drawShiftOf } from '../../binder'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -142,8 +142,17 @@ function drawnColours(def, bars, ctx) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
-    const colors = bars.map((bar) => {
-      const p = byTime.get(String(bar.t))
+    // ⭐ 2026-09-27 — A DISPLACED PLOT IS DRAWN |d| BARS LEFT OF THE BAR THAT
+    // COMPUTED IT, and the capture's study-store rows (value AND colour) are
+    // indexed by the COMPUTING bar — the value comparison already pairs our raw
+    // column with them index for index. So the colour for computing bar i is the
+    // point the renderer drew at bar i + d. Reading it at bar i instead graded
+    // trendlines' `offset = -rightbars` pivots as "no colour" at every vendor
+    // pivot while the markers sat exactly where TradingView draws them.
+    const shift = drawShiftOf(plot)
+    const colors = bars.map((_, i) => {
+      const drawn = bars[i + shift]
+      const p = drawn ? byTime.get(String(drawn.t)) : undefined
       if (!p || !Number.isFinite(p.value)) return null
       return withOpacity(p.color || seriesColor || plot.color, plot.opacity)
     })
@@ -299,7 +308,18 @@ export function runOurSide(capture, opts = {}) {
         column: col || null,
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
-        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // ⭐ 2026-09-27 — A PLOT THAT DRAWS NOTHING HAS NO COLOUR TO RESOLVE, and
+        // that is an answer, not a gap: the binder hands the renderer no point for
+        // an all-na column, so there is no binding to read. Reporting `null` here
+        // graded cc-yata's never-firing `b1..s5` "colour unresolved" beside values
+        // that agree on every bar. An all-null list says "drawn nowhere", which the
+        // colour compare only ever consults at a bar where a value was drawn.
+        // A shape is drawn where its series is TRUTHY, so a shape column of na/0 is
+        // drawn nowhere too.
+        colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key)
+          : (colours.ok && col && !Array.prototype.some.call(col, (v) => Number.isFinite(v)
+              && !(v === 0 && o && /^plot(shape|char|arrow)$/.test(String(o.kind))))
+            ? bars.map(() => null) : null),
       })
     }
     const objects = objectsOf(def, bars, ctx)

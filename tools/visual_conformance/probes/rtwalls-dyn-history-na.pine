@@ -1,0 +1,12 @@
+//@version=6
+indicator("UCTPROBE_DYN_HISTORY_NA", overlay = false)
+
+// ⭐ WHAT DOES `x[n]` ANSWER WHEN `n` IS `na`? Alone in a file: if TradingView
+// raises a runtime error, the error IS the answer and must not take other plots with it.
+// This engine answers `na` (runtime/vm.js READ_HIST_SLOT_DYN, and READ_HIST_DYN for a column).
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+var float acc = 0.0
+acc := acc + 1
+int kn = bar_index % 4 == 0 ? na : 1
+plot(acc[kn], "N02_acc_at_na_on_every_4th_bar_na_or_ERROR")                     // N02
+plot(close[kn], "N03_close_at_na_on_every_4th_bar_na_or_ERROR")                 // N03

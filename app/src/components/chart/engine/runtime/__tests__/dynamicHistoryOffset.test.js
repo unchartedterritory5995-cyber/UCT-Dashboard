@@ -111,17 +111,20 @@ describe('⭐⭐ a history offset that is only known while the bar is running', 
     expect(run(`${head}plot(close[0] + close[1] + close[2])\n`)).toEqual(run(LOOP))
   })
 
-  it('⛔⛔ CONTROL — over a MUTABLE VARIABLE it still refuses', () => {
-    // ⚰️ THE HALF THE RESERVED OPCODE ASKED FOR. A slot's past lives in a RING
-    // of bounded depth, so an offset that may reach past it would answer `na`
-    // where Pine answers a number — a silent wrong value. Columns and series
-    // are materialised and have no such bound; a ring does, and until that
-    // bound is static this must keep refusing.
-    const r = refusalOf(`${head}var float x = 0.0\nx := close\ns = 0.0\n`
+  it('⭐⭐ over a MUTABLE VARIABLE — through a ring as deep as the chart (2026-09-27)', () => {
+    // ⚰️ THIS CASE ASSERTED A REFUSAL, and its reason was right: a ring sized
+    // before bar 0 could be read past, answering `na` where Pine answers a
+    // number. The reserved opcode is now implemented by making the RING the
+    // answer — an entry read at a run-time offset is DYNAMIC and the VM sizes it
+    // to the bar count — so no offset a bar can ask for is past it
+    // (`dynamicHistory.test.js` pins the semantics). x = close, so
+    // s = close + close[1] + close[2], `na` until all three exist.
+    const out = run(`${head}var float x = 0.0\nx := close\ns = 0.0\n`
       + 'for i = 0 to 2\n    s := s + x[i]\nplot(s)\n')
-    expect(r.guard).toBe('runtime:history-dynamic-offset')
-    // ⭐ AND IT SAYS WHY, naming the ring rather than blaming the member.
-    expect(r.message).not.toContain('never given a value')
+    for (let b = 0; b < N; b += 1) {
+      if (b < 2) expect(Number.isNaN(out[b]), `bar ${b}`).toBe(true)
+      else expect(out[b], `bar ${b}`).toBe(BARS[b].c + BARS[b - 1].c + BARS[b - 2].c)
+    }
   })
 
   it('⛔⛔ CONTROL — A REAL TYPO IN THE OFFSET STILL SAYS SO', () => {
@@ -148,8 +151,10 @@ describe('⭐⭐ a history offset that is only known while the bar is running', 
       statements: [assign(0, num(1)), irEmit(0, histDyn(of, num(1)))],
       outputs: [{ title: 't' }],
     })
-    // ⛔ A READ — a ring of depth fixed before bar 0 — must be refused.
-    expect(() => build(read(0))).toThrow(/COLUMN or a SERIES/)
+    // ⛔ A READ with no DYNAMIC history entry — a ring of depth fixed before bar
+    // 0, or none — must be refused (2026-09-27: a dynamic entry is the only way
+    // a variable may be read here; `dynamicHistory.test.js`).
+    expect(() => build(read(0))).toThrow(/history slot|DYNAMIC ring/)
     // ⭐ NON-VACUITY: the two materialised targets are accepted by the SAME
     // call, so the refusal is about the target and not about the shape.
     expect(() => build(column(0))).not.toThrow()

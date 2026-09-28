@@ -1,0 +1,54 @@
+//@version=6
+indicator("UCTPROBE_PIVOT_TIES", overlay = false)
+
+// ⭐⭐ DOES `ta.pivothigh` / `ta.pivotlow` ACCEPT A TIE — ON THE LEFT, ON THE RIGHT?
+//
+// The LEFT half is already vendor-pinned: `pivot-point-supertrend-rddt-1d-2026-09-27`
+// needs RDDT bar 474 (high 152.44, equal to bar 473's) to be a pivot high, and
+// reproduces 631/631 bars only with a left-inclusive rule. The RIGHT half has no
+// discriminating bar in that capture. This probe asks both, on any chart, for
+// leftbars = rightbars = 2, by comparing the native call to four hand-written
+// candidates over the same five bars.
+//
+//     centre = high[2]   left = high[3], high[4]   right = high[1], high[0]
+//
+// Sentinels: -2 = the bar is not evidence for this question (discard it);
+//             0 / 1 = evidence.
+// ⛔ Count only bars whose POPULATION column is 1 — a right-tie question asked on a
+// bar with no right tie proves nothing, and a column of zeros would look like an answer.
+
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+
+ph = ta.pivothigh(high, 2, 2)
+pl = ta.pivotlow(low, 2, 2)
+plot(na(ph) ? 0 : 1, "N02_native_HI_fires_MUST_sometimes_be_1")                  // N02
+plot(na(pl) ? 0 : 1, "N03_native_LO_fires_MUST_sometimes_be_1")                  // N03
+
+c  = high[2]
+leftGE  = c >= high[3] and c >= high[4]
+rightGT = c >  high[1] and c >  high[0]
+rightGE = c >= high[1] and c >= high[0]
+rightTie = c == high[1] or c == high[0]
+
+// ── RIGHT TIE, pivot HIGH ──
+// population: the centre would be a pivot under a right-INCLUSIVE rule AND a right
+// neighbour ties it. On such a bar the native call answers the question directly.
+popR = leftGE and rightGE and rightTie
+plot(popR ? 1 : 0, "N04_POP_right_tie_hi_MUST_sometimes_be_1")                  // N04
+plot(popR ? (na(ph) ? 0 : 1) : -2, "N05_native_fires_on_right_tie_hi_1_means_INCLUSIVE") // N05
+
+// ── LEFT TIE, pivot HIGH (the control: must read 1 where the population is 1) ──
+leftTie = c == high[3] or c == high[4]
+popL = leftGE and rightGT and leftTie
+plot(popL ? 1 : 0, "N06_POP_left_tie_hi")                                        // N06
+plot(popL ? (na(ph) ? 0 : 1) : -2, "N07_native_fires_on_left_tie_hi_EXPECT_1")   // N07
+
+// ── the same two questions for pivot LOW ──
+cl = low[2]
+lLE = cl <= low[3] and cl <= low[4]
+rLE = cl <= low[1] and cl <= low[0]
+rLT = cl <  low[1] and cl <  low[0]
+popRL = lLE and rLE and (cl == low[1] or cl == low[0])
+popLL = lLE and rLT and (cl == low[3] or cl == low[4])
+plot(popRL ? (na(pl) ? 0 : 1) : -2, "N08_native_fires_on_right_tie_lo_1_means_INCLUSIVE") // N08
+plot(popLL ? (na(pl) ? 0 : 1) : -2, "N09_native_fires_on_left_tie_lo_EXPECT_1")  // N09

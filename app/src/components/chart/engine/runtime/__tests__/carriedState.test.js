@@ -765,11 +765,14 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     const { out } = runPine(`${head}var m = na
 m := ta.sma(close, 3)
 `
-      + `plot(ta.crossover(close, m) ? 1 : 0)
+      // ⭐ OBSERVED THROUGH `na(…)`: a `?:` over an `na` condition takes its else
+      // arm in Pine and in this lane (2026-09-27, `pineTernaryNa.test.js`), so only
+      // `na()` can still carry the cross's own not-computable out to a plot.
+      + `plot(na(ta.crossover(close, m)) ? 1 : 0)
 `)
-    expect(Number.isNaN(out[0]), 'bar 0 answered a number').toBe(true)
-    expect(Number.isNaN(out[2]), 'bar 2 answered a number — the PREVIOUS bar was na').toBe(true)
-    expect(out.slice(3).every((v) => v === 0 || v === 1), 'never became computable').toBe(true)
+    expect(out[0], 'bar 0 answered a number').toBe(1)
+    expect(out[2], 'bar 2 answered a number — the PREVIOUS bar was na').toBe(1)
+    expect(out.slice(3).every((v) => v === 0), 'never became computable').toBe(true)
   })
 
   it('⛔ the classifier asks the TABLE, and a synthetic one proves the lookup is live', () => {

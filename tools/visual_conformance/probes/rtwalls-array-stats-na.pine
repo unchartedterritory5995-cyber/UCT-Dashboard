@@ -1,0 +1,26 @@
+//@version=6
+indicator("UCTPROBE_ARRAY_STATS_NA", overlay = false)
+
+// ⭐ WHAT DO array.max / min / sum / avg ANSWER OVER AN `na` ELEMENT, AND OVER AN
+// EMPTY ARRAY? This engine STOPS the script by name for both (runtime/collections.js
+// `finiteElements`, capture queue Q5) because three rules are plausible and each gives
+// a different number: SKIP the na, PROPAGATE it (answer na), or answer na only when
+// every element is na. The array [1, na, 3] separates them:
+//   skip       → max 3, min 1, sum 4, avg 2
+//   propagate  → na for all four
+// Alone in a file: if TradingView raises a runtime error, the error IS the answer.
+plot(bar_index, "N01_bar_index_CONTROL")                                        // N01
+a = array.from(1.0, na, 3.0)
+plot(array.max(a), "N02_max_1_na_3__skip3_prop_na")                             // N02
+plot(array.min(a), "N03_min_1_na_3__skip1_prop_na")                             // N03
+plot(array.sum(a), "N04_sum_1_na_3__skip4_prop_na")                             // N04
+plot(array.avg(a), "N05_avg_1_na_3__skip2_prop_na")                             // N05
+// ⛔ CONTROL — the all-finite array must read exactly max 3, min 1, sum 4, avg 2
+b = array.from(1.0, 3.0)
+plot(array.max(b) * 1000 + array.min(b) * 100 + array.sum(b) * 10 + array.avg(b), "N06_CONTROL_3142")  // N06 = 3142
+// the empty array, on every 4th bar only, so a runtime error cannot hide the rows above
+e = array.new<float>()
+if bar_index % 4 != 0
+    array.push(e, 5.0)
+plot(array.avg(e), "N07_avg_of_EMPTY_on_every_4th_bar__na_or_ERROR")            // N07
+plot(array.max(e), "N08_max_of_EMPTY_on_every_4th_bar__na_or_ERROR")            // N08

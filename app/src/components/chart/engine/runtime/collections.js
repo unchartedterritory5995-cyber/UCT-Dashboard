@@ -317,7 +317,156 @@ export const ARRAY_FNS = Object.freeze({
     args: ['array'], returns: 'void',
     fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); a[0].length = 0 },
   },
+
+  // ─── 2026-09-27 — the rest of what the runtime-lane corpus reaches for ──────
+  //
+  // ⭐ THE ROSTER IS DERIVED FROM THE SCRIPTS WALLED ON IT, not from the manual:
+  // `array.shift`/`array.last` (fibonacci-dolphintradebot), `array.remove`/
+  // `array.fill`/`array.avg` (range-filter-dw), `array.max`/`array.min`
+  // (wyckoff-accumulation-distribution), `.unshift`/`.pop`/`.max`/`.min`
+  // (support-resistance-mtf, behind its `map.new`), `.unshift`/`.avg`
+  // (trend-targets). `array.first` and `array.sum` ride along because each is
+  // the other half of a pair already here, with the same rule.
+  //
+  // ⛔ THE MUTATORS THAT ANSWER A VALUE (`shift`, `pop`, `remove`) are the same
+  // bounds rule as `array.get`: an empty array or an out-of-range index STOPS
+  // the script, which is what Pine does, rather than answering `na`.
+  'array.shift': {
+    args: ['array'], returns: 'any',
+    fn: (a, budget) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.shift'))
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return a[0].shift()
+    },
+  },
+  'array.pop': {
+    args: ['array'], returns: 'any',
+    fn: (a, budget) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.pop'))
+      budget.charge('ARRAY_OPERATIONS', 1)
+      return a[0].pop()
+    },
+  },
+  'array.unshift': {
+    args: ['array', 'any'], returns: 'void',
+    fn: (a, budget) => {
+      budget.charge('ARRAY_OPERATIONS', a[0].length + 1)
+      budget.peak('ARRAY_ELEMENTS', a[0].length + 1)
+      a[0].unshift(a[1])
+    },
+  },
+  'array.remove': {
+    args: ['array', 'number'], returns: 'any',
+    fn: (a, budget) => {
+      const i = at(a[0], a[1], 'array.remove')
+      budget.charge('ARRAY_OPERATIONS', a[0].length)
+      return a[0].splice(i, 1)[0]
+    },
+  },
+  'array.first': {
+    args: ['array'], returns: 'any',
+    fn: (a) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.first'))
+      return a[0][0]
+    },
+  },
+  'array.last': {
+    args: ['array'], returns: 'any',
+    fn: (a) => {
+      if (!a[0].length) throw new CollectionError(emptyStop('array.last'))
+      return a[0][a[0].length - 1]
+    },
+  },
+  // ⭐ `array.fill(id, value, index_from = 0, index_to = na)` fills the half-open
+  // range [from, to), `to` defaulting to the size. ⛔ A range that is not inside
+  // 0..size, or runs backwards, is STOPPED rather than clamped: what Pine does
+  // with one has not been measured, and clamping would fill a different set of
+  // elements than the script named, with nothing on screen to say so.
+  'array.fill': {
+    args: ['array', 'any', 'number', 'number'], returns: 'void', minArgs: 2, maxArgs: 4,
+    fn: (a, budget) => {
+      const n = a[0].length
+      const from = a.length > 2 ? a[2] : 0
+      const to = a.length > 3 && !Number.isNaN(a[3]) ? a[3] : n
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > n || from > to) {
+        throw new CollectionError(
+          `array.fill: the range ${from}..${to} is not inside an array of ${n} — what Pine does `
+          + 'with it has not been measured, and this engine does not clamp a range a script named')
+      }
+      budget.charge('ARRAY_OPERATIONS', to - from)
+      for (let i = from; i < to; i += 1) a[0][i] = a[1]
+    },
+  },
+  // ⭐⭐ VENDOR-MEASURED (2026-09-27, NYSE:RDDT 1D, all 631 bars,
+  // tests/fixtures/vendor/harness/rtwalls-array-stats-na-rddt-1d-2026-09-27.json):
+  //   • an `na` element is SKIPPED — `[1, na, 3]` gives max 3, min 1, sum 4, avg 2;
+  //   • an EMPTY array answers `na` for `array.avg` and `array.max` (158 bars each).
+  // ⚰️ Both used to stop the script by name, which kept wyckoff off every real chart.
+  // ⛔ `array.min` of an empty array answers `na` because it IS `array.max`'s code
+  // path (`nthOrdered`) — one measurement covers both. `array.sum` of an empty
+  // array is NOT measured and still stops: sum-of-nothing could be 0 or `na`, and
+  // the two draw different lines.
+  'array.max': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => nthOrdered(a, budget, 'array.max', (x, y) => y - x),
+  },
+  'array.min': {
+    args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+    fn: (a, budget) => nthOrdered(a, budget, 'array.min', (x, y) => x - y),
+  },
+  'array.sum': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => {
+      const xs = finiteElements(a[0], 'array.sum', budget)
+      if (!xs.length) {
+        throw new CollectionError('array.sum: no number to add (the array is empty or all na) — what '
+          + 'TradingView answers here has not been measured, and 0 and na draw different lines')
+      }
+      return xs.reduce((s, x) => s + x, 0)
+    },
+  },
+  'array.avg': {
+    args: ['array'], returns: 'number',
+    fn: (a, budget) => {
+      const xs = finiteElements(a[0], 'array.avg', budget)
+      return xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN
+    },
+  },
 })
+
+/** The stop sentence for an operation that needs an element and has none. */
+function emptyStop(what) {
+  return `${what}: the array is empty — Pine stops the script here rather than answering na`
+}
+
+/** The numeric elements, with every `na` SKIPPED (vendor-measured). A value
+ *  that is not a number at all — a string, a colour, a handle — is not an `na`
+ *  and still stops the script: TradingView would not type-check it. */
+function finiteElements(arr, what, budget) {
+  budget.charge('ARRAY_OPERATIONS', arr.length)
+  const xs = []
+  for (let i = 0; i < arr.length; i += 1) {
+    const v = arr[i]
+    if (typeof v !== 'number') {
+      throw new CollectionError(`${what}: element ${i} is ${kindOf(v)}, not a number`)
+    }
+    if (Number.isFinite(v)) xs.push(v)
+  }
+  return xs
+}
+
+/** `array.max(id, nth)` / `array.min(id, nth)`: the nth element in order. */
+function nthOrdered(a, budget, what, cmp) {
+  const xs = finiteElements(a[0], what, budget).slice().sort(cmp)
+  // ⭐ Empty — or empty once every `na` is skipped — answers `na` (vendor-measured).
+  if (!xs.length) return NaN
+  const nth = a.length > 1 ? a[1] : 0
+  if (!Number.isInteger(nth) || nth < 0 || nth >= xs.length) {
+    throw new CollectionError(`${what}: nth ${nth} is outside an array of ${xs.length} — `
+      + 'Pine stops the script here rather than answering na')
+  }
+  return xs[nth]
+}
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS))
 

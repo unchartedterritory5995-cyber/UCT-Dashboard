@@ -229,8 +229,16 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     expect(refusalOf(src).guard).toBe('runtime:history-expression')
   })
 
-  it('⛔ a RUNTIME-DERIVED offset over an expression refuses `runtime:history-dynamic-offset`', () => {
-    const r = refusalOf(`${head}${state}plot((x + 1)[bar_index % 3])\n`)
+  it('⭐ a RUNTIME-DERIVED offset over an expression reads the hoisted series (2026-09-27)', () => {
+    // ⚰️ This refused `runtime:history-dynamic-offset`. The hoisted series now
+    // reads through a DYNAMIC ring (`dynamicHistory.test.js`): (close + 1) at
+    // bar b − b % 3.
+    const { out } = runPine(`${head}${state}plot((x + 1)[bar_index % 3])\n`)
+    for (let b = 0; b < N; b += 1) expect(out[b], `bar ${b}`).toBeCloseTo(BARS[b - (b % 3)].c + 1, 12)
+  })
+
+  it('⛔ a per-bar WINDOW LENGTH still refuses `runtime:history-dynamic-offset`', () => {
+    const r = refusalOf(`${head}${state}plot(ta.sma(x, bar_index % 3 + 2))\n`)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
   })
 })
