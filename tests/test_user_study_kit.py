@@ -154,7 +154,7 @@ def test_the_consent_form_is_approved_and_says_a_change_needs_fresh_approval():
     text = " ".join((STUDY / "consent.md").read_text(encoding="utf-8").split())
     assert "Approved for use, 2026-09-26" in text
     assert "DRAFT" not in text
-    assert "Any change to this text needs a fresh approval" in text
+    assert "Any change to this text needs a fresh" in text   # the line wraps inside a blockquote
     for needle in ("30 days", "P1 to P8", "keep the thank-you", "never records what you write"):
         assert needle in text, needle
 
