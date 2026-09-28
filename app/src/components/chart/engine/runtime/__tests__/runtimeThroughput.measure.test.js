@@ -21,6 +21,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import inspector from 'node:inspector'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock.js'
@@ -60,12 +61,31 @@ describe.skipIf(!process.env.PINE_BENCH)('runtime-lane throughput (measure, opt-
         const bars = all.slice(-size)
         const program = build(source, bars)
         const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(bars, (b) => Number(b[k])))
+        // ⭐ `PINE_BENCH_PROFILE=<dir>` writes a .cpuprofile of each run. `--cpu-prof`
+        // cannot be used here: the runner ends its forks without the clean exit
+        // Node needs to write one, so the profile is taken from inside.
+        const session = process.env.PINE_BENCH_PROFILE ? new inspector.Session() : null
+        if (session) {
+          session.connect()
+          session.post('Profiler.enable')
+          session.post('Profiler.start')
+        }
         const t0 = performance.now()
         const res = execute(program, {
           bars: size, series, columns: program.columns, confirmed: true,
           barTimes: bars.map((b) => (Number.isFinite(b.t) ? b.t : NaN)),
         })
         const ms = performance.now() - t0
+        if (session) {
+          session.post('Profiler.stop', (err, { profile }) => {
+            if (!err) {
+              fs.mkdirSync(process.env.PINE_BENCH_PROFILE, { recursive: true })
+              fs.writeFileSync(path.join(process.env.PINE_BENCH_PROFILE,
+                `${name.split('__')[0]}-${size}.cpuprofile`), JSON.stringify(profile))
+            }
+          })
+          session.disconnect()
+        }
         expect(res.outputs.every((o) => o.length === size)).toBe(true)
         lines.push(`${String(size).padStart(5)} bars  run ${(ms / (size / 1000)).toFixed(1).padStart(8)} ms/1k`)
       }
