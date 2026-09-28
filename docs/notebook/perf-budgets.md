@@ -773,3 +773,36 @@ headers, beside the gate they recover.
 by the controller in a held quiet slot after this round; the SQLite page cache is not changed in
 wave 10; the two typing levers named above (the toolbar's whole-page re-render and the
 per-keystroke draft snapshot) are deferred, and the snapshot is not touched.
+
+## 8. Wave 10, follow-up F6: the switcher's body half
+
+The quick switcher now fills the rest of its page from the search box's relevance pass when its
+title tiers leave room (`notes.switcher_search`; why, per query:
+`docs/notebook/switcher-recall-diagnosis.md`). A page the titles fill never asks it, and the two
+budgeted switcher ops (`nvda setup`, `ntvds`) fill theirs from titles, so their code path is the
+one 10A measured. The benchmark times the new path as two ops, a common body term (~30% of bodies)
+and a rare one, which no title names.
+
+Measured 2026-09-27 on this box, 50k tier, 20 reps after 2 warm-ups, `--budget search`:
+
+| op | before F6 (tree `3c2356270`) p95 | after F6 (tree `7ee21a7fc`) p95 |
+|---|---:|---:|
+| switcher_search (word start) | 48.2 | 38.6 |
+| switcher_search (fuzzy, in order) | 78.0 | 69.6 |
+| switcher_search (body fallback, common term) | not timed (answered nothing) | 171.2 |
+| switcher_search (body fallback, rare term) | not timed (answered nothing) | 68.4 |
+
+Both runs read `VERDICT` on the budgeted ops only; the before run breached on the search box's
+common-term relevance request (102.1, re-measured 100.5), a known miss (section 3), and the after
+run passed. The before and after runs are different minutes of a shared box, so the interleaved
+A/B (the pre-F6 `notes.py` loaded beside the new one, same process, same 50k file, alternating
+rounds, 8 rounds x 5 reps) is the comparison to read: word start 32.3 -> 32.7 ms p50, fuzzy
+45.8 -> 45.7, common body term 41.6 -> 105.9, a term in every body 37.0 -> 198.9, rare 35.6 -> 52.1.
+
+**The two new ops are measured, NOT budgeted.** The body half costs what the search box's own
+relevance request costs for the same query (it IS that request, minus its count), on top of the
+title half: over the 100 ms search line for a body term common in a 50k library that no title
+names. A bounded top-k read was prototyped and measured no faster: the full-text ranked pass
+(bm25 over every match) is most of the cost, and a bounded read still has to rank every match to
+be exact. Whether these two ops join the `search` budget, and at what line, is the controller's
+decision; `perf-budgets.json` is unchanged.

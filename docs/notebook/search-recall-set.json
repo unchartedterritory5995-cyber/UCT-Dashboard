@@ -1425,7 +1425,7 @@
   }
  ],
  "baseline": {
-  "measured_on_tree": "fd7d1f42d",
+  "measured_on_tree": "7ee21a7fc",
   "k": 10,
   "readers": {
    "search_box": {
@@ -1433,8 +1433,8 @@
     "mrr_at_10": 0.8837
    },
    "switcher": {
-    "recall_at_10": 0.4147,
-    "mrr_at_10": 0.4651
+    "recall_at_10": 0.9302,
+    "mrr_at_10": 0.9302
    }
   }
  }
