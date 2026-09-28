@@ -29,6 +29,10 @@ export function AuthProvider({ children }) {
   // Technical tab above: an unset flag, a failed fetch, or the pre-settle
   // first render must all read as "not enabled".
   const [researchFlowTabEnabled, setResearchFlowTabEnabled] = useState(false)
+  // Research "Decision Record" tab (TERM-088). Default FALSE, same enablement
+  // polarity: an unset flag, a failed fetch, or the pre-settle first render
+  // must all read as "not enabled".
+  const [decisionRecordEnabled, setDecisionRecordEnabled] = useState(false)
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
@@ -73,6 +77,7 @@ export function AuthProvider({ children }) {
     ['hub_preview_enabled', (d) => d.hub_preview_enabled !== false, setHubPreviewEnabled],
     ['research_technical_tab_enabled', (d) => d.research_technical_tab_enabled === true, setResearchTechnicalTabEnabled],
     ['research_flow_tab_enabled', (d) => d.research_flow_tab_enabled === true, setResearchFlowTabEnabled],
+    ['decision_record_enabled', (d) => d.decision_record_enabled === true, setDecisionRecordEnabled],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
     ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
@@ -277,7 +282,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

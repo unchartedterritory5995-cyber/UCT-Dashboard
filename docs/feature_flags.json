@@ -581,6 +581,12 @@
       ],
       "note": ""
     },
+    "DECISION_RECORD_MEMBER_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-088 (item 15 ACC-02), ENABLEMENT GATE, default OFF, read per request in api/services/decision_record.py::is_enabled() - the ONE reader: api/routers/auth.py::_access_payload serves it as decision_record_enabled through the same function. SERVICE: web. What it arms: (1) GET /api/decision-record/ticker/{ticker} (api/routers/decision_record.py, require_paid) - every Morning Wire issue that considered a ticker (wire_universe x wire_issues, read ?mode=ro from the installed Brain Pack copy of uct_intelligence.db), the stage each rejection happened at beside the issues it passed, and the record's own derived coverage; (2) the Research page's 'Decision Record' tab. Unset: the route is the FastAPI 404 to every caller including admins, the engine DB is never opened, and the tab is absent (tests/test_decision_record_member.py, ResearchPage.test.jsx). NOT ARMABLE YET, and the blocker is not engineering: backlog TERM-088 names an ACT: - an owner decision that the firm's rejection record may be shown to members at all. Also unmeasured from the repo: whether the nightly Brain Pack carries wire_universe/wire_issues (the surface answers status=unavailable with a reason if it does not, never 'not considered'). REVERSAL: unset it and redeploy web if the unset does not restart it (verify the boot). No row anywhere is written by this surface; nothing to delete."
+    },
     "DEEP_CACHE_ENABLED": {
       "status": "dark",
       "note": "Off 2026-09-02, and superseded in direction. It builds a bars_cache_deep directory on the pod at boot; the architecture has since moved deep history OFF the web pod to a worker origin plus Cloudflare (BARS_HISTORY_ORIGIN_ENABLED / BARS_HISTORY_PROXY_ENABLED, both armed) precisely so the web pod never holds that volume of data. Arming this would push back toward the failure it was moved away from.",
