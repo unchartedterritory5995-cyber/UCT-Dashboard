@@ -36,6 +36,9 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
+# ⭐ TERM-011 / RM-N09 step 6 row 8 — the OPS-class destination reader for the drift
+# alert and the daily bias digest below. MODULE level, matching step 3's six producers.
+from api.services.alert_destination import ops_webhook as _ops_webhook
 from api.services.auth_db import get_connection
 from api.services.journal_two.broker import balances as _balances
 from api.services.journal_two.broker import option_reconstruct as _optr
@@ -64,7 +67,23 @@ def _et_today() -> str:
 
 
 def _post_discord(title: str, description: str) -> None:
-    url = os.environ.get("DISCORD_ALERT_WEBHOOK") or os.environ.get("DISCORD_WEBHOOK_URL")
+    # ⭐ TERM-011 / RM-N09 step 6 row 8 — the OPS-class destination, resolved at CALL
+    # time. Replaces `DISCORD_ALERT_WEBHOOK or DISCORD_WEBHOOK_URL`, and a drop-in: no
+    # normalisation, "" where the literal read returned None, consulted by truthiness.
+    #
+    # ⛔ THE MOVE THIS COULD HAVE BEEN, AND WHY IT IS NOT — MEASURED. `ops_webhook()`
+    # never reads DISCORD_ALERT_WEBHOOK, so a set value naming another room would have
+    # relocated this alarm. Railway read 2026-09-27 (values never printed; compared by
+    # sha256 and Discord webhook id): BYTE-EQUAL with DISCORD_WEBHOOK_URL on both
+    # services that carry it, same webhook id, one room — and DISCORD_OPS_WEBHOOK_URL
+    # absent everywhere. Decision packet §6.
+    #
+    # ⚠️ TWO CALLERS, NOT ONE, and both are OPS: the mirror-drift page (`_spawn_alert`)
+    # and `run_bias_digest`'s daily 🟢/🔴 line. The packet's row 8 names the first; the
+    # conversion boundary is this function, so it carries the second with it. That is
+    # deliberate — a second authority for the digest's destination is the defect this
+    # ticket removes.
+    url = _ops_webhook()
     if not url:
         return
     try:

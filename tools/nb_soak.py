@@ -249,8 +249,14 @@ def parse_canary_doc(text: str) -> dict:
 
 
 def parse_drill(text: str) -> dict | None:
-    """`# auth.db restore drill - PASS|FAIL` + `- run at: <iso>`."""
-    m = re.search(r"^# auth\.db restore drill - (PASS|FAIL)", text or "", re.M)
+    """`# auth.db restore drill - PASS|FAIL|INCONCLUSIVE` + `- run at: <iso>`.
+
+    ⛔ The words are the drill's own (`authdb_restore_drill.py`, the report headline). Wave 10
+    added INCONCLUSIVE -- a drill that cannot PASS on an unknown -- and this reader, matching only
+    PASS|FAIL, read such a report as ABSENT, so its week said "no drill report" about a week that
+    had one. `tests/test_nb_soak.py` reads the drill's word map from its source and fails on a word
+    this regex cannot parse."""
+    m = re.search(r"^# auth\.db restore drill - (PASS|FAIL|INCONCLUSIVE)\b", text or "", re.M)
     a = re.search(r"^- run at:\s*(\S+)", text or "", re.M)
     if not m:
         return None
@@ -477,7 +483,9 @@ def drill_weeks(start, now, end, drills) -> list:
         runs = [x for x in drills if x and x["at"] and a <= x["at"] < b]
         out.append({"week": k + 1, "from": a, "to": b,
                     "passed": any(x["result"] == "PASS" for x in runs),
-                    "failed": any(x["result"] == "FAIL" for x in runs), "runs": len(runs)})
+                    "failed": any(x["result"] == "FAIL" for x in runs),
+                    "inconclusive": any(x["result"] == "INCONCLUSIVE" for x in runs),
+                    "runs": len(runs)})
         k += 1
     return out
 
@@ -578,7 +586,9 @@ def verdict(facts) -> tuple[str, list, list]:
     for w in facts["drills"]:
         if not w["passed"]:
             inc.append(f"restore drill week {w['week']}: "
-                       + ("FAILED and no passing run" if w["failed"] else "no drill report"))
+                       + ("FAILED and no passing run" if w["failed"]
+                          else "INCONCLUSIVE and no passing run" if w.get("inconclusive")
+                          else "no drill report"))
     win = facts["window"]
     if not win["complete"]:
         left = win["end"] - facts["now"]

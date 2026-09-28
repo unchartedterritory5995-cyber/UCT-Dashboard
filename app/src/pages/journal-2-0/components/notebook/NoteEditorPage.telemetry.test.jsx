@@ -110,3 +110,26 @@ describe('conflict_forked', () => {
     expect(JSON.stringify(sent('conflict_forked')[0])).not.toMatch(/NVDA|local title|n1|fork1/)
   })
 })
+
+// ⭐ Wave 10 (10D, R-16): `save_success` — the numerator the save-success SLO pages on, fired
+// from the landed-save settle every editor save goes through (lib/offline/useDurableNote.js
+// `settleLandedSave`), whatever the offline layer's state. A door word and a flag, no text.
+describe('save_success', () => {
+  it('a save that lands reports ONE save_success {door: editor}, with no text or ids', async () => {
+    updateMock.mockResolvedValue({ ...NOTE, updatedAt: 'T9' })
+    await renderEditor()
+    await editAndLetAutosaveFire()
+    await waitFor(() => expect(sent('save_success')).toHaveLength(1))
+    expect(sent('save_success')[0].props).toEqual({ door: 'editor', queued: false })
+    expect(JSON.stringify(sent('save_success'))).not.toMatch(/NVDA|local title|n1|T9/)
+    expect(sent('save_failed')).toEqual([])
+  })
+
+  it('a save that fails reports no save_success (the SLO would read a failure as a success)', async () => {
+    updateMock.mockRejectedValue(httpError(404))
+    await renderEditor()
+    await editAndLetAutosaveFire()
+    await waitFor(() => expect(sent('save_failed')).toHaveLength(1))
+    expect(sent('save_success')).toEqual([])
+  })
+})

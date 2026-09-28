@@ -53,6 +53,15 @@ plot(math.floor(close / 3))
   // refusal. This corpus script still does not move the real host_ok count —
   // what moved, across both fixes, is that neither `math.floor` nor a
   // two-argument array constructor is the reason ANY script would refuse.
+  //
+  // ⚰️⚰️ AND THE THIRD BLOCKER MOVED BACK IN FRONT, 2026-09-27 (H14) — FOR A TRUE
+  // REASON. `rclose` is a `var` array written by `array.unshift` inside
+  // `addbricks()` (called from an `if`) and by `array.pop` in a `while`. The walk
+  // modelled neither and folded `array.get(rclose, 0)` to the creation value —
+  // which only failed to matter here because `syminfo.mintick` refused later.
+  // The read now refuses AT the write, naming `rclose`. Still true, and still
+  // what this case exists for: neither `math.floor` nor the two-argument
+  // constructor is the reason this script refuses.
   it('the real corpus script no longer refuses on math.floor or the array constructor (a permanent, unrelated blocker now surfaces)', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'renko-candles-overlay__d76a18d49e.pine'), 'utf8')
@@ -60,9 +69,9 @@ plot(math.floor(close / 3))
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).not.toBe('pine:function')
     expect(t.refusal.message).not.toMatch(/floor/)
-    expect(t.refusal.guard).not.toBe('pine:collection')
-    expect(t.refusal.guard).toBe('pine:builtin')
-    expect(t.refusal.message).toMatch(/syminfo\.mintick/)
+    expect(t.refusal.message).not.toMatch(/array\.new_float/)
+    expect(t.refusal.guard).toBe('pine:collection')
+    expect(t.refusal.message).toMatch(/`rclose` is written at line \d+ by a statement this lane does not model/)
   })
 
   it('⛔ CONTROL — a genuinely unimplemented function (ta.nvi) still refuses pine:function', () => {

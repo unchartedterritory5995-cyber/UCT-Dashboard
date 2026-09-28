@@ -280,14 +280,17 @@ describe('⛔ a fork made by the sweep fires conflict_forked, door outbox', () =
     expect(trackNotebookEvent).toHaveBeenCalledWith('conflict_forked', { door: 'outbox', queued: true })
   })
 
-  it('⭐ CONTROL — a clean send (no fork) reports nothing', async () => {
+  it('⭐ CONTROL — a clean send (no fork) reports no fork: ONE save_success from the outbox door', async () => {
     installLocks()
     const send = vi.fn(async () => ({ updatedAt: 'T2' }))
     const { result } = mount({ send })
     await waitFor(() => expect(result.current.role).toBe(LEADER))
     await act(async () => { await settleIdb(6) })
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1))
-    expect(trackNotebookEvent).not.toHaveBeenCalled()
+    // ⭐ Wave 10 (10D, R-16, study task T8): queued words that reached the server are a
+    // save that landed — and still no conflict_forked.
+    await waitFor(() => expect(trackNotebookEvent).toHaveBeenCalledTimes(1))
+    expect(trackNotebookEvent.mock.calls).toEqual([['save_success', { door: 'outbox', queued: true }]])
   })
 
   it('a BLOCKED outcome (send permanently fails, no fork) reports nothing', async () => {

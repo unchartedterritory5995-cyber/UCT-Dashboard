@@ -165,6 +165,31 @@ def test_POST_still_accepts_every_body_the_editor_can_build(client, case):
     assert r.status_code == 200, f"{case}: {r.status_code} {r.text}"
 
 
+@pytest.mark.parametrize("case", sorted(UNBUILDABLE))
+def test_PUT_refuses_a_body_the_editor_cannot_build_and_keeps_the_stored_body(client, case):
+    """Wave 10 L1b: the save path refuses what create and import refuse. The note keeps its
+    last good body -- a refused save changes nothing."""
+    good = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "kept"}]}]}
+    made = client.post("/api/j2/notes", json={"title": f"put {case}", "bodyJson": good})
+    assert made.status_code == 200, made.text
+    nid = made.json()["note"]["id"]
+    r = client.put(f"/api/j2/notes/{nid}", json={"bodyJson": UNBUILDABLE[case]})
+    assert r.status_code == 400, f"{case}: {r.status_code} {r.text}"
+    assert r.json()["detail"] == SENTENCE
+    after = client.get(f"/api/j2/notes/{nid}").json()
+    body = (after.get("note") or after).get("bodyJson")
+    assert body == good, f"{case}: a refused save changed the stored body"
+
+
+@pytest.mark.parametrize("case", sorted(k for k, v in BUILDABLE.items() if v is not None))
+def test_PUT_still_saves_every_body_the_editor_can_build(client, case):
+    made = client.post("/api/j2/notes", json={"title": f"put-ok {case}"})
+    assert made.status_code == 200, made.text
+    nid = made.json()["note"]["id"]
+    r = client.put(f"/api/j2/notes/{nid}", json={"bodyJson": BUILDABLE[case]})
+    assert r.status_code == 200, f"{case}: {r.status_code} {r.text}"
+
+
 def test_the_sentence_says_what_is_wrong_and_what_to_do_and_is_not_the_newer_version_one():
     from api.services.journal_two.notebook_schema import REFUSAL_DETAIL
     assert SENTENCE != REFUSAL_DETAIL, "the malformed case must not claim a newer version of the app"

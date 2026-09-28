@@ -128,6 +128,11 @@ CREATE TABLE IF NOT EXISTS activity_log (
 CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_activity_action ON activity_log(action);
 CREATE INDEX IF NOT EXISTS idx_activity_created ON activity_log(created_at);
+-- Wave 10 10D (review M-6): the Notebook SLO counts `action = ? AND created_at >= ?`
+-- on every run; with single-column indexes only, the planner takes `action` and scans
+-- every row of that action ever written. Idempotent on a database that already has
+-- the table. Railed by tests/test_notebook_slo.py (EXPLAIN QUERY PLAN names it).
+CREATE INDEX IF NOT EXISTS idx_activity_action_created ON activity_log(action, created_at);
 
 CREATE TABLE IF NOT EXISTS mrr_snapshots (
     id              TEXT PRIMARY KEY,

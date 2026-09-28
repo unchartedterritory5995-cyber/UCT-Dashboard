@@ -66,8 +66,12 @@ const CASES = [
   { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: 'sonarlab-order-blocks__0df0d45ee6',
     objectsOnly: true, kind: 'refused', what: 'a delete and a change to the list it deletes from' },
   // ── plots + partial: drawn, disclosed ─────────────────────────────────────
+  // ⚰️ 24 → 25, 2026-09-27 (H14). `int kSize = array.size(knnF1)` read a `var`
+  // array that `array.push` grows inside an `if` at line 471, and the host walk
+  // folded it to its CREATION size, 0 — so the element built from it drew with a
+  // number the script never has. It now refuses, and is counted, not drawn.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(24, 38) },
+    objectsOnly: false, kind: 'partial', text: partial(25, 38) },
   { cls: 'plots + partial the reader never carried', script: 'momentum-volatility-scanner__4d1deaa855',
     objectsOnly: false, kind: 'partial',
     text: /^This script uses `table\.merge_cells`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },

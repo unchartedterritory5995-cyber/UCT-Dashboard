@@ -9,6 +9,8 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import NoteExportControls, { UNSENT_BEFORE_EXPORT } from './NoteExportControls'
 import { exportNoteAsPng } from '../../lib/exportNote'
 import { EXPORT_FORMATS } from './export/exportFormats'
+import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
+import { printNote } from '../../lib/exportNote'
 
 vi.mock('../../lib/exportNote', () => ({
   exportNoteAsPng: vi.fn(async () => true),
@@ -135,8 +137,8 @@ describe('each format downloads through the format route', () => {
       fireEvent.click(trigger())
       fireEvent.click(screen.getByRole('menuitem', { name: f.menuLabel }))
       await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
-      expect(global.fetch.mock.calls.map((c) => c[0])).toEqual([`/api/j2/export/notes/n1?format=${f.id}`])
-      expect(global.fetch.mock.calls[0][1]).toEqual({ credentials: 'include' })
+      expect(featureCalls(global.fetch).map((c) => c[0])).toEqual([`/api/j2/export/notes/n1?format=${f.id}`])
+      expect(featureCalls(global.fetch)[0][1]).toEqual({ credentials: 'include' })
       expect(clicked).toEqual([{ href: 'blob:mock', download: `Plan.${f.id}` }])
       // The menu closed and focus went back to the button before the fetch.
       expect(screen.queryByRole('menu')).toBeNull()
@@ -169,7 +171,7 @@ describe('each format downloads through the format route', () => {
     await act(async () => { release(fileResponse('attachment; filename="Plan.json"')) })
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
     expect(trigger()).not.toBeDisabled()
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(featureCalls(global.fetch)).toHaveLength(1)
   })
 
   it("shows the server's own sentence when it refuses", async () => {
@@ -210,7 +212,10 @@ describe("the editor's pending edits are sent before the file is built (M-9)", (
   it('asks the editor to send first, THEN fetches the file', async () => {
     const order = []
     const onBeforeExport = vi.fn(async () => { order.push('send pending edits'); return true })
-    global.fetch.mockImplementation(async () => { order.push('fetch the file'); return fileResponse('attachment; filename="Plan.json"') })
+    global.fetch.mockImplementation(async (url) => {
+      if (url !== '/api/j2/telemetry') order.push('fetch the file')
+      return fileResponse('attachment; filename="Plan.json"')
+    })
     render(<Host onBeforeExport={onBeforeExport} />)
     fireEvent.click(trigger())
     fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
@@ -294,5 +299,33 @@ describe('focus comes back to the button that made the file (M-1)', () => {
     await act(async () => { release(fileResponse('attachment; filename="Plan.md"')) })
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
     expect(document.activeElement).toBe(elsewhere)
+  })
+})
+// ⭐ Wave 10 (10D, R-16): the export door's telemetry — fired on SUCCESS, from the rendered
+// action, carrying the format and nothing of the note (never its title or id).
+describe('export_used — the door says a note left as a file, and nothing about the note', () => {
+  it('a downloaded format sends ONE export_used with the format and scope', async () => {
+    global.fetch.mockResolvedValue(fileResponse('attachment; filename="Plan.docx"'))
+    render(<Host noteId="secret-note-id" />)
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Word (.docx)' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('downloaded'))
+    expect(telemetryBodies(global.fetch)).toEqual([
+      { event: 'export_used', props: { format: 'docx', scope: 'note', count: 1 } },
+    ])
+    expect(JSON.stringify(telemetryBodies(global.fetch))).not.toMatch(/Plan|secret-note-id/)
+  })
+
+  it('PNG and Print count too; a refused export sends nothing', async () => {
+    render(<Host />)
+    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
+    fireEvent.click(screen.getByRole('button', { name: 'Print' }))
+    expect(printNote).toHaveBeenCalled()
+    global.fetch.mockResolvedValueOnce({ ok: false, status: 500, headers: { get: () => null }, json: async () => ({}) })
+    fireEvent.click(trigger())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('export failed'))
+    expect(telemetryBodies(global.fetch).map((b) => b.props.format)).toEqual(['png', 'print'])
   })
 })

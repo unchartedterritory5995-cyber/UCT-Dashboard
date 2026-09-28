@@ -29,6 +29,7 @@ import {
   copyText, findLivePublication, pageCopiedSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
 } from '../../lib/notePublishLink'
 import styles from './PublishFolderSheet.module.css'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 
 /** The sheet's title (and its accessible name). */
 const publishFolderTitle = (name) => `Publish folder "${name}"`
@@ -107,6 +108,8 @@ function PublishFolderPanel({ folder, onClose }) {
     try {
       const made = await publishTarget('folder', folder.id)
       setPub(made)
+      // Wave 10 (10D, R-16): the sidebar's folder door published — a kind and a door, no names.
+      trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'publish', kind: 'folder', door: 'sidebar' })
       focusCopy.current = true
       const copied = await copyText(publishedUrl(made.slug))
       setStatus(publishedSentence(folder.name, copied))
@@ -120,7 +123,9 @@ function PublishFolderPanel({ folder, onClose }) {
 
   const copyLink = async () => {
     if (!pub || busy) return
-    setStatus(pageCopiedSentence(await copyText(publishedUrl(pub.slug))))
+    const copied = await copyText(publishedUrl(pub.slug))
+    if (copied) trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'copy', kind: 'folder', door: 'sidebar' })
+    setStatus(pageCopiedSentence(copied))
   }
 
   if (loading) {

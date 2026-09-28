@@ -704,6 +704,33 @@
       }
     },
     {
+      "id": "atr_pine_seeded_from_bar_zero",
+      "source": "atrPine(high, low, close, 14)",
+      "why": "(2026-09-27) Pine's `ta.atr` -- `rma` over `ta.tr(true)`: bar 0's range is high - low and the seed lands on bar n-1, one bar before `atr_of_hlc`'s Wilder seed. The two lanes compose it from their OWN `rma` (`carriedFn('rma')` / `_rma_col`) over the same scalar true range, so this case is where a cross-lane drift in either half would show. Pinned to the vendor separately by `atrPine.vendor.test.js` and `tests/test_atr_pine_parity.py`.",
+      "ast": {
+        "type": "call",
+        "name": "atrPine",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
       "id": "plus_di",
       "source": "plusDI(high, low, close, 14)",
       "why": "the +DI leg of the directional movement index. `adx` itself is refused (`_functions_excluded.adx` -- its window is `2 * period`, which no single declaration can say), so this and `minus_di` are what keep the DI cross expressible and that refusal honest.",

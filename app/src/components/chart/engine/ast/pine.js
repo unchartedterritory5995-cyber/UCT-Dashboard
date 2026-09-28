@@ -802,6 +802,13 @@ export const VALUE_NAMESPACES = Object.freeze(new Set(['ta', 'math']))
  * bar n. Captured on a 12M chart, the only SPY timeframe whose whole series fits
  * one loaded window: `tests/fixtures/vendor/seed-warmup-spy-12m-2026-09-21.json`.
  *
+ * ✅ CLOSED 2026-09-27 (PARITY-PROGRAMME §"THE ATR SEED — the host lane"): the
+ * `atr` shape below lands on `atrPine`, a table entry composed from the
+ * table's own `rma` over `ta.tr(true)`, with a Python twin (`_fn_atr_pine`) and
+ * the frozen artifacts regenerated. The Keltner RDDT capture went from a
+ * 137–147-bar converging prefix per band to 0 mismatches. The paragraph below
+ * is kept as the record of why it was not a one-line change.
+ *
  * ⛔⛔ CLOSING IT IS NOT A ONE-LINE CHANGE, AND THAT IS WHY IT IS STILL OPEN.
  * Routing Pine to a separately-seeded column means declaring a name in
  * `closedTable.json`, which the PYTHON lane mirrors in
@@ -907,7 +914,14 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // understood. ⛔ Without this the translator could see that `atr` exists and
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
-  atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐⭐ (2026-09-27) AND IT LANDS ON `atrPine`, NOT ON THE HOUSE `atr`. The
+  // house column is Wilder's original (TR from bar 1, seed on bar n) and stays
+  // so for ThinkScript, PCF and the native indicators; Pine's `ta.atr` is
+  // `ta.rma(ta.tr(true), n)` — bar 0's range is `high - low` and the seed lands
+  // on bar n-1 — measured to the last bit on two vendor captures. Routing the
+  // Pine spelling to its own entry is the ruling on file ("Pine gets its own
+  // seeding"); see `closedTable.json::_functions_atr_convention`.
+  atr: { table: 'atrPine', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
   // ── the SOURCE-ARGUMENT ADAPTERS ──────────────────────────────────────
   //
   // ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS, and for both of
@@ -4327,6 +4341,10 @@ const cNum = (value) => (value < 0
 const cSeries = (name) => ({ type: 'series', name })
 const cOp = (name, args) => ({ type: 'op', name, args })
 const cCall = (name, args) => ({ type: 'call', name, args })
+/** The canonical tree Pine's `na` literal resolves to — `0 / 0` (`Resolver.resolveName`). */
+const isStaticNa = (n) => !!n && n.type === 'op' && n.name === '/'
+  && Array.isArray(n.args) && n.args.length === 2
+  && n.args.every((a) => a && a.type === 'num' && a.value === 0)
 
 /** ⭐⭐ A TRANSLATE-TIME FOLD IS A COMPUTE BUDGET, NOT JUST A DEPTH LIMIT.
  *  A member can paste `1 + 1 + … ` ten thousand times and every term of it IS a
@@ -6295,9 +6313,12 @@ export class Resolver {
     // expression resolves lazily against `vec.env`, exactly like any other
     // slot write. `null` (unwritten -> na) is unchanged when there is no
     // second argument, which is Pine's own default.
-    vec.slots = vec.initNode
-      ? new Array(n).fill(null).map(() => exprBinding(vec.initNode, vec.env, vec.at))
-      : new Array(n).fill(null)
+    // ⭐ `array.from` carries one node PER SLOT, in order (see `vectorFromRhs`).
+    vec.slots = vec.elementNodes
+      ? vec.elementNodes.map((el) => exprBinding(el, vec.env, vec.at))
+      : vec.initNode
+        ? new Array(n).fill(null).map(() => exprBinding(vec.initNode, vec.env, vec.at))
+        : new Array(n).fill(null)
     vec.sizeFolded = true
     return n
   }
@@ -6401,6 +6422,25 @@ export class Resolver {
       throw new PineRefusal(d.guard, `${REFUSALS[d.guard]} — ${d.detail}`, locate(node.tok))
     }
 
+    // ⛔⛔ H14, 2026-09-27 — A WRITE THIS LANE DOES NOT MODEL REFUSES THE READ.
+    // `arrayWritesByName` attached every write to the vector at creation, and an
+    // unrolled `for` removed its own. What remains was dropped by the walk, so
+    // the slots below are the CREATION values, not the script's: measured on
+    // production, an `if` write drew `close - 0`. Checked HERE because this is
+    // the one reader, and every snapshot shares this vector object.
+    // ⭐ `array.size` survives a write that cannot change the size — `set` only.
+    const unmodelled = (vec.writers || [])
+      .filter((w) => !(member === 'size' && w.member === 'set'))
+    if (unmodelled.length) {
+      const w = unmodelled[0]
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — \`${headName || 'this array'}\` is written`
+        + (w.line ? ` at line ${w.line}` : '')
+        + ' by a statement this lane does not model (inside a block, a function, or'
+        + ' a call), so its slots are not known before the chart runs',
+        w.at || locate(node.tok))
+    }
+
     // The size folds through the ONE folder, with the whole environment in hand.
     let size = vec.slots.length
     if (vec.sizeNode && !vec.sizeFolded) size = this.foldVectorSize(vec)
@@ -6481,8 +6521,14 @@ export class Resolver {
       // output languages were four letters apart; here it is a binding versus the
       // node it resolves to. The lesson is the same: `vec.slots` is not a node array,
       // and anything reading it goes through `resolveBinding`.
+      // ⭐ A slot that is `na` BY CONSTRUCTION is skipped, as TradingView skips it:
+      // `[1, na, 3]` answers max 3, min 1, sum 4, avg 2 (vendor capture
+      // `rtwalls-array-stats-na-rddt-1d-2026-09-27`, capture-queue Q5). Only a
+      // STATIC na can be dropped at plan time; a series element that is na on some
+      // bar still propagates na there — a hole, never a wrong number.
       const written = vec.slots.filter(Boolean)
         .map((slot) => this.resolveBinding(slot, node.tok, vec.arrayName))
+        .filter((n) => !isStaticNa(n))
       if (!written.length) return cOp('/', [cNum(0), cNum(0)])
       if (member === 'sum') return written.reduce((a, b) => cOp('+', [a, b]))
       // ⭐⭐ R9a — `avg` IS THE SUM OVER THE WRITTEN COUNT, and the divisor is the
@@ -10104,73 +10150,88 @@ function mutatorTargets(toks) {
     // THE SLOT. When the writer is a block this lane could not read, the right
     // answer is the refusal the block already earned — so the array joins the
     // scalars this function forces opaque, and the read refuses by name.
-    if (tok.kind === 'ident' && String(tok.value).startsWith('array.')
-        && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
-        && toks[i + 1] && isPunct(toks[i + 1], '(')
-        && toks[i + 2] && toks[i + 2].kind === 'ident') {
-      out.add(toks[i + 2].value)
-    }
-    // ⭐⭐ AND THE METHOD FORM IS THE SAME MUTATION — `a.push(x)` IS
-    // `array.push(a, x)`.
     //
-    // ⚰️⚰️ MEASURED ON THE BRANCH POINT, AND IT WAS A SILENT WRONG NUMBER. The
-    // scan above matches the token `array.push` and the method form arrives as
-    // the token `a.push`, so it was invisible here — and the read above it
-    // folded anyway. Same program, two spellings, two plotted numbers, neither
-    // refusing:
-    //
-    //     a = array.new_float(0)
-    //     for i = 0 to 3
-    //         array.push(a, close[i])   → plot(array.size(a))  folds to 4
-    //         a.push(close[i])          → plot(array.size(a))  folds to 0
-    //
-    // That is precisely the hole the paragraph above this one was written to
-    // close, met again through the spelling it did not know. 2,570 method-form
-    // sites across 37 of the 266 committed scripts write the losing one.
-    //
-    // ⛔ OPAQUE, NOT UNROLLED, AND THE DIFFERENCE IS DELIBERATE. Marking the
-    // array opaque makes the READ refuse by name — the honest answer the block
-    // already earned. Teaching `pendingUnrollFrom` to unroll the method form
-    // would make it fold to 4 instead, which is better still, but it must first
-    // yield to a script's own `method push(…)`, and a wrong UNROLL is a wrong
-    // number where a wrong OPACITY is only a refusal. Recorded, measured, and
-    // left to the lane that can rail the shadow rule.
-    //
-    // ⛔ IT DOES NOT CHECK FOR A USER DEFINITION, ON PURPOSE. If a script
-    // defines its own `method push(…)`, this lane cannot model that either — so
-    // "the array was written by something I cannot read" is true in both cases
-    // and opacity is the right answer to both.
-    //
-    // ⛔ A PINE NAMESPACE IS NOT A RECEIVER. `array.push(a, x)` and
-    // `table.clear(t, …)` split the same way, and adding `array`/`table` to a
-    // set of MUTATED VARIABLE NAMES would be noise at best and, for a script
-    // that happens to bind one of those words, an opacity nobody asked for. The
-    // name form is the branch directly above; this one is only for the other
-    // spelling.
-    //
-    // ⚠️ THIS EXCLUSION IS NOT INDEPENDENTLY PROVABLE, AND SAYING SO IS THE
-    // POINT. A mutation deleting `PINE_MEMBER_NAMESPACES.has(...)` stays GREEN
-    // across every suite that touches this function, because nothing downstream
-    // can tell: the set is consumed by name, and a script cannot BIND one of
-    // these words for the extra entry to collide with. Measured 2026-09-22 —
-    // `table`, `matrix`, `map` and `linefill` are each refused before a binding
-    // exists, and the one that DOES bind (`str`) shares no member name with
-    // `VEC.WRITE_MEMBERS`, so the clause cannot fire for it either.
-    //
-    // ⛔ It is kept for the reason `parseForHead`'s `by`/`while` guards are
-    // kept one file over: it states the INTENT, so a future reader who widens
-    // either roster meets the rule rather than rediscovering it. It is NOT
-    // counted as a guard this file can demonstrate
-    // (`lesson_a_guard_repeated_is_a_guard_unproved`).
-    if (tok.kind === 'ident' && toks[i + 1] && isPunct(toks[i + 1], '(')) {
-      const m = splitMethodName(String(tok.value))
-      if (m && !PINE_MEMBER_NAMESPACES.has(m.recv)
-          && WRITE_LIKE_ARRAY_MEMBERS.has(m.method)) {
-        out.add(m.recv)
-      }
-    }
+    // ⭐ BOTH ARRAY SPELLINGS ARE READ BY `arrayWriteAt`, the one predicate —
+    // `arrayWriteSites` (the H14 read guard, 2026-09-27) asks the same question
+    // and a second copy of it would be the drift this file keeps paying for.
+    const write = arrayWriteAt(toks, i)
+    if (write) out.add(write.name)
   }
   return out
+}
+
+/** ⭐⭐ THE ONE PREDICATE FOR "THIS TOKEN WRITES AN ARRAY". Returns
+ *  `{ name, member, tok }` when the call starting at `toks[i]` is an array write
+ *  in either spelling, else null. `mutatorTargets` and `arrayWriteSites` both ask
+ *  it, so the two cannot disagree about what a write is. */
+function arrayWriteAt(toks, i) {
+  const tok = toks[i]
+  if (!tok || tok.kind !== 'ident') return null
+  if (String(tok.value).startsWith('array.')
+      && WRITE_LIKE_ARRAY_MEMBERS.has(String(tok.value).slice('array.'.length))
+      && toks[i + 1] && isPunct(toks[i + 1], '(')
+      && toks[i + 2] && toks[i + 2].kind === 'ident') {
+    return { name: toks[i + 2].value, member: String(tok.value).slice('array.'.length), tok }
+  }
+  // ⭐⭐ AND THE METHOD FORM IS THE SAME MUTATION — `a.push(x)` IS
+  // `array.push(a, x)`.
+  //
+  // ⚰️⚰️ MEASURED ON THE BRANCH POINT, AND IT WAS A SILENT WRONG NUMBER. The
+  // scan above matches the token `array.push` and the method form arrives as
+  // the token `a.push`, so it was invisible here — and the read above it
+  // folded anyway. Same program, two spellings, two plotted numbers, neither
+  // refusing:
+  //
+  //     a = array.new_float(0)
+  //     for i = 0 to 3
+  //         array.push(a, close[i])   → plot(array.size(a))  folds to 4
+  //         a.push(close[i])          → plot(array.size(a))  folds to 0
+  //
+  // That is precisely the hole the paragraph above this one was written to
+  // close, met again through the spelling it did not know. 2,570 method-form
+  // sites across 37 of the 266 committed scripts write the losing one.
+  //
+  // ⛔ OPAQUE, NOT UNROLLED, AND THE DIFFERENCE IS DELIBERATE. Marking the
+  // array opaque makes the READ refuse by name — the honest answer the block
+  // already earned. Teaching `pendingUnrollFrom` to unroll the method form
+  // would make it fold to 4 instead, which is better still, but it must first
+  // yield to a script's own `method push(…)`, and a wrong UNROLL is a wrong
+  // number where a wrong OPACITY is only a refusal. Recorded, measured, and
+  // left to the lane that can rail the shadow rule.
+  //
+  // ⛔ IT DOES NOT CHECK FOR A USER DEFINITION, ON PURPOSE. If a script
+  // defines its own `method push(…)`, this lane cannot model that either — so
+  // "the array was written by something I cannot read" is true in both cases
+  // and opacity is the right answer to both.
+  //
+  // ⛔ A PINE NAMESPACE IS NOT A RECEIVER. `array.push(a, x)` and
+  // `table.clear(t, …)` split the same way, and adding `array`/`table` to a
+  // set of MUTATED VARIABLE NAMES would be noise at best and, for a script
+  // that happens to bind one of those words, an opacity nobody asked for. The
+  // name form is the branch directly above; this one is only for the other
+  // spelling.
+  //
+  // ⚠️ THIS EXCLUSION IS NOT INDEPENDENTLY PROVABLE, AND SAYING SO IS THE
+  // POINT. A mutation deleting `PINE_MEMBER_NAMESPACES.has(...)` stays GREEN
+  // across every suite that touches this function, because nothing downstream
+  // can tell: the set is consumed by name, and a script cannot BIND one of
+  // these words for the extra entry to collide with. Measured 2026-09-22 —
+  // `table`, `matrix`, `map` and `linefill` are each refused before a binding
+  // exists, and the one that DOES bind (`str`) shares no member name with
+  // `VEC.WRITE_MEMBERS`, so the clause cannot fire for it either.
+  //
+  // ⛔ It is kept for the reason `parseForHead`'s `by`/`while` guards are
+  // kept one file over: it states the INTENT, so a future reader who widens
+  // either roster meets the rule rather than rediscovering it. It is NOT
+  // counted as a guard this file can demonstrate
+  // (`lesson_a_guard_repeated_is_a_guard_unproved`).
+  if (toks[i + 1] && isPunct(toks[i + 1], '(')) {
+    const m = splitMethodName(String(tok.value))
+    if (m && !PINE_MEMBER_NAMESPACES.has(m.recv) && WRITE_LIKE_ARRAY_MEMBERS.has(m.method)) {
+      return { name: m.recv, member: m.method, tok }
+    }
+  }
+  return null
 }
 
 /** The namespaces whose own members share names with `VEC.WRITE_MEMBERS`, so a
@@ -10185,6 +10246,147 @@ const PINE_MEMBER_NAMESPACES = new Set([
  *  set in `arrayVectors.js` so a member added there is covered here the same day
  *  — a second hand-typed list is the drift this engine keeps paying for. */
 const WRITE_LIKE_ARRAY_MEMBERS = VEC.WRITE_MEMBERS
+
+// ─── ⛔⛔ H14, 2026-09-27 — EVERY ARRAY WRITE, BY NAME, BEFORE THE WALK ─────────
+//
+// ⚰️⚰️ MEASURED ON PRODUCTION `9b28d4fa4`. The plan-time vector folded every read
+// to the slots it held at CREATION, and a write the walk did not model was dropped
+// without a word. The member door accepted each of these and drew the wrong line:
+//
+//     var a = array.new_float(1, 0.0)
+//     if close > open
+//         array.set(a, 0, close)          (also `a.set(0, close)`, `x = if …`)
+//     plot(close - array.get(a, 0))       → drew `close - 0`
+//
+//     f(arr) =>                           a user function that writes the
+//         array.set(arr, 0, close)        array it is handed — `f(a)` at the
+//         0                               top level was a dropped statement
+//
+//     array.set(a, 0, close)              the 2026-09-23 guard below caught this
+//     y = array.get(a, 0)                 for a DIRECT read, and missed it through
+//     plot(close - y)                     `y`, whose binding snapshots `env`
+//
+// ⭐ WHY A PRE-PASS AND NOT ANOTHER CLOSING-PASS LINE. A binding captures
+// `new Map(env)` when it is made, so a correction the closing pass writes into
+// `env` never reaches it — that is the third shape above. The VECTOR OBJECT is
+// shared by every snapshot, so the writes are attached to it at creation and the
+// ONE reader, `resolveVectorRead`, refuses while any remain. The only writes the
+// walk models — an unrollable top-level `for` — are removed when it attaches them.
+//
+// ⛔ IT IS DELIBERATELY CONSERVATIVE. A non-`var` array read BEFORE a later write
+// is correct in Pine and refuses here, and a function parameter that shares a
+// name with a top-level array refuses too. Both are refusals, never a wrong line.
+
+/** Every array write in a token span, in either spelling. */
+function arrayWriteSites(toks) {
+  const out = []
+  for (let i = 0; i < toks.length; i += 1) {
+    const w = arrayWriteAt(toks, i)
+    if (w) out.push(w)
+  }
+  return out
+}
+
+/** The parameter names of a header's `( … )` starting at `open`, tolerating
+ *  typed parameters (`float[] a`, `array<float> a`) and defaults (`len = 14`).
+ *  `functionParams` returns null for a typed array parameter, which is exactly
+ *  the parameter this pass needs to see. */
+function looseParamNames(toks, open) {
+  const close = matchBracket(toks, open)
+  if (close < 0) return null
+  return splitTopLevel(toks.slice(open + 1, close), ',').map((seg) => {
+    const eq = findTop(seg, (t) => isPunct(t, '='))
+    const head = eq >= 0 ? seg.slice(0, eq) : seg
+    const last = head[head.length - 1]
+    return last && last.kind === 'ident' ? last.value : null
+  })
+}
+
+/** The arguments a call hands to a parameter its callee writes — bare names only,
+ *  because `f(array.copy(a))` hands over a copy. A method-form call on a user
+ *  `method` passes its receiver as parameter 0. */
+function writerCallArgs(toks, writers) {
+  const out = []
+  for (let i = 0; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (!tok || tok.kind !== 'ident' || !isPunct(toks[i + 1], '(')) continue
+    let fn = writers.get(tok.value)
+    let shift = 0
+    if (!fn) {
+      const m = splitMethodName(String(tok.value))
+      const cand = m && writers.get(m.method)
+      if (cand && cand.method) {
+        fn = cand
+        shift = 1
+        if (fn.written.has(0)) out.push({ name: m.recv, tok })
+      }
+    }
+    if (!fn || !fn.written.size) continue
+    const close = matchBracket(toks, i + 1)
+    if (close < 0) continue
+    splitTopLevel(toks.slice(i + 2, close), ',').forEach((seg, j) => {
+      const eq = findTop(seg, (t) => isPunct(t, '='))
+      const k = eq > 0 && seg[0].kind === 'ident' ? fn.params.indexOf(seg[0].value) : j + shift
+      const val = eq > 0 ? seg.slice(eq + 1) : seg
+      if (k >= 0 && fn.written.has(k) && val.length === 1 && val[0].kind === 'ident') {
+        out.push({ name: val[0].value, tok })
+      }
+    })
+  }
+  return out
+}
+
+/** Top-level user functions and methods that write an array they are handed —
+ *  directly, or by handing it on to another that does. */
+function userArrayWriters(stmts) {
+  const fns = new Map()
+  for (const st of stmts || []) {
+    const h = st.header || []
+    const arrow = findTop(h, (t) => isPunct(t, '=>'))
+    if (arrow < 0) continue
+    const method = !!h[0] && h[0].kind === 'ident' && h[0].value === 'method'
+    const at = method ? 1 : 0
+    const nameTok = h[at]
+    if (!nameTok || nameTok.kind !== 'ident' || !isPunct(h[at + 1], '(')) continue
+    const params = looseParamNames(h, at + 1)
+    if (!params) continue
+    const body = h.slice(arrow + 1).concat(st.body || [])
+    const written = new Set()
+    for (const w of arrayWriteSites(body)) {
+      const k = params.indexOf(w.name)
+      if (k >= 0) written.add(k)
+    }
+    fns.set(nameTok.value, { params, body, method, written })
+  }
+  for (let changed = true; changed;) {
+    changed = false
+    for (const fn of fns.values()) {
+      for (const c of writerCallArgs(fn.body, fns)) {
+        const k = fn.params.indexOf(c.name)
+        if (k >= 0 && !fn.written.has(k)) { fn.written.add(k); changed = true }
+      }
+    }
+  }
+  return fns
+}
+
+/** name → every top-level statement that writes it, and where. Read by
+ *  `resolveVectorRead` through the vector it is attached to at creation. */
+function arrayWritesByName(stmts) {
+  const writers = userArrayWriters(stmts)
+  const out = new Map()
+  const add = (stmt, name, member, tok) => {
+    if (!out.has(name)) out.set(name, [])
+    const at = locate(tok)
+    out.get(name).push({ stmt, member, at, line: at && at.line })
+  }
+  for (const st of stmts || []) {
+    const toks = (st.header || []).concat(st.body || [])
+    for (const w of arrayWriteSites(toks)) add(st, w.name, w.member, w.tok)
+    for (const c of writerCallArgs(toks, writers)) add(st, c.name, null, c.tok)
+  }
+  return out
+}
 
 /** The parameter names of `f(a, b) =>`, or null if the header is not that shape.
  *
@@ -10779,6 +10981,24 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
   // plausible wrong answer, not a refusal, which is the one shape this table
   // exists to prevent. Stored unresolved for the same reason `sizeNode` is.
   try { initNode = parts[1] && parts[1].length ? parseWholeExpression(parts[1]) : null } catch { initNode = null }
+  // ⛔⛔ H14 (2026-09-27) — `array.from(a, b, c)` LISTS ITS ELEMENTS; IT IS NOT
+  // `(size, initial)`. It used to fall through the two lines above, so
+  // `array.from(10, 20, 50)` became ONE slot holding 20 — and on production
+  // `ta.sma(close, array.get(lengths, 0))` drew `sma(close, 20)` where TradingView
+  // draws SMA(10), and `close * array.sum(array.from(1, 2, 3))` drew `close * 2`.
+  // A wrong line with no refusal. Every argument is an element, in order.
+  let elementNodes = null
+  if (member === 'from') {
+    if (!parts.length) return null
+    try {
+      elementNodes = parts.map((p) => {
+        if (!p.length) throw new Error('empty element')
+        return parseWholeExpression(p)
+      })
+    } catch { return null }
+    sizeNode = { type: 'number', value: elementNodes.length, tok: head }
+    initNode = null
+  }
   const at = locate(nameTok)
   // ⛔⛔ F2 — THE CREATION IS RECORDED, WHATEVER HAPPENS NEXT. Before this, a
   // `var x = array.new<float>(21)` produced NOTHING: not a refusal, not a note,
@@ -10803,6 +11023,7 @@ function vectorFromRhs(rhs, nameTok, isVar, env, notes, markOpaque) {
     }),
     sizeNode,
     initNode,
+    elementNodes,
     member,
     arrayName: nameTok.value,
   }
@@ -13062,6 +13283,14 @@ function translatePineResult(source, opts = {}) {
     const r = fromError(err)
     return { ...blank, version, refusal: r, refusals: [r] }
   }
+  // ⛔⛔ H14 — every array write, taken BEFORE the walk and attached to each vector
+  // as it is created. See `arrayWritesByName` for the three shapes it closes.
+  const arrayWrites = arrayWritesByName(stmts)
+  /** A new vector carries every write the program makes to its name. */
+  const withWriters = (vec, name) => {
+    vec.writers = (arrayWrites.get(name) || []).slice()
+    return vec
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -13141,7 +13370,7 @@ function translatePineResult(source, opts = {}) {
       // `uncharted-clouds.pine` line 57 by instrumenting the walk, 2026-09-14.
       if (word === 'var' && nameTok && eq > 0) {
         const vec = vectorFromRhs(toks.slice(eq + 1), nameTok, true, env, notes, markOpaque)
-        if (vec) { env.set(nameTok.value, vec); continue }
+        if (vec) { env.set(nameTok.value, withWriters(vec, nameTok.value)); continue }
         if (vec === false) continue
       }
       if (word === 'var' && nameTok && eq > 0) {
@@ -13241,7 +13470,16 @@ function translatePineResult(source, opts = {}) {
             attached += 1
           }
         }
-        if (attached === pending.targets.size) continue
+        if (attached === pending.targets.size) {
+          // ⭐ H14 — THIS LOOP'S WRITES ARE NOW MODELLED, so they stop counting
+          // against the vectors they fill. Only on a FULL attach: a partial one
+          // falls through to the opaque forcing below, exactly as before.
+          for (const name of pending.targets) {
+            const vec = env.get(name)
+            if (vec && vec.writers) vec.writers = vec.writers.filter((w) => w.stmt !== stmt)
+          }
+          continue
+        }
       }
       notes.push(noteOf('pine:block', REFUSALS['pine:block'], first))
       // 🔴🔴 SILENT_WRONG_RESULT GUARD — a top-level `for`/`while`/switch this
@@ -13534,7 +13772,11 @@ function translatePineResult(source, opts = {}) {
       // ⭐⭐ WAVE 2 (a) — a non-`var` `name = array.new…(n)` becomes a vector.
       {
         const vec = vectorFromRhs(rhs, nameTok, false, env, notes, markOpaque)
-        if (vec) { env.set(nameTok.value, vec); recordTop(stmt, nameTok.value); continue }
+        if (vec) {
+          env.set(nameTok.value, withWriters(vec, nameTok.value))
+          recordTop(stmt, nameTok.value)
+          continue
+        }
         if (vec === false) continue   // refused and recorded (a drawing array)
       }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
@@ -15016,13 +15258,34 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
  *  `Scale Padding` plot drew as a solid white line because its `opacity = 0` was
  *  dropped (`memberPaneDefinition.js:139`).
  */
-function colourHelperAlpha(node, env, ctx) {
-  if (!node || node.type !== 'call') return null
+function colourHelperAlpha(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
+  // `staticColourOf` opens them — otherwise the two readers disagree about the
+  // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
+  // `S_color = input.color(color.new(#90EE90, 25))` then `plot(..., color =
+  // S_color)` carried the colour and dropped the 25% transparency, so Support and
+  // Resistance drew opaque on 568 bars where TradingView drew them at `bf`. The
+  // same colour written inline kept its alpha; only the name and the input hid it.
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'param' && ctx && ctx.inline) {
+      const a = (ctx.inline.args || [])[bound.index]
+      const v = a && a.value !== undefined ? a.value : a
+      return colourHelperAlpha(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
+    }
+    return bound && bound.kind === 'expr'
+      ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'input.color') {
+    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
   // alpha, which is the feature inverted rather than merely missing.
   const helper = openColourHelper(node, env, ctx)
-  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline })
+  if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
   const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
@@ -15273,6 +15536,52 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
   return seen.size
 }
 
+/**
+ * ⭐⭐ AN N-WAY COLOUR CHAIN, CARRIED AS A PALETTE AND AN INDEX.
+ *
+ * `close > ts ? color.green : close < ts ? color.red : color.black` is ATR
+ * Trailing Stoploss line 19-22, measured against TradingView 2026-09-27: its line
+ * is black on every bar where neither side holds, and a two-colour schema could
+ * only draw it gold. The same tree with every LEAF replaced by its position in a
+ * palette is an ordinary numeric ternary —
+ *
+ *     close > ts ? 0 : close < ts ? 1 : 2      palette [green, red, black]
+ *
+ * — which the resolver already canonicalises like any other series, so the chain
+ * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
+ *
+ * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
+ * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * readable branches would paint the unreadable ones a neighbour's colour.
+ * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
+ * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
+ * would carry the colour, not its position.
+ * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
+ * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ */
+function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const b = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
+      return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
+    }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
+    if (!yes) return null
+    const no = colourIndexChain(node.no, env, ctx, depth + 1, acc)
+    if (!no) return null
+    return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
+  }
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  let idx = acc.palette.indexOf(hex)
+  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
+  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  return { tree: { type: 'number', value: idx }, acc }
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -15308,6 +15617,14 @@ function colourConditional(node, env, depth = 0, ctx = null) {
       || (n.type === 'call' && n.name === 'na'))
     if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
     const arity = staticColourArity(node, env)
+    // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
+    // answer so a chain the RESOLVER then refuses still reports its size.
+    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
+    if (chain && chain.acc.palette.length >= 2) {
+      const al = chain.acc.alphas
+      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
+      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -15388,19 +15705,53 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
         colorDown: pair.colorDown,
         ...(pair.colorCondition ? { colorCondition: pair.colorCondition } : {}),
       } : {}),
+      // ⭐ An N-way chain rides the same way a plot's does: palette + index.
+      ...(Array.isArray(pres.colorPalette) && pres.colorIndex
+        ? { colorPalette: pres.colorPalette, colorIndex: pres.colorIndex } : {}),
       // A conditional this lane could not carry — folded to one colour, or not
       // folded at all — says so rather than going quiet.
-      ...((!pair && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
+      ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
   }
   return out
 }
 
+/** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
+ *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
+ *  this door used to read names only — the colour was dropped and the row drew
+ *  in the engine's default, measured on a live capture.
+ *
+ *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
+ *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
+ *  per version; a script passing six positionals keeps the first five. Index 0
+ *  is the series itself and is never presentation. */
+const POSITIONAL_PRESENTATION = Object.freeze({
+  plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
+  plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
+  plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
+})
+
 function outputPresentation(args, ctx) {
   const pres = {}
-  const arg = (n) => args.find((a) => a.name === n)
+  const kind = ctx && ctx.kind
+  const signature = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? POSITIONAL_PRESENTATION[kind] : null
+  const positional = args.filter((a) => !a.name)
+  // ⭐ A NAMED argument wins; a positional one answers only where the signature
+  // places that name. Pine refuses both at once, so the order is never a choice
+  // between two values the author wrote.
+  const arg = (n) => {
+    const named = args.find((a) => a.name === n)
+    if (named || !signature) return named
+    const at = signature.indexOf(n)
+    return at > 0 ? positional[at] : undefined
+  }
 
+  // ⛔ NO COLOUR AT ALL STAYS ABSENT HERE. This function reports what the AUTHOR
+  // wrote ("absent is absent", `pine.presentation.test.js`); TradingView's
+  // default for a colourless plot is a RENDERING rule and is applied at the member
+  // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
@@ -15432,6 +15783,21 @@ function outputPresentation(args, ctx) {
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
+      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+      // refuses leaves the plot imported and `colorDynamicArity` saying why.
+      if (cond && cond.indexTree && ctx && ctx.resolver) {
+        try {
+          const ast = ctx.resolver.resolve(cond.indexTree)
+          const formula = printFormula(ast)
+          verifyRoundTrip(formula, ast)
+          pres.colorPalette = cond.palette.slice()
+          pres.colorIndex = { ast, formula }
+          if (cond.opacity !== null) pres.opacity = cond.opacity
+          delete pres.colorDynamicArity
+          carried = true
+        } catch { /* falls through to colorDynamic */ }
+      }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
           const ast = ctx.resolver.resolve(cond.test)
@@ -15463,7 +15829,6 @@ function outputPresentation(args, ctx) {
   // recorded as `styleUncarried: 'shape.triangleup'` — the author's glyph filed
   // as an unsupported plot style. The translator's own header said as much
   // ("WHAT IS NOT CLAIMED: the GLYPH"); this is the wave that claims it.
-  const kind = ctx && ctx.kind
   const isMarker = MARKER_CALLS.has(kind)
   const st = arg('style')
   if (isMarker) {

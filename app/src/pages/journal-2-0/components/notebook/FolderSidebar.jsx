@@ -27,6 +27,7 @@ import {
   ancestorKeys, buildTagTree, fallbackNodes, hasNestedTags, tagKey,
 } from '../../lib/tagTree'
 import styles from './FolderSidebar.module.css'
+import { useSearchUsedTelemetry } from '../../lib/searchTelemetry'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -1014,6 +1015,18 @@ export default function FolderSidebar({
     dateTo: dateTo || undefined,
     sector: sectorFilter || undefined,
     theme: themeFilter || undefined,
+  })
+  // Wave 10 (10D, R-16, study task T4): `search_used` — one reading per search, timed from
+  // the debounced ask to its first settled page (lib/searchTelemetry.js). Counts, a mode word
+  // and a duration leave; the query never does.
+  useSearchUsedTelemetry({
+    enabled: searchEnabled,
+    searchKey: searchEnabled
+      ? JSON.stringify([debouncedQuery || '', dateFrom, dateTo, sectorFilter, themeFilter]) : '',
+    settled: !searchLoading && !searchValidating,
+    results: searchTotal,
+    filters: [dateFrom, dateTo, sectorFilter, themeFilter].filter(Boolean).length,
+    textQuery: Boolean(debouncedQuery),
   })
 
   // A query "in flight" — either still waiting out the debounce, or the fetch
