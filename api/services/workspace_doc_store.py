@@ -17,8 +17,9 @@ WHAT THIS SLICE IS: the destination store and its document model, running as a S
     in ``workspace_doc_prune_log``. ``tests/test_workspace_doc_store.py`` asserts by AST that no
     UPDATE exists anywhere and that the module's only row removal is that one, in that function.
   * RETENTION (owner decision, delegated): per (user, board) a version is KEPT if it is from the
-    last ``RETAIN_DAYS`` (30) OR among the newest ``RETAIN_NEWEST`` (200) — either rule is enough.
-    Whatever the rules say, the newest version, every tombstone, the version a tombstone deleted
+    last ``RETAIN_DAYS`` (30) OR among the newest ``RETAIN_NEWEST`` (200) — either rule is enough —
+    and never beyond the newest ``RETAIN_CEILING`` (2000): the window cannot keep a version the
+    ceiling excludes, so a board that autosaves all month is still bounded. Whatever the rules say, the newest version, every tombstone, the version a tombstone deleted
     and every version a restore copied are never pruned (``_protected_versions``). It runs
     opportunistically after a mirrored append, bounded to ``PRUNE_MAX_PER_CALL`` rows per call.
   * ATOMIC compare-and-set writes: a write names the version it was based on, and a stale base
@@ -99,6 +100,12 @@ SOURCES = ("migration", "mirror", "write", "restore", "delete")
 #: keeps it. ``_protected_versions`` names what is kept whatever these say.
 RETAIN_DAYS = 30
 RETAIN_NEWEST = 200
+#: A HARD per-(user, board) ceiling, owed before arming (TERM-021 retention ruling): the 30-day
+#: window alone is unbounded — a board autosaving every 500 ms keeps every version it wrote this
+#: month. A version outside the newest ``RETAIN_CEILING`` is NOT kept by the window. The count rule
+#: (always <= the ceiling) and ``_protected_versions`` are unaffected: the ceiling only narrows
+#: what the WINDOW may keep.
+RETAIN_CEILING = 2000
 #: Bounded work per call: at most this many rows removed, and at most ``PRUNE_SCAN_ROWS`` (plus the
 #: protected set) examined, oldest first. A backlog drains over successive appends.
 PRUNE_MAX_PER_CALL = 100
@@ -330,7 +337,8 @@ def stats() -> dict:
         pruned = c.execute("SELECT COALESCE(SUM(pruned_count), 0) FROM workspace_doc_prune_log").fetchone()[0]
     return {"documents": docs, "versions": versions, "parse_failures": failures,
             "pruned_versions": pruned,
-            "retention": {"days": RETAIN_DAYS, "newest": RETAIN_NEWEST, "max_per_call": PRUNE_MAX_PER_CALL},
+            "retention": {"days": RETAIN_DAYS, "newest": RETAIN_NEWEST, "ceiling": RETAIN_CEILING,
+                          "max_per_call": PRUNE_MAX_PER_CALL},
             "hook_failures_this_process": dict(_HOOK_FAILURES), "enabled": is_enabled()}
 
 
@@ -499,15 +507,18 @@ def _protected_versions(c: sqlite3.Connection, user_id: str, board_id: str, head
     return keep
 
 
-def _survives(version: int, created_at: int, *, count_floor: int, cutoff: int) -> bool:
-    """The owner's policy, in one expression: kept by the window OR kept by the count."""
-    kept_by_window = int(created_at) >= cutoff
+def _survives(version: int, created_at: int, *, count_floor: int, cutoff: int,
+              ceiling_floor: int = 0) -> bool:
+    """The owner's policy, in one expression: kept by the window (inside the ceiling) OR kept by
+    the count."""
+    kept_by_window = int(created_at) >= cutoff and int(version) >= ceiling_floor
     kept_by_count = int(version) >= count_floor
     return kept_by_window or kept_by_count
 
 
 def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Optional[int] = None,
-                   retain_newest: Optional[int] = None, max_delete: Optional[int] = None) -> dict:
+                   retain_newest: Optional[int] = None, max_delete: Optional[int] = None,
+                   retain_ceiling: Optional[int] = None) -> dict:
     """Remove the versions of one (user, board) that neither retention rule keeps. AUDITED.
 
     This is the ONLY function in the module allowed to remove a row, and it may only remove rows of
@@ -517,6 +528,7 @@ def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Option
     * Flag off ⇒ returns before ANY I/O (no connection, no file created).
     * ``now`` is injected (epoch seconds); a version created at or after ``now - retain_days`` is
       kept by the window, one ranked within the newest ``retain_newest`` is kept by the count.
+    * The window keeps nothing ranked outside the newest ``retain_ceiling`` (the hard ceiling).
     * ``_protected_versions`` is applied first and unconditionally.
     * Bounded: examines at most ``PRUNE_SCAN_ROWS`` (+ the protected set) rows, oldest first, and
       removes at most ``max_delete``. One transaction under the write lock, so it can never
@@ -530,7 +542,8 @@ def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Option
     days = RETAIN_DAYS if retain_days is None else int(retain_days)
     newest = RETAIN_NEWEST if retain_newest is None else int(retain_newest)
     cap = PRUNE_MAX_PER_CALL if max_delete is None else int(max_delete)
-    if days < 0 or newest < 0 or cap < 0:
+    ceiling = RETAIN_CEILING if retain_ceiling is None else int(retain_ceiling)
+    if days < 0 or newest < 0 or cap < 0 or ceiling < 0:
         raise ValueError("retention parameters must be non-negative")
     now = int(now)
     cutoff = now - days * _DAY
@@ -551,6 +564,13 @@ def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Option
                     "SELECT version FROM workspace_doc_versions WHERE user_id=? AND board_id=?"
                     " ORDER BY version DESC LIMIT 1 OFFSET ?", (user_id, board_id, newest - 1)).fetchone()
                 count_floor = int(r["version"]) if r else 0   # fewer than `newest`: it keeps them all
+            if ceiling == 0:
+                ceiling_floor = head_v + 1                # the window keeps nothing
+            else:
+                r = c.execute(
+                    "SELECT version FROM workspace_doc_versions WHERE user_id=? AND board_id=?"
+                    " ORDER BY version DESC LIMIT 1 OFFSET ?", (user_id, board_id, ceiling - 1)).fetchone()
+                ceiling_floor = int(r["version"]) if r else 0  # under the ceiling: no effect
             rows = c.execute(
                 "SELECT version, created_at FROM workspace_doc_versions WHERE user_id=? AND board_id=?"
                 " ORDER BY version ASC LIMIT ?",
@@ -559,7 +579,8 @@ def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Option
                 if len(doomed) >= cap:
                     break
                 v = int(r["version"])
-                if v in protected or _survives(v, r["created_at"], count_floor=count_floor, cutoff=cutoff):
+                if v in protected or _survives(v, r["created_at"], count_floor=count_floor, cutoff=cutoff,
+                                               ceiling_floor=ceiling_floor):
                     continue
                 doomed.append(v)
             if not doomed:
