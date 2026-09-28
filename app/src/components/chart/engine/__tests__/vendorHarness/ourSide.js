@@ -164,17 +164,42 @@ function objectsOf(def, bars, ctx) {
     })
     const state = toRenderState(run.live, { bars })
     const cells = state.tables.flatMap((t) => t.cells || [])
+    // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
+    // runtime's LIVE set at the last bar — because that is what the capture's
+    // counts are. TradingView's `graphics()` collections keep an object whose
+    // coordinate is `na`: measured 2026-09-27 on Zero-Lag MA Trend Levels
+    // (NYSE:RDDT 1D), 18 box records, five of them with a null top or bottom
+    // (`ta.atr(200)` is still warming when they are made). The render state
+    // cannot draw those five and drops them, so counting IT compared 13 drawable
+    // boxes against 18 held ones — a divergence between two different questions,
+    // not between two engines. The render state's own drops are still reported
+    // (`dropped`) so an undrawable object is named, never hidden.
+    // ⚠️ Tables and cells keep the render state's count: no capture yet shows a
+    // held-but-undrawn table or cell, so there is nothing to say they differ.
+    const held = { line: 0, label: 0, box: 0 }
+    const heldTexts = { label: [], box: [] }
+    for (const o of run.live || []) {
+      if (!o || !Object.prototype.hasOwnProperty.call(held, o.family)) continue
+      held[o.family] += 1
+      if (heldTexts[o.family]) {
+        const t = o.props ? o.props.text : undefined
+        heldTexts[o.family].push(t === undefined || t === null ? '' : String(t))
+      }
+    }
     return {
       drawsObjects: true,
       ok: true,
       counts: {
-        lines: state.lines.length,
-        labels: state.labels.length,
-        boxes: state.boxes.length,
+        lines: held.line,
+        labels: held.label,
+        boxes: held.box,
         tables: state.tables.length,
         tableCells: cells.length,
       },
-      texts: { labels: state.labels.map((l) => l.text), tableCells: cells.map((c) => c.text) },
+      drawn: { lines: state.lines.length, labels: state.labels.length, boxes: state.boxes.length },
+      // ⭐ `boxes` is reported, never graded by v1's comparator (it reads
+      // labels and cells) — the zero-lag rail pins it against the records.
+      texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
     }
   } catch (err) {
@@ -277,11 +302,18 @@ export function runOurSide(capture, opts = {}) {
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
       })
     }
+    const objects = objectsOf(def, bars, ctx)
+    if (objects && objects.ok && objects.drawn) {
+      for (const f of ['lines', 'labels', 'boxes']) {
+        const gap = objects.counts[f] - objects.drawn[f]
+        if (gap > 0) notes.push(`${gap} of ${objects.counts[f]} held ${f} cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them`)
+      }
+    }
     return {
       ok: true,
       refusal: null,
       plots,
-      objects: objectsOf(def, bars, ctx),
+      objects,
       ctx,
       notes,
       bars,
