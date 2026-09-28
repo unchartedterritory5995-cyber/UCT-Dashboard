@@ -113,6 +113,92 @@ export function normalizeColor(c) {
   return null
 }
 
+/** ⭐⭐ THE ABSENT COLOUR. Pine's `na` colour draws nothing, and TradingView
+ *  reports it two ways: a static `color = na` style is `rgba(0,0,0,0)`, and a
+ *  colorer bar whose colour is `na` reads `null` (see `vendorColorsFor`). Our
+ *  renderer draws `na` as a palette entry at alpha 0, whatever its RGB. Every
+ *  fully transparent colour is the SAME drawing — nothing — so it canonicalises
+ *  to one spelling before two readings are compared. */
+export const NO_COLOUR = '#00000000'
+export function canonicalColour(c) {
+  return typeof c === 'string' && /^#[0-9a-f]{6}00$/.test(c) ? NO_COLOUR : c
+}
+
+/** Two `#rrggbbaa` readings are the same drawing when they are the same
+ *  canonical colour, or the same RGB whose alphas differ by ONE 8-bit unit.
+ *
+ *  ⭐ THE ONE UNIT IS QUANTISATION, NOT TOLERANCE FOR A WRONG ANSWER.
+ *  TradingView stores alpha as an 8-bit integer from `1 - transp/100` in
+ *  doubles; our renderer is handed an `rgba(…)` float at four decimals, which
+ *  the reading rounds to 8 bits. At a half-unit boundary the two roundings
+ *  split: `color.new(c, 90)` is 25.5 units — TradingView's double
+ *  (`1 - 0.9 = 0.0999…`) lands on `0x19`, our `0.1` on `0x1a`. Measured
+ *  2026-09-28, Momentum Volatility Scanner's Vol Upper/Lower, 613 bars each.
+ *  ⛔ ONE unit only: adjacent whole transparencies are 2.55 units apart, so a
+ *  one-percent transparency error can never hide inside it. */
+export function coloursAgree(a, b) {
+  const x = canonicalColour(a)
+  const y = canonicalColour(b)
+  if (x === y) return true
+  if (typeof x !== 'string' || typeof y !== 'string') return false
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})$/
+  const mx = m.exec(x)
+  const my = m.exec(y)
+  if (!mx || !my || mx[1] !== my[1]) return false
+  return Math.abs(parseInt(mx[2], 16) - parseInt(my[2], 16)) <= 1
+}
+
+/** ⭐⭐ A PALETTE-LESS COLORER'S VALUE IS THE COLOUR ITSELF, PACKED.
+ *
+ *  A Pine v5/v6 study whose colour is an EXPRESSION (not a closed set the
+ *  compiler could enumerate) gets a colorer plot with NO `palette` at all, and
+ *  its per-bar value is a 32-bit colour: `0xAABBGGRR` — alpha in the top byte,
+ *  RED in the LOWEST. Measured on the 2026-09-28 RDDT captures, against colours
+ *  the source states literally:
+ *
+ *      sector-rotation  0xff5252ff → #ff5252ff  (v5 `color.red`)
+ *      sector-rotation  0xff50af4c → #4caf50ff  (v5 `color.green`)
+ *      dual-view        0xff35d8fd → #fdd835ff  (`input.color(color.yellow)`)
+ *      momentum-vol     0xb39e9e9e → #9e9e9eb3  (`color.new(color.gray, 30)`)
+ *      artemis          0x4dd4bc00 → #00bcd44d  (`color.new(#00bcd4, 70)`)
+ *
+ *  ⚰️ Before this, every such colorer read "names palette undefined, which the
+ *  capture does not carry", and the comparator blamed OUR side ("our side's
+ *  colour could not be resolved") — or, where our side had a colour, graded the
+ *  plot MATCH having compared no colour at all.
+ *
+ *  ⛔ ONLY an integer in [0, 2^32). Anything else is not a packed colour and
+ *  answers null, never a guess. */
+export function decodePackedColour(n) {
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0 || n > 0xffffffff) return null
+  const h = (x) => x.toString(16).padStart(2, '0')
+  const r = n & 0xff
+  const g = (n >>> 8) & 0xff
+  const b = (n >>> 16) & 0xff
+  const a = (n >>> 24) & 0xff
+  return `#${h(r)}${h(g)}${h(b)}${h(a)}`
+}
+
+/** TradingView hands a study's titles through `metaInfo()` HTML-ESCAPED:
+ *  `plot(ph, "Pivot High's")` reads back `Pivot High&#039;s` (measured,
+ *  extrapolated-pivot-connector-rddt-1d-2026-09-28). The member reads the
+ *  unescaped title on both platforms, so that is the one the mapping compares.
+ *  ⛔ Only the five entities HTML escaping emits (plus the numeric forms); an
+ *  unknown `&name;` is left exactly as written rather than guessed. */
+export function unescapeVendorTitle(t) {
+  if (typeof t !== 'string' || !t.includes('&')) return t
+  return t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) => {
+    const k = e.toLowerCase()
+    if (k === 'amp') return '&'
+    if (k === 'lt') return '<'
+    if (k === 'gt') return '>'
+    if (k === 'quot') return '"'
+    if (k === 'apos') return "'"
+    const code = k.startsWith('#x') ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10)
+    return Number.isInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m
+  })
+}
+
 // ── VENDOR PLOT ROLES ────────────────────────────────────────────────────────
 //
 // `metaInfo().plots[i].type`:
@@ -132,7 +218,7 @@ export function vendorPlotRoles(capture) {
   const notDrawn = []
   const notCompared = []
   plots.forEach((p, idx) => {
-    const title = (p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null
+    const title = unescapeVendorTitle((p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null)
     const rec = { ...p, title, column: idx + 1 }
     if (VALUE_TYPES.has(p.type)) value.push(rec)
     // ⛔ A colorer on a FILLED AREA colours the fill, not a plot. v1 does not
@@ -246,6 +332,11 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     valueMismatches: 0,
     colorMismatches: 0,
     colorCompared: 0,
+    // Bars where the VENDOR drew a value in a known colour — the bars a colour
+    // claim is about. Counted whether or not our side's colour resolved, so a
+    // plot that never draws anything is told apart from one we could not read.
+    colorComparable: 0,
+    valued: 0,
     maxAbs: 0,
     maxRel: 0,
     firstDivergence: null,
@@ -268,6 +359,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     firstRowSeen = true
     const o = ours[i]
     res.compared += 1
+    if (!isNa(v)) res.valued += 1
     const region = i < warmupBars ? res.warmup : res.steady
     region.compared += 1
     let kind = null
@@ -279,12 +371,13 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       if (Math.abs(v) > 0 && rel > res.maxRel) res.maxRel = rel
       if (!valuesAgree(o, v, tol)) { kind = 'value'; res.valueMismatches += 1 }
     }
+    if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
     if (!kind && vendorColors && ourColors && !isNa(v)) {
       const vc = vendorColors[i]
       const oc = ourColors[i]
       if (vc !== undefined && vc !== null && oc !== undefined) {
         res.colorCompared += 1
-        if (vc !== oc) { kind = 'color'; res.colorMismatches += 1 }
+        if (!coloursAgree(vc, oc)) { kind = 'color'; res.colorMismatches += 1 }
       }
     }
     if (kind) {
@@ -347,7 +440,7 @@ function divergencePattern(compared, divergent, steady) {
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
-export function plotVerdict(r, { colorMeasured, colorResolvable }) {
+export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null }) {
   if (r.vendorRowGapsAfterStart > 0) {
     return { verdict: 'INCONCLUSIVE', reason: `${r.vendorRowGapsAfterStart} bars have no vendor row after the study had started — a hole in what was read, not an answer` }
   }
@@ -357,18 +450,42 @@ export function plotVerdict(r, { colorMeasured, colorResolvable }) {
     const shape = p && p.kind === 'converging-prefix'
       ? ` — a CONVERGING PREFIX: bars ${f.bar}..${p.lastDivergentBar}${p.contiguous ? '' : ' (with agreeing bars inside the run)'} differ with |err| falling ${p.absErrFirst.toExponential(2)} → ${p.absErrLast.toExponential(2)}, then all ${p.agreeingAfter} later bars agree (the recursive-state-seeded-at-the-window signature)`
       : p ? ` — ${p.kind}, last at bar ${p.lastDivergentBar}` : ''
-    return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${f.kind}: vendor ${fmt(f.vendor)} vs ours ${fmt(f.ours)})${shape}` }
+    return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${readingOf(f)})${shape}` }
   }
   if (r.steady.compared === 0) {
     return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
   }
-  if (colorMeasured && !colorResolvable) {
-    return { verdict: 'INCONCLUSIVE', reason: 'values agree, but the capture records per-bar colour and our side\'s colour could not be resolved' }
+  // ⛔ A COLOUR THE CAPTURE HOLDS BUT THE HARNESS COULD NOT DECODE IS NOT A MATCH.
+  // ⚰️ It was: a palette-less colorer read `colors: null`, our side had colours,
+  // and the plot graded MATCH having compared no colour on any bar.
+  if (colorMeasured && vendorColorReason && (r.valued === undefined || r.valued > 0)) {
+    return { verdict: 'INCONCLUSIVE', reason: `values agree, but the capture's per-bar colour could not be decoded — ${vendorColorReason}` }
+  }
+  // ⭐ …AND A PLOT THAT NEVER DRAWS HAS NO COLOUR TO DISAGREE ABOUT. When no bar
+  // carries a vendor value in a known colour (every bar `na` — a plot gated off
+  // by a default input, an intraday-only marker on a daily chart), nobody sees a
+  // colour on either platform, so "our colour could not be resolved" is not a gap
+  // in the comparison: it is complete on values alone.
+  // ⛔ ONLY at zero. One vendor bar drawn in a known colour against an unresolved
+  // colour on our side is INCONCLUSIVE exactly as before.
+  if (colorMeasured && !colorResolvable && (r.colorComparable === undefined || r.colorComparable > 0)) {
+    return { verdict: 'INCONCLUSIVE', reason: `values agree, but the capture records per-bar colour and our side's colour could not be resolved${ourColorReason ? ` (${ourColorReason})` : ''}` }
   }
   return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree` + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
 }
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
+
+/** One divergent bar's two readings, in the unit that disagreed. ⚰️ A colour
+ *  divergence printed the two VALUES ("color: vendor 50 vs ours 50") — equal by
+ *  construction, since a colour is only compared on a bar whose values agree —
+ *  which reads as a harness that mistook a number for a colour. */
+export function readingOf(f) {
+  if (f && f.kind === 'color') {
+    return `color: vendor ${f.vendorColor ?? 'none'} vs ours ${f.ourColor ?? 'none'} at value ${fmt(f.vendor)}`
+  }
+  return `${f.kind}: vendor ${fmt(f.vendor)} vs ours ${fmt(f.ours)}`
+}
 
 // ── ONE CAPTURE ──────────────────────────────────────────────────────────────
 
@@ -390,6 +507,23 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
   const study = capture.study || {}
   const colorer = colorers.find((c) => c.target === valuePlot.id)
   const style = (study.styleState && study.styleState[valuePlot.id]) || null
+  if (colorer && (colorer.palette === undefined || colorer.palette === null)) {
+    // ⭐ NO PALETTE ⇒ THE VALUE IS THE COLOUR (`decodePackedColour`). The plot's
+    // style transparency folds in by the SAME rule as the palette path below.
+    const out = times.map((t) => {
+      const row = rowsByTime.get(String(t))
+      if (!row) return undefined
+      const raw = row[colorer.column]
+      if (raw === undefined) return undefined
+      if (raw === null) return NO_COLOUR // the `na` colour — see the palette path below
+      return withStyleTransparency(decodePackedColour(raw), style)
+    })
+    const bad = out.findIndex((c) => c === null)
+    if (bad >= 0) {
+      return { colors: null, measured: true, reason: `colorer ${colorer.id} has no palette and its value ${JSON.stringify(rowsByTime.get(String(times[bad]))[colorer.column])} at bar ${bad} is not a packed colour` }
+    }
+    return { colors: out, measured: true, reason: null }
+  }
   if (colorer) {
     const pid = colorer.palette
     // The RESOLVED colours are the study's property state (what the member's
@@ -413,7 +547,19 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
       const row = rowsByTime.get(String(t))
       if (!row) return undefined
       const raw = row[colorer.column]
-      if (raw === null || raw === undefined) return null
+      if (raw === undefined) return undefined
+      // ⭐⭐ A COLORER THAT READS `null` ON A BAR THE STUDY REPORTED IS THE `na`
+      // COLOUR — TradingView drew nothing there. ⚰️ It was read as "no colour
+      // captured" and skipped, so a line WE drew where TradingView drew none
+      // graded MATCH. Measured 2026-09-28 (RDDT 1D): Ultimate Pivot Points'
+      // `x == nz(x[1]) ? color.new(color.green, 10) : na` reads palette index 4
+      // on the one bar where x repeats and `null` on the other 630 — its palette
+      // has no entry for the `na` branch at all; Artemis' `adaptZones ?
+      // color.new(thOb, 0) : na` (adaptZones defaults false) reads `null` on all
+      // 632 bars of a line TradingView leaves invisible, while its VP Bull
+      // colorer reports a colour even on bars whose VALUE is na — so `null` is
+      // the colour, not a missing row.
+      if (raw === null) return NO_COLOUR
       const idx = v2i && v2i[raw] !== undefined ? v2i[raw] : raw
       return colorOf(idx)
     })
@@ -525,12 +671,31 @@ export function compareCapture(capture, ours, opts = {}) {
     // colour was not graded names the wrong disagreement to whoever reads it.
     const vStyle = (capture.study && capture.study.styleState && capture.study.styleState[v.id]) || null
     const hiddenOnVendor = !!(vStyle && vStyle.display === 0)
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: hiddenOnVendor ? null : vc.colors, ourColors: hiddenOnVendor ? null : ourColors, warmupBars, tol })
-    const pv = plotVerdict(r, { colorMeasured: vc.measured && !hiddenOnVendor, colorResolvable: !!ourColors })
+    // ⭐ …and the same for a `plotchar` whose glyph is EMPTY. `plotchar(x, "", "")`
+    // is the idiom for a value that belongs in the data window and nowhere on
+    // the chart: TradingView draws no glyph and no text, and still reports the
+    // plot's colour on every bar. The capture records the glyph itself
+    // (`metaInfo().styles[id].char`), so this reads the vendor's own statement —
+    // measured on liquidation-levels-rddt-1d-2026-09-28 (`char: ""`, no `text`,
+    // colour `#2962FF` on 632 bars of a glyph nobody can see).
+    const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
+    const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
+    const colourUngraded = hiddenOnVendor || emptyGlyph
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, tol })
+    const pv = plotVerdict(r, {
+      colorMeasured: vc.measured && !colourUngraded,
+      colorResolvable: !!ourColors,
+      vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
+      ourColorReason: o.colorsReason || null,
+    })
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
-      color: vc.measured ? (ourColors ? 'compared' : 'unresolvable on our side') : 'not captured',
+      color: !vc.measured ? 'not captured'
+        : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
+          : !vc.colors ? 'undecodable in the capture'
+            : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
+              : ourColors ? 'compared' : 'unresolvable on our side',
       stats: r,
     })
   }
@@ -629,7 +794,9 @@ export function renderSummary(results) {
     const d = (r.plots || []).find((p) => p.verdict === 'DIVERGE')
     if (d && d.stats && d.stats.steady.first) {
       const f = d.stats.steady.first
-      tail = `${d.title}: bar ${f.bar} t=${f.time} ${f.kind} vendor=${fmt(f.vendor)} ours=${fmt(f.ours)}`
+      tail = f.kind === 'color'
+        ? `${d.title}: bar ${f.bar} t=${f.time} color vendor=${f.vendorColor ?? 'none'} ours=${f.ourColor ?? 'none'}`
+        : `${d.title}: bar ${f.bar} t=${f.time} ${f.kind} vendor=${fmt(f.vendor)} ours=${fmt(f.ours)}`
     }
     lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 13)} ${tail}`)
     for (const p of (r.plots || [])) {

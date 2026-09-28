@@ -27,7 +27,7 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder } from '../../binder'
+import { createBinder, drawShiftOf } from '../../binder'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -138,8 +138,22 @@ function drawnColours(def, bars, ctx) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
-    const colors = bars.map((bar) => {
-      const p = byTime.get(String(bar.t))
+    // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
+    // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
+    // `displacedColumn`), and TradingView's study data keys that value — and its
+    // colour — to the computing bar i (the VALUES agree bar for bar, which is how
+    // this was established). Reading the point at the undisplaced bar i found
+    // nothing there: measured 2026-09-28 on liquidity-pools (offset -4, 46 bars
+    // "vendor #787b86ff vs ours none"), price-action-as-in-book (-5, 26 bars) and
+    // the legacy trendlines capture (-15). A value that would sit left of bar 0
+    // was never drawn by either platform, so its colour is not a reading
+    // (`undefined`, which the comparator skips), not a "none".
+    // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
+    const shift = drawShiftOf(plot)
+    const colors = bars.map((_bar, i) => {
+      const at = i + shift
+      if (at < 0) return undefined
+      const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
       return withOpacity(p.color || seriesColor || plot.color, plot.opacity)
     })
@@ -292,6 +306,13 @@ export function runOurSide(capture) {
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // Why there are no colours, when there are none — so the verdict names the
+        // cause instead of "could not be resolved".
+        colorsReason: row && !colours.byKey.has(row.key)
+          ? (o && o.hidden
+            ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
+            : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
+          : null,
       })
     }
     const objects = objectsOf(def, bars, ctx)
