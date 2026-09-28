@@ -28,6 +28,9 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+// ⏭ 29 of the frozen corpus are licence-held and local-only; a rail that needs
+// one is skipped BY NAME when it is absent, never passed and never ENOENT.
+import { itNeedsLocalOnly } from '../engine/ast/__tests__/oosLocalOnly.js'
 
 const OOS = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 
@@ -77,7 +80,7 @@ const LIFECYCLE = [
 ]
 
 describe('C3A.1 — the visual demand census', () => {
-  it('scripts and call sites, declarative vs object lifecycle', () => {
+  itNeedsLocalOnly('ALL', 'scripts and call sites, declarative vs object lifecycle', () => {
     const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine')).sort()
     expect(files.length).toBe(FROZEN)
 
