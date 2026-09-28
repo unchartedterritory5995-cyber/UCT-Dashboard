@@ -448,12 +448,28 @@ export function NoteLinkedTradeChips({ noteId }) {
  * (docs/notebook/perf-budgets.md §7). Railed by NoteEditorPage.toolbarIdentity.test.jsx
  * (a button keeps its DOM node across a re-render) and lib/nestedComponents.test.js.
  */
+/*
+ * ⛔⛔ G-160 (F4 amendment, found by lane 10E-1's path census): IT ACTS ON THE KEYBOARD TOO.
+ * The action ran on `mousedown` only -- `preventDefault` there keeps the editor's selection,
+ * which a click's focus change would drop -- so Enter and Space, which fire `click` and never
+ * `mousedown`, did nothing: "Attach a file", "Insert link", "Insert image", Bold and the rest
+ * were dead to a keyboard member (WCAG 2.1.1). Now `click` runs the action too, and a pointer
+ * press never runs it twice: the `mousedown` that ran it marks the press, and the `click` that
+ * follows is swallowed. A key pressed on the button clears that mark first, so a keyboard
+ * activation always acts. Rail: NoteEditorPage.toolButtonKeyboard.test.jsx.
+ */
 function ToolButton({ active, onClick, label, title }) {
+  const ranOnPressRef = useRef(false)
   return (
     <button
       type="button"
       className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
-      onMouseDown={(e) => { e.preventDefault(); onClick() }}
+      onMouseDown={(e) => { e.preventDefault(); ranOnPressRef.current = true; onClick() }}
+      onKeyDown={() => { ranOnPressRef.current = false }}
+      onClick={() => {
+        if (ranOnPressRef.current) { ranOnPressRef.current = false; return }
+        onClick()
+      }}
       title={title}
       aria-label={title}
     >{label}</button>

@@ -232,6 +232,9 @@ export default function NotesTableView({
       // whose own .id read as undefined -- a real bug caught live via
       // browser E2E (?note=undefined, "Couldn't load this note").
       onRowClick={(n) => onOpenNote(n)}
+      // F4 / A2R-02: the row is a Tab stop that opens its note on Enter or
+      // Space, and its name says what that does (the title alone reads as data).
+      rowLabel={(n) => `Open ${n.title || 'Untitled'}`}
       emptyText="No notes match this view."
     />
   )

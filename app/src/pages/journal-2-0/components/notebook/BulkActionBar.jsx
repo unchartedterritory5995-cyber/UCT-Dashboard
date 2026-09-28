@@ -51,6 +51,14 @@ export const UNFILED_VALUE = '__unfiled__'
  * with what it keeps. Choosing one calls `onExport(<format id>)`. Escape closes
  * the panel and hands focus back to the button that opened it.
  *
+ * ⛔ F4 / A2R-04 (WCAG 2.4.3): Escape ANYWHERE IN THE BAR closes an open panel first.
+ * Lane 10E-2's keyboard walk opened "Export selected" and pressed Escape with focus still
+ * on that button -- the Escape reached the page's "Esc clears the selection", the whole
+ * bar unmounted, and focus fell to <body>. An open panel (Export or Tags) is now what
+ * Escape closes, from its toggle or from inside it, with focus back on the toggle; only
+ * an Escape with no panel open is left to the page. A key an inner control already
+ * handled (the tag field closing its suggestion list) is left alone.
+ *
  * ⛔ It never reports outcomes itself. The sentence that says what happened
  * (and the Undo after a trash) is rendered by NotebookTab, OUTSIDE this bar,
  * because the bar unmounts the moment the selection empties — a message owned
@@ -91,6 +99,7 @@ export default function BulkActionBar({
   const tagPanelId = useId()
   const exportPanelId = useId()
   const exportToggleRef = useRef(null)
+  const tagsToggleRef = useRef(null)
   // A chosen folder that has since been deleted is no choice at all.
   const moveTarget = moveChoice === UNFILED_VALUE || folderOptions.some((f) => f.id === moveChoice)
     ? moveChoice : ''
@@ -121,14 +130,18 @@ export default function BulkActionBar({
     setExportOpen(false)
     onExport(format)
   }
-  const onExportPanelKeyDown = (e) => {
-    if (e.key !== 'Escape') return
-    // The panel's own Escape: it must not also reach the page's "Esc clears the
-    // selection" (NotebookTab skips an Esc already marked handled).
+  // The bar's Escape (see the header, A2R-04): it closes an open panel and must not also
+  // reach the page's "Esc clears the selection" (NotebookTab skips an Esc already marked
+  // handled, and this one stops here too).
+  const onBarKeyDown = (e) => {
+    if (e.key !== 'Escape' || e.isDefaultPrevented()) return
+    const toggle = exportOpen ? exportToggleRef : tagsOpen ? tagsToggleRef : null
+    if (!toggle) return
     e.preventDefault()
     e.stopPropagation()
     setExportOpen(false)
-    exportToggleRef.current?.focus()
+    setTagsOpen(false)
+    toggle.current?.focus()
   }
 
   const exportButton = (
@@ -150,7 +163,7 @@ export default function BulkActionBar({
   )
 
   return (
-    <div className={styles.bar} role="group" aria-label="Actions for the selected notes">
+    <div className={styles.bar} role="group" aria-label="Actions for the selected notes" onKeyDown={onBarKeyDown} data-bulk-bar="">
       <div className={styles.selectionInfo}>
         <span className={styles.count} aria-live="polite">
           {count} selected
@@ -224,6 +237,7 @@ export default function BulkActionBar({
             </span>
 
             <button
+              ref={tagsToggleRef}
               type="button"
               className={styles.action}
               aria-expanded={tagsOpen}
@@ -262,7 +276,6 @@ export default function BulkActionBar({
           className={styles.tagPanel}
           role="group"
           aria-labelledby={`${exportPanelId}-label`}
-          onKeyDown={onExportPanelKeyDown}
         >
           <span id={`${exportPanelId}-label`} className={styles.removeLabel}>Export the selected notes as</span>
           {EXPORT_FORMATS.map((f) => (

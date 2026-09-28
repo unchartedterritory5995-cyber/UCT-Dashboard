@@ -11,6 +11,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 import { SHARED_NOTE_ENDPOINT, sharedNotePath } from './lib/noteShareLink'
+import { APP_BRAND } from '../../surfaces/brand.js'
 import { buildWidgetEmbedAttrs } from './lib/widgetEmbedCore'
 
 const App = (await import('../../App')).default
@@ -73,6 +74,8 @@ describe('🔴 a note share link opens the note it points at', () => {
     expect(page).toHaveTextContent(NOTE.title)
     expect(page).toHaveTextContent('The setup, frozen:')
     expect(H.calls).toContain(`${SHARED_NOTE_ENDPOINT}/${TOKEN}`)
+    // F4 / A2R-09 (WCAG 2.4.2): the tab names the note, not the marketing site
+    expect(document.title).toBe(`${NOTE.title} — ${APP_BRAND}`)
   }, 40000)
 
   it('a live-capable embed renders its ARCHIVED IMAGE publicly, never the live component', async () => {
@@ -113,5 +116,6 @@ describe('🔴 a note share link opens the note it points at', () => {
     open(sharedNotePath('revoked-token'))
     const gone = await screen.findByTestId('shared-note-gone', {}, { timeout: 15000 })
     expect(gone).toHaveTextContent(/no longer available/i)
+    expect(document.title).toBe(`This link is no longer available — ${APP_BRAND}`)
   }, 40000)
 })

@@ -889,6 +889,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
       onClose={handleSheetClose}
       variant={isTouch ? 'fullscreen' : 'modal'}
       title={sheetTitle}
+      // F4 / A2R-08: named by its visible title, which follows the step.
+      labelledByTitle
       maxWidth={640}
       dismissOnBackdrop={step !== 'scanning' && step !== 'running'}
     >

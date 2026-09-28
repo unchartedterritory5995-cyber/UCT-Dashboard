@@ -213,7 +213,11 @@
 }
 .fontSelect { min-width: 104px; max-width: 150px; }
 .fontSizeSelect { width: 58px; }
-.fontSelect:focus, .fontSizeSelect:focus { outline: none; border-color: var(--ut-gold); }
+/* F4 / A2R-11: the two toolbar selects showed keyboard focus only as a 1 px border colour
+   change -- every other control has the app's 2 px gold ring (tokens.css `:focus-visible`).
+   They no longer suppress that ring; the gold border stays as the pointer-focus cue.
+   Rail: a11y/fontSelectFocus.test.js. */
+.fontSelect:focus, .fontSizeSelect:focus { border-color: var(--ut-gold); }
 .fontSelect:hover, .fontSizeSelect:hover { border-color: var(--ut-gold); }
 .toolBtn {
   background: transparent;

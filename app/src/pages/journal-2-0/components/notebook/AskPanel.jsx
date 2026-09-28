@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
+import useFocusTrap from '../../../../components/mobile/useFocusTrap'
 import UIcon from '../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import {
@@ -122,6 +123,15 @@ export default function AskPanel({
   // can report the answer-to-insert time.
   const answeredAtRef = useRef(0)
   const inputRef = useRef(null)
+  const toggleRef = useRef(null)
+  // Closing unmounts what held focus, so focus goes back to the toggle that opened the
+  // panel: the host's `onClose` does it when there is one (the note editor's), else the
+  // panel does (F4 / A2R-06).
+  const closePanel = () => {
+    setOpen(false)
+    if (onClose) onClose()
+    else toggleRef.current?.focus()
+  }
 
   const supersedeNavigation = useCallback(() => {
     navSeqRef.current += 1
@@ -293,6 +303,7 @@ export default function AskPanel({
     <div className={styles.wrap}>
       {!autoOpen && (
         <button
+          ref={toggleRef}
           type="button"
           className={styles.askToggle}
           onClick={() => setOpen((o) => !o)}
@@ -305,8 +316,7 @@ export default function AskPanel({
         </button>
       )}
       {open && (
-        <PanelShell isTouch={isTouch} label={`Ask ${scopeLabel}`}
-                    onClose={() => { setOpen(false); onClose?.() }}>
+        <PanelShell isTouch={isTouch} label={`Ask ${scopeLabel}`} onClose={closePanel}>
           <div className={styles.panelHeader}>
             {/* ⛔ SCOPE IS TEXT, NOT AN ICON TOOLTIP. A wrong-scope answer is
                 a trust defect, so what was searched is legible without
@@ -317,7 +327,7 @@ export default function AskPanel({
               Asking: {scopeLabel}
             </span>
             <button type="button" className={styles.closeBtn}
-                    onClick={() => { setOpen(false); onClose?.() }}
+                    onClick={closePanel}
                     aria-label="Close Ask"><UIcon name="x" size={11} gold={false} /></button>
           </div>
 
@@ -477,6 +487,17 @@ export default function AskPanel({
  * div silently lacked.
  */
 function PanelShell({ isTouch, label, onClose, children }) {
+  // ⛔⛔ F4 / A2R-06 (WCAG 2.4.3, 2.1.1): THE DESKTOP PANEL CONTAINS TAB AND CLOSES ON ESCAPE,
+  // like every other sheet. Lane 10E-2's keyboard walk tabbed straight out of it into the
+  // editor's toolbar, and Escape then left it open with focus on a "Remove tag" button.
+  // The trap is the ONE trap (`useFocusTrap`), gated on focus being INSIDE the panel: the
+  // panel is anchored beside the note, not modal, so a member who clicks back into the note
+  // keeps the note's own Tab (list indent, table cells) -- it is never pulled into the panel.
+  // Escape from inside closes it and hands focus back through `onClose` (to the toggle).
+  // The touch Sheet already does all of this itself.
+  const panelRef = useRef(null)
+  const focusInside = useCallback(() => Boolean(panelRef.current?.contains(document.activeElement)), [])
+  useFocusTrap(!isTouch, panelRef, focusInside)
   if (isTouch) {
     return (
       <Sheet open onClose={onClose} variant="bottom-sheet" ariaLabel={label}>
@@ -485,7 +506,18 @@ function PanelShell({ isTouch, label, onClose, children }) {
     )
   }
   return (
-    <div className={styles.panel} role="dialog" aria-label={label}>
+    <div
+      ref={panelRef}
+      className={styles.panel}
+      role="dialog"
+      aria-label={label}
+      onKeyDown={(e) => {
+        if (e.key !== 'Escape' || e.isDefaultPrevented()) return
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }}
+    >
       {children}
     </div>
   )

@@ -16,6 +16,7 @@ import TemplatePicker from '../components/notebook/TemplatePicker'
 import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
+import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
@@ -998,7 +999,12 @@ export default function NotebookTab() {
         || (t.tagName === 'INPUT' && t.type !== 'checkbox'))
       if (typing) return
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      // F4 / A2R-04: an Esc pressed IN the bulk bar unmounts the bar with the control that
+      // held focus; focus goes to the heading of the list the selection was made in,
+      // never to <body>.
+      const fromBar = Boolean(t && t.closest && t.closest('[data-bulk-bar]'))
       clearSelection()
+      if (fromBar) paneHeadingRef.current?.focus()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
@@ -1466,10 +1472,15 @@ export default function NotebookTab() {
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
-          it takes focus. */}
-      <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
-        {noteId ? 'Skip to note' : 'Skip to notes list'}
-      </a>
+          it takes focus. F4 (A2R-01): inside the app shell it renders in the
+          shell's skip-link slot, so it is the SECOND Tab stop on the page,
+          right after "Skip to main content" -- not the 36th, behind the nav
+          and the Journal's header. Rendered alone, it stays here. */}
+      <SkipLinkPortal>
+        <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
+          {noteId ? 'Skip to note' : 'Skip to notes list'}
+        </a>
+      </SkipLinkPortal>
       {actionError && (
         <div className={styles.actionError} role="alert">{actionError}</div>
       )}
@@ -1904,6 +1915,8 @@ export default function NotebookTab() {
           open={pickerOpen}
           onClose={() => setPickerOpen(false)}
           title="New note"
+          // F4 / A2R-08: named by its visible title (it had no name at all).
+          labelledByTitle
           variant="auto"
           maxWidth={720}
         >
@@ -1959,7 +1972,8 @@ export default function NotebookTab() {
             totalInView={visibleIds.length}
             allSelected={selection.allSelected}
             onSelectAll={selection.selectAll}
-            onClear={selection.clear}
+            // F4 / A2R-04: "Clear" unmounts the bar it sits in -- focus goes to the list's heading.
+            onClear={() => { selection.clear(); paneHeadingRef.current?.focus() }}
             trashView={isTrashView}
             archiveView={isArchiveView}
             busy={bulkBusy}
