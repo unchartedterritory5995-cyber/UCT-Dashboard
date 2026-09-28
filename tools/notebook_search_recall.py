@@ -3,7 +3,7 @@
     python tools/notebook_search_recall.py                     # measure, print, compare to the baseline
     python tools/notebook_search_recall.py --json out.json     # ... and keep every query's ranking
     python tools/notebook_search_recall.py --write-baseline    # record the measurement as the baseline
-    python tools/notebook_search_recall.py --self-check        # the planted-regression control
+    python tools/notebook_search_recall.py --self-check        # the planted-regression controls
 
 WHAT IT MEASURES. The labelled set `docs/notebook/search-recall-set.json` (a synthetic trader
 corpus -- no member's words -- plus queries labelled with the notes they should find) is seeded
@@ -11,7 +11,8 @@ into a fresh SQLite file through the product's own `notes.create_note` (so the F
 by the real triggers), then every query is asked of the two readers a member reaches:
   * search_box -- `notes.list_and_count_notes(q=..., sort="relevance", limit=10)`, exactly what
     `GET /api/j2/notes` answers the sidebar search box (FolderSidebar asks for sort=relevance);
-  * switcher   -- `notes.switcher_search(q, limit=10)`, the quick switcher (titles only).
+  * switcher   -- `notes.switcher_search(q, limit=10)`, the quick switcher: its title tiers, then
+    (wave 10, F6) the search box's own relevance order below them when the titles leave room.
 For each: recall@10 (the share of a query's relevant notes in its first ten, averaged over
 queries) and MRR@10 (the mean of 1/rank of the first relevant note, 0 when none is in the first
 ten), overall and by query KIND -- so a paraphrase or a typo the lexical search cannot find is a
@@ -26,9 +27,11 @@ path goes to a per-session sandbox) and arms the shared-root tripwire -- the sam
 tools/notebook_scale_benchmark.py. A `q=` search writes one activity_log row; that row lands in
 the sandbox auth.db, which gets its schema and this run's user first.
 
-CONTROL (--self-check): a PLANTED ranker defect -- `fts_match_expr` degraded to keep only the
+CONTROLS (--self-check): a PLANTED ranker defect -- `fts_match_expr` degraded to keep only the
 first three letters of the first word, patched in for that run only -- must fall below the
-baseline and fail the comparison. An instrument that cannot fail is not a rail.
+baseline and fail the comparison. An instrument that cannot fail is not a rail. And (wave 10,
+F6) a planted SWITCHER defect -- its body half switched off, the switcher it replaced -- must
+fall below the switcher's own baseline: the recorded 0.41 is what that defect scores.
 """
 from __future__ import annotations
 
@@ -180,6 +183,18 @@ def planted_regression():
         notes_svc.fts_match_expr = orig
 
 
+@contextlib.contextmanager
+def planted_switcher_regression():
+    """The switcher control's defect: the body half (wave 10, F6) switched off, so the
+    switcher answers titles only, as it did before. Patched for the duration only."""
+    orig = notes_svc._switcher_fill_from_body
+    notes_svc._switcher_fill_from_body = lambda *a, **k: None
+    try:
+        yield
+    finally:
+        notes_svc._switcher_fill_from_body = orig
+
+
 def _tree() -> str:
     try:
         return subprocess.run(["git", "-C", str(_REPO), "rev-parse", "--short=9", "HEAD"], capture_output=True,
@@ -197,10 +212,15 @@ def self_check() -> int:
         bad = measure(labelled)
     falls = compare(bad, base)
     ok_ctl = bool(falls) and not any("no baseline" in f for f in falls)
+    with planted_switcher_regression():
+        bad_sw = measure(labelled)
+    sw_falls = compare(bad_sw, base)
+    ok_sw = bool(sw_falls) and all(f.startswith("switcher.") for f in sw_falls)
     print(f"{'ok ' if ok_real else 'BAD'} the real ranker meets the baseline: "
           f"{ {r: (good['readers'][r]['recall_at_10'], good['readers'][r]['mrr_at_10']) for r in READERS} }")
     print(f"{'ok ' if ok_ctl else 'BAD'} the planted regression FAILS the comparison: {falls}")
-    return 0 if (ok_real and ok_ctl) else 1
+    print(f"{'ok ' if ok_sw else 'BAD'} the planted switcher regression FAILS the switcher's baseline only: {sw_falls}")
+    return 0 if (ok_real and ok_ctl and ok_sw) else 1
 
 
 def main(argv=None) -> int:

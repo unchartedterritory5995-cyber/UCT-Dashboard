@@ -335,6 +335,8 @@ function rather than carrying a copy.
 | `search`: the `GET /notes` pairs, the search box's relevance request, the switcher | 50,000 | 100 ms | the brief |
 | `reads`: `/notes/tags`, folder counts, `notes_for_folders`, backlinks | 50,000 | 100 ms | lane I |
 | `tasks`: `list_tasks` | 50,000 | 150 ms | lane I, above the search line on purpose (§2) |
+| `switcher_body_common`: the switcher's body half, a term in ~30% of bodies that no title names | 50,000 | 250 ms | wave 10 F6 fix round 1 (§8) |
+| `switcher_body_rare`: the same, a term in one note | 50,000 | 100 ms | wave 10 F6 fix round 1 (§8) |
 | `search_ci`, `reads_ci`, `tasks_ci` | 10,000 | same lines (one op informational, below) | the CI job |
 | `editor`: note open (≤ 1,000 paragraphs) / typing per char (≤ 2,000) | — | 300 ms / 16 ms | the brief |
 | `bytes.notebook_first_open` | — | baseline + 5% | the brief (§4) |
@@ -367,7 +369,8 @@ function rather than carrying a copy.
   `python tools/promotion_gate.py --self-check`: 9 cases, 0 failures (`w7I/i2-promotion-selfcheck.log`); the workflow classifies
   as `no`, and as unclassified (`None`) with its marker line removed (`w7I/i2-marker-control.log`).
 - **The local 50k gate:**
-  `python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks`.
+  `python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks --budget switcher_body_common --budget switcher_body_rare`
+  (the last two added by wave 10 F6's fix round 1, section 8).
 - **The editor harness** (`tools/notebook_perf_harness.py`, local only, Playwright): boots the
   hub sandbox launcher (`--data-dir 'C:\data-w7perf' --port 8095`, passed from PowerShell),
   signs up and comps a perf account through the app's own doors, seeds 1,000- and
@@ -773,3 +776,88 @@ headers, beside the gate they recover.
 by the controller in a held quiet slot after this round; the SQLite page cache is not changed in
 wave 10; the two typing levers named above (the toolbar's whole-page re-render and the
 per-keystroke draft snapshot) are deferred, and the snapshot is not touched.
+
+## 8. Wave 10, follow-up F6: the switcher's body half
+
+The quick switcher now fills the rest of its page from the search box's relevance pass when its
+title tiers leave room (`notes.switcher_search`; why, per query:
+`docs/notebook/switcher-recall-diagnosis.md`). A page the titles fill never asks it, and the two
+budgeted switcher ops (`nvda setup`, `ntvds`) fill theirs from titles, so their code path is the
+one 10A measured. The benchmark times the new path as two ops, a common body term (~30% of bodies)
+and a rare one, which no title names.
+
+Measured 2026-09-27 on this box, 50k tier, 20 reps after 2 warm-ups, `--budget search`:
+
+| op | before F6 (tree `3c2356270`) p95 | after F6 (tree `7ee21a7fc`) p95 |
+|---|---:|---:|
+| switcher_search (word start) | 48.2 | 38.6 |
+| switcher_search (fuzzy, in order) | 78.0 | 69.6 |
+| switcher_search (body fallback, common term) | not timed (answered nothing) | 171.2 |
+| switcher_search (body fallback, rare term) | not timed (answered nothing) | 68.4 |
+
+Both runs read `VERDICT` on the budgeted ops only; the before run breached on the search box's
+common-term relevance request (102.1, re-measured 100.5), a known miss (section 3), and the after
+run passed. The before and after runs are different minutes of a shared box, so the interleaved
+A/B (the pre-F6 `notes.py` loaded beside the new one, same process, same 50k file, alternating
+rounds, 8 rounds x 5 reps) is the comparison to read: word start 32.3 -> 32.7 ms p50, fuzzy
+45.8 -> 45.7, common body term 41.6 -> 105.9, a term in every body 37.0 -> 198.9, rare 35.6 -> 52.1.
+
+The body half costs what the search box's own relevance request costs for the same query (it IS
+that request, minus its count), on top of the title half: over the 100 ms search line for a body
+term common in a 50k library that no title names. A bounded top-k read was prototyped and
+measured no faster: the full-text ranked pass (bm25 over every match) is most of the cost, and a
+bounded read still has to rank every match to be exact (`docs/notebook/proof/f6-switcher-body/perf/topk-probe.txt`:
+equal answers on six queries, the top-k read 77.6 vs 59.3 ms p50 on the common term, 143.3 vs 144.5 on
+a term in every body; re-run 2026-09-28 00:41 CT on the kept 50k file).
+
+### Fix round 1: the two ops get lines of their own (2026-09-28)
+
+Decided 2026-09-28 by the controller: the speed is accepted, with honest lines. Titles still
+answer in ~39 ms; the body pass runs only when titles leave room; member libraries are orders of
+magnitude below 50k. `perf-budgets.json` gains two budgets, one op each:
+
+| budget | op | quiet 50k p95 | line |
+|---|---|---:|---:|
+| `switcher_body_common` | switcher_search (body fallback, common term) | 171.2 | 250 ms |
+| `switcher_body_rare` | switcher_search (body fallback, rare term) | 68.4 | 100 ms |
+
+**How the lines were chosen:** the smallest multiple of 50 ms at or above 1.4x the quiet p95
+(239.7 -> 250; 95.8 -> 100, the search line itself). The factor was fixed before any further
+reading. A loaded-box run (CPU at 90% from other work, discarded) read 273.1 and 139.3: over both
+lines, so they are not loose. `tests/test_notebook_perf_budgets.py` derives each line from its
+recorded reading by that rule, and proves each line bites (just over it breaches by name, just
+under it does not).
+
+**The levers, if a line breaches or a member's library makes this slow:**
+1. **A second, later request from the palette.** Ask the title half on the keystroke (as today)
+   and the body half on its own, later request, rendered below. The titles never wait for the
+   bm25 pass; the body rows arrive a beat later. Cost: a second request per settled query and a
+   second loading state.
+2. **A match-count cap.** Skip or truncate the body pass when the full-text match set is larger
+   than N notes (the match itself is cheap, 4.8 ms p50 for 14,978 matches at 50k, against 25.8 ms
+   for the ranked pass over the same matches: `perf/fts-probe.txt`, rows D and A; the ranking is the
+   cost). Cost: recall on very common words, the queries least likely to name one note.
+
+### The raw output behind every number in this section (fix round 2, R-RAW)
+
+Every reading above and below is in `docs/notebook/proof/f6-switcher-body/perf/`, copied byte for byte from
+the runs. Its `README.md` maps each file to the code it measured (each JSON stamps `git_head` and
+`git_dirty_paths` itself):
+
+- **"before" column:** `before-50k.*` (`3c2356270`).
+- **"after" column and the quiet 171.2 / 68.4 the lines are derived from:** `after2-50k.*` (`7ee21a7fc`).
+- **Discarded loaded-box 273.1 / 139.3:** `after-50k.*`.
+- **Interleaved A/B:** `ab-interleaved-quiet.json` (loaded run `ab-interleaved-loaded.json`, discarded), made by
+  `ab_interleaved.py`.
+- **Fix round 1 gate run** (`fr1-50k.*`): `--budget search --budget reads --budget tasks --budget
+  switcher_body_common --budget switcher_body_rare`, VERDICT PASS. Switcher p95 readings:
+  - word start 37.00 ms;
+  - fuzzy 51.64 ms;
+  - body common 108.35 ms, against its 250 ms line;
+  - body rare 70.36 ms, against its 100 ms line.
+- **Fix round 1 curve run** (`fr1-curve.*`), 1k to 50k:
+  - body common: slope 0.779, last segment 0.816;
+  - body rare: slope 0.698, last segment 0.652;
+  - both are under the 1.1 / 1.3 lines;
+  - the run's BREACH verdict names only count_notes, folder_note_counts, get_symbol_backlinks and list_tasks,
+    which this lane does not touch.

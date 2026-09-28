@@ -1797,7 +1797,12 @@ def list_notes(
     property_filter_strict: bool = True,
     conn: sqlite3.Connection | None = None,
     _shared: _RowidSets | None = None,
+    _quiet: bool = False,
 ) -> list[dict[str, Any]]:
+    # `_quiet` (wave 10, F6): the quick switcher's body half asks THIS function for the
+    # search box's own ranking, and it is not the search box -- so no snippets (it shows
+    # none) and no `notebook_search_used` event (it would count every palette keystroke
+    # as a search). The rows and their order are exactly the search box's.
     owned = conn is None
     conn = conn or get_connection()
     register_note_sql_functions(conn)
@@ -1925,7 +1930,7 @@ def list_notes(
         # from `q` directly (fts_match_expr is a pure, cheap, deterministic
         # function -- calling it twice is not a second authority, it's the
         # same single translation called from two independent call sites).
-        if q and not deleted:
+        if q and not deleted and not _quiet:
             snip_expr = fts_match_expr(q)
             if snip_expr:
                 snippets = _snippets_for(conn, user_id, snip_expr, [r["id"] for r in results])
@@ -1934,7 +1939,7 @@ def list_notes(
                     if hit:
                         r["bodySnippet"] = hit["bodySnippet"]
                         r["titleSnippet"] = hit["titleSnippet"]
-        if q and not deleted:
+        if q and not deleted and not _quiet:
             # Stage A validation signal only (never the query text itself).
             # Debounced client-side (~250ms) but not deduped server-side, so
             # this over-counts vs. "search sessions" -- acceptable at
@@ -4358,6 +4363,7 @@ SWITCHER_TIER_SUBSTRING = 4
 SWITCHER_TIER_ALL_WORDS = 5
 SWITCHER_TIER_FUZZY = 6   # the letters in order, the first starting a word ("nvth")
 SWITCHER_TIER_TYPO = 7    # every word present, or one slip from a title word's start
+SWITCHER_TIER_BODY = 8    # no title matched it: the search box's own relevance order (wave 10, F6)
 # A row at or above this tier is a title that IS, STARTS WITH, or has a WORD
 # STARTING WITH the query — `strong: true` in the response. The palette lets a
 # strong note outrank ticker rows and a weak one never. It reads the FLAG, never
@@ -4367,6 +4373,16 @@ SWITCHER_STRONG_TIER_MAX = SWITCHER_TIER_WORD_START
 SWITCHER_FUZZY_MIN_CHARS = 3     # fewer letters in order is noise, not a match
 SWITCHER_TYPO_MIN_LETTERS = 4    # a slip is only forgiven in a word this long
 SWITCHER_FUZZY_SCOPE = 5000      # most recently edited notes the fuzzy tiers read
+# ── The body half (wave 10, follow-up F6) ──
+# Measured on docs/notebook/search-recall-set.json, the switcher found 0.41 of what
+# a member was looking for against the search box's 0.88, and 25 of its 28 misses
+# were notes whose words are in the BODY (docs/notebook/switcher-recall-diagnosis.md).
+# So when the title tiers leave room on the page, the rest of it is filled from the
+# search box's own relevance pass -- `list_notes(q, sort="relevance")`, called, never
+# restated -- below every title match (`SWITCHER_TIER_BODY`, never `strong`), so a
+# title still leads and the palette still places these rows under the tickers.
+# The same letter floor as the in-order tier: fewer letters than that is noise.
+SWITCHER_BODY_MIN_CHARS = SWITCHER_FUZZY_MIN_CHARS
 
 
 # The reads a keystroke costs. Module constants so a rail can ask SQLite how it
@@ -4554,13 +4570,121 @@ def _folder_paths(conn: sqlite3.Connection, user_id: str) -> dict[str, str]:
     return out
 
 
+def _switcher_text(q: Any) -> str:
+    """The query as both switcher halves read it: lower-cased, whitespace collapsed,
+    capped. Idempotent, so the title half may apply it again."""
+    return " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
+
+
+def _switcher_limit(limit: Any) -> int:
+    return max(1, min(int(limit or SWITCHER_DEFAULT_LIMIT), SWITCHER_MAX_LIMIT))
+
+
 def switcher_search(
     user_id: str,
     q: str,
     limit: int = SWITCHER_DEFAULT_LIMIT,
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    """Notes whose TITLE matches `q`, best first. Returns
+    """The quick switcher's answer: the notes whose TITLE matches `q`, ranked by
+    `_switcher_title_search` -- then, when those leave room on the page, the notes
+    the search box would answer for `q`, in the search box's own order, below every
+    title (`matchTier` SWITCHER_TIER_BODY, `strong` and `exact` false). Every row says
+    WHERE the query matched -- `matched`: "title" or "text" -- so a surface can show why a
+    note whose title does not hold the typed words is listed, without knowing the tier
+    numbers (fix round 1: a result with no visible reason reads as a wrong answer). Returns
+    `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`. `hasMore`: more rows
+    than the page holds. On a page the titles fill it is the title half's answer (the
+    body half is never asked); whenever the body pass runs `_switcher_fill_from_body`
+    replaces it with whether the BODY matches overflow the room left -- see the comment there.
+
+    ⛔ `prefixExhausted` is never claimed here (wave 10, F6). The body half is a
+    full-text match over a PORTER-STEMMED index, where a longer query can match what
+    a shorter one did not ("runni" matches no stored token, "running" stems to
+    "run" and does): the claim "no longer query can match" is not true of it, and
+    the palette stops asking while the member types on a claimed prefix.
+
+    Same scope as both halves: this member's notes, never a trashed or archived one.
+    """
+    text = _switcher_text(q)
+    if not text:
+        return {"notes": [], "hasMore": False, "prefixExhausted": False}
+    limit = _switcher_limit(limit)
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        answer = _switcher_title_search(user_id, text, limit, conn=conn)
+        answer["prefixExhausted"] = False
+        for row in answer["notes"]:
+            row["matched"] = "title"
+        if not answer["hasMore"]:
+            _switcher_fill_from_body(user_id, text, limit, answer, conn)
+        return answer
+    finally:
+        if owned:
+            conn.close()
+
+
+def _switcher_fill_from_body(user_id: str, text: str, limit: int, answer: dict[str, Any],
+                             conn: sqlite3.Connection) -> None:
+    """Fill the rest of a title answer's page from the search box's relevance pass.
+
+    Runs only for a query of SWITCHER_BODY_MIN_CHARS letters or more that yields a
+    full-text expression (the search box would otherwise answer with its unranked
+    LIKE fallback, which is not a relevance order). Asks `list_notes` for the page's
+    worth PLUS one, exactly as the search box asks it (`sort="relevance"`), with
+    `_quiet` so it counts no search and builds no snippet; drops the notes the title
+    half already listed; keeps the search box's order for the rest."""
+    words = _switcher_word_text(text).split()
+    if len("".join(words)) < SWITCHER_BODY_MIN_CHARS or fts_match_expr(text) is None:
+        return
+    room = limit - len(answer["notes"])
+    if room <= 0:
+        return
+    listed = {n["id"] for n in answer["notes"]}
+    ranked = list_notes(user_id, q=text, sort="relevance", limit=limit + 1, conn=conn, _quiet=True)
+    extra = [r for r in ranked if r["id"] not in listed]
+    # ⛔ This OVERWRITES the title half's `hasMore` (always False here -- the body
+    # half runs only when the titles left room): from now on it says whether the
+    # BODY matches overflow the page. So `hasMore` is titles-only on a page the
+    # titles fill (or when this pass returns early above), and body-derived whenever
+    # the body pass runs. No client reads it today (wave 10 F6, fix round 2, minor).
+    answer["hasMore"] = len(extra) > room
+    extra = extra[:room]
+    if not extra:
+        return
+    ids = [r["id"] for r in extra]
+    marks = ",".join("?" * len(ids))
+    recent = {r[0] for r in conn.execute(
+        f"SELECT note_id FROM j2_note_recents WHERE user_id = ? AND note_id IN ({marks})", [user_id, *ids])}
+    favs = {r[0] for r in conn.execute(
+        f"SELECT note_id FROM j2_note_favorites WHERE user_id = ? AND note_id IN ({marks})", [user_id, *ids])}
+    paths = _folder_paths(conn, user_id) if any(r["folderId"] for r in extra) else {}
+    for r in extra:
+        answer["notes"].append({
+            "id": r["id"],
+            "title": r["title"] or "",
+            "folderId": r["folderId"],
+            "folderPath": paths.get(r["folderId"]) if r["folderId"] else None,
+            "ticker": r["ticker"],
+            "updatedAt": r["updatedAt"],
+            "isRecent": r["id"] in recent,
+            "isFavorite": r["id"] in favs,
+            "matchTier": SWITCHER_TIER_BODY,
+            "strong": False,
+            "exact": False,
+            "matched": "text",
+        })
+
+
+def _switcher_title_search(
+    user_id: str,
+    q: str,
+    limit: int = SWITCHER_DEFAULT_LIMIT,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Notes whose TITLE matches `q`, best first -- the switcher's title half (its
+    whole answer before wave 10's F6; `switcher_search` is the answer now). Returns
     `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`; a blank query
     is an empty answer, never an error.
 
@@ -4595,10 +4719,10 @@ def switcher_search(
     version ordered a tier by a note's position in the full list, this orders it by
     the order notes were PLACED, which is that same list order within a tier: the
     candidates arrive in it, and the fuzzy scope is walked in it."""
-    text = " ".join(str(q or "").lower().split())[:_SWITCHER_MAX_QUERY_CHARS]
+    text = _switcher_text(q)
     if not text:
         return {"notes": [], "hasMore": False, "prefixExhausted": False}
-    limit = max(1, min(int(limit or SWITCHER_DEFAULT_LIMIT), SWITCHER_MAX_LIMIT))
+    limit = _switcher_limit(limit)
     tokens = text.split()[:_SWITCHER_MAX_TOKENS]
     word_query = _switcher_word_text(text)
     word_tokens = [t for t in (_switcher_word_text(tok) for tok in tokens) if t]

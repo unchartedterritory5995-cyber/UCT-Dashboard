@@ -17,8 +17,11 @@ wrong in every way that matters:
     letters in order, one slip — and their scope (S5); `strong` / `exact`
     come from the server, never a client copy of the tier numbers (S3); the
     keystroke's reads are served by the covering index and start from the
-    member's own recents/favourites (N1); `prefixExhausted` is only ever
-    claimed when no longer query could match.
+    member's own recents/favourites (N1); the title half's `prefixExhausted`
+    is only ever claimed when no longer query could match its tiers;
+  * (wave 10, F6) the answer the palette reads never claims `prefixExhausted`,
+    because the body half runs over a stemmed index where that claim is false.
+    The body half itself is railed in tests/test_journal_two_switcher_body_fallback.py.
 """
 from __future__ import annotations
 
@@ -176,7 +179,18 @@ def test_percent_and_underscore_are_text_not_wildcards(app, client):
     assert all(n["matchTier"] >= 6 for n in body["notes"] if n["title"] == "q3Xplan")
     _note(client, "50% position")
     _note(client, "50X position")
-    assert _titles(_search(client, "50%")) == ["50% position"]
+    body = _search(client, "50%")
+    # The title tiers find only the real title. "50X position" may follow it from the
+    # body half (the search box answers it too: "50%" is the full-text prefix "50"),
+    # as a body row, never as if `%` matched X.
+    assert [n["title"] for n in body["notes"] if n["matchTier"] < notes_tier_body()] == ["50% position"]
+    assert _titles(body)[0] == "50% position"
+    assert all(n["matchTier"] == notes_tier_body() for n in body["notes"] if n["title"] == "50X position")
+
+
+def notes_tier_body():
+    from api.services.journal_two import notes as notes_service
+    return notes_service.SWITCHER_TIER_BODY
 
 
 def test_matching_is_case_insensitive(app, client):
@@ -348,13 +362,38 @@ def test_rows_say_strong_and_exact_so_the_palette_never_restates_tiers(app, clie
     }
 
 
+def _title_half(q, user="u1", limit=None):
+    """The switcher's title half, `notes._switcher_title_search`: the only half whose
+    `prefixExhausted` claim is sound (wave 10, F6). Same DB as the route's."""
+    from api.services.journal_two import notes as notes_service
+    if limit is None:
+        return notes_service._switcher_title_search(user, q)
+    return notes_service._switcher_title_search(user, q, limit)
+
+
 def test_prefix_exhausted_is_claimed_only_when_no_longer_query_can_match(app, client):
     _login_as(app, "u1")
     _note(client, "Semis rotation")
-    assert _search(client, "zzzz")["prefixExhausted"] is True
-    assert _search(client, "zzz")["prefixExhausted"] is False      # a 4th letter earns a slip
-    assert _search(client, "zz")["prefixExhausted"] is False
-    assert _search(client, "semis")["prefixExhausted"] is False    # it matched
+    assert _title_half("zzzz")["prefixExhausted"] is True
+    assert _title_half("zzz")["prefixExhausted"] is False      # a 4th letter earns a slip
+    assert _title_half("zz")["prefixExhausted"] is False
+    assert _title_half("semis")["prefixExhausted"] is False    # it matched
+
+
+def test_the_switcher_answer_never_claims_prefix_exhausted(app, client):
+    """Wave 10, F6. The body half is a full-text match over a PORTER-STEMMED index,
+    where a longer query can match what a shorter one did not: "runni" matches no
+    stored token, "running" stems to "run" and finds the note. The title half claims
+    "runni" exhausted (no title can ever match); had the answer passed that on, the
+    palette would have stopped asking and never shown the note at "running"."""
+    _login_as(app, "u1")
+    _note(client, "Morning notes", bodyJson={"type": "doc", "content": [
+        {"type": "paragraph", "content": [{"type": "text", "text": "I was running late to the open."}]}]})
+    assert _title_half("runni")["prefixExhausted"] is True       # the title half's claim holds for titles
+    short = _search(client, "runni")
+    assert short == {"notes": [], "hasMore": False, "prefixExhausted": False}
+    assert _titles(_search(client, "running")) == ["Morning notes"]
+    assert _search(client, "zzzz")["prefixExhausted"] is False
 
 
 def test_prefix_exhausted_waits_for_the_in_order_tier_as_well(app, client, monkeypatch):
@@ -365,14 +404,14 @@ def test_prefix_exhausted_waits_for_the_in_order_tier_as_well(app, client, monke
     monkeypatch.setattr(notes_service, "SWITCHER_FUZZY_MIN_CHARS", 5)
     _login_as(app, "u1")
     _note(client, "Semis rotation")
-    assert _search(client, "zzzz")["prefixExhausted"] is False
-    assert _search(client, "zzzzz")["prefixExhausted"] is True
+    assert _title_half("zzzz")["prefixExhausted"] is False
+    assert _title_half("zzzzz")["prefixExhausted"] is True
 
 
 def test_prefix_exhausted_is_sound_across_extensions(app, client):
-    """Property rail, fixed seed: whenever a query claims `prefixExhausted`,
-    EVERY query that extends it answers nothing — the palette relies on that
-    to stop asking while the member types."""
+    """Property rail, fixed seed: whenever the title half claims `prefixExhausted`,
+    EVERY query that extends it finds no title — the claim's own promise. (Since
+    wave 10's F6 the palette's answer never carries it; see the test above.)"""
     import random
     _login_as(app, "u1")
     for title in ["Semis rotation", "NVDA thesis", "Earnings recap", "Q3 gap plan",
@@ -383,12 +422,12 @@ def test_prefix_exhausted_is_sound_across_extensions(app, client):
     claimed = 0
     for _ in range(120):
         q = "".join(rng.choice(alphabet) for _ in range(rng.randint(3, 7))).strip()
-        if not q or not _search(client, q)["prefixExhausted"]:
+        if not q or not _title_half(q)["prefixExhausted"]:
             continue
         claimed += 1
         for _ in range(4):
             longer = q + "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 4)))
-            assert _search(client, longer)["notes"] == [], (q, longer)
+            assert _title_half(longer)["notes"] == [], (q, longer)
     assert claimed >= 5, "the property rail exercised too few exhausted queries"
 
 

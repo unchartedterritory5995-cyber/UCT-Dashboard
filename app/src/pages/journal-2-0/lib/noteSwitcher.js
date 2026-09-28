@@ -45,6 +45,10 @@ export function toNoteRow(n) {
     // query (strong), and IS the query, case aside (exact).
     strong: n.strong === true,
     exact: n.exact === true,
+    // Wave 10 F6: the server's `matched` says the query was found in the note's TEXT, not
+    // its title -- the row then says so, or a title without the typed words reads as a
+    // wrong answer. Read from the row's own field, never from a tier number.
+    inText: n.matched === 'text',
   }
   row.context = noteContextLine(row)
   return row
@@ -189,6 +193,9 @@ export function splitTitleMatch(title, query) {
   if (at < 0) return [t, '', '']
   return [t.slice(0, at), t.slice(at, at + q.length), t.slice(at + q.length)]
 }
+
+/** The visible reason a note whose title does not hold the query is listed. */
+export const NOTE_IN_TEXT_CUE = 'In note text'
 
 /** The line under a note's title: where it lives, and which security.
  *  "Unfiled" is a real place in the sidebar, so it is named rather than left

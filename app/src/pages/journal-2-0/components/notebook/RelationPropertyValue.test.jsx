@@ -89,6 +89,56 @@ describe('the picker', () => {
   })
 })
 
+describe('wave 10 F6: the picker says why a note found by its TEXT is listed', () => {
+  it('a text match carries the cue in its visible text and its name; a title match carries none', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url)
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return { ok: true, json: async () => ({ notes: [
+          { id: 'amd', title: 'AMD thesis', matched: 'title' },
+          { id: 'dc', title: 'Weekly plan', matched: 'text' },
+        ] }) }
+      }
+      return base(url)
+    })
+    render(<RelationPropertyValue value={['live']} onChange={vi.fn()} labelId="l" currentNoteId="self" />)
+    fireEvent.click(screen.getByRole('button', { name: /Link a note/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to link' }), { target: { value: 'revenue' } })
+    const list = await screen.findByRole('list', { name: 'Notes to link' })
+    const byText = within(list).getByRole('button', { name: 'Weekly plan, in note text' })
+    expect(byText.querySelector('[data-note-cue="in-text"]')?.textContent).toBe(' · in note text')
+    const byTitle = within(list).getByRole('button', { name: 'AMD thesis' })
+    expect(byTitle.querySelector('[data-note-cue]')).toBeNull()
+    // the title-first control: the title row is the Enter target, never the body row
+    expect(byTitle.getAttribute('data-enter-target')).toBe('true')
+    expect(byText.hasAttribute('data-enter-target')).toBe(false)
+  })
+
+  it('fix round 2 (I-1): only a text match exists -> it is the shown Enter target, named with its reason, and Enter links it', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url)
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return { ok: true, json: async () => ({ notes: [{ id: 'dc', title: 'Weekly plan', matched: 'text' }] }) }
+      }
+      return base(url)
+    })
+    const onChange = vi.fn()
+    render(<RelationPropertyValue value={['live']} onChange={onChange} labelId="l" currentNoteId="self" />)
+    fireEvent.click(screen.getByRole('button', { name: /Link a note/ }))
+    const box = screen.getByRole('textbox', { name: 'Find a note to link' })
+    fireEvent.change(box, { target: { value: 'inventory draw' } })
+    const list = await screen.findByRole('list', { name: 'Notes to link' })
+    const only = within(list).getByRole('button', { name: 'Weekly plan, in note text' })
+    expect(within(list).getAllByRole('button')).toHaveLength(1)
+    expect(only.getAttribute('data-enter-target')).toBe('true')
+    expect(only.querySelector('[data-note-cue="in-text"]')?.textContent).toBe(' · in note text')
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith(['live', 'dc'])
+  })
+})
+
 describe('wired', () => {
   it('the note’s Properties section offers Relation, and renders a relation as its chips', async () => {
     notePropsResult = {
