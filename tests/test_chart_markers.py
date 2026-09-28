@@ -1,7 +1,7 @@
 """Tests for chart markers — earnings + splits + dividends.
 
-Mocks the upstreams (FMP/Finnhub for earnings, yfinance corporate actions for
-splits/dividends). Verifies:
+Mocks the upstreams (FMP/Finnhub for earnings, Massive reference data via
+`reference_corp_actions` for splits/dividends since TERM-036). Verifies:
 - Combined dict structure
 - Per-section try/except resilience (one failure doesn't kill the others)
 - Cache hit path (second call skips upstream)
@@ -17,12 +17,32 @@ from api.services import earnings_estimates
 from api.services.cache import cache
 
 
+def _corp_actions(splits=(), dividends=()):
+    """Patch the Massive reference reads (TERM-036) from simple pairs:
+    splits = [(date, ratio float)], dividends = [(date, amount)]. Returns a
+    context manager patching both `reference_corp_actions` fetchers."""
+    from contextlib import ExitStack
+    from api.services import reference_corp_actions as rca
+
+    split_rows = [{"ticker": "X", "execution_date": d, "split_from": 1, "split_to": r}
+                  for d, r in splits]
+    div_rows = [{"ticker": "X", "ex_dividend_date": d, "cash_amount": a}
+                for d, a in dividends]
+    stack = ExitStack()
+    stack.enter_context(patch.object(rca, "fetch_ticker_splits",
+                                     side_effect=lambda *a, **k: list(split_rows)))
+    stack.enter_context(patch.object(rca, "fetch_ticker_dividends",
+                                     side_effect=lambda *a, **k: list(div_rows)))
+    return stack
+
+
 @pytest.fixture(autouse=True)
-def _stub_yf_actions():
-    """Splits/dividends now come from yfinance's `_yf_corporate_actions`. Stub it
-    to empty by default so tests never hit the real network; cases that assert
-    split/dividend data override this with their own patch."""
-    with patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], [])):
+def _stub_corp_actions():
+    """Splits/dividends come from Massive reference data via
+    `reference_corp_actions` (TERM-036). Stub both reads empty by default so
+    tests never hit the network; cases asserting split/dividend data override
+    this with their own `_corp_actions(...)`."""
+    with _corp_actions():
         yield
 
 
@@ -56,7 +76,7 @@ class TestGetChartMarkersSuccess:
             {"period": (today - timedelta(days=100)).isoformat(),
              "actual": 1.2, "estimate": 1.3, "surprisePercent": -7.7},
         ]
-        # yfinance actions: splits = (date, ratio float); dividends = (date, amount).
+        # Massive reference rows as pairs: splits = (date, ratio); dividends = (date, amount).
         yf_splits = [((today - timedelta(days=400)).isoformat(), 4.0)]
         yf_divs = [
             ((today - timedelta(days=30)).isoformat(), 0.85),
@@ -69,7 +89,7 @@ class TestGetChartMarkersSuccess:
             return None
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
-             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=(yf_splits, yf_divs)):
+             _corp_actions(yf_splits, yf_divs):
             result = earnings_estimates.get_chart_markers("AAPL")
 
         assert set(result.keys()) == {"earnings", "splits", "dividends"}
@@ -84,7 +104,7 @@ class TestGetChartMarkersSuccess:
         assert e0["surprise"] == 7.1
 
         s0 = result["splits"][0]
-        assert s0["ratio"] == "4:1"          # 4-for-1 (yfinance ratio 4.0)
+        assert s0["ratio"] == "4:1"          # 4-for-1 (split_from 1, split_to 4)
         assert s0["from_factor"] == 1
         assert s0["to_factor"] == 4.0
 
@@ -236,8 +256,7 @@ class TestGetChartMarkersResilience:
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
              patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
-             patch.object(earnings_estimates, "_yf_corporate_actions",
-                          return_value=([("2024-06-10", 10.0)], [])):
+             _corp_actions([("2024-06-10", 10.0)], []):
             result = earnings_estimates.get_chart_markers("FAILMIX")
 
         assert result["earnings"] == []
@@ -260,7 +279,7 @@ class TestGetChartMarkersResilience:
         _fresh_cache("DIVPARSE")
         with patch.object(earnings_estimates, "_fh_get", return_value=None), \
              patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
-             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], yf_divs)):
+             _corp_actions([], yf_divs):
             result = earnings_estimates.get_chart_markers("DIVPARSE")
 
         assert len(result["dividends"]) == 1
@@ -417,7 +436,7 @@ class TestChartMarkersRoute:
 
         with patch.object(earnings_estimates, "_fh_get", side_effect=fake_fh_get), \
              patch.object(earnings_estimates, "_fmp_rows", return_value=None), \
-             patch.object(earnings_estimates, "_yf_corporate_actions", return_value=([], [(recent, 0.50)])):
+             _corp_actions([], [(recent, 0.50)]):
             client = self._client()
             r = client.get("/api/chart/markers/RT")
 

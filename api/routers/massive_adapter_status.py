@@ -23,12 +23,16 @@ def massive_adapter_status():
     rather than a typed function, since none was built for it.
     """
     from api.services import massive as m
+    from api.services import massive_adapter as ad
 
     key_present = bool(os.environ.get("MASSIVE_API_KEY", "").strip())
     b = m.budget()
     return {
         "vendor": "massive",
         "budget": b,
+        # TERM-022: per-data-class calls / errors / local-budget denials through
+        # the adapter (`massive_adapter.stats()` — counts only, never a value).
+        "adapter": {"by_data_class": ad.stats()["by_data_class"]},
         "evidence_ladder": {
             "KP": key_present,
             "CR": True,
@@ -36,7 +40,8 @@ def massive_adapter_status():
             "CA": None,   # not derivable — manual, admin-only promotion, spec §18.2
         },
         "coverage_db_registered": False,  # spec §18.1 — deferred, not part of this build
-        "typed_functions": ["get_quote", "get_batch_quotes"],
+        "typed_functions": ["get_quote", "get_batch_quotes",
+                            "massive_adapter.get", "massive_adapter.get_pages"],
         "known_limitations": [
             "index quotes: entitlement gap (v3/snapshot/indices -> 403 for this "
             "key/plan), not a symbol-format issue — no typed index capability built",

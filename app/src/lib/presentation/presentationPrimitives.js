@@ -4,9 +4,10 @@
 //
 // product-architecture.md's S10 block, built for the first time. Five pure
 // functions — number, percent, currency, date/time-with-session, freshness —
-// and nothing else. No React, no DOM, no clock, no locale detection, no
-// network: every one is a total function from (value, options) to a string or
-// a caller-chosen absent sentinel.
+// plus, since TERM-066, the magnitude-suffixed compact number (volume, market
+// cap, revenue, share count), and nothing else. No React, no DOM, no clock, no
+// locale detection, no network: every one is a total function from (value,
+// options) to a string or a caller-chosen absent sentinel.
 //
 // ⭐ THIS RATIFIES A FORM THE CODEBASE ALREADY HAD; IT DOES NOT INVENT ONE.
 // Three of the five are lifted VERBATIM — same arguments, same rounding, same
@@ -119,6 +120,66 @@ export function formatPercent(value, { decimals = 2, signed = false, absent = AB
 export function formatCurrency(value, { decimals = 2, absent = ABSENT } = {}) {
   if (!Number.isFinite(value)) return absent
   return `$${Number(value).toFixed(decimals)}`
+}
+
+// --------------------------------------------------------------------------
+// 3a. COMPACT — VOLUME, MARKET CAP, REVENUE, SHARE COUNT  (TERM-066)
+// --------------------------------------------------------------------------
+
+/**
+ * The default magnitude ladder: B / M / K at one decimal. It is
+ * `utils/profileFormat.fmtVol`'s rule, the most-copied one in the tree.
+ * Ordered LARGEST FIRST — the first tier the magnitude reaches wins.
+ */
+export const COMPACT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
+
+/**
+ * A number with a magnitude suffix — "11.8M", "$25.0B", "24K".
+ *
+ * ⭐ THE ONE PLACE A K/M/B SUFFIX IS DECIDED. The census
+ * (`handRolledFormatters.census.test.js`) found this rule hand-written in
+ * dozens of files, and they do NOT agree — so the ladder is a PARAMETER, and
+ * each migrated grammar passes the ladder it already had rather than being
+ * moved onto somebody else's:
+ *
+ *   • `tiers`  — `[{ at, suffix, decimals }]`, largest first. The tier is
+ *     chosen on the MAGNITUDE (`Math.abs`) before rounding, so 999,950 at one
+ *     decimal reads "1000.0K", never "1.0M" — every grammar this replaced did
+ *     exactly that, and "fixing" it would move a member-visible number.
+ *   • `decimals` — a number is `toFixed(decimals)`. The string `'round'` is
+ *     `Math.round`, which is NOT `toFixed(0)`: they part ways on a negative
+ *     half (-2.5 → -2 one way, "-3" the other). The COT grammar has always
+ *     rounded with `Math.round`.
+ *   • `prefix` — written OUTSIDE the sign ("$-1.50B"), as `fmtRevenue` always
+ *     did. A grammar that wants "-$1.50B" is a different rule and is recorded
+ *     as a disagreement, not silently unified.
+ *   • below the smallest tier: a `Math.round` integer, `prefix` in front.
+ *
+ * ⛔ Total, like every primitive here: a non-number or non-finite value
+ * returns `absent` BEFORE any arithmetic. Callers that coerce (`Number(v)`,
+ * `+v`) or gate (`n <= 0 → '—'`) keep doing so at their own boundary, where
+ * the unit and the missing-value rule are known.
+ *
+ * @param {*} value
+ * @param {{tiers?: Array<{at:number, suffix:string, decimals:number|'round'}>,
+ *          prefix?: string, absent?: *}} [options]
+ */
+export function formatCompact(value, { tiers = COMPACT_TIERS, prefix = '', absent = ABSENT } = {}) {
+  if (!Number.isFinite(value)) return absent
+  const n = Number(value)
+  const magnitude = Math.abs(n)
+  for (const { at, suffix, decimals } of tiers) {
+    if (magnitude >= at) {
+      const scaled = n / at
+      const body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
+      return `${prefix}${body}${suffix}`
+    }
+  }
+  return `${prefix}${Math.round(n)}`
 }
 
 // --------------------------------------------------------------------------

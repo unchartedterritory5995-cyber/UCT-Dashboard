@@ -438,3 +438,67 @@ def test_a_hyphen_symbol_never_seeded_is_a_named_anomaly_not_a_crash(monkeypatch
     result = seed.seed_dot_form_aliases(db_path=db_path)
     assert result["stats"]["hyphen_entity_not_found"] == 1
     assert result["anomalies"] == [{"kind": "hyphen_entity_not_found", "alias": "GHOST-B"}]
+
+
+# ── TERM-023 (d): the seed's row count is PRINTED, never typed ──────────────
+
+def _count_independently(db_path: str) -> dict:
+    """A second, independent reader -- a raw sqlite3 connection, not the
+    store's -- so the seed's own report cannot merely agree with itself."""
+    import sqlite3
+    c = sqlite3.connect(db_path)
+    try:
+        return {
+            "entities": c.execute("SELECT COUNT(*) FROM entities").fetchone()[0],
+            "aliases": c.execute("SELECT COUNT(*) FROM entity_aliases").fetchone()[0],
+            "open_aliases": c.execute(
+                "SELECT COUNT(*) FROM entity_aliases WHERE valid_to IS NULL").fetchone()[0],
+        }
+    finally:
+        c.close()
+
+
+@pytest.mark.parametrize("symbols, delisted", [
+    (["AAPL", "NVDA"], ()),
+    (["AAPL", "NVDA", "GAP", "RS", "MSFT"],
+     [{"ticker": "BSC-OLD", "first_date": "1985-10-29", "last_date": "2008-05-30"}]),
+])
+def test_term023_a_real_run_REPORTS_the_stores_row_counts_read_off_the_rows(
+        monkeypatch, db_path, symbols, delisted):
+    """Two populations, so a number typed into the script matches at most one."""
+    _patch_sources(monkeypatch, symbols=symbols, delisted=delisted)
+    result = seed.run_seed(db_path=db_path)
+    got = result["store_rows_after"]
+    want = _count_independently(db_path)
+    assert {k: got[k] for k in want} == want
+    assert result["store_rows_before"]["entities"] == 0
+
+
+def test_term023_a_RE_RUN_reports_the_same_rows_before_and_after(monkeypatch, db_path):
+    _patch_sources(monkeypatch, symbols=["AAPL", "NVDA"])
+    seed.run_seed(db_path=db_path)
+    r2 = seed.run_seed(db_path=db_path)
+    assert r2["store_rows_before"]["entities"] == r2["store_rows_after"]["entities"] == 2
+
+
+def test_term023_main_PRINTS_the_row_count_line(monkeypatch, db_path, capsys):
+    _patch_sources(monkeypatch, symbols=["AAPL", "NVDA", "GAP"])
+    monkeypatch.setattr(sys, "argv", ["entity_master_seed.py", "--db-path", db_path])
+    seed.main()
+    out = capsys.readouterr().out
+    want = _count_independently(db_path)
+    line = [ln for ln in out.splitlines() if ln.startswith("entity_master rows after seed:")]
+    assert len(line) == 1, out[-800:]
+    assert f"entities={want['entities']}" in line[0]
+    assert f"aliases={want['aliases']}" in line[0]
+    assert f"open_aliases={want['open_aliases']}" in line[0]
+
+
+def test_term023_a_DRY_run_opens_nothing_and_reports_no_store_rows(monkeypatch, tmp_path):
+    """The row report must not become a side door that creates the store."""
+    import os
+    _patch_sources(monkeypatch, symbols=["AAPL"])
+    p = str(tmp_path / "dry" / "never.db")
+    result = seed.run_seed(db_path=p, dry_run=True)
+    assert "store_rows_after" not in result
+    assert not os.path.exists(p)

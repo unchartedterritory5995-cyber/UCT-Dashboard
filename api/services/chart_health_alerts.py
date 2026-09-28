@@ -49,6 +49,13 @@ STEP 4 WIRES, because it is the only one whose severity is real data — the dir
 ops posters pass no severity at all, and inventing one for them is a per-producer
 decision the spec leaves to the owner.
 
+⭐⭐ TERM-016 / FB-OBS-05 — THE PAGE COOLDOWNS SURVIVE A DEPLOY. Both "we already
+told you" stamps (Discord and the second transport) were module dicts, so every
+redeploy re-paged a standing critical and a second instance doubled each bound.
+They now live in `alert_cooldown` (one row per channel+key, claimed by ONE atomic
+upsert) under `DATA_DIR`. ⛔ A store that cannot answer FAILS OPEN to the old
+per-process cooldown: a broken cooldown must never silence a critical.
+
 ⭐ TERM-011 / RM-N09 STEP 3 — THIS SINK'S 22 EMIT SITES ARE CONVERTED AS ONE
 CLASS, AND NOT ONE OF THEM MOVED. The destination is resolved here, once, by
 `alert_destination.ops_webhook()` instead of by a literal `DISCORD_WEBHOOK_URL`
@@ -61,6 +68,8 @@ page lands where it landed before, byte for byte.
 import os
 import time
 import json as _json
+import logging
+import sqlite3
 import threading
 import urllib.request as _urllib
 from collections import deque
@@ -94,20 +103,107 @@ _DISCORD_COOLDOWN_SEC = 1800  # 30 min per key for the page (deque throttle is s
 #: one condition, and either one being spent must not spend the other.
 _email_last: dict[str, int] = {}  # alert_key -> last second-transport send ts
 
+_logger = logging.getLogger(__name__)
 
-def _cooldown_ok(store, alert_key, now, cooldown):
-    """Has `alert_key` been quiet in `store` for `cooldown`? Advances it on a True.
+# ⭐⭐ TERM-016 / FB-OBS-05 — THE PAGE COOLDOWNS ARE DURABLE. `_discord_last` and
+# `_email_last` above were the ONLY record of "we already told you", and a module
+# dict dies with the process: every redeploy re-paged a STANDING critical on its
+# first cycle (fourteen deploys in a day = fourteen pages for one fault), and a
+# second instance doubled every bound (STATE-7). The authority is now one row per
+# (channel, alert_key) in `alert_cooldown`, the `fundamentals_monitor.monitor_meta`
+# shape. The two dicts stay as the per-process FALLBACK and mirror — see
+# `_cooldown_ok` for why a broken store must page.
+#
+# ⛔ `_throttle` and the deque are deliberately NOT moved: they bound THIS process's
+# admin feed, which is itself per-process. A durable deque throttle would leave a
+# freshly booted pod's feed empty for a standing condition, and would buy nothing,
+# because the PAGE is decided by the durable store below regardless.
+#
+# ⛔ The path is read at CALL time (like `ai_search_member._db_path`), so the test
+# sandbox's `DATA_DIR` redirect reaches it and nothing is captured at import.
+COOLDOWN_DB_ENV = "CHART_HEALTH_COOLDOWN_DB_PATH"
+#: Short on purpose: the claim runs under `_lock`, inside `emit`, which watchdogs and
+#: request paths call. A store that cannot answer in this long is a broken store,
+#: and a broken store FAILS OPEN rather than holding the pager hostage.
+_COOLDOWN_DB_TIMEOUT_SEC = 2.0
+_COOLDOWN_SCHEMA = (
+    "CREATE TABLE IF NOT EXISTS alert_cooldown ("
+    " channel      TEXT    NOT NULL,"   # 'discord' | 'email' — two legs, two budgets
+    " alert_key    TEXT    NOT NULL,"
+    " last_sent_at INTEGER NOT NULL,"   # epoch seconds of the last page ACTUALLY sent
+    " PRIMARY KEY (channel, alert_key))"
+)
+#: ⛔ ONE STATEMENT, SO THE CHECK AND THE WRITE CANNOT BE SPLIT BY A SECOND POD.
+#: Insert the stamp, or on conflict overwrite it ONLY when the old one is at least
+#: `cooldown` old. `rowcount == 1` means this caller claimed the page; 0 means a
+#: stamp inside the window already exists. A read-then-write would let two pods both
+#: read "quiet" and both page.
+_COOLDOWN_CLAIM_SQL = (
+    "INSERT INTO alert_cooldown (channel, alert_key, last_sent_at) VALUES (?, ?, ?) "
+    "ON CONFLICT(channel, alert_key) DO UPDATE SET last_sent_at = excluded.last_sent_at "
+    "WHERE excluded.last_sent_at - alert_cooldown.last_sent_at >= ?"
+)
+
+
+def _cooldown_db_path() -> str:
+    return os.environ.get(
+        COOLDOWN_DB_ENV,
+        os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_health_alerts.db"),
+    )
+
+
+def _cooldown_connect() -> sqlite3.Connection:
+    path = _cooldown_db_path()
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    conn = sqlite3.connect(path, timeout=_COOLDOWN_DB_TIMEOUT_SEC)
+    conn.execute(_COOLDOWN_SCHEMA)
+    return conn
+
+
+def _durable_claim(channel, alert_key, now, cooldown) -> bool:
+    """Atomically claim a page for (channel, alert_key) in the shared store.
+    RAISES on any store fault — the caller owns the fail-open decision."""
+    conn = _cooldown_connect()
+    try:
+        cur = conn.execute(_COOLDOWN_CLAIM_SQL, (channel, alert_key, int(now), int(cooldown)))
+        conn.commit()
+        return cur.rowcount == 1
+    finally:
+        conn.close()
+
+
+def _cooldown_ok(channel, store, alert_key, now, cooldown):
+    """Has `alert_key` been quiet on `channel` for `cooldown`? Advances it on a True.
 
     ⭐ ONE AUTHORITY over the cooldown arithmetic, asked by both legs with their OWN
-    store. The alternative is these four lines twice, which is
+    channel and store. The alternative is this body twice, which is
     `lesson_a_guard_repeated_is_a_guard_unproved`: a mutation of one copy leaves the
     other green, so neither copy is proved.
+
+    ⭐ TERM-016: the durable row is the authority, so a restart or a second pod does
+    not re-page. `store` (the old module dict) is mirrored on a claim and is the
+    fallback when the durable store cannot answer.
+
+    ⛔⛔ A BROKEN STORE FAILS OPEN. Unreadable, corrupt, locked past the timeout or
+    unopenable: the durable answer is UNKNOWN, and an unknown "already told you" is
+    not permission to stay silent about a critical. It degrades to exactly the
+    pre-TERM-016 per-process cooldown — the first critical in this process pages,
+    and a repeat inside the window in THIS process is still bounded.
     """
-    last = store.get(alert_key)          # None = never fired for this key → fire now
-    if last is not None and now - last < cooldown:
-        return False
-    store[alert_key] = now
-    return True
+    try:
+        fire = _durable_claim(channel, alert_key, now, cooldown)
+    except Exception as exc:  # noqa: BLE001 — any store fault fails OPEN
+        _logger.warning("[chart-health] durable cooldown store unavailable (%s: %s); "
+                        "falling back to the per-process cooldown for %s/%s",
+                        type(exc).__name__, exc, channel, alert_key)
+        last = store.get(alert_key)      # None = never fired for this key → fire now
+        if last is not None and now - last < cooldown:
+            return False
+        store[alert_key] = now
+        return True
+    if fire:
+        store[alert_key] = now           # mirror, so a later store fault stays bounded
+    return fire
 
 
 def _should_page_discord(alert_key, severity, now, *, webhook_present, enabled, cooldown=_DISCORD_COOLDOWN_SEC):
@@ -116,7 +212,7 @@ def _should_page_discord(alert_key, severity, now, *, webhook_present, enabled, 
     advances. Testable without network."""
     if severity != "critical" or not webhook_present or not enabled:
         return False
-    return _cooldown_ok(_discord_last, alert_key, now, cooldown)
+    return _cooldown_ok("discord", _discord_last, alert_key, now, cooldown)
 
 
 def _should_email_second_transport(alert_key, now, *, recipients_present,
@@ -146,7 +242,7 @@ def _should_email_second_transport(alert_key, now, *, recipients_present,
     """
     if not recipients_present:
         return False
-    return _cooldown_ok(_email_last, alert_key, now, cooldown)
+    return _cooldown_ok("email", _email_last, alert_key, now, cooldown)
 
 
 def _page_discord(alert_key, message):
@@ -277,3 +373,15 @@ def clear():
         # too, or a test that emitted a critical leaves the next one's email leg
         # suppressed and the rail reads green for the wrong reason.
         _email_last.clear()
+        # ⛔ TERM-016 — and the durable cooldown table, for the same reason: a stamp
+        # left behind makes the next test's critical read as already-paged. Test-only
+        # helper (no product caller); best-effort, a missing store is already empty.
+        try:
+            conn = _cooldown_connect()
+            try:
+                conn.execute("DELETE FROM alert_cooldown")
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:  # noqa: BLE001
+            pass

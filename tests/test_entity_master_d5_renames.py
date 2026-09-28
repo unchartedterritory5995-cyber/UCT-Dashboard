@@ -100,7 +100,8 @@ def test_fetch_ticker_events_parses_the_real_response_shape(monkeypatch):
         ]},
         "status": "OK",
     }
-    fake_client = types.SimpleNamespace(_api_key="k", _get=lambda url: fake_resp)
+    # TERM-022: the read goes through `massive_adapter` -> the typed transport.
+    fake_client = types.SimpleNamespace(_api_key="k", _typed_get=lambda path, timeout=None: fake_resp)
     monkeypatch.setattr(massive, "_get_client", lambda: fake_client)
 
     events = d5r._fetch_ticker_events("META")
@@ -115,7 +116,7 @@ def test_fetch_ticker_events_ignores_non_ticker_change_types(monkeypatch):
         {"type": "some_other_event", "date": "2020-01-01"},
         {"type": "ticker_change", "ticker_change": {"ticker": "X"}, "date": "2021-01-01"},
     ]}}
-    fake_client = types.SimpleNamespace(_api_key="k", _get=lambda url: fake_resp)
+    fake_client = types.SimpleNamespace(_api_key="k", _typed_get=lambda path, timeout=None: fake_resp)
     monkeypatch.setattr(massive, "_get_client", lambda: fake_client)
 
     events = d5r._fetch_ticker_events("Y")
@@ -127,10 +128,10 @@ def test_fetch_ticker_events_returns_empty_on_404_never_raises(monkeypatch):
     is the NORMAL case for most tickers, never an error."""
     import api.services.massive as massive
 
-    def _raise(url):
-        raise Exception("404 Client Error: Not Found")
+    def _raise(path, timeout=None):
+        raise massive.MassiveNotFound("Massive: not found (HTTP 404)", vendor="massive")
 
-    fake_client = types.SimpleNamespace(_api_key="k", _get=_raise)
+    fake_client = types.SimpleNamespace(_api_key="k", _typed_get=_raise)
     monkeypatch.setattr(massive, "_get_client", lambda: fake_client)
 
     assert d5r._fetch_ticker_events("ATVI") == []

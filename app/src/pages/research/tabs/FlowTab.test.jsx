@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { renderWithProviders, screen } from '../../../test-utils'
+import { renderWithProviders, screen, within, fireEvent } from '../../../test-utils'
 
 // A13 Wave B (2026-09-23). Deterministic only -- no AI, no new flow math.
 // Source is the EXISTING, partner-owned GET /api/live/massive/ticker-flow
@@ -85,5 +85,40 @@ describe('FlowTab', () => {
     }
     renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
     expect(screen.getByTestId('flow-net-summary')).toHaveTextContent('$75K')
+  })
+
+  // ── TERM-019 adoption: the source line composes S8's <Provenance> ───────
+  // It used to be bare local text. The words a member reads are unchanged;
+  // the source is now S8's affordance, with a detail disclosure. No
+  // timestamp is passed: the payload carries date-only window bounds and a
+  // `query_date`, never an observed instant, and inventing one would be the
+  // fabricated receipt S8 exists to prevent.
+  it('the source line is S8 <Provenance>, wording unchanged', () => {
+    mockReturn = { data: bullish, isLoading: false }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    const line = screen.getByTestId('flow-source')
+    expect(line).toHaveTextContent(
+      'Source: live options-flow tape (same aggregation as Options Flow → Search)')
+    expect(within(line).getByTestId('provenance-present')).toBeInTheDocument()
+  })
+
+  it('the source disclosure names the endpoint and never invents an observed time', () => {
+    mockReturn = { data: bullish, isLoading: false }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    const line = screen.getByTestId('flow-source')
+    fireEvent.click(within(line).getByTestId('provenance-detail-toggle'))
+    const panel = within(line).getByTestId('provenance-detail-panel')
+    expect(panel).toHaveTextContent('Source: live_massive_router.ticker_flow')
+    expect(panel).not.toHaveTextContent(/Observed:/)
+  })
+
+  it('is a real control: the empty state cites nothing', () => {
+    mockReturn = {
+      data: { ok: true, symbol: 'AAPL', net: null, window: { days_requested: '5' }, contracts: [] },
+      isLoading: false,
+    }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    expect(screen.queryByTestId('flow-source')).toBeNull()
+    expect(screen.queryAllByTestId('provenance-present')).toHaveLength(0)
   })
 })

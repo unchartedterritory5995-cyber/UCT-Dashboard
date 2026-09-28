@@ -68,38 +68,160 @@ def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
     ⛔ Owns its OWN pagination rather than reusing `get_split_tickers`'s (now
     retired) — that function discarded everything but the ticker, which is not
     enough to write a confirmed ROW (execution date + ratio are the row).
-    """
-    from api.services import massive as _massive
 
-    out: list[dict[str, Any]] = []
+    TERM-022: reads through `massive_adapter` (one client, one budget, typed
+    errors). The `[]` on failure is THIS sweep's own, logged decision — its only
+    caller upserts — not the adapter's; and past 20 pages it now answers `[]`
+    rather than upserting a silently truncated window.
+    """
+    from api.services import massive_adapter
+
     try:
-        client = _massive._get_client()
-        url = (
-            f"{_massive._REST_BASE}/v3/reference/splits"
-            f"?execution_date.gte={from_iso}&execution_date.lte={to_iso}"
-            f"&limit=1000&apiKey={client._api_key}"
-        )
-        for _ in range(20):  # safety cap on pagination, same bound as the retired reader
-            data = client._get(url) or {}
-            for r in (data.get("results") or []):
-                ticker = r.get("ticker")
-                execution_date = r.get("execution_date")
-                if not (ticker and execution_date):
-                    continue
-                out.append({
-                    "ticker": str(ticker).upper(),
-                    "execution_date": str(execution_date),
-                    "split_from": r.get("split_from"),
-                    "split_to": r.get("split_to"),
-                })
-            nxt = data.get("next_url")
-            if not nxt:
-                break
-            url = f"{nxt}&apiKey={client._api_key}"
+        rows = massive_adapter.get_pages(
+            "/v3/reference/splits",
+            params={"execution_date.gte": from_iso, "execution_date.lte": to_iso, "limit": 1000},
+            data_class="reference", activity="reference_corp_actions.fetch_confirmed_splits",
+            max_pages=20,  # same bound as the retired reader
+        ).value
     except Exception as e:
         _log.info("[reference-corp-actions] splits fetch failed: %s", e)
         return []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        ticker = r.get("ticker")
+        execution_date = r.get("execution_date")
+        if not (ticker and execution_date):
+            continue
+        out.append({
+            "ticker": str(ticker).upper(),
+            "execution_date": str(execution_date),
+            "split_from": r.get("split_from"),
+            "split_to": r.get("split_to"),
+        })
     return out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TERM-036 (FB-D5-02) — per-ticker reads for the two consumers that used to
+# read yfinance: `dividends_calendar.py` (Calendar's forward feed) and
+# `earnings_estimates._build_chart_markers` (chart "S"/"D" markers).
+#
+# ⛔ NO TABLE. These are pass-through reads; nothing here writes the ledger
+# above or any other store (CARD 5: "a table with no consumer is a second
+# authority waiting to drift").
+#
+# ⛔ THEY RAISE, THEY DO NOT ANSWER EMPTY. Unlike `fetch_confirmed_splits`
+# (a sweep whose caller only upserts), these callers render "no dividend"
+# from an empty list — so an outage must be distinguishable from a real
+# empty. `CorpActionsUnavailable` is that distinction; `[]` means Massive
+# answered and had nothing.
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: The provenance label every consumer stamps on a value read through here.
+SOURCE = "massive"
+
+_TICKER_READ_MAX_PAGES = 10   # 1000 rows/page; one ticker never needs more
+
+
+class CorpActionsUnavailable(RuntimeError):
+    """Massive could not answer (no key, HTTP error, truncated pagination).
+    Never means "this ticker has no corporate actions"."""
+
+
+def _ticker_read(path: str, date_field: str, ticker: str,
+                 gte: str | None, lte: str | None) -> list[dict[str, Any]]:
+    """`path` is the literal endpoint path, spelled out at each call site so
+    `tools/corp_actions_census.py` (which reads URLs, not variables) sees both
+    reads. The API key never enters an exception message.
+
+    TERM-022: reads through `massive_adapter`, which raises on every failure —
+    including more than `_TICKER_READ_MAX_PAGES` pages — so an outage stays
+    distinguishable from a real empty answer."""
+    from api.services import massive as _massive
+    from api.services import massive_adapter
+
+    sym = _massive.to_polygon_symbol((ticker or "").strip())
+    if not sym:
+        return []
+    params: dict[str, Any] = {"ticker": sym}
+    if gte:
+        params[f"{date_field}.gte"] = gte
+    if lte:
+        params[f"{date_field}.lte"] = lte
+    params.update({"order": "asc", "sort": date_field, "limit": 1000})
+    try:
+        rows = massive_adapter.get_pages(
+            path, params=params, data_class="reference",
+            activity=f"reference_corp_actions.{date_field}", max_pages=_TICKER_READ_MAX_PAGES,
+        ).value
+    except Exception as e:
+        raise CorpActionsUnavailable(
+            f"Massive {path} failed for {sym}: {type(e).__name__}") from e
+    return [r for r in rows if isinstance(r, dict)]
+
+
+def fetch_ticker_splits(ticker: str, *, gte: str | None = None,
+                        lte: str | None = None) -> list[dict[str, Any]]:
+    """Every split for `ticker` with an execution date in [gte, lte], oldest
+    first: `{ticker, execution_date, split_from, split_to}`. Raises
+    `CorpActionsUnavailable` if Massive could not answer."""
+    rows = []
+    for r in _ticker_read("/v3/reference/splits", "execution_date", ticker, gte, lte):
+        if not r.get("execution_date"):
+            continue
+        rows.append({
+            "ticker": str(r.get("ticker") or ticker).upper(),
+            "execution_date": str(r["execution_date"])[:10],
+            "split_from": r.get("split_from"),
+            "split_to": r.get("split_to"),
+        })
+    return rows
+
+
+def fetch_ticker_dividends(ticker: str, *, gte: str | None = None,
+                           lte: str | None = None) -> list[dict[str, Any]]:
+    """Every cash dividend for `ticker` with an ex-date in [gte, lte], oldest
+    first: `{ticker, ex_dividend_date, cash_amount, pay_date, frequency,
+    dividend_type, currency}`. Raises `CorpActionsUnavailable` if Massive could
+    not answer."""
+    rows = []
+    for r in _ticker_read("/v3/reference/dividends", "ex_dividend_date", ticker, gte, lte):
+        if not r.get("ex_dividend_date"):
+            continue
+        rows.append({
+            "ticker": str(r.get("ticker") or ticker).upper(),
+            "ex_dividend_date": str(r["ex_dividend_date"])[:10],
+            "cash_amount": r.get("cash_amount"),
+            "pay_date": r.get("pay_date"),
+            "frequency": r.get("frequency"),
+            "dividend_type": r.get("dividend_type"),
+            "currency": r.get("currency"),
+        })
+    return rows
+
+
+def split_ratio(split_from, split_to) -> float | None:
+    """Shares after per share before (4.0 = 4-for-1, 0.1 = 1-for-10 reverse) —
+    the same float yfinance's `.splits` series carried, so consumers keep their
+    arithmetic. None when either side is missing or non-positive."""
+    try:
+        f, t = float(split_from), float(split_to)
+    except (TypeError, ValueError):
+        return None
+    if f <= 0 or t <= 0:
+        return None
+    return t / f
+
+
+def split_ratio_label(r: float) -> str:
+    """'4:1' for a forward split, '1:10' for a reverse, '1.5:1' for a 3-for-2 —
+    the chart markers' long-standing format, now shared with the Calendar."""
+    if r >= 1:
+        return f"{int(r)}:1" if r == int(r) else f"{round(r, 2)}:1"
+    inv = 1.0 / r
+    return f"1:{int(inv)}" if inv == int(inv) else f"1:{round(inv, 2)}"
 
 
 def record_confirmed_splits(rows: list[dict[str, Any]], *, now: float | None = None,

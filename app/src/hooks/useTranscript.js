@@ -6,12 +6,15 @@
 //
 // Returns { data, isLoading, error } where data is:
 //   {symbol, quarter, segments: [{speaker, title, content, sentiment}], resolved}
-//   or null when unavailable.
+//   or null when the provider genuinely has none (the endpoint answers 200 null),
+//   or { paywalled: true } on a 402.
+// A FAILED request populates `error` and never arrives as `null` (TERM-033):
+// this fetcher used to swallow it, and TranscriptPanel then told the member
+// "Transcript not available." about a call that has one. Same-origin fetch
+// already sends the session cookie, so dropping `credentials: 'include'` for
+// the shared fetcher changes nothing on the wire.
 import useSWR from 'swr'
-
-const fetcher = url => fetch(url, { credentials: 'include' })
-  .then(r => r.ok ? r.json() : null)
-  .catch(() => null)
+import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
 /**
  * @param {string|null} ticker
@@ -26,7 +29,7 @@ export default function useTranscript(ticker, { enabled = false, quarter = null 
   return useSWR(
     // Only fetch when enabled=true and ticker is non-empty
     enabled && sym ? `/api/earnings/transcript/${sym}${qs}` : null,
-    fetcher,
+    sectionFetcher,
     {
       // Transcripts are static — no need to revalidate aggressively
       refreshInterval:   0,

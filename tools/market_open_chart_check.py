@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -52,9 +53,15 @@ def _get(base: str, path: str, timeout: float = 45.0):
     """GET path. Returns (status, elapsed_s, headers_dict, decoded_body_bytes)."""
     # Request gzip only (stdlib has no brotli); decompress below so the JSON-body
     # checks actually parse instead of trivially passing on empty bodies.
-    req = urllib.request.Request(base + path, headers={
-        "User-Agent": _UA, "Accept-Encoding": "gzip", "Accept": "application/json",
-    })
+    headers = {"User-Agent": _UA, "Accept-Encoding": "gzip", "Accept": "application/json"}
+    # ⭐ /api/admin/{bars-stream-status,reconciliation-status} move behind
+    # OPEN_READS_GATE (admin) once it is enforced; its one bypass is the
+    # PUSH_SECRET bearer. Sent only when the runner has it — without it those two
+    # checks go red under enforce, which is the honest answer.
+    _secret = (os.environ.get("PUSH_SECRET") or "").strip()
+    if _secret and path.startswith("/api/admin/"):
+        headers["Authorization"] = f"Bearer {_secret}"
+    req = urllib.request.Request(base + path, headers=headers)
     t0 = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:

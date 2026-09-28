@@ -32,6 +32,8 @@ import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
 import useCalendarHubSection, { toggleEventType } from '../hub/sections/calendarSection'
 import FeedView from './calendar/FeedView'
 import WireView from './calendar/WireView'
+import { useWireProbe } from './calendar/useWire'
+import { resolveCalendarView, hasExplicitView, wireHasContent } from './calendar/viewLadder'
 import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
@@ -104,7 +106,7 @@ export default function Calendar() {
 
   const { data, error, mutate } = useCalendar(weekParam)
   const { data: mySets } = useCalendarMySets()
-  const { prefs, setPref } = usePreferences()
+  const { prefs, setPref, loading: prefsLoading } = usePreferences()
   const [selected, setSelected] = useState(null)   // { row, label }
   const [openDay, setOpenDay] = useState(null)      // { ds, day } for DayDetailDrawer
   const [pulse, setPulse] = useState(null)           // { sym, ds } — search jump target
@@ -148,13 +150,26 @@ export default function Calendar() {
   // visually redundant with the Board, and the flagship table was hidden two
   // non-obvious clicks deep. v2 prefs migrate once: feed+rows→table, else
   // board; month stays month.
-  const _viewV2 = prefs.calendar_view_v2
-  const _savedViewV3 = prefs.calendar_view_v3
-  const view = _savedViewV3 || (
-    _viewV2 === 'month' ? 'month'
-    : (_viewV2 === 'feed' && prefs.calendar_density === 'rows') ? 'table'
-    : 'board'
-  )
+  //
+  // TERM-074: the ladder itself now lives in `calendar/viewLadder.js` (one
+  // pure authority, railed in viewLadder.test.js + Calendar.viewLadder.test.jsx)
+  // and gains the Wire rung — a member with no explicit v3 choice lands on the
+  // Wire when it has prints on it. READ-ONLY: nothing here writes a pref.
+  //
+  // The probe asks only while the answer could matter: prefs loaded (never
+  // decide on a pre-hydration default), no explicit v3 choice, and no deep link
+  // (a ?week=/?d= link names a week; the Wire is today's tape). Its first
+  // answer is LATCHED for this mount, so a print arriving later never moves the
+  // view under a member who is already reading.
+  const deepLinked = !!(rawWeek || dParam)
+  const probeWire = !prefsLoading && !hasExplicitView(prefs) && !deepLinked
+  const { data: wireProbe } = useWireProbe(probeWire)
+  const [wireLanding, setWireLanding] = useState(null)   // null = undecided
+  useEffect(() => {
+    if (wireLanding !== null || !probeWire || wireProbe === undefined) return
+    setWireLanding(wireHasContent(wireProbe))
+  }, [wireLanding, probeWire, wireProbe])
+  const view = resolveCalendarView(prefs, { wireLanding: wireLanding === true && !deepLinked })
   // FILTERS key bumped to _v2 (owner decision 2026-07-13): first paint now
   // defaults to the full market ranked big→small (audience 'all'). Legacy
   // metric filters carry over once; audience/sort reset to the new default,

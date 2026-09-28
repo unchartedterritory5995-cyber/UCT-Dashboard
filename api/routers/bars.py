@@ -618,6 +618,52 @@ def _augment_daily_with_today(response, ticker: str):
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
+_INTRADAY_TFS = ("1", "5", "15", "30", "60")
+
+
+def _augment_with_tail_status(response, ticker: str, tf: str):
+    """Attach ``tail_status`` + ``verified_through`` (and ``Retry-After`` when the tail
+    is unverified) to an intraday 200.
+
+    The tail judged is the one the client will HOLD after applying this response: the
+    last served row for a full answer, and the STORE's tail for a ``since=`` delta
+    (a delta returns every stored row past ``since``, so after the merge the client's
+    tail IS the store's). ⛔ A terminal ``no_data`` answer is left exactly as it is —
+    Problem B's contract is untouched."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
+        return response
+    rows = payload.get("bars")
+    if not isinstance(rows, list):
+        return response
+    if payload.get("delta"):
+        from api.services import bars_sqlite as _bs
+        tail = _bs.get_last_ts(ticker.upper(), tf)
+        if rows and isinstance(rows[-1], dict):
+            try:
+                tail = max(int(tail or 0), int(rows[-1].get("t"))) or None
+            except (TypeError, ValueError):
+                pass
+    else:
+        if not rows:
+            return response
+        tail = rows[-1].get("t") if isinstance(rows[-1], dict) else None
+    st = _bars_fetch.intraday_tail_status(ticker, tf, tail)
+    payload["tail_status"] = st["tail_status"]
+    payload["verified_through"] = st["verified_through"]
+    headers = {}
+    if st["tail_status"] == "unverified":
+        payload["retry_after"] = 3
+        headers["Retry-After"] = "3"
+    out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    for k, v in headers.items():
+        out.headers[k] = v
+    return out
+
+
 def _augment_with_bar_close_state(response, tf: str):
     """Attach ``newest_bar_is_forming`` — the tri-state the JS lane needs and has
     never been given.
@@ -683,6 +729,25 @@ def _augment_with_bar_close_state(response, tf: str):
 
 
 def serve_bars(
+    ticker: str,
+    tf: str,
+    bars: int = 200,
+    since: str = "",
+    to: str = "",
+    warm: int = 0,
+):
+    """Member/tier entry point. Marks this request thread as INTERACTIVE (a non-warm
+    ask) for the lifetime of the serve so an intraday tail repair may use the reserved
+    heal pool (`bars_fetch._interactive_heal_sem`), then always clears the mark — the
+    anyio worker thread is reused by the next request."""
+    _bars_fetch.set_request_interactive(not warm)
+    try:
+        return _serve_bars_impl(ticker, tf, bars, since, to, warm)
+    finally:
+        _bars_fetch.set_request_interactive(False)
+
+
+def _serve_bars_impl(
     ticker: str,
     tf: str,
     bars: int = 200,
@@ -903,6 +968,18 @@ def serve_bars(
                 response = _augment_with_bar_close_state(response, tf)
             except Exception:
                 pass  # a decorative field must never break a chart serve
+
+        # ⛔⛔ CURRENTNESS IS STATED, NEVER IMPLIED (2026-09-28). Every intraday answer
+        # says whether its tail is current, provider-verified, or UNVERIFIED — so a
+        # repair shed for capacity can no longer reach the client as a silent 200 that
+        # looks exactly like a current chart. Same live-equity scope as the daily append.
+        if (tf in _INTRADAY_TFS and not to and not _is_breadth and _drec is None
+                and not is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_with_tail_status(response, ticker, tf)
+            except Exception:
+                pass
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching

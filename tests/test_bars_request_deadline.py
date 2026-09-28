@@ -38,7 +38,7 @@ def _slow_delta(seconds=3.0):
     far past any budget a request may spend."""
     started = threading.Event()
 
-    def _fn(ticker, tf, last_ts):
+    def _fn(ticker, tf, last_ts, status=None):
         started.set()
         time.sleep(seconds)
         return [{"t": int(last_ts) + 300, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1}]
@@ -86,7 +86,7 @@ def test_a_fast_delta_completes_inside_the_deadline(monkeypatch):
     """The common case is unchanged: a fast provider still yields a correct,
     fully-healed first paint."""
     monkeypatch.setattr(bars_fetch, "_delta_intraday",
-                        lambda t, tf, lt: [{"t": lt + 300, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
+                        lambda t, tf, lt, status=None: [{"t": lt + 300, "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}])
     monkeypatch.setattr(bars_fetch._sqlite, "put_bars", lambda *a, **k: None)
     assert bars_fetch._bounded_delta("AAPL", "5", _RECENT, False) is True
 

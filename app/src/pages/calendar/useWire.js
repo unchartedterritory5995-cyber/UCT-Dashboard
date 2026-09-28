@@ -1,4 +1,5 @@
 // app/src/pages/calendar/useWire.js
+import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
 
 const fetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
@@ -20,4 +21,21 @@ export function useWire(dateStr) {
     fetcher,
     { refreshInterval: 10000, revalidateOnFocus: false },
   )
+}
+
+/**
+ * A ONE-SHOT read of today's wire for the view ladder (TERM-074): "is there
+ * anything on the Wire right now?" — asked only while a landing is undecided.
+ *
+ * Same key as `useWire()` with no date, so the payload lands in the cache the
+ * WireView then renders from. No polling and no focus/reconnect revalidation:
+ * the ladder latches its first answer, and a later print must not move a
+ * member off the view they are reading. `enabled=false` ⇒ `null` key ⇒ no
+ * request at all (an explicit v3 choice, a deep link, or prefs not loaded).
+ */
+export function useWireProbe(enabled) {
+  return useSWR(enabled ? '/api/calendar/wire' : null, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  })
 }

@@ -494,7 +494,16 @@ export function expectedBarsBehind(lastTUnixSec, tf, nowMs = Date.now(), { sessi
   while (n < CAP) {
     const prev = _bucketStartUnix(cur - 1, tfMin)
     if (prev <= lastTUnixSec) return n + 1
-    if (_etMinutesOfUnix(prev) < open) return n + 1   // walked off the session open
+    if (_etMinutesOfUnix(prev) < open) {
+      // Walked off the session open. ⛔⛔ A TAIL FROM AN EARLIER SESSION IS NOT "ONE
+      // BUCKET BEHIND" (2026-09-28): the overnight gap is not a bucket. Counting it as
+      // one let a Friday tail pass the one-bucket tolerance for the whole first
+      // completed bucket of Monday (09:35 on 5m, 10:00-10:59 on 1h). It is missing
+      // every bucket of today AND belongs to a different session — so it is always
+      // beyond the tolerance. A same-day pre-open tail (extended bars on an RTH view)
+      // keeps the plain count.
+      return _etDateOfUnix(lastTUnixSec) < _etDateOfUnix(frontier) ? n + 2 : n + 1
+    }
     cur = prev
     n++
   }
@@ -535,8 +544,22 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
     const tfSec = Math.max(60, (Number(tf) || 5) * 60)
     return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180) ? 'behind' : 'fresh'
   }
-  // tailDate === expected → a CLOSED session by definition. Complete iff it reached
-  // the close; an incomplete one is BEHIND (sound history, short tail), not gapped.
+  // tailDate === expected → a CLOSED session by definition.
+  // ⛔⛔ BUT "THE LAST CLOSED SESSION IS COMPLETE" IS NOT "CURRENT" ONCE TODAY HAS
+  // COMPLETED BUCKETS (2026-09-28). `expected` is the last CLOSED session, so on a
+  // Monday at 11:33 it is FRIDAY — and a Friday tail that reached its close answered
+  // 'fresh' all day. That is how AVGO 5m settled on Friday's bars under a green LIVE
+  // badge: no catch-up poll, no warm repair, no display gate. The frontier comes from
+  // the ONE session implementation (`expectedLatestCompletedBar`: early closes, the
+  // irregular 09:30 hour on 1h, holidays, weekends, pre-open all handled there). When
+  // today already has a completed bucket, a prior-session tail is BEHIND: still a
+  // sound repair base (kept, repaired with `since=`), never current.
+  // ⚠️ RTH-anchored on purpose: this is the repair-base question. Extended-hours
+  // DISPLAY currentness is `intradayBarCurrentness(..., {session:'extended'})`.
+  const _frontier = expectedLatestCompletedBar(tf)
+  if (_frontier != null && _etDateOfUnix(_frontier) > tailDate) return 'behind'
+  // Complete iff it reached the close; an incomplete one is BEHIND (sound history,
+  // short tail), not gapped.
   if (_intradayCompletenessOn()) {
     const tfMin = Math.max(1, Number(tf) || 5)
     const tailD = new Date(new Date(lastTUnixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
@@ -544,6 +567,67 @@ export function classifyIntradayTail(lastTUnixSec, tf) {
     if (tailMin < 960 - tfMin) return 'behind'
   }
   return 'fresh'
+}
+
+// ── BAR CURRENTNESS — the ONE answer to "may this chart look current?" ─────────
+// ⛔⛔ PRICE-FEED CONNECTIVITY IS NOT BAR CURRENTNESS. The ● LIVE badge read only the
+// feed, so it glowed green over candles an entire session old (2026-09-28, AVGO 5m).
+// This derives the state from what is ON SCREEN, against the session frontier:
+//
+//   'current'        the rendered tail is within ONE expected bucket of the frontier,
+//                    or the server proved (provider asked after that bucket closed)
+//                    that nothing newer exists — `verifiedThrough`.
+//   'updating'       not current; a repair is in flight or still inside its fast
+//                    retry budget. Stale history may be on screen AS CONTEXT.
+//   'delayed'        not current and the fast retries are spent; retrying continues
+//                    at the capped cadence and recovery is automatic.
+//   'unavailable'    terminal: the server answered no-data, or nothing to show.
+//   'no_expectation' market shut / pre-open / before the first bucket closes, and the
+//                    tail carries the last session through its close.
+//
+// ⛔ OBSERVED AGE vs VERIFIED ABSENCE. One bucket of tolerance absorbs a name that did
+// not print in the newest interval — that is the product tolerance, nothing more.
+// Beyond it, "the ticker is illiquid" is NOT an answer: only `verifiedThrough` is, and
+// it expires on its own the moment the next bucket closes.
+export const CURRENTNESS = Object.freeze({
+  CURRENT: 'current', UPDATING: 'updating', DELAYED: 'delayed',
+  UNAVAILABLE: 'unavailable', NO_EXPECTATION: 'no_expectation',
+})
+
+export function intradayBarCurrentness({
+  tf, tailT, nowMs = Date.now(), session = 'rth',
+  verifiedThrough = null, serverStatus = null,
+  pending = false, retriesExhausted = false, terminalNoData = false,
+} = {}) {
+  if (terminalNoData) return CURRENTNESS.UNAVAILABLE
+  const notCurrent = () => ((pending || !retriesExhausted) ? CURRENTNESS.UPDATING : CURRENTNESS.DELAYED)
+  if (typeof tailT !== 'number' || !Number.isFinite(tailT)) return notCurrent()
+  const behind = expectedBarsBehind(tailT, tf, nowMs, { session })
+  if (behind == null) {
+    // No bucket of today is expected. The tail must still carry the last session to
+    // its close (the repair-base classifier owns that rule, weekend/holiday aware).
+    if (classifyIntradayTail(tailT, tf) === 'fresh') return CURRENTNESS.NO_EXPECTATION
+    if (serverStatus === 'verified') return CURRENTNESS.NO_EXPECTATION
+    return notCurrent()
+  }
+  if (behind <= 1) return CURRENTNESS.CURRENT
+  // Beyond the tolerance only PROOF counts: the provider was asked after the expected
+  // bucket closed. The bucket's end is the start of the one forming now (or, after the
+  // close, the close) — never `frontier + tf`, which is wrong for the 30-minute 09:30
+  // bucket on 1h.
+  const frontier = expectedLatestCompletedBar(tf, nowMs, { session })
+  const forming = expectedFormingBar(tf, nowMs, { session })
+  const frontierEnd = forming != null ? forming : frontier + Math.max(1, Number(tf) || 5) * 60
+  if (typeof verifiedThrough === 'number' && Number.isFinite(verifiedThrough)
+      && verifiedThrough >= frontierEnd) {
+    return CURRENTNESS.CURRENT
+  }
+  return notCurrent()
+}
+
+/** True when the chart may present itself as current (LIVE may show). */
+export function isCurrentnessSettled(state) {
+  return state === CURRENTNESS.CURRENT || state === CURRENTNESS.NO_EXPECTATION
 }
 
 export function isIntradayTailStale(lastTUnixSec, tf) {

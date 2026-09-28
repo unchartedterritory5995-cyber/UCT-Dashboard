@@ -527,11 +527,19 @@ def _run_job(job_id: str) -> None:
             try:
                 from api.services.watchlist_alert_service import deliver_alert_payload
                 teaser = re.sub(r"[#*\[\]]", "", report.split("\n", 1)[0])[:200]
+                # TERM-011 rows 4/5 + step 7: `severity="info"` USED TO be the only
+                # thing stopping this personalised report notice from posting into
+                # the admin Discord channel. `add_alert`'s `user_id`-gate now
+                # retires the Discord leg for every private alert outright, so
+                # severity is free to be what it actually is — dropped here, per
+                # the ruled decision ("delete the two info severity lies",
+                # term-011-routing-decisions.md §2). ⛔ Landed only after the gate
+                # itself shipped (f68eaefa7).
                 deliver_alert_payload(
                     uid, "AI", "Your weekly deep report is ready",
                     f"{teaser} — open AI Search → Deep research on "
                     "uctintelligence.com to read the full report.",
-                    source="ai_deep_report", severity="info",
+                    source="ai_deep_report",
                     extra_data={"job_id": job_id})
             except Exception:
                 pass

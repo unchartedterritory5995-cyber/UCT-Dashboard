@@ -136,8 +136,8 @@ SINK_FUNCTION = "emit"
 #: ADDING AN EMIT SITE? Both numbers move together unless the new site's
 #: severity is computed rather than a literal. Update them here and say so in the
 #: commit; the failure message prints the full derived inventory to paste from.
-EXPECTED_EMIT_SITES = 22
-EXPECTED_LITERAL_SEVERITY_SITES = 21
+EXPECTED_EMIT_SITES = 24
+EXPECTED_LITERAL_SEVERITY_SITES = 23
 
 #: The sites the OLD name-literal matcher could not see, `(relpath, key,
 #: severity)`, WITHOUT line numbers — a pinned line number is the drift this

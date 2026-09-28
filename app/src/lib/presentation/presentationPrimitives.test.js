@@ -32,6 +32,8 @@ import {
   formatNumber,
   formatPercent,
   formatCurrency,
+  formatCompact,
+  COMPACT_TIERS,
   formatTimeEt,
   formatDateTimeEt,
   formatFreshnessAsOf,
@@ -234,6 +236,51 @@ describe('formatPercent', () => {
     expect(formatPercent(NaN)).toBe(ABSENT)
     expect(formatPercent(null)).toBe(ABSENT)
     expect(formatPercent(undefined, { absent: null })).toBe(null)
+  })
+})
+
+describe('formatCompact (TERM-066) — volume, market cap, revenue, share count', () => {
+  it('the default ladder is B / M / K at one decimal, picked by MAGNITUDE', () => {
+    expect(formatCompact(11_800_000)).toBe('11.8M')
+    expect(formatCompact(25e9)).toBe('25.0B')
+    expect(formatCompact(1500)).toBe('1.5K')
+    expect(formatCompact(-2_500_000)).toBe('-2.5M')
+    expect(COMPACT_TIERS.map((t) => t.suffix)).toEqual(['B', 'M', 'K'])
+    expect(Object.isFrozen(COMPACT_TIERS)).toBe(true)
+  })
+
+  it('below the smallest tier it is a Math.round integer — and never "-0"', () => {
+    expect(formatCompact(999.4)).toBe('999')
+    expect(formatCompact(999.5)).toBe('1000')   // rounds past the tier: the tier is chosen first
+    expect(formatCompact(-0.4)).toBe('0')
+    expect(formatCompact(0)).toBe('0')
+  })
+
+  it('the prefix goes OUTSIDE the sign, as the grammars it replaced always did', () => {
+    expect(formatCompact(-1.5e9, { prefix: '$' })).toBe('$-1.5B')
+    expect(formatCompact(512, { prefix: '$' })).toBe('$512')
+  })
+
+  it('per-tier decimals, and "round" is Math.round — NOT toFixed(0)', () => {
+    const tiers = [{ at: 1e6, suffix: 'M', decimals: 2 }, { at: 1e3, suffix: 'K', decimals: 'round' }]
+    expect(formatCompact(2_072_358, { tiers })).toBe('2.07M')
+    expect(formatCompact(-2500, { tiers })).toBe('-2K')
+    const fixed0 = [{ at: 1e3, suffix: 'K', decimals: 0 }]
+    expect(formatCompact(-2500, { tiers: fixed0 })).toBe('-3K')
+    // a ladder with no B tier keeps counting in M
+    expect(formatCompact(1e9, { tiers })).toBe('1000.00M')
+  })
+
+  it('the first tier the magnitude reaches wins, and a value can round up past it', () => {
+    expect(formatCompact(999_950)).toBe('1000.0K')
+  })
+
+  it('is total: a non-finite or non-number value is the caller’s absent', () => {
+    expect(formatCompact(NaN)).toBe(ABSENT)
+    expect(formatCompact(Infinity)).toBe(ABSENT)
+    expect(formatCompact(null)).toBe(ABSENT)
+    expect(formatCompact('1000')).toBe(ABSENT)
+    expect(formatCompact(undefined, { absent: '' })).toBe('')
   })
 })
 

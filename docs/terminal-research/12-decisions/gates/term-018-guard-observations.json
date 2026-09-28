@@ -213,6 +213,47 @@
         "quote": "the second transport delivering to nobody (7 red)"
       },
       "what_the_guard_decides": "Whether the resolved recipients are actually sent to. It is the transport rather than a threshold, and - like `_page_discord` above - the derivation cannot tell those apart, so it is recorded rather than excluded by a hand-written rule."
+    },
+    {
+      "guard": "api/services/calendar_week_contract.py::_violation::<computed>::warning",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a malformed /api/calendar week payload, caught by TERM-030's week_days() contract, reaches the operator channel as a recognised, non-paging severity instead of reading as a quiet week. Added by TERM-030 (59c4e8584).",
+      "predicate": {
+        "file": "api/services/calendar_week_contract.py",
+        "scope": "_violation",
+        "pinned": "f\"calendar_week_contract:{reader}\", \"warning\", str(exc),",
+        "mutation": "f\"calendar_week_contract:{reader}\", \"warn\", str(exc),"
+      },
+      "observed_by": [
+        "tests/test_calendar_week_contract.py::test_a_violation_is_logged_at_error_and_routed_to_the_ops_sink",
+        "tests/test_calendar_week_contract.py::test_the_violation_severity_is_one_the_alert_channel_recognises"
+      ],
+      "proof": {
+        "commit": "2059e998f",
+        "quote": "the defect restored (3 red)"
+      }
+    },
+    {
+      "guard": "api/services/bars_rail_monitor.py::_page::bars_stream_rail_silent::critical",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether a live-bars push rail that has gone silent (bars_emitted_total flat for 3 consecutive 60 s RTH polls with subscriber_pairs > 0) pages the ops channel - and, the pinned predicate, that the flat count only compares readings from ONE process, so a redeploy (per-process counters reset to 0, INST-3) can never manufacture a page. Added by TERM-013 (10d7f0b2f); the emit is dark behind BARS_RAIL_PAGE_ENABLED.",
+      "predicate": {
+        "file": "api/services/bars_rail_monitor.py",
+        "scope": "decide",
+        "pinned": "same_process = prev.get(\"token\") == obs[\"token\"]",
+        "mutation": "same_process = True"
+      },
+      "observed_by": [
+        "tests/test_term013_bars_rail_reader.py::test_C_a_carried_in_streak_never_survives_a_process_change",
+        "tests/test_term013_bars_rail_reader.py::test_C_a_redeploy_restarts_the_count_even_when_both_processes_read_the_SAME_total",
+        "tests/test_term013_bars_rail_reader.py::test_a_redeploy_with_EQUAL_totals_through_the_LOOP_pages_nobody"
+      ],
+      "proof": {
+        "commit": "a482e48a2",
+        "quote": "the redeploy guard removed (3 red)"
+      }
     }
   ],
   "declared_unobserved": [

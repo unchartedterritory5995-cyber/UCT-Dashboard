@@ -146,6 +146,44 @@ _inflight_lock = _threading.Lock()
 _BG_DELTA_MAX = max(2, int(_os.environ.get("BARS_BG_DELTA_MAX", "6")))
 _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 
+# ── INTERACTIVE TAIL-HEAL RESERVE (2026-09-28) ───────────────────────────────
+# ⛔⛔ THE CLICK LOST TO THE LIST. Measured on production 2026-09-28 11:35 ET: a
+# member's list pre-warm (886 daily + 516 5m `warm=1` requests in ten minutes)
+# and the D/W/M stale-while-revalidate top-ups held every `_bg_delta_sem` slot, so
+# the chart the member actually OPENED (AVGO 5m) had its tail repair shed in under
+# a millisecond on every request for minutes — Friday's bars served on Monday.
+# ⭐ PRIORITY ISOLATION, NOT MORE THROUGHPUT. A small pool only an INTERACTIVE
+# intraday tail repair may draw on (a non-`warm` request, marked per request by
+# the router via `set_request_interactive`). Background work — warm=1, prewarm,
+# D/W/M top-ups, deep fills — can never touch it, so it cannot be starved by them.
+# Bounded: the total ceiling rises by exactly this many slots, all of them
+# reserved for member demand. Tune via BARS_INTERACTIVE_HEAL_MAX (0 disables).
+_INTERACTIVE_HEAL_MAX = max(0, int(_os.environ.get("BARS_INTERACTIVE_HEAL_MAX", "2")))
+_interactive_heal_sem = _threading.Semaphore(_INTERACTIVE_HEAL_MAX)
+_req_ctx = _threading.local()
+
+
+def set_request_interactive(flag: bool) -> None:
+    """Mark the CURRENT request thread as member-interactive (True) or not. The router
+    sets it at entry and clears it on exit; every background thread inherits the
+    default False, so a warm/prewarm path can never claim the interactive reserve."""
+    _req_ctx.interactive = bool(flag)
+
+
+def _request_is_interactive() -> bool:
+    return bool(getattr(_req_ctx, "interactive", False))
+
+
+def _acquire_heal_slot(interactive: bool):
+    """Take a tail-heal slot without blocking. Returns the semaphore to release, or
+    None when no slot is available. Interactive callers try their RESERVE first so the
+    shared pool stays available to background work, then fall back to the shared pool."""
+    if interactive and _INTERACTIVE_HEAL_MAX > 0 and _interactive_heal_sem.acquire(blocking=False):
+        return _interactive_heal_sem
+    if _bg_delta_sem.acquire(blocking=False):
+        return _bg_delta_sem
+    return None
+
 # On-demand deep gap-fill (2026-07-14). The delta gap-fill (_DELTA_GAPFILL_DAYS)
 # only reaches ~2 weeks back; when a user PANS deeper (months) an interior hole
 # there won't self-heal. This closes that: any intraday chart view kicks a
@@ -446,6 +484,165 @@ def intraday_session_complete(tf: str, last_ts: int | None) -> bool:
         return tail_minutes >= close_minutes - int(tf)
     except Exception:                      # noqa: BLE001
         return True
+
+
+# ── TAIL CURRENTNESS: OBSERVED vs VERIFIED (2026-09-28) ──────────────────────
+# ⛔⛔ "THE STORE HOLDS ROWS" IS NOT "THE CHART IS CURRENT". On 2026-09-28 the server
+# KNEW AVGO 5m was a whole session stale (`_needs_fresh` and
+# `_is_cold_stale_intraday` both True), shed the repair for capacity, and answered
+# with Friday's rows as an ordinary 200. Nothing on the wire said "I did not check".
+#
+# Two separate facts, never merged:
+#   OBSERVED — the served tail is within ONE bucket of the RTH frontier (the latest
+#              bucket that has closed). One bucket absorbs an illiquid name that did
+#              not print in the newest interval, and nothing more.
+#   VERIFIED — the PROVIDER was asked at instant X, answered, and its rows were
+#              persisted. `verified_through = X`. Beyond the one-bucket tolerance,
+#              only this may call a tail current ("no newer bar exists as of X").
+#
+# ⛔ `verified_through` IS NEVER DERIVED FROM THE STORED TAIL. It is written in exactly
+# one place (`_mark_tail_verified`), after a provider answer that did not raise AND
+# whose rows reached SQLite — so a failed write ("database is locked") verifies
+# nothing. It is per-process and in memory on purpose: a restart forgets it and the
+# next request re-verifies; it can never become a durable claim.
+_TAIL_VERIFIED_MAX_KEYS = 50000
+_tail_verified: dict = {}
+_tail_verified_lock = _threading.Lock()
+
+
+def _mark_tail_verified(ticker: str, tf: str, checked_at: float) -> None:
+    key = (ticker.upper(), tf)
+    with _tail_verified_lock:
+        if len(_tail_verified) >= _TAIL_VERIFIED_MAX_KEYS and key not in _tail_verified:
+            _tail_verified.clear()          # bounded; a cleared map costs one re-verify
+        prev = _tail_verified.get(key)
+        if prev is None or checked_at > prev:
+            _tail_verified[key] = checked_at
+
+
+def tail_verified_through(ticker: str, tf: str):
+    with _tail_verified_lock:
+        return _tail_verified.get((ticker.upper(), tf))
+
+
+def _heal_intraday_tail(ticker_up: str, tf: str, last_ts: int) -> list:
+    """The ONE intraday tail repair: provider delta → persist → record verification.
+
+    ⚠️ The check instant is taken BEFORE the provider call, so a bar that closes while
+    the call is in flight is never claimed. A raise anywhere (provider, or the SQLite
+    write) propagates to the caller and verifies nothing."""
+    checked_at = _time.time()
+    status: dict = {}
+    new = _delta_intraday(ticker_up, tf, last_ts, status=status)
+    if new and not _is_intraday_stale(new):
+        _sqlite.put_bars(ticker_up, tf, new, date_tf=False)
+    if status.get("ok"):
+        _mark_tail_verified(ticker_up, tf, checked_at)
+    return new
+
+
+def expected_completed_bucket(tf: str, now: float | None = None):
+    """Start (unix seconds) of the latest REGULAR-session bucket that has CLOSED, or
+    None when no bucket of today's session is expected (weekend, holiday, before the
+    first bucket closes). The server twin of the client's
+    `marketSession.expectedLatestCompletedBar(tf, now, {session:'rth'})` — same
+    bucket-start convention, same irregular 09:30 opening hour on tf=60, same early
+    closes (`_session_close_minutes`)."""
+    if tf not in ("1", "5", "15", "30", "60"):
+        return None
+    try:
+        et = _ZI("America/New_York")
+        now_ts = float(now if now is not None else _time.time())
+        now_dt = datetime.fromtimestamp(now_ts, et)
+        ymd = int(now_dt.strftime("%Y%m%d"))
+        if now_dt.weekday() >= 5 or _is_nyse_holiday(ymd):
+            return None
+        midnight = now_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        open_ts = int(midnight.timestamp()) + _RTH_OPEN_MINUTES_SERVER * 60
+        close_ts = int(midnight.timestamp()) + _session_close_minutes(ymd) * 60
+        if now_ts < open_ts:
+            return None
+
+        def _bstart(t: int) -> int:
+            if tf == "60":
+                return bucket_60_et_unix_seconds(int(t))
+            step = int(tf) * 60
+            return int(t) // step * step
+
+        if now_ts >= close_ts:
+            return _bstart(close_ts - 1)
+        cur = _bstart(int(now_ts))
+        prev = _bstart(cur - 1)
+        if prev < open_ts:
+            return None
+        return prev
+    except Exception:                      # noqa: BLE001 — abstain, never guess
+        return None
+
+
+def intraday_tail_status(ticker: str, tf: str, tail_ts, now: float | None = None) -> dict:
+    """Machine-readable currentness for an intraday response.
+
+    Returns {"tail_status": "current" | "verified" | "unverified",
+             "verified_through": <unix seconds> | None}
+      current    — the served tail is within one bucket of the RTH frontier (or, with no
+                   frontier today, it carries the last session through its close).
+      verified   — outside that tolerance, but the provider was asked AFTER the expected
+                   bucket closed and had nothing newer (`verified_through` says when).
+      unverified — outside the tolerance and nobody has proven there is nothing newer:
+                   the repair was shed, failed, or is still running. NOT current."""
+    vt = tail_verified_through(ticker, tf)
+    out = {"tail_status": "unverified", "verified_through": vt}
+    try:
+        tail = int(tail_ts) if tail_ts is not None else None
+    except (TypeError, ValueError):
+        tail = None
+    frontier = expected_completed_bucket(tf, now)
+    step = int(tf) * 60 if tf in ("1", "5", "15", "30") else 3600
+    if frontier is not None:
+        if tf == "60":
+            tolerance_floor = bucket_60_et_unix_seconds(frontier - 1)
+        else:
+            tolerance_floor = frontier - step
+        if tail is not None and tail >= tolerance_floor:
+            out["tail_status"] = "current"
+        elif vt is not None and tail is not None and vt >= _bucket_end(tf, frontier, step):
+            out["tail_status"] = "verified"
+        return out
+    # No bucket of today is expected: the tail must carry the last session to its close.
+    if (tail is not None and not _is_cold_stale_intraday(tf, tail)
+            and intraday_session_complete(tf, tail)):
+        out["tail_status"] = "current"
+    elif tail is not None and vt is not None and vt > tail:
+        # The provider was asked after the tail and had nothing newer (a genuinely thin
+        # name that stopped printing early) — proven, not assumed.
+        try:
+            _ymd = _expected_latest_session_yyyymmdd()
+            et = _ZI("America/New_York")
+            _d = datetime.strptime(str(_ymd), "%Y%m%d").replace(tzinfo=et)
+            _close = int(_d.timestamp()) + _session_close_minutes(_ymd) * 60
+            if vt >= _close:
+                out["tail_status"] = "verified"
+        except Exception:                  # noqa: BLE001
+            pass
+    return out
+
+
+_RTH_OPEN_MINUTES_SERVER = 9 * 60 + 30
+
+
+def _bucket_end(tf: str, start: int, step: int) -> int:
+    """End instant of the bucket starting at `start`. ⚠️ On 1h the 09:30 bucket is
+    THIRTY minutes (it ends at 10:00), so `start + 3600` would demand a provider check
+    that cannot happen until the NEXT bucket has closed."""
+    if tf == "60":
+        try:
+            d = datetime.fromtimestamp(int(start), _ZI("America/New_York"))
+            if d.hour * 60 + d.minute == _RTH_OPEN_MINUTES_SERVER:
+                return int(start) + 1800
+        except Exception:                  # noqa: BLE001
+            pass
+    return int(start) + step
 
 
 # One heal attempt per truncated tail per cooldown. ⛔ WITHOUT THIS THE PREDICATE
@@ -765,6 +962,27 @@ def _is_cold_stale_daily(tf: str, last_ts: int | None, now=None) -> bool:
         return False
 
 
+def _is_cold_stale_weekly(tf: str, last_ts, now=None) -> bool:
+    """Weekly twin of `_is_cold_stale_daily`: True when the newest stored WEEKLY bar is
+    from an EARLIER week than the one the latest expected session belongs to — i.e. the
+    whole current week is missing, not merely its week-to-date values.
+
+    ⛔ MEASURED 2026-09-28 (Monday 11:37 ET): AVGO/AAPL/NVDA/MSFT `tf=W` served LAST
+    week's bar (key 2026-09-25) via stale-while-revalidate as the newest weekly candle.
+    UCT's weekly contract is a forming week-to-date candle (`_delta_weekly`: "the
+    in-progress weekly bar keeps updating"; `_needs_fresh`'s W rule, 2026-09-25), and
+    SWR pins the first mount's answer — the same "fetch once per mount" trap the daily
+    rule exists for. Weekly keys are the ISO week's FRIDAY, so compare week KEYS; before
+    Monday's first session is expected (weekend, pre-09:35) the latest session is still
+    last week and this is False."""
+    if tf != "W" or last_ts is None:
+        return False
+    try:
+        return int(last_ts) < _week_key_yyyymmdd(_expected_latest_session_yyyymmdd(now))
+    except (TypeError, ValueError):
+        return False
+
+
 def _last_closed_session_yyyymmdd(now=None) -> int:
     """ET date (YYYYMMDD int) of the most recent CLOSED daily session: today only
     once today's regular session has closed (>= 16:00 ET on a trading weekday),
@@ -873,17 +1091,19 @@ def _enqueue_since_bg_heal(cache_key: str, ticker: str, tf: str, last_ts: int, d
 
     def _run():
         try:
-            if tf == "D":
-                new = _delta_daily(ticker, last_ts)
-            elif tf == "W":
-                new = _delta_weekly(ticker, last_ts)
-            elif tf == "M":
-                new = _delta_monthly(ticker, last_ts)
+            if not date_tf:
+                if _heal_intraday_tail(ticker, tf, last_ts):   # persists + verifies
+                    cache.invalidate(cache_key)
             else:
-                new = _delta_intraday(ticker, tf, last_ts)
-            if new and (date_tf or not _is_intraday_stale(new)):
-                _sqlite.put_bars(ticker, tf, new, date_tf=date_tf)
-                cache.invalidate(cache_key)  # next non-delta request rebuilds fresh
+                if tf == "D":
+                    new = _delta_daily(ticker, last_ts)
+                elif tf == "W":
+                    new = _delta_weekly(ticker, last_ts)
+                else:
+                    new = _delta_monthly(ticker, last_ts)
+                if new:
+                    _sqlite.put_bars(ticker, tf, new, date_tf=date_tf)
+                    cache.invalidate(cache_key)  # next non-delta request rebuilds fresh
         except Exception as _e:
             import logging as _log_sh
             _log_sh.getLogger(__name__).error(
@@ -1634,7 +1854,7 @@ def _delta_keep_bar(ts: int, heal_floor: int, stored_ts: "set | None") -> bool:
     return ts >= heal_floor or ts not in stored_ts
 
 
-def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
+def _delta_intraday(ticker: str, tf: str, last_ts: int, status: "dict | None" = None) -> list[dict]:
     """Fetch intraday bars within a trailing heal window of last_ts (unix sec),
     PLUS gap-fill any interior bar missing from storage.
 
@@ -1705,8 +1925,11 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             # "stored partial in-progress bar" bug where a chart loaded mid-hour
             # froze the bucket at half-bar values that the prior > filter could
             # never update (Step 4).
-            return [b for b in _session_resample_hourly(bars_src)
-                    if _delta_keep_bar(b["t"], heal_floor, stored_ts)]
+            out = [b for b in _session_resample_hourly(bars_src)
+                   if _delta_keep_bar(b["t"], heal_floor, stored_ts)]
+            if status is not None:
+                status["ok"] = True   # the provider ANSWERED (an empty answer included)
+            return out
         except Exception as _e:
             import logging as _log
             _log.getLogger(__name__).error(
@@ -1743,6 +1966,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                     "l": _px(bar["l"]), "c": _px(bar["c"]),
                     "v": int(_bar_volume(bar)),
                 })
+        if status is not None:
+            status["ok"] = True   # the provider ANSWERED (an empty answer included)
         return new
     except Exception as _e:
         import logging as _log
@@ -2625,38 +2850,42 @@ def _bounded_delta(ticker_up: str, tf: str, last_ts: int, date_tf: bool,
     """
     if deadline is None:
         deadline = _REQUEST_DEADLINE_SECONDS
-    if not _bg_delta_sem.acquire(blocking=False):
+    # ⭐ An interactive INTRADAY repair may draw on the reserved pool (see
+    # `_interactive_heal_sem`); everything else competes for the shared one only.
+    _slot = _acquire_heal_slot(interactive=(not date_tf) and _request_is_interactive())
+    if _slot is None:
         return False                      # no capacity → serve the local store now
     done = _threading.Event()
 
     def _job():
         try:
-            if tf == "D":
-                new = _delta_daily(ticker_up, last_ts)
-            elif tf == "W":
-                new = _delta_weekly(ticker_up, last_ts)
-            elif tf == "M":
-                new = _delta_monthly(ticker_up, last_ts)
+            if not date_tf:
+                # Persists (never an hours-old yfinance fallback — `_needs_fresh` reads
+                # last_ts age, not data age) AND records the provider verification.
+                _heal_intraday_tail(ticker_up, tf, last_ts)
             else:
-                new = _delta_intraday(ticker_up, tf, last_ts)
-            # Mirror `_bg_delta`'s guard: never persist an hours-old yfinance
-            # fallback as fresh — `_needs_fresh` reads last_ts age, not data age.
-            if new and (date_tf or not _is_intraday_stale(new)):
-                _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
+                if tf == "D":
+                    new = _delta_daily(ticker_up, last_ts)
+                elif tf == "W":
+                    new = _delta_weekly(ticker_up, last_ts)
+                else:
+                    new = _delta_monthly(ticker_up, last_ts)
+                if new:
+                    _sqlite.put_bars(ticker_up, tf, new, date_tf=date_tf)
         except Exception as _e:           # noqa: BLE001 — never raise into a serve
             import logging as _log_bd
             _log_bd.getLogger(__name__).warning(
                 "[bars] bounded delta %s tf=%s: %s: %s",
                 ticker_up, tf, type(_e).__name__, _e)
         finally:
-            _bg_delta_sem.release()
+            _slot.release()
             done.set()
 
     try:
         _threading.Thread(target=_job, daemon=True,
                           name=f"bars-reqdelta-{ticker_up}-{tf}").start()
     except Exception:                     # noqa: BLE001 — thread exhaustion → serve local
-        _bg_delta_sem.release()
+        _slot.release()
         return False
     return done.wait(timeout=deadline)
 
@@ -3026,7 +3255,14 @@ def serve_warm_from_cache(ticker: str, tf: str, bars: int):
         ):
             return None
         payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(stored_rows, tf, ticker_up)}
-        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+        # ⛔⛔ CACHE MAY PROVIDE HISTORY; IT MAY NOT CREATE CURRENTNESS (2026-09-28).
+        # `cache_key` is the SAME Layer-1 entry the member's own chart request reads.
+        # Writing unchecked rows into it here meant a warm prefetch of a stale tail
+        # answered the next interactive request from memory — skipping the repair for
+        # the whole TTL (900 s on W). Only a store the serve path itself would call
+        # fresh may be published there; otherwise the warm is served, not cached.
+        if not _needs_fresh(last_ts, tf):
+            cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
         _mark_serve("warm-sqlite")
         return JSONResponse(
             content=payload,
@@ -3108,6 +3344,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
         stored_rows and last_ts
         and (not _is_cold_stale_intraday(tf, last_ts) or _intraday_deblockable(tf, last_ts))
         and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
+        and not _is_cold_stale_weekly(tf, last_ts)
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
@@ -3214,16 +3451,24 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                     _sd_do = True
             if _sd_do:
                 try:
-                    _sd_new = _delta_intraday(ticker_up, tf, last_ts)
-                    if _sd_new and not _is_intraday_stale(_sd_new):
-                        _sqlite.put_bars(ticker_up, tf, _sd_new, date_tf=False)
-                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars)
+                    # ⛔ BOUNDED (2026-09-28). This was a bare `_delta_intraday` + `put_bars`
+                    # on the request thread — the last unbounded one. Under a held SQLite
+                    # write lock the put waited out its 30 s busy_timeout, the edge aborted
+                    # at 8 s and fell back to the WEB pod (a different store). Same ceiling
+                    # and same capacity pools as Layer 4: a shed repair serves the store now
+                    # and the response is marked unverified by the router.
+                    _sd_done = _bounded_delta(ticker_up, tf, last_ts, False)
+                    if not _sd_done:
+                        _mark_serve("sd-deadline")
+                    _sd_rows = _sqlite.get_bars(ticker_up, tf, bars) if _sd_done else stored_rows
                     payload = {
                         "ticker": ticker_up, "tf": tf,
                         "bars": _fmt_sqlite_bars(_sd_rows or stored_rows, tf, ticker_up),
                     }
                     if payload["bars"]:
-                        cache.set(cache_key, payload, ttl=_CACHE_TTL.get(tf, 300))
+                        # A shed repair must not pin the unrepaired rows for a full TTL.
+                        cache.set(cache_key, payload,
+                                  ttl=_CACHE_TTL.get(tf, 300) if _sd_done else 5)
                     return JSONResponse(
                         content=payload,
                         headers={"Cache-Control": "public, max-age=5"},
@@ -3303,8 +3548,9 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
                             elif _tf == "M":
                                 new = _delta_monthly(_sym, _last_ts)
                             else:
-                                new = _delta_intraday(_sym, _tf, _last_ts)
-                            if new:
+                                # Persists + records provider verification.
+                                new = _heal_intraday_tail(_sym, _tf, _last_ts)
+                            if new and _dtf:
                                 _sqlite.put_bars(_sym, _tf, new, date_tf=_dtf)
                         # Re-read only when the delta actually advanced the store. When
                         # `new` is empty the SQLite rows are unchanged, so reuse the rows

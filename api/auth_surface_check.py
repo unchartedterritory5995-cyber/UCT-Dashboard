@@ -51,10 +51,15 @@ boot with `HTTP 404 from /api/admin/auth-surface` until the worker catches up.
 """
 from __future__ import annotations
 
+import inspect
+import io
+import json
 import logging
 import os
+import textwrap
 import threading
 import time
+import tokenize
 
 # ⭐ TERM-011 / RM-N09 step 3 — the OPS-class destination reader. MODULE level: `_alert`
 # below reads the webhook BEFORE its try/except, so a lazy import there could raise
@@ -71,7 +76,21 @@ VOUCH_PATH = "/api/admin/auth-surface"
 # This pod's own most recent audit, served at VOUCH_PATH. None until boot runs.
 _LAST_AUDIT: dict | None = None
 
-# Dependencies that constitute a gate. Kept in sync with the static test's GUARDS.
+# Dependencies that constitute a gate, matched by `__name__` anywhere in a
+# route's dependency tree. ⚰️ This said "kept in sync with the static test's
+# GUARDS"; it was not (`require_paid` was never in that set) — the two are
+# different instruments over different inputs, and neither is derived from the
+# other.
+#
+# ⭐ TERM-026 added the last three. Each was already a real, fail-closed gate
+# that reads its credential ITSELF rather than through `get_current_user`, so a
+# `Depends`-shaped audit reported every route behind it as open — measured
+# 2026-09-27 over `api.main:app`: 13 chart-data GETs (`require_bars_access`,
+# `api/bars_auth.py`), 9 worker GETs (`require_push_secret`, one copy per
+# router, every one raising 401 on a blank or wrong bearer) and 5 Desk-article
+# GETs (`require_article_reader`, `api/routers/desk.py`, fails closed to `paid`).
+# Invisible while the aperture was mutating-only; the first GET census would
+# otherwise have reported 27 gated routes as findings.
 GUARD_NAMES = {
     "require_flow_admin",
     "require_flow_user",
@@ -79,9 +98,41 @@ GUARD_NAMES = {
     "get_current_user",
     "verify_push_secret",
     "require_paid",
+    "require_bars_access",
+    "require_push_secret",
+    "require_article_reader",
 }
 
 MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
+
+# ⭐ The STAGED read gate (`api/open_reads_gate.py`, flag OPEN_READS_GATE).
+# ⛔ DELIBERATELY NOT IN GUARD_NAMES. It is attached where whole routers are
+# MOUNTED, so it sits in the tree of routes it does not govern — mutating routes
+# (it passes every non-GET/HEAD straight through) and unclassified reads. In
+# GUARD_NAMES it would mark an ungated POST in the same router "gated" and hide
+# it from the boot page. So it counts as a gate ONLY in the read census, and only
+# for a route its own table (`GATED_READS`) classifies.
+READ_GATE_NAME = "open_reads_gate"
+
+# ⭐ TERM-026 / GATE-7 — THE READ APERTURE. `MUTATING` above decides what PAGES
+# at boot and is deliberately unchanged; this decides what the census EXAMINES.
+# The risk the auditor exists for is an unauthenticated GET of vendor or member
+# data, and a terminal is read-shaped, so an instrument that looked only at
+# MUTATING was reassuring in exactly the region the terminal lives in.
+READ_METHODS = frozenset({"GET", "HEAD"})
+
+# Routes that are open TODAY, recorded by name with a reason, so the widened
+# aperture reports what is NEW rather than re-reporting what is known. A ratchet:
+# an entry that stops being true is itself a finding (see `audit_surface`).
+READ_BASELINE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "auth_surface_read_baseline.json")
+
+#: `inline` — gated in the handler BODY, not by a `Depends`; carries a `marker`
+#:            that must still appear in the comment-stripped handler source.
+#: `public` — deliberately anonymous (health, capability links, OAuth callbacks).
+#: `open`   — NO gate found anywhere. Recorded so the census can gate on what
+#:            is new; recording is not a ruling that it is safe.
+BASELINE_KINDS = ("inline", "public", "open")
 
 # Prefixes whose mutating routes must be gated. Deliberately a allow-list of
 # what we AUDIT rather than of what may be open — an unlisted router is simply
@@ -269,6 +320,208 @@ def audit_routes(app) -> dict:
     }
 
 
+#: The SPA catch-all api/main.py mounts only when app/dist is built.
+SPA_CATCH_ALL = "/{full_path:path}"
+
+
+def load_read_baseline(path: str | None = None) -> dict:
+    """`{(method, path): {"kind", "reason", ["marker"]}}` from the baseline file.
+
+    Missing or unreadable ⇒ `{}` — which FAILS CLOSED: every open read then
+    reports as new. That is the right direction for a gate and the wrong one for
+    a quiet boot, which is why the boot log only reports reads (never pages).
+    """
+    try:
+        with open(path or READ_BASELINE_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as e:
+        logger.warning("[auth-surface] read baseline unreadable: %s", e)
+        return {}
+    out: dict = {}
+    for row in data.get("routes") or ():
+        entry = {k: v for k, v in row.items() if k not in ("method", "path")}
+        out[(str(row["method"]).upper(), str(row["path"]))] = entry
+    return out
+
+
+def _code_tokens(fn) -> str | None:
+    """The handler's source with comments and docstrings removed, as one string
+    of tokens — or None when the source cannot be read. Prose that NAMES a gate
+    is not a gate; only code that calls it is."""
+    try:
+        src = inspect.getsource(fn)
+    except (OSError, TypeError):
+        return None
+    kept = []
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(textwrap.dedent(src)).readline):
+            if tok.type == tokenize.COMMENT:
+                continue
+            if tok.type == tokenize.STRING and \
+                    tok.string.lstrip("rbuRBUfF").startswith(('"""', "'''")):
+                continue
+            kept.append(tok.string)
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return None
+    return " ".join(kept)
+
+
+def _handler_mentions(fn, marker: str) -> bool:
+    """True iff `marker` appears in the handler's CODE (not its comments or
+    docstring). An unreadable source answers False, never True."""
+    code = _code_tokens(fn)
+    return bool(code) and bool(marker) and marker in code
+
+
+def audit_surface(app, baseline: dict | None = None) -> dict:
+    """The WHOLE route table: a published denominator plus two verdicts.
+
+    ⭐ THE DENOMINATOR IS THE DELIVERABLE (TERM-026). A guard that reports
+    "0 unguarded" without saying over how many routes cannot be told apart from
+    one that examined nothing. So this returns, derived from `app.routes` and
+    never typed: `routes_total` (every (method, path) pair), `by_method`,
+    `examined` (every read in the app + the mutating routes `audit_routes`
+    checks), and the read buckets, which close over what was examined.
+
+    Reads (`READ_METHODS`, whole app, first registration of a (method, path)
+    wins — as it does in FastAPI):
+      gated            — a `GUARD_NAMES` dependency in the tree
+      middleware_gated — under an INSTALLED admin-guard prefix
+      delegated        — flow_proxy's forwarder (gate lives on flow-worker)
+      recorded[kind]   — named in the baseline (see `BASELINE_KINDS`)
+      ungated          — none of the above: a FINDING
+
+    Also findings: `stale_baseline` (an entry for a route now gated, or gone —
+    the ratchet only moves down) and `inline_marker_missing` (an `inline`
+    entry whose gate no longer appears in its handler's code).
+
+    Mutating: `audit_routes(app)` verbatim — the boot verdict is unchanged.
+    Pure: sends no request, runs no handler.
+    """
+    if baseline is None:
+        baseline = load_read_baseline()
+    mw_prefixes = middleware_guarded_prefixes(app)
+    try:
+        from api import open_reads_gate as _org
+        staged_family = _org.family_of
+        staged_mode = _org.mode()
+    except Exception:                          # pragma: no cover - defensive
+        staged_family, staged_mode = (lambda _p: None), "unavailable"
+
+    routes_total = 0
+    by_method: dict[str, int] = {}
+    seen: set[tuple[str, str]] = set()
+    shadowed = 0
+    gated = mw_gated = delegated = flag_gated = 0
+    recorded = {k: 0 for k in BASELINE_KINDS}
+    ungated: list[tuple[str, str]] = []
+    marker_missing: list[tuple[str, str]] = []
+    open_read_keys: set[tuple[str, str]] = set()
+
+    for route in getattr(app, "routes", []):
+        path = getattr(route, "path", "") or ""
+        methods = getattr(route, "methods", None) or set()
+        for method in sorted(methods):
+            routes_total += 1
+            by_method[method] = by_method.get(method, 0) + 1
+            if method not in READ_METHODS:
+                continue
+            key = (method, path)
+            if key in seen:
+                shadowed += 1          # FastAPI serves the first registration
+                continue
+            seen.add(key)
+            names = _guard_names_for(route)
+            if names & GUARD_NAMES:
+                gated += 1
+                continue
+            # The staged read gate: a gate for THIS read only when it is in the
+            # tree AND its table classifies the route. Counted inside `gated` so
+            # the buckets still close, and reported separately WITH THE MODE —
+            # while OPEN_READS_GATE is off these answer anonymously, and a census
+            # that hid that would be a proxy for "gated" rather than the fact.
+            if READ_GATE_NAME in names and staged_family(path):
+                gated += 1
+                flag_gated += 1
+                continue
+            if mw_prefixes and path.startswith(mw_prefixes):
+                mw_gated += 1
+                continue
+            if _is_proxy_forwarder(route):
+                delegated += 1
+                continue
+            open_read_keys.add(key)
+            entry = baseline.get(key)
+            if entry is None:
+                ungated.append(key)
+                continue
+            kind = entry.get("kind")
+            if kind not in recorded:
+                ungated.append(key)    # an unknown kind is not a recording
+                continue
+            if kind == "inline" and not _handler_mentions(
+                    getattr(route, "endpoint", None), entry.get("marker", "")):
+                marker_missing.append(key)
+            recorded[kind] += 1
+
+    # ⛔ NOT filtered by READ_METHODS. Mutation-proved 2026-09-27: with GET
+    # dropped from the aperture and this filtered, every GET entry silently left
+    # the stale set and the CLI exited 0 over 4 examined reads. An entry the
+    # census can no longer SEE is stale for that reason too, which makes the
+    # baseline itself a floor on the aperture.
+    # `requires_dist`: the SPA shell and root-level static files are registered by
+    # api/main.py only `if os.path.exists(DIST)` — a checkout with no built
+    # frontend has none of them. Their absence is stale ONLY when the bundle's
+    # routes are present at all, read from the app itself (the SPA catch-all),
+    # never from the filesystem, so one missing asset in a built app still fails.
+    dist_served = any(k[1] == SPA_CATCH_ALL for k in seen)
+    stale = sorted(k for k in baseline if k not in open_read_keys
+                   and (dist_served or not baseline[k].get("requires_dist")))
+    mutating = audit_routes(app)
+    reads_examined = len(seen)
+    reads = {
+        "examined": reads_examined,
+        "shadowed": shadowed,
+        "gated": gated,
+        "flag_gated": flag_gated,
+        "flag_mode": staged_mode,
+        "middleware_gated": mw_gated,
+        "delegated": delegated,
+        "recorded": recorded,
+        "ungated": sorted(ungated),
+    }
+    ok = not (ungated or stale or marker_missing or mutating["ungated"])
+    return {
+        "routes_total": routes_total,
+        "by_method": dict(sorted(by_method.items())),
+        "examined": reads_examined + mutating["checked"],
+        "reads": reads,
+        "mutating": mutating,
+        "stale_baseline": stale,
+        "inline_marker_missing": sorted(marker_missing),
+        "ok": ok,
+    }
+
+
+def format_denominator(res: dict) -> str:
+    """One greppable line. Every number is read off `audit_surface`'s result."""
+    r = res["reads"]
+    return (
+        f"examined {res['examined']}/{res['routes_total']} (method,path) | "
+        f"reads {r['examined']}: gated={r['gated']} "
+        f"(of which OPEN_READS_GATE-staged={r.get('flag_gated', 0)} "
+        f"mode={r.get('flag_mode', '?')}) "
+        f"middleware_gated={r['middleware_gated']} delegated={r['delegated']} "
+        f"public={r['recorded']['public']} inline={r['recorded']['inline']} "
+        f"recorded_open={r['recorded']['open']} UNRECORDED={len(r['ungated'])} | "
+        f"mutating(audited prefixes) {res['mutating']['checked']}: "
+        f"UNGATED={len(res['mutating']['ungated'])} | "
+        f"stale_baseline={len(res['stale_baseline'])} "
+        f"inline_marker_missing={len(res['inline_marker_missing'])} | "
+        f"by_method={res['by_method']}"
+    )
+
+
 def run_startup_audit(app, service: str = "web") -> dict:
     """Audit + log a greppable fingerprint + alert on Discord if anything is open.
 
@@ -296,6 +549,28 @@ def run_startup_audit(app, service: str = "web") -> dict:
         logger.error("[startup] auth-surface: service=%s mutating_routes=%d UNGATED=%d "
                      "-> %s", service, result["checked"], len(result["ungated"]), listing)
         _alert(service, _ungated_message(service, result))
+
+    # ⭐ TERM-026 — the READ census and its denominator, LOGGED, NEVER PAGED.
+    # `ok` above stays the mutating verdict, because two things read it: this
+    # function's page, and web's `verify_delegation`, which pages "flow-worker
+    # reports N UNGATED mutating route(s)" off the worker's `ok`. Folding reads
+    # into it would mislabel that page, and this pod's table differs from the one
+    # the baseline was measured on (flag-mounted routers; flow-worker serves
+    # `/internal/health`), so a read page here would fire on things no local run
+    # could see. The gate for reads is `tools/auth_surface_audit.py` and
+    # `tests/test_auth_surface_reads.py`; this line is the production-side
+    # measurement, so "examined nothing" is visible here too.
+    try:
+        surface = audit_surface(app)
+        result["reads_census"] = {
+            "denominator": format_denominator(surface),
+            "unrecorded": [f"{m} {p}" for m, p in surface["reads"]["ungated"]],
+        }
+        log = logger.warning if surface["reads"]["ungated"] else logger.info
+        log("[startup] auth-surface-reads: service=%s %s", service,
+            result["reads_census"]["denominator"])
+    except Exception as e:                     # pragma: no cover - defensive
+        logger.warning("[auth-surface] read census failed: %s", e)
 
     if result["delegated"]:
         _start_delegation_vouch(service, result["delegated"])
