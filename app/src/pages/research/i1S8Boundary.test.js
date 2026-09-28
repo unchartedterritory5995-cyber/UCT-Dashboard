@@ -45,6 +45,13 @@
 // was opened for, and this file cannot see it. Widening the surface to the
 // whole `pages/research/**` tree is a one-line change to `i1Surface`'s roots
 // and a decision somebody has to make, not a gap to paper over here.
+//
+// ⭐ TERM-034 (2026-09-27) WIDENED THE ROOTS, in its own describe block at the
+// foot of this file: `aiDoorFiles()` derives every Ask-AI door the research
+// pages mount (so ComparisonAskAi is now SEEN), and its current violation is a
+// strict expected-failure (`it.fails`) naming the three classes — recorded, not
+// fixed, because product code is not this ticket's to change. The Ask-AI tab's
+// own section above is untouched.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -334,6 +341,8 @@ const ALL_FINDINGS = SURFACE.flatMap((f) => boundaryFindings(f))
  * what `ResearchPage.jsx` mounts as the Ask-AI tab, and the compare page is a
  * different door), so an entry for it would be a line in a ledger nothing
  * checks. It is a reported finding, not debt this file can hold.
+ * (TERM-034: it IS now checked — by the widened-roots block at the foot of this
+ * file, as a strict expected-failure — still deliberately not in this ledger.)
  */
 export const RECORDED_BOUNDARY_DEBT = {}
 
@@ -499,5 +508,99 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
       + "const label = 'citation'\n"
       + 'export default () => <div className={styles.explainSummary}>{label}</div>\n'
     expect(boundaryFindings(anchor, prose)).toEqual([])
+  })
+})
+
+// ─── TERM-034 — THE ROOTS, WIDENED TO EVERY ASK-AI DOOR ─────────────────────
+//
+// I1-SPEC Part 4 names the gap in this rail's own words: ComparisonAskAi (the
+// compare page's Ask-AI door) *"draws its own citation list through the same S8
+// classes and is outside this rail's surface today"*, and says closing it is
+// *"a one-line change"* to `i1Surface`'s roots. TERM-034 says: extend the roots,
+// do not rewrite the section. So the section above is untouched and this block
+// feeds `i1Surface` a DERIVED root set — every default import a research PAGE
+// mounts whose name says Ask-AI — so a third door joins without editing a list.
+//
+// ⛔ The compare door VIOLATES the boundary today, and product code is not this
+// ticket's to change. Its finding is therefore a strict expected-failure
+// (`it.fails`): green while the violation stands, RED the day it is fixed (so
+// the marker has to come off in the fixing commit), and pinned to its named
+// reason by the test beside it, so a detector that went blind cannot hide there.
+
+const RESEARCH_DIR = path.join(SRC, 'pages', 'research')
+
+/** Every research PAGE file (`*Page.jsx`), read off the directory. */
+export function researchPages() {
+  return fs.readdirSync(RESEARCH_DIR)
+    .filter((f) => /Page\.jsx$/.test(f) && !/\.(test|spec)\.jsx$/.test(f))
+    .map((f) => path.join(RESEARCH_DIR, f))
+}
+
+/** Every Ask-AI door those pages mount — parsed, never typed. */
+export function aiDoorFiles(pages = researchPages()) {
+  const out = []
+  for (const page of pages) {
+    for (const n of parse(read(page)).body) {
+      if (n.type !== 'ImportDeclaration' || typeof n.source?.value !== 'string') continue
+      for (const s of n.specifiers || []) {
+        if (s.type !== 'ImportDefaultSpecifier') continue
+        if (!s.local.name.toLowerCase().replace(/[^a-z]/g, '').includes('askai')) continue
+        const r = resolve(page, n.source.value)
+        if (r && !out.includes(r)) out.push(r)
+      }
+    }
+  }
+  return out
+}
+
+const DOORS = aiDoorFiles()
+const WIDE_SURFACE = i1Surface(DOORS)
+const WIDE_FINDINGS = WIDE_SURFACE.flatMap((f) => boundaryFindings(f))
+const COMPARE_DOOR = 'app/src/pages/research/components/ComparisonAskAi.jsx'
+
+describe('TERM-034 — the boundary, over EVERY Ask-AI door the research pages mount', () => {
+  it('the widened roots are derived, reach both doors, and contain the original surface', () => {
+    // eslint-disable-next-line no-console
+    console.log(`[i1-rail:s8-boundary] denominator: ${researchPages().length} research pages, `
+      + `${DOORS.length} Ask-AI doors [${DOORS.map(key).join(', ')}], `
+      + `${WIDE_SURFACE.length} modules in the widened surface (Ask-AI tab alone: `
+      + `${SURFACE.length}), ${WIDE_FINDINGS.length} findings`)
+    expect(DOORS.map(key)).toEqual(expect.arrayContaining([
+      'app/src/pages/research/tabs/AskAiTab.jsx', COMPARE_DOOR,
+    ]))
+    // The original root is one of the widened ones, so widening can only ADD
+    // surface — the Ask-AI tab is still guarded by exactly the same detector.
+    for (const f of askAiTabFile()) expect(DOORS).toContain(f)
+    for (const f of SURFACE) expect(WIDE_SURFACE).toContain(f)
+  })
+
+  it('the Ask-AI tab stays clean inside the widened surface — only the compare door is red', () => {
+    const outsideCompare = WIDE_FINDINGS.filter((f) => f.file !== COMPARE_DOOR)
+    expect(outsideCompare.map((f) => f.id)).toEqual([])
+  })
+
+  it('the compare door is red for the NAMED reason — its own citation list, three classes', () => {
+    // Pins the xfail below to the violation it records: were the detector to
+    // go blind, `it.fails` would still pass on some OTHER error; this cannot.
+    const what = WIDE_FINDINGS.filter((f) => f.file === COMPARE_DOOR).map((f) => f.what)
+    expect(what).toEqual(['explainCitations', 'explainCitation', 'explainCitationMark'])
+  })
+
+  it.fails('XFAIL — VIOLATION: ComparisonAskAi.jsx renders its own citation list '
+    + '(className explainCitations / explainCitation / explainCitationMark) instead of '
+    + 'composing S8\'s <Provenance>/<Cited>. I1-SPEC Part 4 open gap; the product fix is '
+    + 'out of TERM-034\'s scope. Remove `.fails` in the commit that fixes it.', () => {
+    expect(WIDE_FINDINGS.map((f) => `${f.id} (line ${f.line})`)).toEqual([])
+  })
+
+  it('CONTROL: the door derivation discriminates — a non-Ask-AI default import is not a door', () => {
+    // ResearchComparePage also default-imports non-AI components; had the name
+    // filter been dropped they would all be roots.
+    const compare = path.join(RESEARCH_DIR, 'ResearchComparePage.jsx')
+    const defaults = parse(read(compare)).body
+      .filter((n) => n.type === 'ImportDeclaration')
+      .flatMap((n) => (n.specifiers || []).filter((s) => s.type === 'ImportDefaultSpecifier'))
+    expect(defaults.length).toBeGreaterThan(aiDoorFiles([compare]).length)
+    expect(aiDoorFiles([compare]).map(key)).toEqual([COMPARE_DOOR])
   })
 })

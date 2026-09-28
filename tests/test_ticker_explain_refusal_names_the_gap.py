@@ -121,3 +121,92 @@ def test_an_answering_state_still_carries_no_reason():
                    evidence=EV, domains=["news"], summary="s")
     assert r["insufficient_evidence_reason"] == ""
     assert r["insufficient_evidence"] is False
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# TERM-034 — I1-SPEC PART 3 (the refusal shape): the clauses nothing above
+# enforced. Spec: docs/terminal-research/08-ai/
+# i1-tool-contract-grounding-refusal-spec.md, Part 3. Already railed elsewhere
+# and NOT re-railed: schema enum == `_RESPONSE_STATES` for EXPLAIN_SCHEMA and the
+# `_clean_history` fail-closed coercion (test_ticker_explain_full_text_completeness
+# .py), an invalid model state refused (test_ticker_explain.py::
+# TestExplainRecentActivity::test_an_invalid_response_state_is_rejected_by_the_gate).
+# ═════════════════════════════════════════════════════════════════════════
+
+#: The five states, verbatim from the spec's code block. ⛔ Pinned on purpose:
+#: "there is no sixth state" is a claim about the VALUE, and a rail that read the
+#: tuple and compared it to itself would pass at any size.
+_SPEC_STATES = ("answer", "answer_with_caveat", "partially_answer",
+                "ask_for_clarification", "refuse")
+
+
+def test_PART3_exactly_the_five_spec_states__no_sixth():
+    print(f"[i1-rail:refusal] denominator: {len(te._RESPONSE_STATES)} response states "
+          f"{list(te._RESPONSE_STATES)}")
+    assert tuple(te._RESPONSE_STATES) == _SPEC_STATES, (
+        f"`_RESPONSE_STATES` is now {te._RESPONSE_STATES}; I1-SPEC Part 3 defines "
+        f"exactly {_SPEC_STATES}. A sixth state is a spec change — every consumer "
+        "(AskAiTab, ComparisonAskAi, `_result`, `_clean_history`) branches on this set.")
+
+
+def test_PART3_the_states_are_DEFINED_ONCE_across_every_I1_door():
+    """*"Five response states, defined once."* Every I1 door's schema enum must BE
+    `_RESPONSE_STATES`, never a second hand-typed copy — the compare door's
+    schema is derived from the door list, not named here."""
+    import importlib
+    from tests.test_i1_tool_registry_contract import door_output_schemas
+    schemas = door_output_schemas()
+    print(f"[i1-rail:refusal] denominator: {len(schemas)} door schemas {sorted(schemas)}")
+    assert len(schemas) >= 2, f"door derivation found only {schemas}"
+    drift = {}
+    for dotted, name in schemas.items():
+        enum = getattr(importlib.import_module(dotted), name)["properties"]["response_state"]["enum"]
+        if tuple(enum) != tuple(te._RESPONSE_STATES):
+            drift[f"{dotted}.{name}"] = enum
+    assert not drift, f"a door's response_state enum is not `_RESPONSE_STATES`: {drift}"
+
+
+_MODEL_SENTENCE = "Sentinel model-authored refusal sentence, never derived."
+
+
+def _served_model_refusal(monkeypatch):
+    """Drive the REAL orchestrator with a model that refuses in its own words."""
+    import json
+    from types import SimpleNamespace
+    monkeypatch.setattr(te, "_build_evidence", lambda sym, question="", prior_domains=None: (
+        {"status": "resolved"}, [{"id": "E1", "type": "news", "date": "d", "source": "s",
+                                  "text": "t", "url": None}], ["news"]))
+    monkeypatch.setattr("api.services.narrative_cost_guard.over_budget", lambda *a, **kw: False)
+    payload = {"response_state": "refuse", "summary": "", "key_facts": [],
+               "interpretation": "", "caveat": "", "clarification_question": "",
+               "refusal_reason": _MODEL_SENTENCE}
+    resp = SimpleNamespace(stop_reason="end_turn",
+                           content=[SimpleNamespace(type="text", text=json.dumps(payload))])
+    monkeypatch.setattr(te, "_call_model", lambda *a, **kw: resp)
+    return te.explain_recent_activity("NVDA", "what do transcripts say?")
+
+
+def test_PART3_CONTROL_the_orchestrator_really_serves_a_refusal_here(monkeypatch):
+    """Non-vacuity for the xfail below: the path is the model-refuse branch and a
+    reason IS served, so the xfail cannot pass by the answer being empty."""
+    out = _served_model_refusal(monkeypatch)
+    assert out["response_state"] == "refuse"
+    assert out["insufficient_evidence_reason"]
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "VIOLATION (I1-SPEC Part 3): 'the name is derived, never model-authored' — "
+    "explain_recent_activity passes the MODEL's own refusal_reason to _result, whose "
+    "`refusal_reason or derive_refusal_reason(...)` serves it verbatim as "
+    "insufficient_evidence_reason. Known partial compliance, recorded in "
+    "docs/terminal-research/verification/2026-09-14/F-I1-2-refusal-before-after.md "
+    "('Full compliance would need the caller to distinguish a server reason from a "
+    "model reason at _result'). Mitigated, not closed: the sentence is inside "
+    "_full_answer_text, so a number or verdict in it is still caught. ⚠ Fixing it "
+    "also changes tests/test_ticker_explain.py::test_model_declaring_refuse_is_passed"
+    "_through_honestly, which pins the current behaviour. strict=True: the day it is "
+    "fixed this goes red and the marker must be removed."))
+def test_PART3_a_MODEL_authored_refusal_sentence_never_reaches_the_member(monkeypatch):
+    out = _served_model_refusal(monkeypatch)
+    assert _MODEL_SENTENCE not in out["insufficient_evidence_reason"], (
+        "the member was shown the model's own explanation of its refusal")
