@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 let notePropsResult
 let defsResult
@@ -166,3 +167,49 @@ describe('PropertiesSection', () => {
     )
   })
 })
+
+// F4 / A2R-07 (WCAG 2.4.3): lane 10E-2's keyboard walk -- Enter on "Add property" left focus on
+// <body>. On a note with nothing set, opening the picker swaps the empty-state button for the
+// list layout, and the focused button went with it. Walked with the keyboard.
+describe('Add property keeps focus (F4, A2R-07)', () => {
+  const STATUS = {
+    id: 'builtin:thesis_status', name: 'Thesis Status', type: 'select', source: 'user_set',
+    value: null, options: [{ id: 'active', label: 'Active' }, { id: 'closed', label: 'Closed' }],
+  }
+  beforeEach(() => {
+    notePropsResult = { properties: [STATUS], isLoading: false, refresh: vi.fn(() => Promise.resolve({})) }
+  })
+
+  it('Enter on the empty-state "Add property" opens the picker with focus on the toggle, which says it is open', async () => {
+    const user = userEvent.setup()
+    render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} />)
+    screen.getByRole('button', { name: 'Add property' }).focus()
+    await user.keyboard('{Enter}')
+    const toggle = await screen.findByRole('button', { name: 'Add property', expanded: true })
+    expect(document.activeElement).toBe(toggle)
+    expect(screen.getByRole('button', { name: 'Thesis Status' })).toBeInTheDocument()
+  })
+
+  it('picking a property puts focus on its control', async () => {
+    const user = userEvent.setup()
+    render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} />)
+    screen.getByRole('button', { name: 'Add property' }).focus()
+    await user.keyboard('{Enter}')
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Thesis Status' }))
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Thesis Status' })))
+  })
+
+  it('Escape closes the picker and focus goes back to "Add property"', async () => {
+    const user = userEvent.setup()
+    render(<PropertiesSection noteId="n1" updateNote={updateNoteSpy} />)
+    screen.getByRole('button', { name: 'Add property' }).focus()
+    await user.keyboard('{Enter}')
+    await user.tab()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Thesis Status' })).toBeNull())
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add property' }))
+  })
+})
+

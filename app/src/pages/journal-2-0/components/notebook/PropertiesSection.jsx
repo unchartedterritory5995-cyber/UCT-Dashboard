@@ -89,6 +89,39 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
     [properties, manuallyShown],
   )
 
+  // ⛔ F4 / A2R-07 (WCAG 2.4.3): "ADD PROPERTY" NEVER DROPS FOCUS. Lane 10E-2's keyboard walk:
+  // Enter on "Add property" left focus on <body>. On a note with nothing set, that button is
+  // the empty state's, and opening the picker swaps the whole section for the list layout --
+  // the focused button goes with it. The same happens when a picked property's button
+  // disappears, and when Escape (now handled) closes the picker. After each of those, focus
+  // goes where the member's next act is: the re-mounted "Add property" toggle, or the control
+  // of the property just added -- and only when focus was LOST, never taken from elsewhere.
+  const rootRef = useRef(null)
+  const addToggleRef = useRef(null)
+  const focusAfterRef = useRef(null) // null | { toggle: true } | { prop: <property id> }
+  useEffect(() => {
+    const plan = focusAfterRef.current
+    if (!plan) return
+    focusAfterRef.current = null
+    const active = document.activeElement
+    if (active && active !== document.body) return
+    let target = null
+    if (plan.prop && rootRef.current) {
+      const row = [...rootRef.current.querySelectorAll('[data-prop-row]')]
+        .find((el) => el.getAttribute('data-prop-row') === plan.prop)
+      target = row?.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])') || null
+    }
+    ;(target || addToggleRef.current)?.focus()
+  })
+  const onPickerKeyDown = (e) => {
+    if (e.key !== 'Escape' || !pickerOpen || e.isDefaultPrevented()) return
+    e.preventDefault()
+    e.stopPropagation()
+    focusAfterRef.current = { toggle: true }
+    setNewPropOpen(false)
+    setPickerOpen(false)
+  }
+
   if (isLoading) return null
 
   // The property door: ONE property, through the note's own `update` (which
@@ -229,6 +262,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   )
 
   const addExisting = (propertyId) => {
+    focusAfterRef.current = { prop: propertyId }
     setManuallyShown((prev) => new Set(prev).add(propertyId))
     setPickerOpen(false)
   }
@@ -256,6 +290,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
       // property vanished until F5, the same staleness shape as the
       // ticker-change fix above).
       await refresh()
+      focusAfterRef.current = { prop: def.id }
       setManuallyShown((prev) => new Set(prev).add(def.id))
       setNewPropName('')
       setNewPropType('text')
@@ -269,8 +304,14 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
 
   if (!visible.length && !pickerOpen) {
     return (
-      <div className={styles.emptyWrap}>
-        <button type="button" className={styles.addLink} onClick={() => setPickerOpen(true)}>
+      <div className={styles.emptyWrap} ref={rootRef}>
+        <button
+          ref={addToggleRef}
+          type="button"
+          className={styles.addLink}
+          aria-expanded={false}
+          onClick={() => { focusAfterRef.current = { toggle: true }; setPickerOpen(true) }}
+        >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           Add property
         </button>
@@ -280,7 +321,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   }
 
   return (
-    <div className={styles.wrap} data-export-exclude>
+    <div className={styles.wrap} data-export-exclude ref={rootRef}>
       <ul className={styles.list}>
         {visible.map((p) => {
           // The label span is only VISUALLY beside its control -- without an
@@ -291,7 +332,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           // rework of this label/control split).
           const labelId = `j2-prop-label-${p.id}`
           return (
-            <li key={p.id} className={styles.row}>
+            <li key={p.id} className={styles.row} data-prop-row={p.id}>
               <span className={styles.label} id={labelId}>{p.name}</span>
               <span className={styles.control}>
                 <PropertyControl
@@ -307,8 +348,14 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
         })}
       </ul>
       {error && <div className={styles.error}>{error}</div>}
-      <div className={styles.pickerWrap}>
-        <button type="button" className={styles.addLink} onClick={() => setPickerOpen((o) => !o)}>
+      <div className={styles.pickerWrap} onKeyDown={onPickerKeyDown}>
+        <button
+          ref={addToggleRef}
+          type="button"
+          className={styles.addLink}
+          aria-expanded={pickerOpen}
+          onClick={() => setPickerOpen((o) => !o)}
+        >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
           Add property
         </button>

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 /**
  * Wave 6 (lane E) — the note menu's organisation actions, alone. The wired
@@ -217,3 +218,70 @@ describe('Open a note beside, in the note menu', () => {
     expect(onOpenBeside).not.toHaveBeenCalled()
   })
 })
+
+// F4 / A2R-07 (WCAG 2.4.3): lane 10E-2's keyboard walk found focus on <body> after Lock and
+// after Archive -- the button was `disabled` while its write was in flight, and a browser
+// takes focus off a control the moment it is disabled. Walked with the keyboard, with the
+// write held in flight so the busy state is really on screen when focus is read.
+describe('Lock and Archive keep focus (F4, A2R-07)', () => {
+  const hold = () => {
+    let release
+    global.fetch = vi.fn((url, init) => new Promise((r) => {
+      release = () => r(answer(JSON.parse(init.body), String(url)))
+    }))
+    return () => release()
+  }
+
+  it('Enter on Lock: focus stays on the button through the write and after it (now Unlock)', async () => {
+    const user = userEvent.setup()
+    const land = hold()
+    render(<NoteMenuActions note={{ id: 'n1', locked: false }} />)
+    const lock = screen.getByRole('button', { name: /^Lock$/ })
+    lock.focus()
+    await user.keyboard('{Enter}')
+    // in flight: busy, said so, and still focused
+    await waitFor(() => expect(lock).toHaveAttribute('aria-disabled', 'true'))
+    // ⛔ NOT `disabled`: a browser blurs a control the moment it is disabled -- that was the
+    // defect -- and jsdom does not model that blur, so the DOM state that causes it is asserted.
+    expect(lock).not.toBeDisabled()
+    expect(document.activeElement).toBe(lock)
+    // a second press while busy is refused
+    await user.keyboard('{Enter}')
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    land()
+    expect(await screen.findByText('Locked. Editing is off until you unlock it.')).toBeInTheDocument()
+    expect(document.activeElement).toBe(lock)
+  })
+
+  it('Enter on Archive keeps focus on the button', async () => {
+    const user = userEvent.setup()
+    const land = hold()
+    render(<NoteMenuActions note={{ id: 'n1', archivedAt: null }} />)
+    const archive = screen.getByRole('button', { name: /^Archive$/ })
+    archive.focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(archive).toHaveAttribute('aria-disabled', 'true'))
+    expect(archive).not.toBeDisabled()
+    expect(document.activeElement).toBe(archive)
+    land()
+    await screen.findByText('Archived. It is under Archived in the sidebar, still in its folder.')
+    expect(document.activeElement).toBe(archive)
+  })
+
+  it('closing the template form (Cancel) or the Open-beside search (Escape) hands focus back to its door', async () => {
+    const user = userEvent.setup()
+    render(<NoteMenuActions note={{ id: 'n1', title: 'NVDA' }} onOpenBeside={vi.fn()} />)
+    screen.getByRole('button', { name: /Save as template/ }).focus()
+    await user.keyboard('{Enter}')
+    screen.getByRole('button', { name: 'Cancel' }).focus()
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Save as template/ })))
+    screen.getByRole('button', { name: /Open a note beside/ }).focus()
+    await user.keyboard('{Enter}')
+    const search = await screen.findByLabelText('Find a note to open beside')
+    search.focus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: /Open a note beside/ })))
+  })
+})
+
