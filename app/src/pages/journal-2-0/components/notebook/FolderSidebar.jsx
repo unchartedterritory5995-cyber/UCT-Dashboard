@@ -20,6 +20,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
+import { keysInOrder, neighbourFallback, neighbourKeys } from '../../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
 import { useOpenFromList } from '../../lib/splitView'
@@ -335,6 +336,8 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
               onClick={() => onSelectView(view)}
               onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
               title={view.name}
+              // F7 Part C: where focus goes after a neighbouring view is deleted.
+              data-saved-view-row={view.id}
             >
               {/*
                 ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
@@ -684,6 +687,8 @@ function FolderNode({
             aria-current={activeFolderId === node.id ? 'true' : undefined}
             onClick={() => { onSelectFolder(node.id); onSelectTag(null) }}
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
+            // F7 Part C: where focus goes after a neighbouring folder is deleted.
+            data-folder-row={node.id}
           >
             <span>{node.name}</span>
           </button>
@@ -1263,8 +1268,17 @@ export default function FolderSidebar({
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
   // request opens the modal (holding which folder), confirm performs the
   // actual mutation.
-  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name } | null
-  const onDeleteRequest = (id, name) => setDeleteTarget({ id, name })
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name, after } | null
+  // ⛔ F7 Part C (F4 review, Important 1): the Delete button that opens the dialog lives in
+  // the folder's own row, which the delete removes, so focus used to fall to <body>. The
+  // folder rows AROUND it are recorded now, by id and in the order they show, and the
+  // dialog's `fallbackFocus` looks them up after the delete: the next folder, else the one
+  // before, else "All notes". (A deleted folder's subfolders move up a level and stay in
+  // the list, so the first "after" is often where its contents went.)
+  const asideRef = useRef(null)
+  const onDeleteRequest = (id, name) => setDeleteTarget({
+    id, name, after: neighbourKeys(keysInOrder(asideRef.current, 'data-folder-row'), String(id)),
+  })
   const onDeleteConfirm = async () => {
     if (!deleteTarget) return
     const { id } = deleteTarget
@@ -1288,7 +1302,7 @@ export default function FolderSidebar({
   }
 
   return (
-    <aside className={styles.sidebar} data-tour="sidebar">
+    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar">
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
@@ -1739,6 +1753,8 @@ export default function FolderSidebar({
                 className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
                 aria-current={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
+                // F7 Part C: the list's standing control, focus's last landing after a delete.
+                data-all-notes-row=""
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page
@@ -1956,6 +1972,8 @@ export default function FolderSidebar({
           tone="danger"
           onConfirm={onDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
+          fallbackFocus={neighbourFallback(asideRef, 'data-folder-row', deleteTarget.after || [],
+            () => asideRef.current?.querySelector('[data-all-notes-row]'))}
         />
       )}
     </aside>

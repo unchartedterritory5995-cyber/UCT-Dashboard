@@ -29,6 +29,7 @@ import { notebookFlag } from '../lib/offline/notebookFlags'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
+import { keysInOrder, neighbourFallback, neighbourKeys } from '../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
@@ -324,8 +325,14 @@ export default function NotebookTab() {
       setSavedViewError("Couldn't rename that view. It kept its old name.")
     }
   }
-  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
-  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name, after } | null
+  // ⛔ F7 Part C (F4 review, Important 1): the view's Delete button goes with its row, so
+  // focus used to fall to <body>. The view rows around it are recorded now (ids, in the
+  // order they show) and the dialog's `fallbackFocus` finds them after the delete: the next
+  // view, else the one before, else the pane's heading, else "All notes".
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({
+    id, name, after: neighbourKeys(keysInOrder(wrapRef.current, 'data-saved-view-row'), String(id)),
+  })
   const onDeleteViewConfirm = async () => {
     if (!deleteViewTarget) return
     const { id } = deleteViewTarget
@@ -1953,6 +1960,8 @@ export default function NotebookTab() {
             tone="danger"
             onConfirm={onDeleteViewConfirm}
             onClose={() => setDeleteViewTarget(null)}
+            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
           />
         )}
         {savedViewError && (

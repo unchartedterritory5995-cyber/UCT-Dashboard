@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { useState } from 'react'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { useRef, useState } from 'react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ConfirmModal from './ConfirmModal'
 
@@ -185,5 +185,92 @@ describe('ConfirmModal — keyboard (F4, A2R-05)', () => {
     // and Escape reaches the LATEST onClose
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+
+/**
+ * ⛔⛔ F7 Part C (F4's review, Important 1). When the confirmed action REMOVES the control that
+ * opened the dialog (a folder, saved-view or position delete takes its own row), the invoker is
+ * gone at close and focus fell to <body>. `fallbackFocus` is where it goes instead. The page
+ * below deletes a row the way the real callers do: the row's own Delete button opens the dialog,
+ * and the row is gone before the dialog closes.
+ */
+function RowsPage({ fallback }) {
+  const [rows, setRows] = useState(['alpha', 'beta'])
+  const [target, setTarget] = useState(null)
+  const headingRef = useRef(null)
+  return (
+    <div>
+      <h2 ref={headingRef} tabIndex={-1}>Rows</h2>
+      {rows.map((r) => (
+        <div key={r} data-row={r}>
+          <button type="button" data-row-select={r}>{r}</button>
+          <button type="button" onClick={() => setTarget(r)}>Delete {r}</button>
+        </div>
+      ))}
+      {target && (
+        <ConfirmModal
+          title={`Delete ${target}?`}
+          body="Gone for good."
+          onConfirm={async () => { setRows((xs) => xs.filter((x) => x !== target)) }}
+          onClose={() => setTarget(null)}
+          fallbackFocus={fallback === 'heading' ? headingRef
+            : fallback === 'resolver' ? () => document.querySelector('[data-row-select="beta"]')
+              : fallback === 'gone' ? () => null
+                : null}
+        />
+      )}
+    </div>
+  )
+}
+
+async function deleteAlpha(user) {
+  const opener = screen.getByRole('button', { name: 'Delete alpha' })
+  await user.click(opener)
+  const dialog = await screen.findByRole('dialog', { name: 'Delete alpha?' })
+  await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(screen.queryByRole('button', { name: 'Delete alpha' })).toBeNull()   // the invoker is gone
+}
+
+describe('ConfirmModal — fallback focus when the action removes the invoker (F7 Part C)', () => {
+  it('a ref fallback takes focus when the invoker went with the deleted row', async () => {
+    const user = userEvent.setup()
+    render(<RowsPage fallback="heading" />)
+    await deleteAlpha(user)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Rows' })))
+  })
+
+  it('a resolver fallback is read AT CLOSE, after the removal (the neighbouring row)', async () => {
+    const user = userEvent.setup()
+    render(<RowsPage fallback="resolver" />)
+    await deleteAlpha(user)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'beta' })))
+  })
+
+  it('CONTROL: with no fallback, focus falls to <body> -- the defect this prop exists for', async () => {
+    const user = userEvent.setup()
+    render(<RowsPage fallback={null} />)
+    await deleteAlpha(user)
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('a fallback that resolves to nothing leaves focus alone (no throw, no guess)', async () => {
+    const user = userEvent.setup()
+    render(<RowsPage fallback="gone" />)
+    await deleteAlpha(user)
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('an invoker that SURVIVES the action still gets focus back, never the fallback', async () => {
+    const user = userEvent.setup()
+    render(<RowsPage fallback="heading" />)
+    const opener = screen.getByRole('button', { name: 'Delete alpha' })
+    await user.click(opener)
+    await screen.findByRole('dialog', { name: 'Delete alpha?' })
+    await user.keyboard('{Escape}')   // cancelled: the row, and its button, are still there
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 })
