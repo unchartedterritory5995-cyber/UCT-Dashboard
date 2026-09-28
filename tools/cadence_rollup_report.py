@@ -24,15 +24,23 @@ import time
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
+from api.services import bars_rail_monitor  # noqa: E402
 from api.services import cadence_heartbeat as ch  # noqa: E402
 
 
-def run(*, now=None, base_dir=None, contracts=None, out=None) -> int:
-    """Print the roll-up and return the exit code. Every input is injectable."""
+def run(*, now=None, base_dir=None, contracts=None, out=None, rail_dir=None) -> int:
+    """Print the roll-up and return the exit code. Every input is injectable.
+
+    ⭐ TERM-013 — the push-rail DIGEST (S2) rides inside this ONE message rather than
+    becoming a post of its own. ⛔ It never moves the exit code: a drop is a digest,
+    not an alert, and the exit is the cadence contracts' verdict alone (the reader's
+    own absence is already its `bars-stream-rail` contract row).
+    """
     stream = out or sys.stdout
-    report = ch.build_rollup(time.time() if now is None else now,
-                             base_dir=base_dir, contracts=contracts)
+    ts = time.time() if now is None else now
+    report = ch.build_rollup(ts, base_dir=base_dir, contracts=contracts)
     print(ch.format_rollup(report), file=stream)
+    print(bars_rail_monitor.format_digest(ts, base_dir=rail_dir), file=stream)
     return 1 if (report["missing"] or not report["rows"]) else 0
 
 

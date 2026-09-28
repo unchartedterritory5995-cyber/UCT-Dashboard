@@ -25,10 +25,24 @@ def start():
     _running.set()
     _thread = threading.Thread(target=_loop, daemon=True, name="bars-continuous-audit")
     _thread.start()
+    # TERM-013 — the push-rail drop-counter reader rides this boot call (lane A touches
+    # api/main.py only at TERM-014) on its OWN thread, so an hour-long sweep in `_loop`
+    # can never stretch its 60 s cadence. Its page is dark behind BARS_RAIL_PAGE_ENABLED.
+    try:
+        from api.services import bars_rail_monitor
+        bars_rail_monitor.start()
+    except Exception:
+        _logger.exception("[continuous_audit] bars_rail_monitor start failed")
 
 
 def stop():
     _running.clear()
+    # TERM-013 — start() started the push-rail reader, so stop() stops it: one switch.
+    try:
+        from api.services import bars_rail_monitor
+        bars_rail_monitor.stop()
+    except Exception:
+        pass
 
 
 def _loop():

@@ -107,7 +107,7 @@ class CadenceContract:
 #: ⭐ THE ROSTER. Every entry needs a ``cadence_heartbeat.mark("<signal>")`` emit site,
 #: and every emit site needs an entry — railed both ways by AST.
 #:
-#: ⚠️ ONE SIGNAL, deliberately. It is the one ops monitor on ``web`` that runs
+#: ⚠️ UNGATED SIGNALS ONLY, deliberately. The first is the one ops monitor on ``web`` that runs
 #: unconditionally (started from ``api/main.py`` startup, no gate), so its contract can
 #: never read MISSING merely because somebody left a flag off — a roll-up that named a
 #: deliberately-disabled monitor every day would be muted inside a week. Gated monitors
@@ -119,6 +119,15 @@ CONTRACTS: tuple = (
         # 24 missed cycles. A redeploy restarts the loop, which runs the check at once,
         # so deploy churn cannot open a gap anywhere near this wide.
         max_silence_s=2 * 3600,
+    ),
+    # TERM-013 — the push-rail reader (S1/S2). Ungated for the same reason as the row
+    # above: only its PAGE is flagged (`BARS_RAIL_PAGE_ENABLED`); the poll runs always.
+    CadenceContract(
+        signal="bars-stream-rail",
+        period="every 60 s, 24/7, on web (bars_rail_monitor.poll_once)",
+        # 30 missed polls. The thread starts at boot and polls at once, so deploy
+        # churn cannot open a gap anywhere near this wide.
+        max_silence_s=30 * 60,
     ),
 )
 
