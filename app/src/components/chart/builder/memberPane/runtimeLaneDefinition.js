@@ -60,6 +60,11 @@ const NOT_DRAWN = Object.freeze({
   bgcolor: 'paints the chart background, which this pane does not draw yet',
   barcolor: 'recolours the price bars, which this pane does not draw yet',
   plotarrow: 'draws arrows, which this pane does not draw yet',
+  // ⭐ 2026-09-28 — the runtime lane computes a candle's four values; the pane
+  // has no candle to draw them with, and four lines would be a picture
+  // TradingView never shows.
+  plotcandle: 'draws candles, which this pane does not draw yet',
+  plotbar: 'draws OHLC bars, which this pane does not draw yet',
 })
 
 /** Did the HOST lane translate this row to a tree that reads no bar and is `na`?

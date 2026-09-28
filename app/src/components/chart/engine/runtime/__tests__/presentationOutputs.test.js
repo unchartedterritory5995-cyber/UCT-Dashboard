@@ -105,13 +105,16 @@ describe('⭐ the presentation family, and what is left of it', () => {
   })
 
   it('⛔ what is STILL presentation, by name', () => {
-    // ⭐ `plotcandle`/`plotbar` need four roles on one call — the descriptor can
-    // carry that now, so they are a table entry rather than a capability.
-    // `alert()` is an EFFECT, not a value: it fires a message, and this lane
-    // has no effect system. Naming them keeps the remainder legible.
-    for (const call of ['plotcandle(open, high, low, close)', 'alert("hi")']) {
-      expect(refusalOf(`${call}\nplot(close)`).guard, call).toBe('runtime:presentation')
-    }
+    // ⭐ `plotcandle`/`plotbar` LEFT this list on pine/runtime-walls-3
+    // (2026-09-28): the descriptor carries a `role`, so one call emits four value
+    // outputs (`runtimeWalls3.test.js`). `alert()` is an EFFECT, not a value: it
+    // fires a message, and this lane has no effect system. Naming it keeps the
+    // remainder legible.
+    expect(refusalOf('alert("hi")\nplot(close)').guard).toBe('runtime:presentation')
+    // ⚠️ OBSERVED, NOT CHANGED: the BOUND form `c = plotcandle(…)` with `c` never
+    // read compiles, because an unread pure binding becomes an `env` macro and is
+    // never lowered — so no candle output (and no "not drawn" sentence) exists
+    // for it. Recorded in PARITY-PROGRAMME.md (2026-09-28) rather than pinned.
   })
 })
 

@@ -437,6 +437,7 @@ export function execute(program, ctx, limits, opts) {
     let sp = 0
     let pc = entryPc
     let perBar = 0
+    let loopTicks = 0
     let depth = 0
     let localsBase = 0
     let localsTop = program.locals
@@ -975,11 +976,23 @@ export function execute(program, ctx, limits, opts) {
           break
         }
         case OP.LOOP_TICK:
-          // ⛔ CHARGED PER ITERATION, ACROSS THE WHOLE RUN. A loop whose step
-          // never reaches its bound — `by 0`, or a bound a body keeps moving —
-          // is stopped here, by a limit that names itself, rather than hanging
-          // the browser tab a member is looking at.
-          budget.charge('LOOP_ITERATIONS', 1)
+          // ⛔ COUNTED PER ITERATION, PER BAR. A loop whose step never reaches
+          // its bound — `by 0`, or a bound a body keeps moving — is stopped here,
+          // by a limit that names itself, rather than hanging the browser tab a
+          // member is looking at.
+          // ⚰️ IT WAS CHARGED ACROSS THE WHOLE RUN (2026-09-28, measured): a
+          // ceiling of 100,000 over every bar stopped honest indicators on an
+          // ordinary chart — kernel-channel-backquant (~400 iterations a bar)
+          // and nadaraya-watson, wyckoff and atr-stepped, all three already
+          // attaching at the door, died `LOOP_ITERATIONS_EXCEEDED` on 3,000 SPY
+          // daily bars while the 600-bar rails stayed green. A runaway is a
+          // property of ONE bar's execution — TradingView's own loop limit is
+          // per-loop wall time, not a total over the chart — and the whole run
+          // stays bounded by TOTAL_INSTRUCTIONS (⚠️ `WALL_TIME` is declared in
+          // `limits.js` and charged nowhere, so it bounds nothing). The
+          // high-water mark is what the budget records.
+          loopTicks += 1
+          budget.peak('LOOP_ITERATIONS', loopTicks)
           budget.peak('LOOP_NESTING', a)
           break
         case OP.REQUEST: {

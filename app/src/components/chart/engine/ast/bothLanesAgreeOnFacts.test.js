@@ -138,8 +138,8 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
   //
   // ⭐ WHAT STAYS HERE IS THE HALF THAT WAS ALWAYS RIGHT: output count is
   // lane-independent and agrees on all 327, asserted above. And
-  // `smart-money-breakouts-chartprime` is still its own finding below — it THROWS on
-  // both lanes identically, so the lanes do not disagree; they fail the same way.
+  // `smart-money-breakouts-chartprime` was its own finding below — it THREW on both
+  // lanes identically — until 2026-09-28; it now refuses by name on both.
 
   it('⛔⛔ CONTROL — the verdicts DO differ somewhere, or this proves nothing', () => {
     // ⚰️ Without this the rail passes on an engine where `strict` silently became
@@ -166,7 +166,7 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
       .toBeGreaterThan(500)
   })
 
-  it('⛔⛔ FINDING — exactly ONE script still THROWS out of translatePine', () => {
+  it('⛔⛔ FINDING RETIRED — no committed script THROWS out of translatePine', () => {
     // ⚰️ `translatePine`'s contract is to RETURN refusals; a caller without a try/catch
     // gets an exception where a refusal belongs. This rail rediscovered the defect
     // independently, and it was already known: `pine.js`'s `switchBinding` call site
@@ -175,7 +175,15 @@ describe('a7.2 — both lanes agree on the facts, across every source', () => {
     // finding"). It throws on BOTH lanes, which is at least symmetric.
     // ⭐ Asserted as the exact name so the day it is fixed this goes red and the
     // finding is retired rather than forgotten.
+    // ✅ RETIRED 2026-09-28 (pine/runtime-walls-3). The throw was not in
+    // `switchBinding`: its arms end in `,` (`'Dashed' => line.style_dashed ,`),
+    // and `danglesIntoNextLine` glued all three arms into ONE header, which
+    // `parseWholeExpression` then threw on. A line-ending `,` before a line at the
+    // same indent now separates two statements (`pine.js::splitAtStatementBreaks`),
+    // so each arm is its own line and the script refuses by name (`pine:na`, both
+    // lanes — `tools/corpus_metric.json`). An empty list is the assertion now, so a
+    // NEW thrower is a red with its name in it.
     const throwers = rows.filter((r) => r.strict.threw || r.lenient.threw).map((r) => r.name)
-    expect(throwers).toEqual(['smart-money-breakouts-chartprime__ea79c79a67.pine'])
+    expect(throwers).toEqual([])
   })
 })

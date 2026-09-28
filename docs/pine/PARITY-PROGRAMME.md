@@ -20,6 +20,167 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-28 — THE RUNTIME LANE'S CHEAPEST MEASURED COMPLETIONS (branch `pine/runtime-walls-3`)
+
+> Base `pine/runtime-walls-2` @ `5785169fa`. Every count below is the runtime-lane
+> door census (`runtimeLaneDoor.census.measure.test.js`, `RUNTIME_CENSUS=1`) over the
+> 266 committed scripts, run at the base and again at this branch; the JSON it
+> writes (`$RUNTIME_CENSUS_OUT`) is the artifact each number walks back to.
+>
+> ```
+> cd app && RUNTIME_CENSUS=1 RUNTIME_CENSUS_OUT=<file> node node_modules/vitest/vitest.mjs run \
+>   src/components/chart/builder/memberPane/runtimeLaneDoor.census.measure.test.js
+> ```
+
+### ⛔⛔ H14 — FOUND WHILE MEASURING, LIVE IN PRODUCTION, NOT FIXED HERE
+
+**The HOST member door draws a `plotcandle` as FOUR LINES.** `translatePine` expands
+`plotcandle`/`plotbar` into four rows (`pine.js::MULTI_OUTPUT_CALLS`), and the host door
+draws any of them that is not a bare price passthrough as an ordinary visible line
+(`style: 'line'`). TradingView draws a candle; four lines is a picture it never shows.
+`VITE_PINE_MEMBER_PANE_ENABLED` is **armed on `web`** (`docs/feature_flags.json`), so
+this is what a member sees today. Enumerated from source (every committed script that
+calls `plotcandle`/`plotbar`, through `memberPaneDefinition` with the runtime lane off):
+**2 attach**, both drawing four visible lines —
+`institutional-smc-order-flow-matrix-pro` ("Heatmap Candles", `show_candles` defaults
+`true`) and `smt-divergence-ict-01-tradingfinder-smart-money-technique` (XAUUSD's OHLC).
+⚠️ It also ignores a `display = cond ? display.all : display.none` on the candle — a
+probe with a derived close and that `display` drew four lines at the default. The
+runtime lane's answer (below: computed, not drawn, said by name) is the obvious shape
+for the host door too, but that is a change to live member behaviour and is the
+owner's call — so it is recorded here and in the hand-off, and nothing on this branch
+touches the host door.
+
+### Measured first — the base, before anything changed
+
+| objects-only | runtime lane | attached (base) | attached (this branch) |
+|---|---|---|---|
+| off | off | 34 | 34 |
+| on | off | 56 | 56 |
+| off | on | 47 | **49** |
+| on | on | 69 | **71** |
+
+⚠️ The previous section's 54/60 is `pine/runtime-lane-door`'s; `runtime-walls` and
+`runtime-walls-2` had already moved the base to 56/69 — 13 scripts through the runtime
+lane (adx-and-di, atr-stepped, btc-charlie, cc-yata, fvg-trend, nadaraya-watson,
+pivot-high-low-points, pivot-point-supertrend, qqe-signals, range-filter-bs-signals,
+trendlines, twin-range-filter, wyckoff). The host lane is unchanged by this branch
+(the census asserts no host-attached script changes lane, and rows compare equal).
+
+At the base, **57 admissible, 44 tried and walled.** Peeled through the runtime door,
+the scripts ONE wall family from working were `deadband-hysteresis-filter-backquant`
+(`pine:builtin`) and `trend-targets-algoalpha` (`runtime:object-op`); at two:
+`kernel-channel-backquant` (`runtime:statement` → `runtime:presentation`),
+`nonlinear-regression-zero-lag-moving-average-loxx` (`pine:statement` →
+`runtime:colour`) and `pa-zigzag-fibonacci-fan` (two ruling guards). Each was probed by
+hand before anything was built; the peel's second wall is not always real (below).
+
+### What shipped — each the last wall for a named script
+
+| capability | where | script it completes |
+|---|---|---|
+| `#RRGGBBAA` carries its own alpha — the last byte is OPACITY, packed as transparency `255 − AA` byte-for-byte, the rule the host lane already applies (`pine.js::colourTransparencyOf`) | `runtime/colours.js::hexToPacked` | kernel-channel (`input.color(#ffeb3b26, …)`) |
+| a `,` that ENDS a line, followed by a line at the statement's own indent, separates two statements | `pine.js::splitAtStatementBreaks` (inside `blockStatements`) | nonlinear-regression (`color colorout = … : redcolor,` then `plot(…)`) |
+| `plotcandle` / `plotbar` compute their four roles (named role wins, else position — the host's `MULTI_OUTPUT_CALLS`, now exported, not a second list); the pane draws none of them and says so | `pineRuntimeFrontend.js` bare-call branch; `runtimeLaneDefinition.js::NOT_DRAWN` | kernel-channel (`plotcandle(…, display = useBarColor ? … : display.none)`) |
+| `LOOP_ITERATIONS` is a PER-BAR ceiling | `runtime/vm.js` `LOOP_TICK` | kernel-channel — and see the next heading |
+
+⭐ **The peel's second walls were artifacts of the first.** nonlinear-regression's
+`runtime:colour` at `barcolor(colorout)` was the consequence of `colorout` never being
+bound; once the comma split landed, the script built with no further change.
+
+⭐ **The comma split retired a finding.** The one committed script that THREW out of
+`translatePine` (`smart-money-breakouts-chartprime`, recorded by
+`bothLanesAgreeOnFacts.test.js` and `tools/corpus_metric.json`) was the same shape: its
+`switch` arms end in `,`, and `danglesIntoNextLine` glued all three into one header that
+`parseWholeExpression` threw on. It now refuses by name (`pine:na`, both lanes);
+`corpus_metric.json` re-measured — host 45 / screener 52, unchanged.
+
+### ⛔ `LOOP_ITERATIONS` WAS STOPPING SCRIPTS THAT ALREADY "ATTACHED"
+
+The ceiling (100,000) was charged over the WHOLE RUN. Measured by computing every
+runtime-lane script through the real door on the 3,000-bar SPY fixture: **three of the
+13 that the census counted as attached — atr-stepped, nadaraya-watson, wyckoff — died
+`LOOP_ITERATIONS_EXCEEDED`**, while `runtimeWallsNewlyAttaching.test.js` (600/631 bars)
+stayed green. A member chart loads up to 5,000 bars. A runaway is a property of one
+bar's execution (TradingView's own loop limit is per-loop time, not a chart total), so
+the counter now resets per bar and the high-water mark is what the budget records; the
+run as a whole stays bounded by `TOTAL_INSTRUCTIONS`. ⚠️ **`WALL_TIME` is declared in
+`limits.js` and charged nowhere** — it bounds nothing, and the code now says so.
+
+⚠️ **"Attached" in the census is a BUILD verdict, not a compute verdict.** That is how
+this hid; a new rail (`runtimeWallsNewlyAttaching.test.js`, "a 2,000-bar chart") now
+computes every loop-bearing runtime script on 2,000 bars.
+
+⛔ **No vendor capture exists for either newly attaching script.** Their rail is the
+same one every runtime-lane newcomer clears (finite, in the price band after the script's
+own `nz(src[i])` warm-up, no NaN-poisoning, on SPY and RDDT); a capture of each would move
+them from "plausible" to "graded". No capture-queue question was opened: every semantic
+this branch relies on is settled by the Pine reference (`#RRGGBBAA`, `,` as a statement
+separator, history before bar 0 is `na`) or by the host lane's existing rule.
+
+### ⚠️ Open — kernel-channel is correct and SLOW
+
+kernel-channel-backquant attaches and computes finite, in-band values, but its three
+100-iteration kernel loops cost ~27,000 VM instructions a bar: **~5 s per 1,000 daily
+bars** in this VM (≈200 ns/instruction; 134 M instructions on 5,000 bars, inside the
+200 M `TOTAL_INSTRUCTIONS` ceiling). Measured with `execute()`'s own budget counts. The
+flag is dark, so no member meets it; **arming the runtime lane needs either VM throughput
+or an enforced wall-time ceiling first**, and a main-thread freeze of that length is not
+acceptable on a member's chart.
+
+### Still walled — the nearest, and why not this branch
+
+- **deadband-hysteresis-filter-backquant** — `syminfo.mintick` (`base := syminfo.mintick *
+  tickThresh`). Per-symbol metadata this engine does not hold; a guess would move every
+  band. Data, not semantics — needs the chart to supply the symbol's tick size.
+- **trend-targets-algoalpha** — `liness.unshift(linefill.new(…))` ×2. The object pass
+  collects nested creates only for `push`/`set` (`pineObjects.js::COLLECTION_CALLS`, railed
+  against `COLLECTION_VALUE_ARG` by `drawingAsValue.test.js`), so `array.unshift` is an
+  object-lane capability first. ⚠️ And even then its drawings are withheld: all 60 object
+  ops drop on unresolved guards (`guard:create/update/delete`, with lost removals), so it
+  would attach with plots only.
+- **implied-volatility-suite** — `Len = if (VolCalc == "VixFix") VIXlength2 else …` is a
+  block value over an INPUT comparison, so the ring length is not folded before bar 0;
+  behind it, `percentrank` over runtime state is not in `FINITE_WINDOW` and has its own
+  vendor-parity resolution. Two capabilities, not one.
+
+### Observed, not changed
+
+- `c = plotcandle(…)` with `c` never read compiles in the runtime lane and emits nothing
+  (an unread pure binding becomes an `env` macro and is never lowered), so that spelling
+  gets no "not drawn" sentence. Noted in `presentationOutputs.test.js`.
+- `plotcandle`'s `display =` is presentation the runtime lane does not evaluate, so an
+  input read only there (kernel-channel's `useBarColor`) never reaches the input list —
+  it is not offered, and no per-setting sentence is written for it; the candle's own
+  sentence is what the member reads.
+
+### Verification on this branch
+
+**Rails:** `engine/runtime/__tests__/runtimeWalls3.test.js` (15), `builder/memberPane/
+runtimeWalls3Door.test.js` (3), `runtimeWallsNewlyAttaching.test.js` (14 → 23: kernel-channel
+and nonlinear-regression on both charts, and the 2,000-bar block), `presentationOutputs.test.js`
+(its "still presentation" list lost `plotcandle`). Two fixtures that used an 8-digit hex as
+"an unreadable colour" (`refusalLocationSeam.test.js`, `approximateRefusals.measure.test.js`)
+now use a 7-digit one, and `bothLanesAgreeOnFacts.test.js`'s THROWS finding is retired to `[]`.
+
+**Mutations — 12, every one RED, every file restored from captured bytes, sha256-verified
+against the capture AND, LF-normalised, against the committed blob; `git status` clean
+after:** 8-digit alpha read as transparency (1 red) · 8-digit branch removed (5) · an 8-digit
+literal given a transparency accepted (1) · line-break split disabled (3) · split at ANY
+line-end comma (⚰️ SURVIVED the first run — every fixture split the same under both rules; the
+indented `a = 1,` / `plot(close)` control was added and it went red, 1) · plotcandle's named
+role ignored (1) · plotcandle branch removed (8) · missing role not refused (1) · the door's
+"draws candles" sentence removed (1) · loop ticks not reset per bar (2) · loop ceiling not
+checked (2) · loop ticks counted over the whole run again (6, the 2,000-bar block). Unmutated
+control green before and after.
+
+**Regression** (`src/components/chart/`, this branch vs base `5785169fa` run in a clean
+worktree of the base, by failing-name set difference): 13,212 → 13,235 passed, 22 → 21
+failed. The one name red only here — `EvidenceTab.doors` "CONTROL: the walk is not vacuous" —
+is a 15 s timeout under the full run and passes alone (10/10). The rest are red on both
+trees, most of them corpus files absent from a worktree (`oosMeasuredBaseline`, `paramIds`,
+`capabilityDemandCensus`, …: "expected 30 to be greater than 50").
+
 ## ⭐⭐ 2026-09-27 — THE RUNTIME LANE AS A GATED FALLBACK AT THE MEMBER DOOR (branch `pine/runtime-lane-door`)
 
 > Owner goal, 2026-09-27: *"fully import every and any TradingView Pine script

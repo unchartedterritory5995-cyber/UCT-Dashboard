@@ -81,6 +81,8 @@ export const DEFAULT_LIMITS = Object.freeze({
   IR_SIZE: 200000,
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
+  // ⭐ PER BAR since 2026-09-28 (`vm.js` LOOP_TICK) — a total over the run
+  // stopped honest indicators on an ordinary 3,000-bar chart.
   LOOP_ITERATIONS: 100000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,

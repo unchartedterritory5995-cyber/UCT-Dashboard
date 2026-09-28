@@ -56,6 +56,16 @@ const NEWLY = {
   // on a marked bar and `na` elsewhere — the host lane emits the identical column
   // for the identical construct (measured), so a marked bar is a finite value.
   'pivot-high-low-points__hoTsDQRY3L': { markerCarriesPrice: true },
+  // pine/runtime-walls-3 (2026-09-28): an 8-digit `#RRGGBBAA` colour literal and a
+  // `plotcandle` (computed, not drawn, said) — kernel-channel has no plotshape.
+  // `warmupBars`: both read `nz(src[i])` over a window, and before bar i that is
+  // `nz(na)` = 0 — on TradingView too — so the first window's worth of bars is
+  // pulled toward zero BY THE SCRIPT. The band check starts after it; the
+  // finite / no-NaN-poisoning checks do not skip anything.
+  'kernel-channel-backquant__d8c4b7f75c': { shapesMayBeSilent: true, warmupBars: 100 },
+  // a binding ended by a trailing `,` followed by an unindented `plot` line
+  // (zlma 2×15 then a 15-bar regression)
+  'nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888': { warmupBars: 45 },
 }
 
 describe('⭐ newly attaching through the runtime lane — finite, plausible, no NaN-poisoning', () => {
@@ -96,7 +106,7 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
             expect(first, `${row.label} starts too late`).toBeLessThan(bars.length / 2)
             const holes = col.slice(first).filter((v) => !Number.isFinite(v)).length
             expect(holes, `${row.label} falls back to na after it started (NaN-poisoning)`).toBe(0)
-            for (const v of col.slice(first)) {
+            for (const v of col.slice(first + (rule.warmupBars || 0))) {
               expect(v, `${row.label} left the price band`).toBeGreaterThan(lo * 0.5)
               expect(v, `${row.label} left the price band`).toBeLessThan(hi * 2)
             }
@@ -131,3 +141,32 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
 // empty array is `na` (`rtwalls-array-stats-na-rddt-1d-2026-09-27`). The runtime follows
 // that, and the script now clears the same finite / plausible / no-NaN-poisoning bar
 // as every other newly attaching script, on both charts.
+
+// ⭐⭐ A LONG CHART, NOT ONLY 600 BARS (pine/runtime-walls-3, 2026-09-28). Every case
+// above runs on 600 or 631 bars, and that is exactly how `LOOP_ITERATIONS` hid: it was
+// charged over the WHOLE run, so nadaraya-watson (~56 iterations a bar), wyckoff and
+// atr-stepped passed here and died `LOOP_ITERATIONS_EXCEEDED` on 3,000 SPY daily bars —
+// a member's chart loads up to 5,000. It is a per-bar ceiling now (`vm.js` LOOP_TICK);
+// this holds every loop-bearing newly attaching script to a 2,000-bar run.
+// ⚠️ kernel-channel-backquant is here too and is SLOW: ~5 s per 1,000 daily bars in this
+// VM (27k instructions a bar). Correct and finite; the cost is recorded in
+// PARITY-PROGRAMME.md (2026-09-28), not hidden by leaving it out.
+const SPY_LONG = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/spy-1d-bars-3000-2026-09-13.json'), 'utf8'))
+  .bars.slice(-2000)
+describe('⭐ loop-bearing scripts compute on a 2,000-bar chart', () => {
+  for (const name of ['atr-stepped-pdf-ma-loxx__9b90a3f7bb',
+    'nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125',
+    'wyckoff-accumulation-distribution__d9ae726e21',
+    'nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888',
+    'kernel-channel-backquant__d8c4b7f75c']) {
+    it(`${name} on SPY 2000`, { timeout: 120000 }, () => {
+      vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
+      const d = memberPaneDefinition({ source: corpus(name), id: 'u_member-pane-rtw-long' })
+      expect(d.ok, d.reason).toBe(true)
+      const { installed, errors } = registry.installUserDefinitions([d.definition])
+      expect(errors).toEqual([])
+      const cols = registry.computeFor(installed[0], SPY_LONG, undefined, CTX)
+      expect(registry.columnErrors(cols)).toEqual({})
+    })
+  }
+})

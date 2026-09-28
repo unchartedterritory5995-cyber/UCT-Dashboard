@@ -152,16 +152,19 @@ describe('⭐⭐ a refusal that knows where it is keeps its own location', () =>
     // ⭐ THE FIXTURE IS NOT INVENTED — it is the shape of one of the two corpus
     // scripts still reported approximate after the fix
     // (`volume-spikes-growing-volume-signals-with-alerts-scanner`, L44).
-    // `runtime/colours.js` throws a bare `ColourError` for an eight-digit hex,
-    // which is an ordinary `Error`: no `line`, no `at`, nothing to recover. So
-    // the fallback fires, correctly, and says so.
+    // `runtime/colours.js` throws a bare `ColourError` for a hex it cannot
+    // read, which is an ordinary `Error`: no `line`, no `at`, nothing to
+    // recover. So the fallback fires, correctly, and says so.
+    // ⚰️ The fixture was `#00e67610` — eight digits — until 2026-09-28, when
+    // `#RRGGBBAA` became readable (pine/runtime-walls-3). A SEVEN-digit hex is
+    // not a Pine colour at all and still reaches the same bare throw.
     //
     // ⭐ AND IT DEMONSTRATES WHY THE FLAG EXISTS: the unreadable colour is
     // written on line 5 and the refusal reports line 6, because line 6 is the
     // statement being lowered when the colour was read. That is an honest
     // approximation, and it is marked as one.
     const src = `${HEAD}table.cell(t, 0, 0, ${Q}x${Q})${LF}`
-      + `myCol = #00e67610${LF}`     // ← the unreadable colour really lives here
+      + `myCol = #00e6761${LF}`     // ← the unreadable colour really lives here
       + `bgcolor(myCol)${LF}`        // ← and this is the statement it is reported on
     const r = buildObjectLane(src, { tf: 'D', newestBarIsForming: false, bars: BARS })
     expect(r && r.ok, 'the colourless fixture did not refuse').toBe(false)
