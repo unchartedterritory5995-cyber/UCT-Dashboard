@@ -321,11 +321,13 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  * @param {number} a.warmupBars      bars [0, W) are the warm-up region
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, tol }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, tol, oursUnreadAfter = null }) {
   const n = times.length
   const res = {
     bars: n,
     compared: 0,
+    // Bars our side cannot report the vendor's quantity for (see `leadBy`).
+    oursUnread: 0,
     matching: 0,
     vendorRowsMissing: 0,
     naMismatches: 0,
@@ -357,6 +359,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       continue
     }
     firstRowSeen = true
+    if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
     const o = ours[i]
     res.compared += 1
     if (!isNa(v)) res.valued += 1
@@ -485,6 +488,25 @@ export function readingOf(f) {
     return `color: vendor ${f.vendorColor ?? 'none'} vs ours ${f.ourColor ?? 'none'} at value ${fmt(f.vendor)}`
   }
   return `${f.kind}: vendor ${fmt(f.vendor)} vs ours ${fmt(f.ours)}`
+}
+
+/** ⭐⭐ A POSITIVE `offset = N` IS IN OUR TREE, AND NOT IN THE VENDOR'S EXPORT.
+ *
+ *  Our translator writes `plot(x, offset = N)` as the column `x[N]` (what stands
+ *  at bar j is bar j-N's value — the drawing). TradingView's study data holds
+ *  the UNSHIFTED series, keyed to the bar that COMPUTED it, and draws it N bars
+ *  right. Measured 2026-09-28 on position-size-calculator (`offset = 20`,
+ *  `show_last = 20`): the vendor reads 0 on bars 0..19, where a displaced series
+ *  would be na, and holds values on all 632 bars. The tree alone cannot tell
+ *  `offset = N` from `x[N]`, so the translator hands the shift over on the row
+ *  (`_treeShift`), and this reads our column N bars AHEAD: ours'[i] = ours[i+N].
+ *  Colours ride the same index — the point the renderer drew at bar i+N holds
+ *  bar i's value, and its colour is the one being claimed.
+ *  ⛔ The last N bars' values were never drawn on our chart (they sit right of
+ *  the last bar), so they are UNREAD, counted, and never graded — not "na". */
+export function leadBy(arr, n) {
+  if (!arr || !n) return arr
+  return Array.from({ length: arr.length }, (_, i) => (i + n < arr.length ? arr[i + n] : undefined))
 }
 
 // ── ONE CAPTURE ──────────────────────────────────────────────────────────────
@@ -655,14 +677,15 @@ export function compareCapture(capture, ours, opts = {}) {
       continue
     }
     const vc = vendorColorsFor(capture, v, roles.colorers, rowsByTime, times)
-    const ourColors = vc.measured ? (o.colors || null) : null
+    const treeShift = Number.isInteger(o.treeShift) && o.treeShift > 0 ? o.treeShift : 0
+    const ourColors = vc.measured ? (leadBy(o.colors, treeShift) || null) : null
     let warmupBars
     let warmupSource
     if (bar0) { warmupBars = 0; warmupSource = 'capture starts at bar 0 — no warm-up excuse' }
     else if (capture.warmup && Number.isInteger(capture.warmup.bars)) { warmupBars = capture.warmup.bars; warmupSource = `declared by the capture (${capture.warmup.source || 'unstated'})` }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
-    const oursCol = drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column
+    const oursCol = leadBy(drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column, treeShift)
     // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
     // `display = display.none`) has no colour anyone sees, so its colour is not
     // graded. Its VALUES still are — they feed alerts and other plots.
@@ -681,7 +704,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, tol })
+    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
     const pv = plotVerdict(r, {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
@@ -691,6 +714,7 @@ export function compareCapture(capture, ours, opts = {}) {
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
+      ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
       color: !vc.measured ? 'not captured'
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'

@@ -637,6 +637,31 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       expect(late.stats.firstDivergence.kind).toBe('color')
     })
 
+    it('⭐ a POSITIVE offset: TradingView exports the UNSHIFTED series, so our `x[N]` column is read N bars ahead', () => {
+      // ⚰️ position-size-calculator (`offset = 20`) graded 20 bars "vendor 0 vs
+      // ours na": the vendor's bar 0..19 are its own computed values, ours were
+      // the displaced column's warm-up.
+      const src = '//@version=6\nindicator("uct-offset-right")\nplot(close, "c", color = close > open ? #00FF00 : #FF0000, offset = 3)\n'
+      const g = gradeCapture(upDown(src)).verdict
+      const p = g.plots.find((x) => x.id === 'plot_0')
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.treeShift).toBe(3)
+      expect(p.stats.oursUnread).toBe(3)                         // the last 3 bars: never drawn on our chart
+      expect(p.stats.compared).toBe(rows.length - 3)
+      expect(p.stats.colorCompared).toBeGreaterThan(1000)
+      // ⛔ CONTROL — a vendor that exported the DISPLACED series (close[3]) DIVERGEs
+      const c = upDown(src)
+      const shifted = clone(c)
+      shifted.plotValues.rows.forEach((r, k) => { r[1] = k >= 3 ? c.plotValues.rows[k - 3][1] : null })
+      const bad = gradeCapture(sealCapture(shifted)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(bad.verdict).toBe('DIVERGE')
+      // ⛔ CONTROL — `plot(close[3])` WITHOUT an offset is a different plot, and is not realigned
+      const noOffset = '//@version=6\nindicator("uct-offset-right")\nplot(close[3], "c", color = close[3] > open[3] ? #00FF00 : #FF0000)\n'
+      const q = gradeCapture(upDown(noOffset)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(q.treeShift).toBeUndefined()
+      expect(q.verdict).toBe('DIVERGE')
+    })
+
     it('⭐ `cond ? colour : na` — drawn in nothing where TradingView drew nothing, read as the colour the renderer was handed', () => {
       // The vendor's palette holds ONLY the green entry; a down bar's colorer
       // reads `null` — the Ultimate Pivot Points shape, measured 2026-09-28.

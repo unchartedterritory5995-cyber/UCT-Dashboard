@@ -14992,7 +14992,7 @@ function translatePineResult(source, opts = {}) {
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
-        presentation: outputPresentation(args, { env, resolver, kind: out.kind }),
+        presentation: displacedPresentation(outputPresentation(args, { env, resolver, kind: out.kind }), shift),
         // ⭐ THE HANDLE TRAVELS WITH THE ROW so a hidden column can be labelled by the
         // name its author gave it (`mPlot`) rather than by the SCRIPT's title, which is
         // the label that made this a mistranslation in the first place.
@@ -15013,6 +15013,12 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ 2026-09-28 — A RIGHTWARD DISPLACEMENT'S SIZE, for a reader that must
+      // tell `plot(x, offset = N)` from `plot(x[N])`: the tree is identical, and
+      // TradingView exports the first UNSHIFTED (the vendor harness, `leadBy`).
+      // Non-enumerable like `_bareRole`: a hand-off, not part of the row's shape,
+      // so no digest and no persisted copy sees it.
+      if (shift > 0) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
       // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
       // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
       // definition-parameter edit moves the drawing too. Non-enumerable, like
@@ -16603,6 +16609,42 @@ const POSITIONAL_PRESENTATION = Object.freeze({
   plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
+
+/** ⭐⭐ 2026-09-28 — A RIGHTWARD `offset = N` MOVES THE COLOUR WITH THE VALUE.
+ *
+ *  The value's tree is `x[N]` (see `foldDisplacement`'s caller): what stands at
+ *  bar j is bar j-N's. A colour rule resolved beside it is the UNdisplaced
+ *  `cond`, so bar j drew bar j-N's value in bar j's colour — a plot Pine never
+ *  draws. TradingView keeps a plot's value and its colour in ONE study-data row,
+ *  keyed to the bar that computed them, and draws that row N bars right; the
+ *  colour of a point is the colour its own bar computed. Measured through the
+ *  vendor harness, whose `leadBy` reads our column N bars ahead to meet the
+ *  vendor's unshifted export: the values agreed and 1,025 of 2,028 colours did
+ *  not, until the rule was shifted with the value.
+ *
+ *  ⛔ Through `barOffsetNode`, the one place an offset is built (it folds
+ *  `(x[m])[n]` to `x[m+n]`), and the printed formula must read back — a rule
+ *  that cannot is DECLINED (`colorDynamic`), never drawn undisplaced. */
+function displacedPresentation(pres, shift) {
+  if (!(shift > 0) || !pres) return pres
+  for (const k of ['colorCondition', 'colorIndex']) {
+    const rule = pres[k]
+    if (!rule || !rule.ast) continue
+    try {
+      const ast = barOffsetNode(rule.ast, shift, null, null, null)
+      const formula = printFormula(ast)
+      verifyRoundTrip(formula, ast)
+      pres[k] = { ...rule, ast, formula }
+    } catch {
+      delete pres[k]
+      delete pres.colorUp
+      delete pres.colorDown
+      delete pres.colorPalette
+      pres.colorDynamic = true
+    }
+  }
+  return pres
+}
 
 function outputPresentation(args, ctx) {
   const pres = {}

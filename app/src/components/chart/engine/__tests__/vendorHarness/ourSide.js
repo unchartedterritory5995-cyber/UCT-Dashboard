@@ -315,6 +315,9 @@ export function runOurSide(capture) {
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
+        // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
+        treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
         // Why there are no colours, when there are none — so the verdict names the
         // cause instead of "could not be resolved".
         colorsReason: row && !colours.byKey.has(row.key)
