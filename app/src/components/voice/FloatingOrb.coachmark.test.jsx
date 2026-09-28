@@ -16,7 +16,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { useContext } from 'react'
+import { useContext, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
 import { VoiceContext } from '../../context/VoiceContext'
@@ -127,13 +128,22 @@ describe('FloatingOrb "Meet Compass": in the page flow, never over it', () => {
   })
 
   it('read-aloud playback (the orb renders nothing) hides the card; it returns when playback ends', () => {
+    // Playback ends INSIDE one mounted tree (a `rerender` would drop renderWithProviders'
+    // router and providers and remount the orb -- a remount is not "comes back").
+    function Playback({ children }) {
+      const [playing, setPlaying] = useState(true)
+      return (
+        <>
+          <VoiceOverride voice={playing ? { mode: 'a', status: 'playing' } : {}}>{children}</VoiceOverride>
+          <button type="button" onClick={() => setPlaying(false)}>stop</button>
+        </>
+      )
+    }
     act(() => { registerFirstRunSlot(slot) })
-    const { container, rerender } = renderWithProviders(
-      <VoiceOverride voice={{ mode: 'a', status: 'playing' }}><FloatingOrb /></VoiceOverride>,
-    )
+    const { container } = renderWithProviders(<Playback><FloatingOrb /></Playback>)
     expect(cluster(container), 'no orb during playback').toBeNull()
     expect(card(), 'so no card').toBeNull()
-    rerender(<VoiceOverride voice={{ mode: null, status: 'idle' }}><FloatingOrb /></VoiceOverride>)
+    fireEvent.click(screen.getByText('stop'))
     expect(cluster(container)).not.toBeNull()
     expect(card(), 'back with the orb').not.toBeNull()
     expect(localStorage.getItem(KEY)).toBeNull()
@@ -161,6 +171,62 @@ describe('FloatingOrb "Meet Compass": in the page flow, never over it', () => {
     act(() => { registerFirstRunSlot(slot) })
     renderWithProviders(<FloatingOrb />)
     expect(card()).toBeNull()
+  })
+})
+
+// F5 fix round 2: a page sized to the viewport cannot take the card's height -- measured,
+// the card pushed /charts' 1200 px workspace 78 px into a scroll, its bottom 50 px below the
+// fold. The card waits there and shows on the next ordinary page. The routes on BOTH sides
+// are READ from the committed measurement (never typed here); the list itself is railed
+// against it in firstRun/viewportLockedRoutes.test.js.
+const routeMeasurement = JSON.parse(readFileSync(join(process.cwd(), '..', 'docs', 'notebook', 'proof',
+  'f5-r2-routes', 'routes-before-a0c32d2e2.json'), 'utf8'))
+const MEASURED_LOCKED = routeMeasurement.locked
+const MEASURED_ORDINARY = routeMeasurement.rows.filter((r) => r.class.verdict === 'ordinary').map((r) => r.route)
+
+function GoTo({ to }) {
+  const navigate = useNavigate()
+  return <button type="button" onClick={() => navigate(to)}>{`go ${to}`}</button>
+}
+
+describe('"Meet Compass" waits on a viewport-locked page', () => {
+  it('non-vacuity: the measurement names pages on both sides', () => {
+    expect(MEASURED_LOCKED).toContain('/charts')
+    expect(MEASURED_ORDINARY.length).toBeGreaterThan(0)
+  })
+
+  it.each(MEASURED_LOCKED)('on %s (measured locked): no card, the orb is there, the key is not written', (route) => {
+    act(() => { registerFirstRunSlot(slot) })
+    const { container } = renderWithProviders(<FloatingOrb />, { route })
+    expect(cluster(container), 'the button it would name is on screen').not.toBeNull()
+    expect(card(), 'no card pushing the page past the fold').toBeNull()
+    expect(localStorage.getItem(KEY), 'waiting, not dismissed').toBeNull()
+  })
+
+  it.each(MEASURED_ORDINARY)('on %s (measured ordinary): the card shows', (route) => {
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route })
+    expect(card()).not.toBeNull()
+    expect(slot.contains(card())).toBe(true)
+  })
+
+  it('after leaving a locked page the card appears on the next ordinary one (same mounted orb)', () => {
+    const [locked, ordinary] = [MEASURED_LOCKED[0], MEASURED_ORDINARY[0]]
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<><FloatingOrb /><GoTo to={ordinary} /><GoTo to={locked} /></>, { route: locked })
+    expect(card(), `waits on ${locked}`).toBeNull()
+    fireEvent.click(screen.getByText(`go ${ordinary}`))
+    expect(card(), `arrives on ${ordinary}`).not.toBeNull()
+    expect(slot.contains(card())).toBe(true)
+    fireEvent.click(screen.getByText(`go ${locked}`))
+    expect(card(), `steps aside again on ${locked}`).toBeNull()
+    expect(localStorage.getItem(KEY), 'still waiting, never dismissed by a route').toBeNull()
+  })
+
+  it('control: a route that only starts with the same letters is an ordinary page', () => {
+    act(() => { registerFirstRunSlot(slot) })
+    renderWithProviders(<FloatingOrb />, { route: '/chartsx' })
+    expect(card()).not.toBeNull()
   })
 })
 

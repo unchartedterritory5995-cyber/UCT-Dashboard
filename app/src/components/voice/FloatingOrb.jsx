@@ -1,7 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import { useVoice } from '../../context/VoiceContext'
 import { useFirstRunSlot, useFirstRunStageHeld } from '../firstRun/firstRunStage'
+import { isViewportLockedRoute } from '../firstRun/viewportLockedRoutes'
 import useRealtimeSession from '../../hooks/useRealtimeSession'
 import AgentPicker from './AgentPicker'
 import CompassOrb from './CompassOrb'
@@ -127,7 +129,12 @@ export default function FloatingOrb({ context = 'global' }) {
   // the card after it (firstRunStage.js).
   const firstRunSlot = useFirstRunSlot()
   const firstRunStageHeld = useFirstRunStageHeld()
-  const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld
+  // Fix round 2: nor on a page sized to the viewport (/charts and the others measured) --
+  // the card is in the page flow and would push the page past the fold. It WAITS there
+  // (showCoachmark untouched) and shows on the next ordinary page. The list is measured,
+  // not guessed: viewportLockedRoutes.js.
+  const onViewportLockedPage = isViewportLockedRoute(useLocation().pathname)
+  const coachmarkOn = showCoachmark && Boolean(firstRunSlot) && !firstRunStageHeld && !onViewportLockedPage
   const hiddenOnScroll = useHideOnScroll()
   const scrollLocked = useScrollLocked()   // a modal/sheet is open
 
