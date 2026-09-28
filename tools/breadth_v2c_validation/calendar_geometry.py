@@ -92,9 +92,11 @@ def early_closes(y):
 def main():
     import os
     import common
-    art = os.environ.get("CG_ART", SCRATCH)                       # default: the frozen V2c scratch copy
-    if os.environ.get("CG_GROUPED"):
-        common.GROUPED = os.environ["CG_GROUPED"]
+    # argv: [artifact [grouped_dir [out_name]]] (the launcher replaces the environment, so argv, not env)
+    a = sys.argv[1:] + [None] * 3
+    art = a[0] or SCRATCH                                          # default: the frozen V2c scratch copy
+    if a[1]:
+        common.GROUPED = a[1]
     c = ro(art)
     ck = dict(c.execute("SELECT date,status FROM pass_checkpoint").fetchall())
     ps = {d: (b, ec) for d, b, ec in c.execute("SELECT date,buckets,early_close FROM pass_session")}
@@ -161,7 +163,7 @@ def main():
     R["rule_early_closes_not_flagged"] = sorted(d for d in rule_early if d in ps and not ps[d][1])
     R["flagged_early_not_rule"] = sorted(d for d, (b, ec) in ps.items() if ec and d not in rule_early)
     R["artifact"] = art; R["grouped"] = common.GROUPED; R["last_checkpoint"] = last_ck
-    print(write(os.environ.get("CG_OUT", "calendar_geometry.json"), R))
+    print(write(a[2] or "calendar_geometry.json", R))
     print(json.dumps({"phase3_summary": R["phase3_summary"], "phase4_classes": R["phase4_classes"],
                       "rule_early_closes_not_flagged": R["rule_early_closes_not_flagged"],
                       "flagged_early_not_rule": R["flagged_early_not_rule"]}, indent=1))
