@@ -23,6 +23,8 @@
 // `location.absolute` is for) would then mark every bar with a non-zero price,
 // which is every bar. So the test is explicit rather than truthy.
 
+import { packedPointCss } from './colorInt'
+
 /** Does this column value mark its bar?
  *
  *  ⚠️ `> 0` RATHER THAN `!== 0`, and it is deliberate. Pine's own rule for
@@ -49,7 +51,7 @@ const marks = (v) => Number.isFinite(v) && v > 0
  * @returns {Array<object>} LWC marker objects, ascending by time
  */
 export function markersFor({ column, times, marker, color,
-  condColumn = null, colorUp = null, colorDown = null }) {
+  condColumn = null, colorUp = null, colorDown = null, packed = false }) {
   const out = []
   if (!column || !times || !marker) return out
   const n = Math.min(
@@ -62,9 +64,12 @@ export function markersFor({ column, times, marker, color,
   const twoTone = condColumn && colorUp && colorDown
   for (let i = 0; i < n; i += 1) {
     if (!marks(column[i])) continue
-    const c = twoTone
-      ? ((Number.isFinite(condColumn[i]) && condColumn[i] !== 0) ? colorUp : colorDown)
-      : color
+    // ⭐ 2026-09-27 — a PACKED colour column (`rgba:`) is each marker's own
+    // colour, read through the same decoder a line's point uses.
+    const c = (packed && condColumn) ? packedPointCss(condColumn[i])
+      : twoTone
+        ? ((Number.isFinite(condColumn[i]) && condColumn[i] !== 0) ? colorUp : colorDown)
+        : color
     const m = {
       time: times[i],
       position: marker.position || 'aboveBar',

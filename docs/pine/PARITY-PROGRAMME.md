@@ -20,6 +20,322 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-27 — THE RUNTIME LANE AS A GATED FALLBACK AT THE MEMBER DOOR (branch `pine/runtime-lane-door`)
+
+> Owner goal, 2026-09-27: *"fully import every and any TradingView Pine script
+> indicator so it shows on UCT charts exactly as on TradingView."* It supersedes
+> ruling D2 for ONE path, and only that path. Base `pine/object-pass-integrated`
+> @ `f33bee110`. Every count is `memberPaneDefinition` over the 266 committed
+> scripts (`runtimeLaneDoor.census.measure.test.js`, `RUNTIME_CENSUS=1`).
+
+### The design
+
+**When.** `memberPaneDefinition` asks the host lane first, exactly as before. Only
+when `paneGate` REFUSES, and **every** refusal the host translation carries is a
+limit of its own single-expression value model, does it try the runtime lane.
+That set is `RUNTIME_FALLBACK_GUARDS` in `engine/pineRuntimeLane.js`:
+
+| guard | proof (the host refuses it with that guard alone; the runtime lane builds it) |
+|---|---|
+| `pine:state` | `var float s = 0.0 / s := s + close / plot(s)` |
+| `pine:reassign` | `float s = 0.0 / for i = 0 to 3: s := s + close[i]` |
+| `pine:block` | `x = switch …` as a value |
+| `pine:collection` | `array.new_float` / `array.push` / `array.get` |
+| `pine:type` | `type P` + `P.new(close)` |
+| `pine:function-def` | `trendlines__43QQg9nDN0` (corpus; it draws, so built with object ownership) |
+
+⚠️ **Measured out:** `pine:tuple` and `pine:na` read like value-model limits and are
+NOT in the set — no fixture exists where the host refuses them and this lane builds
+(`[k, d] = ta.stoch(…)` refuses here too, `runtime:tuple`; `fixnan` refuses in both
+lanes). ⛔ **No vocabulary or ruling guard is ever in it** (`pine:function`,
+`pine:role-order`, `pine:input-kind`, `pine:request`, …): those record that nobody
+has ruled what a name MEANS, and a second engine must not route around them.
+Measured: `support-and-resistance__UgNPprOr8h` (host `pine:role-order`) BUILDS in the
+runtime lane and is still refused. The host lane stays authoritative whenever it
+succeeds — the census asserts no host-attached script changes lane.
+
+**What is saved.** A `compute.kind: 'pine'` document
+(`builder/memberPane/runtimeLaneDefinition.js`), assembled by the SAME
+`buildDefinition` the host door uses, with its `compute` replaced by:
+
+```
+{ kind: 'pine', fn: 'pine:<fnv1a>', rev: 1,
+  source: <the member's Pine>,                 // the program, recompiled per chart
+  lane: { plotColours, ownsDrawing },          // the build options the indices were minted under
+  columns: { <plotKey>: { output, call, line, shift? } },
+  inputs:  { pine_<name>: <Pine name> } }      // member settings → the runtime's input names
+```
+
+⭐ **The source, recompiled — never a stored program.** The runtime program is
+compiled against the bars (pure sub-expressions become columns at build time) and
+the member's values (a length sizes a ring before bar 0), so nothing stored could be
+"the maths" the way `compute.ast` is. `computeFor` (kind `pine`) →
+`pineRuntimeLane.runtimeLaneColumns` rebuilds per (bars, inputs, tf, symbol, clock),
+cached by the bars array's identity, and **checks the saved map against the rebuilt
+program** — a stale map is `runtime-door:shape`, never another plot's series. Every
+failure is a named column error; nothing throws into the binder.
+
+**How settings edit.** Every numeric input the program READS (`collectInputs`) is a
+real per-instance `int`/`float`/`bool` input (`pine_<name>`); the rebuild hands the
+member's values to the runtime with `inputsReachEveryFold`, so a length reaches the
+window and a history offset reaches its ring — the half-applied knob the frozen
+resolver would otherwise produce. This is ruling R-H's "inputs as runtime
+parameters" for runtime documents. Withheld, each with a sentence: an input that sets
+where a plot is drawn (`offset =`); an input read only on an output the pane does not
+draw (`hline(th)`); and every input when the document carries a host object program
+(those trees were translated at the defaults).
+
+**How it draws.** Through the same pane, binder and object renderer:
+- **Presentation is the host lane's.** `translatePine(src, {drawPresentation: true})`
+  hands each output row — refused rows included — its title, style, width, marker,
+  static colour (through `pinePalette.js` by `@version`) and displacement, read by the
+  host row's own readers. Rows pair with runtime outputs by `(call, line)`.
+- **A colour the host cannot fold is the runtime lane's own.** `plotColours` emits each
+  plot's `color =` as a per-bar packed-colour output; the row draws it through the new
+  `colorMode: 'rgba:<key>'` (`binder.pointColour`, `markersFor`, fills). `na` paints
+  transparent. A colour neither lane can carry is drawn in one colour and SAID.
+- **Objects:** the host object pass's program, under the same `paneObjectsGate` +
+  `objectLossNote` partial-drawing rule — a lost removal withholds the drawings and
+  keeps the plots; anything else is drawn and disclosed "N of M". The runtime lane
+  treats drawing calls as the object program's only when that pass saw them.
+- **Not drawn, and said:** `hline`, `bgcolor`, `barcolor`, `plotarrow`, alert
+  conditions (D1's sentence), rows past the pane's visible ceiling; a
+  `request.security` script is refused (`runtime-door:request`) because every value
+  would draw as `na`.
+
+**Flag.** `VITE_PINE_RUNTIME_LANE_ENABLED`, default OFF (`=== '1'`, fail-closed), ONE
+module (`engine/pineRuntimeLaneGate.js`) read by the door AND the install door
+(`validateUserDefinitions`), so a `pine` document minted on an armed build cannot
+compute on an unarmed one. Dockerfile.web ARG + ENV; both ledgers `dark`.
+
+⛔ **The lane has ONE door.** `pineRuntimeFrontendGate.test.js` now asserts the live
+importers of the runtime lane are EXACTLY `engine/pineRuntimeLane.js` (the fallback)
+and `engine/runtime/objectLane.js` (lane-internal, reached by no component), and the
+fallback's own importers are exactly the door, the document builder and `nativeRegistry`.
+`tools/pine_lane_reachability.mjs` therefore now reports the runtime frontend/VM as
+reached (**204** components, through `nativeRegistry`) — which is the door, and is why
+the importer rail, not the reachability report, is what guards it.
+
+### The census — four flag combinations
+
+| objects-only | runtime lane | attached | of 266 |
+|---|---|---|---|
+| off | off | **34** | 12.8% |
+| on | off | **54** | 20.3% |
+| off | **on** | **40** | +6 |
+| on | **on** | **60** | +6 |
+
+**Newly attaching through the runtime lane (the same 6 under both objects settings):**
+`adx-and-di-for-v4__932`, `cc-yata__bd898a1af0`, `fvg-trend__21e364f2ed`,
+`pivot-point-supertrend__HN4w1eNW3B`, `qqe-signals__EhBrwQPjZ1`,
+`trendlines__43QQg9nDN0`. Matches the programme's 2026-09-23 prediction (+6).
+
+### The second walls — ranked by scripts each would COMPLETE
+
+54 scripts are admissible to the fallback; 6 attach; **48 hit a runtime-lane wall.**
+Peeled line by line through the runtime DOOR's own build (the `peelToBuilding`
+method: a failing binding becomes `= 0.0`, any other failing line is blanked):
+
+| clearing this wall ALONE completes | scripts |
+|---|---|
+| `runtime:history-dynamic-offset` | **2** — `atr-stepped-pdf-ma-loxx`, `twin-range-filter` |
+| `runtime:statement` | **1** — `btc-charlie-trader-xo-macro-trend-scanner` |
+| any two walls (4 pairs) | 1 each: `call-text-state+object-op`, `builtin+input-kind`, `pine:statement+call-undeclared-builtin-state`, `pine:function+input-kind` |
+
+First walls, by count (what the member is told today): `runtime:history-dynamic-offset`
+12 · `runtime:array` 5 · `pine:input-kind` 4 · `runtime:statement` 3 ·
+`runtime:call-undeclared-builtin-state` 3 · `pine:function` 3 · then 1–2 each.
+
+⛔ **Read the counts as an ESTIMATE, and the ranking as the real finding.** The peel
+reached a building program for only **19 of 48**; 17 stuck on `pine:statement` (the
+peel's own blanking breaks block structure), 9 hit the 20-step cap. Of the 19, the
+median distance is 6 peel steps (range 1–16). So **the runtime lane is nowhere near one capability from
+most of these scripts**: `history-dynamic-offset` is the widest FIRST wall (12) but
+completes only 2 on its own, because the scripts behind it carry 4–15 more. The
+cheapest measured completions are the three single-wall scripts above.
+
+### Evidence against the vendor
+
+- **Both doors, same numbers.** For every committed script BOTH doors build (7), the
+  runtime door forced draws **bit-identical** columns to the host door, row for row
+  (51 rows, 600 SPY bars; `runtimeLaneDoor.test.js`). ⚠️ This proves the door's
+  plumbing, not independent maths: those rows are pure expressions both lanes compute
+  through `interpret`.
+- **The one native capture, through both engines.** `keltner-channels-bands-rddt-1d-
+  2026-09-27` graded through the runtime door gets the same per-plot verdicts and counts
+  as the host door (Basis MATCH; the six bands DIVERGE on the documented converging
+  seed prefix). Keltner is host-served, so a member never reaches the runtime lane with it.
+- **A host-refused script against TradingView.** `adx-and-di-for-v4` (host `pine:state`,
+  runtime-lane only) through the full member door: DI+ and DI- against the owner's
+  capture of the built-in `ta.dmi(14, 14)` on 300 SPY bars
+  (`observations/plus-di-14` / `minus-di-14`) — worst relative difference per 50-bar
+  window DI+ `1.5e-2 → 3.7e-4 → 2.9e-6 → 2.2e-7`, DI- `2.9e-3 → 9.5e-5 → 1.6e-6 →
+  3.5e-8`: the script's zero seed decaying by (13/14)^50, then agreement to <1e-6.
+  ⛔ It is the vendor's BUILT-IN, not a capture of this script (the script's DI is the
+  same Wilder recurrence); its ADX is `sma(DX)` where the built-in is an RMA, so ADX is
+  NOT compared.
+
+⛔ **No vendor capture of any runtime-lane script exists yet.** The six that most need
+one, in order: `adx-and-di-for-v4` (ADX line), `pivot-point-supertrend` (the
+state-driven trailing line and its per-bar colour), `fvg-trend` (per-bar colour),
+`qqe-signals`, `cc-yata`, `trendlines`.
+
+### Verification on this branch
+
+**Rails** (all by name): `engine/__tests__/pineRuntimeLane.test.js` (flag, guard
+proofs, columns/shift/stale-map, knobs incl. a history ring, opt-in options, the
+hand-off, the install door, the schema), `builder/memberPane/runtimeLaneDoor.test.js`
+(the real door + install + computeFor + binder), `engine/__tests__/
+pineRuntimeFrontendGate.test.js` (the one door), `engine/__tests__/vendorHarness/
+runtimeLaneVendor.test.js`, and the opt-in census. Python:
+`tests/test_dockerfile_vite_build_args.py` + `tests/test_vite_flag_ledger.py` 11/11.
+
+**Mutations — 17 code + 3 wiring, every one RED, every file restored from captured
+bytes and sha256-verified (and equal to the committed blob):** flag reads anything as
+on · door ignores the flag · admissible on the first guard only · a ruling guard joins
+the set · install door ignores the flag · saved map trusted · member values stop at
+the columns (⚰️ SURVIVED the first run — the length case read through a column; a
+history-ring case was added and it went red) · no plot colour channel · binder ignores
+the packed colour · objects drawn despite a lost removal · displacement input offered
+· undrawn-only input offered · runtime tried when the host succeeds · refused rows lose
+the hand-off · bool spelling lost · **the fallback stubbed out (18 red)** · computeFor
+loses the `pine` lane (13 red) · Dockerfile ARG removed · ENV line removed · ledger row
+removed. Unmutated control green before and after.
+
+**Regression** (engine suite + `src/components/chart/builder/`, this branch vs base
+`f33bee110`, by test-name set difference): 9,562 → 9,623 tests, 20 → 23 failed. The
+three names red only here: `pineRuntimeFrontendGate` "the fallback itself…" — a real
+catch, the rail counted `__tests__/vendorHarness/ourSide.js` as a door, fixed;
+`memberPaneGate` "is read in exactly ONE place" (STACK_TRACE_ERROR under load) and
+`stockChartWiring` "A HOVER REACHES THE RENDERER NOT AT ALL" — both pass alone. **No
+new failures.** ⚠️ `memberPaneGate` "WAS VACUOUS" is red on BOTH trees (it has
+asserted "no non-test importer of pineRuntimeFrontend" while `runtime/objectLane.js`
+was one); it now names two, and its own message asks for a rewrite once the lane has a
+consumer — left for the owner of that file.
+
+### Open, for the owner
+
+1. **The store refuses the document.** `api/services/user_definitions.py::save`
+   requires `compute.kind == 'ast'` and hashes `compute.ast`; so with the flag on a
+   runtime-lane pane PREVIEWS and draws in the builder, and "Add this script to my
+   chart" is refused with the store's own sentence. Widening it is a backend change
+   with its own blast radius — the scan sweep, alerts, definition records and relint
+   all read `compute.ast` off stored rows and must skip or serve `pine`.
+2. **The repaint badge** of a runtime document is a token rule (`repaints` when the
+   source reads a realtime `barstate.*`, `timenow` or `varip`; else `non-repainting`),
+   not the linter — there is no tree to lint.
+3. **An input read only by a branch dead at the defaults** is not offered (the program
+   never reads it at those settings).
+4. **A document carrying objects offers no settings** (host object trees are the
+   defaults'); per-input object trees are the object lane's job.
+5. **`transp =` on a plot whose colour is per-bar** is unmeasured: the packed colour's
+   own alpha is drawn.
+6. **History dependence.** A `var` accumulator depends on where the loaded history
+   starts, exactly as the host's `window_dependent` tag describes for `ta.cum`; the
+   runtime door raises that tag only for its rosters' Pine spellings (`ta.cum`,
+   `barstate.isfirst`), not for every `var`. A broader sentence is a ruling.
+
+⚠️ **Observed, pre-existing, not changed here:** `buildDefinition` drops a row's
+`opacity` (the member door sets it; the document never carries it), for host and
+runtime documents alike.
+
+## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
+
+> Base `0a16dd9ab` (`pine/object-pass-integrated`). Door = `memberPaneDefinition` over the
+> 266 committed scripts, objects-only flag off/on. Census tool (opt-in, committed):
+> `app/src/components/chart/builder/memberPane/vocabularyWalls.census.measure.test.js`
+> (`VOCAB_CENSUS=1`). Capture queue: `docs/pine/capture-queue-2026-09-27.md`.
+
+**How "last wall" was measured.** For every script the door refuses with a vocabulary
+guard (`pine:function` 7 · `pine:builtin` 6 · `pine:input-kind` 2 · `pine:arity` 1 = **16
+scripts**, identical flag off and on), the refused name was replaced — every occurrence —
+by a correct-TYPE value (`time(...)` → `time`, `ta.nvi` → `close`, `syminfo.mintick` →
+`0.01`, …) and the door re-run until it attached or met a non-vocabulary wall. Never by
+deleting a binding line (that removes a name and manufactures `pine:undefined`). The chain
+is identical flag off and on for all 16.
+
+**The result, measured: only FOUR scripts have a vocabulary name as their last wall, and
+every one of the four is held by a RULING or an unmeasured semantics, not by a missing
+table row.**
+
+| name / form (first site) | first wall of | inside (masked) | LAST wall of | class | built? | evidence |
+|---|---:|---:|---:|---|---|---|
+| `time(tf, session[, tz])` (`opening-range…4a7416ab01:12`, `session-highs…c0ca8cf749:49`) | 2 | 0 | **1** (`opening-range-initial-balance-opening-price`) | C | no | 5m only (`r11-time-session…`); 1D unread → probe `vw-time-session` |
+| `input.time` (`session-hilo…WM2g5GtC4h:44`, `open-interest-profile…875691ab51:85`) | 2 | 0 | **1** (`session-hilo`) | B, **ruled** | no | ruling: `pine:input-kind` "under the threshold"; value confirm in `vw-time-tf` T16 |
+| `ta.nvi` + `ta.pvi` (`smart-money-interest-index…:13-14`, `smart-money-volume-index…:17-18`) | 2 | 0 | **2, jointly** (neither alone) | C, **ruled** | no | nvi seed on disk; pvi unread; `_functions_excluded.nvi/.pvi` refuses the fetch-dependent level → probe `vw-nvi-pvi` |
+| `time(<tf ≠ D>)` (`smart-money-concepts…:250`, `zigzag-ma…1302:24`, + 4 inside) | 2 | 4 | 0 (→ `pine:reassign`, `pine:request`) | A for W on 1D, C otherwise | no (needs a new clock column, both lanes) | `r11-time-tf…` (W, 610 bars, summary only) → probe `vw-time-tf` |
+| `syminfo.mintick` (`chart-champions…:73`, `renko…:40`) | 2 | 2 | 0 (→ `pine:state` ×2) | C (data) | no | `symbolScope.json::unserved` → probe `vw-mintick` |
+| `barstate.isnew` (`liquidity-engulfing…:24`, `smart-money-volume-activity…:81`) | 2 | 0 | 0 (→ `pine:request`, `pine:reassign`) | A, **ruled** | no | `barstate-full-spy-1d-closed-2026-09-10.json`: 1 on history, 0 on the newest closed bar; `_barstate.refused.isnew` |
+| `ta.vwap(src)` / v4 `vwap(src)` (`cpr…:205`, `camarilla…:313-316`, `rsi-vwap…:21`) | 1 | 2 | 0 (→ `pine:state`) | **A** for `hlc3` | **yes — `hlc3` only** | `groupb-round-max-vwap…`: `vwap(hlc3) − vwap` all 0 over 40 bars; `vwap(close)` is a different column and still refuses |
+| `year/month/dayofmonth(time)` (`initial-balance…M0u1uaug4Q:113`) | 1 | 0 | 0 (→ `time(session)`) | **B** | **yes** (+ `dayofweek`, `hour`, `minute`) | Pine reference: `year(time)` with no zone IS bare `year` (exchange zone, measured by `r11-nine-safe`); confirm probe `vw-clock-vwap` |
+| `timeframe.in_seconds(<non-literal>)` (`multiple-mtf…aArjfk9ShG:177`) | 1 | 0 | 0 (→ `pine:state`) | B for a literal (already served) | — | the literal form folds today; `vw-time-tf` T10–T15 confirm per code |
+| `int(<fractional>)` (`smarter-snr…:75`, `atr-god…:148`) | 1 | 1 | 0 (→ `pine:window`) | C | no | the `int` branch's own refusal; probe `vw-int-cast` |
+| `str.length(<non-literal>)` (`renko…:26`) | 0 (2nd) | — | 0 | C (text) | no | — |
+| `chart.right_visible_bar_time` (`open-interest-profile…:88`) | 0 (2nd) | — | 0 (→ no-output) | never matchable statically (viewport) | no | — |
+| `ta.alma` (`delta-volume-candles-lucf…:296,300`) | 0 | 1 (`pine:module`) | 0 | B | no (new table fn, zero unlock) | probe `vw-alma` |
+| bare `alma` (`highlow-channel-swing…:30`, `relative-volume…:71`) | 0 | 2 | 0 | **vendor REFUSES** | **must never be added** | `r11-alma-spy-2026-09-11.json` |
+| `ta.barssince(cond)` 1-arg unbounded · bare `barssince` 1-arg | 0 | 3 | 0 | ruled (unbounded; `r11-barssince…`) | no | — |
+| library / UDT names (`zen.`, `mymas.`, `pc.`, `PCvc.`, `kernels.`, `LucfTa.`, `breakout` arity, `input.enum`, `chart.bars/leftBarIndex/rightBarIndex`) | 0 | 11 | 0 | not vocabulary (Group C) | no | `r11-vocabulary-gap.md` |
+
+**Door counts, measured with `partialDrawing.census.measure.test.js` before and after:**
+flag off **34 → 34**, flag on **54 → 54**. **No script newly attaches** — the expected
+answer, since no last wall was an A/B name. One wall MOVED: `initial-balance-ib-and-
+previous-day-week-high-low-close` now refuses on the `time(<session>)` session clock
+instead of on `year(time)` (both flags). `pineTimenowAccept.test.js` records the move.
+
+**What shipped (the two names are IDENTITIES onto columns the engine already carries — no
+table name, no Python lane, no frozen digest moved — plus one guard their first consequence
+needed):**
+1. `ta.vwap(hlc3)` / `vwap(hlc3)` / the spelled-out `(high + low + close) / 3` → `vwap()`.
+   Any other source still refuses (`pine:arity`), now saying it is a different column and
+   naming `ta.vwap(hlc3)`. `ta.vwap(src, anchor)` unchanged.
+   ⚠️ An `input.source` DEFAULTING to `hlc3` translates too — the same behaviour
+   `sourceMustBe` already has for `ta.cci`/`ta.mfi`: an edit to another source is a
+   re-translation, which then refuses.
+2. `year|month|dayofmonth|dayofweek|hour|minute(time)` → the bare field, for a VERSIONED
+   script (whose `time` is `time * 1000`; recognised by identity with
+   `PINE_CLOCK_TRANSFORM.time()`). `time[1]`, a computed timestamp, a zone string and a
+   versionless script still refuse. `dayofweek(timenow)` refuses (no `lastbardayofweek`).
+3. **`pine:budget` — screener lane only.** Once `ta.vwap(hlc3)` translated,
+   `26-spy-to-es-qqq-to-nq` (community fixtures, non-strict) offered `sma(vwap(), 3)`, which
+   the budget refuses ("nothing can be wrapped around" the session-long `vwap()`): a
+   translation `doorScorecard` rightly calls unsaveable. The translate door now refuses a
+   column whose tree `checkBudget` rejects for `budget:lookback` AND that contains a
+   session-anchored call, in the budget's own sentence, on the SCREENER lane only.
+   ⚰️ **A blanket version was built first and measured wrong:** on the member door it
+   detached `volume-spikes-growing-volume-signals-with-alerts-scanner` (lookback 1000 > 960)
+   and `liquidity-pools__fa7b28e733` — the chart pane does not save under that budget, so
+   refusing there was an over-refusal. Narrowed to one cause and one lane; measured reach over
+   `pine`, `pine_community`, `pine_oos` and the 266, both lanes: script 26 only.
+   ⚰️ **And a second over-reach, caught by the suite:** measuring every screener tree
+   turned four trees the budget cannot MEASURE (a folded zero window — the C10 seam) into
+   `pine:statement` refusals. The session test now runs first and the measure is guarded;
+   an unmeasurable tree keeps meeting the engine's own refusal later, as before.
+   `REFUSALS` grows 43 → 44 (`symbolRosterSpeaks` re-pinned, with the reason).
+   `pine.guardCensus`: `pine:arity` joins the unexercised list (its only corpus firing was
+   that `ta.vwap(input_vwap_source)`), `pine:budget` is exercised.
+
+Rail: `app/src/components/chart/engine/ast/pineVocabularyWave.test.js` (12 tests; the vwap
+half READS the capture and asserts both its zero and its non-zero control). Mutation-proved
+8 ways, each red, restored from captured bytes and sha256-verified, unmutated control green:
+bar-time branch dead (1 red) · any argument accepted as bar time (3) · vwap accepts any
+source (1) · vwap branch removed (2) · the refusal gate forgets `dayofweek` (2) · budget check
+removed (1) · budget check on the host lane too (1) · budget check not narrowed to a session
+anchor (1).
+
+**Open, for the owner — each is a ruling, not a build:**
+1. `time(<session>)` on a daily bar — the refusal says "this engine screens daily bars,
+   where there is no inside to be in". Whether TradingView agrees is unread (probe #1). It
+   is the sole last wall of one script.
+2. `input.time` — sole last wall of `session-hilo`; blocked by the input-kind threshold
+   ruling, not by semantics.
+3. `ta.nvi`/`ta.pvi` — the fetch-dependence ruling; probe #3 turns its premise into a
+   measurement (two depths, same dates).
+4. `barstate.isnew` — the capture on disk already says TradingView answers 1 on every
+   historical bar and 0 on the newest closed bar; the ruling refuses on per-tick grounds.
+
+---
+
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
 
 > `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on
@@ -837,6 +1153,11 @@ node tools/pine_lane_reachability.mjs --self-check # proves the walk sees a 2-ho
 | RUNTIME frontend (`ast/pineRuntimeFrontend.js`) | 2 | **0** |
 | RUNTIME vm (`runtime/vm.js`) | 2 | **0** |
 | OBJECT lane (`runtime/objectLane.js`) | 1 | **0** |
+
+⚰️ **SUPERSEDED FOR ONE PATH on 2026-09-27** (branch `pine/runtime-lane-door`, section
+at the top): the RUNTIME lane is now reached through exactly one gated door — the
+member-door fallback, `VITE_PINE_RUNTIME_LANE_ENABLED`, default off. The OBJECT lane
+still reaches no rendered component. The paragraph below is the 2026-09-23 state.
 
 ⛔⛔ **THE RUNTIME AND OBJECT LANES REACH NO RENDERED COMPONENT.** Their only
 importers are each other and `ast/peelToBuilding.js`, which is an instrument. So

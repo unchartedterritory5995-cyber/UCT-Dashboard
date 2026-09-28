@@ -844,6 +844,10 @@ export function buildRuntimeIr(source, opts = {}) {
   // as much as one that references forty. `Array.isArray([])` is the test, never
   // `.length`.
   const objectPassOwnsDrawing = Array.isArray(opts.objectTrees)
+  /** ⭐ 2026-09-27 — emit each plot's `color =` as its own colour output. Read
+   *  HERE, once: `lowerExpr` takes a parameter called `opts` that shadows this
+   *  function's options (the `basePeriodOf` trap recorded below). */
+  const plotColours = opts.plotColours === true
 
   /** How many drawing-as-value creates this build has lowered. ⛔ THIS LANE'S
    *  OWN ORDINAL — see `runtime/handles.js`: it is NOT the object program's
@@ -969,8 +973,19 @@ export function buildRuntimeIr(source, opts = {}) {
   // authority over one value and would drift the first time the pragma grammar
   // moved.
   const pineVersion = Number.isFinite(lexed && lexed.version) ? lexed.version : null
+  // ⭐⭐ 2026-09-27 — THE MEMBER DOOR'S INPUT CATALOGUE (`opts.collectInputs`).
+  //
+  // The runtime-lane door (`engine/pineRuntimeLane.js`) offers a knob for every
+  // numeric input this program actually READS, and nothing else: an input no
+  // expression reaches is a control that moves nothing. The Resolver already
+  // mints that list for the host lane's parameter manifest (`paramMint`, keyed by
+  // the input CALL NODE, so one input feeding many expressions is one entry); the
+  // same mint is shared by every resolver this build makes, frozen ones included.
+  // ⛔ OFF BY DEFAULT — no other caller's build moves by one byte.
+  const inputMint = opts.collectInputs === true
+    ? { counter: 0, byNode: new Map(), metadata: [] } : null
   const makeResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion })
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
   }
@@ -996,7 +1011,23 @@ export function buildRuntimeIr(source, opts = {}) {
   //  setting, and a frozen fold that read `pivothigh` as the house column while
   //  the live one read Pine's would put two meanings on one name inside a
   //  single script (`lesson_rail_the_mirror_not_just_the_lane`).
-  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), { pineVersion })
+  //
+  //  ⭐⭐ 2026-09-27 — …UNLESS THE CALLER REBUILDS PER VALUE SET
+  //  (`opts.inputsReachEveryFold`). The frozen rule protects a SAVED program
+  //  whose ring was sized once; the runtime-lane member door saves the SOURCE and
+  //  rebuilds the whole program for every set of member values, so there is no
+  //  saved ring to disagree with. There, freezing is the defect: `ta.rma(x, len)`
+  //  would keep the author's 14 while the column beside it read the member's 20
+  //  — the half-applied knob. TradingView recompiles on every input change, and
+  //  with this option so does this lane. ⛔ OFF BY DEFAULT: every other build
+  //  keeps the owner's 2026-08-11 rule exactly (`history.test.js`).
+  const makeFrozenResolver = () => {
+    const r = new Resolver(env, TABLE, new Map(), { pineVersion, paramMint: inputMint })
+    if (opts.inputsReachEveryFold === true && inputs && typeof inputs === 'object') {
+      r.inputValues = inputs
+    }
+    return r
+  }
 
   // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
   //
@@ -4360,9 +4391,37 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:colour',
         `\`${callName}()\` draws numbers, and a colour is not one`, at)
     }
-    outputs.push({ call: callName, ...(extra || {}) })
+    // ⭐ 2026-09-27 — THE STATEMENT'S LINE RIDES ON THE DESCRIPTOR, so the member
+    // door can pair this output with the host translation's presentation of the
+    // same call (title, style, width, marker) by where it is written rather than
+    // by counting — the two lanes do not agree on which calls ARE outputs
+    // (`hline`, `bgcolor` and `fill` are outputs here and not there).
+    outputs.push({ call: callName, ...(at && Number.isInteger(at.line) ? { line: at.line } : {}), ...(extra || {}) })
     const index = outputs.length - 1
     out.push(emit(index, lowerExpr(arg0, scope)))
+    // ⭐⭐ 2026-09-27 — THE PLOT'S OWN COLOUR, AS A PER-BAR SERIES (`opts.plotColours`).
+    //
+    // ⚰️ THIS LANE HELD NO COLOUR FOR A PLOT (`PARITY-PROGRAMME.md`, 2026-09-23 §3:
+    // "the IR's output descriptor holds no colour"). `bgcolor` and `fill` already
+    // emit theirs through the colour channel; this is the same emit for a plot's
+    // `color =` argument, evaluated WHERE the plot stands — so a colour read from
+    // `var` state (`linecolor := …`) is the value Pine paints that bar with, which
+    // the host lane's static fold cannot see at all.
+    //
+    // ⛔ ONLY A VALUE THIS LANE KNOWS IS A COLOUR (`holdsColour`). Anything else —
+    // `color.from_gradient`, a bare `na` — emits nothing here, and the door says
+    // the colour is not carried rather than painting a guess.
+    // ⛔ OFF BY DEFAULT. Every other caller's output list is unchanged, which is
+    // what keeps output indices stable for them.
+    if (plotColours && !COLOUR_OUTPUTS.has(callName)) {
+      const colourArg = args.find((x) => x && x.name === 'color')
+      const colourNode = colourArg ? colourArg.value : null
+      if (colourNode && holdsColour(colourNode, scope)) {
+        outputs.push({ call: 'plotcolor', of: index,
+          ...(at && Number.isInteger(at.line) ? { line: at.line } : {}) })
+        out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
+      }
+    }
     return index
   }
 
@@ -4418,7 +4477,8 @@ export function buildRuntimeIr(source, opts = {}) {
       throw new RuntimeRefusal('runtime:colour',
         '`fill()` paints with a colour, and this is not one', at)
     }
-    outputs.push({ call: 'fill', upper, lower })
+    outputs.push({ call: 'fill', upper, lower,
+      ...(at && Number.isInteger(at.line) ? { line: at.line } : {}) })
     out.push(emit(outputs.length - 1, lowerExpr(colourNode, scope)))
   }
 
@@ -6122,7 +6182,37 @@ export function buildRuntimeIr(source, opts = {}) {
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds }
+  return {
+    ok: true, ir, diagnostics, objectIterTreeKinds,
+    ...(inputMint ? { inputParams: inputCatalogue(inputMint) } : {}),
+  }
+}
+
+/** The inputs a build READ, as the member door's knob catalogue.
+ *
+ *  ⭐ The mint's own entries, plus the one fact the mint cannot record because a
+ *  Pine boolean folds to a number before it reaches it: whether the author wrote
+ *  `true`/`false`. A switch offered as a number field would be a knob the member
+ *  cannot read. ⛔ A copy per entry — the mint is this build's, never shared. */
+function inputCatalogue(mint) {
+  // ⚠️ THE PARSER FOLDS `true`/`false` TO `{type: 'number', value: 1|0}` and
+  // keeps the token (`pine.js`'s primary), so the spelling is read off the TOKEN.
+  const isBoolLiteral = (n) => !!n && n.type === 'number' && !!n.tok
+    && (n.tok.value === 'true' || n.tok.value === 'false')
+  const out = []
+  for (const [node, entry] of mint.byNode) {
+    const args = (node && node.args) || []
+    const named = args.find((a) => a && a.name === 'defval')
+    const first = named || args.find((a) => a && !a.name)
+    const kind = node && node.name === 'input' ? 'input' : String((node && node.name) || '').slice(6)
+    out.push({
+      ...entry,
+      ...((kind === 'bool' || (kind === 'input' && first && isBoolLiteral(first.value)))
+        ? { type: 'bool' } : {}),
+      line: node && node.tok ? node.tok.line : null,
+    })
+  }
+  return out
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.

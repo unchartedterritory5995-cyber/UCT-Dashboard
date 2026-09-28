@@ -25,7 +25,11 @@
 // reachability rail's TEST_INFRA rule), invoked by the harness tests and the
 // vitest CLI entry, and must never be imported by a member surface.
 
-import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from '../../../builder/memberPane/memberPaneDefinition'
+import { runtimeLaneDefinition } from '../../../builder/memberPane/runtimeLaneDefinition'
+// ⭐ The member door loads the runtime lane ON DEMAND (it answers `pending` until
+// then); the harness grades the door synchronously, so it loads the lane up front.
+await loadRuntimeLaneDoor()
 import * as registry from '../../nativeRegistry'
 import { createBinder } from '../../binder'
 import { addInstance } from '../../instanceControls'
@@ -209,10 +213,22 @@ function objectsOf(def, bars, ctx) {
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
  *            ctx: object, notes: string[]}}
  */
-export function runOurSide(capture) {
+export function runOurSide(capture, opts = {}) {
   const notes = []
   const source = capture && capture.source && capture.source.text
-  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  // ⭐ 2026-09-27 — `lane: 'runtime'` runs the RUNTIME-LANE door on the same
+  // capture: the fallback's own document builder (`runtimeLaneDefinition`), forced,
+  // so a script the host lane also serves can be graded through both engines.
+  // ⛔ The caller arms `VITE_PINE_RUNTIME_LANE_ENABLED`; with it off the install
+  // door refuses the document by name, which is the correct answer for that build.
+  const forced = opts.lane === 'runtime'
+  const built = forced
+    ? runtimeLaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness',
+      carryMax: 12, docCarryMax: 36, paneHeight: 0.25 })
+    : memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  // ⭐ …and a script the DOOR sent to the runtime lane (flag on, host refused) is
+  // read the same way, so the harness grades what a member actually reached.
+  const runtime = forced || built.lane === 'runtime'
   if (!built.ok) {
     return { ok: false, refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}`, plots: [], notes }
   }
@@ -243,10 +259,27 @@ export function runOurSide(capture) {
     if (!colours.ok) notes.push(`colours unresolvable: ${colours.reason}`)
 
     const rowByAst = new Map((built.rows || []).map((r) => [r.ast, r]))
+    // ⭐ A RUNTIME-LANE ROW HAS NO HOST TREE — it is paired with the host output
+    // it draws by the CALL and the LINE its compute entry records, which is how
+    // the door itself paired them.
+    const rowByCallLine = new Map()
+    if (runtime) {
+      const byKey = new Map((built.rows || []).map((r) => [r.key, r]))
+      for (const [key, spec] of Object.entries(def.compute.columns || {})) {
+        if (spec.call === 'plotcolor' || spec.call === 'fill') continue
+        const k = `${spec.call}@${spec.line}`
+        if (!rowByCallLine.has(k)) rowByCallLine.set(k, [])
+        rowByCallLine.get(k).push(byKey.get(key))
+      }
+    }
+    const outputs = runtime
+      ? ((built.presentationTranslation || {}).outputs || []) : (built.translation.outputs || [])
     const plots = []
-    for (const o of (built.translation.outputs || [])) {
+    for (const o of outputs) {
       if (o && o.kind === 'alertcondition') continue
-      const row = o && o.ast ? rowByAst.get(o.ast) : null
+      const row = runtime
+        ? (((rowByCallLine.get(`${o.kind}@${o.line}`) || []).shift()) || null)
+        : (o && o.ast ? rowByAst.get(o.ast) : null)
       const col = row ? cols[row.key] : undefined
       let missingReason = null
       if (!row) {
@@ -257,7 +290,9 @@ export function runOurSide(capture) {
         missingReason = `computeFor returned no column for ${row.key}`
       }
       plots.push({
-        title: o ? o.title : null,
+        // ⚠️ A row the host lane REFUSED carries no title of its own; the runtime
+        // door's is the author's, read by the host's own reader (`_drawPresentation`).
+        title: o ? ((runtime && o._drawPresentation && o._drawPresentation.title) || o.title) : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         hidden: !!(o && o.hidden),

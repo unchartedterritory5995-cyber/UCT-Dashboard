@@ -487,6 +487,11 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // `color.rgb(255, 255, 255, 70)` line is `#ffffff4d` there and was
       // `#ffffffff` here on 631/631 bars — `lesson_a_projection_drops_what_it_does_not_name`.
       ...(Number.isFinite(r.opacity) ? { opacity: r.opacity } : {}),
+      // ⭐ 2026-09-27 — a PACKED per-point colour (`rgba:<key>`, the runtime lane's
+      // colour channel) names only its column; it has no two colours to carry.
+      ...(typeof r.colorMode === 'string' && r.colorMode.startsWith('rgba:')
+        && rows.some((o) => o.key === r.colorMode.slice('rgba:'.length))
+        ? { colorMode: r.colorMode } : {}),
       // ⭐⭐ C3A — THE GLYPH THE AUTHOR ASKED FOR. `plotshape`/`plotchar` already
       // reached this door as a 0/1 column with `style: 'markers'`; what was
       // missing was WHICH glyph, WHERE, and WHAT IT SAYS.
@@ -537,6 +542,9 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
               && rows.some((o) => o.key === String(r.fill.colorMode).slice('column:'.length))
               ? { colorMode: r.fill.colorMode, colorPalette: r.fill.colorPalette.slice() }
               : {}),
+            ...(typeof r.fill.colorMode === 'string' && r.fill.colorMode.startsWith('rgba:')
+              && rows.some((o) => o.key === r.fill.colorMode.slice('rgba:'.length))
+              ? { colorMode: r.fill.colorMode } : {}),
           },
           ...(typeof r.fillColor === 'string' ? { fillColor: r.fillColor } : {}),
           ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),

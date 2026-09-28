@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_NVI_PVI", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `ta.pvi`, AND WHERE `ta.nvi` STARTS COUNTING ─
+//
+// `ta.nvi` and `ta.pvi` are the joint LAST WALL for two corpus scripts
+// (`smart-money-interest-index-algoalpha__effdd7852c`,
+// `smart-money-volume-index-algoalpha__6663950b80`): substituting both lets them
+// attach, substituting either alone does not. Both stay REFUSED by ruling
+// (`closedTable.json::_functions_excluded.nvi` / `.pvi` — the level is
+// fetch-dependent, and `ta.ema(ta.nvi, 255)` does not cancel it). This probe does
+// not argue with the ruling; it supplies the two facts the ruling reasons from:
+//
+//   P01–P02  the raw levels. On disk: nvi seeds at 1 (`r11-nvi-spy-2026-09-11.json`).
+//            `pvi`'s seed and rule are UNREAD — the ruling calls it "the exact
+//            mirror" of nvi from TradingView's published example, not a capture.
+//   P03–P04  the update rule, per bar: `nvi/nvi[1] - 1` against the close change,
+//            split by whether volume fell (nvi) or rose (pvi);
+//   P05      bar_index where `pvi` is non-`na` (-1 while `na`) — its seed bar
+//            (nvi's is on disk already);
+//   P06–P07  the corpus's own quantity, `x - ta.ema(x, 255)`, so a later
+//            decision can size how far a truncated-history version drifts.
+//
+// ⛔ CAPTURE TWICE: AMEX:SPY 1D with the FULL history loaded (scroll to the first
+// bar, 1993 — `startsAtBar0: true`), and the same chart with ONLY the last ~1,000
+// bars loaded. The ratio of P01 between the two captures on the same date IS the
+// fetch dependence the ruling names — measured instead of argued.
+
+plot(bar_index, "P00_bar_index_CONTROL")
+plot(ta.nvi, "P01_nvi_RAW")
+plot(ta.pvi, "P02_pvi_RAW")
+chg = (close - close[1]) / close[1]
+plot(volume < volume[1] ? ta.nvi / ta.nvi[1] - 1 - chg : ta.nvi / ta.nvi[1] - 1, "P03_nvi_step_resid_MUST_BE_0")
+plot(volume > volume[1] ? ta.pvi / ta.pvi[1] - 1 - chg : ta.pvi / ta.pvi[1] - 1, "P04_pvi_step_resid_MUST_BE_0")
+plot(na(ta.pvi) ? -1 : bar_index, "P05_first_nonNA_pvi_bar")
+plot(ta.nvi - ta.ema(ta.nvi, 255), "P06_corpus_nvi_minus_ema255")
+plot(ta.pvi - ta.ema(ta.pvi, 255), "P07_corpus_pvi_minus_ema255")

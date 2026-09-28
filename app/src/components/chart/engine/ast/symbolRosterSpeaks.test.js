@@ -117,6 +117,10 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // not. The count is re-pinned rather than loosened to a floor, because a
     // floor would stop catching what it was written for — a roster edit that
     // quietly grows the refusal vocabulary.
-    expect(Object.keys(REFUSALS).length).toBe(43)
+    //
+    // ⭐ AND 43 → 44 ON 2026-09-27, AGAIN NOT BECAUSE OF (h). The vocabulary wave
+    // declared `pine:budget`: a SCREENER column wrapping the session-long `vwap()`
+    // translated and then could not be saved. Named in PARITY-PROGRAMME.md.
+    expect(Object.keys(REFUSALS).length).toBe(44)
   })
 })

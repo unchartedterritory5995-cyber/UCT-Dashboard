@@ -33,6 +33,44 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
+import { pineRuntimeLaneEnabled, isRuntimeFallbackGuard } from '../../engine/pineRuntimeLaneGate'
+
+// ─── ⭐⭐ THE RUNTIME LANE'S DOOR IS LOADED ON DEMAND (2026-09-27) ────────────────
+// `runtimeLaneDefinition.js` pulls in the whole runtime (front end → lowering →
+// VM). Imported statically here it rode into every page's eager bundle with the
+// flag OFF (+328 KB on CI's Notebook first-open budget). It is now loaded only
+// when a member's script needs it: the door answers `pending: 'runtime-lane'`,
+// `MemberPane` calls `loadRuntimeLaneDoor()` and asks again. Loading it also
+// fills the gate's slot `nativeRegistry.computeFor` reads, because it imports
+// `pineRuntimeLane.js` statically.
+let runtimeLaneDoor = null
+let runtimeLaneDoorLoading = null
+
+/** Load the runtime lane's document builder. Resolves to it; a failed load
+ *  clears the in-flight promise so the next ask retries. Not flag-gated on
+ *  purpose — the door reads the flag before it ever asks for this. */
+export function loadRuntimeLaneDoor() {
+  if (runtimeLaneDoor) return Promise.resolve(runtimeLaneDoor)
+  if (!runtimeLaneDoorLoading) {
+    runtimeLaneDoorLoading = import('./runtimeLaneDefinition').then((m) => {
+      runtimeLaneDoor = m.runtimeLaneDefinition
+      return runtimeLaneDoor
+    }, (err) => {
+      runtimeLaneDoorLoading = null
+      throw err
+    })
+  }
+  return runtimeLaneDoorLoading
+}
+
+/** Is the runtime lane's door loaded? (`MemberPane` asks before it loads.) */
+export function runtimeLaneDoorLoaded() {
+  return runtimeLaneDoor !== null
+}
+
+/** The sentence a member reads for the moment the second engine is arriving. */
+export const RUNTIME_LANE_LOADING_REASON =
+  "Loading this chart's second engine for this script…"
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE } from '../builderInputs'
@@ -138,7 +176,65 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // the UI layer is what knows how this build was configured.
   const allowObjectsOnly = objectsOnlyPaneEnabled()
   const gate = paneGate(t, { allowObjectsOnly })
-  if (!gate.ok) return no(gate.reason, gate.guard, t)
+  if (!gate.ok) {
+    // ⭐⭐ 2026-09-27 — THE RUNTIME-LANE FALLBACK, and ONLY here: after the host
+    // lane has REFUSED. A script the host lane draws never reaches this line, so a
+    // working host translation can never be swapped for a runtime one.
+    //
+    // ⛔ EVERY host refusal must be one the runtime lane is built to serve, not
+    // just the first — a vocabulary or ruling refusal anywhere in the script
+    // (`pine:function`, `pine:role-order`, …) records that nobody has ruled what a
+    // name means, and a second engine must not route around it.
+    // ⛔ AND THE FLAG IS READ HERE, BEFORE ANY RUNTIME WORK: off, this is exactly
+    // the refusal it always was.
+    if (pineRuntimeLaneEnabled() && runtimeFallbackAdmissible(t, gate)) {
+      // ⭐ NOT A REFUSAL: the lane that can draw this is still arriving. The
+      // caller loads it (`loadRuntimeLaneDoor`) and asks again; the host's own
+      // refusal rides along so nothing is lost if the load never lands.
+      if (!runtimeLaneDoor) {
+        return {
+          ...no(RUNTIME_LANE_LOADING_REASON, 'runtime-door:loading', t),
+          pending: 'runtime-lane',
+          hostRefusal: { guard: gate.guard, reason: gate.reason },
+        }
+      }
+      const rt = runtimeLaneDoor({
+        source,
+        id: id || MEMBER_PANE_DEF_PREFIX,
+        name,
+        carryMax: CARRY_MAX,
+        docCarryMax: DOC_CARRY_MAX,
+        paneHeight: MEMBER_PANE_HEIGHT,
+      })
+      if (rt.ok) {
+        return {
+          ok: true,
+          definition: rt.definition,
+          reason: null,
+          guard: null,
+          translation: t,
+          rows: rt.rows,
+          notes: rt.notes,
+          requirementTags: rt.requirementTags,
+          lane: 'runtime',
+          hostRefusal: { guard: gate.guard, reason: gate.reason },
+          // the translation whose rows carry `_drawPresentation` — what a reader
+          // pairing drawn rows with the script's own outputs needs
+          presentationTranslation: rt.presentationTranslation,
+        }
+      }
+      // ⭐ BOTH ENGINES SAID NO, AND THE MEMBER IS TOLD BOTH. The host sentence
+      // alone would describe a limit the runtime lane does not have; the
+      // runtime's alone would hide why the first engine declined.
+      return {
+        ...no(`${gate.reason} — and this chart's second engine, which does handle that, `
+          + `stopped too${Number.isInteger(rt.line) ? ` at line ${rt.line}` : ''}: ${rt.reason}`,
+        gate.guard, t),
+        runtimeRefusal: { guard: rt.guard, reason: rt.reason, line: rt.line ?? null },
+      }
+    }
+    return no(gate.reason, gate.guard, t)
+  }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
   // script that ALSO plots reaches here with the same loss, and its plots are
@@ -692,6 +788,19 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
  *  to `BUILDER_INPUTS` for a falsy list, so passing `[]` and passing nothing are
  *  the same thing — said out loud here so the next reader does not "fix" it.
  */
+/** May the runtime lane answer for a script the host lane refused?
+ *
+ *  ⭐ Only when the pane's refusal AND every refusal the host translation
+ *  carries are guards the runtime lane is built to serve. A script the host
+ *  refused for a lost drawing removal (`pine:object-removal-lost`) is not one:
+ *  that is the partial-drawing rule, not a value-model limit. */
+function runtimeFallbackAdmissible(t, gate) {
+  if (!isRuntimeFallbackGuard(gate.guard)) return false
+  const guards = [(t && t.refusal) || null, ...((t && t.refusals) || [])]
+    .filter(Boolean).map((r) => r.guard)
+  return guards.length > 0 && guards.every(isRuntimeFallbackGuard)
+}
+
 /** ⭐⭐ THE KNOBS THE OBJECT PROGRAM READS, ADDED TO THE ROWS' KNOBS.
  *
  *  ⚰️ `memberInputSpecs` takes the specs off the DRAWN rows only — right for a

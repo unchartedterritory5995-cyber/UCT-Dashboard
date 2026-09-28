@@ -99,8 +99,12 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn } from './interpret.js'
 import { memberNumber } from './memberValue.js'
+// ⭐ The budget's own verdict, asked at the translate door (see the row builder
+// in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
+// `parse.js`, neither of which imports this file.
+import { checkBudget } from './budget.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -417,6 +421,12 @@ export const REFUSALS = Object.freeze({
     + 'so several price series cannot be matched onto it by position',
   'pine:roundtrip':
     'the translator wrote formula text it could not read back, so it emitted none',
+  // ⭐ 2026-09-27. A column that translates and that the engine's compute budget
+  // would then refuse. Declared here so the guard is this module's; the REASON
+  // that follows it is `budget.js`'s own sentence, never a second copy.
+  'pine:budget':
+    'this column translates, but the engine would refuse to compute it, so it is '
+    + 'not offered',
 })
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
@@ -956,6 +966,9 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // zero-argument VARIABLE that reaches the table and works today. Declaring the
   // one-argument form here would refuse the spelling members actually write, so
   // the function form keeps refusing until a shape can hold both arities.
+  // ⭐ 2026-09-27: HELD AT THE KEY INSTEAD — `resolveTableCall` takes the
+  // one-argument form when its source IS `hlc3` (vendor-measured identical), and
+  // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
   // these keys are synthetic and `dmiParts` is their only caller.
@@ -1782,11 +1795,12 @@ function pivotAtConfirmation(name, args) {
  *  AST node: `true` only when it is the bare identifier `timenow` — which
  *  `PINE_TO_CLOCK_SPELLING` has already rewritten to `{type:'series',
  *  name:'lastbartime'}` by the time this door sees it, since argument
- *  resolution runs before `BUILTIN_CALL_TREE` dispatch. ⛔ NOT `time`: bare
- *  `time` is permanently refused by `PINE_CLOCK_MISMATCH` (Pine's is
- *  milliseconds, ours is seconds) before this door is ever reached, so
- *  `year(time)` can never arrive here at all — checking for it would be
- *  dead code, not a second identity. */
+ *  resolution runs before `BUILTIN_CALL_TREE` dispatch.
+ *  ⚰️ This said `year(time)` "can never arrive here at all" because bare `time`
+ *  refuses at `PINE_CLOCK_MISMATCH`. That stopped being true on 2026-09-23, when
+ *  a versioned script's `time` began reconciling to `time * 1000`
+ *  (`PINE_CLOCK_TRANSFORM`) — `year(time)` then arrived and refused as "that
+ *  argument". It is now its own identity: see `isPineBarTime` below. */
 const isLastBarTime = (node) => !!node && node.type === 'series' && node.name === 'lastbartime'
 
 /** The five clock fields Pine spells both as a bare global and as a
@@ -1796,8 +1810,47 @@ const isLastBarTime = (node) => !!node && node.type === 'series' && node.name ==
  *  declined argument shapes specifically (`time[1]`, `time`, a computed
  *  timestamp), rather than falling through to the generic "maps to nothing"
  *  refusal. `dayofweek` is deliberately absent: measured against the real
- *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`. */
+ *  committed corpus 2026-09-20, no script calls `dayofweek(timenow)`, and the
+ *  table has no `lastbardayofweek` column. (Its `(time)` form IS served — see
+ *  `BAR_TIME_IDENTITY_FIELDS` below.) */
 const CLOCK_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'hour', 'minute'])
+
+/** ⭐⭐ THE BAR'S OWN `time`, AS THE ARGUMENT — `year(time)` IS BARE `year`
+ *  (2026-09-27, vocabulary wave). Pine's reference defines `year(time, timezone)`
+ *  with `timezone` defaulting to `syminfo.timezone` — the EXCHANGE zone — and
+ *  defines the bare `year` as "current bar year in exchange timezone". With the
+ *  bar's own `time` and no zone written, the two are the same value by
+ *  definition, for all six fields: nothing is measured or chosen here, so no
+ *  capture is needed for the identity itself. The zone the bare clock reads was
+ *  measured (`r11-nine-safe-spy-1d-2026-09-11.json`, `hour` settles EXCHANGE
+ *  time), which is why the bare leaf is the right target.
+ *
+ *  ⛔ RECOGNISED BY IDENTITY WITH `PINE_CLOCK_TRANSFORM.time()`, NEVER BY SHAPE
+ *  WRITTEN HERE. For a script that declares a version, Pine's millisecond `time`
+ *  arrives already reconciled to `time * 1000` (see `clockTransformFor`), so the
+ *  argument is exactly that tree — asking the transform for it keeps ONE
+ *  authority over what "Pine's `time`" resolves to. A versionless source never
+ *  gets here: its bare `time` refuses at `PINE_CLOCK_MISMATCH` first.
+ *
+ *  ⛔ ONLY THE ONE-ARGUMENT FORM. `hour(time, "America/New_York")` names a zone,
+ *  and a zone string does not survive argument resolution on this door (it meets
+ *  `pine:text-value`); `hour(time[1])` is a different BAR. Both stay refused. */
+const BAR_TIME_IDENTITY_FIELDS = new Set(['year', 'month', 'dayofmonth', 'dayofweek', 'hour', 'minute'])
+// (`PINE_CLOCK_TRANSFORM` is declared further down; this reads it at CALL time,
+// after the module has finished evaluating, so the order is not a TDZ hazard.)
+const isPineBarTime = (node) => !!node
+  && JSON.stringify(node) === JSON.stringify(PINE_CLOCK_TRANSFORM.time())
+
+/** The one-argument clock-field call, resolved: `timenow` → the `lastbar*`
+ *  field (five fields; `dayofweek` has no `lastbar` column), the bar's own
+ *  `time` → the bare field (six), anything else → `null`, which the caller's
+ *  named refusal turns into a sentence rather than a guess. */
+const clockFieldAt = (field, a) => {
+  if (a.length !== 1) return null
+  if (CLOCK_IDENTITY_FIELDS.has(field) && isLastBarTime(a[0])) return cSeries(`lastbar${field}`)
+  if (BAR_TIME_IDENTITY_FIELDS.has(field) && isPineBarTime(a[0])) return cSeries(field)
+  return null
+}
 
 const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
@@ -2013,11 +2066,14 @@ const BUILTIN_CALL_TREE = Object.freeze({
   // answer for one. Measured against the real committed corpus, 2026-09-20:
   // six scripts call one of these five as a function, and `timenow` is the
   // argument in all six.
-  year: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbaryear') : null),
-  month: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarmonth') : null),
-  dayofmonth: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbardayofmonth') : null),
-  hour: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarhour') : null),
-  minute: (a) => (a.length === 1 && isLastBarTime(a[0]) ? cSeries('lastbarminute') : null),
+  // ⭐ …AND THE BAR'S OWN `time` IS AN IDENTITY ONTO THE BARE CLOCK LEAF — see
+  // `BAR_TIME_IDENTITY_FIELDS`. Checked second so the `timenow` form is untouched.
+  year: (a) => clockFieldAt('year', a),
+  month: (a) => clockFieldAt('month', a),
+  dayofmonth: (a) => clockFieldAt('dayofmonth', a),
+  dayofweek: (a) => clockFieldAt('dayofweek', a),
+  hour: (a) => clockFieldAt('hour', a),
+  minute: (a) => clockFieldAt('minute', a),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -8574,16 +8630,25 @@ export class Resolver {
       // reason. Named here instead, matching `tr`'s own bespoke message for
       // the identical reason: the shape is understood and declined, not
       // merely unrecognised.
-      if (CLOCK_IDENTITY_FIELDS.has(bare) && !(built.length === 1 && isLastBarTime(built[0]))) {
+      // ⭐ 2026-09-27: `${bare}(time)` — the bar's own time — now translates as
+      // well (an identity onto the bare field; see `BAR_TIME_IDENTITY_FIELDS`),
+      // so the sentence names both forms that work. `dayofweek` joins the gate
+      // for its `(time)` form only; it has no `lastbar` column, so its
+      // `(timenow)` form is not offered.
+      if (BAR_TIME_IDENTITY_FIELDS.has(bare) && clockFieldAt(bare, built) === null) {
+        const nowForm = CLOCK_IDENTITY_FIELDS.has(bare)
+          ? `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
+            + `clock, the newest fetched bar's own value -- translates, and so `
+            + `does \`${bare}(time)\`, which is this bar's own value. `
+          : `\`${bare}(time)\` -- this bar's own value -- translates. `
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${pineName}\` with that argument. `
-          + `\`${bare}(timenow)\` -- this engine's answer for Pine's live wall `
-          + `clock, the newest fetched bar's own value -- translates. `
-          + `The bare \`${bare}\` (this bar's own value), a different bar `
-          + `(\`${bare}(time[1])\`), and a computed timestamp are all real `
-          + 'Pine and all currently refused as a function argument. '
-          + `TO UNBLOCK: read the bare \`${bare}\` for this bar's own value, `
-          + `or \`${bare}(timenow)\` for the newest fetched bar's.`,
+          + nowForm
+          + `A different bar (\`${bare}(time[1])\`), a named timezone, and a `
+          + 'computed timestamp are all real Pine and all currently refused as a '
+          + 'function argument. '
+          + `TO UNBLOCK: read the bare \`${bare}\` (or \`${bare}(time)\`) for this `
+          + `bar's own value${CLOCK_IDENTITY_FIELDS.has(bare) ? `, or \`${bare}(timenow)\` for the newest fetched bar's` : ''}.`,
           locate(tok))
       }
       return BUILTIN_CALL_TREE[bare](built)
@@ -8926,7 +8991,39 @@ export class Resolver {
       // names for these — so a named call still meets the refusal it met before,
       // rather than being quietly given a source the member did not ask for.
       const shortForm = own(PINE_SHORT_FORM, key) ? PINE_SHORT_FORM[key] : null
-      if (shortForm
+      // ⭐⭐ `ta.vwap(hlc3)` IS OUR `vwap()` — MEASURED, NOT ASSUMED (2026-09-27).
+      // `tests/fixtures/vendor/groupb-round-max-vwap-spy-1d-2026-09-10.json`
+      // (`ta_vwap_default_source`): `ta.vwap(hlc3) - ta.vwap` is 0 on every one of
+      // 40 consecutive bars, so the default source IS `hlc3` and the one-argument
+      // form anchors exactly as the bare form does; `computeVWAP` weights by the
+      // same typical price. So `hlc3` written out is the zero-argument column
+      // with nothing dropped. This is the "shape that can hold both arities" the
+      // note beside `PINE_CALL_SHAPES.mfi` said the function form was waiting for —
+      // held here, at the one key, rather than as a shape (a shape carries one
+      // `pineArity`, and bare `ta.vwap` must keep working).
+      // ⛔ ANY OTHER SOURCE STILL REFUSES, AND NOW SAYS WHY. The same capture reads
+      // `ta.vwap(close) - ta.vwap` moving between −4.29 and +2.91 over those 40
+      // bars — a real, different column, which this table does not carry.
+      // ⛔ The source is resolved and compared with `derivedSeriesTree`, the
+      // function the door itself expands `hlc3` with — an identity check, exactly
+      // as `sourceMustBe` does for `cci`/`mfi`.
+      if (key === 'vwap' && declaredArgs.length === 0 && args.length === 1
+          && !args.some((a) => a && a.name)) {
+        const want = derivedSeriesTree('hlc3', this.table)
+        const got = this.resolve(args[0].value !== undefined ? args[0].value : args[0])
+        if (!want || JSON.stringify(got) !== JSON.stringify(want)) {
+          throw new PineRefusal('pine:arity',
+            REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
+            + 'source, and this table carries ONE volume-weighted average price: '
+            + 'the typical price `hlc3`, reset each session — ' + signatureOf(key, spec)
+            + '. Measured on TradingView, `ta.vwap(hlc3)` is that same column and '
+            + 'any other source is a different one (`ta.vwap(close)` moved −4.29 to '
+            + '+2.91 away from it over 40 SPY daily bars). TO UNBLOCK: write '
+            + '`ta.vwap` or `ta.vwap(hlc3)`',
+            locate(tok))
+        }
+        plan = []
+      } else if (shortForm
           && args.length === declaredArgs.length - shortForm.fills.length
           && !args.some((a) => a && a.name)) {
         plan = [
@@ -14318,6 +14415,44 @@ function translatePineResult(source, opts = {}) {
       }
       const formula = printFormula(ast)
       verifyRoundTrip(formula, ast)
+      // ⭐⭐ A COLUMN THE BUDGET WILL REFUSE IS REFUSED HERE, IN THE BUDGET'S OWN
+      // WORDS (2026-09-27). Translating a tree `checkBudget` rejects reports a
+      // success no door downstream honours — `doorScorecard`'s "every script that
+      // translates can be SAVED". The guard is this module's (`pine:budget`, so
+      // the corpora's guard census can name it); the REASON is `budget.js`'s own
+      // sentence, not a second copy: one authority over what the budget allows.
+      // ⭐ NARROWED TO ONE CAUSE, BY MEASUREMENT: a window or offset wrapped around
+      // a SESSION-anchored call (`vwap()`), the case the budget's own sentence names
+      // ("nothing can be wrapped around it"). The reach, measured over
+      // `tests/fixtures/pine`, `pine_community`, `pine_oos` and the 266 committed
+      // scripts, both lanes: `26-spy-to-es-qqq-to-nq`'s `sma(vwap(), 3)` — reachable
+      // once `ta.vwap(hlc3)` translated. A plain over-long window (e.g.
+      // `volume-spikes…`'s lookback 1000 > 960) is NOT taken here: that is a wider
+      // change to the screener lane with its own census, not this wave's.
+      // ⛔ ONLY AGAINST THE SHIPPED MANIFEST. `budget.js` measures lookback off the
+      // shipped table, so a caller translating against its OWN manifest (`opts.table`,
+      // the "a function the manifest gains is callable" rail) would be judged by a
+      // table that does not declare its names.
+      // ⛔⛔ AND ONLY ON THE SCREENER LANE (`strict` off → `mode: 'screener'`). The
+      // screener SAVES under this budget; the chart pane (`strict` → `mode: 'host'`)
+      // does not — measured: a blanket check here detached two scripts the member
+      // door attaches today (`volume-spikes-growing-volume…` at lookback 1000 > 960,
+      // and `liquidity-pools__fa7b28e733`), which is an over-refusal at the member
+      // door, not a correction.
+      // ⛔ THE SESSION TEST RUNS FIRST, AND THE MEASURE IS GUARDED. A tree with no
+      // session anchor is never measured here at all; and a tree the budget cannot
+      // MEASURE (a folded zero window — the C10 seam `pine.window.test.js` pins)
+      // is not a budget refusal: it keeps meeting the engine's own refusal later,
+      // exactly as before. Measured: an unguarded `checkBudget` here turned four
+      // such trees into `pine:statement` refusals.
+      if (table === TABLE && opts.strict !== true && sessionAnchoredIn(ast).length > 0) {
+        let overBudget = { ok: true }
+        try { overBudget = checkBudget(ast) } catch { overBudget = { ok: true } }
+        if (!overBudget.ok && overBudget.guard === 'budget:lookback') {
+          throw new PineRefusal('pine:budget',
+            `${REFUSALS['pine:budget']} — ${overBudget.error}`, locate(out.tok))
+        }
+      }
       // Asked ONCE each, because both answers are needed twice below.
       const authorHid = outputHidden(args)
       const flat = !readsBars(ast)
@@ -14455,6 +14590,18 @@ function translatePineResult(source, opts = {}) {
         inputsFolded: [],
         refusal: fromError(err),
       }
+    }
+    // ⭐⭐ 2026-09-27 — THE RUNTIME-LANE DOOR'S HAND-OFF (`opts.drawPresentation`).
+    // What this row LOOKS like, read whether or not its VALUE translated — a
+    // refused row otherwise carries no title, colour or style at all, and the
+    // runtime lane that computes the value has no reader for them. ⛔ Opt-in and
+    // non-enumerable: no other caller does this work, and no digest, hash or
+    // persisted copy can see it.
+    if (opts.drawPresentation === true) {
+      Object.defineProperty(row, '_drawPresentation', {
+        value: drawPresentationOf(out, { env, resolver: makeResolver(), fillHandles }),
+        enumerable: false,
+      })
     }
     // ⭐⭐ R22a / d2 — A MESSAGE THIS LANE CANNOT CARRY IS SAID, NOT DROPPED.
     //
@@ -14957,7 +15104,7 @@ function translatePineResult(source, opts = {}) {
     // able to read even when the program is null.
     objects: objectPass.program,
     objectDiagnostics: objectPass.diagnostics,
-    outputs: resolved.map((r) => (r.refusal ? { ...r, refusal: withExcerpt(r.refusal, lines) } : r)),
+    outputs: resolved.map((r) => (r.refusal ? withDrawPresentation(r, { ...r, refusal: withExcerpt(r.refusal, lines) }) : r)),
     selected: blocked ? -1 : chooseOutput(resolved, table, { host: strict }),
     notes: withExcerpts(notes, lines),
     // ⛔ IN STRICT MODE THIS IS NEVER `null` ON A FAILURE. The first refusal in
@@ -16399,6 +16546,80 @@ function pickOutputArgument(args, kind, tok, role = null, roleIndex = 0) {
  *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
  *  author's own, more general statement of it, so it is the one to read.
  */
+/** ⭐⭐ 2026-09-27 — ONE OUTPUT'S PRESENTATION, INDEPENDENT OF ITS VALUE.
+ *
+ *  For the runtime-lane member door (`engine/pineRuntimeLane.js`), which computes
+ *  values the host lane refused and must still draw them the way the author
+ *  asked. ⛔ EVERY READER HERE IS THE HOST ROW'S OWN — `outputTitle`,
+ *  `outputHidden`, `outputPresentation` (colours through `pinePalette.js` by the
+ *  script's version), `foldDisplacement` and the fill-anchor rule — so the two
+ *  lanes cannot describe one plot two ways. It never throws: an unreadable row
+ *  says so (`unreadable`) and the door refuses it by name.
+ *
+ *  `displace.names` is every Pine name the `offset =` expression reaches,
+ *  through `env` bindings: an input among them sets WHERE the plot is drawn, and
+ *  the door cannot offer it as a knob without moving the drawing too. */
+function drawPresentationOf(out, ctx) {
+  try {
+    const args = parseArguments(new Cursor(out.toks.slice(2)))
+    const title = outputTitle(args, out.kind, out.role) || null
+    const seriesArg = pickOutputArgument(args, out.kind, out.tok, out.role, out.roleIndex)
+    const plottedName = seriesArg && seriesArg.value && seriesArg.value.type === 'name'
+      ? seriesArg.value.name : null
+    const fillAnchor = !title && !!out.handle && ctx.fillHandles.has(out.handle)
+      && !!plottedName && PLOT_SOURCE_NAMES.has(plottedName)
+    let displace
+    try {
+      const d = foldDisplacement(ctx.resolver, seriesArg)
+      displace = { shift: d.shift, names: namesReachedThrough(seriesArg.offsetNode, ctx.env) }
+    } catch {
+      displace = { unreadable: true }
+    }
+    let presentation = {}
+    try {
+      presentation = outputPresentation(args, { env: ctx.env, resolver: ctx.resolver, kind: out.kind }) || {}
+    } catch { presentation = {} }
+    return Object.freeze({
+      kind: out.kind, line: out.tok.line, title, authorHidden: outputHidden(args),
+      fillAnchor, handle: out.handle || null, presentation, displace,
+    })
+  } catch (err) {
+    return Object.freeze({
+      kind: out.kind, line: out.tok ? out.tok.line : null,
+      unreadable: String((err && err.message) || err),
+    })
+  }
+}
+
+/** ⛔ A SPREAD COPIES ONLY ENUMERABLE KEYS, so the refused-row copy made for its
+ *  excerpt would drop the hand-off above. Carried across explicitly. */
+function withDrawPresentation(from, to) {
+  if (from && Object.prototype.hasOwnProperty.call(from, '_drawPresentation')) {
+    Object.defineProperty(to, '_drawPresentation', { value: from._drawPresentation, enumerable: false })
+  }
+  return to
+}
+
+/** Every `name` a raw parse node reaches, following `env` expression bindings. */
+function namesReachedThrough(node, env, seen = new Set(), depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 32) return [...seen]
+  if (Array.isArray(node)) {
+    for (const n of node) namesReachedThrough(n, env, seen, depth + 1)
+    return [...seen]
+  }
+  if (node.type === 'name' && typeof node.name === 'string' && !seen.has(node.name)) {
+    seen.add(node.name)
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') namesReachedThrough(bound.node, bound.env || env, seen, depth + 1)
+  }
+  for (const k of Object.keys(node)) {
+    if (k === 'tok') continue
+    const v = node[k]
+    if (v && typeof v === 'object') namesReachedThrough(v, env, seen, depth + 1)
+  }
+  return [...seen]
+}
+
 function outputHidden(args) {
   const d = args.find((a) => a.name === 'display')
   // `display.none` lexes as ONE ident — the dot is part of the name, not an

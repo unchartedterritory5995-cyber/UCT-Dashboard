@@ -256,6 +256,12 @@
 
 ## ⛔⛔ THE ONE THING TO KNOW FIRST
 
+⚰️ **2026-09-27 — no longer true on `pine/runtime-lane-door`.** The runtime lane has
+ONE live door: the member-door fallback (`engine/pineRuntimeLane.js`, behind
+`VITE_PINE_RUNTIME_LANE_ENABLED`, default off), taken only when the host lane refuses
+for a value-model limit. `PARITY-PROGRAMME.md`'s top section has the design, census
+and second walls. The paragraph below is the state before it.
+
 **The runtime lane has ZERO live importers, by owner ruling D2.**
 
 Nothing outside `engine/ast/` and `engine/runtime/` imports `buildRuntimeIr`,

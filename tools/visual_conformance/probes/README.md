@@ -18,6 +18,13 @@ text that produced a fixture is versioned beside it.
 | `groupb-round-max-vwap.pine` | `math.round` half-up vs banker's + negative precision (101 sites) · `math.max` variadic or capped · `vwap(source)` anchoring | item 6 · Group B |
 | `groupb-barssince-1arg.pine` | the documented 1-arg form — **and the CONTROL for the 2-arg probe** | item 6 · Group B |
 | `groupb-barssince-2arg.pine` | ⛔ the form we declare and suspect is invalid. **A COMPILE FAILURE IS THE ANSWER** | item 6 · Group B |
+| `vw-time-session.pine` | `time(tf, session[, tz])` on a **1D** bar, straddling 60m bars, day suffix, zone argument | vocabulary wave 2026-09-27 · `docs/pine/capture-queue-2026-09-27.md` #1 |
+| `vw-time-tf.pine` | `time("W")` in holiday weeks · `time("M"/"3M"/"12M"/"60")` · `timeframe.in_seconds` per code · `input.time` default | #2 |
+| `vw-nvi-pvi.pine` | `ta.pvi` seed + rule · the `nvi` level's fetch dependence (two captures, two depths) | #3 — ruling input |
+| `vw-int-cast.pine` | `int(x)` on a fractional float: truncate / floor / round | #4 |
+| `vw-clock-vwap.pine` | CONFIRMS two identities shipped on `pine/vocabulary-wave`: `field(time)` = bare field, `ta.vwap(hlc3)` = `vwap()` | #5 |
+| `vw-mintick.pine` | `syminfo.mintick` across price regimes and asset classes (data, not semantics) | #6 |
+| `vw-alma.pine` | `ta.alma` — alone in its file, like `r11-alma.pine` | #7 |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.
 
