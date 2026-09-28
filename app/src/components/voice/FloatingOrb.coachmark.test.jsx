@@ -16,13 +16,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { useContext } from 'react'
 import { renderWithProviders, screen, fireEvent, act } from '../../test-utils'
 import FloatingOrb from './FloatingOrb'
+import { VoiceContext } from '../../context/VoiceContext'
 import { registerFirstRunSlot, claimFirstRunStage } from '../firstRun/firstRunStage'
 
 vi.mock('../../hooks/useRealtimeSession', () => ({
   default: () => ({ connect: vi.fn(), disconnect: vi.fn(), isConnected: false }),
 }))
+// The scroll tuck, driven from the test (the hook itself is railed in its own file).
+const { scrollTuck } = vi.hoisted(() => ({ scrollTuck: { value: false } }))
+vi.mock('../../hooks/useHideOnScroll', () => ({ default: () => scrollTuck.value }))
 
 const KEY = 'voice.orb.coachmarkSeen'
 let slot
@@ -38,9 +43,18 @@ afterEach(() => {
   act(() => { registerFirstRunSlot(null) })
   slot.remove()
   document.body.style.overflow = ''
+  scrollTuck.value = false
 })
 
 const card = () => screen.queryByText('Meet Compass')
+const cluster = (container) => container.querySelector('div[class*="orbCluster"]')
+
+/** The real VoiceProvider's value with `mode` / `status` overridden -- read-aloud playback
+ *  is the branch where the orb renders nothing. */
+function VoiceOverride({ voice, children }) {
+  const real = useContext(VoiceContext)
+  return <VoiceContext.Provider value={{ ...real, ...voice }}>{children}</VoiceContext.Provider>
+}
 
 describe('FloatingOrb "Meet Compass": in the page flow, never over it', () => {
   it('renders INSIDE the page slot -- not in the orb cluster, not loose on the body', () => {
@@ -85,13 +99,61 @@ describe('FloatingOrb "Meet Compass": in the page flow, never over it', () => {
     expect(localStorage.getItem(KEY)).toBe('1')
   })
 
-  it('stays in the page while a modal locks scrolling (the orb hides; the page under the card has not changed)', () => {
+  // F5 fix round 1 (review Critical): the card names the compass button, so it shows ONLY
+  // while the orb cluster is on screen. Hidden is not dismissed: it comes back with the orb.
+  // useScrollLocked reads the body's style through a MutationObserver (a microtask), so the
+  // lock and the unlock are awaited.
+  const lock = (v) => act(async () => { document.body.style.overflow = v })
+
+  it('an open sheet (scroll locked) hides the orb AND the card -- and the key is not written', async () => {
     act(() => { registerFirstRunSlot(slot) })
-    renderWithProviders(<FloatingOrb />)
-    const before = card()
-    act(() => { document.body.style.overflow = 'hidden' })
-    expect(card(), 'still there').not.toBeNull()
-    expect(card(), 'the same node -- the orb hiding never remounts it').toBe(before)
+    const { container } = renderWithProviders(<FloatingOrb />)
+    expect(card()).not.toBeNull()
+    await lock('hidden')
+    expect(cluster(container), 'the orb sits out behind a sheet').toBeNull()
+    expect(card(), 'no card naming a button that is not there').toBeNull()
+    expect(localStorage.getItem(KEY), 'hidden, not dismissed').toBeNull()
+  })
+
+  it('the card returns when the orb does (the sheet closes)', async () => {
+    act(() => { registerFirstRunSlot(slot) })
+    const { container } = renderWithProviders(<FloatingOrb />)
+    await lock('hidden')
+    expect(card()).toBeNull()
+    await lock('')
+    expect(cluster(container)).not.toBeNull()
+    expect(card(), 'back with the orb').not.toBeNull()
+    expect(slot.contains(card())).toBe(true)
+  })
+
+  it('read-aloud playback (the orb renders nothing) hides the card; it returns when playback ends', () => {
+    act(() => { registerFirstRunSlot(slot) })
+    const { container, rerender } = renderWithProviders(
+      <VoiceOverride voice={{ mode: 'a', status: 'playing' }}><FloatingOrb /></VoiceOverride>,
+    )
+    expect(cluster(container), 'no orb during playback').toBeNull()
+    expect(card(), 'so no card').toBeNull()
+    rerender(<VoiceOverride voice={{ mode: null, status: 'idle' }}><FloatingOrb /></VoiceOverride>)
+    expect(cluster(container)).not.toBeNull()
+    expect(card(), 'back with the orb').not.toBeNull()
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('while the card is up, a scroll does not tuck the orb into a sliver', () => {
+    scrollTuck.value = true
+    act(() => { registerFirstRunSlot(slot) })
+    const { container } = renderWithProviders(<FloatingOrb />)
+    expect(card()).not.toBeNull()
+    expect(cluster(container).className, 'the named button stays out').not.toMatch(/tucked/)
+  })
+
+  it('control: with no card pending, the same scroll does tuck the orb', () => {
+    scrollTuck.value = true
+    localStorage.setItem(KEY, '1')
+    act(() => { registerFirstRunSlot(slot) })
+    const { container } = renderWithProviders(<FloatingOrb />)
+    expect(card()).toBeNull()
+    expect(cluster(container).className).toMatch(/tucked/)
   })
 
   it('control: a member who has already seen it gets no card, slot or not', () => {

@@ -172,15 +172,19 @@ export default function FloatingOrb({ context = 'global' }) {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
-  // The first-run card is IN the page, not in the orb's layer, so it stays put whatever
-  // the orb does -- hidden for audio playback or behind a modal, the page under it has
-  // not changed. The card's place in this component's output is FIXED (the second slot
-  // of one fragment on every path), so the orb hiding and coming back never remounts it.
-  const coachmarkPortal = coachmarkOn && !inSessionLive && !minimized
+  // ⛔ THE CARD SHOWS ONLY WHILE THE BUTTON IT NAMES IS ON SCREEN (F5 fix round 1, review
+  // Critical). It says "Tap the compass button", so every branch below that renders no
+  // orb cluster renders no card either -- audio playback (just below) and an open sheet
+  // (`scrollLocked`, further down) -- and the one place the cluster is only CSS-hidden,
+  // the phone chart shell, hides the card's slot with the same attribute
+  // (FloatingOrb.module.css). Hidden is not dismissed: `showCoachmark` is untouched, so
+  // the card comes back with the cluster, and only "Got it" or a first tap writes the key.
+  const coachmarkUp = coachmarkOn && !inSessionLive && !minimized
+  const coachmarkPortal = coachmarkUp
     ? createPortal(<OrbCoachmark onDismiss={dismissCoachmark} />, firstRunSlot)
     : null
 
-  if (voice.mode === 'a' && voice.status === 'playing') return <>{null}{coachmarkPortal}</>
+  if (voice.mode === 'a' && voice.status === 'playing') return null
 
   const status = voice.status
   let stateClass = styles.idle
@@ -217,10 +221,12 @@ export default function FloatingOrb({ context = 'global' }) {
   const inTrainMode = inSession && voice.sessionContext === 'train_me'
   // Hide entirely when a modal/sheet is open (so the orb never covers its bottom
   // CTA on mobile) — unless we're mid live call.
-  if (scrollLocked && !inSession) return <>{null}{coachmarkPortal}</>
+  if (scrollLocked && !inSession) return null
   // Tuck the orb away while scrolling or idle — but never during a live call,
   // a drag, or while the pointer/focus is on it (hover always wins the tuck).
-  const tucked = (hiddenOnScroll || idleTucked) && !inSession && !dragging && !hovered
+  // Nor while the first-run card is up: a tucked orb is a 14 px sliver, and the card
+  // tells the member to tap the compass (the idle tuck is already held by `tuckBlocked`).
+  const tucked = (hiddenOnScroll || idleTucked) && !inSession && !dragging && !hovered && !coachmarkUp
   // Which edge to tuck into: nearest horizontal edge to the dragged position
   // (default bottom-right placement tucks right).
   const tuckSide = pos && typeof window !== 'undefined' && pos.x < window.innerWidth / 2 ? 'left' : 'right'

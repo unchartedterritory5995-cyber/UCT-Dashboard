@@ -122,7 +122,10 @@
 .searchFilterToggle:hover { color: var(--text-bright); }
 .searchFilterToggleActive { color: var(--ut-gold); }
 /* .searchInput's right padding makes room for BOTH the clear (×) button and
-   this toggle, whichever combination is visible at once: 6 + 24 + 4 + 24 + 4. */
+   this toggle, whichever combination is visible at once. Its floor is not this
+   comment's arithmetic: targetFloors.test.js ("the input keeps its text clear of
+   both") derives it from the two buttons' own right/width declarations and reds
+   if either moves past this value, which is that floor (58) plus 4 px of air. */
 .searchInput { padding-right: 62px; }
 .searchFilters {
   display: flex;
