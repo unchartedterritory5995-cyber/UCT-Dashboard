@@ -87,7 +87,7 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
   )
 
   return (
-    <Sheet open onClose={discard} title="Writing help" footer={footer} maxWidth={560}>
+    <Sheet open onClose={discard} title="Writing help" labelledByTitle footer={footer} maxWidth={560}>
       <p className={styles.scope}>
         {selection
           ? `Working on your selection · ${request.text.length.toLocaleString('en-US')} characters`

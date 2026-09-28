@@ -210,15 +210,41 @@ def resolve_store(client, bucket, store=None):
     return at.R2ObjectStore(client, bucket) if (client and bucket) else None
 
 
-def tombstone_check(db_path: Path, store) -> dict:
+def unfinished_deletions(present: list, deleted_at: dict, taken) -> list:
+    """The tombstoned ids this snapshot still holds although they were deleted BEFORE it was taken.
+
+    A member deleted AFTER the snapshot is in it by construction -- the replay is for exactly
+    that. One deleted BEFORE it should not be: the tombstone is written first and the
+    deletion runs after it, so a deletion that failed partway (wave 10 10C: tombstone-first)
+    leaves the account in production, and every later snapshot carries it. Until this check,
+    that stayed invisible until a restore happened to delete it. An undatable tombstone is
+    not counted here (it cannot be placed before or after the snapshot)."""
+    if taken is None:
+        return []
+    out = []
+    for uid in present:
+        raw = (deleted_at.get(uid) or "").replace("Z", "+00:00")
+        try:
+            when = dt.datetime.fromisoformat(raw)
+        except ValueError:
+            continue
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=dt.timezone.utc)
+        if when < taken:
+            out.append(uid)
+    return sorted(out)
+
+
+def tombstone_check(db_path: Path, store, taken=None) -> dict:
     """R-9: replay every tombstone on the TEMPORARY copy and say who would have come back.
 
     ⛔ `store_read` is False when the off-site tombstones could not be read (no store,
     or it failed): the snapshot's own table is still replayed, but a real restore
-    (`--write-restored`) refuses on that, and the report says so."""
+    (`--write-restored`) refuses on that, and the report says so. `unfinished` names the
+    accounts deleted BEFORE `taken` that the snapshot still holds (see unfinished_deletions)."""
     from api.services import account_tombstones as at
     out = {"store_read": False, "store_error": None, "offsite": 0, "own": 0,
-           "present_before": [], "replayed": [], "still_present": [], "errors": []}
+           "present_before": [], "replayed": [], "still_present": [], "errors": [], "unfinished": []}
     ids: dict[str, str] = {}
     if store is None:
         out["store_error"] = "no tombstone store (DATA_SYNC_* credentials or ACCOUNT_TOMBSTONE_LOCAL_STORE)"
@@ -235,6 +261,7 @@ def tombstone_check(db_path: Path, store) -> dict:
         out["own"] = len(own)
         ids.update(own)
         out["present_before"] = at.present_in(conn, ids)
+        out["unfinished"] = unfinished_deletions(out["present_before"], ids, taken)
         rep = at.replay_on_db(conn, out["present_before"])
         out["replayed"], out["still_present"], out["errors"] = rep["replayed"], rep["still_present"], rep["errors"]
     finally:
@@ -378,6 +405,8 @@ def render(source: str, taken, size: int, result: dict, code: int, reasons: list
                   + (f" ({tomb['offsite']})" if tomb["store_read"] else f" -- {tomb['store_error']}"),
                   f"- tombstones in the snapshot's own table: {tomb['own']}",
                   f"- deleted accounts present in the snapshot before replay: **{len(tomb['present_before'])}**",
+                  f"- of those, deleted BEFORE this snapshot was taken (an unfinished deletion): "
+                  f"**{len(tomb.get('unfinished', []))}**",
                   f"- replayed: {len(tomb['replayed'])} · still present after replay: "
                   f"**{len(tomb['still_present'])}**"]
         if tomb["errors"]:
@@ -457,7 +486,12 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
         code, reasons = verdict(result, taken, now)
         # ⛔⛔ R-9: every restore replays the tombstones. Only on a database that opened.
         if db is not None and not result["error"]:
-            tomb = tombstone_check(db, resolve_store(client, bucket, store))
+            tomb = tombstone_check(db, resolve_store(client, bucket, store), taken)
+            if tomb["unfinished"]:
+                code = FAIL
+                reasons.append(f"{len(tomb['unfinished'])} account(s) deleted BEFORE this snapshot are "
+                               "still in it -- a deletion did not finish, so production may still hold "
+                               "them (the restore's replay removes them from the copy, not from production)")
             if tomb["still_present"]:
                 code = FAIL
                 reasons.append(f"{len(tomb['still_present'])} deleted account(s) would come back on "

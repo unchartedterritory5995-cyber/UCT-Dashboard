@@ -28,6 +28,7 @@ import { useAuth } from '../../../../context/AuthContext'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../lib/noteShareLink'
 import {
   FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE, PUBLISH_PUBLIC_SENTENCE,
@@ -152,6 +153,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
         method: 'POST', body: JSON.stringify({ expiresInDays: choice ? choice.days : null }),
       })
       setShare(b.share)
+      trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'create' })
       focusNextRef.current = 'copyLink'
       const copied = await copyText(sharedNoteUrl(b.share.token))
       say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
@@ -162,6 +164,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
 
   const copyLink = () => run(async () => {
     const copied = await copyText(sharedNoteUrl(share.token))
+    if (copied) trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'copy' })
     say(copied ? 'Share link copied.' : 'Copy the address above.')
   })
 
@@ -169,6 +172,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     try {
       await requestJson(noteShareEndpoint(noteId), { method: 'DELETE' })
       setShare(null)
+      trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'revoke' })
       focusNextRef.current = 'create'
       say('Link revoked. It no longer works.')
     } catch (e) {
@@ -180,6 +184,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     try {
       const pub = await publishTarget(kind, kind === 'note' ? noteId : ctx.folderId)
       setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
+      trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'publish', kind, door: 'editor' })
       focusNextRef.current = kind === 'note' ? 'copyPage' : 'copyFolder'
       const copied = await copyText(publishedUrl(pub.slug))
       say(publishedSentence(kind === 'note' ? null : ctx.folderName, copied))
@@ -190,6 +195,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
 
   const copyPage = (pub) => run(async () => {
     const copied = await copyText(publishedUrl(pub.slug))
+    if (copied) trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'copy', kind: pub.kind, door: 'editor' })
     say(pageCopiedSentence(copied))
   })
 
@@ -197,6 +203,7 @@ function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
     try {
       await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(pub.slug)}`, { method: 'DELETE' })
       setPubs((prev) => prev.filter((p) => p.slug !== pub.slug))
+      trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'unpublish', kind: pub.kind, door: 'editor' })
       focusNextRef.current = pub.kind === 'folder' ? 'publishFolder' : 'publishNote'
       say('Unpublished. The page no longer works.')
     } catch (e) {

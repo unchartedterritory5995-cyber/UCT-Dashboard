@@ -1,0 +1,99 @@
+# promotion-gate: yes — PROMOTED 2026-09-27 under ruling R-10 (the D-A2 precedent), having been
+#   SEEN RED once and SEEN GREEN once in CI, both on this workflow's own ratio step:
+#   SEEN GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36323273589
+#     (feat/notebook-w10-a 2b0f388f8: 14 ops, ratios 0.018-0.942 against a 2.301 line)
+#   SEEN RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36323335660
+#     (throwaway ci/notebook-w10a-latency-red aafb5b1d7 = the same tree + --slow-op
+#     "GET /notes q=rare (list+count)=400": that op alone breached, 7.588 re-measured 7.620,
+#     and the other 13 stayed under the line).
+#   ⛔ If the ratio check FLAPS in its first 20 runs, R-10 says: gate bytes only
+#   (notebook-bytes.yml), restate clause 4b, and this marker goes back to `no`. The run
+#   count and every flap are recorded in docs/notebook/perf-budgets.md §7.
+#
+# ⛔ A RED HERE ON A MASTER COMMIT REFUSES PROMOTION (tools/promotion_gate.py), AND NOTHING
+#   RETRIES IT. promote-production.yml reads this job's verdict when "master deploy gate"
+#   completes and refuses -- so that commit (a Notebook revert-and-push rollback included)
+#   sits unpromoted until somebody acts:
+#     * A median ratio over its line that REPRODUCES on the re-measure is a real regression
+#       (the check already re-measures before it breaches); fix it, never re-run until green.
+#     * An INFRASTRUCTURE failure (`pip install`, a runner) refuses too, and says nothing
+#       about the code.
+#       Recovery is a re-run: `gh run rerun <run-id> --failed` (or Actions -> "notebook latency" ->
+#       the red run -> "Re-run failed jobs"), then, once green, promote that commit by hand
+#       -- a re-run alone does not re-trigger promotion:
+#         gh workflow run promote-production.yml -f sha=<the master commit sha>
+#       A red that reproduces on the re-run is not infrastructure: read the step's output.
+#   (Fix round 1, review M-3; the same two steps as notebook-a11y.yml's recovery.)
+# ─── NOTEBOOK READ LATENCY, IN CI, AS A RATIO (RULING R-10) ─────────────────
+#
+# A shared runner's speed is not ours: the millisecond check in notebook-budgets.yml went
+# red on 8 of 56 runs on runner noise alone (docs/notebook/perf-budgets.md §3). This check
+# times every CI-budgeted read AS A RATIO to an in-run CALIBRATION op -- a fixed SQLite +
+# JSON workload on its own table, touching no product code -- so a runner twice as slow
+# makes both halves twice as slow and the ratio does not move:
+#   * each round times the calibration, then the op, back to back (a burst lands on both);
+#   * the reading is the MEDIAN of the rounds (a burst that split a round is discarded);
+#   * a median over its line is RE-MEASURED with fresh rounds, and breaches only if the
+#     re-measure is over the line too.
+# The line is `line_ms / calibration_ref_ms`: the same 100 ms (tasks 150 ms) the CI tier
+# always used, at the REFERENCE box's calibration speed, recorded by hand in
+# docs/notebook/perf-budgets.json (`ratio_ci`, with where and when it was read).
+# ⚠️ IT COMPARES P50s, NOT P95s (fix round 1, review M-2): each round is the op's p50 over the
+#   calibration's p50. A regression that lands only in the TAIL passes here, on purpose -- a
+#   round p95 on a shared runner would flake a promotion gate. The tail is the local 50k
+#   gate's (p95 lines), which stays the verdict.
+#
+# ⛔ The local 50k gate stays the VERDICT (perf-budgets.md): this job exists to catch the
+#   gross regression on every push, the way the 10k tier always did, without crying wolf.
+name: notebook latency
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-latency.yml'
+  pull_request:
+    paths:
+      - 'api/services/journal_two/**'
+      - 'api/routers/journal_two.py'
+      - 'tools/notebook_scale_benchmark.py'
+      - 'tools/notebook_perf_budgets.py'
+      - 'docs/notebook/perf-budgets.json'
+      - '.github/workflows/notebook-latency.yml'
+
+jobs:
+  ratio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+
+      # The benchmark imports the repo-root conftest before any api.* module, so every
+      # /data path it could touch is pinned to a sandbox and a stray write fails the run.
+      - name: Time the 10k tier, every CI-budgeted read as a ratio to the calibration op
+        run: >
+          python tools/notebook_scale_benchmark.py --tiers 10000 --ratio ratio_ci
+          --json notebook-latency.json
+
+      - name: The ratio budget, re-read by the budget tool
+        if: always()
+        run: python tools/notebook_perf_budgets.py --bench notebook-latency.json --ratio ratio_ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-latency
+          path: notebook-latency.json
+          if-no-files-found: warn

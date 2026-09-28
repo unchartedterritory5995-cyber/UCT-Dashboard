@@ -31,6 +31,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
 import { EXPORT_FORMATS, noteExportUrl, saveResponse } from './export/exportFormats'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import editorStyles from './NoteEditorPage.module.css'
 import styles from './NoteExportControls.module.css'
 
@@ -74,6 +75,8 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
     try {
       const ok = await exportNoteAsPng(columnRef.current, title)
       onMessage(ok ? 'PNG saved' : 'export failed')
+      // Wave 10 (10D, R-16): a note left as a file. The FORMAT only — never its title.
+      if (ok) trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'png', scope: 'note', count: 1 })
     } catch {
       onMessage('export failed')
     } finally {
@@ -107,6 +110,7 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
       }
       await saveResponse(res, 'note')
       onMessage('downloaded')
+      trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format, scope: 'note', count: 1 })
     } catch {
       onMessage('export failed')
     } finally {
@@ -166,7 +170,12 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
         title="Download this note as a PNG image">
         PNG
       </button>
-      <button type="button" className={editorStyles.chromeBtn} onClick={printNote}
+      <button type="button" className={editorStyles.chromeBtn}
+        onClick={() => {
+          printNote()
+          // Print opens the browser's dialog; whether a PDF was saved is not ours to know.
+          trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format: 'print', scope: 'note', count: 1 })
+        }}
         title="Print — or Save as PDF from the print dialog">
         Print
       </button>

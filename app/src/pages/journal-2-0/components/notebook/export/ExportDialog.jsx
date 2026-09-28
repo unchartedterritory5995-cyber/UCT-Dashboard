@@ -23,6 +23,7 @@ import {
   DEFAULT_EXPORT_FORMAT, EXPORT_FORMATS, notebookExportUrl, saveResponse,
 } from './exportFormats'
 import styles from './ExportDialog.module.css'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
 
 async function readErrorMessage(res) {
   if (res.status === 429) {
@@ -77,6 +78,8 @@ export default function ExportDialog({ open, onClose }) {
       if (!res.ok) throw new Error(await readErrorMessage(res))
       if (generationRef.current !== gen) return
       await saveResponse(res, 'notebook-export.zip')
+      // Wave 10 (10D, R-16): the whole notebook left as a file.
+      trackNotebookEvent(NOTEBOOK_EVENTS.EXPORT_USED, { format, scope: 'notebook' })
       setStep('done')
     } catch (err) {
       if (generationRef.current !== gen) return
