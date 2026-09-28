@@ -8,6 +8,7 @@
  * caller cannot use (the note itself, ones already linked or open).
  */
 import { useEffect, useRef, useState } from 'react'
+import { NOTE_IN_TEXT_CUE } from '../../lib/noteSwitcher'
 import styles from './RelationPropertyValue.module.css'
 
 const SEARCH_DEBOUNCE_MS = 150
@@ -65,8 +66,20 @@ export default function NoteSearchPicker({
         <ul className={styles.results} aria-label={listLabel}>
           {results.map((n) => (
             <li key={n.id}>
-              <button type="button" className={styles.result} onClick={() => onPick(n)}>
+              <button
+                type="button"
+                className={styles.result}
+                onClick={() => onPick(n)}
+                // Wave 10 F6: the switcher can list a note because its TEXT matched. The
+                // reason is shown AND named: an inline span's own spacing is dropped from
+                // a computed name ("Weekly plan· in note text"), so the name is spelled out.
+                aria-label={n.matched === 'text'
+                  ? `${n.title || 'Untitled'}, ${NOTE_IN_TEXT_CUE.toLowerCase()}` : undefined}
+              >
                 {n.title || 'Untitled'}
+                {n.matched === 'text' && (
+                  <span className={styles.resultCue} data-note-cue="in-text"> · {NOTE_IN_TEXT_CUE.toLowerCase()}</span>
+                )}
               </button>
             </li>
           ))}

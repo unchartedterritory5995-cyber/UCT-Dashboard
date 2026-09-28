@@ -89,6 +89,30 @@ describe('the picker', () => {
   })
 })
 
+describe('wave 10 F6: the picker says why a note found by its TEXT is listed', () => {
+  it('a text match carries the cue in its visible text and its name; a title match carries none', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url) => {
+      const u = String(url)
+      if (u.startsWith('/api/j2/notes/switcher')) {
+        return { ok: true, json: async () => ({ notes: [
+          { id: 'amd', title: 'AMD thesis', matched: 'title' },
+          { id: 'dc', title: 'Weekly plan', matched: 'text' },
+        ] }) }
+      }
+      return base(url)
+    })
+    render(<RelationPropertyValue value={['live']} onChange={vi.fn()} labelId="l" currentNoteId="self" />)
+    fireEvent.click(screen.getByRole('button', { name: /Link a note/ }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to link' }), { target: { value: 'revenue' } })
+    const list = await screen.findByRole('list', { name: 'Notes to link' })
+    const byText = within(list).getByRole('button', { name: 'Weekly plan, in note text' })
+    expect(byText.querySelector('[data-note-cue="in-text"]')?.textContent).toBe(' · in note text')
+    const byTitle = within(list).getByRole('button', { name: 'AMD thesis' })
+    expect(byTitle.querySelector('[data-note-cue]')).toBeNull()
+  })
+})
+
 describe('wired', () => {
   it('the note’s Properties section offers Relation, and renders a relation as its chips', async () => {
     notePropsResult = {

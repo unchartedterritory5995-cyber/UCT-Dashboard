@@ -110,7 +110,9 @@ def test_the_body_half_is_the_search_boxs_order_below_the_titles(tmp_path, seed,
                 assert got["hasMore"] == (titles["hasMore"] or (room > 0 and len(rest) > room)), (q, limit)
                 assert all(r["matchTier"] == notes_svc.SWITCHER_TIER_BODY and not r["strong"] and not r["exact"]
                            for r in got["notes"][len(title_ids):]), (q, limit)
-                assert all(r["matchTier"] < notes_svc.SWITCHER_TIER_BODY for r in got["notes"][:len(title_ids)])
+                assert all(r["matchTier"] < notes_svc.SWITCHER_TIER_BODY and r["matched"] == "title"
+                           for r in got["notes"][:len(title_ids)])
+                assert all(r["matched"] == "text" for r in got["notes"][len(title_ids):])
                 assert got["prefixExhausted"] is False
                 compared += 1
                 filled += len(got["notes"]) > len(title_ids)
@@ -132,10 +134,11 @@ def test_a_body_row_carries_the_same_fields_as_a_title_row(tmp_path):
     assert got["notes"] == [{
         "id": nid, "title": "Weekly plan", "folderId": fid, "folderPath": "Research", "ticker": "NVDA",
         "updatedAt": _TS.format(1, 0), "isRecent": True, "isFavorite": True,
-        "matchTier": notes_svc.SWITCHER_TIER_BODY, "strong": False, "exact": False,
+        "matchTier": notes_svc.SWITCHER_TIER_BODY, "strong": False, "exact": False, "matched": "text",
     }]
     title_row = notes_svc.switcher_search(A, "weekly plan", conn=c)["notes"][0]
     assert set(title_row) == set(got["notes"][0])
+    assert title_row["matched"] == "title", "control: a title row says it matched the title"
     c.close()
 
 

@@ -11,7 +11,7 @@ import { useRef } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
-import CommandPalette from './CommandPalette'
+import CommandPalette, { PALETTE_DEBOUNCE_MS } from './CommandPalette'
 
 // 2026-09-03 discoverability slice: NavBar/MobileNav open the SAME palette
 // via this exact ref shape (paletteRef.current.open()) — mirrors Layout.jsx.
@@ -583,6 +583,25 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     expect(option.textContent).toContain('Unfiled')
   })
 
+  it('wave 10 F6: a note found by its TEXT says so on screen and out loud; a title match does not', async () => {
+    routeFetch({ notes: [
+      note({ id: 't1', title: 'Data center notes', matchTier: 2, strong: true, matched: 'title' }),
+      note({ id: 'b1', title: 'Weekly plan', matchTier: 8, strong: false, matched: 'text' }),
+    ] })
+    renderPalette()
+    act(() => pressCtrlK())
+    const input = await screen.findByRole('combobox')
+    fireEvent.change(input, { target: { value: 'data center' } })
+    const byText = await screen.findByRole('option', { name: /^Note: Weekly plan, found in note text, in Research/ })
+    const cue = byText.querySelector('[data-note-cue="in-text"]')
+    expect(cue?.textContent).toBe('In note text · ')
+    expect(byText.textContent).toContain('In note text · Research / Semis · $NVDA')
+    // the control: the title match carries no cue and no "found in note text"
+    const byTitle = await screen.findByRole('option', { name: /^Note: Data center notes, in Research/ })
+    expect(byTitle.querySelector('[data-note-cue]')).toBeNull()
+    expect(byTitle.getAttribute('aria-label')).not.toMatch(/note text/)
+  })
+
   it('bolds the part of the title that matched', async () => {
     routeFetch({ notes: [note({ title: 'Semis rotation' })] })
     renderPalette()
@@ -804,6 +823,63 @@ describe('CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 
     expect(asked('/api/j2/notes/switcher?q=zzzzq')).toHaveLength(0)
     fireEvent.change(input, { target: { value: 'zzz' } })
     await waitFor(() => expect(asked('/api/j2/notes/switcher?q=zzz&')).toHaveLength(1))
+  })
+
+  // Wave 10 F6 (fix round 1): the server no longer claims `prefixExhausted` (its body half
+  // matches over a stemmed index), so the palette's own debounce is what bounds the requests
+  // a member's typing sends. Counted for "running", one letter at a time, on fake timers:
+  //   * faster than the debounce -- ONE request, for the whole word;
+  //   * slower than it -- one per letter: 7 now; 4 against a server that still claimed
+  //     exhaustion (r, ru, run, runn -- then it stopped asking).
+  describe('wave 10 F6: requests sent while typing "running"', () => {
+    const DEBOUNCE_MS = PALETTE_DEBOUNCE_MS // the fast typist beats it, the slow one does not
+    function countingFetch({ claimsExhaustion }) {
+      global.fetch = vi.fn((url) => {
+        const u = String(url)
+        if (u.startsWith('/api/j2/notes/switcher')) {
+          const q = new URL(u, 'http://x').searchParams.get('q')
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(
+            { notes: [], hasMore: false, prefixExhausted: claimsExhaustion && q.length >= 4 }) })
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [], notes: [] }) })
+      })
+    }
+    const switcherAsks = () => global.fetch.mock.calls.map((c) => String(c[0]))
+      .filter((u) => u.startsWith('/api/j2/notes/switcher'))
+    async function typeRunning(gapMs) {
+      renderPalette()
+      act(() => pressCtrlK())
+      const input = await screen.findByRole('combobox')
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      try {
+        const word = 'running'
+        for (let i = 1; i <= word.length; i += 1) {
+          fireEvent.change(input, { target: { value: word.slice(0, i) } })
+          await act(async () => { await vi.advanceTimersByTimeAsync(gapMs) })
+        }
+        await act(async () => { await vi.advanceTimersByTimeAsync(DEBOUNCE_MS * 3) })
+      } finally {
+        vi.useRealTimers()
+      }
+      return switcherAsks()
+    }
+
+    it('faster than the debounce: one request for the whole word', async () => {
+      countingFetch({ claimsExhaustion: false })
+      const asks = await typeRunning(DEBOUNCE_MS - 50)
+      expect(asks).toEqual(['/api/j2/notes/switcher?q=running&limit=8'])
+    })
+
+    it('slower than the debounce: one per letter -- 7 now, 4 when the server still claimed exhaustion', async () => {
+      countingFetch({ claimsExhaustion: false })
+      expect(await typeRunning(DEBOUNCE_MS + 100)).toHaveLength(7)
+    })
+
+    it('the control: a server that claims exhaustion at four letters stops the asking at four', async () => {
+      countingFetch({ claimsExhaustion: true })
+      const asks = await typeRunning(DEBOUNCE_MS + 100)
+      expect(asks.map((u) => new URL(u, 'http://x').searchParams.get('q'))).toEqual(['r', 'ru', 'run', 'runn'])
+    })
   })
 
   it('the help screen documents that a note title opens the note', async () => {

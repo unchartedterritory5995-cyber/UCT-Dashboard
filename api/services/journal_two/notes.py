@@ -4589,7 +4589,10 @@ def switcher_search(
     """The quick switcher's answer: the notes whose TITLE matches `q`, ranked by
     `_switcher_title_search` -- then, when those leave room on the page, the notes
     the search box would answer for `q`, in the search box's own order, below every
-    title (`matchTier` SWITCHER_TIER_BODY, `strong` and `exact` false). Returns
+    title (`matchTier` SWITCHER_TIER_BODY, `strong` and `exact` false). Every row says
+    WHERE the query matched -- `matched`: "title" or "text" -- so a surface can show why a
+    note whose title does not hold the typed words is listed, without knowing the tier
+    numbers (fix round 1: a result with no visible reason reads as a wrong answer). Returns
     `{"notes": [...], "hasMore": bool, "prefixExhausted": bool}`. `hasMore`: more rows
     than the page holds -- from the titles, or from the body half when it was asked
     (a page the titles fill never asks it, so there it speaks for the titles).
@@ -4611,6 +4614,8 @@ def switcher_search(
     try:
         answer = _switcher_title_search(user_id, text, limit, conn=conn)
         answer["prefixExhausted"] = False
+        for row in answer["notes"]:
+            row["matched"] = "title"
         if not answer["hasMore"]:
             _switcher_fill_from_body(user_id, text, limit, answer, conn)
         return answer
@@ -4662,6 +4667,7 @@ def _switcher_fill_from_body(user_id: str, text: str, limit: int, answer: dict[s
             "matchTier": SWITCHER_TIER_BODY,
             "strong": False,
             "exact": False,
+            "matched": "text",
         })
 
 
