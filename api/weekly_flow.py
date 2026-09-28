@@ -652,11 +652,22 @@ def render_standing_card(agg: dict, window: list[str], top_n: int,
 
 
 # ── orchestration ──────────────────────────────────────────────────────────
+#: TERM-011 step 5 -- named once so a log line cannot drift from the variable
+#: actually read. THIS IS THE POSTER THE PACKET FLAGS AS THE HARDEST SILENCE
+#: TO NOTICE: run_weekly_cron fires once a WEEK, so a misconfigured variable
+#: can go undetected for up to seven days. The log line below is the
+#: substitute for the notice nobody gets.
+WEBHOOK_ENV = "WEEKLY_FLOW_WEBHOOK_URL"
+
+
 def _webhook() -> str:
-    return (os.getenv("WEEKLY_FLOW_WEBHOOK_URL")
+    """TERM-011 step 5 -- fails CLOSED. No longer falls back to
+    DISCORD_WEBHOOK_URL: this member-facing card must stop rather than land in
+    the admin/ops room when unconfigured."""
+    return (os.getenv(WEBHOOK_ENV)
             or os.getenv("DISCORD_MASSIVE_WEBHOOK_URL")
             or os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-            or os.getenv("DISCORD_WEBHOOK_URL", "")).strip()
+            or "").strip()
 
 
 # ── card build cache ───────────────────────────────────────────────────────
@@ -756,7 +767,13 @@ def run_weekly(*, force: bool = False, post: bool = True, days: int | None = Non
             return res
         wh = _webhook()
         if not wh:
-            res.update(posted=False, reason="no webhook (set WEEKLY_FLOW_WEBHOOK_URL)")
+            # TERM-011 step 5 -- VISIBLE SILENCE. This card can go a full week
+            # between runs, so this log line is the only notice a misconfigured
+            # variable gets until someone asks why the board went quiet.
+            log.error("[weekly-flow] NOT posted -- no webhook configured, and "
+                      "this card no longer falls back to DISCORD_WEBHOOK_URL. "
+                      "Set %s to turn it back on.", WEBHOOK_ENV)
+            res.update(posted=False, reason=f"no webhook (set {WEBHOOK_ENV})")
             return res
         ok, detail = _post_discord_image(wh, png, "", filename="weekly_flow.png")
         res.update(posted=ok, detail=detail)
@@ -783,8 +800,13 @@ def run_weekly_cron() -> dict:
         return {"ok": False, "reason": f"error: {e}"}
 
 
+#: The dedicated Open Flow variable, named once for the same reason as WEBHOOK_ENV.
+STANDING_WEBHOOK_ENV = "STANDING_FLOW_WEBHOOK_URL"
+
+
 def _standing_webhook() -> str:
-    return (os.getenv("STANDING_FLOW_WEBHOOK_URL", "").strip() or _webhook())
+    """TERM-011 step 5 -- fails CLOSED via `_webhook()`'s own no-fallback chain."""
+    return (os.getenv(STANDING_WEBHOOK_ENV, "").strip() or _webhook())
 
 
 def run_standing(*, force: bool = False, post: bool = True, days: int | None = None,
@@ -831,7 +853,11 @@ def run_standing(*, force: bool = False, post: bool = True, days: int | None = N
             return res
         wh = _standing_webhook()
         if not wh:
-            res.update(posted=False, reason="no webhook (set STANDING_FLOW_WEBHOOK_URL)")
+            # TERM-011 step 5 -- VISIBLE SILENCE, naming the variable.
+            log.error("[open-flow] NOT posted -- no webhook configured, and this "
+                      "card no longer falls back to DISCORD_WEBHOOK_URL. Set %s or "
+                      "%s to turn it back on.", STANDING_WEBHOOK_ENV, WEBHOOK_ENV)
+            res.update(posted=False, reason=f"no webhook (set {STANDING_WEBHOOK_ENV})")
             return res
         ok, detail = _post_discord_image(wh, png, "", filename="open_flow.png")
         res.update(posted=ok, detail=detail)

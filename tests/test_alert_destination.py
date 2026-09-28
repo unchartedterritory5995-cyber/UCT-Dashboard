@@ -112,9 +112,15 @@ STILL_LITERAL = {
     # ── spec §6 STEP 5 — the ↩ADMIN-FALLBACK posters (D7's nine). `DISCORD_WEBHOOK_URL`
     #    is the TERMINAL `or` of a chain; they stop falling back and fail closed,
     #    following `calendar_week_poster.py`'s *"`live` NEVER falls back"*.
-    "api/alpha_gold_eod.py": 5,
-    "api/cream_card.py": 5,
-    "api/darkpool_eod.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5. `alpha_gold_eod.py` reads its
+    #    OWN chain (WEBHOOK_ENV="ALPHA_GOLD_EOD_WEBHOOK_URL" -> DISCORD_MASSIVE_WEBHOOK_URL ->
+    #    DISCORD_LIVE_FLOW_WEBHOOK_URL) with the DISCORD_WEBHOOK_URL tail REMOVED, and logs the
+    #    variable name visibly when unconfigured. `literal_reads_in` now returns [].
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5. `cream_card.py` reads its OWN
+    #    chain (CREAM_EOD_WEBHOOK_URL -> ALPHA_GOLD_EOD_WEBHOOK_URL -> DISCORD_MASSIVE_WEBHOOK_URL ->
+    #    DISCORD_LIVE_FLOW_WEBHOOK_URL) with the DISCORD_WEBHOOK_URL tail REMOVED.
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, same shape as its siblings.
+    #    The DISCORD_WEBHOOK_URL tail is removed; DARKPOOL_EOD_WEBHOOK_URL is named in the log line.
     # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, NOT STEP 3/6. `discord_watchlist.py`
     #    now reads its OWN dedicated webhook chain (`WEBHOOK_ENV` / `LEGACY_WEBHOOK_ENV`, at CALL
     #    time) and fails closed -- it never falls back to `DISCORD_WEBHOOK_URL` at all, so
@@ -122,10 +128,17 @@ STILL_LITERAL = {
     #    the `alert_destination` importer roster (the shared OPS resolver), and this poster keeps
     #    its OWN variable by step 5's design -- a fail-closed content poster is a different shape
     #    from an OPS emitter, not an unfinished conversion of the same one.
-    "api/live_massive_router.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5 (partner-owned, minimal
+    #    footprint: one module-level constant became one call-time function, two call sites
+    #    touched, nothing else in the file moved). No DISCORD_WEBHOOK_URL fallback remains.
     "api/liveflow_worker.py": 5,
-    "api/oi_morning.py": 5,
-    "api/weekly_flow.py": 5,
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5. OI_MORNING_WEBHOOK_URL is the
+    #    named variable; DISCORD_WEBHOOK_URL is no longer in the chain at all.
+    # ⚰️ LEFT THIS LIST 2026-09-27 -- CONVERTED BY STEP 5, BOTH FUNCTIONS.
+    #    `_webhook()` (WEEKLY_FLOW_WEBHOOK_URL) and `_standing_webhook()` (STANDING_FLOW_WEBHOOK_URL,
+    #    falling through to `_webhook()`) both dropped the DISCORD_WEBHOOK_URL tail. ⚠️ This is the
+    #    poster the decision packet flags as hardest to notice silent -- run_weekly_cron fires
+    #    once a WEEK, so its log line is the substitute for a notice nobody otherwise gets.
     # ⚠️ The ops member of D7's nine, and it is STILL step 5's, not step 3's. Its
     #    read is `LIVEFLOW_ALERT_WEBHOOK_URL or DISCORD_WEBHOOK_URL` captured at
     #    MODULE IMPORT, so converting it is two decisions at once — where the
