@@ -24,6 +24,12 @@
   background: #525659;
   padding: 16px 0;
 }
+/* Wave 10 follow-up F5: the region takes keyboard focus now, so it shows where focus
+   is -- inset, because the region fills the sheet edge to edge. */
+.scroll:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
 .page {
   display: flex;
   justify-content: center;

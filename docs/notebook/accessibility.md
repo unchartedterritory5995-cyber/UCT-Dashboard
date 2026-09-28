@@ -48,13 +48,14 @@ the axe rails and the screen-reader pass judge the words.
 | **What a screen reader says** | no speech engine | the owner's script, `docs/notebook/screen-reader-pass.md` (NVDA, VoiceOver) |
 | **Real devices** (a touch grip tap, the Mac-only chords) | no device | the same script's appendices A and B |
 
-## Known gaps (2026-09-26)
+## Known gaps (2026-09-26; two stale lines corrected 2026-09-27 by wave 10 lane 10E-1, F-1)
 
-- **Three contrast rulings are open** (`a11y/contrastExpectedFailures.js`, 139 pair-theme
-  rows: 43 / 6 / 90): **D-A4-1** `--loss` as small text in dark/oled (3.63-4.30:1); **D-A4-2** `--gain`
-  on its tint in light (4.42:1); **D-A4-3** input edges drawn in `--border` (1.18:1 dark,
-  WCAG 1.4.11). Each needs a `tokens.css` decision; no Notebook-CSS token switch fixes
-  them in all three themes.
+- ~~**Three contrast rulings are open**~~ -- **CLOSED, and this line was stale.** All three
+  (D-A4-1/2/3, 139 pair-theme rows) closed in wave 8 lane 8A: `tokens.css` gained
+  `--danger-ink`, `--success-ink` and `--field-edge`, the 139 declarations switched to them,
+  and `a11y/contrastExpectedFailures.js` holds `EXPECTED_FAILURES = []` and `RULINGS = {}`
+  (its own header records the closure). The declared-pair rail therefore has no expected
+  failure left; contrast in context is what the real-browser axe pass measures (below).
 - **The graph canvas draws its nodes, edges and hub labels in fixed colours** chosen for a
   dark canvas (`NoteGraphView.jsx` draw()). The selection ring follows the theme and is
   measured; the rest is measured nowhere, and on the light theme the hub labels are
@@ -76,5 +77,14 @@ the axe rails and the screen-reader pass judge the words.
 - **Nothing has been run on a real screen reader or a real device yet** -- the script is
   written, the runs are the owner's. Whether BrowserStack Live exposes VoiceOver is not
   verified.
-- **The CI workflow has no local proof**; its first run is the proof, and it is advisory
-  (`# promotion-gate: no`) until it has been seen red once and green once.
+- ~~**The CI workflow has no local proof** ... advisory (`# promotion-gate: no`)~~ --
+  **stale:** `.github/workflows/notebook-a11y.yml` reads `# promotion-gate: yes` since
+  2026-09-27 (wave 10 lane 10D promoted it after it was seen red once and green once in CI,
+  ruling D-A2). The real-browser axe sweep of wave 10 lane 10E-1
+  (`tools/notebook_proof_walk.py --sweeps axe`, raw record under `docs/notebook/proof/`) is
+  the measurement over every surface x dark / oled / light, colour-contrast included.
+- **Measured 2026-09-27 on `fd7d1f42d` (before master's #224), 123 runs, 116 PASS, three
+  findings** (`docs/notebook/proof/README.md` §9b): the Search filters toggle is 22 x 22 px
+  (`target-size`, all three themes); the document preview's scroll region cannot take focus
+  (`scrollable-region-focusable`, all three); the capture dialog's hint is 4.12:1 in light
+  (`color-contrast`). Not yet re-run on the tree that ships.

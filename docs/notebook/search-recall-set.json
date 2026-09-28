@@ -1,0 +1,1441 @@
+{
+ "version": 1,
+ "about": "The Notebook search box's labelled set (wave 10, lane 10E-1, clause 13c): a synthetic trader corpus -- no member's words -- and queries labelled with the notes a member searching them wants. Relevance is binary; `kind` says what each query tests, so a paraphrase or a typo the lexical search cannot find is a measured miss, not an omitted query. Measured by tools/notebook_search_recall.py.",
+ "notes": [
+  {
+   "key": "nvda-earnings",
+   "title": "NVDA earnings preview Q3",
+   "body": [
+    "Data center revenue is the whole story this quarter.",
+    "Guidance above consensus would keep the base intact."
+   ],
+   "tags": [
+    "earnings"
+   ],
+   "ticker": "NVDA"
+  },
+  {
+   "key": "nvda-thesis",
+   "title": "Nvidia long thesis",
+   "body": [
+    "The GPU franchise and the CUDA moat keep margins high.",
+    "Invalidation: a close below the 50 day average on heavy volume."
+   ],
+   "tags": [
+    "thesis"
+   ],
+   "ticker": "NVDA"
+  },
+  {
+   "key": "amd-earnings",
+   "title": "AMD earnings preview",
+   "body": [
+    "Client segment recovery and MI300 ramp are what matters.",
+    "Expected move is about eight percent."
+   ],
+   "tags": [
+    "earnings"
+   ],
+   "ticker": "AMD"
+  },
+  {
+   "key": "tsla-trade-review",
+   "title": "TSLA trade review",
+   "body": [
+    "Entered on the reclaim of the 20 EMA, stopped out the next morning.",
+    "Lesson: do not buy the first bounce in a downtrend."
+   ],
+   "tags": [
+    "review"
+   ],
+   "ticker": "TSLA"
+  },
+  {
+   "key": "tsla-delivery",
+   "title": "Tesla deliveries note",
+   "body": [
+    "Quarterly deliveries missed the whisper number.",
+    "Watching $TSLA for a gap fill toward the prior base."
+   ],
+   "tags": [],
+   "ticker": "TSLA"
+  },
+  {
+   "key": "vcp-checklist",
+   "title": "VCP setup checklist",
+   "body": [
+    "Three or more contractions, each shallower than the last.",
+    "Volume dried up on the pullback before the pivot."
+   ],
+   "tags": [
+    "setups/vcp"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "cup-handle",
+   "title": "Cup and handle on MSFT",
+   "body": [
+    "A textbook cup and handle forming over eleven weeks.",
+    "Handle holds above the 10 week line."
+   ],
+   "tags": [
+    "setups"
+   ],
+   "ticker": "MSFT"
+  },
+  {
+   "key": "stop-discipline",
+   "title": "Stop loss discipline rules",
+   "body": [
+    "Never widen a stop once the trade is on.",
+    "Risk no more than one percent of the account per position."
+   ],
+   "tags": [
+    "rules"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "position-sizing",
+   "title": "Position sizing worksheet",
+   "body": [
+    "Size equals account risk divided by the distance to the stop.",
+    "Half size in a correction, full size in a confirmed uptrend."
+   ],
+   "tags": [
+    "rules"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "fomc-minutes",
+   "title": "FOMC minutes reaction",
+   "body": [
+    "Rates held; the dot plot shifted one cut later.",
+    "Growth names sold off into the close then recovered."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "cpi-print",
+   "title": "CPI print prep",
+   "body": [
+    "Core inflation is the number the market trades.",
+    "Plan: no new positions until the first hour settles."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "breakout-journal",
+   "title": "Breakout journal AVGO",
+   "body": [
+    "Breakout above the flat base on twice average volume.",
+    "Added on the first pullback to the breakout level."
+   ],
+   "tags": [
+    "setups/breakout"
+   ],
+   "ticker": "AVGO"
+  },
+  {
+   "key": "breakout-failed",
+   "title": "Failed breakout lessons",
+   "body": [
+    "The breakout reversed the same day and closed below the pivot.",
+    "Cut it at the day low, loss was small."
+   ],
+   "tags": [
+    "setups/breakout",
+    "review"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "earnings-gap",
+   "title": "Earnings gap up plan CRM",
+   "body": [
+    "Gap up after earnings; watching the opening range high.",
+    "An opening range breakout entry with the stop at the day low."
+   ],
+   "tags": [
+    "earnings",
+    "setups"
+   ],
+   "ticker": "CRM"
+  },
+  {
+   "key": "sector-rotation",
+   "title": "Sector rotation notes",
+   "body": [
+    "Money rotating out of semis into energy and utilities.",
+    "Relative strength line of XLE turning up."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "semis-weakness",
+   "title": "Semis weakness watch",
+   "body": [
+    "SMH lost the 50 day; leaders like NVDA and AVGO holding up better.",
+    "Expect chop until the index reclaims its average."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": "SMH"
+  },
+  {
+   "key": "daily-2026-09-25",
+   "title": "Daily note 2026-09-25",
+   "body": [
+    "Market opened weak, bought the dip in META at support.",
+    "Journal: patience paid off today."
+   ],
+   "tags": [
+    "daily"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "daily-2026-09-24",
+   "title": "Daily note 2026-09-24",
+   "body": [
+    "Choppy session; no trades taken.",
+    "Reviewed the watch list and trimmed the laggards."
+   ],
+   "tags": [
+    "daily"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "meta-thesis",
+   "title": "META long thesis",
+   "body": [
+    "Ad pricing recovery and cost discipline drive earnings growth.",
+    "Risk: regulatory headlines."
+   ],
+   "tags": [
+    "thesis"
+   ],
+   "ticker": "META"
+  },
+  {
+   "key": "aapl-short",
+   "title": "AAPL short idea",
+   "body": [
+    "Services growth slowing while the multiple stays high.",
+    "Short only below the 200 day average."
+   ],
+   "tags": [
+    "thesis"
+   ],
+   "ticker": "AAPL"
+  },
+  {
+   "key": "trim-rules",
+   "title": "When I trim a winner",
+   "body": [
+    "Trim a third into strength after a three day run.",
+    "Trimmed the position in SMCI after the climax volume day."
+   ],
+   "tags": [
+    "rules"
+   ],
+   "ticker": "SMCI"
+  },
+  {
+   "key": "pre-market",
+   "title": "Pre-market routine",
+   "body": [
+    "Check futures, the economic calendar and overnight news.",
+    "Mark the prior day high and low on the watch list."
+   ],
+   "tags": [
+    "routine"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "market-breadth",
+   "title": "Market breadth dashboard read",
+   "body": [
+    "Percent of stocks above the 50 day fell to thirty.",
+    "Breadth divergence while the index holds near highs."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "ipo-base",
+   "title": "IPO base on ARM",
+   "body": [
+    "First base after the IPO, eight weeks, tight closes.",
+    "Buy point is the high of the handle."
+   ],
+   "tags": [
+    "setups"
+   ],
+   "ticker": "ARM"
+  },
+  {
+   "key": "dividend-note",
+   "title": "Dividend stocks watch",
+   "body": [
+    "Utilities and staples with rising dividends.",
+    "A defensive rotation candidate list."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "options-hedge",
+   "title": "Options hedge plan",
+   "body": [
+    "Buy puts on QQQ as a portfolio hedge into the event.",
+    "Size the hedge to one percent of the account."
+   ],
+   "tags": [
+    "risk"
+   ],
+   "ticker": "QQQ"
+  },
+  {
+   "key": "psychology",
+   "title": "Trading psychology notes",
+   "body": [
+    "Revenge trading after a loss is the costliest habit.",
+    "Walk away after two losing trades in a row."
+   ],
+   "tags": [
+    "review"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "gold-miners",
+   "title": "Gold miners setup",
+   "body": [
+    "GDX forming a higher low as gold makes new highs.",
+    "Watching for the 20 EMA reclaim."
+   ],
+   "tags": [
+    "setups"
+   ],
+   "ticker": "GDX"
+  },
+  {
+   "key": "oil-note",
+   "title": "Crude oil inventory note",
+   "body": [
+    "A large inventory draw pushed crude above resistance.",
+    "Energy names like XOM followed through."
+   ],
+   "tags": [
+    "macro"
+   ],
+   "ticker": "XOM"
+  },
+  {
+   "key": "bank-earnings",
+   "title": "Bank earnings season",
+   "body": [
+    "JPM kicked off earnings with a beat on net interest income.",
+    "Regional banks lagged."
+   ],
+   "tags": [
+    "earnings"
+   ],
+   "ticker": "JPM"
+  },
+  {
+   "key": "filler-00",
+   "title": "NFLX watch note 00",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-01",
+   "title": "GOOGL watch note 01",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-02",
+   "title": "AMZN watch note 02",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-03",
+   "title": "ORCL watch note 03",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-04",
+   "title": "UBER watch note 04",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-05",
+   "title": "DIS watch note 05",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-06",
+   "title": "SHOP watch note 06",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-07",
+   "title": "PLTR watch note 07",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-08",
+   "title": "NFLX watch note 08",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-09",
+   "title": "GOOGL watch note 09",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-10",
+   "title": "AMZN watch note 10",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-11",
+   "title": "ORCL watch note 11",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-12",
+   "title": "UBER watch note 12",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-13",
+   "title": "DIS watch note 13",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-14",
+   "title": "SHOP watch note 14",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-15",
+   "title": "PLTR watch note 15",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-16",
+   "title": "NFLX watch note 16",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-17",
+   "title": "GOOGL watch note 17",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-18",
+   "title": "AMZN watch note 18",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-19",
+   "title": "ORCL watch note 19",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-20",
+   "title": "UBER watch note 20",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-21",
+   "title": "DIS watch note 21",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-22",
+   "title": "SHOP watch note 22",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-23",
+   "title": "PLTR watch note 23",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-24",
+   "title": "NFLX watch note 24",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-25",
+   "title": "GOOGL watch note 25",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-26",
+   "title": "AMZN watch note 26",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-27",
+   "title": "ORCL watch note 27",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-28",
+   "title": "UBER watch note 28",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-29",
+   "title": "DIS watch note 29",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-30",
+   "title": "SHOP watch note 30",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-31",
+   "title": "PLTR watch note 31",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-32",
+   "title": "NFLX watch note 32",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-33",
+   "title": "GOOGL watch note 33",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-34",
+   "title": "AMZN watch note 34",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-35",
+   "title": "ORCL watch note 35",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-36",
+   "title": "UBER watch note 36",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-37",
+   "title": "DIS watch note 37",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-38",
+   "title": "SHOP watch note 38",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-39",
+   "title": "PLTR watch note 39",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-40",
+   "title": "NFLX watch note 40",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-41",
+   "title": "GOOGL watch note 41",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-42",
+   "title": "AMZN watch note 42",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-43",
+   "title": "ORCL watch note 43",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-44",
+   "title": "UBER watch note 44",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-45",
+   "title": "DIS watch note 45",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-46",
+   "title": "SHOP watch note 46",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-47",
+   "title": "PLTR watch note 47",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-48",
+   "title": "NFLX watch note 48",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-49",
+   "title": "GOOGL watch note 49",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-50",
+   "title": "AMZN watch note 50",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-51",
+   "title": "ORCL watch note 51",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-52",
+   "title": "UBER watch note 52",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-53",
+   "title": "DIS watch note 53",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-54",
+   "title": "SHOP watch note 54",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-55",
+   "title": "PLTR watch note 55",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-56",
+   "title": "NFLX watch note 56",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-57",
+   "title": "GOOGL watch note 57",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-58",
+   "title": "AMZN watch note 58",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-59",
+   "title": "ORCL watch note 59",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-60",
+   "title": "UBER watch note 60",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-61",
+   "title": "DIS watch note 61",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-62",
+   "title": "SHOP watch note 62",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "SHOP"
+  },
+  {
+   "key": "filler-63",
+   "title": "PLTR watch note 63",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  },
+  {
+   "key": "filler-64",
+   "title": "NFLX watch note 64",
+   "body": [
+    "No catalyst this week; keep it on the watch list.",
+    "Reviewed the chart this morning and nothing stood out."
+   ],
+   "tags": [],
+   "ticker": "NFLX"
+  },
+  {
+   "key": "filler-65",
+   "title": "GOOGL watch note 65",
+   "body": [
+    "The trend is intact but the risk reward is poor here.",
+    "Price is extended from the moving averages; waiting."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-66",
+   "title": "AMZN watch note 66",
+   "body": [
+    "Reviewed the chart this morning and nothing stood out.",
+    "Watching for a pullback to support before adding."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": "AMZN"
+  },
+  {
+   "key": "filler-67",
+   "title": "ORCL watch note 67",
+   "body": [
+    "Price is extended from the moving averages; waiting.",
+    "Volume was average and the close was mid range."
+   ],
+   "tags": [],
+   "ticker": null
+  },
+  {
+   "key": "filler-68",
+   "title": "UBER watch note 68",
+   "body": [
+    "Watching for a pullback to support before adding.",
+    "No catalyst this week; keep it on the watch list."
+   ],
+   "tags": [],
+   "ticker": "UBER"
+  },
+  {
+   "key": "filler-69",
+   "title": "DIS watch note 69",
+   "body": [
+    "Volume was average and the close was mid range.",
+    "The trend is intact but the risk reward is poor here."
+   ],
+   "tags": [
+    "watchlist"
+   ],
+   "ticker": null
+  }
+ ],
+ "queries": [
+  {
+   "q": "NVDA earnings preview Q3",
+   "relevant": [
+    "nvda-earnings"
+   ],
+   "kind": "exact title"
+  },
+  {
+   "q": "earnings preview",
+   "relevant": [
+    "nvda-earnings",
+    "amd-earnings"
+   ],
+   "kind": "title words"
+  },
+  {
+   "q": "Nvidia thesis",
+   "relevant": [
+    "nvda-thesis"
+   ],
+   "kind": "title words"
+  },
+  {
+   "q": "data center revenue",
+   "relevant": [
+    "nvda-earnings"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "CUDA moat",
+   "relevant": [
+    "nvda-thesis"
+   ],
+   "kind": "rare body term"
+  },
+  {
+   "q": "MI300",
+   "relevant": [
+    "amd-earnings"
+   ],
+   "kind": "rare token"
+  },
+  {
+   "q": "volume dried up on the pullback",
+   "relevant": [
+    "vcp-checklist"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "cup and handle",
+   "relevant": [
+    "cup-handle"
+   ],
+   "kind": "title phrase"
+  },
+  {
+   "q": "never widen a stop",
+   "relevant": [
+    "stop-discipline"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "stop loss",
+   "relevant": [
+    "stop-discipline"
+   ],
+   "kind": "title words"
+  },
+  {
+   "q": "position sizing",
+   "relevant": [
+    "position-sizing"
+   ],
+   "kind": "title words"
+  },
+  {
+   "q": "FOMC",
+   "relevant": [
+    "fomc-minutes"
+   ],
+   "kind": "acronym"
+  },
+  {
+   "q": "fomc",
+   "relevant": [
+    "fomc-minutes"
+   ],
+   "kind": "acronym, lower case"
+  },
+  {
+   "q": "dot plot",
+   "relevant": [
+    "fomc-minutes"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "core inflation",
+   "relevant": [
+    "cpi-print"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "breakout",
+   "relevant": [
+    "breakout-journal",
+    "breakout-failed",
+    "earnings-gap"
+   ],
+   "kind": "title and body word, several"
+  },
+  {
+   "q": "breako",
+   "relevant": [
+    "breakout-journal",
+    "breakout-failed",
+    "earnings-gap"
+   ],
+   "kind": "prefix while typing"
+  },
+  {
+   "q": "opening range breakout",
+   "relevant": [
+    "earnings-gap"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "rotation",
+   "relevant": [
+    "sector-rotation",
+    "dividend-note"
+   ],
+   "kind": "word in title and body"
+  },
+  {
+   "q": "relative strength",
+   "relevant": [
+    "sector-rotation"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "SMH",
+   "relevant": [
+    "semis-weakness"
+   ],
+   "kind": "ticker"
+  },
+  {
+   "q": "META",
+   "relevant": [
+    "meta-thesis",
+    "daily-2026-09-25"
+   ],
+   "kind": "ticker named in title and body"
+  },
+  {
+   "q": "ad pricing",
+   "relevant": [
+    "meta-thesis"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "200 day average",
+   "relevant": [
+    "aapl-short"
+   ],
+   "kind": "number phrase"
+  },
+  {
+   "q": "trim",
+   "relevant": [
+    "trim-rules",
+    "daily-2026-09-24"
+   ],
+   "kind": "stem across trim/trimmed"
+  },
+  {
+   "q": "climax volume",
+   "relevant": [
+    "trim-rules"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "prior day high",
+   "relevant": [
+    "pre-market"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "breadth divergence",
+   "relevant": [
+    "market-breadth"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "IPO base",
+   "relevant": [
+    "ipo-base"
+   ],
+   "kind": "title words"
+  },
+  {
+   "q": "puts hedge",
+   "relevant": [
+    "options-hedge"
+   ],
+   "kind": "words from title and body"
+  },
+  {
+   "q": "revenge trading",
+   "relevant": [
+    "psychology"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "gold",
+   "relevant": [
+    "gold-miners"
+   ],
+   "kind": "title word"
+  },
+  {
+   "q": "inventory draw",
+   "relevant": [
+    "oil-note"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "net interest income",
+   "relevant": [
+    "bank-earnings"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "patience paid off",
+   "relevant": [
+    "daily-2026-09-25"
+   ],
+   "kind": "body phrase"
+  },
+  {
+   "q": "$TSLA",
+   "relevant": [
+    "tsla-delivery",
+    "tsla-trade-review"
+   ],
+   "kind": "cashtag"
+  },
+  {
+   "q": "Tesla",
+   "relevant": [
+    "tsla-delivery"
+   ],
+   "kind": "company name"
+  },
+  {
+   "q": "graphics chip maker moat",
+   "relevant": [
+    "nvda-thesis"
+   ],
+   "kind": "paraphrase (meaning, not words)"
+  },
+  {
+   "q": "rules for cutting losses",
+   "relevant": [
+    "stop-discipline"
+   ],
+   "kind": "paraphrase (meaning, not words)"
+  },
+  {
+   "q": "interest rate decision",
+   "relevant": [
+    "fomc-minutes"
+   ],
+   "kind": "paraphrase (meaning, not words)"
+  },
+  {
+   "q": "nvidai",
+   "relevant": [
+    "nvda-thesis"
+   ],
+   "kind": "typo"
+  },
+  {
+   "q": "earnigns preview",
+   "relevant": [
+    "nvda-earnings",
+    "amd-earnings"
+   ],
+   "kind": "typo"
+  },
+  {
+   "q": "contractions shallower",
+   "relevant": [
+    "vcp-checklist"
+   ],
+   "kind": "body words"
+  }
+ ],
+ "baseline": {
+  "measured_on_tree": "7ee21a7fc",
+  "k": 10,
+  "readers": {
+   "search_box": {
+    "recall_at_10": 0.8837,
+    "mrr_at_10": 0.8837
+   },
+   "switcher": {
+    "recall_at_10": 0.9302,
+    "mrr_at_10": 0.9302
+   }
+  }
+ }
+}

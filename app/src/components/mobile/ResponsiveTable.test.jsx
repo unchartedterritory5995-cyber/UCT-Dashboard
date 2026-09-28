@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { afterEach, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { afterEach, describe, vi } from 'vitest'
 import ResponsiveTable from './ResponsiveTable'
 
 // Control useIsPhone() by making matchMedia match the phone query when asked.
@@ -106,4 +107,83 @@ test('⛔ CONTROL — omitting rowDataAttrs adds no such attribute (every pre-ex
   setViewport(false)
   const { container } = render(<ResponsiveTable columns={columns} rows={rows} />)
   expect(container.querySelectorAll('[data-note-card-id]')).toHaveLength(0)
+})
+
+/**
+ * ⛔⛔ F4 / A2R-02 (WCAG 2.1.1) — a row that opens on click opens on the keyboard.
+ * Lane 10E-2's keyboard walk found a Notebook Table-view row opened on a mouse click
+ * only: no tabindex, no key handler. Asserted with the keyboard itself (user-event Tab,
+ * Enter and Space), in BOTH renderings, plus the two things the fix must not do: grow a
+ * Tab stop on a table nobody can activate, and steal a key from a control inside a row.
+ */
+describe('keyboard rows (F4, A2R-02)', () => {
+  const inner = [
+    ...columns,
+    { key: 'act', header: 'Act', render: (r) => <button type="button" onClick={(e) => e.stopPropagation()}>{`Filter ${r.sym}`}</button> },
+  ]
+
+  test('desktop: Tab reaches the row and Enter / Space call onRowClick with the row', async () => {
+    setViewport(false)
+    const user = userEvent.setup()
+    const onRowClick = vi.fn()
+    render(<ResponsiveTable columns={columns} rows={rows} onRowClick={onRowClick} />)
+    await user.tab()
+    const tr = screen.getByText('AAPL').closest('tr')
+    expect(document.activeElement).toBe(tr)
+    await user.keyboard('{Enter}')
+    expect(onRowClick).toHaveBeenLastCalledWith(rows[0], 0)
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByText('MSFT').closest('tr'))
+    await user.keyboard(' ')
+    expect(onRowClick).toHaveBeenLastCalledWith(rows[1], 1)
+    expect(onRowClick).toHaveBeenCalledTimes(2)
+  })
+
+  test('phone card: the card is the Tab stop and Enter calls onRowClick', async () => {
+    setViewport(true)
+    const user = userEvent.setup()
+    const onRowClick = vi.fn()
+    render(<ResponsiveTable columns={columns} rows={rows} mode="card" onRowClick={onRowClick} />)
+    await user.tab()
+    const card = screen.getByText('AAPL').closest('[tabindex]')
+    expect(card).not.toBeNull()
+    expect(document.activeElement).toBe(card)
+    await user.keyboard('{Enter}')
+    expect(onRowClick).toHaveBeenCalledWith(rows[0], 0)
+  })
+
+  test('rowLabel names the row (a <tr> keeps its row role; a card becomes a named group)', () => {
+    setViewport(false)
+    const label = (r) => `Open ${r.sym}`
+    const { unmount } = render(<ResponsiveTable columns={columns} rows={rows} onRowClick={vi.fn()} rowLabel={label} />)
+    const tr = screen.getByText('AAPL').closest('tr')
+    expect(tr).toHaveAttribute('aria-label', 'Open AAPL')
+    expect(tr.getAttribute('role')).toBeNull()
+    unmount()
+    setViewport(true)
+    render(<ResponsiveTable columns={columns} rows={rows} mode="card" onRowClick={vi.fn()} rowLabel={label} />)
+    expect(screen.getByRole('group', { name: 'Open AAPL' })).toBeInTheDocument()
+  })
+
+  test('a key pressed on a control INSIDE the row belongs to that control', async () => {
+    setViewport(false)
+    const user = userEvent.setup()
+    const onRowClick = vi.fn()
+    render(<ResponsiveTable columns={inner} rows={rows} onRowClick={onRowClick} />)
+    const btn = screen.getByRole('button', { name: 'Filter AAPL' })
+    btn.focus()
+    await user.keyboard('{Enter}')
+    await user.keyboard(' ')
+    expect(onRowClick).not.toHaveBeenCalled()
+  })
+
+  test('⛔ CONTROL — without onRowClick no row is a Tab stop and no key does anything', async () => {
+    setViewport(false)
+    const user = userEvent.setup()
+    const { container } = render(<ResponsiveTable columns={columns} rows={rows} rowLabel={(r) => r.sym} />)
+    expect(container.querySelectorAll('[tabindex]')).toHaveLength(0)
+    expect(container.querySelectorAll('[aria-label]')).toHaveLength(0)
+    await user.tab()
+    expect(document.activeElement).toBe(document.body)
+  })
 })

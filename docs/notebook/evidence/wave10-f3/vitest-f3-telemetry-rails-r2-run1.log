@@ -1,0 +1,1662 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10s2/app
+
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > renders nothing until the hotkey is pressed 25ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > Ctrl+K opens the dialog and focuses the search input 137ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > pressing Ctrl+K again while open closes it 38ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > Escape closes it 52ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > a held-down key does not repeat-toggle open/close (e.repeat guard) 3ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > restores focus to the element that had it before the palette opened 51ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > wins Ctrl+K over a page-scoped bubble-phase listener (the Settings.jsx collision) 16ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — hotkey open/close > cleans up its listeners on unmount — a later Ctrl+K is a no-op, not a crash 3ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > debounces rapid keystrokes into a single request for the final query 231ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > a non-2xx ticker-search response reads as an error, not empty/malformed results 190ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > every card in the list view carries a checkbox; the board view carries none
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > selecting shows the toolbar with a count; clicking a card body still opens the note
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > every card in the list view carries a checkbox; the board view carries none 298ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > a stale response never overwrites a newer query's results 420ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Enter on a typed symbol lands on it — asked at once, before the debounce, and landing as soon as BOTH answers are in (R1-N2, R23-N4) 45ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Shift+click selects the range between
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > selecting shows the toolbar with a count; clicking a card body still opens the note 257ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > explicit arrow-navigation overrides the typed value on Enter 189ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Select all N shown" selects every note in view
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Shift+click selects the range between 106ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > clicking a result navigates into /research/:sym 223ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI > Ctrl+Enter on the typed value opens /research/:sym?section=ai, not Research 109ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Esc clears the selection
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Select all N shown" selects every note in view 196ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI > Ctrl+Enter on an arrow-selected row opens that row's Ask AI, not the typed value's 278ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI > Ctrl+click a result opens Ask AI for that symbol, not Research 266ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI > bare Enter and bare click are unaffected — still Research, no ?section=ai 234ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Escape on an open "Export selected" keeps the selection and the focus in the bar; the next Escape clears and lands on the list heading
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Esc clears the selection 311ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > Ctrl/Cmd+Enter and Ctrl/Cmd+click open canonical Ask AI > Ctrl+Enter on a highlighted Wave B notebook command falls back to its normal action, not a broken /research/undefined?section=ai 104ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — search + selection > shows an empty-state hint before typing, and a no-match note when nothing found 271ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — visible-trigger open path (2026-09-03 discoverability slice) > opens via an external ref.current.open() call, focuses the input 78ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — visible-trigger open path (2026-09-03 discoverability slice) > a second open() call while already open is a no-op, not a close 41ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — visible-trigger open path (2026-09-03 discoverability slice) > the Ctrl+K hotkey still opens it the same way after adding ref support 36ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — "?" in-box help mode (P10, IA §8.3/§17.4) > typing "?" shows help instead of running it as a search query 80ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — "?" in-box help mode (P10, IA §8.3/§17.4) > Enter on "?" does nothing — no navigation to /research/%3F 83ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Clear" in the bar lands focus on the list heading, not on <body>
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > Escape on an open "Export selected" keeps the selection and the focus in the bar; the next Escape clears and lands on the list heading 836ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — "?" in-box help mode (P10, IA §8.3/§17.4) > the empty-state hint tells the user "?" is available 32ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > typing "trash" surfaces "Open Trash" and navigating to it goes to the Trash deep link 70ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > typing "note" surfaces both "New Note" and "Open Notebook" 64ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > clicking "New Note" navigates to the blank-note deep link 95ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > a single character never matches a notebook command (avoids matching half the keyword list) 76ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > typing "?" (help mode) never fetches favorites/recents or shows notebook commands 99ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > typing "recent" fetches and lists recent notes, badged "Recent" 105ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > typing "favorite" fetches and lists favorited notes, badged "Favorite" 81ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > a note that is BOTH favorited and recent renders once, as Favorite (no duplicate row) 97ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > Enter with NO arrow-navigation opens a matched notebook command directly -- found live: an earlier build ignored the highlighted row here and 404'd to a literal ticker page instead 86ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > Enter on a plain ticker query with no notebook match still opens the typed symbol (R1-N2 / R23-N4: after both answers, bounded) 95ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > ⛔ Esc while typing a tag does NOT throw the selection away
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > "Clear" in the bar lands focus on the list heading, not on <body> 612ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — Wave B: Notebook joins the palette (§12-15) > arrow-navigating past a notebook command to the ticker fallback and pressing Enter opens THAT instead 92ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > finds a note by title and shows WHERE it lives (folder and ticker) 228ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > going to another folder starts a fresh selection
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > ⛔ Esc while typing a tag does NOT throw the selection away 891ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > names an unfiled note's location instead of leaving it blank 216ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > wave 10 F6: a note found by its TEXT says so on screen and out loud; a title match does not 277ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > the table view selects too, with a select-all header
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to BulkActionBar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > going to another folder starts a fresh selection 403ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > bolds the part of the title that matched 306ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > clicking a note opens it in the Notebook 306ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > keyboard-first: a strong title match for a note-shaped query is highlighted, and Enter opens it 296ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > ⛔ a note NEVER steals Enter from a ticker-shaped query — "nvda" + Enter still opens NVDA research 295ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — selecting notes > the table view selects too, with a select-all header 592ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > move: one request, every advanced revision LANDED, and a sentence saying where 1130ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > ⛔ …and still when the NOTES answer first and the ticker search has not answered at all 718ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > a note already listed as a Recent (typed "recent") is not listed twice 331ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > a note-search outage says so, and the securities that did answer still show 246ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > every row kind has a real accessible name — never "undefined. Enter for Research" 273ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > arrow keys keep the highlighted row scrolled into view 309ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > S5: a short title the ticker search has NO exact ticker for — "plan" + Enter opens the note 314ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > item 8: an exact note title beats a DELISTED exact ticker — "plan" + Enter opens the note 262ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > telemetry — the bulk bar's Move sends ONE bulk_used with the op and counts, no ids or names 1146ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > item 8 control: a LIVE exact ticker still leads — "nvda" + Enter opens NVDA research, not the note "NVDA" 283ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > N1: once the server says no note can match, typing onto that query stops asking — a backspace asks again 596ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > wave 10 F6: requests sent while typing "running" > faster than the debounce: one request for the whole word 110ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > wave 10 F6: requests sent while typing "running" > slower than the debounce: one per letter -- 7 now, 4 when the server still claimed exhaustion 107ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > wave 10 F6: requests sent while typing "running" > the control: a server that claims exhaustion at four letters stops the asking at four 80ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — quick switcher over ALL notes (Notebook 10/10 wave 5) > the help screen documents that a note title opens the note 47ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — touch tier > every result row is a finger target at the touch tier (<=1024px), not only on a phone 2ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > add a tag, remove a tag 1871ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > a note-only short query ("plan": no ticker IS it) — fast and slow Enter both open the note 327ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > a ticker-match short query ("nvda", with a note titled NVDA) — fast and slow Enter both open the research page 407ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > the member sees it is deciding — never an early landing — and the landing follows the answer 204ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > the tag field suggests the member's tag TREE — a parent offers what sits below it 726ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > the wait is bounded: a notes index that never answers still lets Enter land on the typed symbol 514ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > favorite lands nothing — it never advances a revision 802ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > typing on while it decides drops the pending Enter — the old query never lands 550ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > trash: the notice OUTLIVES the toolbar, Undo takes focus, and Undo restores exactly those notes 776ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > "tsl" lands on the same row whichever answer comes first, and whenever Enter is pressed 1014ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > R4-N1: the arrowed-to row is kept by IDENTITY — a late answer that reorders the rows cannot move the landing 667ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a partial failure names the note that did not change, and why 1049ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > ⛔ a note waiting to sync is never sent, and the member is told which 1070ms
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > R4-N2: a ticker search that FAILS never lands on the previous prefix's symbol — Enter opens the typed one 685ms
+stderr | src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a refused request is an alert with the reason, lands nothing, and keeps the selection
+[notebook] bulk action failed Error: folder not found
+    at runNoteBatch (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/lib/noteBatch.js:197:19)
+    at runBulk (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/tabs/NotebookTab.jsx:1119:23) {
+  status: 400,
+  detail: 'folder not found'
+}
+
+ ✓ src/components/CommandPalette.test.jsx > CommandPalette — R1-N2: where Enter lands never depends on WHEN it is pressed > an arrow pressed during the wait is honoured: it lands on the highlighted row, not row 0 620ms
+ ✓ src/components/CommandPalette.test.jsx > switcher_used — picking a note counts the pick, and nothing about the note > clicking the second of two note rows (a favorite) sends ONE switcher_used 313ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > a refused request is an alert with the reason, lands nothing, and keeps the selection 1222ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export: the selected notes, minus any waiting to sync, and a sentence saying so 817ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as Web page (HTML): the choice reaches the request and the sentence names it (never "Markdown") 966ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder tree > buildFolderTree nests children under parents (orphans become roots) 9ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder tree > renders nested folder and expands/collapses it 54ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder tree > a folder with only notes still gets a disclosure arrow that reveals + opens its notes 17ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder tree > a note listed under its expanded folder carries data-note-card-id, same as NoteCard.jsx (R-18) 13ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > header toolbar — collapse + search mode > the collapse button calls onToggleSidebar 6ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > header toolbar — collapse + search mode > entering search mode with no query never fetches (gated — no redundant request) 13ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > debounces the query ~250ms before asking the server, and gates the call while nothing is pending 20ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > shows a Searching skeleton while the debounce is pending — never a bare "no results" moment 196ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > shows a Searching skeleton while the server request itself is in flight, after the debounce settles 142ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > renders the SERVER result, not a client-side filter over the loaded page — would fail if the panel still filtered `notes` locally 58ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as JSON: the choice reaches the request and the sentence names it (never "Markdown") 885ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > requests the limit the panel displays 47ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > says so when nothing matches, once the query has actually settled 48ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — server-backed (Task 7: migrated-scale correctness) > leaving search mode without a query never enables the fetch 32ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — the true total, not the length of the loaded page (B2) > renders the server TOTAL, not the length of the loaded page, when a migrated library has more matches than fit on one page 298ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — the true total, not the length of the loaded page (B2) > offers a way to fetch the rest, mirroring the notebook archive's own Load-more control 278ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — the true total, not the length of the loaded page (B2) > shows no Load-more control once every match is already on screen 179ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — rows related by MEANING say so, and the count is honest (D-H8) > 2 matches + 5 related: the count says so, and every related row carries its reason line 76ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — rows related by MEANING say so, and the count is honest (D-H8) > singulars read as singulars 54ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — rows related by MEANING say so, and the count is honest (D-H8) > CONTROL — no meaning rows: the count is the familiar "Showing N of M" and no reason line appears 55ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > export as Word (.docx): the choice reaches the request and the sentence names it (never "Markdown") 1151ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — bulk actions > in the Trash, the only bulk action is Restore 946ms
+stderr | src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder delete error surfacing > surfaces a failed delete to the member WITHOUT rendering the raw exception
+[notebook] delete folder failed Error: cannot delete: a folder named 'Setups' already exists at the destination — rename it first
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx:507:38
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — the search box is the one list that asks for meaning rows (D-H9) > the search request carries meaning: true; the counter lists do not 43ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder delete error surfacing > surfaces a failed delete to the member WITHOUT rendering the raw exception 829ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder delete uses ConfirmModal, not native confirm() (Wave B, G-103) > does not call remove() until the modal is confirmed, and cancel leaves the folder intact 736ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder delete uses ConfirmModal, not native confirm() (Wave B, G-103) > confirming the modal calls remove() with the folder id 654ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — B1: a bulk move can be taken back > Undo puts every note back in the folder it LEFT, through the same door, and lands the revisions 2309ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > folder delete uses ConfirmModal, not native confirm() (Wave B, G-103) > Escape closes the modal without deleting 349ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-N3: an Undo that could not put every note back > says which stayed and why — never "try again" after an Undo 1819ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > Undo pressed while another batch runs is QUEUED, said so, and restores when that batch ends 2388ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > a later action's sentence appears BESIDE the Undo, never in place of it 1523ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > tag cloud cap for migrated libraries > caps the tag list to the top 40 by count and reveals the rest via "Show all tags" 6595ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > tag cloud cap for migrated libraries > the filter input reaches a specific low-frequency tag without expanding the whole cloud 465ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > tag cloud cap for migrated libraries > a tag set at or under the cap renders with no cap affordances 454ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > honest badges for a migrated library (Task 11) > "All notes" renders the true total (`notesTotal`), not the loaded page length 20ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > honest badges for a migrated library (Task 11) > "All notes" falls back to the page length only when no honest total is supplied 23ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > honest badges for a migrated library (Task 11) > "Unfiled" renders the server-computed true total, not a client count over the loaded page 20ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > honest badges for a migrated library (Task 11) > "Unfiled" falls back to counting the loaded page while the server total is still loading 26ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > tag counts read the whole library, not the loaded page (final-review C5) > renders the SERVER-computed whole-library counts, not counts derived from the loaded page 27ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > tag counts read the whole library, not the loaded page (final-review C5) > falls back to counting the loaded page only while the server total is unknown 26ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > P0-2: honest per-folder counts, not derived from one capped page > shows a disclosure arrow for a folder with real notes even when none of them are on the loaded page 17ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > P0-2: honest per-folder counts, not derived from one capped page > a folder truly empty per the honest server count gets no arrow, even if it once appeared on a stale loaded page 17ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > P0-2: honest per-folder counts, not derived from one capped page > while the honest counts are still loading, falls back to the page-derived guess (no arrow flicker to "wrong" first) 19ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > P0-2: honest per-folder counts, not derived from one capped page > expanding a folder renders its real per-folder note list, not the one capped page 48ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > P0-2: honest per-folder counts, not derived from one capped page > asks for exactly the expanded folder ids, sorted (stable cache key regardless of click order) 49ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 0 trash: a "Trash" entry in the sidebar > renders a Trash row with the honest server count and routes selection through the __trash__ sentinel 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 0 trash: a "Trash" entry in the sidebar > shows no count badge while the trash total is still unknown, rather than a false zero 19ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 0 trash: a "Trash" entry in the sidebar > highlights the Trash row as active when it is the selected view 16ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 archive: an "Archived" entry in the sidebar > shows its OWN list total and routes selection through the __archived__ sentinel 21ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 archive: an "Archived" entry in the sidebar > shows no badge while the archive total is unknown, and highlights when selected 19ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > renderSnippetMarks (Wave 4 Slice 2) > splits a snippet() string into text + <mark> React children, never dangerouslySetInnerHTML 5ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > renderSnippetMarks (Wave 4 Slice 2) > returns null for an empty/absent snippet 0ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > renderSnippetMarks (Wave 4 Slice 2) > a member's own literal "<" or ">" text renders as plain text, never as markup 7ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > matchReasonFor (Wave 4 Slice 2) > explains an exact ticker match, stripping a leading cashtag like the backend fix does 1ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > matchReasonFor (Wave 4 Slice 2) > explains an exact tag match 0ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > matchReasonFor (Wave 4 Slice 2) > returns null when neither ticker nor tag matches (an FTS-only match) 0ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > matchReasonFor (Wave 4 Slice 2) > returns null for an empty query 0ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > filters are collapsed by default -- a plain search never shows them 36ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R1-S2: the Undo keeps its OWN slot — a later sentence is a sibling in the stack, never over or around it 1529ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R1-S2 / R23-N6: only the STACK is fixed — no notice positions itself in ANY rule, media or duplicate 8ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > item 9: the notice stack sits ABOVE the joystick resting layer and BELOW the open fan scrim 16ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S4: the Undo cannot be lost > R23-N6: at the touch tier the buttons wrap UNDER the sentence — canonical breakpoint, no new custom property 5ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > the filter toggle reveals date/sector/theme inputs 57ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > setting a date filter alone (no typed query) enables the search fetch with dateFrom/dateTo and no q 52ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > the search fetch requests sort="relevance" 52ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > Clear filters resets all four fields and is only shown while a filter is active 73ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > Sector/Theme render as real dropdowns, never free-text inputs 38ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > the dropdowns are populated from the facets hook, not a hardcoded or taxonomy-wide list 183ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > a member with no mentioned tickers yet sees an honest "No sectors/themes yet", not a blank dropdown 41ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > while the facets are loading, the placeholder option reads "Loading…", not "No sectors yet" 43ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > the facets fetch is gated on the filter panel actually being open 36ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > picking a sector option enables the search fetch with that exact value 53ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > a result with a body snippet renders the highlighted excerpt, never the old naive 120-char slice 52ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave 4 date/sector/theme filters > a tag/ticker-only match (no snippet) shows the "why matched" label instead of a blank excerpt 43ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave I document (PDF page) search, sectioned separately from notes > renders zero document results with no query typed 27ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave I document (PDF page) search, sectioned separately from notes > a matching document page renders its own snippet, page number, and owning note title — separately from note results 42ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave I document (PDF page) search, sectioned separately from notes > clicking a document result opens its owning note AND targets the page it named 49ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave I document (PDF page) search, sectioned separately from notes > shows a Skeleton loading state (not bare text) while a document query is in flight 77ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — Wave I document (PDF page) search, sectioned separately from notes > the document-search skeleton disappears once results land 38ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > renders no evidence section with no query typed 24ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > a matching excerpt renders its own snippet, source document and page 59ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > keeps excerpts in their OWN section rather than merging them into the document results 64ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > a queued note the drain has not retired is refused for trash, and named 914ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > clicking an excerpt result opens its owning note AND targets the excerpt 50ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > shows a Skeleton loading state (not bare text) while an excerpt query is in flight 89ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Wave J saved-excerpt search > the evidence-search skeleton disappears once results land 47ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > renders the members own reviews as their OWN section, not merged into another 163ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > ⛔ shows the DECISION beside the prose, in the members own vocabulary 45ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > clicking a review result opens its thesis AND targets the review itself 46ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > shows a Skeleton loading state (not bare text) while the query is in flight 77ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > the review-search skeleton disappears once results land 47ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search — thesis reviews section > a search with no review hits grows no empty block 58ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > renders neither section when both lists are empty (populated-conditional) 26ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > renders a Favorites section with its notes and opens one on click 49ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > renders a Recents section with its notes and opens one on click 38ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > collapsing a section hides its rows without removing the section header 48ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > highlights the active note row inside Favorites/Recents 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > an untitled favorited/recent note falls back to "Untitled" 20ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Favorites + Recents sidebar sections (Wave B) > a Favorites row carries data-note-card-id, the same identity NoteCard.jsx gives the hub (R-18) 23ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved Views sidebar section (Wave E) > renders nothing at zero saved views (populated-conditional) 17ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved Views sidebar section (Wave E) > renders a Saved Views section and activating one calls onSelectView 30ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved Views sidebar section (Wave E) > highlights the active saved view 23ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved Views sidebar section (Wave E) > collapsing Saved Views hides its rows without removing the header 30ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > a visible Rename icon enters edit mode, the same as double-click 35ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > double-clicking the row also enters edit mode 32ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > Enter submits the new name via onRenameView 35ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > …and left out of an export, by name 1024ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > Escape cancels without calling onRenameView 40ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > an empty submit is a cancel, never an empty-named view 32ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > clicking Delete calls onDeleteView with the id and name, WITHOUT selecting the view 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved View rename/delete (UX #1) > clicking Rename does NOT also select the view (stopPropagation) 26ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > no button in the Saved Views section holds another control 43ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — S1: a note still SENDING is neither trashed nor exported > ⛔ CONTROL — a move still goes through for that note (it rebases, the words still arrive) 1076ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > select, rename and delete are each a button with its own name 476ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > select is reachable by keyboard: focus + Enter selects the view 309ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > rename is the next Tab stop after select, and Enter opens the rename field 467ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > the controls a keyboard can reach are also SHOWN on focus, not only on hover 9ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > a saved-view row is three sibling buttons, never a button inside a button (J5) > delete is the Tab stop after rename, and Enter deletes WITHOUT selecting 523ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Folder rename affordance (UX #10) > a visible Rename icon enters edit mode, the same as double-click 24ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Saved Views sidebar section — row icons > the row icon matches each saved view type, not a list/table binary 42ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > ⛔⛔ a search hit says what it IS (Wave M §8) > a captured web passage is NOT rendered as a page 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > ⛔⛔ a search hit says what it IS (Wave M §8) > ⭐ CONTROL: a real document still shows its page 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > ⛔⛔ a search hit says what it IS (Wave M §8) > a saved excerpt from a web capture reads as a saved passage, not p.N 21ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > ⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/§6) > a PDF page hit navigates to that PAGE, not just the note 20ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > ⛔⛔ clicking a search hit goes to the OBJECT it named (Wave M §4/§6) > ⛔ a WEB capture navigates to the note and claims no page 22ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — scanned-text provenance on a document hit > marks a hit whose text was read from a scan 44ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — scanned-text provenance on a document hit > leaves a natively extracted hit unmarked 44ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — scanned-text provenance on a document hit > leaves an older payload with no provenance unmarked 61ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search panel — scanned-text provenance on a document hit > still identifies the hit as the DOCUMENT at its page, not as OCR 55ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 split view: Ctrl/Cmd+click opens a note beside > a Recents row: Ctrl+click opens beside; a plain click opens it as before 34ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > trash: the true sentence, nothing sent, and "Trash anyway" proceeds only after the confirmation 1699ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 split view: Ctrl/Cmd+click opens a note beside > a note under its folder: Cmd+click opens beside 44ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 split view: Ctrl/Cmd+click opens a note beside > a search hit: Ctrl+click opens beside 51ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 split view: Ctrl/Cmd+click opens a note beside > where the page cannot split (≤1024px), Ctrl+click opens the note the ordinary way 21ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > Wave 6 split view: Ctrl/Cmd+click opens a note beside > Ctrl+Shift+click is not the gesture — the row opens as usual 25ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > fuses the sections: every kind's best hit first, each row labelled with its kind 159ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > says honestly what it is: the top 5 of the results listed below 112ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > KEEPS the sections: each still lists and counts its own kind below 143ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > a Best-matches row opens exactly what its section row opens (the page it named) 130ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > a thesis review in Best matches carries its decision, not only its prose 107ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > is absent with only ONE kind of hit (it would only repeat that section) 52ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > FolderSidebar — Best matches (wave 10, R-5) > is absent while any section is still searching (no rows moving under a thumb) 55ms
+ ✓ src/pages/journal-2-0/components/notebook/FolderSidebar.test.jsx > search_used — a settled search counts itself, and never the query > typing a query sends ONE search_used when its results settle 38ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > Cancel goes back to the sentence and sends nothing 1799ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > a partial trash: the Undo for what moved and the offer for what could not be checked stand side by side 1175ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > export: the same truth, and "Export anyway" exports only after the confirmation 2339ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-S1: a device that cannot be CHECKED is told so, and offered a confirmed way through > ⛔ CONTROL — a device that CAN be checked is never offered "anyway" 1142ms
+ × src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > surfaces a warning when the server could not check every note for duplicates (audit B1) 4081ms
+   → Unable to find an element with the text: /1 note/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"_backdrop_2d2131 _modal_2d2131"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m"_r_0_"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"_panel_2d2131 _panel_modal_2d2131 "[39m
+      [33mdata-sheet-panel[39m=[32m""[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"max-width: 640px;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_header_2d2131"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_title_2d2131"[39m
+          [33mid[39m=[32m"_r_0_"[39m
+        [36m>[39m
+          [0mImport notes[0m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"_close_2d2131"[39m
+        [36m>[39m
+          [0m×[0m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_body_2d2131 "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_wrap_914e46"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_scanningWrap_914e46"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"_spinner_914e46"[39m
+            [36m/>[39m
+            [36m<p>[39m
+              [0mReading Files (Markdown, Text, HTML, Word) — 1/1…[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_backdrop_2d2131 _modal_2d2131"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m"_r_0_"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"_panel_2d2131 _panel_modal_2d2131 "[39m
+        [33mdata-sheet-panel[39m=[32m""[39m
+        [33mrole[39m=[32m"dialog"[39m
+        [33mstyle[39m=[32m"max-width: 640px;"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_header_2d2131"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_title_2d2131"[39m
+            [33mid[39m=[32m"_r_0_"[39m
+          [36m>[39m
+            [0mImport notes[0m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Close"[39m
+            [33mclass[39m=[32m"_close_2d2131"[39m
+          [36m>[39m
+            [0m×[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_body_2d2131 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_wrap_914e46"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_scanningWrap_914e46"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"_spinner_914e46"[39m
+              [36m/>[39m
+              [36m<p>[39m
+                [0mReading Files (Markdown, Text, HTML, Word) — 1/1…[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > drop -> preview shows counts -> confirm actually POSTs /import/confirm 3367ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > yields per note via MessageChannel, never a chained setTimeout 471ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > snapshots a LIVE FileList before clearing input.value (real-browser file-picker regression) 84ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R1-N4: a bulk action re-asks the tag counts only when it can move them > a move or a favourite does not; a tag edit and a trash do 3872ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > unchecking a top-level folder excludes its notes from the confirm payload 509ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > renders a readable error when the import exceeds size limits (ImportLimitError) 122ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > reuses an existing "Imported from {label}" root folder instead of recreating it 184ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > closing mid-scan cancels the pipeline — no stale state lands on the still-mounted instance 85ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — connect tiles (Task 12) > shows a tile only for configured providers — an unconfigured provider renders nothing 36ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — connect tiles (Task 12) > renders no tile row at all when no provider is configured 23ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — connect tiles (Task 12) > a connected provider reads "{Provider} connected" instead of "Connect {Provider}" 28ms
+Not implemented: navigation to another Document
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > its notes JOIN the Undo on screen: one Undo restores the whole trash, and focus follows the decision 1611ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — connect tiles (Task 12) > an OAuth tile (notion) gates behind consent too — no connect POST until checked (fix-round 1, finding #1) 531ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — connect tiles (Task 12) > a connected-but-sourceless Dropbox tile reads "Choose a folder", not "Dropbox connected" — and opens the same picker 50ms
+stderr | src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — export guide surfaced on the drop step (Task 1) > names Craft and Roam as accepted drop sources, alongside the three with a dedicated export guide
+An update to ConnectTilesCompact inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ImportWizard inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — export guide surfaced on the drop step (Task 1) > opening "How do I get my export file?" reveals the per-platform guide, Notion included 384ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — export guide surfaced on the drop step (Task 1) > names Craft and Roam as accepted drop sources, alongside the three with a dedicated export guide 9ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — per-note selection on the preview step (Task 2) > imports only the notes the member left checked 246ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — per-note selection on the preview step (Task 2) > a folder excluded and a note excluded inside a kept folder both hold 752ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — per-note selection on the preview step (Task 2) > the summary counts match what was actually imported 423ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > the first half's Undo does not run out while the offer to finish the action is still open 914ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — re-import classification survives deferred body conversion (Task 5) > a note whose content is unchanged since last import classifies as unchanged, counts correctly, and is not re-written on confirm 394ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — re-import classification survives deferred body conversion (Task 5) > a note whose content changed classifies as update, and the confirm payload carries its NEW body 289ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — re-import classification survives deferred body conversion (Task 5) > a mix of create/update/unchanged in one import gets each preview count right 457ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — re-import classification survives deferred body conversion (Task 5) > a match with no stored fingerprint skips scan-time conversion but still gets its NEW body before confirm 176ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — the arrival screen (§9) > shows a per-folder breakdown DERIVED from actual server outcomes, not the preview guess 416ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N5: "Trash anyway" finishes the SAME action, and the offer holds focus > when nothing moved, "Trash anyway" takes focus as it appears, and gets it back after Cancel 3089ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — the arrival screen (§9) > names notes the member excluded on the previous screen 410ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — the arrival screen (§9) > the audit-B1 truncation warning survives onto the arrival screen, not just the preview 303ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — post-migration enrichment offer (§8.1) > scans the newly-written notes and offers the exact count found — with no offer at all when nothing matches 221ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N6: the notice column clears the joystick pad > where the joystick can be, the column starts above its resting box — from the hub's OWN constants 755ms
+ ✓ src/pages/journal-2-0/tabs/NotebookTab.bulk.test.jsx > NotebookTab — R23-N6: the notice column clears the joystick pad > ⛔ CONTROL — where the joystick cannot be, the stylesheet's own bottom stands 613ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — post-migration enrichment offer (§8.1) > offers, applies (one embed POST per ticker), and truly UNDOES (a real PUT restoring the pre-append body) 479ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard — post-migration enrichment offer (§8.1) > "Not now" dismisses the offer and writes nothing 386ms
+ ✓ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > import_used — the finished import counts itself, and nothing the files said > a finished import sends ONE import_used with the adapter id and the counts 255ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — table toolbar door (wave 6 item 1) > the toolbar appears while the caret is in a table and edits THIS note
+Render methods should be a pure function of props and state; triggering nested component updates from render is not allowed. If necessary, trigger nested updates in componentDidUpdate.
+
+Check the render method of NoteEditorPage.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — table toolbar door (wave 6 item 1) > the toolbar appears while the caret is in a table and edits THIS note
+linkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — table toolbar door (wave 6 item 1) > the toolbar appears while the caret is in a table and edits THIS note
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — dark, and paid-only > flag OFF (never latched): no toolbar entry, no slash item 6068ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — callout picker door (wave 6 item 2) > the callout's own control restyles it in the page's editor
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — table toolbar door (wave 6 item 1) > the toolbar appears while the caret is in a table and edits THIS note 5783ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — callout picker door (wave 6 item 2) > the callout's own control restyles it in the page's editor
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — callout picker door (wave 6 item 2) > the callout's own control restyles it in the page's editor
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — callout picker door (wave 6 item 2) > the callout's own control restyles it in the page's editor 321ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — dark, and paid-only > flag ON but an UNPAID member: nothing either 764ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — dark, and paid-only > flag ON and paid: the toolbar entry and the slash item are there 424ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — moving a block door (wave 6 item 4) > Alt+Shift+Down moves the caret's block in the page's editor; the grip exists for it
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — image caption + alignment door (wave 6 item 3) > a selected image offers its bar in the page; a caption added there is text the word count reads 931ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — moving a block door (wave 6 item 4) > Alt+Shift+Down moves the caret's block in the page's editor; the grip exists for it
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — moving a block door (wave 6 item 4) > Alt+Shift+Down moves the caret's block in the page's editor; the grip exists for it 352ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — columns door (wave 6 item 5) > a note with columns renders them side by side; the slash item inserts outside a column and is withheld inside one 344ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — pasted link door (wave 6 item 6) > a lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — columns door (wave 6 item 5) > the LIVE slash menu: typing /c lists the columns items outside a column and never inside one 288ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > ⛔⛔ the draft streams into the PREVIEW and the note is untouched until Accept 1465ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — pasted link door (wave 6 item 6) > a lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — pasted link door (wave 6 item 6) > a lone YouTube link pasted in the page offers Link · Preview card · Embed, and Embed places the player 919ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — lane F wiring (wave 6 item 7) > ?task=<n> opens the note with the caret in task n (the server's order) and says so in note_open_ms 289ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — lane F wiring (wave 6 item 7) > Unlinked mentions sits under "Linked from" in the page
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — lane F wiring (wave 6 item 7) > a ?task= past the note's last task opens the note normally 438ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — lane F wiring (wave 6 item 7) > Unlinked mentions sits under "Linked from" in the page
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > opens read-only with the banner, read-only title and no editing controls; Outline stays
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — lane F wiring (wave 6 item 7) > Unlinked mentions sits under "Linked from" in the page 239ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > opens read-only with the banner, read-only title and no editing controls; Outline stays
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > Unlock PATCHes {locked:false}, and the note is editable at once
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > telemetry — Accept in the panel sends writing_help_used once; the preview and Discard send none 1910ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > opens read-only with the banner, read-only title and no editing controls; Outline stays 127ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > Unlock PATCHes {locked:false}, and the note is editable at once
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > an Unlock the server refuses says so and the note STAYS locked
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > the panel is a dialog named by its visible title 457ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > Unlock PATCHes {locked:false}, and the note is editable at once 310ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > an Unlock the server refuses says so and the note STAYS locked
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > CONTROL: a note with no lock (or locked:false) is editable, with no banner
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > an Unlock the server refuses says so and the note STAYS locked 237ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > CONTROL: a note with no lock (or locked:false) is editable, with no banner
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > after an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > CONTROL: a note with no lock (or locked:false) is editable, with no banner 123ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > Discard removes NOTHING, because nothing was ever added 491ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > after an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it)
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > a lock that arrives while the note is open (a refresh) turns editing off
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > after an Unlock the server confirmed, a LATER lock applies again (the local unlock does not outlive it) 352ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > a lock that arrives while the note is open (a refresh) turns editing off
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — a locked note (wave 6 item 8) > a lock that arrives while the note is open (a refresh) turns editing off 134ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > the daily limit is SAID in the panel, in the server's words — never a silent no-op 406ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.wave6.test.jsx > NoteEditorPage — /toc door (wave 6 item 13) > typing /toc offers "Table of contents"; the block it inserts lists the headings and jumps 208ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > D-H7 — the caret inside an Ask answer: refused in the product sentence, no panel, no request 329ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.writingHelp.test.jsx > writing help — the preview, then Accept or Discard > the slash item opens it on the WHOLE note, from its own editor 151ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > opening the PDF preview resolves the documentId from the note's own document list 969ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > a paid member gets a mic in the toolbar 1052ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > saving an excerpt POSTs to the excerpts endpoint and inserts a real documentExcerpt node 191ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > the editor's mic keeps a failed recording and says why (holdOnFailure) 232ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > re-reads the evidence-candidate list after an excerpt is saved, without a reload 154ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > an UNPAID member gets no mic and no "Dictate" slash item — nothing dead 112ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > "Dictate" is offered once THIS editor's mic is mounted 78ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > NoteEditorPage — Wave J excerpt capture + click-to-source > a failed excerpt save shows a toast and inserts no node 142ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > firing "Dictate" from the SIDE pane starts only the side pane's mic 155ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > ⛔⛔ the excerpt door lands its revision > hands the excerpt response to the settle, for THIS note 151ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.excerpts.test.jsx > ⛔⛔ the excerpt door lands its revision > ⛔ CONTROL — a FAILED excerpt save settles nothing 109ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > CONTROL: firing "Dictate" from the MAIN pane starts only the main pane's mic 155ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > what the mic hears lands in ITS editor, and one Ctrl+Z removes exactly it 204ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — dictation (wave 7 H1) > telemetry — the mic's transcript insert sends dictation_used once, with a count and no words 118ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > is a toolbar button that opens a rear-camera image picker 406ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > who sees the door > nobody, while no flag has latched (the payload has not arrived) 10ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > who sees the door > not a free member, even with both gates on 1ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > who sees the door > not an admin while both gates are off (the admin special case is gone) 1ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > who sees the door > a paid member with a gate on sees Share, and nothing is fetched until it opens 106ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share links > the closed state says what a link does and offers the four expiries 80ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a photo goes through the SAME image upload as Insert image 390ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share links > Create link sends the chosen expiry, copies the address and says so 136ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share links > a link with no expiry says it never expires; Copy link copies it again 55ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a photo upload that never reaches the server (Chrome) says so, not the browser's words 275ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share links > Revoke link revokes and says the link no longer works 82ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a photo upload that never reaches the server (Safari) says so, not the browser's words 221ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share links > a refusal shows the server's own sentence 103ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > offers this note and its folder by name, and states the folder cap 58ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > Publish this note publishes, copies the page link and says so; Unpublish takes it down 124ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a photo upload that never reaches the server (Firefox) says so, not the browser's words 139ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > Publish folder publishes the folder and says which 75ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > an existing live publication opens as published 51ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > an archived note says how to publish it instead of offering the button 39ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a refused photo (a phone's HEIC) says the SERVER's sentence in the toast 193ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > publish to the web > a live note (publishable true) and a server that predates the field both keep the button 97ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > focus follows the swap (M-1) > Create link -> Copy link; Revoke link -> Create link 121ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > a photo over the 5 MB limit is refused before the upload, in the server's words 267ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.dictation.test.jsx > NoteEditorPage — the camera "Scan" door (wave 7 G5) > CONTROL: a photo with NO type is left to the server, which reads the bytes 234ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > focus follows the swap (M-1) > Publish this note -> Copy page link; Unpublish -> Publish this note 132ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > focus follows the swap (M-1) > Publish folder -> Copy folder link; Unpublish folder -> Publish folder 126ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > focus follows the swap (M-1) > a refusal moves nothing: focus stays on the button that was pressed 82ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > ids are per instance (M-3) > no fixed id is left, and every label and description still points at its element 41ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > ids are per instance (M-3) > two popovers open at once share no id 29ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > the 44px touch floor > every control in the popover reaches var(--tap-min) on the touch tier (<=1024px) 0ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share_used and publish_used — the editor door counts actions, and nothing about the note > create, copy and revoke each send ONE share_used with the action word 107ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share_used and publish_used — the editor door counts actions, and nothing about the note > publish and unpublish a note send publish_used {kind: note, door: editor} 101ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteShareControls.test.jsx > share_used and publish_used — the editor door counts actions, and nothing about the note > a refused share link sends nothing 68ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > is a closed menu button beside PNG and Print 151ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > opens onto four formats, each named by its label and described by what it keeps 74ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > walks with the arrow keys, jumps with Home and End, and wraps 51ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > Escape closes the menu and hands focus back to the button 62ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > ArrowDown on the closed button opens it (the keyboard door) 45ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > a press outside closes it; Tab closes it 53ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > Markdown fetches format=md and says "downloaded" 51ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > Web page (HTML) fetches format=html and says "downloaded" 48ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > JSON fetches format=json and says "downloaded" 51ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > Word (.docx) fetches format=docx and says "downloaded" 43ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > Markdown uses the format route too (the old door 500s on a title outside Latin-1) 43ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > says "preparing…" while the file is built 94ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > shows the server's own sentence when it refuses 43ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > each format downloads through the format route > says "export failed" when the response carries no sentence, or the network drops 94ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the editor's pending edits are sent before the file is built (M-9) > asks the editor to send first, THEN fetches the file 46ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the editor's pending edits are sent before the file is built (M-9) > with words still unsent, nothing is downloaded -- and the member is told why 67ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the editor's pending edits are sent before the file is built (M-9) > PNG reads the note on screen, so it asks nothing first 28ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > focus comes back to the button that made the file (M-1) > Export: back on the Export button once the download ends 110ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > focus comes back to the button that made the file (M-1) > PNG: back on PNG once the image is saved 45ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that gives up (a 4xx) is reported once, as http, not retrying
+autosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:74:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: 404
+}
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > focus comes back to the button that made the file (M-1) > a member who moved on meanwhile keeps their place 94ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > export_used — the door says a note left as a file, and nothing about the note > a downloaded format sends ONE export_used with the format and scope 47ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > export_used — the door says a note left as a file, and nothing about the note > PNG and Print count too; a refused export sends nothing 62ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 1 in 1000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 2 in 2000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 3 in 4000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that gives up (a 4xx) is reported once, as http, not retrying 953ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 4 in 8000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt
+autosave failed (retry 5 in 15000ms) Error: Failed to fetch
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:82:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21)
+    at runTest (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:12)
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a retry streak (network) is reported ONCE when it begins, never per backoff attempt 110ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_failed > a save that lands reports nothing 90ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > conflict_forked > the editor's fork is counted once, door "editor", with no text or ids 133ms
+stderr | src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that fails reports no save_success (the SLO would read a failure as a success)
+autosave failed (non-retryable) Error: 404
+    at httpError (C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:33:71)
+    at C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx:129:34
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:145:11
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:915:26
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1243:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1209:10)
+    at file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/@vitest/runner/dist/index.js:1653:37
+    at Traces.$ (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/traces.CCmnQaNT.js:142:27)
+    at trace (file:///C:/Users/Patrick/uct-worktrees/notebook-w10s2/app/node_modules/vitest/dist/chunks/test.B8ej_ZHS.js:239:21) {
+  status: 404
+}
+
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that lands reports ONE save_success {door: editor}, with no text or ids 90ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.telemetry.test.jsx > save_success > a save that fails reports no save_success (the SLO would read a failure as a success) 113ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > control: the panel opened and a question typed, but no ask -> no event 174ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > an answered ask sends exactly ONE ask_used, with the scope, inserted=false and a latency 92ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > two asks send two ask_used -- one each 138ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > a failed answer sends none 49ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > a move lands exactly the revisions the server says advanced 3ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — a favourite never advances a revision, so nothing lands 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — a refused request throws the server's reason and lands nothing 2ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — every changed note lands its revision > ⛔ CONTROL — signed out, nothing lands (the account gate holds at this door too) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > holds it back, reports it with the wave's sentence, and sends the rest 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > when EVERY note is blocked, no request is made at all 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > a favourite IS allowed on a blocked note — it never touches the note row 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > runNoteBatch — a blocked note is never sent > renameTag is a note-writing op — refused for a blocked note, like addTag/removeTag 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > says what happened, where 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > names the notes that did not change, and why 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > an invalid note carries the server's own reason 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeBatch — the sentence a member reads > more than three failures are summarised, not listed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > posts the ids with the format it was given, downloads the zip, and reports what the server counted 3ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the md choice as the same format= the format routes take 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the html choice as the same format= the format routes take 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the json choice as the same format= the format routes take 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > sends the docx choice as the same format= the format routes take 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > names the file from filename* first (the ONE reader, filenameFromDisposition), so a name outside Latin-1 arrives whole 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > a busy export slot is said in plain words 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > exportSelectedNotes > a refused format is the server's own sentence, as it stands 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a queued note the drain has NOT retired is refused for trash, named, and the rest is sent 77ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a dirty record that is not queued yet is refused too 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ the RAW signal whatever the door-guard mode — unknown-only still refuses a queued note 6ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > an empty answer sends none 47ms
+ ✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx > ask_used — the Ask door counts itself once per answered ask (T7) > inserting the answer sends one more ask_used with inserted=true 94ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: a store that cannot be OPENED is UNCHECKED — held back, and never called "still syncing" 2ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: an open that never SETTLES (a blocked upgrade) is unchecked after the timeout — the action does not hang 29ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: a note whose own read fails is unchecked; the rest of the answer still stands 15ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: the CONFIRMED "anyway" sends the unchecked note — and ONLY that: a note the re-check finds unsent is still refused 17ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ CONTROL — without the confirmation the same selection holds the unchecked note back 15ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > R1-S1: the export offer says "included", and its confirmation says what the file would miss 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N1 (final, wave 6 fix round 3): a rename the device cannot check names the notes, says it keeps the old tag, and offers NOTHING 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N1 (final): the plural form reads correctly for more than one unchecked note 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > N-c (wave 6 fix round 3): an op with no row of its own gets NEUTRAL copy, never trash's "anyway" 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > ⛔ CONTROL — move, tag and restore never ask: they rebase, and the words still arrive 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > a queued note the drain has NOT retired is refused for renameTag, named, and the rest is sent 15ms
+Not implemented: navigation to another Document
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > one store connection for the whole selection, closed afterwards 15ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > S1 — trash and export also see words still being SENT, not only retired > holdsUnsentWork reads the raw answer out of every verdict shape 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > a trash is undone by restoring exactly the notes it trashed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > a move is undone per note, back to the folder each one LEFT, only while it is still here 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > nothing changed, a tag, a favourite, or an Undo itself: nothing to take back 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > undoFor — how a batch is taken back (B1) > the Undo of a move says where the notes went 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — every note left out is named > names a retired note and a still-sending note, each with its own reason 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — every note left out is named > nothing exported says so 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > md is said as its EXPORT_FORMATS label, Markdown 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > html is said as its EXPORT_FORMATS label, Web page (HTML) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > json is said as its EXPORT_FORMATS label, JSON 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > docx is said as its EXPORT_FORMATS label, Word (.docx) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > ⛔ a Word export never says "Markdown" (and neither does a web page or JSON) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > an unknown id invents no name 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > describeExport — the sentence names the format the member chose (wave 9, D1) > the skipped count is said the same way in every format (trashed or no longer there) 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > names each note and why it stayed 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > a note whose folder is gone and sits in Unfiled says Unfiled 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R1-N3 — an Undo that could not put every note back says what happened, never "try again" > ⛔ CONTROL — an ordinary move that raced still says "try again": it CAN be retried 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > a live restore Undo takes the new notes: one Undo for the whole action 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > a note in both is counted once 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > never joins a QUEUED Undo (a promise about its own notes), a missing one, or a different kind 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > R23-N5 — joinUndo: "Trash anyway" joins the Undo of the trash it finishes > the sentence counts the earlier part of the action too 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a bulk tag sends ONE bulk_used with the op and two counts 1ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a refused batch (the request itself failed) sends nothing 0ms
+ ✓ src/pages/journal-2-0/lib/noteBatch.test.js > bulk_used and export_used — the bulk doors count themselves, and nothing else > a selection export sends ONE export_used with the format, the scope and the count 7ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > fires ONCE when the search settles, with the time since it was asked — never the query 14ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > a NEW search is a new reading; one answered from cache reads 0 ms; filters-only reads "filter" 2ms
+ ✓ src/pages/journal-2-0/lib/searchTelemetry.test.jsx > useSearchUsedTelemetry > a disabled search (the panel closed, nothing asked) sends nothing 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > the event set > is the core Notebook actions (the seven of wave 6 + the R-16 eight of wave 10), each with a schema 2ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > a search query or a note title in a string prop becomes "other" 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > a key that is not on the event schema never leaves 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > numbers must be finite and are rounded; booleans must be booleans 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > what a caller cannot send > an unknown event is not sent at all 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > transport > posts to the existing J2 telemetry door 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > transport > never throws, whether fetch throws or rejects 1ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > note open timer > measures from start to stop, and fires once however often stop is called 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > the table names study tasks T1..T10 and the seven named actions, each to a known event 2ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > every wave-10 event carries at least one core action (none is an orphan) 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > import_used.source is exactly the adapter ids of the importer registry (read, not typed) 0ms
+ ✓ src/pages/journal-2-0/lib/notebookTelemetry.test.js > R-16 — every core action has an event that fires on its success > export_used.format covers every EXPORT_FORMATS id, plus png and print 0ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > fires notebook_capture_saved with widgetId/target/hasTradeRef after a successful send 2ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > hasTradeRef is false when no trade link was attached 1ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > sendCaptureToJournal — Stage A member-validation instrumentation > never fires telemetry when the capture itself fails 0ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > capture_used — the capture door counts a capture, and nothing of it > a chart sent to the inbox sends ONE capture_used {inbox, chart} 0ms
+ ✓ src/pages/journal-2-0/lib/sendToJournal.test.js > capture_used — the capture door counts a capture, and nothing of it > any other widget is a widget; a failed capture sends nothing 0ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > every CAPTURE_TARGETS key is counted as a capture or declared not-a-capture 1ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > CONTROL: a destination added to the registry and mapped nowhere is reported by name 0ms
+ ✓ src/pages/journal-2-0/lib/captureTelemetryCoverage.test.js > capture_used covers every capture destination (review M-9) > the two lists are disjoint, name only real keys, and map only to words the schema accepts 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx > ImportWizard wire > surfaces a warning when the server could not check every note for duplicates (audit B1)
+TestingLibraryElementError: Unable to find an element with the text: /1 note/i. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div />[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"_backdrop_2d2131 _modal_2d2131"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33maria-labelledby[39m=[32m"_r_0_"[39m
+      [33maria-modal[39m=[32m"true"[39m
+      [33mclass[39m=[32m"_panel_2d2131 _panel_modal_2d2131 "[39m
+      [33mdata-sheet-panel[39m=[32m""[39m
+      [33mrole[39m=[32m"dialog"[39m
+      [33mstyle[39m=[32m"max-width: 640px;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_header_2d2131"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_title_2d2131"[39m
+          [33mid[39m=[32m"_r_0_"[39m
+        [36m>[39m
+          [0mImport notes[0m
+        [36m</div>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Close"[39m
+          [33mclass[39m=[32m"_close_2d2131"[39m
+        [36m>[39m
+          [0m×[0m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"_body_2d2131 "[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_wrap_914e46"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_scanningWrap_914e46"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"_spinner_914e46"[39m
+            [36m/>[39m
+            [36m<p>[39m
+              [0mReading Files (Markdown, Text, HTML, Word) — 1/1…[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div />[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"_backdrop_2d2131 _modal_2d2131"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33maria-labelledby[39m=[32m"_r_0_"[39m
+        [33maria-modal[39m=[32m"true"[39m
+        [33mclass[39m=[32m"_panel_2d2131 _panel_modal_2d2131 "[39m
+        [33mdata-sheet-panel[39m=[32m""[39m
+        [33mrole[39m=[32m"dialog"[39m
+        [33mstyle[39m=[32m"max-width: 640px;"[39m
+        [33mtabindex[39m=[32m"-1"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_header_2d2131"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_title_2d2131"[39m
+            [33mid[39m=[32m"_r_0_"[39m
+          [36m>[39m
+            [0mImport notes[0m
+          [36m</div>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Close"[39m
+            [33mclass[39m=[32m"_close_2d2131"[39m
+          [36m>[39m
+            [0m×[0m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"_body_2d2131 "[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"_wrap_914e46"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"_scanningWrap_914e46"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"_spinner_914e46"[39m
+              [36m/>[39m
+              [36m<p>[39m
+                [0mReading Files (Markdown, Text, HTML, Word) — 1/1…[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</body>[39m
+[36m</html>[39m
+ ❯ Proxy.waitForWrapper node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/pages/journal-2-0/components/notebook/import/ImportWizard.test.jsx:112:11
+    110|     const input = screen.getByTestId('import-file-input')
+    111|     fireEvent.change(input, { target: { files: [mdFile] } })
+    112|     await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheD…
+       |           ^
+    113|     expect(screen.getByText(/5,000 of 6,000/)).toBeInTheDocument()
+    114|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 16 passed (17)
+      Tests  1 failed | 460 passed (461)
+   Start at  09:52:15
+   Duration  77.32s (transform 14.33s, setup 2.48s, import 5.70s, tests 133.95s, environment 9.64s)
+

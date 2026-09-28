@@ -113,4 +113,10 @@
     min-width: var(--tap-min);
     min-height: var(--tap-min);
   }
+  /* Wave 10 follow-up F5 (keyboard review A2R-10): the row checkbox itself was 16x16
+     at 820; it grows to 24 (WCAG 2.5.8). Its 44 px label is unchanged. */
+  .selectBox input {
+    width: 24px;
+    height: 24px;
+  }
 }

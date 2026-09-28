@@ -75,6 +75,15 @@
   font-size: 11px;
   color: var(--danger-ink);
 }
+/* Wave 10 F6 (fix round 2): the row Enter takes, shown as such. */
+.resultEnter {
+  background: var(--bg-hover);
+}
+/* Wave 10 F6: why a note whose title lacks the typed words is listed. */
+.resultCue {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 @media (max-width: 1024px) {
   .chipOpen,
   .chipRemove,

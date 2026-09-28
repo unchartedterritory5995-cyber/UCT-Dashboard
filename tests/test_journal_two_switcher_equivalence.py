@@ -20,6 +20,12 @@ every place the two could part:
   * single letters, words, several words, typos, letters-in-order, limits 1 to 50.
 
 The whole answer is compared: every row and field, `hasMore`, `prefixExhausted`.
+
+⭐ Wave 10, follow-up F6: the switcher's answer is now its TITLE half
+(`notes._switcher_title_search`, the function this rail always described) plus a body
+half filled from the search box's relevance pass when the titles leave room. The oracle
+is a title search, so the differential compares it with the title half; the body half
+is railed in tests/test_journal_two_switcher_body_fallback.py.
 """
 from __future__ import annotations
 
@@ -310,7 +316,7 @@ def test_the_new_read_path_answers_exactly_what_the_old_one_did(tmp_path, monkey
         for q in queries:
             for limit in (1, 8, 50):
                 want = _reference_switcher_search(U, q, limit=limit, conn=c)
-                got = notes_svc.switcher_search(U, q, limit=limit, conn=c)
+                got = notes_svc._switcher_title_search(U, q, limit=limit, conn=c)
                 assert got == want, (q, limit, got, want)
                 compared += 1
                 nonempty += bool(want["notes"])
@@ -333,7 +339,7 @@ def test_a_non_ascii_title_is_found_through_the_candidate_read(tmp_path):
     c.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags, created_at, updated_at)"
               " VALUES ('k1', ?, ?, '{}', '', '[]', '2026-09-01', '2026-09-01')", (U, "KELVIN plan"))
     c.commit()
-    got = notes_svc.switcher_search(U, "kelvin", conn=c)
+    got = notes_svc._switcher_title_search(U, "kelvin", conn=c)
     assert [n["id"] for n in got["notes"]] == ["k1"], got
     assert got == _reference_switcher_search(U, "kelvin", conn=c)
     c.close()
@@ -379,7 +385,7 @@ def test_a_dotted_capital_i_title_is_found_by_its_ascii_letter(tmp_path):
     assert c.execute("SELECT instr(lower(?), 'qi')", (title,)).fetchone()[0] == 0
     assert "qi" in title.lower()
     for q in ("qi", "qi plan"):
-        got = notes_svc.switcher_search(U, q, conn=c)
+        got = notes_svc._switcher_title_search(U, q, conn=c)
         assert [n["id"] for n in got["notes"]] == ["i1"], (q, got)
         assert got == _reference_switcher_search(U, q, conn=c), q
     c.close()

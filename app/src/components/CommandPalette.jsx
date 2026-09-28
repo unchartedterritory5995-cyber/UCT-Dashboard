@@ -7,7 +7,7 @@ import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2No
 import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
 import {
-  ENTER_WAIT_MS, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteSwitcherUrl, orderPaletteRows,
+  ENTER_WAIT_MS, NOTE_IN_TEXT_CUE, enterMustWait, extendsExhausted, normalizeSwitcherQuery, noteSwitcherUrl, orderPaletteRows,
   paletteRowKey, pendingEnterTarget,
   splitTitleMatch,
   tickerLeads, toNoteRow,
@@ -18,6 +18,9 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/no
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
+// One debounced keystroke asks the ticker search and the notes switcher together. Exported
+// so a rail counts requests against THIS number (wave 10 F6), never a copy of it.
+export const PALETTE_DEBOUNCE_MS = 150
 
 // Wave B: Notebook joins the ONE existing command palette rather than
 // growing a second, Notebook-specific one (directive §12) — a small static
@@ -71,7 +74,9 @@ function rowAriaLabel(r) {
   if (r.kind === 'note') {
     const where = r.context ? `, in ${r.context}` : ''
     const badge = r.badge ? ` (${r.badge})` : ''
-    return `Note: ${r.title}${where}${badge}. Enter to open.`
+    // Wave 10 F6: said out loud as well as shown -- the title alone does not explain the row.
+    const found = r.inText ? `, found in note text` : ''
+    return `Note: ${r.title}${found}${where}${badge}. Enter to open.`
   }
   return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`
 }
@@ -124,7 +129,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const abortRef = useRef(null)
   const noteAbortRef = useRef(null)
   const debounceRef = useRef(null)
-  // Runs the pending debounced search NOW (Enter must not also wait 150ms).
+  // Runs the pending debounced search NOW (Enter must not also wait PALETTE_DEBOUNCE_MS).
   const flushRef = useRef(null)
   const reqIdRef = useRef(0)
   // N1: a query the server said no note can match, however it is extended.
@@ -286,7 +291,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
           setLoading(false)
         })
     }
-    debounceRef.current = setTimeout(run, 150)
+    debounceRef.current = setTimeout(run, PALETTE_DEBOUNCE_MS)
     flushRef.current = () => { clearTimeout(debounceRef.current); run() }
     return () => { clearTimeout(debounceRef.current); flushRef.current = null }
   }, [query, open])
@@ -611,7 +616,11 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
                           return <>{before}{hit && <strong className={styles.resultHit}>{hit}</strong>}{after}</>
                         })()}
                       </span>
-                      <span className={styles.resultNoteContext}>{r.context}</span>
+                      <span className={styles.resultNoteContext}>
+                        {/* Wave 10 F6: first on the line, so a long folder path truncates, never the reason. */}
+                        {r.inText && <span data-note-cue="in-text">{NOTE_IN_TEXT_CUE} · </span>}
+                        {r.context}
+                      </span>
                     </span>
                   ) : (
                     <span className={styles.resultMain}>

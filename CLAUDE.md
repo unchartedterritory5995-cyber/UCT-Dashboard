@@ -3788,7 +3788,7 @@ exactly as it did before K.
   rate, and `tools/window_check.py` now stamps that reading — reporting **absent**
   and **off** as different facts, because a pod predating K serves no keys at all.
 
-### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 Phase I LIVE (#203 `c6a8a9d3a`, #204 `2ab637644`, #205 `4f708a0d2`), Phases II–III in build, 2026-09-27
+### 📓 Notebook 10/10 program — waves 5–9 LIVE (#186 `2c3ed3093`, #193 `271a078b6`, #196 `f883e0996`, #198 `caf6d1b9e`, #202 `1c4b0bf74`) and the 9C soak kit (#197 `2e0598bfa`); wave 10 Phases I–II LIVE (#203 `c6a8a9d3a`, #204 `2ab637644`, #205 `4f708a0d2`, #224 `d9e887ca0`), Phase III (proof) in build, 2026-09-27
 
 ⭐⭐ **READ `docs/notebook/wave5-6-RESUME-HERE.md` FIRST** — it is the checkpoint
 for this program and carries exact SHAs and the next actions in order. This
@@ -3918,6 +3918,15 @@ End-to-end proof separately: a planted file under `journal-2-0/` still makes the
 real check fire.
 
 ### ⛔ Rolling back the Notebook wave — TWO levers since Wave K, and the fast one IS a variable
+
+⛔ **THREE NOTEBOOK CI CHECKS NOW GATE PRODUCTION PROMOTION** (since #224, wave 10 L1b):
+`notebook-a11y.yml`, `notebook-latency.yml` (the ratio check) and `notebook-bytes.yml` each carry
+`promotion-gate: yes`, and each was seen red once and green once. A red on any of them REFUSES the
+promotion of that master commit, and that includes a revert pushed as a rollback -- the slow lever
+below. The recovery when the red is a flake or an infrastructure failure (`npm ci`, `pip install`):
+re-run the failed job (`gh run rerun <run-id> --failed`), then promote the SHA by hand
+(`gh workflow run promote-production.yml -f sha=<sha>`). The same two steps are in each workflow's
+header. The fast lever (a Railway variable) is untouched by any of this.
 
 ☠️ ~~*"Rolling back a FRONTEND flag is a deploy, not a variable"*~~ — **struck
 2026-09-12, superseded by Wave K.** Left marked rather than deleted, because a

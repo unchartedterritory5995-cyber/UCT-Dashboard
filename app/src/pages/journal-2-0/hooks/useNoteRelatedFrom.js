@@ -6,12 +6,17 @@
  */
 import useSWR from 'swr'
 
+// ⛔ Wave 10 F7 (Part A, 5d): a failed read THROWS. It used to answer an empty list on any
+// non-OK status, so a 500 read as "nothing links here" -- a statement, not a failure.
 const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { count: 0, notes: [] }))
+  fetch(url, { credentials: 'include' }).then((r) => {
+    if (!r.ok) throw new Error(String(r.status))
+    return r.json()
+  })
 
 export default function useNoteRelatedFrom(noteId, { enabled = true } = {}) {
   const key = noteId && enabled ? `/api/j2/notes/${encodeURIComponent(noteId)}/related-from` : null
-  const { data, isLoading, error } = useSWR(key, fetcher, {
+  const { data, isLoading, error, mutate } = useSWR(key, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
@@ -20,5 +25,6 @@ export default function useNoteRelatedFrom(noteId, { enabled = true } = {}) {
     notes: data?.notes ?? [],
     isLoading: !!key && isLoading,
     error,
+    refresh: () => mutate(),
   }
 }

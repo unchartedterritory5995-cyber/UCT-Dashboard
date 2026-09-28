@@ -130,7 +130,9 @@ describe('the tag field sends DELTAS', () => {
     patchTagsMock.mockImplementation(async () => { const e = new Error('400'); e.status = 400; throw e })
     await renderEditor()
     addTag('mine')
-    expect(await screen.findByText('Couldn\'t update tags — try again')).toBeTruthy()
+    // Wave 10 F7 (Part A, 5d): the sentence STAYS (SaveFailed) -- the 2.4 s chrome message it
+    // replaced was gone before the proof walk looked.
+    expect((await screen.findByRole('alert')).textContent).toContain("Couldn't add that tag. Nothing changed.")
   })
 
   it('a change that changes nothing sends nothing (adding a tag the server already has)', async () => {
@@ -162,7 +164,9 @@ describe('the tag field sends DELTAS', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(tagPuts()).toEqual([])
     expect(tagPatches()).toEqual([])
-    expect(await screen.findByText('Couldn\'t update tags — try again')).toBeTruthy()
+    // Wave 10 F7 (Part A, 5d): the sentence STAYS (SaveFailed) -- the 2.4 s chrome message it
+    // replaced was gone before the proof walk looked.
+    expect((await screen.findByRole('alert')).textContent).toContain("Couldn't add that tag. Nothing changed.")
   })
 
   it('suggestions come from the member\'s own tags', async () => {

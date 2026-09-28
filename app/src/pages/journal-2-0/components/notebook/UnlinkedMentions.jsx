@@ -2,6 +2,7 @@ import useSWR from 'swr'
 import CollapsibleSection from '../CollapsibleSection'
 import UIcon from '../../../../components/ui/UIcon'
 import { useNoteNavigation } from '../../lib/splitView'
+import LoadFailed from '../LoadFailed'
 import styles from './UnlinkedMentions.module.css'
 
 /**
@@ -24,12 +25,17 @@ import styles from './UnlinkedMentions.module.css'
  * (api/services/journal_two/note_mentions.py — word-bounded, case-insensitive,
  * titles under 3 characters skipped, notes already linking here excluded).
  */
+// ⛔ Wave 10 F7 (Part A, 5d): a failed read THROWS. It used to answer an empty list on any
+// non-OK status, so a 500 read as "nothing links here" -- a statement, not a failure.
 const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { count: 0, notes: [] }))
+  fetch(url, { credentials: 'include' }).then((r) => {
+    if (!r.ok) throw new Error(String(r.status))
+    return r.json()
+  })
 
 export default function UnlinkedMentions({ noteId }) {
   const key = noteId ? `/api/j2/notes/${encodeURIComponent(noteId)}/unlinked-mentions` : null
-  const { data, isLoading, error } = useSWR(key, fetcher, {
+  const { data, isLoading, error, mutate } = useSWR(key, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
   })
@@ -39,6 +45,10 @@ export default function UnlinkedMentions({ noteId }) {
   const go = useNoteNavigation()
   const notes = data?.notes ?? []
   const count = data?.count ?? 0
+  // Wave 10 F7 (Part A, 5d): a failed read is said, not taken for "nothing mentions it".
+  if (key && error && !notes.length) {
+    return <LoadFailed compact what="the notes that mention this one" error={error} onRetry={() => mutate()} />
+  }
   if (!key || isLoading || error || count === 0 || notes.length === 0) return null
 
   return (

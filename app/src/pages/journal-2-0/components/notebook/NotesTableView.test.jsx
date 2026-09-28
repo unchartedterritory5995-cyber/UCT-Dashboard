@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import NotesTableView from './NotesTableView'
 
 const defs = [
@@ -271,5 +272,30 @@ describe('NotesTableView — wave 5 selection', () => {
     const box = screen.getByRole('checkbox', { name: 'Clear the selection' })
     expect(box).toBeChecked()
     expect(box.indeterminate).toBe(false)
+  })
+})
+
+// F4 / A2R-02 (WCAG 2.1.1): lane 10E-2's keyboard walk could not open a note from Table
+// view -- the row opened on a mouse click only. The row is now a Tab stop named for what it
+// does, and Enter opens the WHOLE note object (the contract NoteCard's open uses; a bare id
+// once reached openNote as `?note=undefined`). A select-value chip inside the row keeps its
+// own Enter: it filters, it never opens.
+describe('NotesTableView — keyboard open (F4, A2R-02)', () => {
+  it('Tab reaches a row named "Open <title>", and Enter opens that note', async () => {
+    const user = userEvent.setup()
+    const { onOpenNote, onQuickFilter } = setup()
+    const row = screen.getByRole('row', { name: 'Open NVDA Thesis' })
+    // walk to it with the keyboard, from the top of the table
+    for (let i = 0; i < 12 && document.activeElement !== row; i += 1) await user.tab()
+    expect(document.activeElement).toBe(row)
+    await user.keyboard('{Enter}')
+    expect(onOpenNote).toHaveBeenCalledTimes(1)
+    expect(onOpenNote).toHaveBeenCalledWith(notes[0])
+    // the value chip inside the row keeps its own Enter
+    const chip = within(row).getByRole('button', { name: /Active/ })
+    chip.focus()
+    await user.keyboard('{Enter}')
+    expect(onQuickFilter).toHaveBeenCalledWith('p1', 'active')
+    expect(onOpenNote).toHaveBeenCalledTimes(1)
   })
 })

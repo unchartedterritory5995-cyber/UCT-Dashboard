@@ -1,0 +1,3 @@
+{"id": "R3", "what": "in-memory keys as before: no hold, no identity check", "file": "api/services/journal_two/db.py", "expect": "red", "got": "red", "as_expected": true, "totals": "2 failed, 39 passed, 1879 warnings in 26.94s", "failed": ["tests/test_journal_two_build_record_withdrawal.py::test_a_held_in_memory_connection_cannot_be_matched_by_another_object", "tests/test_journal_two_build_record_withdrawal.py::test_an_in_memory_withholding_is_not_inherited_through_a_reused_id"], "seconds": 35.6, "restored_sha256": "08d324f013545f7c", "restore_verified": true}
+GIT STATUS PORCELAIN LINES: 0
+

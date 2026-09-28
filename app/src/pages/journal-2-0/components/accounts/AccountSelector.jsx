@@ -18,6 +18,8 @@ import useLongPress from '../../../../components/mobile/useLongPress'
 import UIcon from '../../../../components/ui/UIcon'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import useJ2AccountComparison from '../../hooks/useJ2AccountComparison'
+import useJ2Accounts from '../../hooks/useJ2Accounts'
+import LoadFailed from '../LoadFailed'
 import { colorHex } from '../../lib/accountColors'
 import { money } from '../../../../lib/journal-2-0'
 import DeleteAccountModal from './DeleteAccountModal'
@@ -50,7 +52,11 @@ function AccountRow({ acc, active, onSelect, onRequestDelete }) {
 
 export default function AccountSelector({ onNewAccount }) {
   const { accountId, account, accounts, setAccount } = useJ2SelectedAccount()
-  const { accounts: comparison } = useJ2AccountComparison()
+  const { accounts: comparison, error: comparisonError, refresh: refreshComparison } = useJ2AccountComparison()
+  // Wave 10 F7 (Part A, 5d): the same SWR key useJ2SelectedAccount reads (one request), asked
+  // here for its error -- a failed accounts read used to leave the pill reading "—".
+  const { error: accountsError, refresh: refreshAccounts } = useJ2Accounts()
+  const accountsFailed = !!accountsError && accounts.length === 0
   const { mutate } = useSWRConfig()
   const balanceById = useMemo(() => {
     const m = {}
@@ -61,8 +67,11 @@ export default function AccountSelector({ onNewAccount }) {
   // that's synced-but-pending (INV-1) has a real null currentBalance and must
   // render "—" (money(null)), NOT the $1.00 startingBalance seed. Only fall back
   // when the comparison row hasn't loaded for this id yet.
+  // ⛔ Wave 10 F7: a FAILED comparison read is not "not loaded yet" -- falling back to the
+  // starting balance there would show a stale number as the current one. Show no number.
   const balanceFor = (a) =>
-    (a?.id != null && a.id in balanceById) ? balanceById[a.id] : a?.startingBalance
+    (a?.id != null && a.id in balanceById) ? balanceById[a.id]
+      : comparisonError ? null : a?.startingBalance
   const [open, setOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -138,7 +147,9 @@ export default function AccountSelector({ onNewAccount }) {
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        {isAll ? (
+        {accountsFailed ? (
+          <span className={styles.name}>Accounts didn't load</span>
+        ) : isAll ? (
           <>
             <span className={styles.allDot}><UIcon name="globe" size={14} /></span>
             <span className={styles.name}>All Accounts</span>
@@ -153,7 +164,7 @@ export default function AccountSelector({ onNewAccount }) {
             <span className={styles.name}>{account?.name || '—'}</span>
             {account && (
               <span className={styles.balance}>
-                {money(balanceFor(account))}
+                {comparisonError && !(account.id in balanceById) ? "balance didn't load" : money(balanceFor(account))}
               </span>
             )}
           </>
@@ -163,6 +174,10 @@ export default function AccountSelector({ onNewAccount }) {
 
       {open && (
         <div className={styles.menu} role="listbox">
+          <LoadFailed compact failures={[
+            { what: 'your accounts', error: accountsError, retry: refreshAccounts },
+            { what: 'your current balances', error: comparisonError, retry: refreshComparison },
+          ]} />
           {accounts.map((a) => (
             <AccountRow
               key={a.id}

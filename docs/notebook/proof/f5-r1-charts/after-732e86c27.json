@@ -1,0 +1,310 @@
+{
+ "tip": "732e86c27",
+ "instrument": "f5_charts_measure.py",
+ "rows": [
+  {
+   "vw": 390,
+   "vh": 844,
+   "chart_shell_attr": true,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": false,
+    "box": {
+     "top": 0,
+     "bottom": 0,
+     "height": 0,
+     "left": 0,
+     "right": 0
+    }
+   },
+   "card": {
+    "present": true,
+    "displayed": false,
+    "box": {
+     "top": 0,
+     "bottom": 0,
+     "height": 0,
+     "left": 0,
+     "right": 0
+    }
+   },
+   "slot": {
+    "present": true,
+    "display": "none",
+    "height": 0
+   },
+   "main": {
+    "scrollHeight": 844,
+    "clientHeight": 844,
+    "scroll_range_px": 0
+   },
+   "phone_chart": {
+    "top": 0,
+    "bottom": 844,
+    "height": 844,
+    "left": 0,
+    "right": 390
+   },
+   "desk_body": null,
+   "screenshot": "charts-390-pending.png",
+   "mode": "phone",
+   "card_state": "pending"
+  },
+  {
+   "vw": 390,
+   "vh": 844,
+   "chart_shell_attr": true,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": false,
+    "box": {
+     "top": 0,
+     "bottom": 0,
+     "height": 0,
+     "left": 0,
+     "right": 0
+    }
+   },
+   "card": {
+    "present": false,
+    "displayed": false,
+    "box": null
+   },
+   "slot": {
+    "present": true,
+    "display": "none",
+    "height": 0
+   },
+   "main": {
+    "scrollHeight": 844,
+    "clientHeight": 844,
+    "scroll_range_px": 0
+   },
+   "phone_chart": {
+    "top": 0,
+    "bottom": 844,
+    "height": 844,
+    "left": 0,
+    "right": 390
+   },
+   "desk_body": null,
+   "screenshot": "charts-390-seen.png",
+   "mode": "phone",
+   "card_state": "seen"
+  },
+  {
+   "vw": 1200,
+   "vh": 800,
+   "chart_shell_attr": false,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 718,
+     "bottom": 782,
+     "height": 64,
+     "left": 1016,
+     "right": 1182
+    }
+   },
+   "card": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 12,
+     "bottom": 78,
+     "height": 66,
+     "left": 80,
+     "right": 1147
+    }
+   },
+   "slot": {
+    "present": true,
+    "display": "block",
+    "height": 66
+   },
+   "main": {
+    "scrollHeight": 878,
+    "clientHeight": 800,
+    "scroll_range_px": 78
+   },
+   "phone_chart": null,
+   "desk_body": {
+    "top": 138,
+    "bottom": 850,
+    "height": 712,
+    "left": 60,
+    "right": 1195
+   },
+   "screenshot": "charts-1200-pending.png",
+   "mode": "desktop",
+   "card_state": "pending"
+  },
+  {
+   "vw": 1200,
+   "vh": 800,
+   "chart_shell_attr": false,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 718,
+     "bottom": 782,
+     "height": 64,
+     "left": 1016,
+     "right": 1182
+    }
+   },
+   "card": {
+    "present": false,
+    "displayed": false,
+    "box": null
+   },
+   "slot": {
+    "present": true,
+    "display": "block",
+    "height": 0
+   },
+   "main": {
+    "scrollHeight": 800,
+    "clientHeight": 800,
+    "scroll_range_px": 0
+   },
+   "phone_chart": null,
+   "desk_body": {
+    "top": 60,
+    "bottom": 772,
+    "height": 712,
+    "left": 60,
+    "right": 1200
+   },
+   "screenshot": "charts-1200-seen.png",
+   "mode": "desktop",
+   "card_state": "seen"
+  }
+ ],
+ "control": {
+  "reading": {
+   "vw": 1200,
+   "vh": 800,
+   "chart_shell_attr": false,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 718,
+     "bottom": 782,
+     "height": 64,
+     "left": 1016,
+     "right": 1182
+    }
+   },
+   "card": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 12,
+     "bottom": 78,
+     "height": 66,
+     "left": 80,
+     "right": 1147
+    }
+   },
+   "slot": {
+    "present": true,
+    "display": "block",
+    "height": 66
+   },
+   "main": {
+    "scrollHeight": 878,
+    "clientHeight": 800,
+    "scroll_range_px": 78
+   },
+   "phone_chart": null,
+   "desk_body": null,
+   "screenshot": "control-dashboard-1200-pending.png"
+  },
+  "ok": true
+ },
+ "sandbox_identity": "http://127.0.0.1:8220 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T22-10-17.md (identity 5a65375e9d61..., data dir C:\\data-w10f5)",
+ "notebook_tour_holds_stage": {
+  "reading": {
+   "vw": 1200,
+   "vh": 800,
+   "chart_shell_attr": false,
+   "hub_root": false,
+   "cluster": {
+    "present": true,
+    "displayed": true,
+    "box": {
+     "top": 718,
+     "bottom": 782,
+     "height": 64,
+     "left": 1016,
+     "right": 1182
+    }
+   },
+   "card": {
+    "present": false,
+    "displayed": false,
+    "box": null
+   },
+   "slot": {
+    "present": true,
+    "display": "block",
+    "height": 0
+   },
+   "main": {
+    "scrollHeight": 800,
+    "clientHeight": 800,
+    "scroll_range_px": 0
+   },
+   "phone_chart": null,
+   "desk_body": null,
+   "screenshot": "notebook-1200-pending-tour-holds-stage.png"
+  },
+  "card_absent": true
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T22-10-17.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T22-10-17.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-27 22:10:23",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-27 22:11:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-27 22:11:44",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

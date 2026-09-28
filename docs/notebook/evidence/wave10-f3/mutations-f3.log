@@ -1,0 +1,10 @@
+{"id": "M1 tag pin always true", "rail": "test_a_tag_that_does_not_pin_the_recorded_tip_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 1.97s", "red": true, "restored_sha_ok": true}
+{"id": "M2 squash ancestry always true", "rail": "test_a_squash_that_did_not_land_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 1.58s", "red": true, "restored_sha_ok": true}
+{"id": "M3 evidence blob never compared", "rail": "test_evidence_that_changed_since_it_landed_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 2.03s", "red": true, "restored_sha_ok": true}
+{"id": "M4 measured tree reachability skipped", "rail": "test_a_measured_tree_that_is_not_reachable_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 1.60s", "red": true, "restored_sha_ok": true}
+{"id": "M5 flag revision not compared", "rail": "test_a_flag_record_naming_another_revision_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 8.18s", "red": true, "restored_sha_ok": true}
+{"id": "M6 flag status not compared", "rail": "test_a_flag_status_the_ledger_does_not_hold_is_refused", "totals": "1 failed, 23 deselected, 1201 warnings in 7.51s", "red": true, "restored_sha_ok": true}
+{"id": "M7 step-by-step walks unread", "rail": "test_every_cited_file_line_still_holds_its_fragment", "totals": "1 failed, 23 deselected, 1201 warnings in 7.96s", "red": true, "restored_sha_ok": true}
+{"id": "M8 an unmet clause dropped from the 10/10 list", "rail": "test_what_10_10_still_needs_lists_every_unmet_clause_once_under_one_owner", "totals": "1 failed, 23 deselected, 1201 warnings in 1.91s", "red": true, "restored_sha_ok": true}
+git status after: '?? docs/notebook/evidence/wave10-f3/mutate_f3.py'
+NOT ALL RED / NOT CLEAN

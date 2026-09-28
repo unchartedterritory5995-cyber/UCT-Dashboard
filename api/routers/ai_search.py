@@ -2436,6 +2436,65 @@ def _deep_weekly_proposal(query: str, syms: list[str]) -> dict | None:
             "sym": (syms[0] if syms else None), "cadence": "weekly_deep"}
 
 
+# ── TERM-087 (WF-C12): the answer returns the product's own editable object ──
+# A screen-shaped ask gets `scan_object` beside the prose: the formula the
+# builder opens, produced by the builder's OWN concierge pipeline and its ONE
+# validator (`api/services/ai_search_scan_object.py` says why there is no
+# second). Dark unless AI_SEARCH_SCAN_OBJECT_ENABLED is set. Built CONCURRENTLY with
+# the prose on a small pool so it adds no latency the answer did not already
+# have, and bounded by `WAIT_SECONDS` so a final never hangs on it -- a slow or
+# failed build becomes a refusal on the final, never a missing key.
+_SCAN_OBJECT_POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ais-scan-object")
+
+
+def _start_scan_object(query: str, user_id):
+    """A future for this ask's scan object, or None when the flag is off or the
+    ask is not a screen (then nothing is spent and no key is added)."""
+    from api.services import ai_search_scan_object as so
+    if not so.wanted(query):
+        return None
+    try:
+        return _SCAN_OBJECT_POOL.submit(so.emit, query, user_id)
+    except Exception:
+        return None
+
+
+def _finish_scan_object(fut) -> dict | None:
+    """Blocking collect for the single-shot route."""
+    if fut is None:
+        return None
+    from api.services import ai_search_scan_object as so
+    try:
+        return fut.result(timeout=so.WAIT_SECONDS)
+    except TimeoutError:
+        return so.refusal("object:timeout")
+    except Exception:
+        return so.refusal("object:error")
+
+
+async def _await_scan_object(fut) -> dict | None:
+    """Async collect for the stream -- never blocks the shared loop."""
+    if fut is None:
+        return None
+    from api.services import ai_search_scan_object as so
+    try:
+        return await asyncio.wait_for(asyncio.shield(asyncio.wrap_future(fut)),
+                                      so.WAIT_SECONDS)
+    except asyncio.TimeoutError:
+        return so.refusal("object:timeout")
+    except Exception:
+        return so.refusal("object:error")
+
+
+async def _with_scan_object(ev: dict, fut) -> dict:
+    """Attach the object (or its refusal) to a final. ⛔ Every final of a
+    screen-shaped ask goes through here, so prose never ships without it."""
+    obj = await _await_scan_object(fut)
+    if obj is not None:
+        ev["scan_object"] = obj
+    return ev
+
+
 def _ask_proposal(query: str, syms: list[str]) -> dict | None:
     """One proposal per ask. An explicit alert verb ("alert me when…") is the
     stronger intent signal — it wins over briefing phrasing (2026-08-28: the
@@ -2660,6 +2719,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     finally:
         _WISDOM_ASKER.reset(_wtok)
     salt = _history_salt(_fresh_salt(body.query, salt), history)
+    scan_fut = _start_scan_object(body.query, user_id)   # TERM-087; None when dark
 
     def _search(m):
         return fast_lane_answer(body.query, system, salt, mode=m, history=history)
@@ -2704,6 +2764,9 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     proposal = _ask_proposal(body.query, meta.get("query_tickers") or [])
     if proposal:
         result["proposal"] = proposal
+    scan_object = _finish_scan_object(scan_fut)
+    if scan_object is not None:
+        result["scan_object"] = scan_object
     # Best-effort capture (sync def runs in the anyio threadpool — a direct call is fine).
     _log_answer(body=body, user_id=user_id, answer_id=answer_id, endpoint="single",
                 mode=effective_mode, result=result, meta=meta, history=history,
@@ -2711,7 +2774,8 @@ def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     return result
 
 
-async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answer_id):
+async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answer_id,
+                     scan_fut=None):
     """SSE generator for the agent lane: meta → activity* → final. The blocking
     tool loop runs in an executor; `emit` callbacks bridge onto the loop via a
     queue so the member watches the agent work. On failure the ask falls back
@@ -2779,6 +2843,7 @@ async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answe
                      "quota": _quota_snapshot(user_id), **result}
             if proposal:
                 final["proposal"] = proposal
+            final = await _with_scan_object(final, scan_fut)
             settled = True
             yield f"data: {json.dumps(final)}\n\n"
             return
@@ -2803,6 +2868,7 @@ async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answe
                      "quota": _quota_snapshot(user_id), **fb}
             if proposal:
                 final["proposal"] = proposal
+            final = await _with_scan_object(final, scan_fut)
             settled = True
             yield f"data: {json.dumps(final)}\n\n"
             return
@@ -2819,6 +2885,7 @@ async def _agent_gen(body, user_id, system, salt, meta, history, proposal, answe
             captured["fallback_used"] = True
             final = {"type": "final", "answer_id": answer_id, "grounding": grounding,
                      "quota": _quota_snapshot(user_id), **dg}
+            final = await _with_scan_object(final, scan_fut)
             settled = True
             yield f"data: {json.dumps(final)}\n\n"
             return
@@ -2907,10 +2974,12 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
     proposal = await loop.run_in_executor(
         None, lambda: _ask_proposal(body.query, meta.get("query_tickers") or []))
     answer_id = ai_search_log_new_id()
+    scan_fut = _start_scan_object(body.query, user_id)   # TERM-087; None when dark
 
     if mode == "agent":
         return StreamingResponse(
-            _agent_gen(body, user_id, system, salt, meta, history, proposal, answer_id),
+            _agent_gen(body, user_id, system, salt, meta, history, proposal, answer_id,
+                       scan_fut=scan_fut),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
@@ -2975,6 +3044,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                                           'quota': _quota_snapshot(user_id), **fb}
                             if proposal:
                                 settled_fb['proposal'] = proposal
+                            settled_fb = await _with_scan_object(settled_fb, scan_fut)
                             yield f"data: {json.dumps(settled_fb)}\n\n"
                             continue
                         dg = await _fb_loop.run_in_executor(
@@ -2992,6 +3062,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                                         'quota': _quota_snapshot(user_id), **dg}
                             if proposal:
                                 dg_final['proposal'] = proposal
+                            dg_final = await _with_scan_object(dg_final, scan_fut)
                             yield f"data: {json.dumps(dg_final)}\n\n"
                             continue
                     captured["result"] = {"answer": "", "error": ev.get("error") or "stream error"}
@@ -3000,6 +3071,7 @@ async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid))
                           "quota": _quota_snapshot(user_id)}
                     if proposal:
                         ev["proposal"] = proposal
+                    ev = await _with_scan_object(ev, scan_fut)
                 yield f"data: {json.dumps(ev)}\n\n"
         finally:
             if not settled:

@@ -1,0 +1,2624 @@
+{
+ "tags": [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  "wcag22aa"
+ ],
+ "themes": [
+  "dark",
+  "oled",
+  "light"
+ ],
+ "runs": [
+  {
+   "surface": "nb-first-run",
+   "theme": "dark",
+   "manifest": [
+    "tab-list",
+    "NotebookTour"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-home",
+   "theme": "dark",
+   "manifest": [
+    "ResearchHome"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-list",
+   "theme": "dark",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-table",
+   "theme": "dark",
+   "manifest": [
+    "tab-table"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-board",
+   "theme": "dark",
+   "manifest": [
+    "tab-board"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-calendar",
+   "theme": "dark",
+   "manifest": [
+    "tab-calendar"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-timeline",
+   "theme": "dark",
+   "manifest": [
+    "tab-timeline"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-graph",
+   "theme": "dark",
+   "manifest": [
+    "graph-canvas"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-tasks",
+   "theme": "dark",
+   "manifest": [
+    "tasks-view"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-search",
+   "theme": "dark",
+   "manifest": [
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-trash",
+   "theme": "dark",
+   "manifest": [
+    "note-card-states"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-bulk",
+   "theme": "dark",
+   "manifest": [
+    "bulk-action-bar"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-templates",
+   "theme": "dark",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-import",
+   "theme": "dark",
+   "manifest": [
+    "import-wizard"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-saved-view",
+   "theme": "dark",
+   "manifest": [
+    "saved-view-editor"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-publish-folder",
+   "theme": "dark",
+   "manifest": [
+    "publish-folder-sheet"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-note",
+   "theme": "dark",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-note-first-run",
+   "theme": "dark",
+   "manifest": [
+    "editor"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 1
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-slash",
+   "theme": "dark",
+   "manifest": [
+    "editor-slash"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-find",
+   "theme": "dark",
+   "manifest": [
+    "editor-find"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-outline",
+   "theme": "dark",
+   "manifest": [
+    "editor-outline"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-color",
+   "theme": "dark",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 5
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-table",
+   "theme": "dark",
+   "manifest": [
+    "editor-table"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-emoji",
+   "theme": "dark",
+   "manifest": [
+    "editor-emoji"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-note-link",
+   "theme": "dark",
+   "manifest": [
+    "editor-note-link"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-link-paste",
+   "theme": "dark",
+   "manifest": [
+    "editor-link-paste"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-writing-help",
+   "theme": "dark",
+   "manifest": [
+    "editor-writing-help"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "dark",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "dark",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-share",
+   "theme": "dark",
+   "manifest": [
+    "NoteShareControls"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "dark",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-ask",
+   "theme": "dark",
+   "manifest": [
+    "ask-panel"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "dark",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-property",
+   "theme": "dark",
+   "manifest": [
+    "editor-thesis"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 3
+     }
+    ]
+   }
+  },
+  {
+   "surface": "doc-preview",
+   "theme": "dark",
+   "manifest": [
+    "document-preview-pdf"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-research",
+   "theme": "dark",
+   "manifest": [
+    "ticker-research"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "settings-cards",
+   "theme": "dark",
+   "manifest": [
+    "settings-personal-api",
+    "settings-inbound-email",
+    "settings-browser-capture",
+    "SharingCard"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "support",
+   "theme": "dark",
+   "manifest": [
+    "Support"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-connect",
+   "theme": "dark",
+   "manifest": [
+    "capture-connect"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-dialog",
+   "theme": "dark",
+   "manifest": [
+    "capture-dialog"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "share-target",
+   "theme": "signed-out default",
+   "manifest": [
+    "share-target-signed-out"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "shared-page",
+   "theme": "signed-out default",
+   "manifest": [
+    "SharedNotePage"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "published-page",
+   "theme": "signed-out default",
+   "manifest": [
+    "PublishedPage"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-first-run",
+   "theme": "oled",
+   "manifest": [
+    "tab-list",
+    "NotebookTour"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-home",
+   "theme": "oled",
+   "manifest": [
+    "ResearchHome"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-list",
+   "theme": "oled",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-table",
+   "theme": "oled",
+   "manifest": [
+    "tab-table"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-board",
+   "theme": "oled",
+   "manifest": [
+    "tab-board"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-calendar",
+   "theme": "oled",
+   "manifest": [
+    "tab-calendar"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-timeline",
+   "theme": "oled",
+   "manifest": [
+    "tab-timeline"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-graph",
+   "theme": "oled",
+   "manifest": [
+    "graph-canvas"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-tasks",
+   "theme": "oled",
+   "manifest": [
+    "tasks-view"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-search",
+   "theme": "oled",
+   "manifest": [
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-trash",
+   "theme": "oled",
+   "manifest": [
+    "note-card-states"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-bulk",
+   "theme": "oled",
+   "manifest": [
+    "bulk-action-bar"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-templates",
+   "theme": "oled",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-import",
+   "theme": "oled",
+   "manifest": [
+    "import-wizard"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-saved-view",
+   "theme": "oled",
+   "manifest": [
+    "saved-view-editor"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-publish-folder",
+   "theme": "oled",
+   "manifest": [
+    "publish-folder-sheet"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-note",
+   "theme": "oled",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-note-first-run",
+   "theme": "oled",
+   "manifest": [
+    "editor"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 1
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-slash",
+   "theme": "oled",
+   "manifest": [
+    "editor-slash"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-find",
+   "theme": "oled",
+   "manifest": [
+    "editor-find"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-outline",
+   "theme": "oled",
+   "manifest": [
+    "editor-outline"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-color",
+   "theme": "oled",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 5
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-table",
+   "theme": "oled",
+   "manifest": [
+    "editor-table"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-emoji",
+   "theme": "oled",
+   "manifest": [
+    "editor-emoji"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-note-link",
+   "theme": "oled",
+   "manifest": [
+    "editor-note-link"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-link-paste",
+   "theme": "oled",
+   "manifest": [
+    "editor-link-paste"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-writing-help",
+   "theme": "oled",
+   "manifest": [
+    "editor-writing-help"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "oled",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "oled",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-share",
+   "theme": "oled",
+   "manifest": [
+    "NoteShareControls"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "oled",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-ask",
+   "theme": "oled",
+   "manifest": [
+    "ask-panel"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "oled",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-property",
+   "theme": "oled",
+   "manifest": [
+    "editor-thesis"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 3
+     }
+    ]
+   }
+  },
+  {
+   "surface": "doc-preview",
+   "theme": "oled",
+   "manifest": [
+    "document-preview-pdf"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-research",
+   "theme": "oled",
+   "manifest": [
+    "ticker-research"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "settings-cards",
+   "theme": "oled",
+   "manifest": [
+    "settings-personal-api",
+    "settings-inbound-email",
+    "settings-browser-capture",
+    "SharingCard"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "support",
+   "theme": "oled",
+   "manifest": [
+    "Support"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-connect",
+   "theme": "oled",
+   "manifest": [
+    "capture-connect"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-dialog",
+   "theme": "oled",
+   "manifest": [
+    "capture-dialog"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-first-run",
+   "theme": "light",
+   "manifest": [
+    "tab-list",
+    "NotebookTour"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-home",
+   "theme": "light",
+   "manifest": [
+    "ResearchHome"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-list",
+   "theme": "light",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-table",
+   "theme": "light",
+   "manifest": [
+    "tab-table"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-board",
+   "theme": "light",
+   "manifest": [
+    "tab-board"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-calendar",
+   "theme": "light",
+   "manifest": [
+    "tab-calendar"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-timeline",
+   "theme": "light",
+   "manifest": [
+    "tab-timeline"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-graph",
+   "theme": "light",
+   "manifest": [
+    "graph-canvas"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-tasks",
+   "theme": "light",
+   "manifest": [
+    "tasks-view"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-search",
+   "theme": "light",
+   "manifest": [
+    "folder-sidebar-edit"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-trash",
+   "theme": "light",
+   "manifest": [
+    "note-card-states"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-bulk",
+   "theme": "light",
+   "manifest": [
+    "bulk-action-bar"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-templates",
+   "theme": "light",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-import",
+   "theme": "light",
+   "manifest": [
+    "import-wizard"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-saved-view",
+   "theme": "light",
+   "manifest": [
+    "saved-view-editor"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-publish-folder",
+   "theme": "light",
+   "manifest": [
+    "publish-folder-sheet"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "nb-note",
+   "theme": "light",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-note-first-run",
+   "theme": "light",
+   "manifest": [
+    "editor"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 1
+     },
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-slash",
+   "theme": "light",
+   "manifest": [
+    "editor-slash"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-find",
+   "theme": "light",
+   "manifest": [
+    "editor-find"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-outline",
+   "theme": "light",
+   "manifest": [
+    "editor-outline"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-color",
+   "theme": "light",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 5
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-table",
+   "theme": "light",
+   "manifest": [
+    "editor-table"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-emoji",
+   "theme": "light",
+   "manifest": [
+    "editor-emoji"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-note-link",
+   "theme": "light",
+   "manifest": [
+    "editor-note-link"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-link-paste",
+   "theme": "light",
+   "manifest": [
+    "editor-link-paste"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-writing-help",
+   "theme": "light",
+   "manifest": [
+    "editor-writing-help"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "light",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "light",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-share",
+   "theme": "light",
+   "manifest": [
+    "NoteShareControls"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "light",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-ask",
+   "theme": "light",
+   "manifest": [
+    "ask-panel"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "light",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-property",
+   "theme": "light",
+   "manifest": [
+    "editor-thesis"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "aria-prohibited-attr",
+      "count": 2
+     },
+     {
+      "id": "color-contrast",
+      "count": 3
+     }
+    ]
+   }
+  },
+  {
+   "surface": "doc-preview",
+   "theme": "light",
+   "manifest": [
+    "document-preview-pdf"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "nb-research",
+   "theme": "light",
+   "manifest": [
+    "ticker-research"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "settings-cards",
+   "theme": "light",
+   "manifest": [
+    "settings-personal-api",
+    "settings-inbound-email",
+    "settings-browser-capture",
+    "SharingCard"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "support",
+   "theme": "light",
+   "manifest": [
+    "Support"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-connect",
+   "theme": "light",
+   "manifest": [
+    "capture-connect"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-root=\"notebook\"]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "capture-dialog",
+   "theme": "light",
+   "manifest": [
+    "capture-dialog"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "color-contrast": "found",
+   "button-name": "found"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "theme": "dark",
+    "applied": "dark",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   },
+   {
+    "theme": "oled",
+    "applied": "oled",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   },
+   {
+    "theme": "light",
+    "applied": "light",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   }
+  ]
+ }
+}

@@ -1,0 +1,3 @@
+{"id": "M19-card-under-help", "file": "src/components/voice/FloatingOrb.module.css", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 8 passed (9)", "red": true}
+{"id": "M20-faint-thumb", "file": "src/pages/journal-2-0/components/notebook/NoteBoardView.module.css", "test": "src/pages/journal-2-0/components/notebook/NoteBoardView.scrollsAlone.test.js", "exit": 1, "totals": "Tests  3 failed | 6 passed (9)", "red": true}
+ALL RED

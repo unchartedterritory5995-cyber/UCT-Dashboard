@@ -24,7 +24,11 @@ export default function NoteTagsField({ tags = [], nodes = [], onAdd, onRemove, 
     const tag = normalizeTagPath(String(draft).replace(/^#+/, ''))
     if (!tag || busy) return
     setDraft('')
-    onAdd?.(tag)
+    // Wave 10 F7 (Part A): a tag that did not save is given back to the field (the page's
+    // `onAdd` answers false), so the member's typing is not lost with the failed write.
+    Promise.resolve(onAdd?.(tag)).then((ok) => {
+      if (ok === false) setDraft((d) => d || tag)
+    }, () => setDraft((d) => d || tag))
   }
 
   return (

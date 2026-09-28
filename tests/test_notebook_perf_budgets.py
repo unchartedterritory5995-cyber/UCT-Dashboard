@@ -140,7 +140,8 @@ def test_check_search_counts_an_unmeasured_op_or_tier_as_a_breach_and_refuses_an
         pb.check_search(_report(50000, {"a": 1.0}), {"p95_ms_max": 100, "tier": 50000, "ops": []})
 
 
-LATENCY_KEYS = ("search", "reads", "tasks", "search_ci", "reads_ci", "tasks_ci")
+LATENCY_KEYS = ("search", "reads", "tasks", "search_ci", "reads_ci", "tasks_ci",
+                "switcher_body_common", "switcher_body_rare")
 
 
 def test_the_committed_budget_file_is_complete_and_hand_edit_documented():
@@ -154,6 +155,35 @@ def test_the_committed_budget_file_is_complete_and_hand_edit_documented():
         assert spec["ops"] and float(spec["p95_ms_max"]) > 0 and int(spec["tier"]) > 0, key
     # the brief's number, not a softened one
     assert budgets["search"]["tier"] == 50000 and budgets["search"]["p95_ms_max"] == 100
+
+
+# Wave 10 F6, fix round 1: the switcher's body half, a line of its own per op. The ceilings are
+# the rule the budget file states (the smallest multiple of 50 ms at or above 1.4x the quiet 50k
+# p95 recorded there) -- derived here from the recorded readings, so a hand edit of either the
+# line or the reading that breaks the rule fails by name.
+F6_BODY_LINES = {
+    "switcher_body_common": ("switcher_search (body fallback, common term)", 171.2),
+    "switcher_body_rare": ("switcher_search (body fallback, rare term)", 68.4),
+}
+
+
+@pytest.mark.parametrize("key", sorted(F6_BODY_LINES))
+def test_the_switcher_body_lines_hold_their_op_at_the_stated_ceiling(key):
+    import math
+    budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
+    op, quiet_p95 = F6_BODY_LINES[key]
+    spec = budgets[key]
+    assert spec["ops"] == [op] and int(spec["tier"]) == 50000
+    assert f"{quiet_p95} ms p95" in spec["why"], "the reading the line was set from must be the one recorded"
+    assert float(spec["p95_ms_max"]) == 50 * math.ceil(1.4 * quiet_p95 / 50)
+    line = float(spec["p95_ms_max"])
+    # the line bites: just over it is a breach naming the op, just under it is not
+    assert pb.check_search(_report(50000, {op: line - 0.1}), spec) == []
+    assert pb.check_search(_report(50000, {op: line + 0.1}), spec) == [
+        f"{op!r} at 50,000 notes: p95 {line + 0.1:.1f} ms >= budget {line:.0f} ms"]
+    # and the local 50k gate command names it
+    doc = (Path(pb.DEFAULT_BUDGETS).parent / "perf-budgets.md").read_text(encoding="utf-8")
+    assert f"--budget {key}" in doc
 
 
 def test_every_budgeted_op_is_an_op_the_benchmark_times():

@@ -1,0 +1,42 @@
+{
+ "word start|before": [
+  32.3,
+  57.4
+ ],
+ "word start|after": [
+  32.7,
+  56.9
+ ],
+ "fuzzy, in order|before": [
+  45.8,
+  73.2
+ ],
+ "fuzzy, in order|after": [
+  45.7,
+  68.6
+ ],
+ "body fallback, common term|before": [
+  41.6,
+  62.7
+ ],
+ "body fallback, common term|after": [
+  105.9,
+  152.4
+ ],
+ "body fallback, rare term|before": [
+  35.6,
+  58.9
+ ],
+ "body fallback, rare term|after": [
+  52.1,
+  61.2
+ ],
+ "body fallback, 100% term|before": [
+  37.0,
+  53.8
+ ],
+ "body fallback, 100% term|after": [
+  198.9,
+  270.6
+ ]
+}

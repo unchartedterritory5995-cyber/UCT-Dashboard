@@ -289,3 +289,66 @@ describe('NoteBoardView', () => {
     expect(screen.queryByRole('region', { name: 'Watching' })).toBeNull()
   })
 })
+
+// ── F4 / A2R-03 (WCAG 2.4.3): focus follows a card moved from the keyboard ──
+// Lane 10E-2's keyboard walk: the move worked, and focus fell to <body> -- the card
+// re-mounts in its new column and the focused <select> goes with the old node. Focus now
+// follows the card: its title while the write is in flight (the <select> is disabled then),
+// its <select> once the write lands, so the member can keep moving it.
+describe('keyboard move keeps focus on the card (F4, A2R-03)', () => {
+  const pendingFetch = () => {
+    let resolve
+    global.fetch = vi.fn(() => new Promise((r) => { resolve = r }))
+    return () => resolve({ ok: true, json: () => Promise.resolve({ note: { id: 'n1', updatedAt: '2026-09-19T00:00:00Z' } }) })
+  }
+  const moveNvdaTo = (value) => {
+    const select = within(screen.getByText('NVDA thesis').closest('article')).getByRole('combobox')
+    select.focus()
+    fireEvent.change(select, { target: { value } })
+  }
+
+  it('lands on the moved card while the write is in flight, then on its <select>', async () => {
+    const land = pendingFetch()
+    renderBoard()
+    moveNvdaTo('closed')
+    const card = within(columnNamed('Closed')).getByText('NVDA thesis').closest('article')
+    await waitFor(() => expect(card.contains(document.activeElement)).toBe(true))
+    expect(document.activeElement).not.toBe(document.body)
+    land()
+    await waitFor(() => {
+      const select = within(within(columnNamed('Closed')).getByText('NVDA thesis').closest('article')).getByRole('combobox')
+      expect(select.disabled).toBe(false)
+      expect(document.activeElement).toBe(select)
+    })
+  })
+
+  it('never takes focus back from where the member has put it since', async () => {
+    const land = pendingFetch()
+    renderBoard()
+    moveNvdaTo('closed')
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body))
+    const groupBy = screen.getByLabelText('Group by')
+    groupBy.focus()
+    land()
+    await waitFor(() => expect(onChanged).toHaveBeenCalled())
+    expect(document.activeElement).toBe(groupBy)
+  })
+
+  it('a card that leaves the board hands focus to the board, never to <body>', async () => {
+    pendingFetch()
+    const { rerender } = renderBoard()
+    moveNvdaTo('closed')
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body))
+    rerender(
+      <NoteBoardView
+        notes={NOTES.filter((n) => n.id !== 'n1')}
+        propertyDefs={[STATUS, CONF]}
+        onOpenNote={vi.fn()}
+        blockedNoteIds={new Set()}
+        onChanged={onChanged}
+      />,
+    )
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Group by')))
+  })
+})
+

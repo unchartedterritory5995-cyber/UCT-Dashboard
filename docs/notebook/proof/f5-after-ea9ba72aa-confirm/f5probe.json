@@ -1,0 +1,1409 @@
+{
+ "control": {
+  "phone": {
+   "mode": "phone",
+   "pan_found": true,
+   "pans_px": 1010,
+   "cover_found": true,
+   "baseline_main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   }
+  },
+  "tablet": {
+   "mode": "tablet",
+   "pan_found": true,
+   "pans_px": 580,
+   "cover_found": true,
+   "baseline_main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   }
+  },
+  "desktop": {
+   "mode": "desktop",
+   "pan_found": true,
+   "pans_px": 260,
+   "cover_found": true,
+   "baseline_main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   }
+  }
+ },
+ "overflow": [
+  {
+   "surface": "nb-list",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-list",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-list",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-table",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-table",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-table",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-board",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-board",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-board",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-calendar",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-calendar",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-calendar",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-timeline",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-timeline",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-timeline",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-search",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-search",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-search",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-bulk",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-bulk",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-bulk",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-import",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-import",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-import",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-saved-view",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-saved-view",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-saved-view",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-publish-folder",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-publish-folder",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-publish-folder",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-home",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-home",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-home",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-graph",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-graph",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-graph",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-tasks",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-tasks",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-tasks",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-trash",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-trash",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-trash",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-note",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "vw": 390,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 390,
+    "clientW": 390,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-note",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "vw": 820,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 820,
+    "clientW": 820,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  },
+  {
+   "surface": "nb-note",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "vw": 1200,
+   "main": {
+    "overflowX": "auto",
+    "scrollW": 1140,
+    "clientW": 1140,
+    "pans_px": 0
+   },
+   "doc": {
+    "scrollW": 1200,
+    "clientW": 1200,
+    "pans_px": 0
+   },
+   "chain": [],
+   "wide": []
+  }
+ ],
+ "board": [
+  {
+   "found": true,
+   "container": {
+    "overflowX": "auto",
+    "scrollW": 1348,
+    "clientW": 302,
+    "left": 44,
+    "right": 346,
+    "pans_px": 1046,
+    "position": "relative",
+    "scrollbar_px": 0,
+    "scrollbarWidth": "thin",
+    "scrollbarColor": "rgb(207, 202, 192) rgba(0, 0, 0, 0)"
+   },
+   "visible_right": 346,
+   "visible_right_by": "DIV._columns_k2n9q_97",
+   "columns": [
+    {
+     "label": "Watching",
+     "left": 44,
+     "right": 304
+    },
+    {
+     "label": "Active",
+     "left": 316,
+     "right": 576
+    },
+    {
+     "label": "Invalidated",
+     "left": 588,
+     "right": 848
+    },
+    {
+     "label": "Closed",
+     "left": 860,
+     "right": 1120
+    },
+    {
+     "label": "No value",
+     "left": 1132,
+     "right": 1392
+    }
+   ],
+   "beyond_visible_right": [
+    "Active",
+    "Invalidated",
+    "Closed",
+    "No value"
+   ],
+   "ancestors_wider_than_their_box": [],
+   "mode": "phone",
+   "width": 390
+  },
+  {
+   "found": true,
+   "container": {
+    "overflowX": "auto",
+    "scrollW": 1348,
+    "clientW": 466,
+    "left": 310,
+    "right": 776,
+    "pans_px": 882,
+    "position": "relative",
+    "scrollbar_px": 0,
+    "scrollbarWidth": "thin",
+    "scrollbarColor": "rgb(207, 202, 192) rgba(0, 0, 0, 0)"
+   },
+   "visible_right": 776,
+   "visible_right_by": "DIV._columns_k2n9q_97",
+   "columns": [
+    {
+     "label": "Watching",
+     "left": 310,
+     "right": 570
+    },
+    {
+     "label": "Active",
+     "left": 582,
+     "right": 842
+    },
+    {
+     "label": "Invalidated",
+     "left": 854,
+     "right": 1114
+    },
+    {
+     "label": "Closed",
+     "left": 1126,
+     "right": 1386
+    },
+    {
+     "label": "No value",
+     "left": 1398,
+     "right": 1658
+    }
+   ],
+   "beyond_visible_right": [
+    "Active",
+    "Invalidated",
+    "Closed",
+    "No value"
+   ],
+   "ancestors_wider_than_their_box": [],
+   "mode": "tablet",
+   "width": 820
+  },
+  {
+   "found": true,
+   "container": {
+    "overflowX": "auto",
+    "scrollW": 1348,
+    "clientW": 786,
+    "left": 370,
+    "right": 1156,
+    "pans_px": 562,
+    "position": "relative",
+    "scrollbar_px": 0,
+    "scrollbarWidth": "thin",
+    "scrollbarColor": "rgb(207, 202, 192) rgba(0, 0, 0, 0)"
+   },
+   "visible_right": 1156,
+   "visible_right_by": "DIV._columns_k2n9q_97",
+   "columns": [
+    {
+     "label": "Watching",
+     "left": 370,
+     "right": 630
+    },
+    {
+     "label": "Active",
+     "left": 642,
+     "right": 902
+    },
+    {
+     "label": "Invalidated",
+     "left": 914,
+     "right": 1174
+    },
+    {
+     "label": "Closed",
+     "left": 1186,
+     "right": 1446
+    },
+    {
+     "label": "No value",
+     "left": 1458,
+     "right": 1718
+    }
+   ],
+   "beyond_visible_right": [
+    "Invalidated",
+    "Closed",
+    "No value"
+   ],
+   "ancestors_wider_than_their_box": [],
+   "mode": "desktop",
+   "width": 1200
+  }
+ ],
+ "coachmark": [
+  {
+   "what": "coachmark",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": true,
+    "tour_box": [
+     0,
+     653,
+     390,
+     191
+    ]
+   },
+   "screenshot": "r212040-f5-coach-nb-first-run-390.png"
+  },
+  {
+   "what": "coachmark",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": true,
+    "tour_box": [
+     0,
+     1009,
+     820,
+     171
+    ]
+   },
+   "screenshot": "r212040-f5-coach-nb-first-run-820.png"
+  },
+  {
+   "what": "coachmark",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": true,
+    "tour_box": [
+     816,
+     596,
+     360,
+     180
+    ]
+   },
+   "screenshot": "r212040-f5-coach-nb-first-run-1200.png"
+  },
+  {
+   "what": "coachmark",
+   "found": true,
+   "position": "static",
+   "box": [
+    12,
+    58,
+    366,
+    99
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": false
+   },
+   "screenshot": "r212040-f5-coach-nb-note-first-run-390.png"
+  },
+  {
+   "what": "coachmark",
+   "found": true,
+   "position": "static",
+   "box": [
+    20,
+    60,
+    780,
+    66
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": false
+   },
+   "screenshot": "r212040-f5-coach-nb-note-first-run-820.png"
+  },
+  {
+   "what": "coachmark",
+   "found": true,
+   "position": "static",
+   "box": [
+    80,
+    12,
+    1072,
+    66
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED",
+   "tour": {
+    "tour_open": false
+   },
+   "screenshot": "r212040-f5-coach-nb-note-first-run-1200.png"
+  }
+ ],
+ "voicehint": [
+  {
+   "what": "voicehint",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED"
+  },
+  {
+   "what": "voicehint",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED"
+  },
+  {
+   "what": "voicehint",
+   "found": false,
+   "surface": "nb-first-run",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED"
+  },
+  {
+   "what": "voicehint",
+   "found": true,
+   "position": "relative",
+   "box": [
+    60,
+    1464,
+    250,
+    62
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "phone",
+   "width": 390,
+   "status": "MEASURED"
+  },
+  {
+   "what": "voicehint",
+   "found": true,
+   "position": "relative",
+   "box": [
+    487,
+    626,
+    250,
+    62
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "tablet",
+   "width": 820,
+   "status": "MEASURED"
+  },
+  {
+   "what": "voicehint",
+   "found": true,
+   "position": "relative",
+   "box": [
+    436,
+    328,
+    250,
+    62
+   ],
+   "intersects": [],
+   "intersects_on_top": 0,
+   "surface": "nb-note-first-run",
+   "mode": "desktop",
+   "width": 1200,
+   "status": "MEASURED"
+  }
+ ],
+ "skiplink": [
+  {
+   "tabs": [
+    {
+     "name": "Today",
+     "found": true,
+     "box": [
+      24,
+      233,
+      62,
+      51
+     ],
+     "hit": "a._skipLink_14re1_1119 \"Skip to notes list\"",
+     "hit_is_tab": false,
+     "hit_in_skip_link": true
+    },
+    {
+     "name": "Trades",
+     "found": true,
+     "box": [
+      90,
+      233,
+      63,
+      51
+     ],
+     "hit": "a._skipLink_14re1_1119 \"Skip to notes list\"",
+     "hit_is_tab": false,
+     "hit_in_skip_link": true
+    }
+   ],
+   "skip_links": [
+    {
+     "text": "Skip to notes list",
+     "href": "#notebook-pane",
+     "box": [
+      32,
+      225,
+      128,
+      44
+     ],
+     "transform": "matrix(1, 0, 0, 1, 0, -88)",
+     "opacity": "1",
+     "visibility": "visible",
+     "zIndex": "7"
+    }
+   ],
+   "screenshot": "r212040-f5-skiplink-390.png"
+  }
+ ],
+ "control_ok": true,
+ "seconds": 229.5
+}

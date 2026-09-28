@@ -51,7 +51,7 @@ function installFetch() {
       server.prefs = { ...server.prefs, [key]: value }
       return json(200, { ok: true })
     }
-    if (url === SAMPLE_URL && method === 'GET') return json(200, server.status)
+    if (url === SAMPLE_URL && method === 'GET') return server.getStatus ? server.getStatus() : json(200, server.status)
     if (url === SAMPLE_URL && method === 'POST') return server.post()
     if (url === SAMPLE_URL && method === 'DELETE') return server.del()
     return json(404, { detail: 'Not Found' })
@@ -244,6 +244,21 @@ describe('the sample strip', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('The sample notes are in Trash. You can restore them from there.')
     expect(calls('DELETE')).toHaveLength(1)
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Remove it' })).toBeNull())
+  })
+
+  // ⛔ Wave 10 F7 (Part A, 5d): the status read that decides whether the strip shows used to
+  // answer `null` on a 500, so the strip vanished without a word, as if the sample were gone.
+  // It is said now, and Try again asks again.
+  it('a failed status read is said, never taken for "the sample is gone"; Try again brings the strip', async () => {
+    let fail = true
+    server.getStatus = async () => (fail ? json(500, {}) : json(200, server.status))
+    renderHome({ hasAnyNotes: true })
+    expect(await screen.findByText("Couldn't load your sample notebook's status.")).toBeInTheDocument()
+    expect(screen.queryByText("You're looking at the sample notebook —")).toBeNull()
+    fail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText("You're looking at the sample notebook —")).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText("Couldn't load your sample notebook's status.")).toBeNull())
   })
 
   it('a failed remove shows its sentence and keeps the strip', async () => {

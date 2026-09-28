@@ -5,6 +5,7 @@ import MobileNav from './MobileNav'
 import CommandPalette from './CommandPalette'
 import CaptureHost from '../pages/journal-2-0/components/notebook/CaptureHost'
 import FeedbackWidget from './FeedbackWidget'
+import { registerFirstRunSlot } from './firstRun/firstRunStage'
 import HubRoot from '../hub/HubRoot'
 import NotebookHubSection from '../hub/sections/NotebookHubSection'
 import HomeHubSection from '../hub/sections/HomeHubSection'
@@ -18,6 +19,7 @@ import usePreferences from '../hooks/usePreferences'
 import { initBarsPack } from '../lib/barsPackClient'
 import { APP_THEME_BY_ID, isUctTheme, uctThemeId, applyAppTheme, clearAppThemeVars, writeThemeCache } from '../styles/appThemes'
 import { titleForPath } from '../surfaces/pageTitle.js'
+import { SkipLinkSlotContext, MAIN_CONTENT_ID } from './skipLinks'
 import styles from './Layout.module.css'
 
 function usePageTracking() {
@@ -126,10 +128,32 @@ export default function Layout({ children }) {
   // single read already means "hub enabled AND the viewport is touch."
   const hubActive = useHubActive()
 
+  // F4 / A2R-01 (WCAG 2.4.1): "Skip to main content" moves focus to <main>, which takes focus
+  // only programmatically (tabIndex -1). ⛔ Focused here, never by the anchor's own jump: a bare
+  // `#main-content` navigation would change the router's location for every page in the app.
+  const mainRef = useRef(null)
+  const skipToMain = (e) => {
+    e.preventDefault()
+    mainRef.current?.focus()
+  }
+  // The slot a page's own skip link renders into (components/skipLinks.jsx), so it is the
+  // SECOND Tab stop, right after this one.
+  const [skipSlot, setSkipSlot] = useState(null)
+
   return (
+    <SkipLinkSlotContext.Provider value={skipSlot}>
     <TickerHubProvider>
       <MoreSheetContext.Provider value={openMore}>
         <div className={styles.shell}>
+          {/* ⛔ FIRST in the shell, before the nav: the first Tab stop on every page. Hidden until
+              it takes focus (Layout.module.css); a fixed, zero-size box, so it moves no layout.
+              Rail: components/Layout.skipLink.test.jsx. */}
+          <div className={styles.skipLinks}>
+            <a href={`#${MAIN_CONTENT_ID}`} className={styles.skipLink} onClick={skipToMain}>
+              Skip to main content
+            </a>
+            <span ref={setSkipSlot} data-skip-link-slot="" />
+          </div>
           {/* Desktop sidebar — hidden at <=1024px via CSS */}
           <NavBar onOpenPalette={openPalette} />
           {/* Mobile top bar — shown at <=1024px via CSS. Its top-left menu
@@ -146,7 +170,7 @@ export default function Layout({ children }) {
               provider — no DOM node of its own — so wrapping it here changes
               nothing about what renders below when the hub is off. */}
           <HubProvider>
-            <main className={styles.main}>
+            <main id={MAIN_CONTENT_ID} ref={mainRef} tabIndex={-1} className={styles.main}>
               {/* ⭐ The app's route-level <Suspense> in App.jsx wraps the WHOLE
                   <Routes>, so a section whose chunk is not resolved yet unmounts
                   the ENTIRE shell — this nav, the header, everything — behind the
@@ -162,6 +186,11 @@ export default function Layout({ children }) {
                   the nav would restore the old behaviour.
 
                   Rail: components/Layout.routeSuspense.test.jsx. */}
+              {/* Wave 10 follow-up F5: the first-run slot. A one-time card (the voice orb's
+                  "Meet Compass") is portaled HERE, so it sits in the page flow and pushes the
+                  page down instead of floating over a control. Empty, it has no box at all.
+                  components/firstRun/firstRunStage.js; rail Layout.firstRunSlot.test.jsx. */}
+              <div ref={registerFirstRunSlot} data-first-run-slot="" />
               <Suspense fallback={<div className={styles.routeFallback} aria-busy="true" />}>
                 {children ?? <Outlet />}
               </Suspense>
@@ -207,5 +236,6 @@ export default function Layout({ children }) {
         </div>
       </MoreSheetContext.Provider>
     </TickerHubProvider>
+    </SkipLinkSlotContext.Provider>
   )
 }

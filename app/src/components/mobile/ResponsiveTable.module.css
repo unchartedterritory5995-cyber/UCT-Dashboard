@@ -23,6 +23,15 @@
 }
 .clickable { cursor: pointer; }
 .table tbody tr.clickable:hover { background: var(--bg-hover); }
+/* F4 / A2R-02: a row that opens on Enter shows where the keyboard is. The ring is drawn
+   INSIDE the row: an outer ring on a table row is clipped by the scroll container in
+   phone-scroll mode. Keyboard focus only (the app-wide `:focus:not(:focus-visible)` rule
+   keeps a mouse click quiet). */
+.table tbody tr.clickable:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+  background: var(--bg-hover);
+}
 
 .empty {
   padding: var(--space-2xl);
@@ -63,6 +72,10 @@
   padding: var(--space-md);
 }
 .card.clickable:active { background: var(--bg-hover); }
+.card.clickable:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
 
 .cardHead {
   display: flex;

@@ -37,7 +37,12 @@
   padding-left: 12px;
   font-style: italic;
 }
-.hint { margin: 4px 0 0; font-size: 11px; opacity: 0.6; }
+/* Wave 10 follow-up F5 (axe color-contrast, light theme): `opacity: 0.6` over the
+   inherited text colour measured 4.12:1 in light (#74777a on #f4f5f6) -- under 1.4.3's
+   4.5. The dimming now comes from the theme's own secondary-text token, which every
+   theme declares at >= 4.5:1, never from opacity and never a hard-coded colour.
+   Rail: CaptureDialog.hintContrast.test.js. */
+.hint { margin: 4px 0 0; font-size: 11px; color: var(--text-muted); }
 
 .refusal, .error, .saved {
   margin-top: 12px; padding: 9px 11px; border-radius: 6px; font-size: 13px; line-height: 1.45;

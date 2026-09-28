@@ -263,8 +263,19 @@ const PdfDocumentViewer = forwardRef(function PdfDocumentViewer(
     return <div className={styles.errorState}>{error}</div>
   }
 
+  // Wave 10 follow-up F5 (axe `scrollable-region-focusable`, all three themes): the
+  // pages scroll here and nothing inside can take focus (canvases and a text layer),
+  // so a keyboard member could not reach the region to scroll it. It is a named,
+  // focusable region now: Tab lands on it, and the arrow keys and Page Up / Page Down
+  // scroll it (the browser's own behaviour for a focused scroller).
   return (
-    <div className={styles.scroll} ref={scrollRef}>
+    <div
+      className={styles.scroll}
+      ref={scrollRef}
+      tabIndex={0}
+      role="region"
+      aria-label="Document pages"
+    >
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {pdf && baseViewport && virtualizer.getVirtualItems().map((vi) => (
           <PdfPage

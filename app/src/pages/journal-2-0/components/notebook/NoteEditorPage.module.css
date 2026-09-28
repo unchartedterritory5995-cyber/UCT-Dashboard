@@ -38,6 +38,15 @@
   background: var(--bg);
 }
 .toolbarRow .toolBtn { padding: 3px 8px; font-size: 12px; }
+/* Wave 10 follow-up F5 (design review D-6): at 1200 px the formatting row's buttons
+   rendered 22 px tall (B, I, H1, H2, the lists, quote, code, the rule) and I 21 px
+   wide -- under WCAG 2.5.8's 24 px. A FLOOR, not a restyle: min-* only, so a button
+   that already has the room keeps its size. DESKTOP ONLY on purpose: this selector
+   outranks the touch tier's bare `.toolBtn` below, so an unscoped floor here would
+   pull a phone's 44 px down to 24. Rail: a11y/targetFloors.test.js. */
+@media (min-width: 1025px) {
+  .toolbarRow .toolBtn { min-height: 24px; min-width: 24px; }
+}
 .toolbarExports {
   margin-left: auto;
   display: flex;
@@ -213,7 +222,11 @@
 }
 .fontSelect { min-width: 104px; max-width: 150px; }
 .fontSizeSelect { width: 58px; }
-.fontSelect:focus, .fontSizeSelect:focus { outline: none; border-color: var(--ut-gold); }
+/* F4 / A2R-11: the two toolbar selects showed keyboard focus only as a 1 px border colour
+   change -- every other control has the app's 2 px gold ring (tokens.css `:focus-visible`).
+   They no longer suppress that ring; the gold border stays as the pointer-focus cue.
+   Rail: a11y/fontSelectFocus.test.js. */
+.fontSelect:focus, .fontSizeSelect:focus { border-color: var(--ut-gold); }
 .fontSelect:hover, .fontSizeSelect:hover { border-color: var(--ut-gold); }
 .toolBtn {
   background: transparent;

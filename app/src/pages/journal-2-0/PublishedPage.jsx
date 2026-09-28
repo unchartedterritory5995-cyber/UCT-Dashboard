@@ -62,7 +62,7 @@ export default function PublishedPage() {
     // switched off all answer the same 404 on the server.
     return (
       <div className={styles.page}>
-        <PublicPageMeta />
+        <PublicPageMeta title="This page is no longer available" />
         <main className={styles.centered} data-testid="published-page-gone">
           <h1 className={styles.goneTitle}>This page is no longer available.</h1>
           <p className={styles.goneWhy}>It may have expired, or been unpublished or removed.</p>
@@ -73,7 +73,9 @@ export default function PublishedPage() {
   const { data } = state
   return (
     <div className={styles.page} data-testid="published-page">
-      <PublicPageMeta />
+      <PublicPageMeta
+        title={data.kind === 'folder' ? (data.title || 'Published notes') : (data.note.title || 'Untitled')}
+      />
       <main>
         {data.kind === 'folder'
           ? <FolderIndex slug={slug} title={data.title} notes={data.notes} />

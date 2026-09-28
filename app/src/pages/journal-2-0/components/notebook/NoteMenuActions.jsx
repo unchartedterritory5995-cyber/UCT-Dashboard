@@ -25,8 +25,18 @@
  *
  * ⛔ The sentence that says what happened is rendered HERE, by a component that
  * stays mounted after the action (neither action closes the note).
+ *
+ * ⛔ F4 / A2R-07 (WCAG 2.4.3): LOCK AND ARCHIVE KEEP FOCUS. They were `disabled` while
+ * their write was in flight, and a browser takes focus off a control the moment it is
+ * disabled -- lane 10E-2's keyboard walk found focus on <body> after Lock and after
+ * Archive. They now say busy with `aria-disabled` (a second press is still refused, by
+ * `run`'s own guard), so the member stays on the button that now reads Unlock/Unarchive.
+ * The same for the two inline doors: closing the template-name form (Cancel, or a saved
+ * template) or the Open-beside search (Escape) puts focus back on the button that opened
+ * it, which re-mounts in its place -- never <body>.
+ * Rail: NoteMenuActions.test.jsx ("keyboard" block).
  */
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { noteIsArchived, setNoteArchived } from '../../lib/noteArchive'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -66,6 +76,19 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   const [status, setStatus] = useState(null) // { message, tone }
   const [templateDraft, setTemplateDraft] = useState(null) // string while naming
   const [pickingBeside, setPickingBeside] = useState(false)
+  // F4 / A2R-07: which door's button to hand focus back to once its inline form has closed.
+  const templateBtnRef = useRef(null)
+  const besideBtnRef = useRef(null)
+  const refocusRef = useRef(null) // null | 'template' | 'beside'
+  useEffect(() => {
+    const which = refocusRef.current
+    if (!which) return
+    const btn = which === 'template' ? templateBtnRef.current : besideBtnRef.current
+    if (!btn) return   // the form is still up; try again after the next render
+    refocusRef.current = null
+    const active = document.activeElement
+    if (!active || active === document.body) btn.focus()
+  })
   if (!note?.id) return null
   const archived = noteIsArchived(note)
   const locked = noteIsLocked(note)
@@ -139,7 +162,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
     }, {
       done: `Saved “${(name || '').trim() || note.title?.trim() || 'Untitled template'}” as a template. Pick it under Your templates when you make a new note.`,
       failed: "Couldn't save this note as a template. Nothing was saved.",
-    }).then((ok) => { if (ok) setTemplateDraft(null) })
+    }).then((ok) => { if (ok) { refocusRef.current = 'template'; setTemplateDraft(null) } })
   }
 
   return (
@@ -148,7 +171,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         type="button"
         className={`${styles.btn} ${locked ? styles.btnOn : ''}`}
         onClick={toggleLock}
-        disabled={busy}
+        aria-disabled={busy || undefined}
         title={locked
           ? 'Turn editing back on for this note'
           : 'Protect this note from accidental edits'}
@@ -160,7 +183,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         type="button"
         className={styles.btn}
         onClick={toggleArchive}
-        disabled={busy}
+        aria-disabled={busy || undefined}
         title={archived
           ? 'Bring this note back to your notes, in its own folder'
           : 'Take this note out of your lists without deleting it'}
@@ -170,6 +193,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
       </button>
       {templateDraft === null ? (
         <button
+          ref={templateBtnRef}
           type="button"
           className={styles.btn}
           onClick={() => { setStatus(null); setTemplateDraft(note.title || '') }}
@@ -191,7 +215,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
             autoFocus
           />
           <button type="submit" className={styles.btn} disabled={busy}>Save template</button>
-          <button type="button" className={styles.btn} onClick={() => setTemplateDraft(null)}>Cancel</button>
+          <button type="button" className={styles.btn} onClick={() => { refocusRef.current = 'template'; setTemplateDraft(null) }}>Cancel</button>
         </form>
       )}
       {onOpenBeside && (pickingBeside ? (
@@ -199,7 +223,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         // a note opens in one pane at a time.
         <NoteSearchPicker
           onPick={(picked) => { setPickingBeside(false); onOpenBeside(picked) }}
-          onCancel={() => setPickingBeside(false)}
+          onCancel={() => { refocusRef.current = 'beside'; setPickingBeside(false) }}
           exclude={[note.id, ...besideExclude]}
           inputLabel="Find a note to open beside"
           listLabel="Notes to open beside"
@@ -207,6 +231,7 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
         />
       ) : (
         <button
+          ref={besideBtnRef}
           type="button"
           className={styles.btn}
           onClick={() => { setStatus(null); setPickingBeside(true) }}

@@ -41,6 +41,53 @@
   overflow-y: auto;
   background: var(--bg);
 }
+/* F4 / A2R-01: "Skip to main content" lands here. A ring INSIDE the edge (the content area
+   fills the viewport, so an outer ring would be clipped), shown for keyboard focus only; the
+   next Tab moves on into the page. */
+.main:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+}
+
+/* ── F4 / A2R-01 (WCAG 2.4.1): the skip links ────────────────────────────────
+   A fixed, zero-size box at the top-left: it takes no space and moves no layout on
+   any page, at any width. Each link sits off-screen until it takes focus, then shows
+   with the gold ring. A page's own skip link (components/skipLinks.jsx) renders in
+   the same box, so it lands at the same spot when it is the one focused. Above every
+   layer, the toast included: a focused control nobody can see is not a focus
+   indicator. */
+.skipLinks {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: calc(var(--z-toast) + 1);
+}
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skipLink:focus {
+  transform: none;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+@media (max-width: 1024px) {
+  .skipLink {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+}
 
 /* Mobile shell spans phone + tablet (<=1024px): fixed top header + bottom tab bar. */
 @media (max-width: 1024px) {
