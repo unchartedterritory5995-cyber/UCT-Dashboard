@@ -24,6 +24,12 @@ import os
 import sys
 from datetime import date, timedelta
 
+# Run as a script from anywhere: `api` must import without PYTHONPATH=. (without
+# this, every ticker reported NOT COMPARED on the first real run).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 #: Named, not sampled: each carries a corporate action somebody can check by hand.
 #: NVDA 10:1 (2024-06-10) and 4:1 (2021-07-20) · AAPL 4:1 (2020-08-31) ·
 #: TSLA 3:1 (2022-08-25) · KO / JNJ / MO / T quarterly cash dividends.
