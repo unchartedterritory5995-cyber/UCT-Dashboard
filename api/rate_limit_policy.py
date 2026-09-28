@@ -198,7 +198,7 @@ FAMILIES: dict[str, Family] = {
          "/api/analogs", "/api/leader-persistence", "/api/confluence",
          "/api/confidence-scores", "/api/theme-index", "/api/theme-performance",
          "/api/theme-rotation", "/api/theme-sets", "/api/themes", "/api/groups",
-         "/api/compare", "/api/uct20", "/api/leadership", "/api/rundown", "/api/wire/archive",
+         "/api/compare", "/api/uct20", "/api/leadership", "/api/rundown", "/api/wire/archive", "/api/decision-record",
          "/api/candidates", "/api/dashboard", "/api/traders", "/api/signature",
          "/api/entity", "/api/terminal-next"),
     ),
