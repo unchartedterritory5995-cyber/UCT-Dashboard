@@ -70,20 +70,18 @@ beforeEach(() => {
 })
 afterEach(() => { __resetNotebookFlags(); vi.clearAllMocks() })
 
-async function mount() {
+async function mount(noteId = 'n1') {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   const div = document.createElement('div')
   document.body.appendChild(div)
-  render(
-    <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>,
-    { container: div },
-  )
+  const tree = () => <MemoryRouter><NoteEditorPage noteId={noteId} onBack={vi.fn()} showBack /></MemoryRouter>
+  const { rerender } = render(tree(), { container: div })
   const pm = await waitFor(() => {
     const el = div.querySelector('.ProseMirror')
     if (!el?.editor) throw new Error('editor not mounted')
     return el
   })
-  return { editor: pm.editor, pm, root: div }
+  return { editor: pm.editor, pm, root: div, rerender: () => rerender(tree()) }
 }
 
 const boldButton = (toolbar) => within(toolbar).getAllByRole('button').find((b) => b.textContent === 'B')
@@ -399,6 +397,30 @@ describe('NoteEditorPage — every toolbar control follows the editor while the 
     select(editor, 'Start')
     fireEvent.click(within(toolbar).getByRole('button', { name: 'Writing help' }))
     await waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull())
+  }, 60000)
+})
+
+describe('NoteEditorPage — editability still re-renders the page (wave 10 F1)', () => {
+  // `editor.isEditable` is the one editor fact the page reads in render, and it changes WITHOUT a
+  // transaction (the lock effect's setEditable). Unlocking arrives as a page render in which the
+  // editor is still read-only; only the lock effect's re-render lets writing help appear.
+  it('an unlock that arrives with the note brings writing help back', async () => {
+    AUTH.isPaid = true
+    latchNotebookFlags({ notebook_writing_help_enabled: true })
+    NOTES.lk = { ...NOTES.n1, id: 'lk', locked: true }
+    try {
+      const { editor, root, rerender } = await mount('lk')
+      await settle()
+      expect(editor.isEditable).toBe(false)
+      expect(within(root).queryByRole('button', { name: 'Writing help' })).toBeNull()
+      NOTES.lk = { ...NOTES.lk, locked: false }
+      act(() => { rerender() })
+      await settle()
+      expect(editor.isEditable).toBe(true)
+      expect(within(root).getByRole('button', { name: 'Writing help' })).toBeTruthy()
+    } finally {
+      delete NOTES.lk
+    }
   }, 60000)
 })
 
