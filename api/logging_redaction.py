@@ -63,6 +63,14 @@ REDACTED_QUERY_PATHS = frozenset({"/journal/share"})
 # should see that something was removed on purpose, not an oddly bare URL.
 REDACTION = "?<redacted>"
 
+# ⭐ TERM-086 (2026-09-28): paths whose NEXT SEGMENT is a credential. The
+# TradingView receiver's per-member secret is its path, so an access line would
+# carry a live bearer credential, not just member content. Everything after the
+# prefix (segment and query alike) is replaced; the prefix itself stays so the
+# line still says which door was knocked on.
+REDACTED_PATH_PREFIXES = ("/api/inbound-alerts/hook/",)
+PATH_REDACTION = "<redacted>"
+
 # uvicorn's access record positions the path+query third; see the module
 # docstring for the call this mirrors.
 _PATH_ARG = 2
@@ -83,7 +91,15 @@ class ShareQueryRedactionFilter(logging.Filter):
             if not isinstance(args, tuple) or len(args) <= _PATH_ARG:
                 return True
             target = args[_PATH_ARG]
-            if not isinstance(target, str) or "?" not in target:
+            if not isinstance(target, str):
+                return True
+            for prefix in REDACTED_PATH_PREFIXES:
+                if target.startswith(prefix):
+                    new = list(args)
+                    new[_PATH_ARG] = prefix + PATH_REDACTION
+                    record.args = tuple(new)
+                    return True
+            if "?" not in target:
                 return True
             path = target.split("?", 1)[0]
             if path not in REDACTED_QUERY_PATHS:
