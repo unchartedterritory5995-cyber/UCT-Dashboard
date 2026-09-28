@@ -241,6 +241,16 @@
       ],
       "note": ""
     },
+    "BARS_RAIL_PAGE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-013 / FB-OBS-02. Gates ONLY the S1 PAGE of the push-rail drop-counter reader (api/services/bars_rail_monitor.py): bars_emitted_total flat across 3 consecutive 60 s RTH polls with subscriber_pairs > 0 -> chart_health_alerts.emit('bars_stream_rail_silent', 'critical'), i.e. the OPS-class sink with TERM-016's durable 30-min cooldown. Dark because it pages humans; arming it is a person's act, ideally after reading a few days of the roll-up digest's 'page verdicts N, emitted 0', which counts how often it WOULD have fired. Set it to 1 on web ONLY (the reader is a thread on web, started by bars_continuous_audit.start()). Read per poll in page_enabled(), never at import; unset or 0 = no emit, so rollback is blanking it. NOT gated by it: the 60 s poll itself, the per-day drop ledger under $DATA_DIR/bars_rail (the S2 DIGEST, printed inside TERM-015's daily roll-up) and the 'bars-stream-rail' cadence heartbeat -- none of those pages anybody. SET NOWHERE as of 2026-09-28."
+    },
     "BRAIN_PACK_ENABLED": {
       "status": "armed",
       "where": [

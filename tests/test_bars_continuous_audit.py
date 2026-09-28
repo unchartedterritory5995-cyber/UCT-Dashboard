@@ -18,8 +18,13 @@ def test_start_is_idempotent():
     bca.start()
     bca.start()  # second call should no-op
     after = threading.active_count()
-    # At most 1 new thread
-    assert after - initial_count <= 1
+    # At most 2 new threads: the audit loop, and (TERM-013) the push-rail reader that
+    # start() now also starts. A second start() must add neither.
+    assert after - initial_count <= 2
+    from api.services import bars_rail_monitor
+    assert bars_rail_monitor._running.is_set()
+    bca.stop()
+    assert not bars_rail_monitor._running.is_set(), "stop() must stop the reader it started"
 
 
 def test_stop_halts_loop():
