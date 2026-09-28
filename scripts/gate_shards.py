@@ -343,6 +343,14 @@ GATE_READ_PATHS = (
     # and pins them to the editor's real schema -- a change to this file CAN change a suite
     # result, so a carry-over verdict must not cross it.
     "api/services/journal_two/note_citation_text.py",
+    # READ BY other workstreams' vitest suites (the Pine vendor harness; a Terminal decision-card
+    # census), found missing by the read-set rail on master 2026-09-27. Exact paths.
+    "docs/terminal-research/12-decisions/DECISION_CARDS_2026-09-26.md",
+    "tools/vendor_harness/adapters.mjs",
+    "tools/vendor_harness/compare.mjs",
+    "tools/vendor_harness/schema.mjs",
+    "tools/vendor_harness/tv_capture.js",
+    "tools/vendor_harness/verify_capture.mjs",
     # ⛔ READ BY app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js (wave 10,
     # lane 10C): the write-door census classifies every note door as loss / fork / none and
     # CITES its evidence -- it statSync()s each cited file and readFileSync()s the Python

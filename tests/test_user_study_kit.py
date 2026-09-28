@@ -147,9 +147,14 @@ def test_the_recruit_post_lives_in_ONE_file_and_asks_for_6_to_8():
     assert "**6–8 traders**" in _section(KIT.read_text(encoding="utf-8"), "1. Recruitment")
 
 
-def test_the_consent_form_is_marked_as_a_draft_needing_the_owner():
+def test_the_consent_form_is_approved_and_says_a_change_needs_fresh_approval():
+    """The owner approved the form on 2026-09-26 (wave 10, L1a); until then this rail pinned the DRAFT
+    banner, and it went red the day the approval landed. It now pins the approved state AND the
+    sentence that keeps it honest: any change to the text needs a fresh approval."""
     text = " ".join((STUDY / "consent.md").read_text(encoding="utf-8").split())
-    assert "DRAFT — owner approval required" in text
+    assert "Approved for use, 2026-09-26" in text
+    assert "DRAFT" not in text
+    assert "Any change to this text needs a fresh approval" in text
     for needle in ("30 days", "P1 to P8", "keep the thank-you", "never records what you write"):
         assert needle in text, needle
 
