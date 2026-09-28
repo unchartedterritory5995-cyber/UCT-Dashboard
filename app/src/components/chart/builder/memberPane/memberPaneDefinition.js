@@ -98,6 +98,22 @@ const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
  *  blue would present a guess as their choice; it stays uncarried. `fill`,
  *  `hline` and the candle outputs have their own defaults, not yet measured. */
 const DEFAULT_COLOURED_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
+
+/** ⛔⛔ H14, 2026-09-28 — OUTPUTS THIS PANE DOES NOT DRAW, with the sentence.
+ *
+ *  ⚰️ `MULTI_OUTPUT_CALLS` expands one `plotcandle(o, h, l, c)` into FOUR
+ *  outputs (roles open/high/low/close), and every one reached the row builder
+ *  as an ordinary plot — so a member's candle was drawn on production as four
+ *  separate `line` series, a picture TradingView never shows
+ *  (`smt-divergence-ict-01…__3f66e16b3c`: rows open/high/low/close, style
+ *  `line`). The pane has no candle to draw them with. Withheld and said by
+ *  name, the same way the runtime lane's `NOT_DRAWN` says it — one wording for
+ *  one fact, whichever engine carried the script. */
+const NOT_DRAWN_OUTPUTS = Object.freeze({
+  plotcandle: 'draws candles, which this pane does not draw yet',
+  plotbar: 'draws OHLC bars, which this pane does not draw yet',
+})
+const notDrawnKind = (o) => !!(o && Object.prototype.hasOwnProperty.call(NOT_DRAWN_OUTPUTS, o.kind))
 function tradingViewDefaultColour(output, version) {
   const p = output.presentation || {}
   if (!DEFAULT_COLOURED_KINDS.has(output.kind)) return p
@@ -175,8 +191,11 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // mistranslation wearing a label". Selection is `chooseOutput`'s and it already
   // declines a hidden row; this only decides what the document CONTAINS.
   // Carriage is not offer, and the acceptance pins that both ways.
+  // ⛔ A CANDLE OR OHLC BAR IS NOT CARRIED — see `NOT_DRAWN_OUTPUTS`. Its four
+  // roles are not four plots, and drawing them as lines is a mistranslation.
+  const notDrawn = [...new Set((t.outputs || []).filter(notDrawnKind).map((o) => o.kind))]
   const carryable = (t.outputs || [])
-    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition')
+    .filter((o) => o && o.ast && o.formula && !o.refusal && o.kind !== 'alertcondition' && !notDrawnKind(o))
   const visible = carryable.filter((o) => !o.hidden).slice(0, CARRY_MAX)
   const visibleSet = new Set(visible)
   const drawable = carryable
@@ -196,6 +215,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // did, and the fact that it now asks a second question is invisible.
   const drawsObjects = !withholdObjects && !!(t.objects && (t.objects.ops || []).length)
   if (!visible.length && !(allowObjectsOnly && drawsObjects)) {
+    // ⭐ A script whose only series is a candle is told WHY, by name — "declares
+    // nothing a chart can draw" would be false about a script that draws one.
+    if (notDrawn.length) {
+      return no(`this script ${notDrawn.map((k) => `\`${k}\` ${NOT_DRAWN_OUTPUTS[k]}`).join('; ')}`
+        + ', and it declares nothing else this pane can draw', 'pane:not-drawn', t)
+    }
     return no('this script declares nothing a chart can draw', null, t)
   }
 
@@ -569,7 +594,18 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     seen.add(`${drawingNote.name} :: ${drawingNote.note}`)
     notes.push(drawingNote)
   }
+  // ⭐ H14 — A WITHHELD CANDLE IS SAID, ONCE PER CALL KIND (its four roles are
+  // one thing on the author's chart, so they are one sentence here).
+  for (const kind of notDrawn) {
+    const n = { name: `\`${kind}\``, note: `This script's \`${kind}\` ${NOT_DRAWN_OUTPUTS[kind]}.` }
+    const key = `${n.name} :: ${n.note}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    notes.push(n)
+  }
   for (const o of (t.outputs || [])) {
+    // ⛔ A withheld output's fold notes would describe a series nobody sees.
+    if (notDrawnKind(o)) continue
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
       if (seen.has(key)) continue
