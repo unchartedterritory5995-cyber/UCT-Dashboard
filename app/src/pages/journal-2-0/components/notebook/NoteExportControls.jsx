@@ -211,6 +211,8 @@ export default function NoteExportControls({ noteId, title, columnRef, onMessage
           <UIcon name="chevronDown" size={12} gold={false} />
         </button>
         {menuOpen && (
+          // ⛔ KNOWN DEVIATION (K2 review M-6): a `role="menu"` whose Tab stays inside it -- the APG
+          // menu pattern closes on Tab; this follows the Notebook's one keep-Tab-inside contract.
           <div ref={menuRef} id={menuId} role="menu" aria-label="Export this note as"
             className={styles.menu} {...disclosureProps} onKeyDown={onMenuKeyDown}>
             {EXPORT_FORMATS.map((f, i) => (

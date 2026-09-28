@@ -155,3 +155,64 @@ describe('the door keeps the keyboard contract (K2)', () => {
     expect(ev.defaultPrevented).toBe(false)
   })
 })
+
+// Wave 10 lane K2, fix round 1.
+describe('fix round 1 (K2 review)', () => {
+  const realRect = HTMLElement.prototype.getBoundingClientRect
+  const realWidth = window.innerWidth
+  afterEach(() => {
+    HTMLElement.prototype.getBoundingClientRect = realRect
+    Object.defineProperty(window, 'innerWidth', { value: realWidth, configurable: true, writable: true })
+  })
+
+  it('I-1 + M-4: a LOCKED note -- no Writing help, no empty "Editor toolbar", and the panel opens on screen at 390', async () => {
+    NOTE = { ...baseNote(), locked: true }
+    Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true, writable: true })
+    // the box measured in a browser for this state (more-panel-before.json, 390-locked)
+    HTMLElement.prototype.getBoundingClientRect = function rect() {
+      if (this.getAttribute('role') === 'group' && this.getAttribute('aria-label') === 'More note actions') {
+        return { left: -75, right: 185, top: 450, bottom: 927, width: 260, height: 477, x: -75, y: 450 }
+      }
+      return realRect.call(this)
+    }
+    await renderEditor()
+    expect(screen.queryByRole('button', { name: 'Writing help' })).toBeNull()
+    expect(screen.queryByRole('toolbar', { name: 'Editor toolbar' })).toBeNull()
+    fireEvent.click(more())
+    expect(panel().style.transform).toBe('translateX(91px)')
+  })
+
+  it('CONTROL (M-4): an unlocked note keeps its formatting toolbar', async () => {
+    await renderEditor()
+    expect(screen.getByRole('toolbar', { name: 'Editor toolbar' })).toBeTruthy()
+  })
+
+  it('M-2: Escape inside the panel with the find bar open closes ONLY the panel; the find bar stays and focus is on More', async () => {
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Find in note' }))
+    const find = await screen.findByRole('searchbox', { name: 'Find in note' })
+    fireEvent.click(more())
+    const first = within(panel()).getAllByRole('button')[0]
+    first.focus()
+    fireEvent.keyDown(first, { key: 'Escape' })
+    expect(more()).toHaveAttribute('aria-expanded', 'false')
+    expect(document.activeElement).toBe(more())
+    expect(screen.getByRole('searchbox', { name: 'Find in note' })).toBe(find)
+  })
+
+  it('M-3: a tap on the Delete question\'s BACKDROP keeps the panel open and puts focus back on Delete', async () => {
+    await renderEditor()
+    fireEvent.click(more())
+    const del = within(panel()).getByRole('button', { name: 'Delete' })
+    del.focus()
+    fireEvent.click(del)
+    const dialog = await screen.findByRole('dialog', { name: 'Delete this note?' })
+    const backdrop = dialog.parentElement
+    expect(backdrop).toHaveAttribute('role', 'presentation')   // non-vacuity: this IS the backdrop
+    fireEvent.mouseDown(backdrop)
+    fireEvent.click(backdrop)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Delete this note?' })).toBeNull())
+    expect(more()).toHaveAttribute('aria-expanded', 'true')
+    expect(document.activeElement).toBe(within(panel()).getByRole('button', { name: 'Delete' }))
+  })
+})

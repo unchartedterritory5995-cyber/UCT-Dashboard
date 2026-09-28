@@ -20,7 +20,7 @@
   align-items: stretch;
   gap: 2px;
   min-width: 240px;
-  max-width: min(320px, calc(100vw - 24px));
+  max-width: min(320px, calc(100vw - 32px)); /* the 16 px gutter NoteMoreMenu.jsx clamps to */
   padding: 6px;
   background: var(--bg-surface);
   border: 1px solid var(--border);

@@ -3488,11 +3488,13 @@ export default function NoteEditorPage({
           discoverable surface, full-width under the header instead of split
           across a crowded header line. Sticky via the shared .chrome wrapper;
           data-export-exclude keeps the row out of the PNG rasterization. */}
-      {editor && (
+      {/* Wave 6: a locked note shows no editing controls at all -- a control that would do
+          nothing is hidden, never silent. Since wave 10 lane K2 (D-3) every control left in
+          this row is an editing control, so on a locked note the ROW is not rendered at all
+          (review M-4: it rendered as an empty, named toolbar). */}
+      {editor && !locked && (
         <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
-          {/* Wave 6: a locked note shows no editing controls at all -- a
-              control that would do nothing is hidden, never silent. */}
-          {!locked && (<>
+          <>
             {/* Wave 10 (G-144): Undo / Redo on the touch tier. A phone has no
                 Ctrl+Z, so without these a mistaken tap on a phone had no way
                 back. Shown only at <=1024px (`.historyBtn`, like Scan); each
@@ -3688,7 +3690,7 @@ export default function NoteEditorPage({
           >
             ⊞ Insert
           </button>
-          </>)}
+          </>
           {/* Wave 10 lane K2 (D-3): Outline moved to the header row; PNG, Print, Export and the
               word count moved into "More note actions". The row is the formatting controls. */}
         </div>

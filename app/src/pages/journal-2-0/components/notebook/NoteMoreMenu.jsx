@@ -21,14 +21,34 @@
  * ⛔ IT STAYS OPEN WHILE AN ACTION'S OWN DIALOG IS UP. Delete asks first (ConfirmModal), and the
  * confirmation hands focus back to the Delete that opened it; a panel that had closed underneath
  * would leave that button hidden and focus on <body> (F7 part C's rule). So a press inside an
- * `aria-modal` dialog never counts as a press outside this panel.
+ * `aria-modal` dialog never counts as a press outside this panel -- nor does a press on that
+ * dialog's BACKDROP (K2 fix round 1, review M-3): the backdrop is the modal's parent, not inside
+ * it, so a tap outside the "Delete this note?" card closed the panel first and the question then
+ * handed focus back to a Delete that was hidden -- <body>. While any modal is up, this panel is
+ * not the thing a press outside it is about.
+ *
+ * ⛔ IT STAYS ON SCREEN (K2 fix round 1, review I-1). It hangs from the door's right edge; at
+ * 390 px on a LOCKED note (no Writing help in the header, so the door sits further left) it was
+ * measured at x -75..185, and pressing Lock inside the open panel made it jump there. After every
+ * render while open (a reflow moves the door) and on a resize, the panel is measured and shifted
+ * so it sits wholly inside a 16 px gutter (`onScreenShift`). Measured before/after:
+ * docs/notebook/evidence/d3-controls-2026-09-28/more-panel-*.json.
  */
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import styles from './NoteMoreMenu.module.css'
 
 export const MORE_NOTE_ACTIONS = 'More note actions'
+export const PANEL_GUTTER = 16
+
+/** How far to move a box spanning [left, right] so it sits inside [gutter, viewport - gutter]
+ *  (the left edge wins when the box is wider than the room). */
+export function onScreenShift(left, right, viewport, gutter = PANEL_GUTTER) {
+  if (left < gutter) return gutter - left
+  if (right > viewport - gutter) return Math.max(gutter - left, viewport - gutter - right)
+  return 0
+}
 
 export default function NoteMoreMenu({ children, buttonClassName = '' }) {
   const [open, setOpen] = useState(false)
@@ -45,7 +65,9 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
     const onDown = (e) => {
       const t = e.target
       if (panelRef.current?.contains(t) || triggerRef.current?.contains(t)) return
-      if (t?.closest?.('[aria-modal="true"]')) return   // an action's own dialog (Delete asks first)
+      // An action's own dialog is up (Delete asks first): a press in it OR on its backdrop is
+      // about the dialog, never about this panel (M-3).
+      if (document.querySelector('[aria-modal="true"]')) return
       setOpen(false)
     }
     document.addEventListener('mousedown', onDown)
@@ -55,6 +77,23 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
       document.removeEventListener('touchstart', onDown)
     }
   }, [open])
+
+  const place = useCallback(() => {
+    const el = panelRef.current
+    if (!el) return
+    el.style.transform = ''
+    if (el.hidden) return
+    const r = el.getBoundingClientRect()
+    const dx = onScreenShift(r.left, r.right, window.innerWidth)
+    if (dx) el.style.transform = `translateX(${Math.round(dx)}px)`
+  }, [])
+  // After EVERY render while open: Lock unmounts Writing help and the door moves under the panel.
+  useLayoutEffect(() => { if (open) place() })
+  useEffect(() => {
+    if (!open) return undefined
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [open, place])
 
   return (
     <span className={styles.anchor}>
