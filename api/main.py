@@ -8430,6 +8430,16 @@ app.add_middleware(CompassPaywallMiddleware)
 # GZip → CORS → AdminGuard → CompassPaywall → Maintenance → router.
 from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
 app.add_middleware(_AdminGuard)
+# ⭐ TERM-080 — RATE_LIMIT_POLICY (api/rate_limit_policy.py): one declared
+# per-route-family limit table over the WHOLE route table, through the shared
+# limiter, staged off/shadow/enforce. Unset = returns after one env read, so
+# deploying it changes nothing. Added here so it runs INSIDE CORS (a 429 still
+# carries CORS headers) and OUTSIDE the admin guard. The partner routers are
+# covered at their prefixes; neither file is edited. Rail:
+# tests/test_rate_limit_policy.py (behaviour + the route census).
+from api import rate_limit_policy as _rate_limit_policy
+app.add_middleware(_rate_limit_policy.RateLimitPolicyMiddleware)
+app.include_router(_rate_limit_policy.router)   # GET /api/admin/rate-limit-policy (require_admin)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
