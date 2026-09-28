@@ -13,6 +13,7 @@
  * focused button) or **Trash anyway**.
  */
 import { useEffect, useId, useRef } from 'react'
+import useFocusTrap from '../../../../components/mobile/useFocusTrap'
 import shellStyles from '../ModalShell.module.css'
 
 export const UNSENT_TRASH_TITLE = 'This note has words the server doesn’t have yet'
@@ -20,13 +21,21 @@ export const UNSENT_TRASH_TITLE = 'This note has words the server doesn’t have
 export default function UnsentTrashDialog({ what, sending = false, still = false, onSendFirst, onTrashAnyway, onClose }) {
   const titleId = useId()
   const sendRef = useRef(null)
-
+  const dialogRef = useRef(null)
+  // F4 (A2R-05's second dialog in the same Delete flow): the same two defects as
+  // ConfirmModal. The mount work depended on `onClose`, a fresh arrow from the editor on
+  // every render, so each re-render pulled focus back to Send first; and Tab walked out of
+  // this aria-modal dialog. The focus now opens ONCE on the safe default (Send first), and
+  // the ONE trap keeps Tab inside. Rail: UnsentTrashDialog.test.jsx.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.() }
     window.addEventListener('keydown', onKey)
     sendRef.current?.focus()
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
+  useFocusTrap(true, dialogRef)
 
   return (
     <div
@@ -34,7 +43,7 @@ export default function UnsentTrashDialog({ what, sending = false, still = false
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
       role="presentation"
     >
-      <div className={shellStyles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div ref={dialogRef} className={shellStyles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className={shellStyles.header}>
           <h2 id={titleId} className={shellStyles.title}>{UNSENT_TRASH_TITLE}</h2>
           <button type="button" className={shellStyles.xBtn} onClick={onClose} aria-label="Close">×</button>
