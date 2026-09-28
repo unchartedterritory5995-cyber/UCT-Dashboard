@@ -55,6 +55,8 @@ import WidgetPalette from './WidgetPalette'
 // live in their own files so neither lane edits this one.
 import NoteShareControls from './NoteShareControls'
 import NoteExportControls from './NoteExportControls'
+import NoteMoreMenu from './NoteMoreMenu'
+import moreStyles from './NoteMoreMenu.module.css'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
 import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
@@ -3312,16 +3314,6 @@ export default function NoteEditorPage({
             <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
             Find
           </button>
-          <button
-            type="button"
-            className={styles.chromeBtn}
-            onClick={() => setHistoryOpen(true)}
-            title="See earlier versions of this note and restore one"
-            aria-label="Version history"
-          >
-            <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            History
-          </button>
           <NoteShareControls noteId={noteId} onMessage={setChromeMsg} />
           {/* Wave 8 (8A): the header's select and inputs carry names -- a
               placeholder vanishes once there is a value, and a select has none. */}
@@ -3344,43 +3336,102 @@ export default function NoteEditorPage({
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
           />
-          <NoteTagsField
-            tags={note.tags || []}
-            nodes={tagNodes}
-            busy={tagsBusy}
-            onAdd={(tag) => applyTagDelta({ add: [tag] })}
-            onRemove={(tag) => applyTagDelta({ remove: [tag] })}
-          />
           <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
           <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
-          <button
-            type="button"
-            className={styles.chromeBtn}
-            onClick={onDuplicate}
-            disabled={duplicating}
-            title="Create a copy of this note"
-            aria-label="Duplicate note"
-          >
-            <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            {duplicating ? 'Duplicating…' : 'Duplicate'}
-          </button>
-          <button type="button" className="btn btn-danger" onClick={onDeleteRequest}>
-            Delete
-          </button>
-          {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
-              actions (Lock, Archive, Save as template, Open beside). Lane E's
-              own file (NoteMenuActions.jsx) renders itself; this is the one
-              line that reads the render prop NotebookTab has passed since wave
-              6 landed.
-              M2 (wave 6 fix round 2): `unlockNote` is THIS editor's own
-              unlock — the one that lands the revision, moves the save
-              baseline when the server moved by metadata only, and settles
-              the offline queue (`settleMetadataRevision`). The menu's own
-              Unlock button used a second door (`setNoteLock` alone) that did
-              only the first of those three, costing the next save a 409 +
-              re-fetch; passing this through lets the menu route through the
-              SAME settle instead of restating a worse copy of it. */}
-          {noteMenu?.(note, { refresh, unlockNote, sendPendingEdits })}
+          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
+              so the formatting row fits ONE line at 1200 px. Both keep their names, their
+              `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
+          {editor && !locked && writingHelpOn && editor.isEditable && (
+            <button
+              type="button"
+              className={styles.chromeBtn}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={openWritingHelp}
+              aria-label="Writing help"
+              title="Writing help — summarize, rewrite, continue or translate"
+            >
+              <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Writing help
+            </button>
+          )}
+          {/* Wave 5: the note's outline (every heading, click to jump) -- a
+              panel beside the note on desktop, a sheet on touch. It shares
+              the palette's corner, so opening one closes the other. */}
+          {editor && (
+            <button
+              ref={outlineToggleRef}
+              type="button"
+              className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
+              onClick={() => { setPaletteOpen(false); setOutlineOpen((o) => !o) }}
+              aria-expanded={outlineOpen}
+              aria-label="Outline"
+              title="Outline — every heading in this note"
+            >
+              <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              Outline
+            </button>
+          )}
+          {/* Wave 10 lane K2 (design finding D-3): the page-level actions live behind ONE
+              "More note actions" door, Notion's "…" -- the review measured up to five rows of
+              controls above the title at 1200 px with a red Delete among the first. Delete is
+              LAST in it, apart from the rest; the tags moved under the title, beside the
+              note's other properties. Every action keeps its name and its keyboard door
+              (NoteMoreMenu.jsx; rails: NoteEditorPage.moreMenu.test.jsx). */}
+          {/* The tour's Export step points here now: the file doors are inside. */}
+          <span className={styles.tourWrap} data-tour="note-export">
+          <NoteMoreMenu buttonClassName={styles.chromeBtn}>
+            <button
+              type="button"
+              className={styles.chromeBtn}
+              onClick={() => setHistoryOpen(true)}
+              title="See earlier versions of this note and restore one"
+              aria-label="Version history"
+            >
+              <UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              History
+            </button>
+            <button
+              type="button"
+              className={styles.chromeBtn}
+              onClick={onDuplicate}
+              disabled={duplicating}
+              title="Create a copy of this note"
+              aria-label="Duplicate note"
+            >
+              <UIcon name="copy" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+              {duplicating ? 'Duplicating…' : 'Duplicate'}
+            </button>
+            {/* Wave 6 (lane E) fix round 1, I1 — the note menu's organisation
+                actions (Lock, Archive, Save as template, Open beside). Lane E's
+                own file (NoteMenuActions.jsx) renders itself; this is the one
+                line that reads the render prop NotebookTab has passed since wave
+                6 landed.
+                M2 (wave 6 fix round 2): `unlockNote` is THIS editor's own
+                unlock — the one that lands the revision, moves the save
+                baseline when the server moved by metadata only, and settles
+                the offline queue (`settleMetadataRevision`). The menu's own
+                Unlock button used a second door (`setNoteLock` alone) that did
+                only the first of those three, costing the next save a 409 +
+                re-fetch; passing this through lets the menu route through the
+                SAME settle instead of restating a worse copy of it. */}
+            {noteMenu?.(note, { refresh, unlockNote, sendPendingEdits })}
+            {editor && (<>
+              <div className={moreStyles.sep} role="separator" />
+              {/* Final review M-9: the four file formats are built from the server's copy, so
+                  this editor's pending edits are sent first (the Save-as-template precedent). */}
+              <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg}
+                onBeforeExport={sendPendingEdits} />
+              {/* Wave 5: word count + reading time (the selection's share while
+                  text is selected). */}
+              <div className={moreStyles.meta}><NoteStats editor={editor} /></div>
+            </>)}
+            <div className={moreStyles.sep} role="separator" />
+            <button type="button" className={`${styles.chromeBtn} ${moreStyles.danger}`} onClick={onDeleteRequest}>
+              Delete
+            </button>
+          </NoteMoreMenu>
+          </span>
         </div>
       </header>
 
@@ -3619,21 +3670,8 @@ export default function NoteEditorPage({
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
-                reaches the note only on Accept. `onMouseDown` keeps the
-                editor's selection, which is what the member is asking about. */}
-            {writingHelpOn && editor.isEditable && (
-              <button
-                type="button"
-                className={styles.toolBtn}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={openWritingHelp}
-                aria-label="Writing help"
-                title="Writing help — summarize, rewrite, continue or translate"
-              >
-                <UIcon name="sparkle" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-                Writing help
-              </button>
-            )}
+                reaches the note only on Accept. Since wave 10 lane K2 (D-3) its button
+                sits in the header row, beside Outline. */}
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
@@ -3651,31 +3689,8 @@ export default function NoteEditorPage({
             ⊞ Insert
           </button>
           </>)}
-          {/* Wave 5: the note's outline (every heading, click to jump) -- a
-              panel beside the note on desktop, a sheet on touch. It shares
-              the palette's corner, so opening one closes the other. */}
-          <button
-            ref={outlineToggleRef}
-            type="button"
-            className={`${styles.toolBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
-            onClick={() => { setPaletteOpen(false); setOutlineOpen((o) => !o) }}
-            aria-expanded={outlineOpen}
-            aria-label="Outline"
-            title="Outline — every heading in this note"
-          >
-            <UIcon name="rows" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-            Outline
-          </button>
-          <div className={styles.toolbarExports} data-tour="note-export">
-            {/* Wave 5: word count + reading time (the selection's share while
-                text is selected). */}
-            <NoteStats editor={editor} />
-            {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-            {/* Final review M-9: the four file formats are built from the server's copy, so
-                this editor's pending edits are sent first (the Save-as-template precedent). */}
-            <NoteExportControls noteId={noteId} title={title} columnRef={columnRef} onMessage={setChromeMsg}
-              onBeforeExport={sendPendingEdits} />
-          </div>
+          {/* Wave 10 lane K2 (D-3): Outline moved to the header row; PNG, Print, Export and the
+              word count moved into "More note actions". The row is the formatting controls. */}
         </div>
       )}
       {/* Absolute child of the sticky chrome — anchored to its bottom edge,
@@ -3778,6 +3793,18 @@ export default function NoteEditorPage({
           placeholder="Subtitle (optional)"
           aria-label="Subtitle"
         />
+        {/* Wave 10 lane K2 (D-3): the tags sit with the note's other properties, under the
+            title, instead of a row of their own above it. Their failure sentence stays in the
+            header's SaveFailed slot (wave 10 F7), unchanged. */}
+        <div className={styles.tagsRow} data-export-exclude>
+          <NoteTagsField
+            tags={note.tags || []}
+            nodes={tagNodes}
+            busy={tagsBusy}
+            onAdd={(tag) => applyTagDelta({ add: [tag] })}
+            onRemove={(tag) => applyTagDelta({ remove: [tag] })}
+          />
+        </div>
 
         {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
             a note with nothing set renders only a small "+ Add property"

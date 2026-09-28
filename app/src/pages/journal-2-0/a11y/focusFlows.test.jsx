@@ -74,8 +74,16 @@ async function openFromList(pane, id) {
   return heading
 }
 
+// Wave 10 lane K2 (D-3): the page-level actions (Duplicate, Lock, Archive, Save as template,
+// Open beside, Delete) sit behind the note's "More note actions" door -- open it first.
+const openMoreNoteActions = (scope = screen) => {
+  const more = scope.getByRole('button', { name: 'More note actions' })
+  if (more.getAttribute('aria-expanded') !== 'true') fireEvent.click(more)
+}
+
 async function deleteOpenNote() {
   const pane = document.getElementById('notebook-pane')
+  openMoreNoteActions(within(pane))
   fireEvent.click(within(pane).getByRole('button', { name: 'Delete' }))
   const dialog = await screen.findByRole('dialog', { name: /Delete this note\?/ })
   fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))

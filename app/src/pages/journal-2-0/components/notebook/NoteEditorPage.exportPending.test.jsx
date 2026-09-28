@@ -44,6 +44,7 @@ describe('the editor sends its pending edits before a file is exported (M-9)', (
     await settle()
     fireEvent.change(title, { target: { value: 'NVDA thesis, revised' } })
     // straight to Export, inside the autosave window
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))   // K2 (D-3): the file doors are in the panel
     fireEvent.click(screen.getByRole('button', { name: /^export/i }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
     await waitFor(() => expect(callsOf().some((c) => c.url.startsWith('/api/j2/export/notes/n1'))).toBe(true), { timeout: 4000 })

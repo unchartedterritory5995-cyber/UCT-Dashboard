@@ -285,3 +285,50 @@ describe('Lock and Archive keep focus (F4, A2R-07)', () => {
   })
 })
 
+
+// Wave 10 lane K2 (clause 9d, walk row S2-27): the Open-beside search is one of the editor's
+// contained disclosures. The walk opened it, tabbed six times into the formatting row, and the
+// Escape it pressed out there left the search open.
+describe('the Open-beside search keeps the keyboard inside it (K2)', () => {
+  const door = () => screen.getByRole('button', { name: /Open a note beside/ })
+
+  it('the door is a disclosure button: it stays, and says whether its search is open', () => {
+    render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={vi.fn()} />)
+    expect(door()).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(door())
+    const search = screen.getByRole('textbox', { name: 'Find a note to open beside' })
+    expect(door()).toHaveAttribute('aria-expanded', 'true')
+    expect(document.getElementById(door().getAttribute('aria-controls')).contains(search)).toBe(true)
+  })
+
+  it('Tab and Shift+Tab stay in the search while focus is in it', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ notes: [{ id: 'n3', title: 'Third' }, { id: 'n4', title: 'Fourth' }] }) }))
+    render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={vi.fn()} />)
+    fireEvent.click(door())
+    const search = screen.getByRole('textbox', { name: 'Find a note to open beside' })
+    fireEvent.change(search, { target: { value: 'th' } })
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
+    const results = within(list).getAllByRole('button')
+    results[results.length - 1].focus()
+    fireEvent.keyDown(document.activeElement, { key: 'Tab' })
+    expect(document.activeElement).toBe(search)
+    fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(results[results.length - 1])
+  })
+
+  it('Escape from a RESULT (not only the field) closes the search and hands focus to the door', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ notes: [{ id: 'n3', title: 'Third' }] }) }))
+    const onOpenBeside = vi.fn()
+    render(<NoteMenuActions note={{ id: 'n1' }} onOpenBeside={onOpenBeside} />)
+    fireEvent.click(door())
+    fireEvent.change(screen.getByRole('textbox', { name: 'Find a note to open beside' }), { target: { value: 'th' } })
+    const list = await screen.findByRole('list', { name: 'Notes to open beside' })
+    const result = within(list).getByRole('button', { name: 'Third' })
+    result.focus()
+    fireEvent.keyDown(result, { key: 'Escape' })
+    expect(screen.queryByRole('textbox', { name: 'Find a note to open beside' })).toBeNull()
+    expect(document.activeElement).toBe(door())
+    expect(door()).toHaveAttribute('aria-expanded', 'false')
+    expect(onOpenBeside).not.toHaveBeenCalled()
+  })
+})

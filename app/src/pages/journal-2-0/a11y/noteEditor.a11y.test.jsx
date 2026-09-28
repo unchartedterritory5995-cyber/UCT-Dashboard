@@ -62,6 +62,10 @@ for (const flagsOn of [true, false]) {
     axeSurface(`editor${flagsOn ? '' : ':flags-off'}`, async () => {
       await renderEditor()
       screen.getByRole('toolbar', { name: 'Editor toolbar' })
+      // Wave 10 lane K2 (D-3): the page-level actions sit behind "More note actions"; it is
+      // OPENED here so axe reads everything inside it, not only the closed button.
+      fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+      screen.getByRole('group', { name: 'More note actions' })
       screen.getByRole('group', { name: 'Organise this note' })
       await screen.findByText('Sym')   // the note's table rendered
     })
@@ -147,6 +151,7 @@ describe('note editor popups', () => {
 
   axeSurface('editor-history', async () => {
     await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))   // K2 (D-3): History is in the panel
     fireEvent.click(screen.getByRole('button', { name: 'Version history' }))
     await screen.findByTestId('note-version-preview')
     await settle()
