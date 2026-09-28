@@ -311,6 +311,10 @@ def audit_routes(app) -> dict:
     }
 
 
+#: The SPA catch-all api/main.py mounts only when app/dist is built.
+SPA_CATCH_ALL = "/{full_path:path}"
+
+
 def load_read_baseline(path: str | None = None) -> dict:
     """`{(method, path): {"kind", "reason", ["marker"]}}` from the baseline file.
 
@@ -440,7 +444,14 @@ def audit_surface(app, baseline: dict | None = None) -> dict:
     # the stale set and the CLI exited 0 over 4 examined reads. An entry the
     # census can no longer SEE is stale for that reason too, which makes the
     # baseline itself a floor on the aperture.
-    stale = sorted(k for k in baseline if k not in open_read_keys)
+    # `requires_dist`: the SPA shell and root-level static files are registered by
+    # api/main.py only `if os.path.exists(DIST)` — a checkout with no built
+    # frontend has none of them. Their absence is stale ONLY when the bundle's
+    # routes are present at all, read from the app itself (the SPA catch-all),
+    # never from the filesystem, so one missing asset in a built app still fails.
+    dist_served = any(k[1] == SPA_CATCH_ALL for k in seen)
+    stale = sorted(k for k in baseline if k not in open_read_keys
+                   and (dist_served or not baseline[k].get("requires_dist")))
     mutating = audit_routes(app)
     reads_examined = len(seen)
     reads = {

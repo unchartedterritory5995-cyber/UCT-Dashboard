@@ -6,7 +6,8 @@
   "kind=public: deliberately anonymous, with the reason.",
   "kind=open: NO gate found. Recorded, NOT ruled safe; fixing these is separate work.",
   "A new anonymous read is a finding; an entry that is now gated or gone is STALE and also a finding.",
-  "Edit by hand; tools/auth_surface_audit.py --candidates prints stubs for new findings."
+  "Edit by hand; tools/auth_surface_audit.py --candidates prints stubs for new findings.",
+  "requires_dist: true marks the SPA shell and root-level static files api/main.py registers only when app/dist is built; absent in a checkout with no bundle, required whenever the SPA catch-all is served."
  ],
  "measured": "2026-09-27",
  "routes": [
@@ -1373,6 +1374,90 @@
    "path": "/redoc",
    "kind": "open",
    "reason": "NO GATE FOUND: no gate dependency in the tree and no inline gate call in the handler code (module fastapi.applications). Recorded by TERM-026 so the census gates on NEW reads; recording is not a ruling that it is safe."
+  },
+  {
+   "method": "GET",
+   "path": "/favicon.svg",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Site favicon; a browser fetches it before any session exists."
+  },
+  {
+   "method": "GET",
+   "path": "/manifest.json",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "PWA web manifest; fetched by the browser shell without a session."
+  },
+  {
+   "method": "GET",
+   "path": "/og-coming-soon.png",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Pre-launch social-card image referenced by public meta tags."
+  },
+  {
+   "method": "GET",
+   "path": "/og-image.png",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Social-card image; link unfurlers (Discord, X) fetch it anonymously."
+  },
+  {
+   "method": "GET",
+   "path": "/pip-embed",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Static SPA shell page for picture-in-picture; data it loads goes through gated /api routes."
+  },
+  {
+   "method": "GET",
+   "path": "/q1-probe.html",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Wave Q1 synthetic browser-certification page; touches only uct_q1_browser_probe* DBs, no member data (see its route comment and removal condition)."
+  },
+  {
+   "method": "GET",
+   "path": "/robots.txt",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Crawler directives; must be anonymous by definition."
+  },
+  {
+   "method": "GET",
+   "path": "/sitemap.xml",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Sitemap for the public marketing pages; must be anonymous by definition."
+  },
+  {
+   "method": "GET",
+   "path": "/sw.js",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Service-worker script; the browser registers it before sign-in."
+  },
+  {
+   "method": "GET",
+   "path": "/vite.svg",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "Static build asset."
+  },
+  {
+   "method": "GET",
+   "path": "/{full_path:path}",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "SPA catch-all: serves index.html (the app shell, no data). Every data read the shell makes goes through gated /api routes."
+  },
+  {
+   "method": "HEAD",
+   "path": "/{full_path:path}",
+   "kind": "public",
+   "requires_dist": true,
+   "reason": "SPA catch-all: serves index.html (the app shell, no data). Every data read the shell makes goes through gated /api routes."
   }
  ]
 }

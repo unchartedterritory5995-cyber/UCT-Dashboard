@@ -299,3 +299,43 @@ def test_the_CLI_exits_zero_on_a_clean_app_and_prints_examined_over_total():
 def test_the_CLI_REFUSES_a_run_that_examined_nothing():
     code, out = _run_cli(_bare())
     assert code == 2, out
+
+
+# ── requires_dist: static routes that exist only when app/dist is built ──────
+
+
+def _dist_app(*, catch_all: bool, robots: bool):
+    app = _bare()
+    if robots:
+        app.get("/robots.txt")(lambda: "")
+    if catch_all:
+        app.get(asc.SPA_CATCH_ALL)(lambda full_path: "")
+    return app
+
+
+_DIST_BASELINE = {
+    ("GET", "/robots.txt"): {"kind": "public", "requires_dist": True, "reason": "r"},
+}
+
+
+def test_a_requires_dist_entry_is_NOT_stale_when_no_bundle_is_served():
+    """A checkout with no built frontend registers none of the static routes;
+    their baseline entries must not read as stale there."""
+    res = asc.audit_surface(_dist_app(catch_all=False, robots=False),
+                            baseline=_DIST_BASELINE)
+    assert res["stale_baseline"] == []
+
+
+def test_a_requires_dist_entry_IS_stale_when_the_bundle_is_served_without_it():
+    """The exemption is not a blanket: with the SPA catch-all present the app IS
+    serving the bundle, so a missing static route is a real change and stale."""
+    res = asc.audit_surface(_dist_app(catch_all=True, robots=False),
+                            baseline=_DIST_BASELINE)
+    assert ("GET", "/robots.txt") in res["stale_baseline"]
+    assert res["ok"] is False
+
+
+def test_CONTROL_a_plain_entry_is_stale_whether_or_not_a_bundle_is_served():
+    plain = {("GET", "/robots.txt"): {"kind": "public", "reason": "r"}}
+    res = asc.audit_surface(_dist_app(catch_all=False, robots=False), baseline=plain)
+    assert ("GET", "/robots.txt") in res["stale_baseline"]
