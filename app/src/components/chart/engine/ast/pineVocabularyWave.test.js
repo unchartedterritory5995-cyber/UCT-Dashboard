@@ -22,6 +22,7 @@ import path from 'node:path'
 import { translatePine } from './pine.js'
 import { interpret } from './interpret.js'
 import { parseFormula } from './parse.js'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const VENDOR = path.join(REPO, 'tests', 'fixtures', 'vendor')
@@ -266,5 +267,123 @@ describe('⭐⭐ timeframe.in_seconds(<literal>) — the measured constants, vw-
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:builtin')
     expect(t.refusal.message).toMatch(/timeframe\.in_seconds/)
+  })
+})
+
+describe('⭐⭐ time(tf, session[, tz]) — the session clock, vw-time-session S03–S18 on every bar', () => {
+  // S15 (`"2000-0000"`, overnight) is deliberately NOT in this list: it refuses
+  // by name, and the describe proves why below.
+  const ROWS = ['S03_na_0930_1600', 'S04_secs_0930_1600', 'S05_na_0930_1000_OR_window',
+    'S06_secs_0930_1000', 'S07_na_1000_1100_EXCLUDES_OPEN', 'S08_secs_1000_1100',
+    'S09_na_0930_1000_ALLDAYS', 'S10_na_0930_1000_MON_FRI_23456', 'S11_na_OR_GMTminus4_CORPUS_FORM',
+    'S12_na_OR_GMTminus5', 'S13_na_OR_America_New_York', 'S14_na_OR_syminfo_timezone',
+    'S16_na_0930_1030_IB_window', 'S17_secs_0930_1030', 'S18_dayofweek_for_S10']
+  const CAPTURES = [
+    ['vw-time-session-spy-1d-2026-09-27.json', 'D', 8000],
+    ['harness/vw-time-session-spy-1d-2026-09-28.json', 'D', 300],
+    ['harness/vw-time-session-spy-60-rth-2026-09-28.json', '60', 300],
+    ['harness/vw-time-session-spy-60-ext-2026-09-28.json', '60', 300],
+  ]
+  const col = (d, name) => 1 + d.study.plots.map((p) => p.title).indexOf(name)
+  const load = (rel) => JSON.parse(fs.readFileSync(path.join(VENDOR, rel), 'utf8'))
+
+  it('the captures discriminate every fork the door had to choose', () => {
+    // ⛔ NON-VACUITY, one reading per fork, each read off the capture itself.
+    const daily = load('vw-time-session-spy-1d-2026-09-27.json')
+    const rows = daily.plotValues.rows
+    // a DAILY bar is inside a window holding its open, outside one that does not
+    expect(rows.every((r) => r[col(daily, 'S03_na_0930_1600')] === 0)).toBe(true)
+    expect(rows.every((r) => r[col(daily, 'S07_na_1000_1100_EXCLUDES_OPEN')] === 1)).toBe(true)
+    // the fixed GMT-4 zone is IN on some days and OUT on others (DST), New York on all
+    const gmt4In = rows.filter((r) => r[col(daily, 'S11_na_OR_GMTminus4_CORPUS_FORM')] === 0).length
+    expect(gmt4In).toBeGreaterThan(1000)
+    expect(rows.length - gmt4In).toBeGreaterThan(1000)
+    expect(rows.every((r) => r[col(daily, 'S13_na_OR_America_New_York')] === 0)).toBe(true)
+    // on 60m bars a window starting off the bar grid answers the GRID start, not the bar
+    const rth = load('harness/vw-time-session-spy-60-rth-2026-09-28.json')
+    expect(rth.plotValues.rows.filter((r) => r[col(rth, 'S08_secs_1000_1100')] === -1800).length).toBeGreaterThan(20)
+    const ext = load('harness/vw-time-session-spy-60-ext-2026-09-28.json')
+    expect(ext.plotValues.rows.filter((r) => r[col(ext, 'S04_secs_0930_1600')] === -1800).length).toBeGreaterThan(20)
+    // the half-open edge: an hourly bar opening at 10:30 is OUTSIDE "0930-1030"
+    const at1030 = rth.plotValues.rows.filter((r) => r[col(rth, 'S01_hour_MUST_VARY_ON_INTRADAY')] === 10
+      && r[col(rth, 'S02_minute')] === 30)
+    expect(at1030.length).toBeGreaterThan(20)
+    expect(at1030.every((r) => r[col(rth, 'S16_na_0930_1030_IB_window')] === 1)).toBe(true)
+  })
+
+  for (const [rel, base, min] of CAPTURES) {
+    it(`matches S03–S14 and S16–S18 on every bar of ${rel}`, () => {
+      expectRowsMatch(againstCapture(rel, base), ROWS, min)
+    })
+  }
+
+  it('⛔ an overnight window refuses by name — and the capture shows it could not have answered', () => {
+    for (const [rel] of CAPTURES) {
+      const d = load(rel)
+      // No captured bar opens in [20:00, 24:00) New York, so "always na" and
+      // "20:00 to midnight" are the same reading on every one of them.
+      const late = d.plotValues.rows.filter((r) => r[col(d, 'S01_hour_MUST_VARY_ON_INTRADAY')] >= 20)
+      expect(late.length, rel).toBe(0)
+    }
+    const res = againstCapture('vw-time-session-spy-1d-2026-09-27.json', 'D')
+    const s15 = (res.t.outputs || []).find((o) => o.refusal && /"2000-0000"/.test(o.refusal.message))
+    expect(s15, 'the overnight output did not refuse').toBeTruthy()
+    expect(s15.refusal.guard).toBe('pine:function')
+    expect(s15.refusal.message).toMatch(/wraps past midnight/)
+  })
+
+  it('reads the corpus shapes: `+` joined sessions, `str.tostring` zones, `syminfo.timezone`', () => {
+    const src = `${V6}s = input.session("0930-1000")\ntz = input.int(-4)\n`
+      + 'plot(na(time(timeframe.period, s + ":1234567", "GMT" + str.tostring(tz))) ? 0 : close)'
+    expect(formulaOf(src).formula).toMatch(/floor\(time \/ 60\) \+ -240/)
+    expect(formulaOf(`${V6}plot(na(time(timeframe.period, "0930-1000", syminfo.timezone)) ? 0 : close)`).formula)
+      .toBe(formulaOf(`${V6}plot(na(time(timeframe.period, "0930-1000")) ? 0 : close)`).formula)
+  })
+
+  it('⛔ every form the captures do not cover refuses, and says which', () => {
+    const cases = [
+      [`${V6}plot(na(time("W", "0930-1600")) ? 0 : 1)`, /OWN timeframe/],
+      [`${V6}plot(na(time(timeframe.period, "0930-1600", "Europe/London")) ? 0 : 1)`, /Europe\/London/],
+      [`${V6}plot(na(time(timeframe.period, "0930-1000,1300-1400")) ? 0 : 1)`, /not a session read here/],
+      ['//@version=4\nstudy("p")\nplot(na(time(period, "0930-1600")) ? 0 : 1)', /no day list/],
+    ]
+    for (const [src, pattern] of cases) {
+      const t = tr(src)
+      expect(t.ok, src).toBe(false)
+      expect(t.refusal.guard, src).toBe('pine:function')
+      expect(t.refusal.message, src).toMatch(pattern)
+    }
+    expect(tr(`${V6}plot(na(time(timeframe.period, "0930-1600")) ? 0 : 1)`, { basePeriod: 'W' }).ok).toBe(true)
+  })
+
+  it('⛔ the SCREEN still refuses — its stored daily bars carry a date, not an opening time', () => {
+    const t = translatePine(`${V6}plot(na(time(timeframe.period, "0930-1600")) ? 0 : 1)`, { strict: false })
+    expect(t.ok).toBe(false)
+    expect(t.refusal.guard).toBe('pine:function')
+    expect(t.refusal.message).toMatch(/SESSION CLOCK/)
+    expect(t.refusal.message).toMatch(/stored as a DATE/)
+  })
+})
+
+describe('⭐ the payoff — the corpus script whose sole last wall was `time(<session>)`', () => {
+  const FILE = path.join(REPO, 'corpus', 'committed',
+    'opening-range-initial-balance-opening-price__4a7416ab01.pine')
+
+  it('translates on the host lane and ATTACHES at the member door', () => {
+    // The script's session and zone are built the corpus way —
+    // `OR_sess + ':1234567'` and `"GMT" + str.tostring(tz_increment)` — and fold
+    // to "0930-1000:1234567" / "GMT-4", the S11 form held above.
+    const source = fs.readFileSync(FILE, 'utf8')
+    const t = tr(source)
+    expect(t.ok, t.refusal && t.refusal.message).toBe(true)
+    expect(t.outputs.map((o) => o.formula || '').join('\n')).toMatch(/floor\(time \/ 60\) \+ -240/)
+    const door = memberPaneDefinition({ source, id: 'u_member-pane-or', name: 'OR/IB/OP' })
+    expect(door.ok, door.reason).toBe(true)
+    // ⚠️ ATTACHING IS NOT THE SAME AS COMPUTING. The script's `OR_t and
+    // not(OR_t[1])` is Pine v5's IMPLICIT float→bool cast, which this door
+    // passes through as a bare `&&`/`!` that PROPAGATES `na` instead of reading
+    // it as false — so its level outputs are `na` on every bar. That is the
+    // v5-implicit-cast path the `bool(x)` ruling in pine.js already names, not
+    // the session clock (the membership plot itself is exact above).
   })
 })

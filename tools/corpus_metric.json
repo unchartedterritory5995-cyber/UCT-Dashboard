@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-09-28",
   "scripts": 266,
-  "host_ok": 45,
+  "host_ok": 46,
   "screener_ok": 52,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -1733,11 +1733,9 @@
     },
     {
       "file": "opening-range-initial-balance-opening-price__4a7416ab01.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:function"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:function"
       ]
@@ -2203,7 +2201,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:no-output"
+        "pine:objects-only"
       ],
       "screenerGuards": [
         "pine:no-output"

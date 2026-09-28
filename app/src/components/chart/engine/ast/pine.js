@@ -572,6 +572,12 @@ const PINE_TF_SPELLING = Object.freeze({
  *  the same question one namespace over. */
 const TF_CODES = Object.freeze(new Set(Object.values(PINE_TF_SPELLING)))
 
+/** What `sessionTextOf` answers for `syminfo.timezone`: not text this
+ *  translation holds, but "the exchange's own zone" — which is the zone every
+ *  clock column (`hour`, `minute`, `dayofweek`) is already read in. A symbol, so
+ *  no string a script could write compares equal to it. */
+const SESSION_EXCHANGE_TZ = Symbol('exchange timezone')
+
 /** ⭐⭐ WHICH CODES ARE A PLAIN NUMBER OF MINUTES. Pine spells an intraday
  *  timeframe as the minute count itself (`"5"`, `"60"`), which is why
  *  `timeframe.multiplier` and `timeframe.in_seconds` are ARITHMETIC over these
@@ -2150,11 +2156,18 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // ⚠️ THIS IS A DIFFERENT ARM FROM THE CLOCK-MISMATCH ENTRY ABOVE. That one is
   // the bare NAME `time` (a unit difference, permanent). This one is the CALL
   // `time(…)` (a session read, which intraday bars would answer).
-  time: 'a SESSION CLOCK — `time(<session>)` answers whether a bar falls '
-    + 'inside a session window, and a session only means something on INTRADAY '
-    + 'bars. This engine screens daily bars, where there is no inside to be in. '
-    + 'TO UNBLOCK: intraday bars in the scan lane, which `scan_evaluator` refuses '
-    + 'by name and for reasons of its own — not a table entry here',
+  // ⚰️⚰️ (2026-09-28) "ON THE DAILY BARS … THERE IS NO INSIDE TO BE IN" WAS AN
+  // ASSUMPTION, AND THE VENDOR ANSWERED IT THE OTHER WAY: a daily bar is inside
+  // any window containing its OPENING time (09:30 for SPY) — `vw-time-session-
+  // spy-1d-2026-09-27.json`, 8472 bars. The chart pane now serves the form
+  // (`sessionClockOf`). What stays true is narrower, and is what this sentence
+  // now says: the SCREEN's stored daily bars carry a date, not an opening
+  // instant, so there is no time of day to test there.
+  time: 'a SESSION CLOCK — `time(<timeframe>, <session>)` answers whether a bar '
+    + 'falls inside a session window, read from the time the bar OPENS. A chart '
+    + 'pane serves it; a screen does not, because the daily bars a screen '
+    + 'evaluates are stored as a DATE, not an opening instant, so there is no '
+    + 'time of day to test. TO UNBLOCK: add the script to a chart pane instead',
   // ⚰️⚰️ `valuewhen` LEFT THIS DICT 2026-09-20 — NOT AN OVERSIGHT, A PAID
   // PRICE. `ta.valuewhen(condition, source, occurrence)` used to refuse here
   // PERMANENTLY because its third argument means a different thing than this
@@ -7890,6 +7903,186 @@ export class Resolver {
     return secs === null ? null : cNum(secs)
   }
 
+  /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR
+   *  WAS MEASURED ANSWERING IT (2026-09-27/28). Returns a node, or throws a
+   *  `pine:function` refusal that names the form it could not take.
+   *
+   *  The readings (`tests/fixtures/vendor/vw-time-session-spy-1d-2026-09-27.json`,
+   *  8472 daily bars 1993→2026, and `harness/vw-time-session-spy-60-{rth,ext}-
+   *  2026-09-28.json`, 300 hourly bars each, probe
+   *  `tools/visual_conformance/probes/vw-time-session.pine`):
+   *
+   *   1. MEMBERSHIP IS THE BAR'S OPEN TIME in a HALF-OPEN window [start, end),
+   *      in the window's zone — on 1D and on 60m alike. A daily bar opening at
+   *      09:30 is inside "0930-1600" and "0930-1000" and outside "1000-1100".
+   *   2. INSIDE, THE VALUE IS THE OPEN OF THE CHART-PERIOD BAR ON A GRID
+   *      ANCHORED AT THE SESSION START: `time − ((open − start) mod period)`.
+   *      It equals the bar's own `time` whenever the bars are aligned to the
+   *      session (every daily row, and "0930-1600" on RTH 60m bars) — and it
+   *      does NOT when they are not: a 10:30 hourly bar in "1000-1100" answers
+   *      10:00 (S08 = −1800 s on 43 bars), and on extended-hours bars that open
+   *      on the hour "0930-1600" answers the :30 before (S04, 114 bars). Both
+   *      are matched here; "the bar's own time" alone matched neither.
+   *   3. `"America/New_York"` and `syminfo.timezone` are DST-aware and equal to
+   *      the default; a FIXED `"GMT-4"` is not (in on 215 EDT days, `na` on 85
+   *      EST days of 300 — S11), and neither is `"GMT-5"` (S12, the mirror).
+   *   4. `:1234567` / `:23456` filter by the day of week in the window's zone.
+   *
+   *  ⛔ WHAT STAYS REFUSED, each because no capture answers it: another
+   *  timeframe than the chart's own; a weekly/monthly chart; an overnight or
+   *  full-day window (`"2000-0000"` read `na` on every captured bar, but no
+   *  captured bar OPENS after 20:00, so the capture cannot tell "never" from
+   *  "20:00–24:00"); several windows in one string; any zone string other than
+   *  the four above; and a session with no day suffix before Pine v5 (the
+   *  unsuffixed default was never measured on a weekend bar). */
+  sessionClockOf(args, tok) {
+    const at = locate(tok)
+    const no = (why) => new PineRefusal('pine:function',
+      `${REFUSALS['pine:function']} — \`time(<timeframe>, <session>)\`: ${why}`, at)
+    const PARAMS = ['timeframe', 'session', 'timezone']
+    const slots = [undefined, undefined, undefined]
+    let pos = 0
+    for (const a of args) {
+      if (a && a.name) {
+        const k = PARAMS.indexOf(a.name)
+        if (k < 0) throw no(`it has no parameter called \`${a.name}\``)
+        slots[k] = a.value
+      } else {
+        if (pos > 2) throw no(`it takes a timeframe, a session and an optional timezone, given ${args.length} arguments`)
+        slots[pos] = a && a.value !== undefined ? a.value : a
+        pos += 1
+      }
+    }
+    const [tfNode, sessNode, tzNode] = slots
+    if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
+
+    // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
+    const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
+    if (!isOwnTf && code !== this.basePeriod) {
+      throw no('it is read here on the chart\'s OWN timeframe (`timeframe.period`), '
+        + 'which is what the vendor was measured on. A different period groups the '
+        + 'session into bars this chart does not have, and nothing measured says how.')
+    }
+    const period = /^[0-9]+$/.test(this.basePeriod) ? Number(this.basePeriod)
+      : (this.basePeriod === 'D' ? 1440 : null)
+    if (!period) {
+      throw no(`it was measured on daily and intraday charts, and this one is \`${this.basePeriod}\``)
+    }
+
+    // ── 2. THE SESSION STRING. ───────────────────────────────────────────────
+    const spec = this.sessionTextOf(sessNode)
+    if (spec === null || spec === SESSION_EXCHANGE_TZ) {
+      throw no('the session has to be text this translation can read before the '
+        + 'first bar — a literal like `"0930-1600"`, an input\'s default, or those joined with `+`')
+    }
+    const m = /^(\d{2})(\d{2})-(\d{2})(\d{2})(?::([1-7]+))?$/.exec(String(spec).trim())
+    if (!m) {
+      throw no(`\`"${spec}"\` is not a session read here — one window \`HHMM-HHMM\`, `
+        + 'optionally followed by `:` and the days `1`–`7`')
+    }
+    const [sh, sm, eh, em] = m.slice(1, 5).map(Number)
+    if (sh > 23 || eh > 23 || sm > 59 || em > 59) throw no(`\`"${spec}"\` names a time that does not exist`)
+    const start = sh * 60 + sm
+    const end = eh * 60 + em
+    if (end <= start) {
+      throw no(`\`"${spec}"\` wraps past midnight (or spans the whole day). The capture `
+        + 'read `"2000-0000"` as `na` on every bar it holds, but none of those bars '
+        + 'opens after 20:00, so it cannot say whether such a window is empty or '
+        + 'runs to midnight — and the two answer differently on a 24-hour symbol.')
+    }
+    let days = null
+    if (m[5]) {
+      days = [...new Set(m[5].split('').map(Number))].sort()
+    } else if (this.pineVersion === null || this.pineVersion < 5) {
+      throw no(`\`"${spec}"\` has no day list, and in Pine v${this.pineVersion || '1–4'} the `
+        + 'default days are not the ones measured. Add `:1234567` (every day) or '
+        + '`:23456` (Monday–Friday) to say which you mean.')
+    }
+    if (days && days.length === 7) days = null
+
+    // ── 3. THE ZONE. ─────────────────────────────────────────────────────────
+    let offset = null // null = the exchange clock (America/New_York here)
+    if (tzNode !== undefined) {
+      const tz = this.sessionTextOf(tzNode)
+      if (tz === SESSION_EXCHANGE_TZ || tz === 'America/New_York') {
+        offset = null
+      } else {
+        const g = typeof tz === 'string' ? /^GMT([+-])(\d{1,2})$/.exec(tz.trim()) : null
+        if (!g || Number(g[2]) > 14) {
+          throw no(`the zone ${tz === null ? 'is not text this translation can read' : `\`"${tz}"\``} `
+            + 'is not one this engine reads. It takes `"America/New_York"`, '
+            + '`syminfo.timezone`, or a fixed `"GMT±H"` — the forms the vendor was measured on.')
+        }
+        offset = (g[1] === '-' ? -1 : 1) * Number(g[2])
+      }
+    }
+
+    // ── 4. THE TREE. ─────────────────────────────────────────────────────────
+    let minuteOfDay
+    let dow
+    if (offset === null) {
+      minuteOfDay = cOp('+', [cOp('*', [clockLeaf('hour'), cNum(60)]), clockLeaf('minute')])
+      dow = clockLeaf('dayofweek')
+    } else {
+      // ⭐ A FIXED ZONE IS ARITHMETIC ON THE INSTANT, NOT ON THE NEW YORK CLOCK:
+      // local minutes since 1970 = floor(time / 60) + offset × 60. 1970-01-01
+      // was a Thursday, Pine's day 5, hence the `+ 4` before the `mod 7`.
+      const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset * 60)])
+      minuteOfDay = cCall('mod', [local, cNum(1440)])
+      dow = cOp('+', [cCall('mod', [cOp('+', [cCall('floor', [cOp('/', [local, cNum(1440)])]), cNum(4)]), cNum(7)]), cNum(1)])
+    }
+    let inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
+    if (days) {
+      const anyDay = days.map((d) => cOp('==', [dow, cNum(d)]))
+        .reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
+      inside = cOp('&&', [inside, anyDay])
+    }
+    const secs = cOp('-', [cSeries('time'),
+      cOp('*', [cCall('mod', [cOp('-', [minuteOfDay, cNum(start)]), cNum(period)]), cNum(60)])])
+    // Pine's `time` is milliseconds for a versioned script — the same gate the
+    // bare name and `time("D")` use (`clockTransformFor`).
+    const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
+    return cOp('?:', [inside, value, cOp('/', [cNum(0), cNum(0)])])
+  }
+
+  /** A session or zone argument as TEXT, or null. `stringValueOf` plus the two
+   *  shapes the corpus builds these with: `+` joining text
+   *  (`OR_sess + ":1234567"`) and `str.tostring` of a constant
+   *  (`"GMT" + str.tostring(tz_increment)`). `syminfo.timezone` answers the
+   *  marker `SESSION_EXCHANGE_TZ`; it is not text this translation holds, it is
+   *  "the exchange's zone", which the clock columns already are. */
+  sessionTextOf(node, depth = 0) {
+    if (!node || typeof node !== 'object' || depth > 32) return null
+    if (node.type === 'name' && node.name === 'syminfo.timezone' && !this.env.get(node.name)) {
+      return SESSION_EXCHANGE_TZ
+    }
+    const lit = this.stringValueOf(node)
+    if (lit !== null) return lit
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.sessionTextOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env.get(node.name)
+      return bound ? this.throughBinding(bound, (b) => this.sessionTextOf(b.node, depth + 1)) : null
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const l = this.sessionTextOf(node.left, depth + 1)
+      const r = this.sessionTextOf(node.right, depth + 1)
+      if (typeof l !== 'string' || typeof r !== 'string') return null
+      return l + r
+    }
+    if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')
+        && (node.args || []).length === 1 && !node.args[0].name) {
+      let v = null
+      try { v = foldScalar(this.resolve(node.args[0].value), {}) } catch { v = null }
+      return Number.isInteger(v) ? String(v) : null
+    }
+    return null
+  }
+
   /** Does this node name THIS CHART'S OWN timeframe? → the spelling, or null.
    *
    *  ⛔⛔ THE BINDING IS CONSULTED FIRST AND THE ORDER IS THE WHOLE GUARD — the
@@ -8826,6 +9019,15 @@ export class Resolver {
       // comment records that this arm was split from the bare-NAME arm so each
       // construct gets its own true sentence; it stopped one notch short.
       const anchorForm = bare === 'time' && args.length === 1
+      // ⭐⭐ (2026-09-28) THE SESSION FORM IS SERVED ON THE CHART PANE, as the
+      // vendor was measured answering it — `sessionClockOf` carries the readings
+      // and refuses, by name, every form they do not cover. ⛔ HOST LANE ONLY: a
+      // screen evaluates stored daily bars whose `t` is a DATE (`YYYYMMDD`), so the
+      // clock columns are blank there and every bar would read "outside" — a
+      // confident wrong answer, where the sentence below is an honest refusal.
+      if (bare === 'time' && args.length >= 2 && this.strict) {
+        return this.sessionClockOf(args, tok)
+      }
       // ⭐⭐⭐ (2026-09-20) THE "node this engine does not have" ABOVE IS NOW
       // ONLY TRUE FOR NON-"D" PERIODS. `dayopentime` (`indicators.js`/
       // `indicator_compute.py::CLOCK_TIME_DERIVED`) is exactly that node for

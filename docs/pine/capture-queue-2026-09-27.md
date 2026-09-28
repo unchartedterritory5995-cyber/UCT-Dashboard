@@ -240,3 +240,29 @@ and the capture's own symbol block confirms **mintick = minmov / pricescale on e
 symbol** (ES1! minmov 25 / pricescale 100 = 0.25). It is symbol METADATA: constant across a
 symbol's whole history (SPY 0.01 from $43 to $778; AITX 0.0001 from $0.003 to $0.14).
 Serving it needs the symbol's `pricescale`/`minmov`, not its price.
+
+## BUILT — 2026-09-28 (branch `pine/vocab-2`), each held to its capture bar by bar
+
+Rail: `app/src/components/chart/engine/ast/pineVocabularyWave.test.js` — it translates the
+source the vendor ran (`capture.source.text`) and compares every output on every bar.
+
+- **`int(x)`** reads `idiv(x, 1)` (a constant folds to its truncation). I01–I09, 300/300 bars.
+- **`timeframe.in_seconds`**: `"M"` corrected from 30 days to **2628003**; `"<n>M"` (n ≤ 12)
+  answers n × M. T10–T15 on all 8472 1D bars and every 60m bar. Codes with no measured
+  length (e.g. `"30S"`) still fall through to the namespace refusal.
+- **`time(tf, session[, tz])`** on the chart pane (`sessionClockOf` in `pine.js`): S03–S14 and
+  S16–S18 on every bar of the 1D (8472 + 300) and both 60m captures. ⭐ The value inside is
+  **not** always the bar's own `time`: it is the open of the chart-period bar on a grid anchored
+  at the session start — a 10:30 hourly bar in `"1000-1100"` answers 10:00 (S08 = −1800 on 43
+  bars), and on extended-hours bars `"0930-1600"` answers the :30 before (S04, 114 bars). On
+  every daily row the two coincide. Still refused by name: another timeframe than the chart's
+  own, W/M charts, overnight/full-day windows (S15 — no captured bar opens after 20:00, so the
+  capture cannot tell "never" from "20:00–24:00"), several windows, any zone other than
+  `America/New_York` / `syminfo.timezone` / `GMT±H`, an unsuffixed session before v5, and the
+  SCREEN lane (its stored daily bars carry a date, not an opening instant).
+- **Payoff:** `opening-range-initial-balance-opening-price__4a7416ab01` now translates and
+  attaches at `memberPaneDefinition` (objects-only flag off and on). ⚠️ It attaches but its
+  level outputs are `na` on every bar: `OR_t and not(OR_t[1])` is Pine v5's implicit
+  float→bool cast, which the door passes through as a bare `&&`/`!` that propagates `na`
+  instead of reading it as false. That — not the session clock — is its next wall.
+

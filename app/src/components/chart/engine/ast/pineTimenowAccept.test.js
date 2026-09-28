@@ -193,7 +193,10 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // `dayofmonth(time)` now translate (vocabulary wave), so the script meets
       // its next wall — the `time(<session>)` session clock. Still refuses,
       // still not on `timenow`.
-      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:function', /SESSION CLOCK/],
+      // ⚰️ …AND AGAIN 2026-09-28: the session clock is served on the chart pane
+      // for the chart's OWN timeframe (vw-time-session). This script asks it of
+      // a timeframe argument that is not the chart's, which stays refused.
+      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:function', /OWN timeframe/],
       ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function-def', /f_round_up_to_tick/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]
