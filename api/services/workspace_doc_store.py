@@ -11,8 +11,16 @@ WHAT THIS SLICE IS: the destination store and its document model, running as a S
   * ``/data/workspace_docs.db`` (``WORKSPACE_DOCS_DB_PATH``) — its own per-domain file, never a
     table in auth.db. Registered in ``store_backup.STORES`` so it is backed up the night it exists.
   * APPEND-ONLY versions (ledger G3's idiom): every change is a new row; nothing is ever
-    UPDATEd or DELETEd; a delete APPENDS a tombstone; a restore APPENDS a copy of an older
-    version. ``tests/test_workspace_doc_store.py`` asserts no UPDATE/DELETE statement by AST.
+    UPDATEd; a delete APPENDS a tombstone; a restore APPENDS a copy of an older version. The ONE
+    exception is RETENTION: ``prune_versions`` is the only function that may remove a row, only
+    from ``workspace_doc_versions``, only while the flag is armed, and it records what it removed
+    in ``workspace_doc_prune_log``. ``tests/test_workspace_doc_store.py`` asserts by AST that no
+    UPDATE exists anywhere and that the module's only row removal is that one, in that function.
+  * RETENTION (owner decision, delegated): per (user, board) a version is KEPT if it is from the
+    last ``RETAIN_DAYS`` (30) OR among the newest ``RETAIN_NEWEST`` (200) — either rule is enough.
+    Whatever the rules say, the newest version, every tombstone, the version a tombstone deleted
+    and every version a restore copied are never pruned (``_protected_versions``). It runs
+    opportunistically after a mirrored append, bounded to ``PRUNE_MAX_PER_CALL`` rows per call.
   * ATOMIC compare-and-set writes: a write names the version it was based on, and a stale base
     is refused with ``VersionConflict`` — never a silent last-write-wins overwrite.
   * A schema version on every row from the first commit (``SCHEMA_VERSION``).
@@ -31,7 +39,9 @@ the same bytes the old store would, so the read-new phase can serve either witho
 ⛔ REVERSAL (TIER-NONE, written in the same commit): unset ``WORKSPACE_DOC_STORE_ENABLED``. The
 mirror stops, every route answers 404, ``user_preferences`` was never displaced as the authority,
 and the store file is left exactly as it is. Never delete the file or its rows to "undo" an
-arming — item 37: stopping a dark run is never a DELETE against member data.
+arming — item 37: stopping a dark run is never a DELETE against member data. Unsetting the flag
+also stops retention: ``prune_versions`` returns before any I/O while it is off, so the rows that
+remain are exactly the rows that were there when it was switched off.
 """
 from __future__ import annotations
 
@@ -84,12 +94,27 @@ MAX_DOC_BYTES = 4 * 1024 * 1024
 
 SOURCES = ("migration", "mirror", "write", "restore", "delete")
 
+#: RETENTION — owner decision (delegated). Per (user, board) a version survives if it was created
+#: in the last ``RETAIN_DAYS`` days OR is among the newest ``RETAIN_NEWEST`` versions: EITHER rule
+#: keeps it. ``_protected_versions`` names what is kept whatever these say.
+RETAIN_DAYS = 30
+RETAIN_NEWEST = 200
+#: Bounded work per call: at most this many rows removed, and at most ``PRUNE_SCAN_ROWS`` (plus the
+#: protected set) examined, oldest first. A backlog drains over successive appends.
+PRUNE_MAX_PER_CALL = 100
+PRUNE_SCAN_ROWS = 1000
+_DAY = 86400
+
+#: The clock that stamps ``created_at``. Injected so tests never read the wall clock; production
+#: reads ``time.time`` through it.
+_clock: Callable[[], float] = time.time
+
 _WRITE_LOCK = threading.Lock()
 
-#: Per-process counters for the two hooks on the preferences write path. They never raise into
-#: that path, so a failure there must land somewhere a reader can see it: here, in ``stats()``,
-#: and in the log. Durable parse failures live in their own table.
-_HOOK_FAILURES = {"snapshot": 0, "mirror": 0}
+#: Per-process counters for the hooks on the preferences write path. They never raise into that
+#: path, so a failure there must land somewhere a reader can see it: here, in ``stats()``, and in
+#: the log. Durable parse failures live in their own table.
+_HOOK_FAILURES = {"snapshot": 0, "mirror": 0, "prune": 0}
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS workspace_doc_versions (
@@ -122,6 +147,18 @@ CREATE TABLE IF NOT EXISTS workspace_parse_failures (
 );
 CREATE INDEX IF NOT EXISTS idx_workspace_parse_failures_user
   ON workspace_parse_failures(user_id, board_id);
+
+CREATE TABLE IF NOT EXISTS workspace_doc_prune_log (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id        TEXT    NOT NULL,
+  board_id       TEXT    NOT NULL,
+  versions_json  TEXT    NOT NULL,
+  pruned_count   INTEGER NOT NULL,
+  head_version   INTEGER NOT NULL,
+  cutoff         INTEGER NOT NULL,
+  retain_newest  INTEGER NOT NULL,
+  ran_at         INTEGER NOT NULL
+);
 """
 
 
@@ -290,7 +327,10 @@ def stats() -> dict:
         ).fetchone()[0]
         versions = c.execute("SELECT COUNT(*) FROM workspace_doc_versions").fetchone()[0]
         failures = c.execute("SELECT COUNT(*) FROM workspace_parse_failures").fetchone()[0]
+        pruned = c.execute("SELECT COALESCE(SUM(pruned_count), 0) FROM workspace_doc_prune_log").fetchone()[0]
     return {"documents": docs, "versions": versions, "parse_failures": failures,
+            "pruned_versions": pruned,
+            "retention": {"days": RETAIN_DAYS, "newest": RETAIN_NEWEST, "max_per_call": PRUNE_MAX_PER_CALL},
             "hook_failures_this_process": dict(_HOOK_FAILURES), "enabled": is_enabled()}
 
 
@@ -302,7 +342,7 @@ def _append(c: sqlite3.Connection, user_id: str, board_id: str, version: int, *,
         "INSERT INTO workspace_doc_versions (user_id, board_id, version, schema_version, doc_json,"
         " content_sha256, tombstone, source, restored_from, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
         (user_id, board_id, version, SCHEMA_VERSION, text, _sha(text) if text is not None else None,
-         1 if doc is None else 0, source, restored_from, int(time.time())),
+         1 if doc is None else 0, source, restored_from, int(_clock())),
     )
 
 
@@ -316,7 +356,7 @@ def _record_failures(c: sqlite3.Connection, user_id: str, board_id: str, version
         c.execute(
             "INSERT INTO workspace_parse_failures (user_id, board_id, pref_key, version, raw_sha256,"
             " raw_len, error, created_at) VALUES (?,?,?,?,?,?,?,?)",
-            (user_id, board_id, key, version, _sha(value), len(value), why, int(time.time())),
+            (user_id, board_id, key, version, _sha(value), len(value), why, int(_clock())),
         )
         n += 1
     if n:
@@ -431,6 +471,118 @@ def mirror_pref(user_id: str, key: str, value: Optional[str], board_id: str = BO
     raise VersionConflict(-1, -1)
 
 
+# ── retention: the ONLY place a row is ever removed ──────────────────────────
+def _protected_versions(c: sqlite3.Connection, user_id: str, board_id: str, head_version: int) -> set:
+    """The versions no retention rule may remove, whatever their age or rank.
+
+    * the newest version (the head), tombstone or not;
+    * every tombstone — a delete must stay a visible fact in the history;
+    * the version each tombstone deleted: the newest non-tombstone version below it, which is what
+      a member restores after a delete;
+    * every version a restore copied (``restored_from``).
+
+    The current LIVE head needs no clause of its own: it is the head when the head is live, and the
+    version the head tombstone deleted when it is not — both named above."""
+    keep = {int(head_version)}
+    keep.update(r[0] for r in c.execute(
+        "SELECT version FROM workspace_doc_versions WHERE user_id=? AND board_id=? AND tombstone=1",
+        (user_id, board_id)))
+    keep.update(r[0] for r in c.execute(
+        "SELECT (SELECT MAX(p.version) FROM workspace_doc_versions p"
+        "  WHERE p.user_id=t.user_id AND p.board_id=t.board_id AND p.tombstone=0 AND p.version<t.version)"
+        " FROM workspace_doc_versions t WHERE t.user_id=? AND t.board_id=? AND t.tombstone=1",
+        (user_id, board_id)) if r[0] is not None)
+    keep.update(r[0] for r in c.execute(
+        "SELECT DISTINCT restored_from FROM workspace_doc_versions"
+        " WHERE user_id=? AND board_id=? AND restored_from IS NOT NULL",
+        (user_id, board_id)))
+    return keep
+
+
+def _survives(version: int, created_at: int, *, count_floor: int, cutoff: int) -> bool:
+    """The owner's policy, in one expression: kept by the window OR kept by the count."""
+    kept_by_window = int(created_at) >= cutoff
+    kept_by_count = int(version) >= count_floor
+    return kept_by_window or kept_by_count
+
+
+def prune_versions(user_id: str, board_id: str, now: int, *, retain_days: Optional[int] = None,
+                   retain_newest: Optional[int] = None, max_delete: Optional[int] = None) -> dict:
+    """Remove the versions of one (user, board) that neither retention rule keeps. AUDITED.
+
+    This is the ONLY function in the module allowed to remove a row, and it may only remove rows of
+    ``workspace_doc_versions`` — ``tests/test_workspace_doc_store.py`` enforces both by AST. It
+    never touches ``user_preferences``: it has no path to the old store at all.
+
+    * Flag off ⇒ returns before ANY I/O (no connection, no file created).
+    * ``now`` is injected (epoch seconds); a version created at or after ``now - retain_days`` is
+      kept by the window, one ranked within the newest ``retain_newest`` is kept by the count.
+    * ``_protected_versions`` is applied first and unconditionally.
+    * Bounded: examines at most ``PRUNE_SCAN_ROWS`` (+ the protected set) rows, oldest first, and
+      removes at most ``max_delete``. One transaction under the write lock, so it can never
+      interleave with an append's compare-and-set.
+    * Every removal is recorded in ``workspace_doc_prune_log`` in the same transaction.
+
+    Parameters default to the module policy at CALL time (never bound at import), so the policy
+    constants remain the single authority."""
+    if not is_enabled():
+        return {"armed": False, "pruned": [], "protected": []}
+    days = RETAIN_DAYS if retain_days is None else int(retain_days)
+    newest = RETAIN_NEWEST if retain_newest is None else int(retain_newest)
+    cap = PRUNE_MAX_PER_CALL if max_delete is None else int(max_delete)
+    if days < 0 or newest < 0 or cap < 0:
+        raise ValueError("retention parameters must be non-negative")
+    now = int(now)
+    cutoff = now - days * _DAY
+    doomed: list[int] = []
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            h = _head_row(c, user_id, board_id)
+            if h is None:
+                c.execute("ROLLBACK")
+                return {"armed": True, "pruned": [], "protected": []}
+            head_v = int(h["version"])
+            protected = _protected_versions(c, user_id, board_id, head_v)
+            if newest == 0:
+                count_floor = head_v + 1                  # the count rule keeps nothing
+            else:
+                r = c.execute(
+                    "SELECT version FROM workspace_doc_versions WHERE user_id=? AND board_id=?"
+                    " ORDER BY version DESC LIMIT 1 OFFSET ?", (user_id, board_id, newest - 1)).fetchone()
+                count_floor = int(r["version"]) if r else 0   # fewer than `newest`: it keeps them all
+            rows = c.execute(
+                "SELECT version, created_at FROM workspace_doc_versions WHERE user_id=? AND board_id=?"
+                " ORDER BY version ASC LIMIT ?",
+                (user_id, board_id, PRUNE_SCAN_ROWS + len(protected))).fetchall()
+            for r in rows:
+                if len(doomed) >= cap:
+                    break
+                v = int(r["version"])
+                if v in protected or _survives(v, r["created_at"], count_floor=count_floor, cutoff=cutoff):
+                    continue
+                doomed.append(v)
+            if not doomed:
+                c.execute("ROLLBACK")
+                return {"armed": True, "pruned": [], "protected": sorted(protected)}
+            c.executemany(
+                "DELETE FROM workspace_doc_versions WHERE user_id=? AND board_id=? AND version=?",
+                [(user_id, board_id, v) for v in doomed])
+            c.execute(
+                "INSERT INTO workspace_doc_prune_log (user_id, board_id, versions_json, pruned_count,"
+                " head_version, cutoff, retain_newest, ran_at) VALUES (?,?,?,?,?,?,?,?)",
+                (user_id, board_id, json.dumps(doomed, separators=(",", ":")), len(doomed), head_v,
+                 cutoff, newest, now))
+            c.execute("COMMIT")
+        except BaseException:
+            if c.in_transaction:
+                c.execute("ROLLBACK")
+            raise
+    logger.info("[workspace_doc] pruned %d version(s) of %s/%s (v%s..v%s), head v%s",
+                len(doomed), user_id, board_id, doomed[0], doomed[-1], head_v)
+    return {"armed": True, "pruned": doomed, "protected": sorted(protected)}
+
+
 # ── the two hooks on the preferences write path ──────────────────────────────
 def begin_pref_write(user_id: str, key: str, prefs_reader: Callable[[str], dict]) -> Optional[dict]:
     """Called BEFORE ``user_preferences`` is written. ``None`` means "do nothing afterwards".
@@ -449,11 +601,24 @@ def begin_pref_write(user_id: str, key: str, prefs_reader: Callable[[str], dict]
 
 
 def finish_pref_write(ticket: Optional[dict], value: Optional[str]) -> None:
-    """Called AFTER ``user_preferences`` accepted the write. Never raises into the caller."""
+    """Called AFTER ``user_preferences`` accepted the write. Never raises into the caller.
+
+    RETENTION RUNS HERE, opportunistically: an append that actually added a version is followed by
+    one bounded ``prune_versions`` for that board. This is the only path that grows the history,
+    so pruning where it grows keeps each board near its bound with no scheduler job. A ticket only
+    exists while the flag is armed, and ``prune_versions`` re-reads the flag itself."""
     if ticket is None:
         return
     try:
-        mirror_pref(ticket["user_id"], ticket["key"], value)
+        res = mirror_pref(ticket["user_id"], ticket["key"], value)
     except Exception as exc:  # noqa: BLE001
         _HOOK_FAILURES["mirror"] += 1
         logger.warning("[workspace_doc] mirror failed for %s/%s: %s", ticket["user_id"], ticket["key"], exc)
+        return
+    if not res.get("appended"):
+        return
+    try:
+        prune_versions(ticket["user_id"], BOARD_CHARTS, int(_clock()))
+    except Exception as exc:  # noqa: BLE001 -- retention must never fail a member's write
+        _HOOK_FAILURES["prune"] = _HOOK_FAILURES.get("prune", 0) + 1
+        logger.warning("[workspace_doc] prune failed for %s: %s", ticket["user_id"], exc)

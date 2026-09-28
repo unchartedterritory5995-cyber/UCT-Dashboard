@@ -66,18 +66,83 @@ def test_every_change_appends_a_version_and_nothing_is_rewritten(store):
     assert triggers == [], f"a trigger could rewrite rows no statement here names: {triggers}"
 
 
-def test_the_module_issues_no_UPDATE_or_DELETE_and_the_scan_can_see_one():
-    """By AST over the module's own string constants, never by grep: its docstring says
-    UPDATE and DELETE on purpose."""
-    tree = ast.parse(Path(wds.__file__).read_text(encoding="utf-8"))
-    sql = [n.value.strip().upper() for n in ast.walk(tree)
-           if isinstance(n, ast.Constant) and isinstance(n.value, str)]
-    offenders = [s for s in sql if s.startswith("UPDATE ") or s.startswith("DELETE FROM")
-                 or "INSERT OR REPLACE" in s or s.startswith("REPLACE INTO")
-                 or "DROP TABLE" in s]
-    assert offenders == [], offenders
-    # Control: the same walk sees the INSERTs, so an empty list is a measurement.
-    assert any(s.startswith("INSERT INTO WORKSPACE_DOC_VERSIONS") for s in sql)
+#: The ONE function allowed to issue a DELETE, and the ONE table it may name. Retention is the only
+#: exception to append-only; a DELETE anywhere else, or against any other table (above all
+#: ``user_preferences``, the authority this store shadows), is a finding named by its function.
+PRUNE_FN = "prune_versions"
+PRUNE_TABLE = "WORKSPACE_DOC_VERSIONS"
+_DELETE = re.compile(r"\bDELETE\s+FROM\s+([A-Z0-9_]+)")
+_REWRITE = re.compile(r"^UPDATE\s|\bUPDATE\s+[A-Z0-9_]+\s+SET\b|\bDO\s+UPDATE\b"
+                      r"|\bINSERT\s+OR\s+REPLACE\b|\bREPLACE\s+INTO\b|\bDROP\s+TABLE\b|\bTRUNCATE\b")
+
+
+def _sql_constants(source: str) -> list[tuple[str, str]]:
+    """Every string constant in ``source``, upper-cased, with the name of its innermost enclosing
+    function (``<module>`` at top level). By AST, never by grep: the docstrings name UPDATE and
+    DELETE on purpose."""
+    out: list[tuple[str, str]] = []
+
+    def visit(node, fn):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            fn = node.name
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            out.append((fn, node.value.strip().upper()))
+        for child in ast.iter_child_nodes(node):
+            visit(child, fn)
+
+    visit(ast.parse(source), "<module>")
+    return out
+
+
+def _sql_offenders(source: str) -> list[str]:
+    """Any UPDATE/REPLACE/DROP anywhere; any DELETE outside ``PRUNE_FN`` or against any table but
+    ``PRUNE_TABLE``. Each finding starts with the function it was found in."""
+    offenders = []
+    for fn, s in _sql_constants(source):
+        if _REWRITE.search(s):
+            offenders.append(f"{fn}: rewrite: {s[:80]}")
+        for table in _DELETE.findall(s):
+            if fn != PRUNE_FN:
+                offenders.append(f"{fn}: DELETE outside {PRUNE_FN}: {s[:80]}")
+            elif table != PRUNE_TABLE:
+                offenders.append(f"{fn}: DELETE against {table}: {s[:80]}")
+    return offenders
+
+
+def test_the_module_issues_no_UPDATE_and_its_only_DELETE_is_retention():
+    src = Path(wds.__file__).read_text(encoding="utf-8")
+    assert _sql_offenders(src) == []
+    consts = _sql_constants(src)
+    # Controls: the same walk sees the INSERTs, and sees exactly ONE DELETE, where it is allowed —
+    # so an empty offender list is a measurement, not a scan that saw nothing.
+    assert any(s.startswith("INSERT INTO WORKSPACE_DOC_VERSIONS") for _, s in consts)
+    deletes = [(fn, _DELETE.findall(s)) for fn, s in consts if _DELETE.search(s)]
+    assert deletes == [(PRUNE_FN, [PRUNE_TABLE])], deletes
+
+
+_PLANT_OK = 'def prune_versions(c):\n    c.execute("DELETE FROM workspace_doc_versions WHERE id=?", (1,))\n'
+
+
+@pytest.mark.parametrize("planted, names", [
+    ('def head(c):\n    c.execute("DELETE FROM workspace_doc_versions WHERE id=1")\n',
+     "head: DELETE outside"),
+    ('def write(c):\n    c.execute("delete   from workspace_doc_versions")\n',
+     "write: DELETE outside"),
+    ('SQL = "DELETE FROM workspace_doc_versions"\n', "<module>: DELETE outside"),
+    ('def prune_versions(c):\n    c.execute("DELETE FROM user_preferences WHERE user_id=?")\n',
+     "prune_versions: DELETE against USER_PREFERENCES"),
+    ('def prune_versions(c):\n    c.execute("UPDATE workspace_doc_versions SET doc_json=NULL")\n',
+     "prune_versions: rewrite"),
+    ('def mirror(c):\n    c.execute("INSERT INTO t (a) VALUES (1) ON CONFLICT(a) DO UPDATE SET a=2")\n',
+     "mirror: rewrite"),
+    ('def restore(c):\n    c.execute("INSERT OR REPLACE INTO workspace_doc_versions VALUES (1)")\n',
+     "restore: rewrite"),
+])
+def test_the_rail_refuses_a_planted_statement_by_function_name(planted, names):
+    # Control: the one allowed shape alone is clean, so a red below is the plant and nothing else.
+    assert _sql_offenders(_PLANT_OK) == []
+    found = _sql_offenders(_PLANT_OK + planted)
+    assert len(found) == 1 and found[0].startswith(names), found
 
 
 def test_a_byte_identical_write_appends_nothing(store):
@@ -366,3 +431,190 @@ def test_an_unarmed_store_is_reported_absent_and_never_created(tmp_path, monkeyp
     res = sb.run_backup(now=NOW, client=_FakeR2(), bucket="b", stores=["workspace_docs"])
     assert res["workspace_docs"]["status"] == "absent"
     assert not (tmp_path / "never.db").exists()
+
+
+# ═══ 9. retention: 30 days OR the newest 200, and what is never pruned ═══════
+# Owner decision (delegated): per (user, board) keep every version from the last 30 days AND the
+# newest 200 — a version survives if EITHER rule keeps it. Never pruned whatever the rules say:
+# the newest version, the live head, any tombstone, the version a tombstone deleted, and any
+# version a restore copied. Pruning runs only while the flag is armed. The clock is injected
+# (``wds._clock`` for stamping, ``now`` for the prune); no assertion reads the wall clock.
+DAY = 86400
+T0 = int(NOW.timestamp())
+
+
+class _Clock:
+    def __init__(self, t: int):
+        self.t = t
+
+    def __call__(self) -> float:
+        return self.t
+
+
+@pytest.fixture
+def armed(store, monkeypatch):
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    clock = _Clock(T0)
+    monkeypatch.setattr(wds, "_clock", clock)
+    return clock
+
+
+def _write_at(clock: _Clock, t: int, theme: str) -> int:
+    clock.t = t
+    h = wds.head(USER, BOARD)
+    return wds.write(USER, BOARD, doc(charts_theme=theme), base_version=h["version"] if h else 0)["version"]
+
+
+def _versions() -> list[int]:
+    return sorted(h["version"] for h in wds.history(USER, BOARD, 500))
+
+
+def test_the_retention_policy_is_the_owners_decision():
+    assert (wds.RETAIN_DAYS, wds.RETAIN_NEWEST) == (30, 200)
+
+
+def test_the_30_day_window_keeps_a_version_exactly_30_days_old(armed):
+    old = T0 - 30 * DAY
+    _write_at(armed, old - 1, "a")    # v1: one second past the window
+    _write_at(armed, old, "b")        # v2: exactly on the boundary
+    _write_at(armed, old + 1, "c")    # v3
+    _write_at(armed, T0, "d")         # v4: the head
+    res = wds.prune_versions(USER, BOARD, T0, retain_newest=1)
+    assert res["pruned"] == [1]
+    assert _versions() == [2, 3, 4]
+
+
+def test_the_200_count_floor_holds_with_the_default_policy(armed):
+    for i in range(205):
+        _write_at(armed, T0 - 90 * DAY + i, f"v{i}")      # every one far outside the window
+    res = wds.prune_versions(USER, BOARD, T0)
+    assert res["pruned"] == [1, 2, 3, 4, 5]
+    assert _versions() == list(range(6, 206))
+    # At exactly the floor nothing more goes, however old.
+    assert wds.prune_versions(USER, BOARD, T0 + 365 * DAY)["pruned"] == []
+    assert len(_versions()) == 200
+
+
+def test_a_version_survives_if_EITHER_rule_keeps_it(armed):
+    old, recent = T0 - 40 * DAY, T0 - 5 * DAY
+    stamps = [old, recent, old, old, old, recent, old, T0]  # v1..v8; the stamps need not be ordered
+    for i, t in enumerate(stamps):
+        _write_at(armed, t, f"v{i}")
+    res = wds.prune_versions(USER, BOARD, T0, retain_newest=3)
+    # newest-3 keeps 6,7,8 · the window keeps 2,6,8 · union 2,6,7,8. v7 survives on the count
+    # alone, v2 on the window alone — either rule failing to keep them would prune them.
+    assert res["pruned"] == [1, 3, 4, 5]
+    assert _versions() == [2, 6, 7, 8]
+
+
+def test_the_head_tombstones_and_restore_targets_are_never_pruned(armed):
+    armed.t = T0 - 60 * DAY                                  # every version outside the window
+    wds.write(USER, BOARD, doc(charts_theme="a"), base_version=0)          # v1
+    wds.write(USER, BOARD, doc(charts_theme="b"), base_version=1)          # v2  <- restored later
+    wds.write(USER, BOARD, doc(charts_theme="c"), base_version=2)          # v3
+    wds.write(USER, BOARD, doc(charts_theme="d"), base_version=3)          # v4  <- the tombstone's
+    wds.tombstone(USER, BOARD, base_version=4)                             # v5  tombstone
+    wds.ensure_snapshot(USER, lambda uid: {"charts_theme": "e"})           # v6
+    wds.write(USER, BOARD, doc(charts_theme="f"), base_version=6)          # v7
+    wds.restore(USER, BOARD, 2, base_version=7)                            # v8  restored_from=2
+    wds.write(USER, BOARD, doc(charts_theme="g"), base_version=8)          # v9  the head
+    # retain_newest=0: neither rule keeps anything, so only the protections stand.
+    res = wds.prune_versions(USER, BOARD, T0, retain_newest=0)
+    assert res["pruned"] == [1, 3, 6, 7, 8]
+    assert _versions() == [2, 4, 5, 9]
+    assert res["protected"] == [2, 4, 5, 9]
+    assert wds.head(USER, BOARD)["doc"]["prefs"] == {"charts_theme": "g"}
+
+
+def test_a_tombstoned_board_keeps_the_version_it_deleted_and_can_restore_it(armed):
+    armed.t = T0 - 60 * DAY
+    wds.write(USER, BOARD, doc(charts_theme="a"), base_version=0)          # v1
+    wds.write(USER, BOARD, doc(charts_theme="b"), base_version=1)          # v2  the live head
+    wds.tombstone(USER, BOARD, base_version=2)                             # v3  the newest
+    assert wds.prune_versions(USER, BOARD, T0, retain_newest=0)["pruned"] == [1]
+    assert _versions() == [2, 3]
+    armed.t = T0
+    assert wds.restore(USER, BOARD, 2, base_version=3)["version"] == 4
+
+
+def test_flag_off_prune_does_nothing_and_touches_no_file(store, monkeypatch):
+    clock = _Clock(T0 - 90 * DAY)
+    monkeypatch.setattr(wds, "_clock", clock)
+    for i in range(5):
+        _write_at(clock, T0 - 90 * DAY + i, f"v{i}")
+    monkeypatch.delenv(wds.ENABLED_ENV, raising=False)
+
+    def boom(*a, **k):
+        raise AssertionError("the store was touched while dark")
+
+    with monkeypatch.context() as m:
+        m.setattr(wds, "_connect", boom)
+        res = wds.prune_versions(USER, BOARD, T0, retain_newest=0)
+    assert res == {"armed": False, "pruned": [], "protected": []}
+    assert _versions() == [1, 2, 3, 4, 5]
+    # Control: the same call armed does prune, so the empty result above is the flag's doing.
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    assert wds.prune_versions(USER, BOARD, T0, retain_newest=0)["pruned"] == [1, 2, 3, 4]
+
+
+def test_pruning_is_bounded_per_call_oldest_first_and_audited(armed):
+    for i in range(10):
+        _write_at(armed, T0 - 90 * DAY + i, f"v{i}")
+    first = wds.prune_versions(USER, BOARD, T0, retain_newest=1, max_delete=3)
+    second = wds.prune_versions(USER, BOARD, T0, retain_newest=1, max_delete=3)
+    assert (first["pruned"], second["pruned"]) == ([1, 2, 3], [4, 5, 6])
+    assert _versions() == [7, 8, 9, 10]
+    con = sqlite3.connect(wds._DB_PATH)
+    try:
+        rows = con.execute("SELECT user_id, board_id, versions_json, pruned_count, head_version, ran_at"
+                           " FROM workspace_doc_prune_log ORDER BY id").fetchall()
+    finally:
+        con.close()
+    assert rows == [(USER, BOARD, "[1,2,3]", 3, 10, T0), (USER, BOARD, "[4,5,6]", 3, 10, T0)]
+    assert wds.stats()["pruned_versions"] == 6
+
+
+def test_the_append_hook_prunes_while_armed(armed, monkeypatch):
+    monkeypatch.setattr(wds, "RETAIN_NEWEST", 2)
+    prefs = {"charts_theme": "start"}
+    reader = lambda uid: dict(prefs)                          # noqa: E731
+    armed.t = T0 - 60 * DAY
+    for theme in ("a", "b", "c", "d"):                        # snapshot v1, mirrors v2..v5
+        ticket = wds.begin_pref_write(USER, "charts_theme", reader)
+        wds.finish_pref_write(ticket, theme)
+    assert _versions() == [1, 2, 3, 4, 5]                     # all inside the window at that time
+    armed.t = T0
+    ticket = wds.begin_pref_write(USER, "charts_theme", reader)
+    wds.finish_pref_write(ticket, "e")                        # v6, then prune at now=T0
+    assert _versions() == [5, 6]
+    assert wds.head(USER, BOARD)["doc"]["prefs"]["charts_theme"] == "e"
+
+
+def test_a_failing_prune_never_raises_into_the_preference_write_and_is_counted(armed, monkeypatch):
+    monkeypatch.setattr(wds, "_HOOK_FAILURES", {"snapshot": 0, "mirror": 0, "prune": 0})
+
+    def boom(*a, **k):
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(wds, "prune_versions", boom)
+    ticket = wds.begin_pref_write(USER, "charts_theme", lambda uid: {})
+    wds.finish_pref_write(ticket, "x")
+    assert wds._HOOK_FAILURES == {"snapshot": 0, "mirror": 0, "prune": 1}
+    assert wds.head(USER, BOARD)["doc"]["prefs"] == {"charts_theme": "x"}
+
+
+def test_pruning_never_names_user_preferences():
+    """The DELETE rail above pins the one table pruning may name; this pins that the function
+    reaches nothing that could write the old store (no auth service, no preference writer)."""
+    tree = ast.parse(Path(wds.__file__).read_text(encoding="utf-8"))
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == PRUNE_FN)
+    body = fn.body[1:] if ast.get_docstring(fn) else fn.body   # the docstring names it on purpose
+    nodes = [n for stmt in body for n in ast.walk(stmt)]
+    words = {n.id for n in nodes if isinstance(n, ast.Name)}
+    words |= {n.attr for n in nodes if isinstance(n, ast.Attribute)}
+    words |= {n.value for n in nodes if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    hits = sorted(w for w in words if "user_pref" in w.lower() or "auth" in w.lower()
+                  or "set_user_preference" in w)
+    assert hits == [], hits
+    # Control: the same walk sees the table it does name.
+    assert any("workspace_doc_versions" in w for w in words)
