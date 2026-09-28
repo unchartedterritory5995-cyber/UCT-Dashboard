@@ -15841,6 +15841,16 @@ export function colourHexByName(name, version) {
   return pineColourHex(name, version)
 }
 
+/** The DEFAULT a generic `input(…)` call carries: `defval =` when named, else
+ *  the first positional argument. Undefined when there is none. */
+function inputDefaultNode(node) {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  if (named) return named.value
+  const first = args.find((a) => a && !a.name)
+  return first ? first.value : undefined
+}
+
 const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
 const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
 
@@ -15916,6 +15926,20 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   // the value without claiming the control.
   if (node.type === 'call' && node.name === 'input.color') {
     return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+  }
+  // ⭐⭐ 2026-09-28 — v4's `input(<colour>, type = input.color)` IS THE SAME PICKER.
+  // Before `input.color` existed, a colour input was the generic `input()` whose
+  // DEFAULT is a colour (v4 infers the type from it, and `type = input.color`
+  // only says so out loud). Its default is a static colour exactly as
+  // `input.color`'s is. ⚰️ Measured against TradingView (vendor harness, RDDT 1D
+  // 2026-09-28): Liquidation Levels colours its ten lines `color = c_x1` …
+  // `c_x5`, each `input(color.aqua, …, type = input.color)`, and all ten drew in
+  // the pane's gold where TradingView drew aqua/lime/yellow/orange/red.
+  // ⛔ ONLY a default that IS a colour: `input(14)` or `input(close)` answers
+  // null here because its first argument folds to no colour — this reads the
+  // value, it never guesses a type.
+  if (node.type === 'call' && node.name === 'input') {
+    return staticColourOf(inputDefaultNode(node), env, depth + 1, ctx)
   }
   if (node.type === 'call' && node.name === 'color.new') {
     // ⛔⛔ A DYNAMIC TRANSPARENCY MAKES THE WHOLE COLOUR DYNAMIC.
@@ -16012,6 +16036,10 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   if (node.type !== 'call') return null
   if (node.name === 'input.color') {
     return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
+  // The v4 generic `input(<colour>)` — the same door `staticColourOf` opens.
+  if (node.name === 'input') {
+    return colourHelperAlpha(inputDefaultNode(node), env, ctx, depth + 1)
   }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
