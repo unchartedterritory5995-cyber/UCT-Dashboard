@@ -53,6 +53,17 @@
     "the ledger says WHY a value is what it is and not merely what it is."
   ],
   "flags": {
+    "AI_POPULATION_CAP_MODE": {
+      "status": "dark",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "shadow",
+        "enforce"
+      ],
+      "note": "TERM-078 (FB-I1-04), 2026-09-28. A MODE, not a gate: the population-wide daily cap over member AI requests (api/services/ai_population_cap.py, declared in its AI_POPULATION_MODE_FLAGS table). Read PER CALL, so changing it needs no rebuild. UNSET/off = exactly today's behaviour: admit() returns before touching the database. shadow = every member AI request at a wired door (AI Search's request reservation, Ask Notebook, writing help, property autofill, Compass chat) is counted in daily_counters (auth.db, scope ai_population_requests, subject '*', per ET day) AFTER the member's own reservation succeeds, and a request the cap would refuse is logged once per (door, ET day) as '[ai-population-cap] would-cap mode=shadow door=... day=... cap=N' and ADMITTED - shadow never blocks. enforce = past the cap the door gives back the member's own reservation and answers 429 with ai_population_cap.REFUSAL_SENTENCE, which names the shared cap and says it is not the member's own allowance; Settings -> Plan & Billing -> AI Allowances then shows the shared limit's percent used. An unrecognised value is treated as shadow (never blocks, never silent). FAILS OPEN: a counter-store error admits (daily_counters' rule) and the meter says the count is unavailable. The cap is AI_POPULATION_DAILY_CAP (default 5000 requests per ET day), read per call. Dark on purpose: the cap number has no measured baseline yet (OI-10, spend undetermined). OWNER STEPS: set shadow on web, read the would-cap lines and the day's counter for a trading week, pick the cap from that, then set enforce. ROLLBACK: set it back to off (railway variable --set restarts web; a delete does not - verify the running process, never --kv)."
+    },
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [

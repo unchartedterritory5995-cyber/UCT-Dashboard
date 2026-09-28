@@ -237,6 +237,21 @@ def reserve_synth(user_id):
         return True
 
 
+def synth_used(user_id) -> int:
+    """This member's synth reservations today -- the SAME dict `reserve_synth`
+    spends, read under the same lock and rolled on the same ET day, so the
+    member meter (TERM-078, `ai_meters`) can never show a count the gate is not
+    enforcing. In-process: a deploy resets it, exactly as it resets the gate."""
+    global _synth_day, _synth_spend
+    with _synth_lock:
+        d = _et_day()
+        if d != _synth_day:
+            _synth_day = d
+            _synth_by_user.clear()
+            _synth_spend = 0.0
+        return int(_synth_by_user.get(user_id, 0))
+
+
 def refund_synth(user_id):
     """Inverse of reserve_synth — give back a reservation when synthesis fails
     (error/timeout) or produces nothing AFTER a successful reserve_synth, so a

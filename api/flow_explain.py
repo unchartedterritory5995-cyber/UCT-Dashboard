@@ -252,6 +252,27 @@ def _add_cost(date: str, usd: float) -> None:
             _MEM_COSTS[date] = _MEM_COSTS.get(date, 0.0) + usd
 
 
+def user_count(user_id: str, date: str) -> int | None:
+    """READ-ONLY twin of `_bump_user_count`: the member's request count for
+    `date` from the SAME table (and the same in-memory fallback it writes when
+    the DB errors). None when neither can be read -- the member meter
+    (TERM-078, `ai_meters`) says "unavailable", never a false 0."""
+    try:
+        with contextlib.closing(_connect()) as conn:
+            row = conn.execute(
+                "SELECT count FROM flow_explain_user_requests WHERE user_id = ? AND date = ?",
+                (user_id, date),
+            ).fetchone()
+        db_count = int(row[0]) if row else 0
+    except Exception:
+        db_count = None
+    with _MEM_LOCK:
+        mem = _MEM_USER_COUNTS.get((user_id, date))
+    # The door counts in the DB while the DB answers and in memory only when it
+    # does not -- so read them the same way round.
+    return mem if db_count is None else db_count
+
+
 def _bump_user_count(user_id: str, date: str) -> int:
     """Increment and return the user's request count for `date`."""
     try:

@@ -636,6 +636,19 @@ def handle_user_turn(
                    "message": "Compass has reached its daily cost limit. It'll be back tomorrow."}
             return
 
+        # TERM-078: the population-wide daily cap over member AI requests (R-18
+        # records Compass chat with no population cap at all). AFTER the member's
+        # own daily limit above, so a member already over it never spends the
+        # membership's. Off unless AI_POPULATION_CAP_MODE is set; shadow never
+        # blocks. Nothing has been stored yet, so a refusal costs the member no
+        # message; its text NAMES the shared cap.
+        from api.services import ai_population_cap
+        _pop_refusal = ai_population_cap.admit("compass_chat")
+        if _pop_refusal:
+            yield {"type": "error", "code": ai_population_cap.REFUSAL_CODE,
+                   "message": _pop_refusal}
+            return
+
         try:
             _maybe_summarize(user_id=user_id, account_id=account_id,
                              conn=_conn, deadline=deadline)
