@@ -6,7 +6,7 @@ docs/notebook/wave5-rollback.md; scorecard clause 3b, lane R1 2026-09-28).
    procedure cannot roll back (derived from git, never a typed list).
 2. The chain is newest first, one-parent squashes, each built on the next.
 3. Rebuilding the chain from MEASURED_AT reproduces, tree for tree, the trees that were booted
-   on a sandbox (docs/notebook/evidence/rollback-rehearsal-2026-09-28/chain/chain-primary.jsonl),
+   on a sandbox (docs/notebook/evidence/rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl),
    with both schema tables byte-identical to the tip at every step.
 4. A conflict with no recorded rule stops the chain (fail closed), naming the file.
 
@@ -25,7 +25,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-28" / "chain" / "chain-primary.jsonl"
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-28" / "chain" / "chain-primary-r2.jsonl"
 WAVE5 = "2c3ed3093"
 # A Notebook landing: a one-parent commit whose SUBJECT names the Notebook (or wave 9C, the
 # Notebook's soak instrument) and which changes shipped code (app/ or api/). Docs-only Notebook
@@ -133,7 +133,7 @@ def test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees(chain):
     """Tree for tree, the chain the sandbox booted. A changed rule, a dropped keep-path or a
     dropped schema restore changes a tree here before it changes a member's Notebook."""
     recorded = [json.loads(l) for l in RECORD.read_text(encoding="utf-8").splitlines()]
-    want = [(d["squash"], d["tree"]) for d in recorded if not d.get("measure_only")]
+    want = [(d["squash"], d["tree"]) for d in recorded if "squash" in d]
     got, lines = [], []
     final = chain.run(chain.MEASURED_AT, "wave5", emit=lines.append)
     for line in lines[:-1]:
@@ -144,8 +144,9 @@ def test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees(chain):
     assert got == [(s[:9], t) for s, t in want]
     assert final["tree"] == want[-1][1]
     # the schema restore is not idle: wave 6's and wave 5's reverts would have changed a table
-    changed = [json.loads(l)["key"] for l in lines[:-1] if json.loads(l)["schema_change_undone"]]
-    assert {"wave6", "wave5"} <= set(changed)
+    changed = {json.loads(l)["key"]: json.loads(l)["schema_change_undone"] for l in lines[:-1]}
+    assert {k for k, v in changed.items() if v} >= {"wave6", "wave5", "guard-8167f7aa0"}
+    assert set(chain.SCHEMA_RAILS) <= set(changed["wave5"])
 
 
 def test_an_unrecorded_conflict_stops_the_chain(chain, monkeypatch):

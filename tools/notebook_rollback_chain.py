@@ -19,7 +19,8 @@ on the earlier ones. At every step:
     (so as the tip has them): a rollback reverts what ships to members, never the records,
     the runbook it is following, or the operator's own instruments;
   * both schema tables stay byte-identical to the tip (`SCHEMA_FILES`): a table entry is never
-    removed (wave5-rollback.md, "Rules that outlive this wave");
+    removed (wave5-rollback.md, "Rules that outlive this wave"); so do the two rails that test
+    them (`SCHEMA_RAILS`);
   * a product conflict is resolved ONLY by a recorded rule (`RULES`); any other conflict STOPS
     the chain and names the file -- fail closed, never a guess.
 
@@ -48,6 +49,13 @@ REPO = Path(__file__).resolve().parents[1]
 MEASURED_AT = "38bb9a421"
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
+# The two rails that test those tables stay with them: a table kept at the tip checked by a rail
+# reverted to an older wave is a red rail on a correct tree (measured 2026-09-28: wave 6's revert
+# brought back a rail that expects no level 2; the 8167f7aa0 pick brought back one that expects
+# levels {0, 1} only).
+SCHEMA_RAILS = ("app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js",
+                "tests/test_notebook_schema_guard.py")
+KEEP_AT_TIP = SCHEMA_FILES + SCHEMA_RAILS
 KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
@@ -102,9 +110,7 @@ RULES: dict[str, dict] = {
     "f883e0996": {"api/main.py": ("hunks", [_JOURNAL_TWO_MOUNT])},
     "271a078b6": {"api/main.py": ("hunks", [_JOURNAL_TWO_MOUNT]),
                   "api/services/client_errors.py": "delete"},
-    "2c3ed3093": {p: "ours" for p in SCHEMA_FILES},
     "8167f7aa0": {
-        **{p: "ours" for p in SCHEMA_FILES},
         "app/src/pages/journal-2-0/lib/tiptap.js": ("hunks", "all-ours", {
             "import_after": ("import StarterKit from '@tiptap/starter-kit'",
                              "import { getSchema } from '@tiptap/core'"),
@@ -217,7 +223,8 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False) -> dict:
             b = _git("hash-object", "-w", "--stdin", inp=data).stdout.decode().strip()
             _git("update-index", "--add", "--cacheinfo", f"100644,{b},{path}", env=env)
 
-        product = [p for p in conflicts if not any(p == k or p.startswith(k + "/") for k in KEEP_PATHS)]
+        product = [p for p in conflicts if p not in KEEP_AT_TIP
+                   and not any(p == k or p.startswith(k + "/") for k in KEEP_PATHS)]
         rules = RULES.get(squash, {})
         missing = [p for p in product if p not in rules]
         if missing:
@@ -242,8 +249,8 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False) -> dict:
                 if re.search(rb"^(<<<<<<<|>>>>>>>) ", data, re.M):
                     raise ChainStopped(f"conflict markers left in {p}")
                 put_bytes(p, data)
-        would_change = [p for p in SCHEMA_FILES if p in conflicts or _blob(merged, p) != _blob(prev, p)]
-        for p in SCHEMA_FILES:
+        would_change = [p for p in KEEP_AT_TIP if p in conflicts or _blob(merged, p) != _blob(prev, p)]
+        for p in KEEP_AT_TIP:
             put_from(tip, p)
         tree = _out("write-tree", env=env).strip()
     finally:
@@ -251,7 +258,7 @@ def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False) -> dict:
             os.remove(idx)
     return {"op": "cherry-pick" if pick else "revert", "squash": squash, "conflicts": conflicts,
             "product_conflicts": product, "schema_change_undone": would_change, "tree": tree,
-            "schema_identical_to_tip": all(_blob(tree, p) == _blob(tip, p) for p in SCHEMA_FILES)}
+            "schema_identical_to_tip": all(_blob(tree, p) == _blob(tip, p) for p in KEEP_AT_TIP)}
 
 
 def plan(through: str, revert_hotfixes: bool = False) -> list[tuple[str, str, str, bool]]:

@@ -11,7 +11,7 @@ EV = Path(__file__).resolve().parent / "sandbox"
 ORDER = ["p00-tip-seed-run1", "p00-tip-run1", "p01-38bb9a421-run1", "p02-4bba30b73-run1", "p03-d9e887ca0-run1",
          "p00-tip", "p01-38bb9a421", "p02-4bba30b73", "p03-d9e887ca0", "p04-4f708a0d2",
          "p07-1c4b0bf74", "p08-7e3f9e117", "p09-caf6d1b9e", "p10-2e0598bfa", "p11-f883e0996",
-         "p12-271a078b6", "p13b-fd87271fd"]
+         "p12-271a078b6", "p13b-fd87271fd", "r2-p12-271a078b6", "r2-p13b-fd87271fd"]
 PROBES = [("L1c_switcher_body_recall", "L1c recall"), ("L1b_admin_notebook_slo", "L1b slo"),
           ("L1a_unbuildable_body_at_create", "L1a unbuildable"), ("h203_depth_cap_at_create", "#203 depth"),
           ("w9_batch_export_bogus_format", "w9 bogus fmt"), ("w8_share_links", "w8 share"),

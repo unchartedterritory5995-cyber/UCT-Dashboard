@@ -21,6 +21,8 @@ Data dir `C:\data-w10rb`, port 8229, one boot per row, in this order. Fixtures s
 - **p11-f883e0996** (build rc 0, 23 s): SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; step 11: revert f883e0996 (wave 7 #196); tree 2662dcf76c7196b7a7edf7702b5a39ad7a2dcabd; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/p11-f883e0996/sandbox-integrity.md
 - **p12-271a078b6** (build rc 0, 24 s): SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; step 12: revert 271a078b6 (wave 6 #193); tree ed399878987c00eec66dde7975f74e1e4daa4e6a; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/p12-271a078b6/sandbox-integrity.md
 - **p13b-fd87271fd** (build rc 0, 23 s): SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; step 13b: cherry-pick fd87271fd (re-apply guard fd87271fd); tree 900580af6379b84fe29b3721d4131edaf786afa8; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/p13b-fd87271fd/sandbox-integrity.md
+- **r2-p12-271a078b6** (build rc 0, 32 s): SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; round 2 wave6: revert 271a078b6 (wave 6 #193); tree bfb45998cd76c55f606ea67bdf16108290108db4; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/r2-p12-271a078b6/sandbox-integrity.md
+- **r2-p13b-fd87271fd** (build rc 0, 47 s): SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; round 2 guard-fd87271fd: cherry-pick fd87271fd (re-apply guard fd87271fd); tree 832bd5b7595f3cd884864d14405de1c7a51adffa; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/r2-p13b-fd87271fd/sandbox-integrity.md
 
 ## A. One door per landing (HTTP status; the recall row also counts body matches)
 
@@ -43,6 +45,8 @@ Data dir `C:\data-w10rb`, port 8229, one boot per row, in this order. Fixtures s
 | p11-f883e0996 | 200 (0 by text) | 200 text/html | 200 | 400 | 200 | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 json | 200 json | absent | absent |
 | p12-271a078b6 | 200 (0 by text) | 200 text/html | 200 | 400 | 200 | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 json | absent | absent |
 | p13b-fd87271fd | 404 (0 by text) | 200 text/html | 200 | 400 | 405 | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 404 json | absent | absent |
+| r2-p12-271a078b6 | 200 (0 by text) | 200 text/html | 200 | 400 | 200 | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 json | absent | absent |
+| r2-p13b-fd87271fd | 404 (0 by text) | 200 text/html | 200 | 400 | 405 | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 200 text/html | 404 json | absent | absent |
 
 ## B. The never-revert set: the three tip-made notes in the served editor
 
@@ -99,6 +103,12 @@ Data dir `C:\data-w10rb`, port 8229, one boot per row, in this order. Fixtures s
 | p13b-fd87271fd | n2 | True | True | newer version of the app, Reload to edit it | 0, 0 | 409, 409 | True | False | 0 |
 | p13b-fd87271fd | n1 | True | True | newer version of the app, Reload to edit it | 0, 0 | 409, 409 | True | False | 0 |
 | p13b-fd87271fd | n0 | True | True | - | 0 | 200 | True | True | 0 |
+| r2-p12-271a078b6 | n2 | True | False | newer version of the app, Reload to edit it | none | none | True | False | 0 |
+| r2-p12-271a078b6 | n1 | True | True | - | 1 | 200 | True | True | 0 |
+| r2-p12-271a078b6 | n0 | True | True | - | 1 | 200 | True | True | 0 |
+| r2-p13b-fd87271fd | n2 | True | True | newer version of the app, Reload to edit it | 0, 0 | 409, 409 | True | False | 0 |
+| r2-p13b-fd87271fd | n1 | True | True | newer version of the app, Reload to edit it | 0, 0 | 409, 409 | True | False | 0 |
+| r2-p13b-fd87271fd | n0 | True | True | - | 0 | 200 | True | True | 0 |
 
 ## C. The procedure's check list, inside each step tree
 
@@ -109,15 +119,17 @@ Data dir `C:\data-w10rb`, port 8229, one boot per row, in this order. Fixtures s
 | p01-38bb9a421-run1 | not run | not run |
 | p02-4bba30b73-run1 | not run | not run |
 | p03-d9e887ca0-run1 | not run | not run |
-| p00-tip | NO TOTALS LINE | not run |
-| p01-38bb9a421 | not run | not run |
-| p02-4bba30b73 | not run | not run |
-| p03-d9e887ca0 | not run | not run |
-| p04-4f708a0d2 | not run | not run |
-| p07-1c4b0bf74 | not run | not run |
-| p08-7e3f9e117 | not run | not run |
-| p09-caf6d1b9e | not run | not run |
-| p10-2e0598bfa | not run | not run |
-| p11-f883e0996 | not run | not run |
-| p12-271a078b6 | not run | not run |
-| p13b-fd87271fd | not run | not run |
+| p00-tip | 17 passed, 6010 warnings in 9.53s | Test Files  21 passed (21); Tests  272 passed (272) |
+| p01-38bb9a421 | 17 passed, 6010 warnings in 7.79s | Test Files  21 passed (21); Tests  272 passed (272) |
+| p02-4bba30b73 | 17 passed, 6010 warnings in 6.52s | Test Files  21 passed (21); Tests  272 passed (272) |
+| p03-d9e887ca0 | 17 passed, 6010 warnings in 5.81s | Test Files  21 passed (21); Tests  272 passed (272) |
+| p04-4f708a0d2 | 17 passed, 6010 warnings in 6.39s | Test Files  20 passed (20); Tests  244 passed (244) |
+| p07-1c4b0bf74 | 17 passed, 6010 warnings in 6.54s | Test Files  20 passed (20); Tests  244 passed (244) |
+| p08-7e3f9e117 | 17 passed, 6010 warnings in 6.86s | Test Files  20 passed (20); Tests  244 passed (244) |
+| p09-caf6d1b9e | 17 passed, 6120 warnings in 6.49s | Test Files  18 passed (18); Tests  221 passed (221) |
+| p10-2e0598bfa | 17 passed, 6120 warnings in 7.91s | Test Files  18 passed (18); Tests  221 passed (221) |
+| p11-f883e0996 | 17 passed, 6120 warnings in 8.46s | Test Files  18 passed (18); Tests  221 passed (221) |
+| p12-271a078b6 | 17 passed, 5878 warnings in 7.98s | Test Files  1 failed | 17 passed (18); Tests  1 failed | 220 passed (221) |
+| p13b-fd87271fd | 1 failed, 12 passed, 5155 warnings in 6.77s | Test Files  1 failed | 14 passed (15); Tests  1 failed | 174 passed (175) |
+| r2-p12-271a078b6 | 17 passed, 5878 warnings in 6.41s | Test Files  18 passed (18); Tests  221 passed (221) |
+| r2-p13b-fd87271fd | 17 passed, 5812 warnings in 6.54s | Test Files  15 passed (15); Tests  175 passed (175) |

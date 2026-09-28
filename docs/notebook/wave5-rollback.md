@@ -3,8 +3,8 @@
 > ⭐ **EXECUTABLE AT `38bb9a421` (production's tip, 2026-09-28), AND REHEARSED STEP BY STEP ON A
 > SANDBOX** (lane R1, scorecard clause 3b). Every Notebook landing from wave 10 down to wave 5 was
 > reverted newest first, and each step booted from a `git archive` of its own tree on the tip's
-> data. Every boot's integrity was CLEAN. Evidence: `docs/notebook/evidence/rollback-rehearsal-2026-09-28/`
-> (raw chain `chain/`, raw boots `sandbox/`, mechanical tables `chain/step-table.md` and
+> data. All 19 boots were CLEAN. The procedure's check list ran green inside every step's tree.
+> Evidence: `docs/notebook/evidence/rollback-rehearsal-2026-09-28/` (raw chain `chain/`, raw boots `sandbox/`, mechanical tables `chain/step-table.md` and
 > `sandbox-results.md`). The table is in *Measured, 2026-09-28* below.
 >
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
@@ -13,9 +13,11 @@
 > stopped on 68 unmerged paths, the guard's own two table files among them.
 >
 > ⛔⛔ **THE KEEP-LIST: never reverted, at any step** (details in *The keep-list*):
-> 1. **Both schema tables** stay byte-identical to the tip: `app/src/pages/journal-2-0/lib/notebookSchema.js`
->    and `api/services/journal_two/notebook_schema.py`. The revert of wave 6 and of wave 5 would
->    change them; the procedure puts the tip's copies back.
+> 1. **Both schema tables, and the two rails that test them**, stay byte-identical to the tip:
+>    - the tables: `app/src/pages/journal-2-0/lib/notebookSchema.js` and
+>      `api/services/journal_two/notebook_schema.py`;
+>    - their rails: `notebookSchema.rail.test.js` and `tests/test_notebook_schema_guard.py`.
+>    The reverts of wave 6 and of wave 5 would change them. The procedure puts the tip's copies back.
 > 2. **The guard commits `8167f7aa0` and `fd87271fd`** (tags `notebook-wave5-guard-*`) are
 >    re-applied after wave 5's revert. **`82c56dd63` is NOT re-applied**: it does not apply to the
 >    fully rolled-back tree, and there it is not needed (see the keep-list). Above wave 5 all three
@@ -147,7 +149,7 @@ The fix has four steps:
 1. add the landing to `CHAIN`, newest first;
 2. run the tool from the new tip and record a rule for each conflict;
 3. rehearse the new step;
-4. move `MEASURED_AT` and re-record `chain-primary.jsonl`.
+4. move `MEASURED_AT` and re-record the chain (`python tools/notebook_rollback_chain.py --from <tip> --through wave5`) as the file the rail reads (`RECORD`).
 
 ## Why a rollback needs the guard
 
@@ -286,6 +288,17 @@ The vitest rail goes red, because it imports `editorSchema`.
      untouched.
    - The check after any step is `git diff <tip> HEAD -- <both tables>`, and it must print
      nothing.
+   - **The two rails that test the tables stay at the tip with them** (`SCHEMA_RAILS`):
+     `notebookSchema.rail.test.js` and `tests/test_notebook_schema_guard.py`.
+     ⚰️ Measured in the first round of this rehearsal, the reverts brought back older copies of
+     the rails while the tables stayed at the tip:
+     - after the wave-6 revert, `notebookSchema.rail.test.js` came back at its wave-5 version and
+       failed `declares the newest level when every type is registered`: it expected 1 and got 2;
+     - after the `8167f7aa0` pick, `test_notebook_schema_guard.py` came back at its wave-5 version,
+       which asserts that the table holds levels {0, 1} only.
+     Those are red rails on a correct tree (`sandbox/p12-*`, `sandbox/p13b-*`). The second round,
+     `chain/chain-primary-r2.jsonl`, keeps the rails at the tip. Its trees differ from round 1's
+     only in those two test files, and every check-list run is green.
 2. **`8167f7aa0` + `fd87271fd`, re-applied after wave 5's revert.** `8167f7aa0` is the guard
    itself: the server refusal and the derived declaration. Measured, its cherry-pick conflicts in
    three files:
@@ -331,7 +344,8 @@ The vitest rail goes red, because it imports `editorSchema`.
 
 **Method.**
 - The chain was built from objects at `origin/master` `38bb9a421`
-  (`chain/chain-primary.jsonl`); `tools/notebook_rollback_chain.py` rebuilds the same trees.
+  (round 1: `chain/chain-primary.jsonl`). Round 2 is `chain/chain-primary-r2.jsonl`, which
+  `tools/notebook_rollback_chain.py` writes and its rail rebuilds tree for tree.
 - Each step's tree was taken with `git archive`, re-hashed file by file, and was IDENTICAL to its
   git tree (`sandbox/extract-verify.log`).
 - Each tree built its own `app/dist` and booted with `scripts/hub_sandbox_boot.py`.
@@ -339,7 +353,7 @@ The vitest rail goes red, because it imports `editorSchema`.
   rolled-back server read data the tip had written, the way a real rollback does.
 - The Notebook gates were set to production's armed values for every boot. A door that disappears
   is therefore absent, not switched off.
-- **17 boots, every one CLEAN** at pre-boot, +15 s, +120 s and shutdown, with 62 db files hashed
+- **19 boots (17 in round 1, 2 in round 2), every one CLEAN** at pre-boot, +15 s, +120 s and shutdown, with 62 db files hashed
   each time. The integrity verdict is the first line of each `sandbox/<label>/sandbox-integrity.txt`.
 - Raw data: `sandbox-results.md`, and `probe.json` plus screenshots per boot.
 
@@ -389,8 +403,17 @@ This is the guard doing its job at the depth it was built for:
 The wave-5 editor has no content guard, so it opens the note it cannot read as empty. Its save is
 refused and the server keeps the note, as *What a member sees* below describes.
 
-**The procedure's check list, run inside each step's tree** (`verify_list.py`; totals in
-`sandbox-results.md` §C): results in the next commit of this lane (`verify-*.log` per boot).
+**The procedure's check list, run inside each step's tree** (`verify_list.py`; the totals line of
+every run is in `sandbox-results.md` §C):
+- `tests/test_notebook_schema_guard.py` passed 17 in every tree.
+- The vitest list (`--maxWorkers=2`) was green in every tree:
+  - 272 tests: tip down to `L1b`;
+  - 244: `L1a` down to `201`;
+  - 221: `wave8` down to `wave6`;
+  - 175 through `wave5`, where the three files of `82c56dd63` do not exist.
+- This holds in round 2. Round 1 had two reds at `wave6` and `wave5`, explained in *The keep-list*, 1.
+- The wave6 and wave5 trees in the table above are round 2's (`bfb45998cd` and `832bd5b759`).
+  Both booted CLEAN and answered exactly as round 1 did (`sandbox/r2-*`).
 
 **Also measured, and not a finding about the product:**
 - The strict chain (every landing, hotfixes included, `chain-strict.jsonl`) is merge-clean with the

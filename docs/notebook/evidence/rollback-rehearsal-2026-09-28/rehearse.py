@@ -65,6 +65,15 @@ def targets() -> list[tuple[str, str, str]]:
             n = d["n"]
             out.append((f"p{int(n.rstrip('b')):02d}{'b' if n.endswith('b') else ''}-{d['squash']}",
                         d["tree"], f"step {n}: {d['op']} {d['squash']} ({d['label']})"))
+    # Round 2 (chain-primary-r2.jsonl, tools/notebook_rollback_chain.py): the schema tables' two
+    # rails kept at the tip too. Only the wave6 and wave5 trees changed, in those two test files.
+    r2 = EVID / "chain" / "chain-primary-r2.jsonl"
+    if r2.is_file():
+        for line in r2.read_text(encoding="utf-8").splitlines():
+            d = json.loads(line)
+            if d.get("key") in ("wave6", "guard-fd87271fd"):
+                lab = "r2-p12-271a078b6" if d["key"] == "wave6" else "r2-p13b-fd87271fd"
+                out.append((lab, d["tree"], f"round 2 {d['key']}: {d['op']} {d['squash']} ({d['what']})"))
     return out
 
 
