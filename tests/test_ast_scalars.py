@@ -278,7 +278,10 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # sixteen measures are numbers. `as_of` follows the convention already in
     # this file — bar-derived columns take `bars_asof` (19) and joined context
     # takes `snapshot_date` (7), which is how every existing pair reads.
-    assert (len(declared), len(excluded)) == (137, 66)
+    # ⭐ 66 → 67 (2026-09-28): #176 added `security_type` to snapshot_db
+    # COLUMNS as TEXT (the Stock / ADR / ETF bucket), and a text column is
+    # excluded for the same reason as `sector` — no string literal exists.
+    assert (len(declared), len(excluded)) == (137, 67)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
