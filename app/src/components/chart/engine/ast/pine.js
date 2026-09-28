@@ -2562,7 +2562,17 @@ export function lexPine(src) {
       let lastBreak = -1
       const eat = (k) => { if (text[k] === '\n') { newlines += 1; lastBreak = k } }
       while (j < text.length && text[j] !== ch) {
-        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1]; j += 2; continue }
+        // ⭐⭐ `\n` IS A NEWLINE, NOT THE LETTER `n`. This branch used to keep
+        // whatever followed the backslash, which is right for `\\`, `\"` and
+        // `\'` and wrong for the one escape the corpus writes most (380 of 389
+        // backslash sequences in the 2026-09-28 batch). MEASURED against
+        // TradingView the same day: `position-size-calculator` builds its label
+        // from `"\n Account Balance : " + …` and the vendor's label text carries
+        // real line breaks, where ours read `n Account Balance : 1000n Risk…`.
+        // ⛔ ONLY `n`. Pine's other escapes are not evidenced by any capture, and
+        // a letter mapped to a control character on a guess is a text the author
+        // did not write.
+        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1] === 'n' ? '\n' : text[j + 1]; j += 2; continue }
         eat(j)
         out += text[j]
         j += 1
