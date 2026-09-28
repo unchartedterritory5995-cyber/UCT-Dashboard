@@ -250,7 +250,16 @@ def test_the_THIRD_regime_emitter_is_declared_and_deliberately_NOT_absorbed():
     # ...and CRITICAL is exactly what opens the Discord branch.
     assert "fires_discord = alert['severity'] in (SEVERITY_WARNING, SEVERITY_CRITICAL)" \
         in alerts_code
-    assert "if discord_webhook() and fires_discord:" in alerts_code
+    # ⚰️ This pinned `"if discord_webhook() and fires_discord:"` before TERM-011
+    # rows 1/3 wrapped the live read in `_discord_destination(alert)` so
+    # `regime_change` (an `_OPS_ROUTED_TYPES` member) can resolve through the
+    # ops destination instead of the admin webhook -- the branch condition
+    # moved, not the CRITICAL-opens-Discord property this test is about.
+    assert "elif fires_discord and _discord_destination(alert):" in alerts_code
+    from api.services import alerts as _alerts_mod
+    assert "regime_change" in _alerts_mod._OPS_ROUTED_TYPES, (
+        "regime_change no longer resolves through the ops destination -- the "
+        "byte-identical-today claim in the TERM-011 packet depended on it")
 
     # The exclusion is DECLARED, and it is NOT a prior_label_source.
     assert rc.EXCLUDED_EMITTER_ALERTS_TYPE == "regime_change"

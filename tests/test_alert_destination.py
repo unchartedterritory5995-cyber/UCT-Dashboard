@@ -105,6 +105,17 @@ CONVERTED = {
     # `ops_webhook()` at call time; `LIVEFLOW_ALERT_WEBHOOK_URL` is dropped (measured absent
     # on the worker service). See its tombstone below for the removed STILL_LITERAL entry.
     "api/services/liveflow_monitor.py",
+    # TERM-011 rows 1/3, 2026-09-27 — the ONLY entry here that never read the literal
+    # `DISCORD_WEBHOOK_URL` at all: `alerts.py`'s own admin var is a DIFFERENT name
+    # (`DISCORD_ALERT_WEBHOOK`), so it was out of scope for every earlier step. It imports
+    # `alert_destination.ops_webhook` LOCALLY, inside `_discord_destination()` (never at
+    # module level — `alert_routing.py` imports severity/channel constants FROM `alerts.py`
+    # at ITS OWN module level, so a module-level import here would close
+    # `alerts -> alert_destination -> alert_routing -> alerts` into a cycle), to route the
+    # two live broadcast types' (`regime_change`/`exposure_shift`) Discord copy to the OPS
+    # destination instead of the admin webhook. `imports_module` below walks the whole AST,
+    # so it sees this import even though it is function-scoped.
+    "api/services/alerts.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
