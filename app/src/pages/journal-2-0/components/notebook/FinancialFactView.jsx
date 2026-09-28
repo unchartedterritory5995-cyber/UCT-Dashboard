@@ -59,7 +59,7 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
     }, 50)
     return () => clearTimeout(t)
   }, [noteId, editor])
-  const { facts, isLoading } = useNoteFacts(noteId)
+  const { facts, isLoading, error } = useNoteFacts(noteId)
   const fact = facts.find((f) => f.id === factId)
 
   // !noteId is its OWN loading state, not a "not available" verdict --
@@ -83,11 +83,14 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
   }
 
   if (!fact) {
+    // ⛔ Wave 10 F7 (Part A, 5d): a FAILED read is not a deleted fact. "No longer available"
+    // was a false statement whenever the facts read failed; the editor's LoadFailed line
+    // offers the retry.
     return (
       <NodeViewWrapper as="div" className={styles.wrap} data-financial-fact>
         <div className={`${styles.card} ${styles.unavailable}`}>
           <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
-          <span>This captured fact is no longer available</span>
+          <span>{error ? "This captured fact didn't load." : 'This captured fact is no longer available'}</span>
         </div>
       </NodeViewWrapper>
     )

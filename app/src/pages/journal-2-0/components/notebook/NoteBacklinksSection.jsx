@@ -3,6 +3,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import useNoteBacklinksList from '../../hooks/useNoteBacklinksList'
 import useNoteRelatedFrom from '../../hooks/useNoteRelatedFrom'
 import { useNoteNavigation } from '../../lib/splitView'
+import LoadFailed from '../LoadFailed'
 import styles from './NoteBacklinksSection.module.css'
 
 /**
@@ -12,15 +13,17 @@ import styles from './NoteBacklinksSection.module.css'
  * accordion component) rather than a bespoke collapsible -- one fewer UI
  * pattern in the app, not a new one.
  *
- * Renders NOTHING while loading or on a fetch error (directive §71:
- * backlinks are secondary, a failure here must never block the note) and
- * NOTHING when there are zero backlinks (directive §70/§16 -- matches
+ * Renders NOTHING while loading (directive §71: backlinks are secondary, a
+ * failure here must never block the note) and -- wave 10 F7, clause 5d -- ONE
+ * compact sentence on a fetch error, never an empty space that reads as "no
+ * links" (it blocks nothing: the note above it is whole). And NOTHING
+ * when there are zero backlinks (directive §70/§16 -- matches
  * JournalBacklinks.jsx's own "0 is noise, not information" convention;
  * an empty "No notes link here yet" state would be permanent clutter on
  * the vast majority of notes, which have no backlinks yet).
  */
 export default function NoteBacklinksSection({ noteId }) {
-  const { count, notes, isLoading, error } = useNoteBacklinksList(noteId)
+  const { count, notes, isLoading, error, refresh } = useNoteBacklinksList(noteId)
   // Wave 6 (lane E): "Related from" — notes whose RELATION property holds this
   // one. Its own list with its own rule, shown beside "Linked from" and held to
   // the same "nothing while loading, on error, or at zero" discipline.
@@ -30,10 +33,16 @@ export default function NoteBacklinksSection({ noteId }) {
   const go = useNoteNavigation()
   const showLinked = !(isLoading || error || count === 0)
   const showRelated = !(related.isLoading || related.error || related.count === 0)
-  if (!showLinked && !showRelated) return null
+  const failures = [
+    { what: 'the notes that link here', error, retry: refresh },
+    { what: 'the notes related to this one', error: related.error, retry: related.refresh },
+  ]
+  const failed = failures.some((f) => f.error)
+  if (!showLinked && !showRelated && !failed) return null
 
   return (
     <div className={styles.wrap} data-export-exclude>
+      <LoadFailed compact failures={failures} />
       {showRelated && (
         <CollapsibleSection
           id={`related-from-${noteId}`}

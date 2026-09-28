@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import useNoteProperties from '../../hooks/useNoteProperties'
+import LoadFailed from '../LoadFailed'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
@@ -40,7 +41,7 @@ const NEW_PROPERTY_TYPES = [
  * support for free, and nothing here needs a custom listbox.
  */
 export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false }) {
-  const { properties, isLoading, refresh } = useNoteProperties(noteId)
+  const { properties, isLoading, error: loadError, refresh } = useNoteProperties(noteId)
   // The Ticker/Sector/Industry/Theme/Trade rows are computed server-side
   // from the note's OWN ticker field (a DIFFERENT save path -- the header's
   // Ticker input, not this section) -- this section's own SWR cache has no
@@ -123,6 +124,11 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   }
 
   if (isLoading) return null
+  // Wave 10 F7 (Part A, 5d): a failed read is said -- an empty section here would read as
+  // "this note has no properties", which is not what happened.
+  if (loadError && !properties.length) {
+    return <LoadFailed compact what="this note's properties" error={loadError} onRetry={refresh} />
+  }
 
   // The property door: ONE property, through the note's own `update` (which
   // lands its revision). -> true when it saved.

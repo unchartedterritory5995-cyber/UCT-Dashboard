@@ -173,7 +173,7 @@ function eventLabel(e) {
 export default function ThesisSection({ noteId, note, onOpenExcerptSource,
                                         anchorReviewId = null,
                                         onReviewAnchorConsumed = null }) {
-  const { evidence, changelog, isLoading, refresh } = useThesisSummary(noteId)
+  const { evidence, changelog, isLoading, error: summaryError, refresh } = useThesisSummary(noteId)
   const { facts } = useNoteFacts(noteId)
   const { excerpts } = useNoteExcerpts(noteId)
   const navigate = useNavigate()
@@ -237,7 +237,10 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
 
   const shaped = useMemo(() => isThesisShaped(note, evidence, changelog), [note, evidence, changelog])
 
-  if (isLoading || !shaped) return null
+  // Wave 10 F7 (Part A, 5d): a FAILED summary read is not an empty thesis. The editor says it
+  // (NoteEditorPage's one LoadFailed line for the note's side reads); an empty evidence list
+  // and "no changes yet" here would be false statements, so the section stays out of the way.
+  if (isLoading || !shaped || summaryError) return null
 
   const resetPicker = () => {
     setPickerOpen(false)
