@@ -175,4 +175,19 @@ describe('synthetic shapes the corpus does not carry', () => {
     ])
     expect(d.notes.map((n) => n.note).join(' ')).not.toMatch(/draws candles/)
   })
+
+  it('TWO candles: both sentences render, one list item each, and React sees no duplicate key', () => {
+    // Both notes are named `plotcandle`; a list keyed on the name alone collides.
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const source = src('plot(ta.sma(close, 5), "M")',
+      'plotcandle(open, high, low, ta.sma(close, 3), "A")',
+      'plotcandle(open, high, low, ta.sma(close, 7), "B")')
+    render(<MemberPane sym="SPY" tf="D" source={source} defId={DEF_ID} />)
+    const items = noteItems()
+    expect(items).toContain(SENTENCE('plotcandle', 4))
+    expect(items).toContain(SENTENCE('plotcandle', 5))
+    const dup = errors.mock.calls.map((c) => c.join(' ')).filter((m) => /same key/i.test(m))
+    errors.mockRestore()
+    expect(dup).toEqual([])
+  })
 })
