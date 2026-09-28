@@ -255,3 +255,41 @@ def test_the_in_page_half_tags_a_pre_arm_timer_request_and_not_the_clicks_own(tm
     assert ("GET", "http://sandbox.test/api/voice/insights/unspoken") in urls, urls
     # CONTROL: the click's own timer is NOT background (else every debounced click reads DEAD)
     assert not [u for u in urls if "favorite" in u[1]], urls
+
+
+# ── F7 Part A: a failure that is silent BY DESIGN is declared, with its reason ─────────────────
+
+def test_a_declared_silent_by_design_endpoint_reads_EXEMPT_with_its_reason():
+    row = W.exempt_verdict({"verdict": "SILENT"}, "POST", "/api/j2/notes/{id}/opened")
+    assert row["verdict"] == "EXEMPT" and "recordNoteOpened" in row["exempt_reason"]
+    # CONTROL: any other endpoint stays SILENT -- the exemption is not a blanket
+    assert W.exempt_verdict({"verdict": "SILENT"}, "POST", "/api/j2/notes/{id}/favorite")["verdict"] == "SILENT"
+    assert W.exempt_verdict({"verdict": "SILENT"}, "GET", "/api/j2/notes/{id}/opened")["verdict"] == "SILENT"
+
+
+def test_an_exemption_never_hides_a_sentence_and_is_not_a_finding():
+    said = W.exempt_verdict({"verdict": "SENTENCE"}, "POST", "/api/j2/notes/{id}/opened")
+    assert said["verdict"] == "SENTENCE" and "exempt_reason" not in said
+    out = {"writes": [{"verdict": "EXEMPT"}, {"verdict": "SILENT"}]}
+    assert W.findings_count("silent", out) == 1
+
+
+def test_the_exemption_list_is_the_recents_touch_only_and_its_reason_names_real_code():
+    assert set(W.SILENT_EXEMPT) == {("POST", "/api/j2/notes/{id}/opened")}
+    for reason in W.SILENT_EXEMPT.values():
+        assert len(reason) > 80, "an exemption needs a reason a reviewer can check"
+    js = (REPO / "app/src/pages/journal-2-0/hooks/useJ2Notes.js").read_text(encoding="utf-8")
+    body = js[js.index("export function recordNoteOpened"):]
+    body = body[:body.index("\n}\n") if "\n}\n" in body else len(body)]
+    # the claim the reason makes: fire-and-forget, its failure swallowed, never awaited
+    assert "/opened`" in body and ".catch(() => {})" in body
+
+
+def test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site():
+    # structural (tools/notebook_proof_walk.py::_forced): the judged row goes through
+    # exempt_verdict before it is recorded -- an exemption list the sweep never consults
+    # would leave the recents touch reading SILENT in every run
+    import inspect
+    src = inspect.getsource(W._forced)
+    assert "exempt_verdict(row, methods[0], ep)" in src
+    assert src.index("judge_failure(") < src.index("exempt_verdict(") < src.index('row["verdict"] = "NOT-TRIGGERED"')

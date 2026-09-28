@@ -29,7 +29,8 @@ THE INSTRUMENTS (`--sweeps`, default all):
              made run 26e03bbe8's control read the styled dead button LIVE).
   silent     every endpoint a surface calls (and the write each named action sends) is forced
              to answer 500, then to fail as OFFLINE (the request aborted), and a visible
-             sentence must render that the healthy load did not show.
+             sentence must render that the healthy load did not show. A failure that is silent
+             BY DESIGN is declared in SILENT_EXEMPT with its reason and reads EXEMPT (F7).
              CONTROL: a planted consumer that swallows its failure must read SILENT, and one
              that says so must read SENTENCE, under both failure kinds.
   geometry   each surface at 390 (touch), 820 (touch) and 1200 px: no horizontal overflow of the
@@ -197,6 +198,29 @@ def is_sentence(text: str) -> bool:
 
 def _norm_line(s: str) -> str:
     return re.sub(r"\d+", "#", " ".join((s or "").split())).strip()
+
+
+# Failures that are SILENT BY DESIGN, each with its reason (wave 10 follow-up F7, clause 5d).
+# A forced failure of one of these that shows no sentence reads EXEMPT, never SILENT -- and a
+# sentence, if one appears, still reads SENTENCE. Keyed by (method, endpoint template). An entry
+# needs a reason a reviewer can check against the code it names; "nobody would notice" is not one.
+SILENT_EXEMPT = {
+    ("POST", "/api/j2/notes/{id}/opened"): (
+        "the recents touch: useJ2Notes.recordNoteOpened is fire-and-forget by contract (never "
+        "awaited, never throws into the caller -- the server route's own 'must never break note "
+        "viewing' rule). When it fails the note has already opened and nothing on screen changes; "
+        "the only effect is that the Recents list does not move this note up until a later open "
+        "lands. Telling the member would report a failure of something they did not ask for."),
+}
+
+
+def exempt_verdict(row: dict, method: str, endpoint: str) -> dict:
+    """SILENT -> EXEMPT (with the reason) for a declared silent-by-design endpoint."""
+    reason = SILENT_EXEMPT.get((str(method).upper(), endpoint))
+    if reason and row.get("verdict") == "SILENT":
+        row["verdict"] = "EXEMPT"
+        row["exempt_reason"] = reason
+    return row
 
 
 EMPTY_STATE_HINT = re.compile(r"\b(no notes|nothing (here|yet)|is empty|get started|welcome to your|"
@@ -2119,6 +2143,7 @@ def _forced(W: World, surf: Surface, ep: str, kind: str, methods: tuple, baselin
     row.update(hits=len(hits), url=pg.url.replace(W.base, ""), **j,
                raw_detail_shown=any(RAW_MARK in s for s in txt["lines"] + txt["alerts"]),
                screenshot=shot(W, pg, f"silent-{surf.sid}-{kind}-{ep}"))
+    exempt_verdict(row, methods[0], ep)
     if not hits:
         row["verdict"] = "NOT-TRIGGERED"
     try:
