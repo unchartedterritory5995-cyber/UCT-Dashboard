@@ -13,6 +13,7 @@ import {
   tickerLeads, toNoteRow,
 } from '../pages/journal-2-0/lib/noteSwitcher'
 import jsonFetcher from '../utils/jsonFetcher'
+import { registerShortcuts } from '../pages/command/shortcutRegistry'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
 import styles from './CommandPalette.module.css'
 
@@ -145,23 +146,21 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   }), [])
 
   // ── Global hotkey — registered ONCE for the component's lifetime. ──────
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      if (e.repeat) return
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (openRef.current) {
-          close()
-        } else {
-          openerRef.current = document.activeElement
-          setOpen(true)
-        }
+  // TERM-063: the chord (Ctrl/Cmd+K, case-folded), the window-capture phase,
+  // "fires inside a text field" and "ignores auto-repeat" are all DECLARED in
+  // pages/command/shortcutRegistry.js ('palette.toggle'), which owns the listener.
+  useEffect(() => registerShortcuts({
+    'palette.toggle': (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (openRef.current) {
+        close()
+      } else {
+        openerRef.current = document.activeElement
+        setOpen(true)
       }
-    }
-    window.addEventListener('keydown', onKeyDown, true)
-    return () => window.removeEventListener('keydown', onKeyDown, true)
-  }, [])
+    },
+  }), [])
 
   // ── Focus the input the moment the dialog opens; reset state on close. ──
   useEffect(() => {
@@ -190,21 +189,22 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   }, [open])
 
   // ── Escape-closes + Tab-trap, capture phase (mirrors SymbolSearch.jsx). ──
+  // TERM-063: 'palette.close' + 'palette.trapTab' share ONE document-capture
+  // listener, exactly as the single `onKey` did.
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
+    return registerShortcuts({
+      'palette.close': (e) => {
         e.preventDefault()
         close()
-      } else if (e.key === 'Tab') {
+      },
+      'palette.trapTab': (e) => {
         // Single-field palette — keep focus pinned to the input rather than
         // leaking Tab through to the page underneath.
         e.preventDefault()
         inputRef.current?.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
+      },
+    })
   }, [open])
 
   // ── Debounced search against the existing /api/ticker-search — no new
