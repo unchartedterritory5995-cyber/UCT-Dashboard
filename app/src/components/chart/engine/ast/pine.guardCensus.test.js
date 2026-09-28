@@ -132,10 +132,18 @@ describe('the Pine guard census, by name', () => {
 // ⛔ THE METRIC DID NOT MOVE: 266 / 31 / 44, re-derived. Nothing is unlocked
 // end to end; what changed is WHICH guard fires first, which is exactly what
 // this census measures and why it is worth keeping.
+// ⚰️⚰️ AND THE 09-14 PAIR SWAPPED BACK, 2026-09-27 (H14), FOR A REASON THE 09-14
+// NOTE COULD NOT SEE. The one community script that reached `pine:constant-only`
+// (`22-daily-weekly-monthly-highs-lows`) reached it because the walk DROPPED the
+// `array.set` inside an `if` and read the array at its creation `na`. That drop
+// drew wrong lines on production for scripts that mixed the read with a series.
+// The read now refuses `pine:collection` at the write, so `pine:collection` is
+// reached again and `pine:constant-only` is not — by the corpora; its own cases
+// still pin it (see the 09-07 note above).
 const EXPECTED_UNEXERCISED = [
   'pine:character',
-  'pine:collection',
   'pine:colour-value',
+  'pine:constant-only',
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',

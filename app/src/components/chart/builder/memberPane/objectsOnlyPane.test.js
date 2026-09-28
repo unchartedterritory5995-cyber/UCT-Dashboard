@@ -76,12 +76,18 @@ describe('the flag', () => {
     expect(objectsOnlyPaneEnabled({ VITE_PINE_OBJECTS_ONLY_PANE_ENABLED: '1' })).toBe(true)
   })
 
-  it('⛔ the ledger declares it DARK, and names a reader that really reads it', () => {
+  // ⭐ ARMED ON WEB 2026-09-27 (owner ruling), verified in the served bundle. The
+  // ledger is the record of that, so the rail now asks for `armed` WITH the
+  // service and the flip evidence — an `armed` entry that cannot say where or
+  // when is the stale-ledger defect CLAUDE.md records for RESEARCH_TECHNICAL_TAB.
+  it('⛔ the ledger declares it ARMED on web with its flip evidence, and names a reader that really reads it', () => {
     const led = JSON.parse(fs.readFileSync(
       path.join(REPO, 'docs', 'frontend_feature_flags.json'), 'utf8'))
     const entry = led.flags.VITE_PINE_OBJECTS_ONLY_PANE_ENABLED
     expect(entry, 'the flag is not declared in docs/frontend_feature_flags.json').toBeTruthy()
-    expect(entry.status).toBe('dark')
+    expect(entry.status).toBe('armed')
+    expect(entry.where).toBe('web')
+    expect(String(entry.flipped || '')).toMatch(/2026-09-27/)
     const named = entry.readBy[0].split('::')[0]
     expect(fs.existsSync(path.join(REPO, named)), named + ' does not exist').toBe(true)
     expect(fs.readFileSync(path.join(REPO, named), 'utf8')).toContain('objectsOnlyPaneEnabled')

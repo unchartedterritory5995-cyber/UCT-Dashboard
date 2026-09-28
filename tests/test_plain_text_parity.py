@@ -146,14 +146,39 @@ def test_the_fixture_carries_the_non_string_type_cases():
     assert len(NON_STRING_TYPE_CASES) == 2
 
 
-@pytest.mark.parametrize("case", NON_STRING_TYPE_CASES, ids=[c["name"] for c in NON_STRING_TYPE_CASES])
-def test_create_and_update_answer_200_and_store_the_unknown_nodes_text(j2_client, case):
-    r = j2_client.post("/api/j2/notes", json={"title": "n3", "bodyJson": case["doc"]})
-    assert r.status_code == 200, r.text
-    note = r.json()["note"]
-    assert note["bodyPlain"] == case["expected"]
+# ⛔ WAVE 10 (10C, reviewed) DECIDES WHICH OF THESE SAVES. A LIST type (`["x"]`) is read the
+# way JavaScript reads it -- by its string form, "x" -- so it is an UNKNOWN node, the newer-schema
+# case, and it saves. An OBJECT type (`{"k": 1}`) names "[object Object]", which no bundle will
+# ever register: ProseMirror throws, the editor would LOCK the note, so create, import and (L1b)
+# save refuse it with the malformed sentence. R23-N3's own point -- never a 500 from hashing a
+# non-string type -- holds for both: each answer below is a 200 or that 400, never a 500.
+# Until L1b this rail still expected 200 for the object case, and it went red at create the day
+# 10C's refusal landed (#205); the six-shard gate is vitest-only and C4 was scoped, so nothing ran it.
+SAVES = {
+    "a node whose type is not a string reads as an unknown node": True,                 # ["x"]
+    "an unknown node's child whose type is not a string is unknown too": False,        # {"k": 1}
+}
 
-    other = NON_STRING_TYPE_CASES[1 - NON_STRING_TYPE_CASES.index(case)]
-    r = j2_client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": other["doc"]})
-    assert r.status_code == 200, r.text
-    assert r.json()["note"]["bodyPlain"] == other["expected"]
+
+def test_every_non_string_type_case_is_classified():
+    assert set(SAVES) == {c["name"] for c in NON_STRING_TYPE_CASES}
+
+
+def _answer_is(r, case):
+    from api.services.journal_two.notes import UNBUILDABLE_BODY_DETAIL
+    if SAVES[case["name"]]:
+        assert r.status_code == 200, r.text
+        assert r.json()["note"]["bodyPlain"] == case["expected"]
+    else:
+        assert r.status_code == 400, r.text
+        assert r.json()["detail"] == UNBUILDABLE_BODY_DETAIL
+
+
+@pytest.mark.parametrize("case", NON_STRING_TYPE_CASES, ids=[c["name"] for c in NON_STRING_TYPE_CASES])
+def test_create_and_update_answer_200_or_the_malformed_sentence_never_a_500(j2_client, case):
+    _answer_is(j2_client.post("/api/j2/notes", json={"title": "n3", "bodyJson": case["doc"]}), case)
+
+    good = {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "ok"}]}]}
+    made = j2_client.post("/api/j2/notes", json={"title": "n3 base", "bodyJson": good})
+    assert made.status_code == 200, made.text
+    _answer_is(j2_client.put(f"/api/j2/notes/{made.json()['note']['id']}", json={"bodyJson": case["doc"]}), case)

@@ -416,3 +416,42 @@ describe('streamWritingHelp — every failure is a sentence', () => {
     expect(JSON.parse(global.fetch.mock.calls[0][1].body).style).toBeUndefined()
   })
 })
+
+// ⭐ Wave 10 (10D, R-16): writing help that REACHED the note is counted — from Accept, the
+// one document write — with the action word, the scope and whether it replaced a passage.
+// Never the draft, the passage or the instruction. A refused Accept counts nothing.
+describe('writing_help_used — Accept counts itself, and nothing the member wrote', () => {
+  const NOW10 = new Date('2026-09-26T13:41:00.000Z')
+  afterEach(() => vi.unstubAllGlobals())
+  const telemetry = (fn) => fn.mock.calls
+    .filter(([u]) => u === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('an accepted rewrite of a selection sends ONE writing_help_used', () => {
+    const fetchFn = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchFn)
+    make([P('Before. I sold NVDA early because of fear. After.')])
+    select(at('I sold'), at(' After'))
+    const res = acceptWritingHelp(editor, {
+      ...captureWritingHelpScope(editor),
+      draft: 'A private tighter line.', action: 'rewrite', model: 'claude-sonnet-5',
+      instruction: 'Rewrite my secret thesis', now: NOW10,
+    })
+    expect(res).toEqual({ ok: true, replaced: true })
+    expect(telemetry(fetchFn)).toEqual([
+      { event: 'writing_help_used', props: { action: 'rewrite', scope: 'selection', replaced: true } },
+    ])
+    expect(JSON.stringify(telemetry(fetchFn))).not.toMatch(/private|secret|NVDA|fear|sonnet/)
+  })
+
+  it('a refused Accept (an empty draft) sends nothing', () => {
+    const fetchFn = vi.fn(() => Promise.resolve({ ok: true }))
+    vi.stubGlobal('fetch', fetchFn)
+    make([P('Some words.')])
+    const res = acceptWritingHelp(editor, {
+      ...captureWritingHelpScope(editor), draft: '   ', action: 'summarize', now: NOW10,
+    })
+    expect(res.ok).toBe(false)
+    expect(telemetry(fetchFn)).toEqual([])
+  })
+})

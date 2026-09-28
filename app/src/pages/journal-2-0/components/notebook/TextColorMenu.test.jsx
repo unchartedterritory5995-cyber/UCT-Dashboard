@@ -107,6 +107,16 @@ describe('TextColorMenu', () => {
     expect(dialog.textContent).toContain('Color')
     expect(dialog.querySelectorAll('button[aria-pressed]').length).toBe(14)
   })
+
+  // Wave 10 10D fix round 1 (concern 4): the sheet is a dialog with a NAME, taken from its
+  // own visible title (aria-labelledby). (Mutation: drop `labelledByTitle` -> red.)
+  it('touch tier: the sheet is a dialog named by its visible title', () => {
+    touch = true
+    const ed = makeEditor()
+    render(<TextColorMenu editor={ed} onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog', { name: 'Color' })
+    expect(document.getElementById(dialog.getAttribute('aria-labelledby'))?.textContent).toBe('Color')
+  })
 })
 
 // Wave 5 fix round 1.

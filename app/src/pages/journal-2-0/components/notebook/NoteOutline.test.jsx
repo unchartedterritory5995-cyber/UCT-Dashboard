@@ -6,7 +6,7 @@ import { createRef } from 'react'
 import { Editor } from '@tiptap/core'
 import { buildExtensions } from '../../lib/tiptap'
 import { currentHeadingIndex, outlineOf } from '../../lib/noteOutline'
-import NoteOutline, { OUTLINE_DEBOUNCE_MS } from './NoteOutline'
+import NoteOutline, { OUTLINE_DEBOUNCE_MS, OUTLINE_LABEL } from './NoteOutline'
 
 let touch = false
 vi.mock('../../../../hooks/useBreakpoint', async (orig) => ({ ...(await orig()), useIsTouch: () => touch }))
@@ -226,6 +226,18 @@ describe('<NoteOutline> (touch tier)', () => {
     fireEvent.click(items()[2])
     expect(ed.state.selection.from).toBe(outlineOf(ed.state.doc)[2].pos + 1)
     expect(onClose).toHaveBeenCalled()
+  })
+
+  // Wave 10 10D fix round 1 (concern 4): the sheet is a dialog with a NAME, taken from its
+  // own visible title (aria-labelledby) — a screen reader announces "Outline, dialog".
+  // (Mutation: drop `labelledByTitle` from the Sheet -> the named query finds nothing.)
+  it('the sheet is a dialog named by its visible title', () => {
+    touch = true
+    const ed = mount(DOC)
+    render(<NoteOutline editor={ed} onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog', { name: OUTLINE_LABEL })
+    const heading = document.getElementById(dialog.getAttribute('aria-labelledby'))
+    expect(heading?.textContent).toBe(OUTLINE_LABEL)
   })
 })
 
