@@ -131,6 +131,11 @@ def test_the_CONTROL_the_default_severity_really_is_the_loud_one(monkeypatch):
     Without the first half, "not in the firing set" would pass on a default that never
     fired and there would have been no duplicate to fix. Without the second, it would
     pass on an `add_alert` that no longer posts to Discord for any severity.
+
+    ⚰️ TERM-011 step 7 retired the Discord leg for EVERY private (`user_id`-set)
+    alert outright, so severity no longer decides Discord firing for one at all
+    — proving the default severity is "loud" now has to use a BROADCAST call,
+    the only shape severity still controls.
     """
     default = inspect.signature(wal.deliver_alert_payload).parameters["severity"].default
     firing = (alerts_svc.SEVERITY_WARNING, alerts_svc.SEVERITY_CRITICAL)
@@ -144,7 +149,7 @@ def test_the_CONTROL_the_default_severity_really_is_the_loud_one(monkeypatch):
 
     loud: dict = {}
     alerts_svc.add_alert("catalyst_digest", "t", "m", severity=default,
-                         user_id="admin1", channels=loud)
+                         channels=loud)
     assert loud[alerts_svc.CHANNEL_DISCORD] == alerts_svc.CHANNEL_OK, loud
 
     quiet: dict = {}

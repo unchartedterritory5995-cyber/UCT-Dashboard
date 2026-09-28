@@ -124,6 +124,13 @@ export function beginObjects(program, ctx) {
   /** table instanceId → Map<"col,row", props> — cells are addressed, not listed */
   const cells = new Map()
   const regs = new Map((program.regs || []).map((r) => [r.id, null]))
+  /** ⭐⭐ REGISTER HISTORY — what each register held at the END of each recent
+   *  bar, newest last, for Pine's `l[n]` on a drawing variable (see
+   *  `MAX_HANDLE_BACK`). ⛔ Sized by the deepest `back` the PROGRAM reads, so a
+   *  program that never reads history keeps no ring at all. */
+  const histDepth = deepestBack(program.ops)
+  const regHist = histDepth > 0
+    ? new Map((program.regs || []).map((r) => [r.id, []])) : null
   const colls = new Map((program.colls || []).map((c) => [c.id, []]))
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
   const counts = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
@@ -424,7 +431,15 @@ export function beginObjects(program, ctx) {
     const resolveRef = (r) => {
       if (!isObj(r)) return null
       switch (r.r) {
-        case 'reg': return regs.get(r.id) ?? null
+        case 'reg': {
+          if (!r.back) return regs.get(r.id) ?? null
+          // ⭐ `l[n]` — the id the register held n bars ago. The object may
+          // have been deleted since; every op on a dead id is already a no-op
+          // (`writesToDeleted`), which is Pine's rule for a deleted drawing.
+          const h = regHist && regHist.get(r.id)
+          if (!h || h.length < r.back) return null
+          return h[h.length - r.back] ?? null
+        }
         case 'site': return siteNow.get(r.id) ?? null
         case 'coll': {
           const arr = colls.get(r.id)
@@ -767,6 +782,12 @@ export function beginObjects(program, ctx) {
     }
     runOps(program.ops)
     if (opsThisBar > maxOpsInABar) maxOpsInABar = opsThisBar
+    if (regHist) {
+      for (const [rid, h] of regHist) {
+        h.push(regs.get(rid) ?? null)
+        if (h.length > histDepth) h.shift()
+      }
+    }
   }
 
   const finish = () => {
@@ -822,6 +843,23 @@ export function evaluateObjects(program, ctx) {
   const run = beginObjects(program, ctx)
   for (let bar = 0; bar < run.barCount; bar += 1) run.step(bar)
   return run.finish()
+}
+
+/** The deepest register-history read anywhere in these ops (loop bodies and
+ *  object-valued props included), 0 when none. */
+function deepestBack(ops) {
+  let deepest = 0
+  const see = (r) => {
+    if (r && typeof r === 'object' && r.r === 'reg' && Number.isInteger(r.back) && r.back > deepest) {
+      deepest = r.back
+    }
+  }
+  for (const o of ops || []) {
+    see(o.target); see(o.value)
+    for (const v of Object.values(o.props || {})) see(v)
+    if (o.k === 'loop') deepest = Math.max(deepest, deepestBack(o.body))
+  }
+  return deepest
 }
 
 function cellsOf(map) {

@@ -202,6 +202,20 @@ export const DEFAULT_OBJECT_LIMITS = Object.freeze({
  *  general arbitrary Pine heap", and an unbounded object array is one. */
 export const MAX_COLLECTION_CAP = 500
 
+/** ⭐⭐ HOW FAR BACK A HANDLE'S HISTORY MAY BE READ — `line.delete(l[1])`.
+ *
+ *  `{r:'reg', id, back: n}` is what register `id` held at the END of the bar
+ *  `n` bars ago: Pine's `l[n]` on a drawing variable. The corpus idiom is
+ *  *draw a fresh object every bar and delete yesterday's* — `sup = line.new(…)`
+ *  then `line.delete(sup[1])` — measured 2026-09-26 as 291 dropped deletes in
+ *  the committed corpus. Dropping the delete is not a smaller drawing: it
+ *  leaves every day's object on the chart where the author kept one.
+ *
+ *  ⛔ BOUNDED, because every bar of history is a snapshot of every register.
+ *  The corpus reads `[1]` and `[2]`; 50 is far past any real script and small
+ *  enough that the ring is noise beside the objects themselves. */
+export const MAX_HANDLE_BACK = 50
+
 /** The operators a value reference may carry. ⛔ DELIBERATELY TINY — see the
  *  `case 'op'` note in `assertValueRef`. These exist to offset a table address
  *  from a loop counter (`r + 1`), not to compute anything. */
@@ -404,6 +418,11 @@ function assertRefExpr(v, where, regs, colls) {
     case 'reg': {
       const reg = regs.get(v.id)
       if (!reg) throw new Error(`${where}: register ${JSON.stringify(v.id)} is not declared`)
+      if (v.back !== undefined
+        && !(Number.isInteger(v.back) && v.back >= 0 && v.back <= MAX_HANDLE_BACK)) {
+        throw new Error(`${where}: a register's history is read 0..${MAX_HANDLE_BACK} bars back, `
+          + `got ${JSON.stringify(v.back)}`)
+      }
       return reg.family
     }
     case 'site':

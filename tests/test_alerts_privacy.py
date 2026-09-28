@@ -368,56 +368,73 @@ def discord_posts(monkeypatch):
     return posts
 
 
-def test_CONTROL_the_pre_fix_delivery_path_fired_discord_twice(
-    discord_posts, monkeypatch
-):
+def test_CONTROL_the_counter_can_see_two_webhook_posts(discord_posts, monkeypatch):
     """The control that proves the counter can count two.
 
-    This is the pre-fix body of ``deliver_alert_payload`` verbatim: ``add_alert``
-    at severity 'warning' (which fires the webhook itself) followed by an
-    explicit ``_fire_discord``. If this reads 1, the counter is blind and the
-    exactly-once assertion below is worthless.
+    ⚰️ This used to reconstruct the pre-fix DOUBLE-FIRE body of
+    ``deliver_alert_payload`` verbatim: ``add_alert`` at severity ``warning``
+    (which fired the webhook itself) followed by an explicit ``_fire_discord``.
+    TERM-011 step 7 makes that shape unreachable on purpose — ``add_alert`` now
+    retires the Discord leg for EVERY private alert regardless of severity, so
+    the first half of the old double-fire cannot fire even once any more (see
+    the ``ZERO times`` tests below, which are what replaced this bug). What
+    this control still needs to prove survives unchanged: the ``discord_posts``
+    counter can see TWO real webhook posts, so the exactly-once assertions
+    elsewhere in this file are not passing on a counter blind past one.
     """
-    alert = alerts_svc.add_alert(
-        "catalyst_alert", "Catalyst: INOD", "INOD is a top catalyst today.",
-        severity="warning", data={"symbol": "INOD"}, user_id="u_a",
-    )
-    alerts_svc._fire_discord({
+    payload = {
         "type": "catalyst_alert", "severity": "warning",
         "title": "Catalyst: INOD", "message": "INOD is a top catalyst today.",
-        "timestamp": alert["timestamp"][:16],
-    })
+        "timestamp": alerts_svc._now_et()[:16],
+    }
+    alerts_svc._fire_discord(payload)
+    alerts_svc._fire_discord(payload)
 
     assert len(discord_posts) == 2, (
-        "CONTROL BROKEN: the pre-fix double-fire measured "
+        "CONTROL BROKEN: two direct _fire_discord calls measured "
         f"{len(discord_posts)} webhook post(s), not 2 — the counter cannot see "
-        "both fires, so 'exactly once' below would pass vacuously"
+        "both fires, so the ZERO/exactly-once assertions below would pass "
+        "vacuously"
     )
 
 
-def test_delivery_fires_the_discord_webhook_exactly_once(
+def test_delivery_fires_the_discord_webhook_ZERO_times_for_a_private_alert(
     discord_posts, monkeypatch
 ):
+    """TERM-011 step 7 (rows 4/5): a private delivery's Discord leg is retired
+    outright, whatever its severity.
+
+    ⚰️ This asserted ``== 1`` before the fix. One member's catalyst alert
+    posting into the SAME admin channel a market-wide regime change uses —
+    with no way for anyone reading that channel to tell "everyone should see
+    this" from "one member's own brief" — was exactly the bug rows 4/5 close.
+    The member's own bell (asserted below) and email now carry it alone.
+    """
     monkeypatch.setattr(wls, "send_email", lambda *a, **k: None)
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: None)
 
     _deliver_to_member("u_a", "INOD", "Catalyst: INOD")
 
-    assert len(discord_posts) == 1, (
-        "DUPLICATE DISCORD: one delivered alert produced "
-        f"{len(discord_posts)} webhook post(s), expected exactly 1"
+    assert len(discord_posts) == 0, (
+        "PRIVATE ALERT LEAKED TO DISCORD: one member delivery produced "
+        f"{len(discord_posts)} webhook post(s), expected 0 — the member's own "
+        "bell and email carry it now, not the admin Discord channel"
     )
-    assert discord_posts[0]["url"] == "https://discord.test/webhook"
-    body = discord_posts[0]["json"]["embeds"][0]
-    assert "INOD" in body["title"], (
-        "DISCORD CONTENT LOST: the surviving post does not carry the alert title"
+    assert (cache.get("alerts:u:u_a") or []), (
+        "PRECONDITION UNMET: the member's own bell did not receive the alert "
+        "either — the zero-posts result above would prove nothing"
     )
 
 
-def test_price_alert_delivery_fires_the_discord_webhook_exactly_once(
+def test_price_alert_delivery_fires_the_discord_webhook_ZERO_times(
     discord_posts, monkeypatch
 ):
-    """The other member path — `_deliver_alert`, the watchlist price alert."""
+    """The other member path — `_deliver_alert`, the watchlist price alert.
+
+    ⚰️ This asserted ``== 1`` before the fix, same bug as the catalyst-alert
+    test above: a triggered price alert is exactly the ``severity="warning"``,
+    ``user_id``-set shape rows 4/5 name as the flood risk.
+    """
     monkeypatch.setattr(wls, "send_email", lambda *a, **k: None)
     monkeypatch.setattr(wls, "_get_user_email", lambda uid: None)
 
@@ -427,9 +444,9 @@ def test_price_alert_delivery_fires_the_discord_webhook_exactly_once(
         96.25,
     )
 
-    assert len(discord_posts) == 1, (
-        "DUPLICATE DISCORD (price lane): one triggered price alert produced "
-        f"{len(discord_posts)} webhook post(s), expected exactly 1"
+    assert len(discord_posts) == 0, (
+        "PRIVATE ALERT LEAKED TO DISCORD (price lane): one triggered price "
+        f"alert produced {len(discord_posts)} webhook post(s), expected 0"
     )
     assert (cache.get("alerts:u:u_a") or []), (
         "PRICE ALERT UNSCOPED: the triggered price alert did not land in the "
