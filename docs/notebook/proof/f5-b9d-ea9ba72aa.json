@@ -1,0 +1,653 @@
+{
+ "wave": 10,
+ "lane": "10B",
+ "checks": {
+  "B9d_journal_shell_fits_390_820": {
+   "verdict": "PASS",
+   "failing_cells": [],
+   "menus_ok": true,
+   "cells": {
+    "390/notebook/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": true,
+      "left": 60,
+      "right": 310,
+      "width": 250,
+      "dismiss": {
+       "left": 261,
+       "right": 305
+      },
+      "on_screen": true
+     },
+     "shot": "r212755-B9d-390-notebook-shown.png"
+    },
+    "390/today/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/trades/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r212755-B9d-390-trades-shown.png"
+    },
+    "390/calendar/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/insights/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/compass/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": true,
+      "left": 61,
+      "right": 291,
+      "width": 230,
+      "dismiss": {
+       "left": 250,
+       "right": 294
+      },
+      "on_screen": true
+     }
+    },
+    "390/notebook/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r212755-B9d-390-notebook-dismissed.png"
+    },
+    "390/today/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/trades/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     },
+     "shot": "r212755-B9d-390-trades-dismissed.png"
+    },
+    "390/calendar/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/insights/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "390/compass/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 390,
+     "doc": {
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 390,
+      "clientWidth": 390
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [
+      {
+       "label": "Insights",
+       "left": 324,
+       "right": 394,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      },
+      {
+       "label": "Compass",
+       "left": 398,
+       "right": 477,
+       "scroller": "NAV._mobileNav_r4gyn_17"
+      }
+     ],
+     "hint": {
+      "present": false
+     }
+    },
+    "820/notebook/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": true,
+      "left": 487,
+      "right": 737,
+      "width": 250,
+      "dismiss": {
+       "left": 688,
+       "right": 732
+      },
+      "on_screen": true
+     }
+    },
+    "820/trades/shown": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    },
+    "820/notebook/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    },
+    "820/trades/dismissed": {
+     "ok": true,
+     "fails": [],
+     "vw": 820,
+     "doc": {
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "main": {
+      "cls": "_main_1vwfj_19",
+      "scrollWidth": 820,
+      "clientWidth": 820
+     },
+     "widens_main": [],
+     "header_off": [],
+     "clipped": [],
+     "in_scroller": [],
+     "hint": {
+      "present": false
+     }
+    }
+   },
+   "menus": {
+    "more": {
+     "open": true,
+     "items": [
+      {
+       "label": "Community",
+       "left": 177,
+       "right": 363,
+       "top": 327,
+       "bottom": 371,
+       "on_screen": true,
+       "finger_lands_on_it": true
+      },
+      {
+       "label": "Accounts",
+       "left": 177,
+       "right": 363,
+       "top": 373,
+       "bottom": 417,
+       "on_screen": true,
+       "finger_lands_on_it": true
+      }
+     ],
+     "ok": true,
+     "shot": "r212755-B9d-390-menu-more.png"
+    },
+    "log_trade": {
+     "open": true,
+     "items": [
+      {
+       "label": "Log open position",
+       "left": 27,
+       "right": 213,
+       "top": 273,
+       "bottom": 317,
+       "on_screen": true,
+       "finger_lands_on_it": true
+      },
+      {
+       "label": "Log closed trade",
+       "left": 27,
+       "right": 213,
+       "top": 319,
+       "bottom": 363,
+       "on_screen": true,
+       "finger_lands_on_it": true
+      }
+     ],
+     "ok": true,
+     "shot": "r212755-B9d-390-menu-log_trade.png"
+    }
+   }
+  },
+  "B8_no_page_errors": {
+   "verdict": "PASS",
+   "page_errors": 0,
+   "first": []
+  }
+ },
+ "errors": [],
+ "instrument_notes": [],
+ "only": [
+  "B9d"
+ ],
+ "tip": "ea9ba72aa",
+ "base": "http://127.0.0.1:8220",
+ "data_dir": "C:\\data-w10f5",
+ "instrument": "tools\\notebook_wave10b_walk.py",
+ "walk_process_env": {
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": true,
+  "NOTEBOOK_WRITING_HELP_ENABLED": true,
+  "J2_SHARE_LINKS_ENABLED": true,
+  "ANTHROPIC_API_KEY": false,
+  "OPENAI_API_KEY": false
+ },
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8220 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-27T21-26-54.md (identity afea68a3d4d9..., data dir C:\\data-w10f5)"
+ },
+ "run": "r212755",
+ "member": "w10b-r212755@local.dev",
+ "server_flags": {
+  "notebook_writing_help_enabled": true,
+  "paid_equiv": true
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\notebook\\proof\\f5-b9d-ea9ba72aa.integrity.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\notebook\\proof\\f5-b9d-ea9ba72aa.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-27 21:26:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-27 21:27:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-27 21:29:17",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
