@@ -1915,6 +1915,8 @@ export default function NotebookTab() {
           open={pickerOpen}
           onClose={() => setPickerOpen(false)}
           title="New note"
+          // F4 / A2R-08: named by its visible title (it had no name at all).
+          labelledByTitle
           variant="auto"
           maxWidth={720}
         >
