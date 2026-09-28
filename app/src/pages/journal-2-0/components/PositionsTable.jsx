@@ -8,7 +8,7 @@
  * action modals arrive in Phase 4.
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import {
   activeStop,
   positionPnlDollar,
@@ -29,6 +29,7 @@ import {
 } from '../../../lib/journal-2-0'
 import TickerPopup from '../../../components/TickerPopup'
 import UIcon from '../../../components/ui/UIcon'
+import { useGridSort } from '../../../lib/presentation/dataGrid'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import styles from './PositionsTable.module.css'
 
@@ -420,6 +421,15 @@ function defaultDirForPos(key) {
   return key === 'symbol' || key === 'side' ? 'asc' : 'desc'
 }
 
+const isNumericSortKey = (key) => !TEXT_SORT_KEYS.has(key)
+
+// Stable tiebreak: symbol A→Z, then id.
+function positionsTiebreak(a, b) {
+  const s = a.symbol.localeCompare(b.symbol)
+  if (s !== 0) return s
+  return String(a.id) < String(b.id) ? -1 : 1
+}
+
 // Comparable value for a column, mirroring Row's display logic (including
 // option rows + broker "no real stop" blanking). Returns null for blanks,
 // which always sink to the bottom.
@@ -476,43 +486,27 @@ export default function PositionsTable({
   onOptionClose,
   onOptionDelete,
 }) {
-  const [sort, setSort] = useState({ key: 'symbol', dir: 'asc' })
   const isPhone = useIsPhone()
 
-  const handleSort = (key) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
-        : { key, dir: defaultDirForPos(key) },
-    )
-  }
-
-  const sorted = useMemo(() => {
-    const dir = sort.dir === 'asc' ? 1 : -1
-    const text = TEXT_SORT_KEYS.has(sort.key)
-    return [...positions].sort((a, b) => {
-      // Sort on the price the ROWS display (live tick → broker mark), not the
-      // raw feed — otherwise after-hours broker rows show values but sort as
-      // blanks and sink to the bottom.
-      const av = sortKeyFor(sort.key, a, currentPriceFor(a, prices, preferBrokerMarks), accountSize)
-      const bv = sortKeyFor(sort.key, b, currentPriceFor(b, prices, preferBrokerMarks), accountSize)
-      const aEmpty = av == null || av === ''
-      const bEmpty = bv == null || bv === ''
-      if (aEmpty && bEmpty) { /* fall through to tiebreak */ }
-      else if (aEmpty) return 1
-      else if (bEmpty) return -1
-      else {
-        let c
-        if (text) c = String(av) < String(bv) ? -1 : String(av) > String(bv) ? 1 : 0
-        else c = av - bv
-        if (c !== 0) return c * dir
-      }
-      // Stable tiebreak: symbol A→Z, then id.
-      const s = a.symbol.localeCompare(b.symbol)
-      if (s !== 0) return s
-      return String(a.id) < String(b.id) ? -1 : 1
-    })
-  }, [positions, prices, accountSize, sort, preferBrokerMarks])
+  // Sort on the price the ROWS display (live tick → broker mark), not the
+  // raw feed — otherwise after-hours broker rows show values but sort as
+  // blanks and sink to the bottom.
+  const valueOf = useCallback(
+    (key, p) => sortKeyFor(key, p, currentPriceFor(p, prices, preferBrokerMarks), accountSize),
+    [prices, preferBrokerMarks, accountSize],
+  )
+  // Sort state, the blanks-sink comparator and the header semantics come from
+  // the S10 DataGrid seed (TERM-065); the markup below is unchanged. An
+  // inactive column carries NO aria-sort attribute here (Trades says 'none').
+  const { sorted, requestSort, ariaSort, caret, sort } = useGridSort(positions, {
+    initialKey: 'symbol',
+    initialDir: 'asc',
+    defaultDirFor: defaultDirForPos,
+    valueOf,
+    isNumeric: isNumericSortKey,
+    tiebreak: positionsTiebreak,
+    omitInactiveAria: true,
+  })
 
   if (sorted.length === 0) {
     return (
@@ -558,21 +552,17 @@ export default function PositionsTable({
                   className={`${styles.th} ${c.align === 'right' ? styles.thRight : styles.thLeft}`}
                   title={c.tooltip || undefined}
                   scope="col"
-                  aria-sort={
-                    sortable && activeCol
-                      ? (sort.dir === 'asc' ? 'ascending' : 'descending')
-                      : undefined
-                  }
+                  aria-sort={sortable ? ariaSort(c.key) : undefined}
                 >
                   {sortable ? (
                     <button
                       type="button"
                       className={`${styles.thBtn} ${activeCol ? styles.thBtnActive : ''}`}
-                      onClick={() => handleSort(c.key)}
+                      onClick={() => requestSort(c.key)}
                     >
                       <span>{c.label}</span>
                       <span className={styles.sortCaret} aria-hidden="true">
-                        {activeCol ? (sort.dir === 'asc' ? '▲' : '▼') : ''}
+                        {caret(c.key)}
                       </span>
                     </button>
                   ) : (
