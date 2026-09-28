@@ -182,6 +182,18 @@ def test_C_a_redeploy_restarts_the_count_even_when_both_processes_read_the_SAME_
     assert not any(x["page"] for x in v)
 
 
+def test_C_a_carried_in_streak_never_survives_a_process_change():
+    """The state a caller hands `decide` may already hold two confirms from the old
+    process (the durable-state shape a future caller could adopt). One reading from a
+    NEW process at the same total must zero it, not complete it into a page."""
+    prev = {"token": OLD, "emitted": 7, "dropped": 0, "flat_polls": 2}
+    state, v = brm.decide(prev, _obs(7, token=NEW), in_session=True)
+    assert v["page"] is False and v["flat_polls"] == 0 and state["token"] == NEW
+    # CONTROL - the same carried-in streak from the SAME process does complete.
+    _, v2 = brm.decide(prev, _obs(7, token=OLD), in_session=True)
+    assert v2["page"] is True and v2["flat_polls"] == 3
+
+
 def test_C_the_new_process_pages_on_its_OWN_three_flat_polls():
     """CONTROL: the redeploy guard must not make a genuinely dead rail after a deploy
     unpageable - the new process's own flat streak still pages."""
