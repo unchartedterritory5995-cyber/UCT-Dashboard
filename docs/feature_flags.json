@@ -74,6 +74,12 @@
       ],
       "note": ""
     },
+    "AI_SEARCH_SCAN_OBJECT_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-087 (item 14 WF-C12), ENABLEMENT GATE, default OFF, read per request in api/services/ai_search_scan_object.py::enabled(). SERVICE: web. What it arms: an AI Search answer (POST /api/ai-search and /api/ai-search/stream) to a screen-shaped ask carries scan_object BESIDE the prose -- the scan formula produced by the builder's own concierge pipeline (definition_concierge.propose, kind=scan, its one validator) or an honest refusal {ok:false, gate, reason} with no tree; the widget re-checks it with the builder's evaluateFormula and offers Open in builder, which opens the existing BuilderSheet on the Conditions tab. MEMBER-VISIBLE when on, and it SPENDS: each screen-shaped ask adds one concierge model call (up to two), bounded by the concierge's per-member dollar cap and the member-lane global gate. Unset: wanted() is False, no model call, no key added to any response (tests/test_ai_search_scan_object.py). REVERSAL: unset it; nothing is stored server-side (a scan only persists if the member saves it through the builder's own Save)."
+    },
     "ALERT_ROUTING_ENABLED": {
       "status": "dark",
       "where": [],

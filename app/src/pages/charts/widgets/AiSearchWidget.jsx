@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, Suspense, lazy } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
@@ -14,6 +14,10 @@ import NewsSettingsPanel from './NewsSettingsPanel'
 import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
 import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import styles from './AiSearchWidget.module.css'
+
+// TERM-087: the editable-object card (and, behind it, the builder) load only when
+// an answer actually carries a `scan_object`.
+const ScanObjectCard = lazy(() => import('./ScanObjectCard'))
 
 const AIS_SETTINGS_KEY = 'aisearch_settings'
 
@@ -426,6 +430,14 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
 
       {isLast && !readOnly && <ProposalChip proposal={entry.proposal} />}
 
+      {/* TERM-087: the scan BESIDE the prose, never instead of it. Lazy, so an
+          answer without one (the flag-off shape) downloads nothing new. */}
+      {!readOnly && entry.scanObject && (
+        <Suspense fallback={null}>
+          <ScanObjectCard object={entry.scanObject} />
+        </Suspense>
+      )}
+
       <div className={styles.answerActions}>
         <button className={styles.actionBtn} onClick={() => onCopy(entry)} title="Copy answer text">
           {copied ? 'Copied ✓' : 'Copy'}
@@ -684,6 +696,9 @@ export default function AiSearchWidget({
       stale: !!d.stale,         // outage: last-known-good served, clearly labeled
       degraded: !!d.degraded,   // outage: desk-data-only synthesis, clearly labeled
       proposal: d.proposal || null,   // one-tap action ("set alert NVDA above 190")
+      // TERM-087: the product's editable object for a screen-shaped ask (or its
+      // honest refusal). Absent unless AI_SEARCH_SCAN_OBJECT_ENABLED is on.
+      scanObject: d.scan_object || null,
     }
     if (d.quota && Number.isFinite(d.quota.used)) setQuota(d.quota)
     askedRef.current = true   // a LIVE turn — this conversation may persist now
