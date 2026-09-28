@@ -206,7 +206,9 @@
       ],
       "requires_voice_access": [
         "api/middleware/auth_middleware.py",
-        "api/routers/voice.py"
+        "api/routers/voice.py",
+        "api/services/ai_doors.py",
+        "api/services/ai_meters.py"
       ],
       "require_paid": [
         "api/auth_surface_check.py",
@@ -265,7 +267,8 @@
         "api/routers/theme_sets.py",
         "api/routers/traders.py",
         "api/routers/user_definitions.py",
-        "api/routers/volume_scan.py"
+        "api/routers/volume_scan.py",
+        "api/services/ai_doors.py"
       ]
     },
     "note": "a population, not a duplication finding by itself -- CP2+ is where an owner-informed consolidation would use this inventory. Reported so it exists BEFORE that answer, not assembled by hand at that point."
