@@ -621,9 +621,9 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   const active = useMemo(() => {
     if (!report || chosen == null) return null
-    const row = report.outputs[chosen] || null
-    // ⛔ H14 — never a candle arm, however `chosen` got here.
-    return isCandleArm(row) ? null : row
+    // ⛔ H14: `chosen` never names a candle arm — `defaultChoice` redirects the
+    // translator's pick, and a candle row renders no radio. ONE guard, not two.
+    return report.outputs[chosen] || null
   }, [report, chosen])
 
   // ⭐⭐ C2D.1/C2D.2 — PLACEMENTS, NOT A MANIFEST, AND FOR EVERY OUTPUT.
