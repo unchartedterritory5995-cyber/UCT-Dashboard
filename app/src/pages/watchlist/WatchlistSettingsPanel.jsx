@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
 import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
+import Switch from '../../components/ui/Switch'
 import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
@@ -24,15 +25,6 @@ function Row({ label, hint, children }) {
       </div>
       <div className={styles.rowControl}>{children}</div>
     </div>
-  )
-}
-
-function Toggle({ on, onClick, label }) {
-  return (
-    <button type="button" role="switch" aria-checked={on}
-      className={`${styles.toggle}${on ? ' ' + styles.toggleOn : ''}`} onClick={onClick} title={label}>
-      <span className={styles.knob} />
-    </button>
   )
 }
 
@@ -286,7 +278,8 @@ export default function WatchlistSettingsPanel({
           {/* Tick flash */}
           <div className={styles.sectionLabel}>Tick flash</div>
           <Row label="Background tint" hint="pulse on each update">
-            <Toggle on={s.tintEnabled} onClick={() => set({ tintEnabled: !s.tintEnabled })} label="Toggle tick tint" />
+            <Switch checked={s.tintEnabled} onClick={() => set({ tintEnabled: !s.tintEnabled })} title="Toggle tick tint"
+              className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
           </Row>
           {s.tintEnabled && (
             <>
@@ -298,7 +291,8 @@ export default function WatchlistSettingsPanel({
           {/* Symbol column */}
           <div className={styles.sectionLabel}>Symbol column</div>
           <Row label="Company logos">
-            <Toggle on={s.showLogos} onClick={() => set({ showLogos: !s.showLogos })} label="Toggle company logos" />
+            <Switch checked={s.showLogos} onClick={() => set({ showLogos: !s.showLogos })} title="Toggle company logos"
+              className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
           </Row>
         </div>
       </div>

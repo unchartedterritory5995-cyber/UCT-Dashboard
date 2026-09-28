@@ -50,8 +50,8 @@
 // ⛔ Lesson from TERM-066's first ratchet: a ratchet over something every lane
 // adds routinely (every `<input>`, every checkbox) fails OTHER sessions' PRs by
 // name. So NOTHING in this file blocks on a kind, an implementation or a label
-// count. They are PRINTED. The only blocking rail is the narrow one in
-// `handRolledSwitch.ratchet.test.js`, over the single family TERM-067 retires.
+// count. They are PRINTED. The only blocking rail is the narrow switch ratchet
+// further down this file, over the single family TERM-067 retires.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -576,6 +576,177 @@ describe('the population is real, and the primitive exclusion does work', () => 
   }, 120_000)
 })
 
+// ════════════════════════════════════════════════════════════════════════════════
+// THE ONE BLOCKING RAIL — hand-rolled switches may not grow
+// ════════════════════════════════════════════════════════════════════════════════
+//
+// The census names ONE family with a single copied shape and a clear primitive:
+// the hand-rolled switch (`<button type="button" role="switch" aria-checked> >
+// <span knob>`), now `components/ui/Switch`. Only THAT family is held to a
+// baseline. A hand-rolled switch is a site of kind `switch` whose implementation
+// is raw (`aria`, or a native element carrying `role="switch"`) outside
+// `components/ui/`. Every other kind is printed above and blocks nothing.
+//
+// `handRolledSwitch.baseline.json` records, per file, how many such sites it had.
+//   • a file that GREW fails by name;
+//   • a NEW file with any fails by name — render `components/ui/Switch` instead;
+//   • a file that SHRANK fails too, with the command that banks it, so progress
+//     is locked in the commit that makes it and cannot creep back.
+//
+// ⛔ THE UPDATE MODE ONLY TIGHTENS. `UPDATE_SWITCH_BASELINE=1` lowers counts and
+// drops files that reached zero, and REFUSES — writes nothing — if any file grew
+// or appeared. Growth costs a deliberate hand edit to the JSON, with the reason in
+// the commit message. (It writes a baseline from scratch only when none exists —
+// the one-time bootstrap.)
+//
+//     cd app && UPDATE_SWITCH_BASELINE=1 npx vitest run src/components/ui/formControls.census.test.js
+
+const SWITCH_BASELINE_PATH = path.join(HERE, 'handRolledSwitch.baseline.json')
+const SWITCH_UPDATE_CMD = 'cd app && UPDATE_SWITCH_BASELINE=1 npx vitest run '
+  + 'src/components/ui/formControls.census.test.js'
+
+export const isHandRolledSwitch = (s) => s.kind === 'switch' && (s.impl === 'aria' || s.impl === 'native')
+
+export function switchCounts({ perFile }) {
+  const out = {}
+  for (const [f, r] of Object.entries(perFile)) {
+    const n = r.sites.filter(isHandRolledSwitch).length
+    if (n > 0) out[f] = n
+  }
+  return out
+}
+
+/** The ratchet decision, pure. Same contract as TERM-066's `ratchetVerdict`. */
+export function ratchetVerdict(current, baseline) {
+  const added = []; const grew = []; const slack = []
+  for (const [f, now] of Object.entries(current)) {
+    if (!Object.hasOwn(baseline, f)) added.push({ file: f, now })
+    else if (now > baseline[f]) grew.push({ file: f, was: baseline[f], now })
+  }
+  for (const [f, was] of Object.entries(baseline)) {
+    const now = current[f] || 0
+    if (now < was) slack.push({ file: f, was, now })
+  }
+  return { added, grew, slack }
+}
+
+const SWITCH_NOTE = [
+  'TERM-067 HAND-ROLLED SWITCH BASELINE. Read by formControls.census.test.js.',
+  'Per file: how many raw role="switch" sites it had outside components/ui/ when last written.',
+  'New switches render components/ui/Switch. SHRINK-ONLY. Tightening is mechanical:',
+  '  cd app && UPDATE_SWITCH_BASELINE=1 npx vitest run src/components/ui/formControls.census.test.js',
+  'The update mode REFUSES to raise a count or add a file. Growth is a HAND EDIT to this',
+  'file, with the reason in the commit message, so it cannot be laundered by a re-run.',
+  'Keys are repo-relative with forward slashes, sorted; LF; trailing newline. The rail',
+  'asserts these bytes are exactly what its writer produces.',
+]
+
+export function serializeSwitchBaseline(sites) {
+  const sorted = {}
+  for (const k of Object.keys(sites).sort()) sorted[k] = sites[k]
+  return JSON.stringify({ note: SWITCH_NOTE, sites: sorted }, null, 2) + '\n'
+}
+
+function readSwitchBaseline() {
+  // core.autocrlf=true on this box checks the file out with CRLF; the blob git
+  // stores is LF, and that blob is what the byte check is about.
+  const raw = fs.readFileSync(SWITCH_BASELINE_PATH, 'utf8').replace(/\r\n/g, '\n')
+  return { raw, sites: JSON.parse(raw).sites }
+}
+
+const fmtList = (rows, render) => rows.map(render).join('\n  ')
+
+if (process.env.UPDATE_SWITCH_BASELINE === '1') {
+  const cur = switchCounts(census())
+  if (!fs.existsSync(SWITCH_BASELINE_PATH)) {
+    fs.writeFileSync(SWITCH_BASELINE_PATH, serializeSwitchBaseline(cur))
+  } else {
+    const { sites: base } = readSwitchBaseline()
+    const v = ratchetVerdict(cur, base)
+    if (v.added.length || v.grew.length) {
+      throw new Error('REFUSING to update the switch baseline — it only shrinks. Grew/new:\n  '
+        + fmtList([...v.grew, ...v.added], (r) => `${r.file}: ${r.was ?? 'new'} -> ${r.now}`))
+    }
+    const next = {}
+    for (const [f, was] of Object.entries(base)) {
+      const now = Math.min(was, cur[f] || 0)
+      if (now > 0) next[f] = now
+    }
+    fs.writeFileSync(SWITCH_BASELINE_PATH, serializeSwitchBaseline(next))
+  }
+}
+
+describe('the switch ratchet verdict, pure', () => {
+  it('a planted new file with a switch is ADDED, by name', () => {
+    const v = ratchetVerdict({ 'app/src/a.jsx': 2, 'app/src/new.jsx': 1 }, { 'app/src/a.jsx': 2 })
+    expect(v.added).toEqual([{ file: 'app/src/new.jsx', now: 1 }])
+    expect(v.grew).toEqual([])
+    expect(v.slack).toEqual([])
+  })
+
+  it('growth is caught by name, and a shrink is slack to bank', () => {
+    const v = ratchetVerdict({ 'app/src/a.jsx': 3, 'app/src/b.jsx': 1 },
+      { 'app/src/a.jsx': 2, 'app/src/b.jsx': 4, 'app/src/gone.jsx': 1 })
+    expect(v.grew).toEqual([{ file: 'app/src/a.jsx', was: 2, now: 3 }])
+    expect(v.slack).toEqual([
+      { file: 'app/src/b.jsx', was: 4, now: 1 },
+      { file: 'app/src/gone.jsx', was: 1, now: 0 },
+    ])
+  })
+
+  it('only the switch family counts — a native checkbox, a toggle button, a Switch use do not', () => {
+    const src = `const a = <div>
+      <button type="button" role="switch" aria-checked={x}><span /></button>
+      <input type="checkbox" role="switch" />
+      <input type="checkbox" /><button aria-pressed={y}>On</button><Switch checked />
+    </div>`
+    const r = scanSource(src, { primitiveNames: new Set(['Switch']) })
+    expect(r.sites.filter(isHandRolledSwitch)).toHaveLength(2)
+    expect(switchCounts({ perFile: { 'app/src/x.jsx': r } })).toEqual({ 'app/src/x.jsx': 2 })
+  })
+})
+
+describe('the Switch primitive is derived, and its uses are counted as primitive sites', () => {
+  it('components/ui/Switch is found by derivation, not by a typed roster', () => {
+    const { primitives } = census()
+    expect([...(primitives['app/src/components/ui/Switch'] || [])]).toEqual(['Switch'])
+  }, 120_000)
+
+  it('the migrated panels render the primitive and hold no hand-rolled switch', () => {
+    const { perFile } = census()
+    for (const f of ['app/src/pages/watchlist/WatchlistSettingsPanel.jsx',
+      'app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx']) {
+      const sites = perFile[f]?.sites || []
+      expect(sites.filter((s) => s.impl === 'primitive').length, f).toBe(2)
+      expect(sites.filter(isHandRolledSwitch), f).toEqual([])
+    }
+  }, 120_000)
+})
+
+describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
+  it('no file gained a hand-rolled switch, and no new file appeared', () => {
+    const { sites: base } = readSwitchBaseline()
+    const v = ratchetVerdict(switchCounts(census()), base)
+    expect(v.added, 'NEW hand-rolled role="switch" file(s) — render components/ui/Switch instead:\n  '
+      + fmtList(v.added, (r) => `${r.file} (${r.now} site(s))`)).toEqual([])
+    expect(v.grew, 'these files gained hand-rolled switches — render components/ui/Switch instead:\n  '
+      + fmtList(v.grew, (r) => `${r.file}: ${r.was} -> ${r.now}`)).toEqual([])
+  }, 120_000)
+
+  it('the baseline is tight — progress is banked in the commit that makes it', () => {
+    const { sites: base } = readSwitchBaseline()
+    const v = ratchetVerdict(switchCounts(census()), base)
+    expect(v.slack, 'these files SHRANK — bank it so it cannot creep back:\n  '
+      + fmtList(v.slack, (r) => `${r.file}: ${r.was} -> ${r.now}`)
+      + `\n  run: ${SWITCH_UPDATE_CMD}`).toEqual([])
+  }, 120_000)
+
+  it('the committed baseline is byte-exactly what its writer produces', () => {
+    const { raw, sites } = readSwitchBaseline()
+    expect(raw).toBe(serializeSwitchBaseline(sites))
+  })
+})
+
 // ── the census, printed ─────────────────────────────────────────────────────────
 
 describe('the census, printed', () => {
@@ -605,6 +776,8 @@ describe('the census, printed', () => {
       '    by kind:', ...table(s.byKind),
       '    by implementation:', ...table(s.byImpl),
       '    by kind / implementation:', ...table(s.byKindImpl),
+      '    hand-rolled switches (the ONE ratcheted family):',
+      ...sortDesc(switchCounts(c)).map(([f, n]) => `      ${String(n).padStart(4)}  ${f}`),
       '    label association:', ...table(s.labels),
       '    label association, by kind:',
       ...sortDesc(Object.fromEntries(Object.entries(s.labelsByKind).map(([k, o]) => [k, Object.values(o).reduce((a, b) => a + b, 0)])))

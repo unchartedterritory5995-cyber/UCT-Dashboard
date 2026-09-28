@@ -1,0 +1,19 @@
+{
+  "note": [
+    "TERM-067 HAND-ROLLED SWITCH BASELINE. Read by formControls.census.test.js.",
+    "Per file: how many raw role=\"switch\" sites it had outside components/ui/ when last written.",
+    "New switches render components/ui/Switch. SHRINK-ONLY. Tightening is mechanical:",
+    "  cd app && UPDATE_SWITCH_BASELINE=1 npx vitest run src/components/ui/formControls.census.test.js",
+    "The update mode REFUSES to raise a count or add a file. Growth is a HAND EDIT to this",
+    "file, with the reason in the commit message, so it cannot be laundered by a re-run.",
+    "Keys are repo-relative with forward slashes, sorted; LF; trailing newline. The rail",
+    "asserts these bytes are exactly what its writer produces."
+  ],
+  "sites": {
+    "app/src/components/chart/ChartDrawingOverlay.jsx": 3,
+    "app/src/components/chart/ChartSettingsIndicators.jsx": 2,
+    "app/src/components/chart/ChartSettingsModal.jsx": 12,
+    "app/src/components/chart/IndicatorSettingsDialog.jsx": 2,
+    "app/src/pages/charts/mobile/MobileIndicatorSheet.jsx": 3
+  }
+}
