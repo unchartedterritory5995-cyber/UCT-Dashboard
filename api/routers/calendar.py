@@ -3720,14 +3720,20 @@ def post_calendar_seen(
 
 
 # ── E2: iCal / webcal export ─────────────────────────────────────────────────
-# Token strategy: HMAC-SHA256 keyed on PUSH_SECRET (always present in prod).
+# LEGACY token strategy: HMAC-SHA256 keyed on PUSH_SECRET (always present in prod).
 # token = hmac_hex(PUSH_SECRET, user_id). Stable per user (no TTL) so webcal
 # subscribe URLs continue to work forever. decode_ics_token() reverses it by
 # iterating all users and checking HMAC equality.
+#
+# TERM-084: behind ICS_TOKEN_V2_ENABLED the export-token door mints an
+# expiring, rotatable `v2.` token instead (api/services/ics_export_token.py),
+# legacy links keep working through a counted, owner-closed grace period, and a
+# member can rotate. Flag OFF: every existing request answers exactly as before.
 
 import hashlib as _hashlib
 import hmac as _hmac
 from fastapi import Response as _Response  # noqa: E402
+from api.services import ics_export_token as _ics_tok  # noqa: E402
 
 
 def _ics_secret() -> bytes:
@@ -3814,6 +3820,30 @@ def _build_vevent(sym: str, report_date: str, timing: str) -> str:
         f"DTEND;{dtend}\r\n"
         f"SUMMARY:{summary}\r\n"
         "CATEGORIES:EARNINGS\r\n"
+        "END:VEVENT\r\n"
+    )
+
+
+_ICS_NOTICE_UID = "uct-calendar-link-notice@uctintelligence.com"
+
+
+def _build_notice_vevent(summary: str) -> str:
+    """One all-day event on TODAY (ET, from the injected clock) telling the member,
+    inside their own calendar app, that their subscribe link needs refreshing.
+
+    A calendar app shows nothing for a 401 -- it just stops updating -- so this is
+    the only warning a subscribed member can actually see. The UID is fixed, so a
+    re-fetch moves the one event rather than stacking copies.
+    """
+    today = datetime.fromtimestamp(_ics_tok.now(), tz=ZoneInfo("America/New_York")).date()
+    d0 = today.strftime("%Y%m%d")
+    d1 = (today + timedelta(days=1)).strftime("%Y%m%d")
+    return (
+        "BEGIN:VEVENT\r\n"
+        f"UID:{_ICS_NOTICE_UID}\r\n"
+        f"DTSTART;VALUE=DATE:{d0}\r\n"
+        f"DTEND;VALUE=DATE:{d1}\r\n"
+        f"SUMMARY:{summary}\r\n"
         "END:VEVENT\r\n"
     )
 
@@ -3954,11 +3984,99 @@ def get_calendar_export_token(user: dict = Depends(require_paid)):
     The token is HMAC(PUSH_SECRET, user_id) — stable across restarts so a
     subscribed Google/Apple Calendar URL continues to work indefinitely.
     Response: { token: "<hex>", subscribe_url: "webcal://..." }
+
+    TERM-084: with ICS_TOKEN_V2_ENABLED the token is an expiring `v2.` token
+    and the response also carries `expires_at` + `rotatable: true` (the UI shows
+    the Reset link control only then). Flag OFF: byte-identical to before.
     """
+    if _ics_tok.is_enabled():
+        return _ics_v2_link(user["id"], rotate=False)
     token = _make_ics_token(user["id"])
     base_url = os.environ.get("DASHBOARD_URL", "https://uctintelligence.com")
     subscribe_url = f"webcal://{base_url.replace('https://', '').replace('http://', '')}/api/calendar/export.ics?scope=mine&token={token}"
     return {"token": token, "subscribe_url": subscribe_url}
+
+
+def _ics_v2_link(user_id: str, *, rotate: bool) -> dict:
+    minted = _ics_tok.rotate(user_id) if rotate else _ics_tok.mint(user_id)
+    if not minted:
+        # No signing secret on this service: refuse rather than mint a forgeable link.
+        raise HTTPException(status_code=503, detail="Calendar export link unavailable")
+    token, exp = minted
+    base_url = os.environ.get("DASHBOARD_URL", "https://uctintelligence.com")
+    subscribe_url = f"webcal://{base_url.replace('https://', '').replace('http://', '')}/api/calendar/export.ics?scope=mine&token={token}"
+    return {
+        "token": token,
+        "subscribe_url": subscribe_url,
+        "expires_at": datetime.fromtimestamp(exp, tz=ZoneInfo("UTC")).isoformat(),
+        "rotatable": True,
+    }
+
+
+@router.post("/api/calendar/export-token/rotate")
+def rotate_calendar_export_token(user: dict = Depends(require_paid)):
+    """TERM-084 -- reset this member's subscribe link.
+
+    Every earlier link of THIS member stops working (v2 by generation, the legacy
+    HMAC link by revocation); nobody else's does, and PUSH_SECRET is untouched.
+    Returns the new link so the UI can hand it straight to the member.
+    Flag OFF: answers exactly like the unknown route it was before.
+    """
+    if not _ics_tok.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    out = _ics_v2_link(user["id"], rotate=True)
+    out["rotated"] = True
+    return out
+
+
+@router.get("/api/calendar/export-token/legacy-usage")
+def calendar_export_legacy_usage(_admin: dict = Depends(require_admin)):
+    """TERM-084 -- how many members still subscribe with a legacy link.
+
+    Read this before setting ICS_LEGACY_TOKEN_GRACE_UNTIL: it is the count that
+    says closing the grace period would break nobody's calendar.
+    """
+    return _ics_tok.legacy_usage()
+
+
+_ICS_REFRESH_HINT = "Open UCT Calendar > Export and copy a fresh webcal link."
+
+
+def _resolve_v2_ics_token(token: str):
+    """(user_id, notice, refusal) for a v2 token. Logs a verdict word, never the token."""
+    verdict, user_id, exp = _ics_tok.verify(token)
+    if verdict == _ics_tok.VALID:
+        notice = None
+        if exp is not None and _ics_tok.expires_soon(exp):
+            day = datetime.fromtimestamp(exp, tz=ZoneInfo("UTC")).strftime("%b %d").replace(" 0", " ")
+            notice = f"UCT calendar link expires {day} - copy a fresh link in UCT Calendar > Export"
+        return user_id, notice, None
+    _logger.info("[ics] v2 export link refused: %s", verdict)
+    if verdict == _ics_tok.EXPIRED:
+        return None, None, _Response(content=f"This calendar link has expired. {_ICS_REFRESH_HINT}",
+                                     status_code=401, media_type="text/plain")
+    if verdict == _ics_tok.REVOKED:
+        return None, None, _Response(content=f"This calendar link was reset. {_ICS_REFRESH_HINT}",
+                                     status_code=403, media_type="text/plain")
+    return None, None, _Response(content="Invalid or expired token", status_code=403,
+                                 media_type="text/plain")
+
+
+def _legacy_ics_policy(user_id: str):
+    """(notice, refusal) for a legacy HMAC link while TERM-084's flag is on.
+
+    Served (and counted) through the grace period with a re-subscribe notice;
+    refused once the member rotated (403) or the owner closed the grace (401).
+    """
+    verdict = _ics_tok.legacy_decision(user_id)
+    if verdict == _ics_tok.VALID:
+        return ("UCT calendar link is being replaced - copy the new link in UCT Calendar > Export",
+                None)
+    if verdict == _ics_tok.REVOKED:
+        return None, _Response(content=f"This calendar link was reset. {_ICS_REFRESH_HINT}",
+                               status_code=403, media_type="text/plain")
+    return None, _Response(content=f"This calendar link has been retired. {_ICS_REFRESH_HINT}",
+                           status_code=401, media_type="text/plain")
 
 
 @router.get("/api/calendar/export.ics")
@@ -3979,6 +4097,7 @@ def export_calendar_ics(
     """
     # Resolve user_id from token for scope=mine
     user_id: str | None = None
+    notice: str | None = None
     if scope == "mine":
         if not token:
             return _Response(
@@ -3986,13 +4105,25 @@ def export_calendar_ics(
                 status_code=400,
                 media_type="text/plain",
             )
-        user_id = _decode_ics_token(token)
-        if not user_id:
-            return _Response(
-                content="Invalid or expired token",
-                status_code=403,
-                media_type="text/plain",
-            )
+        if _ics_tok.is_v2(token):
+            # TERM-084. Verified whatever the flag says: a v2 link can only exist
+            # because the flag was on once, and rolling the flag back must not
+            # break the calendars subscribed with it (expiry + rotation still hold).
+            user_id, notice, refusal = _resolve_v2_ics_token(token)
+            if refusal is not None:
+                return refusal
+        else:
+            user_id = _decode_ics_token(token)
+            if not user_id:
+                return _Response(
+                    content="Invalid or expired token",
+                    status_code=403,
+                    media_type="text/plain",
+                )
+            if _ics_tok.is_enabled():
+                notice, refusal = _legacy_ics_policy(user_id)
+                if refusal is not None:
+                    return refusal
 
     try:
         reporters = _collect_reporters_for_ics(scope, user_id)
@@ -4001,6 +4132,8 @@ def export_calendar_ics(
         reporters = []
 
     vevents = [_build_vevent(sym, ds, timing) for sym, ds, timing in reporters]
+    if notice:
+        vevents.append(_build_notice_vevent(notice))
     body = _build_vcalendar(vevents)
 
     return _Response(

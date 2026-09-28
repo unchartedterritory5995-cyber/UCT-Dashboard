@@ -860,6 +860,12 @@
       ],
       "note": ""
     },
+    "ICS_TOKEN_V2_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-084 (FB-X2-02), ENABLEMENT GATE, default OFF, read per request in api/services/ics_export_token.py::is_enabled(). SERVICE: web. What it arms: GET /api/calendar/export-token mints an EXPIRING v2 subscribe link (signed exp, default 90 days via ICS_TOKEN_TTL_DAYS; the feed shows a one-event 'link expires' notice inside the member's own calendar in the last 14 days) and POST /api/calendar/export-token/rotate resets a member's link (per-member generation bump, also revokes that member's legacy HMAC link; PUSH_SECRET untouched). MIGRATION PATH for links members already subscribed: legacy HMAC links keep working while the flag is on, every fetch is COUNTED per member in auth.db ics_export_token_state, and the feed carries one 're-subscribe' notice event; the owner closes the grace by setting ICS_LEGACY_TOKEN_GRACE_UNTIL=YYYY-MM-DD after reading GET /api/calendar/export-token/legacy-usage (admin). Unset = grace open indefinitely. Flag OFF: export-token, export.ics and every legacy link answer byte-identically to before; v2 links already minted keep verifying (expiry + rotation still enforced) so a rollback does not break calendars subscribed while it was on. Rollback = unset this variable; nothing is deleted."
+    },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
       "where": [
