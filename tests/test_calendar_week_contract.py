@@ -105,6 +105,22 @@ def test_a_violation_is_logged_at_error_and_routed_to_the_ops_sink(caplog, monke
     assert [(k, s) for k, s, _ in emitted] == [("calendar_week_contract:x.y", "warning")]
 
 
+def test_the_violation_severity_is_one_the_alert_channel_recognises(monkeypatch):
+    """TERM-018 observation for `_violation`'s emit: the severity must be a word
+    the operator channel ranks (alerts.py `SEVERITY_*`), never a near-miss like
+    "warn" that routes nowhere, and never `critical` (this is the feed, not a page)."""
+    from api.services import alerts, chart_health_alerts
+    recognised = {v for k, v in vars(alerts).items()
+                  if k.startswith("SEVERITY_") and isinstance(v, str)}
+    assert {"info", "warning", "critical"} <= recognised  # non-vacuity
+    emitted = []
+    monkeypatch.setattr(chart_health_alerts, "emit",
+                        lambda key, sev, msg, meta=None: emitted.append(sev))
+    with pytest.raises(WeekContractViolation):
+        week_days(BAD_WEEK, reader="x.y")
+    assert emitted and all(s in recognised and s != "critical" for s in emitted), emitted
+
+
 # ── Behaviour: every reader, one fixture ─────────────────────────────────────
 #
 # Each driver injects `payload` at the reader's own door and returns what the
