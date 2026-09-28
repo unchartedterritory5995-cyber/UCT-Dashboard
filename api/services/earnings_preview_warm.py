@@ -209,17 +209,21 @@ def _rank(weeks: int, *, reported: bool | None, tracked: set) -> list[dict]:
     what the company does."""
     from datetime import timedelta
     from api.routers.calendar import get_calendar, get_day_metrics, _week_dates
+    from api.services.calendar_week_contract import week_days
 
     cur_monday = _week_dates()[0]
     best: dict[str, dict] = {}
     for wk in range(max(weeks, 1)):
         monday = cur_monday + timedelta(days=7 * wk)
         try:
-            payload = get_calendar(week=monday.isoformat()) or {}
+            payload = get_calendar(week=monday.isoformat())
         except Exception as e:
             _logger.warning("[earn-warm] get_calendar failed %s: %s", monday, e)
             continue
-        for ds, day in (payload.get("days") or {}).items():
+        # TERM-030: OUTSIDE the provider try on purpose — a malformed week is
+        # not a provider blip to skip past, it aborts the warm by name.
+        days = week_days(payload, reader="api.services.earnings_preview_warm._rank") or {}
+        for ds, day in days.items():
             metrics = {}
             try:
                 metrics = get_day_metrics(date_str=ds) or {}
