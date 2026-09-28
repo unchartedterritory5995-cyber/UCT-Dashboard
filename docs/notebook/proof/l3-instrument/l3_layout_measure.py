@@ -107,6 +107,7 @@ window.__l3 = (() => {
     if (hit.closest('[class*="_logFab_"]')) return 'log-fab';
     if (hit.closest('[class*="_orbCluster_"]')) return 'voice-orb';
     if (hit.closest('[data-testid="hub-root"]')) return 'hub';
+    if (hit.closest('[class*="_fab_"]')) return 'feedback';   // FeedbackWidget's "?" (fb.fab)
     return 'other';
   };
   const hiddenLook = (el, b) => { const cs = getComputedStyle(el);
