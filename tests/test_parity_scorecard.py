@@ -29,12 +29,20 @@ F3 fix round 1 (review I-1, I-2, I-3, M-6): the tag must pin the head that was S
 must carry it file for file (property 5); a measured tree is reachable only from HEAD or a declared
 wave's tag, and that wave must have landed; no measured tree leans on HEAD; and every evidence file
 or walked tree the scorecard cites must be one §0 checks. Each is shown failing below.
+
+F3 fix round 3 (review R12-I1, M1-M5): the tie is MERGE-AWARE -- a squash carries a head when its tree is the
+head merged onto its parent -- so a squash onto a master that moved still ties (rebuilt below from objects
+only, no ref written); a rename lists both names; a rail counts for an event only if a non-skipped test ASSERTS
+it in executable code (an acorn walk) and ran green; a constant-reference event is resolved, never dropped; the
+squash-found rail is pinned to a named commit; and every backticked evidence path outside §0 is extracted.
 """
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import subprocess
+import tempfile
 import sys
 from pathlib import Path
 
@@ -349,11 +357,13 @@ def test_a_head_its_squash_does_not_carry_is_refused():
     later commit landed in their place -- and the tie (property 5) names the files that differ."""
     _, p7 = psc.evidence_index('HEAD', waves=[('wave 7 (old tag)', 'notebook-wave7-tip-2026-09-26', 'e6f418194', 'f883e0996')],
                                evidence=[], tips=[])
-    assert len(p7) == 1 and '6 file(s) the head e6f418194 changed differ at its squash f883e0996' in p7[0], p7
+    assert len(p7) == 1 and ('its squash f883e0996 is not the head e6f418194 merged onto its parent -- '
+                             '9 file(s) differ') in p7[0], p7
     assert 'api/routers/journal_two.py' in p7[0], p7
     _, p5 = psc.evidence_index('HEAD', waves=[('wave 5 (old tag)', 'notebook-wave5-tip-2026-09-24', '145478ec1', '2c3ed3093')],
                                evidence=[], tips=[])
-    assert len(p5) == 1 and '2 file(s) the head 145478ec1 changed differ at its squash 2c3ed3093' in p5[0], p5
+    assert len(p5) == 1 and ('its squash 2c3ed3093 is not the head 145478ec1 merged onto its parent -- '
+                             '12 file(s) differ') in p5[0], p5
     # control: the heads the PRs did squash are carried, file for file
     _, ok = psc.evidence_index('HEAD', waves=[w for w in psc.B0_WAVES if w[0] in ('wave 5', 'wave 7')], evidence=[], tips=[])
     assert not ok, ok
@@ -368,19 +378,20 @@ def test_a_tie_over_no_changed_file_is_refused_as_vacuous():
     assert problems == ['B0 planted: the tie is vacuous -- 6777b3335 changed no file against its squash\'s parent'], problems
 
 
+MASTER_WITH_SQUASHES = '4bba30b73'   # a named master commit holding wave 9's, L1a's and L1b's squashes
+
+
 def test_the_squash_of_a_recorded_head_is_found_in_heads_history():
     """L1c's squash is not recorded (it does not exist yet); the tool finds it. Shown on the waves whose squash
-    IS recorded, against master's history: the commit found is the recorded one."""
-    rc = subprocess.run(['git', 'rev-parse', '--verify', '--quiet', 'origin/master^{commit}'],
-                        capture_output=True, text=True, cwd=REPO)
-    if rc.returncode != 0:
-        pytest.skip('no origin/master in this clone')
+    IS recorded, against a NAMED master commit (review R12-M4: origin/master moves, and a clone's or a stale
+    worktree's can predate the squashes): the commit found is the recorded one."""
+    assert _git('cat-file', '-t', MASTER_WITH_SQUASHES) == 'commit', f'{MASTER_WITH_SQUASHES} not in this clone'
     for wave, _tag, tip, squash in psc.B0_WAVES:
         if wave in ('wave 9', 'wave 10 L1a', 'wave 10 L1b'):
-            found = psc._find_squash(tip, 'origin/master')
+            found = psc._find_squash(tip, MASTER_WITH_SQUASHES)
             assert found and found.startswith(squash), (wave, found, squash)
     # control: a head no squash carries is not "found" at some later commit
-    assert psc._find_squash('e6f418194', 'origin/master') is None
+    assert psc._find_squash('e6f418194', MASTER_WITH_SQUASHES) is None
 
 
 def test_evidence_that_changed_since_it_landed_is_refused():
@@ -435,7 +446,7 @@ def test_every_cited_evidence_file_and_walked_tree_is_one_the_index_checks():
     so the other direction is derived -- a citation §0 does not check is refused by name."""
     text = _text(SCORECARD)
     assert psc.cited_b0_gaps(text) == [], psc.cited_b0_gaps(text)
-    assert psc._B0_CITED.findall(text) and psc._B0_WALK_TIP.findall(text), 'non-vacuity: citations parsed'
+    assert psc.cited_b0_paths(text) and psc._B0_WALK_TIP.findall(text), 'non-vacuity: citations parsed'
     planted = text + ('\nMEASURE `docs/notebook/evidence/wave10-f3/not-indexed.json`:1 "x"'
                       '\nWALK `tools/x.py`:C1 PASS — report `docs/notebook/gate-runs/wave8/walk-341bbccf3.json`, tip 0123456789\n')
     assert psc.cited_b0_gaps(planted) == [
@@ -489,26 +500,36 @@ def _read_repo(p):
     return _text(fp) if fp.is_file() else None
 
 
+F3VT_R3 = REPO / 'docs' / 'notebook' / 'evidence' / 'wave10-f3' / 'vitest-f3-telemetry-rails-r3.log'
+
+
 def test_every_core_action_event_has_a_call_site_rail_that_ran_green():
     events = psc.core_action_events(_telemetry_src())
     assert 'ask_used' in events and len(events) >= 10, f'non-vacuity: events read {events}'
-    log = _text(REPO / 'docs' / 'notebook' / 'evidence' / 'wave10-f3' / 'vitest-f3-telemetry-rails-r2.log')
-    assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, log) == []
+    log = _text(F3VT_R3)
+    where = {}
+    assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, log, where=where) == []
+    # every event cites at least one asserting test, and save_success cites BOTH of its doors (R12-M2)
+    assert sorted(where) == events, sorted(where)
+    assert any('NoteEditorPage.telemetry.test.jsx' in x for x in where['save_success']), where['save_success']
+    assert any('useOutboxDrain.test.jsx' in x for x in where['save_success']), where['save_success']
 
 
 def test_a_core_action_event_that_is_not_railed_is_a_named_gap():
     events = psc.core_action_events(_telemetry_src())
-    log = _text(REPO / 'docs' / 'notebook' / 'evidence' / 'wave10-f3' / 'vitest-f3-telemetry-rails-r2.log')
+    log = _text(F3VT_R3)
     rails = dict(psc.TELEMETRY_RAILS)
     del rails['ask_used']
     assert psc.telemetry_rail_gaps(events, rails, _read_repo, log) == ['ask_used: no call-site rail is named for it']
     rails = dict(psc.TELEMETRY_RAILS, ask_used='app/src/pages/journal-2-0/lib/noteBatch.test.js')
     assert psc.telemetry_rail_gaps(events, rails, _read_repo, log) == [
-        'ask_used: app/src/pages/journal-2-0/lib/noteBatch.test.js never names the event']
+        'ask_used: app/src/pages/journal-2-0/lib/noteBatch.test.js has no test that asserts it (a comment, a '
+        'skipped test, or a name that never reaches an expect(...) does not count)']
     shown = log.replace('✓ src/pages/journal-2-0/components/notebook/AskPanel.telemetry.test.jsx', '× gone')
     assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, shown) == [
-        f'ask_used: {psc.TELEMETRY_RAILS["ask_used"]} did not run green in the telemetry log']
-    assert psc.core_action_events('no table here') == []
+        f'ask_used: no test of {psc.TELEMETRY_RAILS["ask_used"]} that asserts it ran green in the telemetry log']
+    with pytest.raises(ValueError):
+        psc.core_action_events('no table here')
     assert psc.telemetry_rail_gaps([], psc.TELEMETRY_RAILS, _read_repo, log) == [
         'CORE_ACTION_EVENTS: no events read from the source']
 
@@ -519,3 +540,227 @@ def test_clause_15b_and_g003_read_as_the_round_2_rulings_say():
     assert _cells(row)[1] == 'MET' and 'AskPanel.telemetry.test.jsx' in row, row
     g003 = next(c for c in _a_rows() if c[0] == 'G-003')
     assert g003[3:6] == ['NOT-VERIFIED'] * 3, g003[3:6]
+
+
+# ── F3 fix round 3 (R12-I1, M1): the merge-aware tie, rebuilt from objects only ──────────────────
+# Every commit below is written with commit-tree into the object store and never referenced: no branch, tag,
+# index or working file is touched (a temporary GIT_INDEX_FILE builds each tree). Dates are pinned, so the
+# same inputs give the same SHAs on every run.
+
+_PINNED = {'GIT_AUTHOR_NAME': 'f3-r3', 'GIT_AUTHOR_EMAIL': 'f3-r3@example.invalid',
+           'GIT_COMMITTER_NAME': 'f3-r3', 'GIT_COMMITTER_EMAIL': 'f3-r3@example.invalid',
+           'GIT_AUTHOR_DATE': '2026-09-28T12:00:00Z', 'GIT_COMMITTER_DATE': '2026-09-28T12:00:00Z'}
+W9_HEAD, W9_SQUASH = 'e7c196f38', '1c4b0bf74'
+GAP_LEDGER = 'docs/notebook/competitive-gap-ledger.md'   # wave 9 changed it; its first hunk starts at line 61
+
+
+def _git(*a, env=None, data=None) -> str:
+    r = subprocess.run(['git', '-C', str(REPO), *a], capture_output=True, cwd=REPO, input=data,
+                       env={**os.environ, **_PINNED, **(env or {})})
+    assert r.returncode == 0, (a, r.stderr.decode('utf-8', 'replace'))
+    return r.stdout.decode('utf-8', 'replace').strip()
+
+
+def _tree_with(commit: str, changes: dict) -> str:
+    """The tree of `commit` with `changes` applied ({path: bytes to write, or None to delete}), built in a
+    temporary index; objects only."""
+    with tempfile.TemporaryDirectory() as d:
+        env = {'GIT_INDEX_FILE': os.path.join(d, 'index')}
+        _git('read-tree', commit, env=env)
+        for path, data in changes.items():
+            if data is None:
+                _git('update-index', '--force-remove', '--', path, env=env)
+            else:
+                blob = _git('hash-object', '-w', '--stdin', data=data)
+                _git('update-index', '--add', '--cacheinfo', f'100644,{blob},{path}', env=env)
+        return _git('write-tree', env=env)
+
+
+def _commit(tree: str, parent: str, msg: str) -> str:
+    return _git('commit-tree', tree, '-p', parent, '-m', msg)
+
+
+def _moved_master_squash():
+    """Master moves by one unrelated line in a file wave 9 also changed (the review's scenario, rebuilt on wave
+    9 so it holds after L1c's tag is re-made); then wave 9's head is squashed onto it with a clean 3-way merge.
+    Returns (parent P, moved master M, squash S)."""
+    parent = _git('rev-parse', f'{W9_SQUASH}^')
+    old = subprocess.run(['git', '-C', str(REPO), 'cat-file', 'blob', f'{parent}:{GAP_LEDGER}'],
+                         capture_output=True, check=True).stdout
+    first, rest = old.split(b'\n', 1)
+    moved = _commit(_tree_with(parent, {GAP_LEDGER: first + b'\n<!-- master moved: an unrelated line -->\n' + rest}),
+                    parent, 'moved master (F3 r3 rail)')
+    r = subprocess.run(['git', '-C', str(REPO), 'merge-tree', '--write-tree', moved, W9_HEAD], capture_output=True)
+    assert r.returncode == 0, 'precondition: the 3-way merge must be clean'
+    squash = _commit(r.stdout.decode().split()[0], moved, 'squash of wave 9 onto the moved master (F3 r3 rail)')
+    return parent, moved, squash
+
+
+def test_a_squash_onto_a_master_that_moved_still_ties_and_is_found():
+    """Review R12-I1: a GitHub squash onto a master that moved is a 3-way merge, so a file both sides touched holds
+    the MERGE, not the head's blob. The per-file blob rule refused it (F-9 on master); the merge-aware rule
+    accepts it -- and §0 finds it as the head's landing."""
+    parent, moved, squash = _moved_master_squash()
+    # non-vacuity: the squash's gap ledger is NOT the head's blob (the old rule's refusal), and IS master's edit
+    assert _git('rev-parse', f'{squash}:{GAP_LEDGER}') != _git('rev-parse', f'{W9_HEAD}:{GAP_LEDGER}')
+    assert b'master moved' in subprocess.run(['git', '-C', str(REPO), 'cat-file', 'blob', f'{squash}:{GAP_LEDGER}'],
+                                             capture_output=True, check=True).stdout
+    changed, bad = psc._tie(W9_HEAD, squash)
+    assert GAP_LEDGER in changed and len(changed) == 402 and bad == set(), (len(changed), sorted(bad)[:5])
+    assert psc._find_squash(W9_HEAD, squash) == squash
+    rows, problems = psc.evidence_index(squash, waves=[('wave 9', W9[1], W9_HEAD, None)], evidence=[], tips=[])
+    assert problems == [], problems
+    assert any(r[0] == 'wave 9: landing' and r[2] == f'squash {squash[:9]}' for r in rows), rows
+    # control: the moved master itself does not carry the head
+    assert psc._tie(W9_HEAD, moved)[1]
+
+
+def test_a_squash_of_a_later_head_than_the_tag_is_refused_closed():
+    """The tag was not moved to the commit that was squashed (the controller committed the scorecard after
+    tagging, or pressed "Update branch"): the squash carries a LATER head. §0 must refuse -- NOT FOUND, never a
+    tie to the tagged head -- while the later head itself is found, so the refusal is about the tag."""
+    _, moved, _ = _moved_master_squash()
+    later = _commit(_tree_with(W9_HEAD, {'docs/notebook/parity-scorecard.md': b'# written after the tag\n'}),
+                    W9_HEAD, 'a commit after the tag (F3 r3 rail)')
+    r = subprocess.run(['git', '-C', str(REPO), 'merge-tree', '--write-tree', moved, later], capture_output=True)
+    assert r.returncode == 0
+    squash = _commit(r.stdout.decode().split()[0], moved, 'squash of the later head (F3 r3 rail)')
+    _, problems = psc.evidence_index(squash, waves=[('wave 9', W9[1], W9_HEAD, None)], evidence=[], tips=[])
+    assert problems == [f'B0 wave 9: no commit of {squash} carries the files {W9[1]} changed'], problems
+    assert psc._find_squash(later, squash) == squash       # control: the head that WAS squashed is found
+
+
+def test_a_head_that_conflicts_with_the_squash_parent_is_refused():
+    """A head that does not even merge cleanly onto the squash's parent is not carried by it, whatever the squash
+    holds -- the conflicted file is named."""
+    base = W9_HEAD
+    path = 'docs/notebook/parity-scorecard.md'
+    parent = _commit(_tree_with(base, {path: b'master says A\n'}), base, 'master edits the line (F3 r3 rail)')
+    head = _commit(_tree_with(base, {path: b'the head says B\n'}), base, 'the head edits it too (F3 r3 rail)')
+    landing = _commit(_git('rev-parse', f'{head}^{{tree}}'), parent, 'a squash holding the head tree (F3 r3 rail)')
+    changed, bad = psc._tie(head, landing)
+    assert changed == {path} and bad == {f'(conflict) {path}'}, (changed, bad)
+
+
+def test_a_rename_lists_both_names_so_a_landing_that_kept_the_old_file_is_refused():
+    """Review R12-M1: with rename detection a rename lists only the new name. `--no-renames` lists both, and the
+    merge-aware tie refuses a landing that kept the old file."""
+    base = W9_HEAD
+    old_path = 'docs/notebook/parity-scorecard.md'
+    new_path = 'docs/notebook/parity-scorecard-renamed.md'
+    blob = subprocess.run(['git', '-C', str(REPO), 'cat-file', 'blob', f'{base}:{old_path}'],
+                          capture_output=True, check=True).stdout
+    head = _commit(_tree_with(base, {old_path: None, new_path: blob}), base, 'rename (F3 r3 rail)')
+    landing = _commit(_tree_with(base, {new_path: blob}), base, 'kept the old file (F3 r3 rail)')
+    changed, bad = psc._tie(head, landing)
+    assert changed == {old_path, new_path}, changed
+    assert bad == {old_path}, bad
+    good = _commit(_tree_with(base, {old_path: None, new_path: blob}), base, 'the rename, landed (F3 r3 rail)')
+    assert psc._tie(head, good) == ({old_path, new_path}, set())
+
+
+# ── F3 fix round 3 (R12-M2): a rail counts only if a non-skipped test ASSERTS the event ─────────────
+
+FAKE = 'app/src/fake/Fake.test.jsx'
+
+
+def _gaps(src, log, ev='ask_used'):
+    return psc.telemetry_rail_gaps([ev], {ev: FAKE}, lambda p: src if p == FAKE else None, log)
+
+
+def _log(*titles):
+    return '\n'.join(f' ✓ src/fake/Fake.test.jsx > {" > ".join(t)} 5ms' for t in titles) + '\n'
+
+
+_HELPER = "const calls = []\nfunction askUsed() { return calls.filter((c) => c.event === 'ask_used') }\n"
+
+
+def test_a_rail_that_asserts_the_event_through_a_helper_and_ran_green_counts():
+    src = _HELPER + "describe('d', () => { it('fires once', () => { expect(askUsed()).toHaveLength(1) }) })\n"
+    assert _gaps(src, _log(('d', 'fires once'))) == []
+    # the same test absent from the log does not count
+    assert _gaps(src, _log(('d', 'another test'))) == [
+        f'ask_used: no test of {FAKE} that asserts it ran green in the telemetry log']
+
+
+@pytest.mark.parametrize('src', [
+    # named only in a comment, beside a passing unrelated test (the review's measured case)
+    "// TODO cover 'ask_used'\nit('unrelated', () => { expect(1).toBe(1) })\n",
+    # asserted, but the test is skipped -- three spellings
+    _HELPER + "it.skip('fires once', () => { expect(askUsed()).toHaveLength(1) })\n",
+    _HELPER + "describe.skip('d', () => { it('fires once', () => { expect(askUsed()).toHaveLength(1) }) })\n",
+    _HELPER + "xit('fires once', () => { expect(askUsed()).toHaveLength(1) })\n",
+    # the name is in executable code but never reaches an expect(...)
+    "it('sends', () => { const ev = 'ask_used'; send(ev); expect(sent).toBe(true) })\n",
+], ids=['comment', 'it.skip', 'describe.skip', 'xit', 'not-asserted'])
+def test_a_rail_that_does_not_assert_the_event_is_a_gap(src):
+    log = _log(('unrelated',), ('fires once',), ('d', 'fires once'), ('sends',))
+    assert _gaps(src, log) == [
+        f'ask_used: {FAKE} has no test that asserts it (a comment, a skipped test, or a name that never reaches '
+        'an expect(...) does not count)']
+
+
+def test_an_unparseable_rail_or_an_ast_walk_that_cannot_run_is_never_a_pass():
+    assert _gaps('it(\'x\', () => {', _log(('x',)))[0].startswith(f'ask_used: {FAKE} could not be parsed')
+
+    def broken(sources, events):
+        raise RuntimeError('node is not on PATH')
+    with pytest.raises(RuntimeError):
+        psc.telemetry_rail_gaps(['ask_used'], {'ask_used': FAKE}, lambda p: 'x', '', asserts=broken)
+
+
+def test_the_outbox_door_is_railed_separately_and_its_loss_is_a_named_gap():
+    """save_success fires from two doors; the outbox drain's (T8) has its own rail, in the run. If only that door's
+    rail stopped running, 15b must say so (review R12-M2: per event was not per door)."""
+    events = psc.core_action_events(_telemetry_src())
+    outbox = 'app/src/pages/journal-2-0/lib/offline/useOutboxDrain.test.jsx'
+    assert outbox in psc.TELEMETRY_RAILS['save_success']
+    log = _text(F3VT_R3)
+    shown = log.replace('✓ src/pages/journal-2-0/lib/offline/useOutboxDrain.test.jsx', '× gone')
+    assert shown != log, 'non-vacuity: the outbox rail ran in the r3 log'
+    assert psc.telemetry_rail_gaps(events, psc.TELEMETRY_RAILS, _read_repo, shown) == [
+        f'save_success: no test of {outbox} that asserts it ran green in the telemetry log']
+
+
+# ── F3 fix round 3 (R12-M3): a constant-reference event is resolved, never dropped ─────────────────
+
+def test_core_action_events_resolves_constant_references_and_refuses_what_it_cannot_read():
+    src = _telemetry_src()
+    table = psc.core_action_table(src)
+    assert len(table) == 17 and len(psc.core_action_events(src)) == 14, (len(table), psc.core_action_events(src))
+    ref = src.replace("'T5 bulk move and tag': ['bulk_used'],", "'T5 bulk move and tag': [NOTEBOOK_EVENTS.BULK_USED],")
+    assert ref != src, 'non-vacuity: the constant-reference variant was built'
+    assert psc.core_action_events(ref) == psc.core_action_events(src)
+    assert 'bulk_used' in psc.core_action_events(ref)
+    for bad in ("[NOTEBOOK_EVENTS.NO_SUCH_KEY]", "[BULK]", "[]", "[`bulk_used`]"):
+        with pytest.raises(ValueError):
+            psc.core_action_events(src.replace("'T5 bulk move and tag': ['bulk_used'],",
+                                               f"'T5 bulk move and tag': {bad},"))
+    # an unreadable element beside a readable one is refused too, not dropped from a still-non-empty action
+    mixed = src.replace("'T2 save a passage with its source': ['capture_used', 'save_success'],",
+                        "'T2 save a passage with its source': ['capture_used', NOTEBOOK_EVENTS.NO_SUCH_KEY],")
+    assert mixed != src, 'non-vacuity: the mixed variant was built'
+    with pytest.raises(ValueError):
+        psc.core_action_events(mixed)
+
+
+# ── F3 fix round 3 (R12-M5): every backticked evidence path outside §0 is extracted ────────────────
+
+def test_every_backticked_evidence_path_in_the_cells_is_extracted():
+    text = _text(SCORECARD)
+    paths = psc.cited_b0_paths(text)
+    assert len(paths) == 26, (len(paths), paths)
+    for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
+              'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
+              'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',
+              'docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b.py',
+              'docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b_pass2.py',
+              'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'):
+        assert p in paths, p
+    # any form counts: a path in an integrity record's parenthesis, a quote's evidence, a WALK instrument
+    planted = ('## §B\n(`docs/notebook/evidence/x/integrity.md`) [R17 evidence `docs/notebook/proof/q.jsonl` '
+               'line 3]; WALK `docs/notebook/evidence/x/walk.py`:A1\n')
+    assert psc.cited_b0_paths(planted) == ['docs/notebook/evidence/x/integrity.md', 'docs/notebook/evidence/x/walk.py',
+                                           'docs/notebook/proof/q.jsonl']
+    # §0 itself (the index) is not a citation of it
+    assert psc.cited_b0_paths('## §0 — B0\n`docs/notebook/proof/only-in-0.json`\n## §B1\n') == []

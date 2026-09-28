@@ -50,11 +50,13 @@ redesign keeps that property through the squash:
       d251cbb98, #196 bba8bcb4d; each squash's tree equals that head's tree), so new `-tip2-` tags pin
       the squashed heads and the old tags are left where they are;
   (2) landed -- the wave's squash is an ancestor of HEAD;
-  (5) tied -- the squash CARRIES the head: every file the head changed against merge-base(head,
-      squash^) has the head's blob at the squash (non-vacuous: a head that changed nothing fails).
+  (5) tied -- the squash CARRIES the head: its tree is the head merged onto the squash's parent,
+      `git merge-tree --write-tree <squash>^ <head>` == `<squash>^{tree}` (F3 fix round 3: a squash onto
+      a master that moved is a 3-way merge, so a file both sides touched holds the merge, not the head's
+      blob); non-vacuous: a head that changed nothing against merge-base(head, squash^) fails.
       Wave 10's L1c has no squash yet: its tag is created at the final L1c tip; while that head is in
       HEAD's own history it is its own landing, and after the squash the tool finds the earliest
-      commit of HEAD's history (topological order) that carries every file the head changed;
+      commit of HEAD's history (topological order) that carries the head by that rule;
   (3) unchanged -- every cited evidence file's blob at its wave's landing equals its blob at HEAD;
   (4) reachable -- every tree a browser check or walk measured is an ancestor of the tag of the
       declared wave it was on, and that wave passed (1), (2) and (5). A ref that is not HEAD or a
@@ -1753,6 +1755,11 @@ B0_EVIDENCE = (
     ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest.log', '1c4b0bf74'),
     ('docs/notebook/evidence/wave9-9b-8a0098029/rails-vitest-a11y.log', '1c4b0bf74'),
     ('docs/notebook/evidence/wave9-9b-8a0098029/notebook_perf_budgets-bytes.log', '1c4b0bf74'),
+    # F3 fix round 3 (review R12-M5): the walk instruments and integrity records the cells cite beside their runs
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b.py', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b_pass2.py', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md', '1c4b0bf74'),
+    ('docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md', '1c4b0bf74'),
     (W10_WALK, '4f708a0d2'),
     (f'{W10C}/burst-probe-raw.json', '4f708a0d2'),
     (f'{W10C}/f5-results-run3-tag-applied.md', '4f708a0d2'),
@@ -1770,6 +1777,9 @@ B0_EVIDENCE = (
     ('docs/notebook/evidence/wave10-f3/pytest-f3-rails.log', 'wave 10 L1c'),
     ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails.log', 'wave 10 L1c'),
     ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r2.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log', 'wave 10 L1c'),
+    ('docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py', 'wave 10 L1c'),   # R12-M5
+    (f'{PROOF}/evernote-evidence-2026-09-26.jsonl', 'wave 10 L1c'),                            # R12-M5
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -1799,25 +1809,44 @@ def _tag_commit(tag):
 
 
 def _tie(tip, landing):
-    """Property 5: (changed, differing) -- the files `tip` changed against merge-base(tip, landing^), and
-    those of them whose blob at `landing` is not their blob at `tip`. A squash of `tip` carries every one."""
+    """Property 5: (changed, differing). `changed` is the files `tip` changed against merge-base(tip, landing^)
+    -- empty means the tie would compare nothing, which the caller refuses as vacuous. `differing` is empty
+    exactly when `landing` carries `tip`: its tree is `tip` merged onto its parent,
+    `git merge-tree --write-tree <landing>^ <tip>` == `<landing>^{tree}` (F3 fix round 3, review R12-I1).
+    Merge-aware, because a GitHub squash onto a master that moved is a 3-way merge: a file both sides touched
+    holds the MERGE, not the head's blob, and the old per-file blob comparison refused that ordinary squash.
+    `--no-renames` everywhere a file list is read (R12-M1): with rename detection a rename lists only the new
+    name, so a landing that kept the old file passed. When the trees differ, `differing` names the files
+    (conflicted ones on a conflict), never an empty set."""
     rc, base = git('merge-base', tip, f'{landing}^')
     if rc != 0:
         return set(), {'(no merge base)'}
-    changed = {x for x in git('diff', '--name-only', base, tip)[1].splitlines() if x}
-    differ = {x for x in git('diff', '--name-only', tip, landing)[1].splitlines() if x}
-    return changed, changed & differ
+    changed = {x for x in git('diff', '--no-renames', '--name-only', base, tip)[1].splitlines() if x}
+    rc, out = git('merge-tree', '--write-tree', '--name-only', '--no-messages', f'{landing}^', tip)
+    lines = out.splitlines()
+    if rc not in (0, 1) or not lines:
+        return changed, {f'(git merge-tree failed: {out[:80]!r})'}
+    if rc == 1:   # conflict: the head does not even merge onto the squash's parent
+        return changed, {f'(conflict) {x}' for x in lines[1:] if x} or {'(conflict)'}
+    rc2, want = git('rev-parse', '--verify', '--quiet', f'{landing}^{{tree}}')
+    if rc2 != 0:
+        return changed, {'(no tree at the landing)'}
+    if lines[0] == want:
+        return changed, set()
+    differ = {x for x in git('diff', '--no-renames', '--name-only', lines[0], want)[1].splitlines() if x}
+    return changed, differ or {'(trees differ)'}
 
 
 def _find_squash(tip, head):
     """For a wave whose squash is not recorded yet (L1c): the EARLIEST commit of HEAD's history (topological
-    order, oldest first) that carries every file `tip` changed with `tip`'s blob. None when none does.
+    order, oldest first) that carries `tip` by `_tie`'s rule (its tree is `tip` merged onto its parent), among
+    the commits that touch a file `tip` changed. None when none does.
     Not the first-parent line: measured on origin/master, wave 9's squash 1c4b0bf74 is not on it (a later
     merge took master's first parent through another branch), so a first-parent walk misses a real squash."""
     rc, base = git('merge-base', tip, head)
     if rc != 0:
         return None
-    changed = sorted(x for x in git('diff', '--name-only', base, tip)[1].splitlines() if x)
+    changed = sorted(x for x in git('diff', '--no-renames', '--name-only', base, tip)[1].splitlines() if x)
     if not changed:
         return None
     order = [x for x in git('rev-list', '--topo-order', '--reverse', f'{base}..{head}')[1].splitlines() if x]
@@ -1884,15 +1913,15 @@ def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
             changed, bad = _tie(head_c, land)
             tied = bool(changed) and not bad
             rows.append((f'{wave}: head tied to its landing',
-                         'git diff --name-only <head> <squash>, over the files the head changed',
-                         f'every one of {len(changed)} files carried' if tied else
+                         'git merge-tree --write-tree <squash>^ <head> == <squash>^{tree} (the head changed files)',
+                         f'the squash is the head merged onto its parent; the head changed {len(changed)} files' if tied else
                          ('VACUOUS: the head changed no file' if not changed else
-                          f'{len(bad)} of {len(changed)} files differ at the squash: ' + ', '.join(sorted(bad)[:4]))))
+                          f'NOT the head merged onto its parent: {len(bad)} file(s) differ: ' + ', '.join(sorted(bad)[:4]))))
             if not changed:
                 problems.append(f'B0 {wave}: the tie is vacuous -- {head_c} changed no file against its squash\'s parent')
             elif bad:
-                problems.append(f'B0 {wave}: {len(bad)} file(s) the head {head_c} changed differ at its squash {land[:9]}: '
-                                + ', '.join(sorted(bad)[:4]))
+                problems.append(f'B0 {wave}: its squash {land[:9]} is not the head {head_c} merged onto its parent -- '
+                                f'{len(bad)} file(s) differ: ' + ', '.join(sorted(bad)[:4]))
         landing_of[wave] = land if tied else None
         if landing is not None:
             landing_of[landing] = land if tied else None
@@ -1942,8 +1971,19 @@ def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
 
 
 _B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
-_B0_CITED = re.compile(r'(?:(?:CODE|RULING|RECORD|MEASURE) `|— report `|— run by (?:9B|F3): `)'
-                       r'(docs/notebook/(?:evidence|gate-runs|proof)/[^`]+)`')
+_B0_PATH = re.compile(r'`(docs/notebook/(?:evidence|gate-runs|proof)/[^`]+)`')
+
+
+def cited_b0_paths(text):
+    """Every backticked evidence path the scorecard cites OUTSIDE §0 (§0 is the index itself), in any form --
+    a CODE/RULING/RECORD/MEASURE citation, a walk report, a walk instrument, an integrity record, a quote's
+    evidence file (F3 fix round 3, review R12-M5: the kind-list regex this replaces saw 20 of the 26)."""
+    NL = chr(10)
+    start = text.find('## §0')
+    if start >= 0:
+        end = text.find(NL + '## ', start + 5)
+        text = text[:start] + (text[end:] if end >= 0 else '')
+    return sorted(set(_B0_PATH.findall(text)))
 
 
 def cited_b0_gaps(text, evidence=None, tips=None):
@@ -1954,7 +1994,7 @@ def cited_b0_gaps(text, evidence=None, tips=None):
     listed = {p for p, _ in evidence}
     listed_tips = {t for t, _ in tips}
     gaps = []
-    for p in sorted(set(_B0_CITED.findall(text))):
+    for p in cited_b0_paths(text):
         if p not in listed:
             gaps.append(f'evidence {p} is cited but §0 does not check it')
     for _, t in sorted(set(_B0_WALK_TIP.findall(text))):
@@ -1964,13 +2004,17 @@ def cited_b0_gaps(text, evidence=None, tips=None):
 
 
 # F3 fix round 2 (controller ruling 2): clause 15b is DERIVED, never typed. Every event R-16's core actions
-# map to (`CORE_ACTION_EVENTS`, read from the source each build) must have a call-site rail here that names
-# it, and that rail must have run green in F3's telemetry log. One file per event is the claim; a file may
-# carry several events.
+# map to (`CORE_ACTION_EVENTS`, read from the source each build) must have a call-site rail here, and the rail
+# must ASSERT it (F3 fix round 3, review R12-M2): a test that is not skipped, in executable code, whose
+# expect(...) chain the event's name reaches (tools/telemetry_rail_asserts.mjs, an acorn AST -- a comment is not
+# a node), and that test, by its full title, must show a green tick in F3's telemetry log. An event with more than
+# one door may name one rail per door (a tuple); every one of them must hold. save_success names two: the
+# editor's (T1/T3/T9) and the outbox drain's (T8, `useOutboxDrain.js:302`).
 _TNB = 'app/src/pages/journal-2-0/components/notebook'
 TELEMETRY_RAILS = {
     'note_open_ms': f'{_TNB}/NoteEditorPage.wave6.test.jsx',
-    'save_success': f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+    'save_success': (f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
+                     'app/src/pages/journal-2-0/lib/offline/useOutboxDrain.test.jsx'),
     'save_failed': f'{_TNB}/NoteEditorPage.telemetry.test.jsx',
     'capture_used': f'{_TNB}/NoteEditorPage.excerpts.test.jsx',
     'switcher_used': 'app/src/components/CommandPalette.test.jsx',
@@ -1986,33 +2030,139 @@ TELEMETRY_RAILS = {
 }
 
 
+def _js_frozen_object(src, name):
+    """The body of `export const <name> = Object.freeze({ ... })` in a JS source, or None."""
+    m = re.search(r'export const ' + re.escape(name) + r' = Object\.freeze\(\{(.*?)\n\}\)', src.replace('\r\n', '\n'), re.S)
+    return m.group(1) if m else None
+
+
+_JS_ENTRY = re.compile(r"""\s*(?://[^\n]*\n\s*)*(?:'([^']*)'|"([^"]*)"|([A-Za-z_$][\w$]*))\s*:\s*\[([^\]]*)\]\s*,?""")
+
+
+def core_action_table(src):
+    """`CORE_ACTION_EVENTS` read from the JS source: {core action: [event, ...]}. Every element must be a string
+    literal or a `NOTEBOOK_EVENTS.<KEY>` reference that the same file's NOTEBOOK_EVENTS resolves; anything else,
+    an action with no event, or text the parser does not consume raises ValueError -- an event is never
+    silently dropped from the derivation (F3 fix round 3, review R12-M3)."""
+    body = _js_frozen_object(src, 'CORE_ACTION_EVENTS')
+    if body is None:
+        raise ValueError('CORE_ACTION_EVENTS: no `export const CORE_ACTION_EVENTS = Object.freeze({...})` in the source')
+    consts = {}
+    ne = _js_frozen_object(src, 'NOTEBOOK_EVENTS')
+    for k, v in re.findall(r"([A-Z_][A-Z0-9_]*)\s*:\s*'([^']*)'", ne or ''):
+        consts[k] = v
+    table, pos = {}, 0
+    while True:
+        m = _JS_ENTRY.match(body, pos)
+        if not m:
+            break
+        key = next(g for g in m.groups()[:3] if g is not None)
+        events = []
+        for el in (x.strip() for x in m.group(4).split(',')):
+            if not el:
+                continue
+            lit = re.fullmatch(r"'([^']*)'", el) or re.fullmatch(r'"([^"]*)"', el)
+            ref = re.fullmatch(r'NOTEBOOK_EVENTS\.([A-Z_][A-Z0-9_]*)', el)
+            if lit:
+                events.append(lit.group(1))
+            elif ref and ref.group(1) in consts:
+                events.append(consts[ref.group(1)])
+            else:
+                raise ValueError(f'CORE_ACTION_EVENTS[{key!r}]: element {el!r} is not a string literal or a '
+                                 'NOTEBOOK_EVENTS.<KEY> this file defines')
+        if not events:
+            raise ValueError(f'CORE_ACTION_EVENTS[{key!r}]: maps to no event')
+        table[key] = events
+        pos = m.end()
+    rest = re.sub(r'//[^\n]*', '', body[pos:]).strip()
+    if rest:
+        raise ValueError(f'CORE_ACTION_EVENTS: could not read {rest[:60]!r}')
+    if not table:
+        raise ValueError('CORE_ACTION_EVENTS: no entries read')
+    return table
+
+
 def core_action_events(src):
-    """The distinct event names `CORE_ACTION_EVENTS` maps R-16's core actions to, read from the JS source."""
-    m = re.search(r'export const CORE_ACTION_EVENTS = Object\.freeze\(\{(.*?)\n\}\)', src, re.S)
-    if not m:
-        return []
-    return sorted({e for arr in re.findall(r'\[([^\]]*)\]', m.group(1)) for e in re.findall(r"'([a-z_]+)'", arr)})
+    """The distinct event names `CORE_ACTION_EVENTS` maps R-16's core actions to, read from the JS source.
+    Raises ValueError (via core_action_table) rather than return a shortened list."""
+    return sorted({e for evs in core_action_table(src).values() for e in evs})
 
 
-def telemetry_rail_gaps(events, rails, read, log_text):
-    """Every core-action event, and the reason it is not railed (an empty list is the pass). `read(path)`
-    returns a rail's source, or None if the file is missing; `log_text` is the vitest log the rails ran in.
-    No events at all is itself a gap: an empty list read from a moved table must not pass."""
+RAIL_ASSERTS_TOOL = 'tools/telemetry_rail_asserts.mjs'
+
+
+def rail_assertions(sources, events):
+    """{path: {'error': str|None, 'tests': [{'titles', 'line', 'skipped', 'asserts'}]}} for each rail source, from
+    the acorn walk in tools/telemetry_rail_asserts.mjs. Raises RuntimeError when node cannot run it or answers for
+    a different set of files: an unreadable rail must never read as a rail that asserts nothing, or as one that
+    asserts everything."""
+    if not sources:
+        return {}
+    try:
+        r = subprocess.run(['node', os.path.join(ROOT, RAIL_ASSERTS_TOOL)], cwd=ROOT, capture_output=True, text=True,
+                           encoding='utf-8', errors='replace', timeout=300,
+                           input=json.dumps({'events': sorted(events), 'files': sources}))
+    except (OSError, subprocess.SubprocessError) as e:
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} did not run: {e}') from e
+    if r.returncode != 0:
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} exited {r.returncode}: {r.stderr.strip()[:300]}')
+    out = json.loads(r.stdout or '{}')
+    if set(out) != set(sources):
+        raise RuntimeError(f'{RAIL_ASSERTS_TOOL} answered for {sorted(out)}, not {sorted(sources)}')
+    return out
+
+
+def _rails_of(rails, ev):
+    v = rails.get(ev)
+    return () if not v else ((v,) if isinstance(v, str) else tuple(v))
+
+
+def _ran_green(log_text, path, titles):
+    """The test `path > titles...` shows a green tick in the vitest log (verbose reporter: one line per test)."""
+    want = ' '.join(['\u2713', path.replace('app/', '', 1), '>', ' > '.join(titles)])
+    for line in log_text.splitlines():
+        line = line.strip()
+        if line == want or (line.startswith(want + ' ') and re.fullmatch(r' \d+(?:\.\d+)?m?s', line[len(want):])):
+            return True
+    return False
+
+
+def telemetry_rail_gaps(events, rails, read, log_text, asserts=None, where=None):
+    """Every core-action event, and the reason it is not railed (an empty list is the pass). `read(path)` returns a
+    rail's source, or None if the file is missing; `log_text` is the vitest log the rails ran in; `asserts` is
+    rail_assertions (injectable for tests). No events at all is itself a gap: an empty list read from a moved
+    table must not pass. `where`, when given, is filled with {event: ['<rail>:<line>', ...]}: the tests that
+    assert it and ran green -- the citation."""
     if not events:
         return ['CORE_ACTION_EVENTS: no events read from the source']
+    asserts = rail_assertions if asserts is None else asserts
+    files = sorted({f for ev in events for f in _rails_of(rails, ev)})
+    sources = {f: read(f) for f in files}
+    parsed = asserts({f: src for f, src in sources.items() if src is not None}, events)
     gaps = []
     for ev in events:
-        f = rails.get(ev)
-        if not f:
+        fs = _rails_of(rails, ev)
+        if not fs:
             gaps.append(f'{ev}: no call-site rail is named for it')
             continue
-        body = read(f)
-        if body is None:
-            gaps.append(f'{ev}: {f} does not exist')
-        elif f"'{ev}'" not in body and f'"{ev}"' not in body:
-            gaps.append(f'{ev}: {f} never names the event')
-        elif ('✓ ' + f.replace('app/', '', 1)) not in log_text:
-            gaps.append(f'{ev}: {f} did not run green in the telemetry log')
+        for f in fs:
+            if sources[f] is None:
+                gaps.append(f'{ev}: {f} does not exist')
+                continue
+            info = parsed.get(f) or {'error': 'no answer for this file', 'tests': []}
+            if info.get('error'):
+                gaps.append(f'{ev}: {f} could not be parsed ({info["error"][:80]})')
+                continue
+            hits = [t for t in info['tests'] if ev in t['asserts'] and not t['skipped']]
+            if not hits:
+                gaps.append(f'{ev}: {f} has no test that asserts it (a comment, a skipped test, or a name that '
+                            f'never reaches an expect(...) does not count)')
+                continue
+            green = [t for t in hits if t['titles'] and _ran_green(log_text, f, t['titles'])]
+            if not green:
+                gaps.append(f'{ev}: no test of {f} that asserts it ran green in the telemetry log')
+            elif where is not None:
+                where.setdefault(ev, []).extend(f'{f}:{t["line"]}' for t in green)
     return gaps
 
 
@@ -2225,7 +2375,7 @@ def build(pages_dir=None):
 
     # F3 fix round 1 (review I-5): the telemetry wiring rails, run once by F3 on this tree (scoped vitest,
     # verbose, no colour codes) and committed before the scorecard was written; totals read, never typed.
-    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r2.log'  # fix round 2: + one call-site rail per event
+    F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log'  # fix round 3: + the outbox door's rail (T8)
     _f3vt_text = open(os.path.join(ROOT, F3VT_LOG), encoding='utf-8', errors='replace').read()
     _f3vt_tot = [re.sub(r'\s+', ' ', l.strip()) for l in _f3vt_text.splitlines() if re.match(r'\s*Tests\s+\d+ passed', l)]
     F3VT_TOT = _f3vt_tot[-1] if _f3vt_tot else ''
@@ -3129,13 +3279,23 @@ def build(pages_dir=None):
          'backlinks, list_tasks bending between 10k and 25k) but ran on a loaded box, so neither is a verdict: the '
          'controller\'s quiet slot', QUIET),
     ]
-    TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
+    try:
+        TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
+    except ValueError as e:     # an event the parser cannot read is a refusal, never a shorter list (R12-M3)
+        PROBLEMS.append(f'15b: {e}')
+        TELEM_EVENTS = []
 
     def _read_rail(p):
         fp = os.path.join(ROOT, p)
         return open(fp, encoding='utf-8', errors='replace').read() if os.path.isfile(fp) else None
 
-    TELEM_GAPS = telemetry_rail_gaps(TELEM_EVENTS, TELEMETRY_RAILS, _read_rail, _f3vt_text)
+    TELEM_WHERE = {}
+    try:
+        TELEM_GAPS = telemetry_rail_gaps(TELEM_EVENTS, TELEMETRY_RAILS, _read_rail, _f3vt_text, where=TELEM_WHERE)
+    except RuntimeError as e:   # the AST walk could not run: refuse, never read 15b as met or as not met
+        PROBLEMS.append(f'15b: {e}')
+        TELEM_GAPS = [str(e)]
+    TELEM_FILES = sorted({f for e in TELEM_EVENTS for f in _rails_of(TELEMETRY_RAILS, e)})
     C[15] = [
         ('client + server error reporting on', 'MET',
          [code('app/src/main.jsx', 10, 'installErrorBeacon()'), code('api/routers/client_errors.py', 54, '@router.post("/api/client-errors")'),
@@ -3143,18 +3303,24 @@ def build(pages_dir=None):
         ('Notebook telemetry for every core action', 'NOT MET' if TELEM_GAPS else 'MET',
          [code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
           test_f3vt('app/src/pages/journal-2-0/lib/notebookTelemetry.test.js'),
-          *[test_f3vt(f) for f in sorted(set(TELEMETRY_RAILS[e] for e in TELEM_EVENTS if e in TELEMETRY_RAILS))
-            if ('✓ ' + f.replace('app/', '', 1)) in _f3vt_text],
+          *[test_f3vt(f) for f in TELEM_FILES if ('✓ ' + f.replace('app/', '', 1)) in _f3vt_text],
           code(f'{NB}/AskPanel.jsx', 235, 'trackNotebookEvent(NOTEBOOK_EVENTS.ASK_USED'),
+          code(f'{LB}/offline/useOutboxDrain.js', 302, 'trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS'),
           measure(f'{W10D}/browser-check-20260927T050752Z.json', '193-199', '"export_used": 1', 'python tools/notebook_w10d_browser_check.py (10D, sandbox)')],
-         (f'R-16\'s core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, '
-          f'dictation) map, in CORE_ACTION_EVENTS, to {len(TELEM_EVENTS)} allow-listed events with closed-enum schemas. '
-          f'Derived, not typed (F3 fix round 2, controller ruling 2): every one of them must have a call-site rail that '
-          f'names it and ran green in F3\'s telemetry log. ask_used (T7) was the one gap in round 1; it is now railed by '
-          f'AskPanel.telemetry.test.jsx (the real panel, a mocked stream: one ask_used per answered ask, none without an '
-          f'ask, none on a failed or empty answer, one more on an insert). 10D\'s browser check drove only some doors '
-          f'(save, writing help, dictation, export, share + publish, switcher, search, import) and is cited as a '
-          f'corroborating count, not as the proof. '
+         (f"R-16's core actions (study tasks T1-T10 plus export, import, save_success, share, publish, writing help, "
+          f'dictation) map, in CORE_ACTION_EVENTS, to {len(TELEM_EVENTS)} allow-listed events with closed-enum schemas '
+          f'(constant references resolved, never dropped). Derived, not typed (F3 fix rounds 2 and 3): every event must '
+          f'have a call-site rail, and the rail must ASSERT it -- a test that is not skipped, whose expect(...) chain the '
+          f'event reaches in executable code (an acorn walk, `tools/telemetry_rail_asserts.mjs`; a comment never '
+          f"counts) -- and that test must show a green tick in F3's telemetry log. save_success is railed at both of "
+          f"its doors: the editor's and the outbox drain's (T8, `useOutboxDrain.js:302`). ask_used (T7) was the one "
+          f'gap in round 1; AskPanel.telemetry.test.jsx rails it (one ask_used per answered ask, none without an ask, none '
+          f'on a failed or empty answer, one more on an insert). Asserting tests: '
+          + '; '.join(e + ' ' + ', '.join(os.path.basename(x) for x in TELEM_WHERE[e][:2]) for e in sorted(TELEM_WHERE))
+          + ". 10D's browser check drove only some doors (save, writing help, dictation, export, share + publish, "
+          f'switcher, search, import) and is cited as a corroborating count, not as the proof. Residual, stated: the '
+          f'derivation is per event plus the T8 door; an event with further doors (export from the export dialog and '
+          f'the selection, publish from a folder, writing help from a property) is railed at one door each. '
           + ('Every event is railed.' if not TELEM_GAPS else
              'Not railed: ' + '; '.join(TELEM_GAPS) + '. Lever: a call-site rail for each')),
          None if not TELEM_GAPS else BUILD),
@@ -3248,8 +3414,9 @@ def build(pages_dir=None):
       'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead: (1) each wave\'s '
       'SQUASHED head is pinned by a tag and resolves to the recorded SHA (waves 5 and 7 by new `-tip2-` tags: their '
       '`-tip-` tags are not the heads the PRs squashed, and are left where they are); (2) each wave\'s squash is an '
-      'ancestor of this tree; (5) the squash carries the head: every file the head changed has the head\'s blob at the '
-      'squash (L1c, not squashed yet, has its tagged head in this tree\'s own history; after its squash the tool finds '
+      'ancestor of this tree; (5) the squash carries the head: its tree is the head merged onto the squash\'s parent '
+      '(`git merge-tree --write-tree <squash>^ <head>` equals `<squash>^{tree}`, so a squash onto a master that moved '
+      'still ties; L1c, not squashed yet, has its tagged head in this tree\'s own history; after its squash the tool finds '
       'the earliest commit of this tree\'s history that carries it); (3) every cited evidence file is byte-identical here to the file '
       'its landing carried; and (4) every tree a browser or walk measured is an ancestor of its declared wave\'s tag, '
       'and that wave landed; a ref that is not a declared wave tag (a bare SHA, an undeclared tag) is refused. Every '
