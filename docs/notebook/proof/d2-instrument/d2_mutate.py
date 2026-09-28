@@ -27,6 +27,7 @@ T_PHONE = "src/pages/journal-2-0/tabs/NotebookTab.phoneNote.test.jsx"
 T_HEADER = "src/pages/journal-2-0/JournalLayout.compactHeader.test.jsx"
 T_GALLERY = "src/pages/journal-2-0/components/notebook/TemplatePicker.gallery.test.jsx"
 T_TAB = "src/pages/journal-2-0/tabs/NotebookTab.test.jsx"
+T_TRAIL = "src/pages/journal-2-0/lib/noteReturnTrail.test.js"
 
 # (id, file, regex, replacement, tests, what it breaks)
 SETS = {
@@ -36,13 +37,10 @@ SETS = {
          "the note-open marker is not on the box the phone rule targets"),
         ("M2", J2 + "tabs/NotebookTab.module.css", r"(\.wrap\[data-note-open\] \.sidebarSlot \{\r?\n\s*display: )none;",
          r"\1block;", [T_PHONE], "the phone rule no longer hides the folder panel"),
-        ("M3", J2 + "tabs/NotebookTab.jsx", r"if \(noteId && openedInAppRef\.current === noteId\) \{",
-         "if (false && noteId && openedInAppRef.current === noteId) {", [T_PHONE],
-         "Back to notes always closes (loses the list a note was opened from)"),
+        # M3 (the note-id back) retired in fix round 1: the code it mutated is gone; R1-R5 replace it.
         ("M4", J2 + "tabs/NotebookTab.module.css", r"(\.phoneBack \{\r?\n\s*display: )none;",
          r"\1inline-flex;", [T_PHONE], "the back control shows at every width"),
-        ("M5", J2 + "lib/compactHeaderRoute.js", r"pathname\.startsWith\('/journal/notebook/'\)",
-         "pathname.startsWith('/journal/notebook')", [T_HEADER], "a sibling route that merely starts with the word folds"),
+        # M5 (a prefix match folds /journal/notebookx) retired in fix round 1: the predicate is now matchPath; R17 is its successor.
         ("M6", J2 + "JournalLayout.jsx", r'aria-controls="journal-header-tools"',
          'aria-controls="journal-tools"', [T_HEADER], "the disclosure names an element that does not exist"),
         ("M7", J2 + "JournalLayout.module.css", r"(:not\(\[data-tools-open\]\) \.headerTools \{\r?\n\s*display: )none;",
@@ -60,8 +58,8 @@ SETS = {
         ("G2", J2 + "components/notebook/TemplatePicker.jsx", r"const lines = templatePreview\(tpl\)",
          "const lines = templatePreview(templatesByFamily(fam.key)[0])", [T_GALLERY],
          "a card previews ANOTHER template's body"),
-        ("G3", J2 + "lib/notebookTemplates.js", r"for \(const node of tpl\.build\(\{\}\)\?\.content \|\| \[\]\)",
-         "for (const node of [])", [T_GALLERY], "no card has a preview"),
+        ("G3", J2 + "lib/notebookTemplates.js", r"return \(tpl\.build\(\{\}\)\?\.content \|\| \[\]\)\.filter",
+         "return [].filter", [T_GALLERY], "no card has a preview (retargeted in fix round 1: the preview reads templateStructure)"),
         ("G4", J2 + "components/notebook/TemplatePicker.jsx", r"onClick=\{\(\) => onPick\(tpl\)\}",
          "onClick={() => onPick(templatesByFamily(fam.key)[0])}", [T_GALLERY], "a card creates the wrong template's note"),
         ("G5", J2 + "components/notebook/TemplatePicker.jsx", r"onClick=\{\(\) => onPick\(tpl\)\}",
@@ -76,6 +74,43 @@ SETS = {
          "data-label={tpl.label}", [T_GALLERY], "a card is not named by its template's name"),
         ("G10", J2 + "lib/notebookTemplates.js", r"return TEMPLATES\.filter\(\(t\) => t\.family === familyKey\)",
          "return TEMPLATES.filter((t) => t.family !== familyKey + 'x')", [T_GALLERY], "every family lists every template"),
+    ],
+    # Fix round 1 (review wave10-D2-review.md): I-1, M-1..M-5.
+    "r1": [
+        ("R1", J2 + "lib/noteReturnTrail.js", r"return trail\.at \+ 1\r?\n",
+         "return 1\n", [T_PHONE, T_TRAIL], "I-1: back goes ONE entry whatever was pushed inside the note (the note-id bug)"),
+        ("R2", J2 + "lib/noteReturnTrail.js", r"    keys\[trail\.at\] = key\r?\n",
+         "", [T_PHONE, T_TRAIL], "I-1: a replace inside the note is not followed (Ask citation strip)"),
+        ("R3", J2 + "lib/noteReturnTrail.js", r"const keys = trail\.keys\.slice\(0, trail\.at \+ 1\)\.concat\(key\)\r?\n    return \{ keys, at: keys\.length - 1 \}",
+         "return trail", [T_PHONE, T_TRAIL], "I-1: a same-note push is not followed"),
+        ("R4", J2 + "lib/noteReturnTrail.js", r"if \(fromList\) return \{ keys: \[key\], at: 0 \}",
+         "if (false) return { keys: [key], at: 0 }", [T_PHONE, T_TRAIL], "I-1: leaving a list starts no trail (list -> note -> back)"),
+        ("R5", J2 + "tabs/NotebookTab.jsx", r"leavingListRef\.current = !noteId",
+         "leavingListRef.current = false", [T_PHONE], "I-1: openNote never marks the entry it pushes"),
+        ("R6", J2 + "JournalLayout.jsx", r"    setToolsPath\(pathname\)\r?\n    setToolsOpen\(false\)\r?\n",
+         "    setToolsPath(pathname)\n", [T_HEADER], "M-1: the tools stay open across a route change"),
+        ("R7", J2 + "lib/notebookTemplates.js", r"for \(const node of templateStructure\(tpl\)\)",
+         "for (const node of (tpl.build({})?.content || []))", [T_GALLERY], "M-2: the preview reads the no-data branch"),
+        ("R8", J2 + "lib/notebookTemplates.js", r"  regimeLine: `\$\{MARK\}regime`,\r?\n",
+         "", [T_GALLERY], "M-2: the probe misses a field a template reads"),
+        ("R9", J2 + "components/notebook/TemplatePicker.jsx", r'aria-hidden="true" data-template-preview=""',
+         'data-template-preview=""', [T_GALLERY], "M-3: the preview is read aloud"),
+        ("R10", J2 + "components/notebook/TemplatePicker.jsx", r"aria-describedby=\{`\$\{id\}-when \$\{id\}-desc`\}",
+         "aria-describedby={`${id}-desc`}", [T_GALLERY], "M-3: the when line no longer describes the card"),
+        ("R11", J2 + "components/notebook/TemplatePicker.jsx", r"\.filter\(\(c\) => !c\.disabled\)",
+         "", [T_GALLERY], "M-4: the arrows land on disabled cards"),
+        ("R12", J2 + "lib/compactHeaderRoute.js", r"caseSensitive: false",
+         "caseSensitive: true", [T_HEADER], "M-5: /Journal/Notebook renders unfolded"),
+        ("R13", J2 + "lib/compactHeaderRoute.js", r"end: false",
+         "end: true", [T_HEADER], "M-5: the Ticker Research page does not fold"),
+        ("R14", "app/src/App.jsx", r"<Route path=\{NOTEBOOK_SEGMENT\} ",
+         '<Route path="notebook" ', [T_HEADER], "M-5: App.jsx restates the route instead of using the constant"),
+        ("R15", J2 + "JournalLayout.jsx", r"\{ to: NOTEBOOK_PATH, label: 'Notebook'",
+         "{ to: '/journal/notebook', label: 'Notebook'", [T_HEADER], "M-5: PRIMARY_NAV restates the route"),
+        ("R16", J2 + "JournalMobileNav.jsx", r"\{ to: NOTEBOOK_PATH, label: 'Notebook'",
+         "{ to: '/journal/notebooks', label: 'Notebook'", [T_HEADER], "M-5: the phone strip links somewhere the fold does not key on"),
+        ("R17", J2 + "lib/compactHeaderRoute.js", r"return matchPath\(\{ path: NOTEBOOK_PATH, caseSensitive: false, end: false \}, pathname \|\| ''\) !== null",
+         "return (pathname || '').toLowerCase().startsWith(NOTEBOOK_PATH)", [T_HEADER], "M-5: a prefix match folds a sibling route (/journal/notebookx)"),
     ],
 }
 
