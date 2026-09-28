@@ -391,7 +391,10 @@ describe('⭐ length, resources and what is NOT admitted', () => {
     // `cum` is a table entry now, so this line was asserting the opposite of the
     // truth while still reading as a general claim about the family. `ta.vwma` is
     // genuinely absent from the table — checked by driving it, not by assuming.
-    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`).guard)
+    // ⚰️ AND `ta.vwma` STOPPED BEING UNDECLARED TOO (2026-09-27): the runtime lane
+    // runs it through `RUNTIME_TREE_REWRITES`. `ta.cog` is the specimen now — in
+    // neither table nor the rewrite map, verified by driving it.
+    expect(refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.cog(x, 3))\n`).guard)
       .toBe('runtime:call-undeclared-builtin-state')
   })
 

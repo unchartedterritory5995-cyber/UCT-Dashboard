@@ -51,6 +51,11 @@ const NEWLY = {
     shapesMayBeSilent: true, signals: { 'Alert Stream': [-1, 0, 1] },
   },
   'wyckoff-accumulation-distribution__d9ae726e21': {},
+  // `iff` over runtime state — `RUNTIME_TREE_REWRITES` (pine/runtime-walls-2).
+  // Its markers are `plotshape(iff(…, high[lb], na))`: the column carries the PRICE
+  // on a marked bar and `na` elsewhere — the host lane emits the identical column
+  // for the identical construct (measured), so a marked bar is a finite value.
+  'pivot-high-low-points__hoTsDQRY3L': { markerCarriesPrice: true },
 }
 
 describe('⭐ newly attaching through the runtime lane — finite, plausible, no NaN-poisoning', () => {
@@ -95,6 +100,14 @@ describe('⭐ newly attaching through the runtime lane — finite, plausible, no
               expect(v, `${row.label} left the price band`).toBeGreaterThan(lo * 0.5)
               expect(v, `${row.label} left the price band`).toBeLessThan(hi * 2)
             }
+          } else if (call === 'plotshape' && rule.markerCarriesPrice) {
+            const fin = col.filter(Number.isFinite)
+            for (const v of fin) {
+              expect(v, `${row.label} marks a value outside the price band`).toBeGreaterThanOrEqual(lo)
+              expect(v, `${row.label} marks a value outside the price band`).toBeLessThanOrEqual(hi)
+            }
+            expect(fin.length, `${row.label} marks most bars`).toBeLessThan(bars.length / 2)
+            shapesFired += fin.length
           } else if (call === 'plotshape') {
             const fin = col.filter(Number.isFinite)
             expect(fin.every((v) => v === 0 || v === 1), `${row.label} is not a 0/1 signal`).toBe(true)
