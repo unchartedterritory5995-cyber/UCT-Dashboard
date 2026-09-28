@@ -836,8 +836,8 @@ under it does not).
 2. **A match-count cap.** Skip or truncate the body pass when the full-text match set is larger
    than N notes (the match itself is cheap, 4.8 ms p50 for 14,978 matches at 50k, against 25.8 ms
    for the ranked pass over the same matches: `perf/fts-probe.txt`, rows D and A; the ranking is the
-   cost). Cost: recall on very common words, the queries least likely to name one note.
-
+   cost). Cost: recall on very common words, the queries least likely to name one note.
+
 ### The raw output behind every number in this section (fix round 2, R-RAW)
 
 Every reading above and below is in `docs/notebook/proof/f6-switcher-body/perf/`, copied byte for byte from
