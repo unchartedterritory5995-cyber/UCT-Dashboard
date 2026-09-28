@@ -217,7 +217,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // "declares nothing a chart can draw" would be false about it: it declares a
     // candle, and the member is owed the sentence saying which one and why.
     if (candleNotes.length) {
-      return no(multiOutputOnlyRefusal(candleNotes), null, t)
+      return no(multiOutputOnlyRefusal(candleNotes), 'pane:not-drawn', t)
     }
     return no('this script declares nothing a chart can draw', null, t)
   }
@@ -600,6 +600,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     notes.push(n)
   }
   for (const o of (t.outputs || [])) {
+    // ⛔ A withheld candle's fold notes would describe a series nobody sees
+    // (carried over from #227's version of this fix).
+    if (isUndrawnMultiOutput(o)) continue
     for (const n of [...alertNoteForOutput(o), ...foldNotesForOutput(o)]) {
       const key = `${n.name} :: ${n.note}`
       if (seen.has(key)) continue
