@@ -15,8 +15,15 @@ the plan's "Now" cells carry exactly the scorecard's clause counts.
 Fix round 2 (controller ruling, 2026-09-26): the scorecard is a MEASUREMENT AT A COMMIT, so the
 citation rail checks at the revision the scorecard's own header records ("Document written at"),
 parsed from its text here, never typed and never HEAD: an unrelated edit that moves a cited line
-must not red it. A revision this clone does not hold (that one, or be9ca78b6 for the flag records)
-fails as "unverifiable: <sha> not in this clone"; unknown is never a pass.
+must not red it. A revision this clone does not hold fails as "unverifiable: <sha> not in this
+clone"; unknown is never a pass.
+
+Wave 10 re-score (follow-up F3, 2026-09-28): the flag records are read from `docs/feature_flags.json`
+AT THE REVISION THE SCORECARD RECORDS (they read master's copy at be9ca78b6 before, which a later
+flip made wrong), and a record naming any other revision is refused. §0, the evidence index, tests
+provenance rather than ancestry (squash-landed waves are never ancestors of master): the tag pins the
+recorded tip, the squash is an ancestor, the cited evidence is unchanged since it landed, and every
+measured tree is reachable. Each of those four is shown failing on a planted defect below.
 """
 from __future__ import annotations
 
@@ -243,8 +250,8 @@ def _written_at():
 def test_every_cited_file_line_still_holds_its_fragment():
     """tools/parity_scorecard.py --verify, offline, AT THE REVISION THE SCORECARD RECORDS: every
     CODE/RULING/RECORD/MEASURE file:line holds its quoted fragment, every WALK check carries its
-    verdict, every TEST log carries its totals line, every flag RECORD matches master's ledger at
-    be9ca78b6. Pinned, so a later unrelated edit never reds it; `--verify --rev HEAD` is the human's
+    verdict, every TEST log carries its totals line, every flag RECORD matches the flag ledger at the
+    same revision. Pinned, so a later unrelated edit never reds it; `--verify --rev HEAD` is the human's
     question "has the code moved since?". A revision not in this clone fails as unverifiable."""
     text, rev = _written_at()
     counts, problems = psc.verify(text, rev=rev)
@@ -256,10 +263,10 @@ def test_every_cited_file_line_still_holds_its_fragment():
 def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
     # control, at the same pinned revision: the text with one fragment changed must be refused.
     text, rev = _written_at()
-    good = '`api/services/journal_two/notes.py`:3531 "def restore_note("'
+    good = '`api/services/journal_two/notes.py`:4012 "def restore_note("'
     assert good in text, 'non-vacuity: the control citation is not in the scorecard'
     _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1), rev=rev)
-    assert any('notes.py:3531' in p for p in problems), problems
+    assert any('notes.py:4012' in p for p in problems), problems
 
 
 def test_a_recorded_revision_not_in_this_clone_is_unverifiable_never_a_pass():
@@ -272,11 +279,105 @@ def test_a_recorded_revision_not_in_this_clone_is_unverifiable_never_a_pass():
     assert psc.verify(text, rev=_NOT_AN_OBJECT)[1] == [f'unverifiable: {_NOT_AN_OBJECT} not in this clone']
 
 
-def test_a_flag_ledger_revision_not_in_this_clone_is_unverifiable_never_a_pass(monkeypatch):
+_FLAG_CELL = re.compile(r'RECORD `docs/feature_flags\.json` at (\w+), key (\w+): status (\w+)')
+
+
+def _a_flag_record(text):
+    m = _FLAG_CELL.search(text)
+    assert m, 'non-vacuity: the scorecard carries no flag record'
+    return m
+
+
+def test_a_flag_record_naming_another_revision_is_refused():
+    """Wave 10, F3: a flag record names the revision the ledger was read at, and it must be the
+    scorecard's own. (It named master's be9ca78b6 before; a gate armed after that made the cells wrong
+    while every one of them still verified against the old copy.)"""
     text, rev = _written_at()
-    monkeypatch.setattr(psc, 'FLAGS_REV', _NOT_AN_OBJECT)
-    _, problems = psc.verify(text, rev=rev)
-    assert f'unverifiable: {_NOT_AN_OBJECT} not in this clone' in problems, problems
+    m = _a_flag_record(text)
+    assert rev.startswith(m.group(1)) or m.group(1).startswith(rev), (m.group(1), rev)
+    planted = text.replace(m.group(0), m.group(0).replace(f' at {m.group(1)},', ' at be9ca78b6,'), 1)
+    _, problems = psc.verify(planted, rev=rev)
+    assert any(f'flag {m.group(2)}: the record names revision be9ca78b6' in p for p in problems), problems
+
+
+def test_a_flag_status_the_ledger_does_not_hold_is_refused():
+    text, rev = _written_at()
+    m = _a_flag_record(text)
+    other = 'dark' if m.group(3) != 'dark' else 'armed'
+    planted = text.replace(m.group(0), m.group(0)[:-len(m.group(3))] + other, 1)
+    _, problems = psc.verify(planted, rev=rev)
+    assert any(f'flag {m.group(2)}: the record says {other!r}' in p for p in problems), problems
+    assert not psc.verify(text, rev=rev)[1], 'control: the unplanted text verifies'
+
+
+# ── §0, the evidence index (wave 10, F3): provenance, each property shown failing ──────────────────
+
+def test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous():
+    rows, problems = psc.evidence_index('HEAD')
+    assert not problems, problems
+    assert len(rows) == 2 * len(psc.B0_WAVES) + len(psc.B0_EVIDENCE) + len(psc.B0_TIPS)
+    assert len(psc.B0_WAVES) >= 7 and len(psc.B0_EVIDENCE) >= 20 and len(psc.B0_TIPS) >= 10
+
+
+def test_a_tag_that_does_not_pin_the_recorded_tip_is_refused():
+    wave, tag, tip, landing = psc.B0_WAVES[0]
+    _, problems = psc.evidence_index('HEAD', waves=[(wave, tag, '0000000aa', landing)], evidence=[], tips=[])
+    assert any(f'tag {tag} does not resolve to the recorded tip' in p for p in problems), problems
+
+
+def test_a_squash_that_did_not_land_is_refused():
+    # 8a0098029 is a real commit of the wave-9 branch, reachable only through its tag, never from master.
+    _, problems = psc.evidence_index('HEAD', waves=[('planted', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '8a0098029')],
+                                     evidence=[], tips=[])
+    assert problems == ['B0 planted: its squash 8a0098029 is not an ancestor of HEAD'], problems
+
+
+def test_evidence_that_changed_since_it_landed_is_refused():
+    # the gap ledger landed with wave 9's squash and has been edited since: it must NOT read unchanged.
+    w9 = [w for w in psc.B0_WAVES if w[0] == 'wave 9']
+    _, problems = psc.evidence_index('HEAD', waves=w9, evidence=[('docs/notebook/competitive-gap-ledger.md', '1c4b0bf74')], tips=[])
+    assert problems == ['B0 evidence docs/notebook/competitive-gap-ledger.md: its blob at 1c4b0bf74 is not its blob at HEAD'], problems
+    # control: a file wave 9 landed and nobody touched since reads unchanged
+    _, ok = psc.evidence_index('HEAD', waves=w9,
+                               evidence=[('docs/notebook/evidence/wave9-9b-8a0098029/browser-check.json', '1c4b0bf74')], tips=[])
+    assert not ok, ok
+
+
+def test_evidence_citing_an_unlisted_squash_or_missing_at_head_is_refused():
+    _, problems = psc.evidence_index('HEAD', waves=[], evidence=[('docs/notebook/competitive-gap-ledger.md', '1c4b0bf74'),
+                                                                  ('docs/notebook/no-such-evidence.json', 'HEAD')], tips=[])
+    assert any('1c4b0bf74 is not a listed wave squash' in p for p in problems), problems
+    assert any('evidence missing at HEAD: docs/notebook/no-such-evidence.json' in p for p in problems), problems
+
+
+def test_a_measured_tree_that_is_not_reachable_is_refused():
+    # 330a08964 wrote the wave-9 scorecard on the wave-9 branch: reachable from its tag, never from master.
+    _, problems = psc.evidence_index('HEAD', waves=[], evidence=[], tips=[('330a08964', 'HEAD')])
+    assert problems == ['B0 tip 330a08964 is not reachable from HEAD'], problems
+    _, ok = psc.evidence_index('HEAD', waves=[], evidence=[], tips=[('330a08964', 'notebook-wave9-tip-2026-09-26')])
+    assert not ok, ok
+
+
+# ── §C (wave 10, F3): "what 10/10 still needs" lists every clause not MET exactly once ─────────────
+
+def test_what_10_10_still_needs_lists_every_unmet_clause_once_under_one_owner():
+    text = _text(SCORECARD)
+    sec = _section(text, '§C')
+    start = sec.index('### What 10/10 still needs')
+    end = next(i for i in range(start + 1, len(sec)) if sec[i].startswith('### '))
+    items = [l for l in sec[start:end] if l.startswith('- #')]
+    groups = [l for l in sec[start:end] if l.startswith('**') and ' — ' in l and not l.startswith('**' + '0 of')]
+    assert len([g for g in groups if g.split(' — ')[0].strip('*') in
+                ('Owner-only (only the owner can take the step or the reading)',
+                 'Quiet-slot (a timing verdict the controller takes in a held quiet slot)',
+                 'Build work (an agent or the controller can do it)')]) == 3, groups
+    unmet = [l for l in _section(text, '§C')[end:] if re.match(r'^\| \d+\. ', l)]
+    assert unmet, 'non-vacuity: no unmet clause rows parsed'
+    assert len(items) == len(unmet), (len(items), len(unmet))
+    for row in unmet:
+        c = _cells(row)
+        n = c[0].split('.')[0]
+        assert sum(1 for i in items if i.startswith(f'- #{n} ') and f': {c[1]} ({c[2]})' in i) == 1, row
 
 
 def test_the_plans_now_column_carries_the_scorecards_clause_counts():

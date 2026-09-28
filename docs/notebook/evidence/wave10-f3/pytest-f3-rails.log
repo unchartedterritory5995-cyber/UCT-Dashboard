@@ -1,0 +1,865 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 37%]
+........................................................................ [ 75%]
+..............................................                           [100%]
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 10343 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 190 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_notebook_feature_rail_census.py::test_the_census_is_not_vacuous
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_route_security_census.py: 2867 warnings
+tests/test_notebook_slo.py: 6 warnings
+tests/test_property_autofill.py: 18 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+tests/test_notebook_route_security_census.py: 2883 warnings
+tests/test_notebook_slo.py: 14 warnings
+tests/test_property_autofill.py: 78 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+tests/test_notebook_route_security_census.py: 41 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+tests/test_notebook_route_security_census.py::test_every_notebook_route_on_the_real_app_is_classified_and_agrees
+  C:\Users\Patrick\uct-worktrees\notebook-w10s2\api\baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================== PASSES ====================================
+_______________________ test_the_census_is_not_vacuous ________________________
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+_________________ test_a_planted_unrailed_row_fails_the_check _________________
+---------------------------- Captured stdout call -----------------------------
+planted orphan: tools/_analyze_stress_findings.py
+ok  planted G-999: 'UNRAILED' (must be 'UNRAILED')
+ok  planted G-998: 'UNLOCATED' (must be 'UNLOCATED')
+ok  --check sees both planted rows
+_____________________ test_the_measurement_is_not_vacuous _____________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_larj9hhx\auth.db
+__________ test_a_planted_ranker_regression_falls_below_the_baseline __________
+---------------------------- Captured stdout call -----------------------------
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_larj9hhx\auth.db
+____ test_a_planted_switcher_regression_falls_below_the_switchers_baseline ____
+---------------------------- Captured stdout call -----------------------------
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_larj9hhx\auth.db
+_____ test_a_run_writes_ONE_q1_row_and_ONE_sidecar_line_with_the_figures ______
+---------------------------- Captured stdout call -----------------------------
+2026-09-28 09:29 ET  organic=0 synthetic=0 rig=0 total=15 config-served=0/0 — no member reported blocked=0 conflicts=3 errors=0 OK
+_____ test_a_failed_soak_read_leaves_the_q1_row_alone_and_writes_skipped ______
+---------------------------- Captured stdout call -----------------------------
+2026-09-28 09:29 ET  organic=0 synthetic=0 rig=0 total=15 config-served=0/0 — no member reported blocked=0 conflicts=3 errors=0 OK
+_____________ test_a_throwing_soak_read_is_skipped_never_a_crash ______________
+---------------------------- Captured stdout call -----------------------------
+2026-09-28 09:29 ET  organic=0 synthetic=0 rig=0 total=15 config-served=0/0 — no member reported blocked=0 conflicts=3 errors=0 OK
+_________ test_a_busy_profile_writes_a_skipped_row_AND_a_skipped_line _________
+---------------------------- Captured stdout call -----------------------------
+SKIPPED: profile busy
+______________ test_the_cumulative_read_runs_from_NB_SOAK_START _______________
+---------------------------- Captured stdout call -----------------------------
+2026-09-28 09:29 ET  organic=0 synthetic=0 rig=0 total=15 config-served=0/0 — no member reported blocked=0 conflicts=3 errors=0 OK
+_____ test_every_notebook_route_on_the_real_app_is_classified_and_agrees ______
+---------------------------- Captured stderr setup ----------------------------
+2026-09-28 08:29:17,937 INFO api.services.cap_universe: [cap-universe] loaded 3640 symbols
+2026-09-28 08:29:17,938 INFO api.routers.ticker_search: [ticker-search] loaded 3640 tickers from cap_universe
+2026-09-28 08:29:18,103 WARNING api.services.email_service: [email] RESEND_API_KEY not set — emails disabled
+2026-09-28 08:29:21,594 INFO api.liveflow_worker: [liveflow] no user blocklist file at C:\Users\Patrick\AppData\Local\Temp\uct_tests_datadir_gyd4ss1r\liveflow_user_blocklist.json — seeded with 0 defaults: []
+2026-09-28 08:29:21,610 INFO api.baselines: [baselines] loaded 0 ticker baselines into memory
+2026-09-28 08:29:21,610 INFO api.liveflow_worker: [liveflow] ticker baselines loaded into worker memory (0 tickers)
+________ test_a_healthy_notebook_reads_ok_everywhere_and_pages_nobody _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpi8tipr7a.db
+_________ test_CONTROL_every_slo_breaches_and_only_save_success_pages _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmphff6mt2o.db
+_________ test_speed_never_pages_is_a_pinned_routing_not_a_threshold __________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpe0u7s4dy.db
+_____ test_a_retry_streak_that_began_and_a_409_fork_are_not_failed_saves ______
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpa0miupv5.db
+____________ test_too_few_samples_is_insufficient_never_a_verdict _____________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpccprx13z.db
+__________________ test_rows_outside_the_window_do_not_count __________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp26c8lnhz.db
+_ test_a_breach_pages_once_is_repaged_after_the_interval_and_recovery_rearms __
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmph9t29jwk.db
+_____ test_with_no_webhook_the_page_is_a_logged_row_not_a_silent_success ______
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpfj7hgqf4.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:30,502 WARNING api.services.journal_two.notebook_slo: [notebook-slo] PAGE (no ops webhook configured, logged only): \U0001f534 **Notebook SLO breach \u2014 save_success**: 0.9000 vs objective >= 0.995 over 100 final save outcomes in 24 h (10 gave up). Read /api/admin/notebook-slo.
+------------------------------ Captured log call ------------------------------
+WARNING  api.services.journal_two.notebook_slo:notebook_slo.py:351 [notebook-slo] PAGE (no ops webhook configured, logged only): \U0001f534 **Notebook SLO breach \u2014 save_success**: 0.9000 vs objective >= 0.995 over 100 final save outcomes in 24 h (10 gave up). Read /api/admin/notebook-slo.
+______________ test_the_digest_writes_one_row_and_posts_nowhere _______________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp0irgnsh0.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:31,262 INFO api.services.journal_two.notebook_slo: [notebook-slo] Notebook SLO digest, last 24 h — save_success: BREACH 0.9000 (objective 0.995, n=100, refused=0); ask_latency: BREACH 61000 ms (objective 30000, n=12); search_latency: BREACH 4200 ms (objective 1000, n=40)
+------------------------------ Captured log call ------------------------------
+INFO     api.services.journal_two.notebook_slo:notebook_slo.py:540 [notebook-slo] Notebook SLO digest, last 24 h — save_success: BREACH 0.9000 (objective 0.995, n=100, refused=0); ask_latency: BREACH 61000 ms (objective 30000, n=12); search_latency: BREACH 4200 ms (objective 1000, n=40)
+_________ test_the_admin_doors_are_admin_only_and_run_writes_the_rows _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpd_ei4bpp.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:32,156 INFO api.services.journal_two.notebook_slo: [notebook-slo] Notebook SLO digest, last 24 h — save_success: INSUFFICIENT n/a (objective 0.995, n=0, refused=0); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+------------------------------ Captured log call ------------------------------
+INFO     api.services.journal_two.notebook_slo:notebook_slo.py:540 [notebook-slo] Notebook SLO digest, last 24 h — save_success: INSUFFICIENT n/a (objective 0.995, n=0, refused=0); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+__ test_a_failed_delivery_is_recorded_as_failed_and_the_next_run_pages_again __
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpkreqhrc3.db
+__________ test_a_pager_that_raises_is_a_failed_delivery_not_a_crash __________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpqo55nbu0.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:33,744 WARNING api.services.journal_two.notebook_slo: [notebook-slo] page delivery raised: RuntimeError: webhook exploded
+------------------------------ Captured log call ------------------------------
+WARNING  api.services.journal_two.notebook_slo:notebook_slo.py:492 [notebook-slo] page delivery raised: RuntimeError: webhook exploded
+___________ test_a_second_writer_during_the_page_is_not_locked_out ____________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmphn35xdde.db
+_____ test_a_delivered_page_still_suppresses_the_repage_inside_the_window _____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp_3zqnxng.db
+_____ test_a_breach_whose_last_failure_is_over_an_hour_old_is_not_repaged _____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpe_6pw8ej.db
+____ test_a_designed_refusal_does_not_move_the_rate_and_a_5xx_give_up_does ____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp2odo9m6k.db
+_________________ test_the_readout_carries_the_refused_count __________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpr7c0blij.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:37,844 INFO api.services.journal_two.notebook_slo: [notebook-slo] Notebook SLO digest, last 24 h — save_success: INSUFFICIENT n/a (objective 0.995, n=0, refused=3); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+------------------------------ Captured log call ------------------------------
+INFO     api.services.journal_two.notebook_slo:notebook_slo.py:540 [notebook-slo] Notebook SLO digest, last 24 h — save_success: INSUFFICIENT n/a (objective 0.995, n=0, refused=3); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+___ test_the_activity_log_composite_index_exists_and_the_slo_count_uses_it ____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpw3jkzl82.db
+---------------------------- Captured stdout call -----------------------------
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpw3jkzl82.db
+_____ test_STALL_the_measured_save_door_outage_reads_stall_and_pages_once _____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpf_1am8hv.db
+____________ test_a_stall_that_lasts_is_repaged_after_the_interval ____________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpsq6j3bv5.db
+________ test_STALL_a_whole_window_outage_is_a_stall_not_insufficient _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmptyajl4ri.db
+________________ test_CONTROL_an_ordinary_blip_is_not_a_stall _________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp9hw_1joh.db
+_________ test_CONTROL_three_streaks_against_ten_saves_is_not_a_stall _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp5o_mcqqi.db
+_______ test_a_slow_outage_whose_hourly_count_dips_is_held_not_repaged ________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp23wv2r0a.db
+_______ test_a_stall_that_becomes_a_breach_is_one_incident_and_one_page _______
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp2u1sth3c.db
+________ test_a_refused_spike_is_a_named_digest_line_and_never_a_page _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpuqwz3t_9.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:47,637 INFO api.services.journal_two.notebook_slo: [notebook-slo] Notebook SLO digest, last 24 h — save_success: OK 1.0000 (objective 0.995, n=100, refused=19); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+2026-09-28 08:29:47,660 INFO api.services.journal_two.notebook_slo: [notebook-slo] Notebook SLO digest, last 24 h — save_success: OK 1.0000 (objective 0.995, n=100, refused=20); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0); refused spike: 20 saves refused — check the server limits
+------------------------------ Captured log call ------------------------------
+INFO     api.services.journal_two.notebook_slo:notebook_slo.py:540 [notebook-slo] Notebook SLO digest, last 24 h — save_success: OK 1.0000 (objective 0.995, n=100, refused=19); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0)
+INFO     api.services.journal_two.notebook_slo:notebook_slo.py:540 [notebook-slo] Notebook SLO digest, last 24 h — save_success: OK 1.0000 (objective 0.995, n=100, refused=20); ask_latency: INSUFFICIENT n/a (objective 30000, n=0); search_latency: INSUFFICIENT n/a (objective 1000, n=0); refused spike: 20 saves refused — check the server limits
+_______ test_a_run_forced_inside_another_runs_page_sends_no_second_page _______
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpyy1kxzl_.db
+__________ test_a_failed_pages_claim_ages_out_and_a_later_run_pages ___________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpf6jp_u2y.db
+________ test_a_state_table_made_by_fix_round_1_gains_the_claim_column ________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpiin2viqy.db
+_ test_the_offline_word_is_the_clients_and_the_allow_lists_and_network_is_not_it _
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpevp9ffdr.db
+__ test_CONTROL_three_offline_streaks_and_no_saves_in_an_hour_is_not_a_stall __
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpi7md_1sd.db
+_____ test_STALL_three_network_streaks_and_no_saves_in_an_hour_is_a_stall _____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmptg6g__ld.db
+__ test_DARK_gate_off_is_404_before_the_note_is_read_or_a_reservation_spent ___
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmptflwc6zj.db
+______ test_an_unpaid_member_is_refused_with_writing_helps_own_sentence _______
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp3miy2cbw.db
+_________ test_another_members_note_is_a_plain_404_and_costs_nothing __________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp6lkhiawx.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-other: FOREIGN KEY constraint failed
+___ test_suggestions_are_validated_and_labelled_and_the_note_is_NOT_written ___
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp69n_kdni.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+_________ test_a_property_that_already_has_a_value_is_never_suggested _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp14pnqf0e.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+___ test_nothing_to_fill_and_an_empty_note_are_sentences_that_cost_nothing ____
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpy04qfl1z.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+___________________ test_it_spends_writing_helps_own_count ____________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp18lxr2f2.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+________ test_a_failed_call_says_so_is_refunded_and_releases_its_slot _________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp2tlc65sx.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:29:57,844 ERROR api.routers.notebook_writing_help: [writing-help] autofill failed
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\api\routers\notebook_writing_help.py", line 266, in writing_help_autofill
+    raw = await pa.complete(pa.request_kwargs(title, text, cands, model=model))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\api\services\journal_two\property_autofill.py", line 165, in complete
+    resp = await client.messages.create(**kwargs, timeout=note_ask._SYNTH_TIMEOUT)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\tests\test_property_autofill.py", line 112, in create
+    raise RuntimeError("provider went away")
+RuntimeError: provider went away
+------------------------------ Captured log call ------------------------------
+ERROR    api.routers.notebook_writing_help:notebook_writing_help.py:271 [writing-help] autofill failed
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\api\routers\notebook_writing_help.py", line 266, in writing_help_autofill
+    raw = await pa.complete(pa.request_kwargs(title, text, cands, model=model))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\api\services\journal_two\property_autofill.py", line 165, in complete
+    resp = await client.messages.create(**kwargs, timeout=note_ask._SYNTH_TIMEOUT)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10s2\tests\test_property_autofill.py", line 112, in create
+    raise RuntimeError("provider went away")
+RuntimeError: provider went away
+__________________________ test_the_prompt_boundary ___________________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpeev0lrbn.db
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u1: FOREIGN KEY constraint failed
+__ test_candidates_are_only_empty_member_set_properties_of_an_autofill_type ___
+---------------------------- Captured stdout setup ----------------------------
+[activity] Failed to log j2:notebook_writing_help_used for u1: FOREIGN KEY constraint failed
+______________________ test_the_judges_self_check_passes ______________________
+---------------------------- Captured stdout call -----------------------------
+ok  dead click: got ('DEAD', []), want ('DEAD', [])
+ok  telemetry only: got 'DEAD', want 'DEAD'
+ok  dom change: got 'LIVE', want 'LIVE'
+ok  focus move: got 'LIVE', want 'LIVE'
+ok  a background poll only: got 'DEAD', want 'DEAD'
+ok  the click's own request beside a poll: got 'LIVE', want 'LIVE'
+ok  swallowed 500: got 'SILENT', want 'SILENT'
+ok  honest 500: got 'SENTENCE', want 'SENTENCE'
+ok  1400px element: got True, want True
+ok  20px target at 390: got 'tap', want 'tap'
+ok  20px target at 1200 (desktop, no tap rule): got [], want []
+ok  axe violation: got 'FAIL', want 'FAIL'
+________ test_the_live_deletion_records_the_row_and_the_offsite_object ________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_the_live_deletion_records0\auth.db
+_______ test_no_store_leaves_it_PENDING_and_the_backup_flush_pushes_it ________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_no_store_leaves_it_PENDIN0\auth.db
+---------------------------- Captured stderr call -----------------------------
+2026-09-28 08:30:19,771 INFO api.services.authdb_backup: [authdb_backup] pushed 1 pending account tombstone(s)
+------------------------------ Captured log call ------------------------------
+INFO     api.services.authdb_backup:authdb_backup.py:130 [authdb_backup] pushed 1 pending account tombstone(s)
+_ test_a_restore_of_a_snapshot_from_BEFORE_the_deletion_does_not_bring_the_member_back _
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_a_restore_of_a_snapshot_f0\auth.db
+_ test_an_account_deleted_BEFORE_the_snapshot_but_still_in_it_FAILS_the_drill _
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_an_account_deleted_BEFORE0\auth.db
+_________ test_a_real_restore_REFUSES_without_the_offsite_tombstones __________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_a_real_restore_REFUSES_wi0\auth.db
+__________________________ test_replay_is_idempotent __________________________
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-11678\test_replay_is_idempotent0\auth.db
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt] _
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact] _
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed] _
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[update_note (with a baseline)] _
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+___________________ test_a_refused_write_releases_the_lock ____________________
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+________________ test_a_caller_in_a_transaction_keeps_its_own _________________
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+______________ test_the_window_body_text_is_what_the_members_see ______________
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: FOREIGN KEY constraint failed
+=========================== short test summary info ===========================
+PASSED tests/test_notebook_feature_rail_census.py::test_the_census_is_not_vacuous
+PASSED tests/test_notebook_feature_rail_census.py::test_status_comes_from_the_ledger_not_from_here
+PASSED tests/test_notebook_feature_rail_census.py::test_a_planted_unrailed_row_fails_the_check
+PASSED tests/test_notebook_feature_rail_census.py::test_every_shipped_feature_has_a_rail
+PASSED tests/test_notebook_feature_rail_census.py::test_a_mock_is_not_an_import
+PASSED tests/test_notebook_search_recall.py::test_every_label_names_a_note_in_the_corpus
+PASSED tests/test_notebook_search_recall.py::test_the_set_carries_its_baseline_and_the_tree_it_was_measured_on
+PASSED tests/test_notebook_search_recall.py::test_the_measurement_is_not_vacuous
+PASSED tests/test_notebook_search_recall.py::test_both_readers_meet_their_recorded_baseline
+PASSED tests/test_notebook_search_recall.py::test_a_planted_ranker_regression_falls_below_the_baseline
+PASSED tests/test_notebook_search_recall.py::test_the_switcher_finds_what_the_search_box_finds
+PASSED tests/test_notebook_search_recall.py::test_a_planted_switcher_regression_falls_below_the_switchers_baseline
+PASSED tests/test_notebook_search_recall.py::test_no_baseline_is_never_a_pass
+PASSED tests/test_nb_observe.py::test_a_header_change_cannot_rewrite_existing_rows
+PASSED tests/test_nb_observe.py::test_the_header_is_written_into_an_empty_file
+PASSED tests/test_nb_observe.py::test_a_canary_opt_in_is_never_read_as_a_member
+PASSED tests/test_nb_observe.py::test_an_unparseable_stamp_is_never_claimed_as_a_member
+PASSED tests/test_nb_observe.py::test_a_KEEP_over_zero_members_says_so
+PASSED tests/test_nb_observe.py::test_the_owner_and_the_smoke_account_are_not_members
+PASSED tests/test_nb_observe.py::test_a_5xx_reading_is_SKIPPED_not_an_ANOMALY
+PASSED tests/test_nb_observe.py::test_zero_over_zero_is_never_rendered_as_a_rate
+PASSED tests/test_nb_observe.py::test_a_shortfall_is_marked_not_merely_printed
+PASSED tests/test_nb_observe.py::test_an_unreadable_feed_is_ERR_not_zero
+PASSED tests/test_nb_observe.py::test_the_schema_change_detector_reads_a_COLUMN_line_not_the_prose
+PASSED tests/test_nb_observe.py::test_a_new_column_appends_a_new_header_block_and_keeps_every_row
+PASSED tests/test_nb_observe.py::test_the_row_writer_and_the_header_agree_on_the_column_count
+PASSED tests/test_nb_observe.py::test_the_config_served_reader_counts_BY_IDENTITY_and_excludes_the_rig
+PASSED tests/test_nb_observe.py::test_the_p5_read_found_every_copied_file
+PASSED tests/test_nb_observe.py::test_CONTROL_the_comparison_is_blind_to_line_endings_and_sees_content
+PASSED tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo_or_the_drift_is_named[nb_gate.py]
+PASSED tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo_or_the_drift_is_named[nb_observe.py]
+PASSED tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo_or_the_drift_is_named[nb_soak.py]
+PASSED tests/test_nb_observe.py::test_the_deployed_copy_matches_the_repo_or_the_drift_is_named[window_check.py]
+PASSED tests/test_nb_observe.py::test_the_Q1_HEADER_and_row_are_byte_unchanged
+PASSED tests/test_nb_observe.py::test_every_Q1_header_cell_is_one_the_gate_can_name
+PASSED tests/test_nb_observe.py::test_the_sidecar_path_is_its_own_file_beside_the_log
+PASSED tests/test_nb_observe.py::test_the_sidecar_appends_and_never_rewrites
+PASSED tests/test_nb_observe.py::test_a_cut_short_last_line_gets_a_newline_before_the_next
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result0]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result1]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result2]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[None]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result4]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result5]
+PASSED tests/test_nb_observe.py::test_a_failed_read_writes_skipped_never_zeros[result6]
+PASSED tests/test_nb_observe.py::test_a_good_read_writes_the_figures_as_returned
+PASSED tests/test_nb_observe.py::test_intervals_tile_from_the_newest_GOOD_line
+PASSED tests/test_nb_observe.py::test_a_gap_longer_than_one_read_is_clamped_and_says_so
+PASSED tests/test_nb_observe.py::test_a_stamp_from_the_future_is_not_trusted
+PASSED tests/test_nb_observe.py::test_the_population_lists_still_match_the_server_module
+PASSED tests/test_nb_observe.py::test_the_soak_read_uses_the_same_guarded_fetch_as_the_other_reads
+PASSED tests/test_nb_observe.py::test_a_run_writes_ONE_q1_row_and_ONE_sidecar_line_with_the_figures
+PASSED tests/test_nb_observe.py::test_a_failed_soak_read_leaves_the_q1_row_alone_and_writes_skipped
+PASSED tests/test_nb_observe.py::test_a_throwing_soak_read_is_skipped_never_a_crash
+PASSED tests/test_nb_observe.py::test_a_busy_profile_writes_a_skipped_row_AND_a_skipped_line
+PASSED tests/test_nb_observe.py::test_the_cumulative_read_runs_from_NB_SOAK_START
+PASSED tests/test_notebook_route_security_census.py::test_every_notebook_route_on_the_real_app_is_classified_and_agrees
+PASSED tests/test_notebook_route_security_census.py::test_the_census_is_not_vacuous
+PASSED tests/test_notebook_route_security_census.py::test_the_flag_gates_are_the_env_vars_the_census_names
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_an_unclassified_notebook_route_is_caught
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_the_net_catches_a_notebook_route_under_a_new_name
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_a_changed_auth_class_is_caught
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_a_route_that_loses_its_session_dependency_is_caught
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_a_stale_row_and_an_unproved_guard_are_caught
+PASSED tests/test_notebook_route_security_census.py::test_CONTROL_a_flag_row_naming_the_wrong_env_var_is_caught
+PASSED tests/test_notebook_slo.py::test_a_healthy_notebook_reads_ok_everywhere_and_pages_nobody
+PASSED tests/test_notebook_slo.py::test_CONTROL_every_slo_breaches_and_only_save_success_pages
+PASSED tests/test_notebook_slo.py::test_speed_never_pages_is_a_pinned_routing_not_a_threshold
+PASSED tests/test_notebook_slo.py::test_a_retry_streak_that_began_and_a_409_fork_are_not_failed_saves
+PASSED tests/test_notebook_slo.py::test_too_few_samples_is_insufficient_never_a_verdict
+PASSED tests/test_notebook_slo.py::test_rows_outside_the_window_do_not_count
+PASSED tests/test_notebook_slo.py::test_a_breach_pages_once_is_repaged_after_the_interval_and_recovery_rearms
+PASSED tests/test_notebook_slo.py::test_with_no_webhook_the_page_is_a_logged_row_not_a_silent_success
+PASSED tests/test_notebook_slo.py::test_the_digest_writes_one_row_and_posts_nowhere
+PASSED tests/test_notebook_slo.py::test_the_admin_doors_are_admin_only_and_run_writes_the_rows
+PASSED tests/test_notebook_slo.py::test_a_failed_delivery_is_recorded_as_failed_and_the_next_run_pages_again
+PASSED tests/test_notebook_slo.py::test_a_pager_that_raises_is_a_failed_delivery_not_a_crash
+PASSED tests/test_notebook_slo.py::test_a_second_writer_during_the_page_is_not_locked_out
+PASSED tests/test_notebook_slo.py::test_a_delivered_page_still_suppresses_the_repage_inside_the_window
+PASSED tests/test_notebook_slo.py::test_a_breach_whose_last_failure_is_over_an_hour_old_is_not_repaged
+PASSED tests/test_notebook_slo.py::test_a_designed_refusal_does_not_move_the_rate_and_a_5xx_give_up_does
+PASSED tests/test_notebook_slo.py::test_the_readout_carries_the_refused_count
+PASSED tests/test_notebook_slo.py::test_the_activity_log_composite_index_exists_and_the_slo_count_uses_it
+PASSED tests/test_notebook_slo.py::test_both_slo_jobs_are_registered_on_the_scheduler_in_main
+PASSED tests/test_notebook_slo.py::test_STALL_the_measured_save_door_outage_reads_stall_and_pages_once
+PASSED tests/test_notebook_slo.py::test_a_stall_that_lasts_is_repaged_after_the_interval
+PASSED tests/test_notebook_slo.py::test_STALL_a_whole_window_outage_is_a_stall_not_insufficient
+PASSED tests/test_notebook_slo.py::test_CONTROL_an_ordinary_blip_is_not_a_stall
+PASSED tests/test_notebook_slo.py::test_CONTROL_three_streaks_against_ten_saves_is_not_a_stall
+PASSED tests/test_notebook_slo.py::test_a_slow_outage_whose_hourly_count_dips_is_held_not_repaged
+PASSED tests/test_notebook_slo.py::test_a_stall_that_becomes_a_breach_is_one_incident_and_one_page
+PASSED tests/test_notebook_slo.py::test_a_refused_spike_is_a_named_digest_line_and_never_a_page
+PASSED tests/test_notebook_slo.py::test_a_run_forced_inside_another_runs_page_sends_no_second_page
+PASSED tests/test_notebook_slo.py::test_a_failed_pages_claim_ages_out_and_a_later_run_pages
+PASSED tests/test_notebook_slo.py::test_a_state_table_made_by_fix_round_1_gains_the_claim_column
+PASSED tests/test_notebook_slo.py::test_the_offline_word_is_the_clients_and_the_allow_lists_and_network_is_not_it
+PASSED tests/test_notebook_slo.py::test_CONTROL_three_offline_streaks_and_no_saves_in_an_hour_is_not_a_stall
+PASSED tests/test_notebook_slo.py::test_STALL_three_network_streaks_and_no_saves_in_an_hour_is_a_stall
+PASSED tests/test_property_autofill.py::test_DARK_gate_off_is_404_before_the_note_is_read_or_a_reservation_spent
+PASSED tests/test_property_autofill.py::test_an_unpaid_member_is_refused_with_writing_helps_own_sentence
+PASSED tests/test_property_autofill.py::test_another_members_note_is_a_plain_404_and_costs_nothing
+PASSED tests/test_property_autofill.py::test_suggestions_are_validated_and_labelled_and_the_note_is_NOT_written
+PASSED tests/test_property_autofill.py::test_a_property_that_already_has_a_value_is_never_suggested
+PASSED tests/test_property_autofill.py::test_nothing_to_fill_and_an_empty_note_are_sentences_that_cost_nothing
+PASSED tests/test_property_autofill.py::test_it_spends_writing_helps_own_count
+PASSED tests/test_property_autofill.py::test_a_failed_call_says_so_is_refunded_and_releases_its_slot
+PASSED tests/test_property_autofill.py::test_the_prompt_boundary
+PASSED tests/test_property_autofill.py::test_candidates_are_only_empty_member_set_properties_of_an_autofill_type
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop0-beta-expect0]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop1-Gamma-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop2-value2-expect2]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop3-value3-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop4-12.5-expect4]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop5-12.5-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop6-True-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop7-2026-10-14-expect7]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop8-2026-02-30-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop9-next week-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop10-False-expect10]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop11-yes-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop12-https://example.com/x-expect12]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop13-javascript:alert(1)-None]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop14-  a label  -expect14]
+PASSED tests/test_property_autofill.py::test_each_type_is_validated_before_the_member_sees_it[prop15--None]
+PASSED tests/test_property_autofill.py::test_a_malformed_answer_is_no_suggestions_never_a_crash
+PASSED tests/test_property_autofill.py::test_a_value_the_checks_cannot_evaluate_drops_one_suggestion_never_the_call
+PASSED tests/test_property_autofill.py::test_one_suggestion_per_property_and_evidence_is_bounded
+PASSED tests/test_property_autofill.py::test_the_field_fence_cannot_be_closed_from_a_property_name
+PASSED tests/test_property_autofill.py::test_the_service_has_no_call_to_a_note_writer
+PASSED tests/test_property_autofill.py::test_the_editors_autofill_types_ARE_the_servers
+PASSED tests/test_notebook_proof_walk.py::test_the_judges_self_check_passes
+PASSED tests/test_notebook_proof_walk.py::test_a_telemetry_post_alone_is_never_evidence[http://x/api/j2/telemetry]
+PASSED tests/test_notebook_proof_walk.py::test_a_telemetry_post_alone_is_never_evidence[http://x/api/client-errors]
+PASSED tests/test_notebook_proof_walk.py::test_a_telemetry_post_alone_is_never_evidence[http://x/api/j2/telemetry?e=save_success]
+PASSED tests/test_notebook_proof_walk.py::test_a_product_request_is_evidence_and_a_polled_one_is_not
+PASSED tests/test_notebook_proof_walk.py::test_every_effect_kind_is_evidence_on_its_own
+PASSED tests/test_notebook_proof_walk.py::test_endpoint_templates_fold_ids_and_drop_the_query
+PASSED tests/test_notebook_proof_walk.py::test_a_failure_sentence_must_be_new_and_a_sentence
+PASSED tests/test_notebook_proof_walk.py::test_an_empty_state_after_a_failure_is_flagged_not_trusted
+PASSED tests/test_notebook_proof_walk.py::test_geometry_judges_each_kind_and_the_touch_boundary
+PASSED tests/test_notebook_proof_walk.py::test_every_sweep_has_a_control_that_an_empty_reading_fails
+PASSED tests/test_notebook_proof_walk.py::test_the_tap_floor_is_the_token_the_css_declares
+PASSED tests/test_notebook_proof_walk.py::test_the_touch_tier_is_the_breakpoint_file_s
+PASSED tests/test_notebook_proof_walk.py::test_axe_is_the_repo_s_exact_pin
+PASSED tests/test_notebook_proof_walk.py::test_the_census_probes_every_shipped_inventory_row
+PASSED tests/test_notebook_proof_walk.py::test_the_census_coverage_check_can_fail
+PASSED tests/test_notebook_proof_walk.py::test_every_surface_names_a_real_manifest_entry
+PASSED tests/test_notebook_proof_walk.py::test_findings_are_counted_per_sweep_and_an_unmeasured_cell_is_not_one
+PASSED tests/test_notebook_proof_walk.py::test_a_wait_pumps_the_page_rather_than_sleeping
+PASSED tests/test_notebook_proof_walk.py::test_a_request_the_pages_own_timer_sent_is_never_the_clicks_effect
+PASSED tests/test_notebook_proof_walk.py::test_background_requests_are_subtracted_one_for_one
+PASSED tests/test_notebook_proof_walk.py::test_the_deadclick_control_fails_when_the_planted_poller_was_never_seen
+PASSED tests/test_notebook_proof_walk.py::test_the_in_page_half_tags_a_pre_arm_timer_request_and_not_the_clicks_own
+PASSED tests/test_notebook_proof_walk.py::test_a_declared_silent_by_design_endpoint_reads_EXEMPT_with_its_reason
+PASSED tests/test_notebook_proof_walk.py::test_an_exemption_never_hides_a_sentence_and_is_not_a_finding
+PASSED tests/test_notebook_proof_walk.py::test_the_exemption_list_is_exactly_the_declared_two_and_each_reason_names_real_code
+PASSED tests/test_notebook_proof_walk.py::test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site
+PASSED tests/test_notebook_proof_walk.py::test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sentence
+PASSED tests/test_account_tombstones.py::test_the_live_deletion_records_the_row_and_the_offsite_object
+PASSED tests/test_account_tombstones.py::test_no_store_leaves_it_PENDING_and_the_backup_flush_pushes_it
+PASSED tests/test_account_tombstones.py::test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed
+PASSED tests/test_account_tombstones.py::test_a_restore_of_a_snapshot_from_BEFORE_the_deletion_does_not_bring_the_member_back
+PASSED tests/test_account_tombstones.py::test_an_account_deleted_BEFORE_the_snapshot_but_still_in_it_FAILS_the_drill
+PASSED tests/test_account_tombstones.py::test_unfinished_deletions_places_each_tombstone_before_or_after_the_snapshot
+PASSED tests/test_account_tombstones.py::test_a_real_restore_REFUSES_without_the_offsite_tombstones
+PASSED tests/test_account_tombstones.py::test_replay_is_idempotent
+PASSED tests/test_account_tombstones.py::test_a_restored_attachment_tree_loses_exactly_the_tombstoned_directories
+PASSED tests/test_account_tombstones.py::test_the_attachment_replay_refuses_the_shared_data_root
+PASSED tests/test_account_tombstones.py::test_the_drill_samples_the_manifest_and_passes_an_intact_tarball
+PASSED tests/test_account_tombstones.py::test_the_drill_catches_a_changed_byte
+PASSED tests/test_account_tombstones.py::test_a_tarball_older_than_the_manifest_is_INCONCLUSIVE_never_a_pass
+PASSED tests/test_account_tombstones.py::test_the_weekly_schedule_line_is_one_schtasks_command_with_no_credentials
+PASSED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]
+PASSED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]
+PASSED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]
+PASSED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[update_note (with a baseline)]
+PASSED tests/test_notes_cas_is_atomic.py::test_a_refused_write_releases_the_lock
+PASSED tests/test_notes_cas_is_atomic.py::test_a_caller_in_a_transaction_keeps_its_own
+PASSED tests/test_notes_cas_is_atomic.py::test_a_missing_note_releases_the_lock
+PASSED tests/test_notes_cas_is_atomic.py::test_the_window_body_text_is_what_the_members_see
+PASSED tests/test_notebook_personal_api_walk.py::test_todays_note_under_another_title_is_found_by_dailyDate_and_not_appended
+PASSED tests/test_notebook_personal_api_walk.py::test_an_archived_daily_note_is_still_todays_and_not_appended
+PASSED tests/test_notebook_personal_api_walk.py::test_todays_note_past_the_first_page_is_found
+PASSED tests/test_notebook_personal_api_walk.py::test_CONTROL_with_no_note_dated_today_the_walk_does_append
+PASSED tests/test_notebook_personal_api_walk.py::test_without_the_doors_own_daily_folder_nothing_is_posted[folders0]
+PASSED tests/test_notebook_personal_api_walk.py::test_without_the_doors_own_daily_folder_nothing_is_posted[folders1]
+PASSED tests/test_notebook_personal_api_walk.py::test_without_the_doors_own_daily_folder_nothing_is_posted[folders2]
+PASSED tests/test_notebook_personal_api_walk.py::test_without_the_doors_own_daily_folder_nothing_is_posted[folders3]
+PASSED tests/test_notebook_personal_api_walk.py::test_a_library_the_walk_cannot_read_in_full_is_not_written_into
+PASSED tests/test_notebook_personal_api_walk.py::test_the_folder_name_and_title_are_note_dailys_not_restated
+190 passed, 16442 warnings in 125.80s (0:02:05)
