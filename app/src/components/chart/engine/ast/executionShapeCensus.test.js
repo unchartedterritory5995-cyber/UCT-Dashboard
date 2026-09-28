@@ -140,6 +140,8 @@ const WINDOW_COMPOSITE = {
   williamsR: 'highest/lowest',
   cci: 'sma + dev (mean absolute deviation)',
   mfi: 'windowed sums of signed money flow',
+  // ⭐ (2026-09-28) Pine's `ta.mfi`: the same windowed sums, bar 0's flow on both sides.
+  mfiPine: 'pineMfiPoints — windowed sums of signed money flow',
   aroonUp: 'aroonCol — highestbars',
   aroonDown: 'aroonCol — lowestbars',
   bop: 'rolling(ratio, n, windowMean)',

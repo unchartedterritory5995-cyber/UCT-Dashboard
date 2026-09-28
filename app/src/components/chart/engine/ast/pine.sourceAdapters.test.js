@@ -3,7 +3,8 @@
 // ─── ⭐⭐ PINE PASSES A SOURCE WHERE THIS TABLE TAKES PRICE FIELDS ─────────────
 //
 //     ta.cci(source, length)   →   cci(high, low, close, length)
-//     ta.mfi(source, length)   →   mfi(high, low, close, volume, length)
+//     ta.mfi(source, length)   →   mfiPine(high, low, close, volume, length)
+//     (2026-09-28: Pine's own seed, bar 0's flow on both sides — `FN.mfiPine`)
 //
 // Both refused `pine:role-order` — correctly, under the rule that a function with
 // several price arguments and no MEASURED order must fail closed rather than be
@@ -37,7 +38,7 @@ describe('the typical-price adapters', () => {
     expect(formulaOf(screen('ta.cci(hlc3, 20) < -100')))
       .toBe('cci(high, low, close, 20) < -100 ? 1 : 0')
     expect(formulaOf(screen('ta.mfi(hlc3, 14) < 20')))
-      .toBe('mfi(high, low, close, volume, 14) < 20 ? 1 : 0')
+      .toBe('mfiPine(high, low, close, volume, 14) < 20 ? 1 : 0')
   })
 
   it('⛔⛔ ANY OTHER SOURCE REFUSES, and the refusal says what to write', () => {
@@ -57,7 +58,7 @@ describe('the typical-price adapters', () => {
     // `derivedSeriesTree`, the same function the door uses to expand `hlc3`, so
     // anything that resolves to that tree is accepted however it was spelled.
     expect(formulaOf(screen('ta.mfi(src, 14) < 20', 'src = hlc3\n')))
-      .toBe('mfi(high, low, close, volume, 14) < 20 ? 1 : 0')
+      .toBe('mfiPine(high, low, close, volume, 14) < 20 ? 1 : 0')
   })
 
   it('⛔ a binding that holds something ELSE still refuses', () => {

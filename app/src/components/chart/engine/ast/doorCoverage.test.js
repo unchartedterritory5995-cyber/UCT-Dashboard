@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { TABLE, parseFormula } from './parse'
-import { translatePine, hostAdmissible } from './pine'
+import { translatePine, hostAdmissible, PINE_CALL_SHAPES } from './pine'
 import { TS_CALL_SHAPES } from './thinkscript'
 import { PCF_FUSED, PCF_CALLS } from './pcf'
 import {
@@ -125,7 +125,31 @@ describe('🔴 THE RATCHET — these ceilings may only ever fall', () => {
   })
 
   it('the Pine adapter-gap roster may only shrink', () => {
-    expect(adapterGaps(ROWS).length).toBeLessThanOrEqual(20)
+    // ⭐⭐ A PINE-ONLY REDIRECT TARGET IS NOT A GAP (2026-09-28). `atrPine` and
+    // `mfiPine` exist ONLY as the landing spot of Pine's own `ta.atr` / `ta.mfi`
+    // (`PINE_CALL_SHAPES.<pine>.table`), so the literal probe `ta.atrPine(...)`
+    // refusing says nothing about what a member can reach. They are excused BY
+    // DERIVATION, and the excuse is paid for below: the Pine spelling that owns
+    // the shape must really translate onto that entry, or it counts again.
+    // ⛔ ONLY A TWIN: the Pine name must ITSELF be a table entry (`atr`, `mfi`).
+    // `crossover` → `crossOver` is a spelling map, not a second entry beside a
+    // house one, and it is not excused.
+    const redirected = new Map(Object.entries(PINE_CALL_SHAPES)
+      .filter(([pine, s]) => s.table !== pine && Object.hasOwn(TABLE.functions, pine))
+      .map(([pine, s]) => [s.table, pine]))
+    for (const [target, pine] of redirected) {
+      const src = pine === 'mfi' || pine === 'cci' ? `ta.${pine}(hlc3, 14)` : `ta.${pine}(14)`
+      const out = translatePine(`//@version=5
+indicator("t")
+plot(${src})
+`)
+      expect(out.ok, `${src} must translate for ${target} to be excused`).toBe(true)
+      expect(out.outputs[out.selected].formula).toContain(`${target}(`)
+    }
+    const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name))
+    // Measured 2026-09-28: 21 rows, of which `atrPine` and `mfiPine` are the two
+    // redirect targets — 19 real gaps, so the ceiling FALLS from 20 to 19.
+    expect(gaps.length).toBeLessThanOrEqual(19)
   })
 
   it('⛔⛔ the names NO door reaches are NAMED, not counted', () => {
@@ -181,6 +205,11 @@ plot(${n}(volume))
       // `atrPine(...)`, so the literal probe correctly finds no door; the house
       // `atr` row above is reachable through ThinkScript and PCF as before.
       'atrPine',
+      // ⭐⭐ `mfiPine` (2026-09-28) — the same shape as `atrPine`: reachable ONLY
+      // through Pine's own `ta.mfi(hlc3, n)`, which the `mfi` entry of
+      // `PINE_CALL_SHAPES` lands on it (bar 0's flow on both sides, first value
+      // on bar n-1). No Pine script writes `mfiPine(...)`.
+      'mfiPine',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

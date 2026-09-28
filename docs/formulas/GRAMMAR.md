@@ -82,7 +82,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (76)
+## Functions (77)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -134,6 +134,7 @@ decide whether a formula can run at all.
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
 | `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |
 | `mfi(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume` |
+| `mfiPine(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume`, counting the first bar's flow on both sides |
 | `min(left, right)` | a number | 0 bars | the smaller of `left` and `right` |
 | `minusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar -DI of `high`, `low` and `close` |
 | `mod(left, right)` | a number | 0 bars | the remainder of `left` divided by `right` |

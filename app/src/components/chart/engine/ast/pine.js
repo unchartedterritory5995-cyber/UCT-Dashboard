@@ -975,8 +975,16 @@ export const PINE_CALL_SHAPES = Object.freeze({
     sourceMustBe: { at: 0, series: 'hlc3' },
     build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 1 }],
   },
+  // ⭐⭐ (2026-09-28) `ta.mfi` LANDS ON `mfiPine`, NOT ON THE HOUSE `mfi` — the
+  // `atr`/`atrPine` ruling again ("Pine gets its own seeding"). Pine's
+  // `ta.change(src)` is `na` on bar 0, both of `ta.mfi`'s comparisons read that
+  // as false, so bar 0's flow counts on BOTH sides and the first value is on bar
+  // n-1; the house column starts its flows at bar 1 and answers a bar later.
+  // Measured on `artemis-oscillator-pro-rddt-1d-2026-09-28` (from listing): the
+  // VP Bull/Bear plots had nothing on bar 19 where TradingView drew 50 /
+  // 40.0819…, and every later bar already agreed. See `interpret.js::FN.mfiPine`.
   mfi: {
-    table: 'mfi',
+    table: 'mfiPine',
     pineArity: 2,
     sourceMustBe: { at: 0, series: 'hlc3' },
     build: [{ series: 'high' }, { series: 'low' }, { series: 'close' },
