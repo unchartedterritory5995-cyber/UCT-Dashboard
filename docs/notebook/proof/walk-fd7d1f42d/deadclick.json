@@ -1,0 +1,37 @@
+{
+ "telemetry_never_evidence": [
+  "/api/j2/telemetry",
+  "/api/client-errors"
+ ],
+ "surfaces": [
+  {
+   "surface": "nb-first-run-clicks",
+   "mode": "desk",
+   "manifest": [],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "Exception: Browser.new_context: Connection closed while reading from the driver"
+  }
+ ],
+ "controls": {
+  "got": {},
+  "ok": false,
+  "why": "plant-dead: got None, must be 'DEAD'; plant-dead-styled: got None, must be 'DEAD'; plant-live: got None, must be 'LIVE'",
+  "raw": {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "Exception: Browser.new_context: Connection closed while reading from the driver"
+  }
+ }
+}

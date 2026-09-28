@@ -1,0 +1,182 @@
+{
+ "forced": {
+  "500": "HTTP 500 with a JSON detail carrying the marker zqproofraw",
+  "offline": "route.abort('internetdisconnected') for that endpoint only"
+ },
+ "reads": [
+  {
+   "surface": "nb-list",
+   "status": "UNREACHED",
+   "reason": "Exception: Page.wait_for_timeout: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-home",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-note",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-tasks",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-graph",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-research",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "nb-templates",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "ed-history",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "ed-share",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "settings-cards",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "surface": "shared-page",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  }
+ ],
+ "writes": [
+  {
+   "action": "save-body",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "add-tag",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "favorite",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "lock",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "archive",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "save-template",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "share-link",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "trash-note",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "new-folder",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "new-note",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  },
+  {
+   "action": "daily-note",
+   "status": "UNREACHED",
+   "reason": "Exception: BrowserContext.new_page: Connection closed while reading from the driver"
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-swallow:500": "SILENT",
+   "plant-honest:500": "SENTENCE",
+   "plant-swallow:offline": "SILENT",
+   "plant-honest:offline": "SENTENCE"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "plant": "swallow",
+    "kind": "500",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "500",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "swallow",
+    "kind": "offline",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "offline",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   }
+  ]
+ }
+}
