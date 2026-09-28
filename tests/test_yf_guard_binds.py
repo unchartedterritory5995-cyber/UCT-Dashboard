@@ -90,20 +90,9 @@ def test_institutional_holdings_reaches_yfinance_through_the_guard(spy):
     assert "error" in out
 
 
-def test_options_chain_expirations_reaches_yfinance_through_the_guard(spy):
-    from api.services import options_chain
-    options_chain._CACHE = type(options_chain._CACHE)()
-    out = options_chain.list_expirations("AAPL")
-    assert spy.fired
-    assert "error" in out
-
-
-def test_options_chain_get_chain_reaches_yfinance_through_the_guard(spy):
-    from api.services import options_chain
-    options_chain._CACHE = type(options_chain._CACHE)()
-    out = options_chain.get_chain("AAPL")
-    assert spy.fired
-    assert "error" in out
+# (api/services/options_chain.py -- the yfinance + Black-Scholes chain leg -- was
+# RETIRED by TERM-069; its two binding proofs went with it. The one chain is
+# Massive's, and tests/test_term069_chain_leg_retired.py rails that it stays so.)
 
 
 def test_ticker_logos_clearbit_reaches_yfinance_through_the_guard(spy):
@@ -227,7 +216,6 @@ BOUND_HERE = {
     "api/services/institutional_holdings.py",
     "api/services/massive.py",
     "api/services/news_aggregator.py",
-    "api/services/options_chain.py",
     "api/services/short_interest.py",
     "api/services/ticker_logos.py",
     "api/services/ticker_meta.py",
