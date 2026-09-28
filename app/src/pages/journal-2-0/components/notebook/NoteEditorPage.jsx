@@ -629,9 +629,15 @@ export default function NoteEditorPage({
   }
 
   // ⛔ Wave 10 F7 (Part A, 5d): a write that did not land is SAID, and the sentence stays until
-  // dismissed or the next attempt lands (SaveFailed). The star was reverted before, silently.
-  const [saveFailure, setSaveFailure] = useState(null)
-  useEffect(() => { setSaveFailure(null) }, [noteId])
+  // dismissed or the next attempt OF THAT SAME WRITE lands (SaveFailed). The star was reverted
+  // before, silently.
+  // ⛔ F7 fix round 1 (review I2): ONE SLOT PER WRITE PATH. A single shared slot let a
+  // successful favorite toggle erase an unresolved "Couldn't add that tag" while the field
+  // still held the unsaved tag. A success clears only its own path's sentence; both can show.
+  // Rail: a11y/silentFailures.test.jsx ("one write's success never erases the other's failure").
+  const [favoriteFailure, setFavoriteFailure] = useState(null)
+  const [tagWriteFailure, setTagWriteFailure] = useState(null)
+  useEffect(() => { setFavoriteFailure(null); setTagWriteFailure(null) }, [noteId])
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
     const next = !isFavorite
@@ -639,10 +645,10 @@ export default function NoteEditorPage({
     setFavoriteBusy(true)
     try {
       await setNoteFavorite(noteId, next)
-      setSaveFailure(null)
+      setFavoriteFailure(null)
     } catch {
       setIsFavorite(!next) // revert -- never diverge silently from the server
-      setSaveFailure(next
+      setFavoriteFailure(next
         ? "Couldn't add this note to Favorites. Nothing changed."
         : "Couldn't remove this note from Favorites. Nothing changed.")
     } finally {
@@ -2834,20 +2840,20 @@ export default function NoteEditorPage({
         const body = await res.json()
         serverTags = Array.isArray(body?.note?.tags) ? body.note.tags : []
       } catch {
-        setSaveFailure(tagFailure(delta))
+        setTagWriteFailure(tagFailure(delta))
         return false
       }
       const next = mergeTagDelta(serverTags, delta)
       // ⛔ M14 (wave 6 fix round 1): nothing to send -- but the server's list
       // differs from the chips on screen (they did not show the tag the member
       // just added), so re-read the note and let the chips catch up.
-      if (sameTagList(next, serverTags)) { refresh?.(); setSaveFailure(null); return true }
+      if (sameTagList(next, serverTags)) { refresh?.(); setTagWriteFailure(null); return true }
       await settleMetadataRevision(await patchTags(delta))
       refreshTagNodes()
-      setSaveFailure(null)
+      setTagWriteFailure(null)
       return true
     } catch {
-      setSaveFailure(tagFailure(delta))
+      setTagWriteFailure(tagFailure(delta))
       return false
     } finally {
       setTagsBusy(false)
@@ -3345,7 +3351,8 @@ export default function NoteEditorPage({
             onAdd={(tag) => applyTagDelta({ add: [tag] })}
             onRemove={(tag) => applyTagDelta({ remove: [tag] })}
           />
-          <SaveFailed message={saveFailure} onDismiss={() => setSaveFailure(null)} />
+          <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
+          <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
           <button
             type="button"
             className={styles.chromeBtn}

@@ -10,7 +10,7 @@
 // (fixtures.jsx), fail one request, and assert the sentence a member reads.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
-import { installFetch, latchWave8Flags, Providers, NOTES } from './fixtures'
+import { installFetch, latchWave8Flags, Providers, NOTES, noteDetail } from './fixtures'
 import NoteEditorPage, { NoteLinkedTradeChips } from '../components/notebook/NoteEditorPage'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteBacklinksSection from '../components/notebook/NoteBacklinksSection'
@@ -153,3 +153,69 @@ describe('a failed read is an ERROR, never an empty answer (the five fetchers th
     expect(document.body.textContent).not.toMatch(/No notes yet/i)
   })
 })
+
+// ⛔ F7 fix round 1 (review I2): each write path has its OWN sentence. One shared slot let a
+// successful favorite toggle erase an unresolved "Couldn't add that tag" while the field still
+// held the unsaved tag -- the only signal that nothing changed, gone. Both directions railed.
+describe("one write's success never erases the other write's failure", () => {
+  const TAG_SENTENCE = "Couldn't add that tag. Nothing changed."
+  const FAV_SENTENCE = "Couldn't add this note to Favorites. Nothing changed."
+  const alertTexts = () => screen.queryAllByRole('alert').map((a) => a.textContent)
+
+  it('a failed tag add, then a SUCCESSFUL favorite toggle: the tag sentence and the typed tag stay', async () => {
+    installFetch([[/^\/api\/j2\/notes\/[^/]+\/tags$/, FAIL]])
+    await renderEditor()
+    const box = screen.getByLabelText('Add a tag to this note')
+    fireEvent.change(box, { target: { value: 'prooftag' } })
+    fireEvent.submit(box.closest('form'))
+    await waitFor(() => expect(alertTexts().join('|')).toContain(TAG_SENTENCE))
+    await waitFor(() => expect(screen.getByLabelText('Add a tag to this note')).toHaveValue('prooftag'))
+    // the favorite write LANDS
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Favorites' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Remove from Favorites' }))
+      .toHaveAttribute('aria-pressed', 'true'))
+    await settle(60)
+    expect(alertTexts().join('|')).toContain(TAG_SENTENCE)
+    expect(screen.getByLabelText('Add a tag to this note')).toHaveValue('prooftag')
+  }, 15_000)
+
+  it('the reverse: a failed favorite, then a SUCCESSFUL tag add: the favorite sentence stays', async () => {
+    installFetch([
+      [/^\/api\/j2\/notes\/[^/]+\/favorite$/, FAIL],
+      // the tag write's real answer shape: the server's note, carrying the new tag
+      [/^\/api\/j2\/notes\/[^/]+\/tags$/, { changed: false, note: noteDetail({ tags: ['semis', 'goodtag'] }) }],
+    ])
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Favorites' }))
+    await waitFor(() => expect(alertTexts().join('|')).toContain(FAV_SENTENCE))
+    // the tag write LANDS
+    const box = screen.getByLabelText('Add a tag to this note')
+    fireEvent.change(box, { target: { value: 'goodtag' } })
+    fireEvent.submit(box.closest('form'))
+    const tagPatches = () => global.fetch.mock.calls
+      .filter(([u, init = {}]) => /\/tags$/.test(String(u)) && String(init.method || '').toUpperCase() === 'PATCH')
+    await waitFor(() => expect(tagPatches().length).toBe(1))
+    await settle(60)
+    expect(screen.getByPlaceholderText('Title')).toBeInTheDocument() // the note is still on screen
+    expect(alertTexts().join('|')).not.toContain(TAG_SENTENCE)
+    expect(alertTexts().join('|')).toContain(FAV_SENTENCE)
+  }, 15_000)
+
+  it('both can show at once, each with its own Dismiss', async () => {
+    installFetch([[/^\/api\/j2\/notes\/[^/]+\/tags$/, FAIL], [/^\/api\/j2\/notes\/[^/]+\/favorite$/, FAIL]])
+    await renderEditor()
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Favorites' }))
+    await waitFor(() => expect(alertTexts().join('|')).toContain(FAV_SENTENCE))
+    const box = screen.getByLabelText('Add a tag to this note')
+    fireEvent.change(box, { target: { value: 'prooftag' } })
+    fireEvent.submit(box.closest('form'))
+    await waitFor(() => expect(alertTexts().join('|')).toContain(TAG_SENTENCE))
+    expect(alertTexts().join('|')).toContain(FAV_SENTENCE)
+    // dismissing one leaves the other
+    const tagAlert = screen.getAllByRole('alert').find((a) => a.textContent.includes(TAG_SENTENCE))
+    fireEvent.click(within(tagAlert).getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() => expect(alertTexts().join('|')).not.toContain(TAG_SENTENCE))
+    expect(alertTexts().join('|')).toContain(FAV_SENTENCE)
+  }, 15_000)
+})
+
