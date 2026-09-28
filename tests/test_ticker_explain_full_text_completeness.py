@@ -55,6 +55,8 @@ be satisfied by a gate that flags everything, including things it never saw.
 """
 from __future__ import annotations
 
+import importlib
+
 import pytest
 
 from api.services import ticker_explain as te
@@ -153,6 +155,14 @@ FIELD_GOVERNANCE: dict[str, str] = {
     # merely be plausible. Proved by
     # `test_evidence_id_is_governed_by_the_valid_ids_check`.
     "key_facts[].evidence_id": "membership in this turn's evidence ids",
+
+    # NOT prose, and emitted only by the COMPARISON door's schema (TERM-034
+    # widened this rail from EXPLAIN_SCHEMA to every I1 door's schema): a symbol,
+    # governed by `comparison_ai_adapter._attribution_flags` — the cited item's
+    # own `sym` must match. ⛔ Proved where it already lives, not re-proved here
+    # (one guard, one proof): tests/test_comparison_ai_adapter.py::
+    # TestAttributionFlags::test_a_key_fact_citing_the_wrong_securitys_evidence_is_flagged.
+    "key_facts[].sym": "attribution to the cited item's security (_attribution_flags)",
 }
 
 
@@ -175,7 +185,25 @@ def _answer_with(path: str, text: str) -> dict:
     return data
 
 
-DERIVED_FIELDS = _derive_model_authored_fields(te.EXPLAIN_SCHEMA)
+def _door_schemas() -> dict:
+    """{'<module>.<SCHEMA>': schema} for EVERY I1 model door (TERM-034).
+
+    ⭐ I1-SPEC Part 2's rule is for *"any new AI-touching surface"*, not for
+    ticker_explain alone. The door set and each door's schema binding are
+    DERIVED by AST in the tool-registry rail (the owner of "what is an I1 door"),
+    so the compare door's COMPARISON_SCHEMA — which reuses `_grounding_flags` and
+    therefore `_full_answer_text` — is governed here without being typed here.
+    """
+    from tests.test_i1_tool_registry_contract import door_output_schemas
+    out = {}
+    for dotted, name in sorted(door_output_schemas().items()):
+        out[f"{dotted.rsplit('.', 1)[-1]}.{name}"] = getattr(importlib.import_module(dotted), name)
+    return out
+
+
+DOOR_SCHEMAS = _door_schemas()
+DERIVED_BY_DOOR = {door: _derive_model_authored_fields(s) for door, s in DOOR_SCHEMAS.items()}
+DERIVED_FIELDS = list(dict.fromkeys(f for fields in DERIVED_BY_DOOR.values() for f in fields))
 PROSE_FIELDS = [f for f in DERIVED_FIELDS if FIELD_GOVERNANCE.get(f) == PROSE]
 
 
@@ -318,3 +346,84 @@ class TestTheTwoNonProseFieldsAreGovernedTheWayTheLedgerSays:
         # test and not a blanket rejection.
         data["key_facts"] = [{"statement": "Something true.", "evidence_id": "E1"}]
         assert te._grounding_flags(data, _EVIDENCE) == []
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# TERM-034 — I1-SPEC PART 2 (the grounding rule): the clauses nothing above
+# enforced. Spec: docs/terminal-research/08-ai/
+# i1-tool-contract-grounding-refusal-spec.md, Part 2. Checks 1-3 and the union
+# are railed above; retry-then-refuse is railed end-to-end in
+# tests/test_ticker_explain.py::TestExplainRecentActivity — not re-railed here.
+# ═════════════════════════════════════════════════════════════════════════
+
+class TestTheUnionRuleCoversEveryI1Door:
+    def test_every_I1_doors_schema_is_derived_and_counted(self):
+        """⛔ The widening is only real if the compare door's schema is actually
+        in the derivation — a door set that silently resolved to ticker_explain
+        alone would leave every assertion above green over one schema."""
+        print(f"[i1-rail:grounding] denominator: {len(DOOR_SCHEMAS)} door schemas "
+              f"{sorted(DOOR_SCHEMAS)} -> {len(DERIVED_FIELDS)} model-authored fields "
+              f"({len(PROSE_FIELDS)} prose), per door "
+              f"{ {d: len(f) for d, f in DERIVED_BY_DOOR.items()} }")
+        assert "ticker_explain.EXPLAIN_SCHEMA" in DOOR_SCHEMAS
+        assert "comparison_ai_adapter.COMPARISON_SCHEMA" in DOOR_SCHEMAS, (
+            f"the compare door's schema is missing from the derivation: {sorted(DOOR_SCHEMAS)}")
+        # The compare door really contributes a field the explain door does not
+        # — proof its schema was walked, not merely named.
+        assert "key_facts[].sym" in DERIVED_BY_DOOR["comparison_ai_adapter.COMPARISON_SCHEMA"]
+        assert "key_facts[].sym" not in DERIVED_BY_DOOR["ticker_explain.EXPLAIN_SCHEMA"]
+
+
+# The two states the spec exempts from the conflict check — the only literal
+# here, and it is the spec's own sentence: *"skipped only for refuse/
+# ask_for_clarification states, where there's no verdict to be one-sided about."*
+_CONFLICT_EXEMPT = frozenset({"refuse", "ask_for_clarification"})
+
+_CONFLICTING = [
+    {"id": "E1", "type": "analyst_action", "date": "x", "source": "Morgan Stanley",
+     "text": "Morgan Stanley upgrade: Hold → Buy.", "url": None},
+    {"id": "E2", "type": "analyst_action", "date": "x", "source": "Barclays",
+     "text": "Barclays downgrade: Buy → Hold.", "url": None},
+]
+
+
+class TestTheConflictCheckIsSkippedONLYForTheTwoVerdictlessStates:
+    def test_the_fixture_really_conflicts(self):
+        # Non-vacuity: without a real conflicting pair every state would pass.
+        assert te._conflicting_evidence_pairs(_CONFLICTING)
+
+    @pytest.mark.parametrize("state", list(te._RESPONSE_STATES))
+    def test_a_one_sided_answer_is_flagged_in_every_state_that_carries_a_verdict(self, state):
+        """Derived from `_RESPONSE_STATES`, so a sixth state is enforced unless it
+        is deliberately exempted. `test_ticker_explain.py` pins `answer` and
+        `ask_for_clarification`; `answer_with_caveat`, `partially_answer` and
+        `refuse` were never pinned, and `partially_answer` is exactly where a
+        one-sided pick would hide."""
+        data = _blank_answer()
+        data["response_state"] = state
+        data["key_facts"] = [{"statement": "Morgan Stanley upgrade: Hold → Buy.",
+                              "evidence_id": "E1"}]
+        flagged = any("conflicting evidence not both surfaced" in f
+                      for f in te._grounding_flags(data, _CONFLICTING))
+        assert flagged is (state not in _CONFLICT_EXEMPT), (
+            f"state {state!r}: conflict check {'fired' if flagged else 'was skipped'}; "
+            f"the spec skips it ONLY for {sorted(_CONFLICT_EXEMPT)}")
+
+    def test_the_exempt_set_names_real_states(self):
+        assert _CONFLICT_EXEMPT <= set(te._RESPONSE_STATES)
+        print(f"[i1-rail:grounding] denominator: conflict check over "
+              f"{len(te._RESPONSE_STATES)} states, {len(_CONFLICT_EXEMPT)} exempt")
+
+
+def test_the_retry_note_names_EXACTLY_what_failed():
+    """I1-SPEC Part 2: *"any flag triggers a retry with `_retry_note` naming
+    exactly what failed."* The end-to-end test only checks the note's preamble;
+    a note that dropped the flags would still read as a rejection and teach the
+    model nothing about which number or verdict to remove."""
+    flags = [f"unverified number: {_SENTINEL_NUMBER}", "unverified evidence_id: 'E999'",
+             "decisive verdict language: 'you should buy'"]
+    note = te._retry_note(flags)
+    missing = [f for f in flags if f not in note]
+    assert not missing, f"the retry note does not name: {missing}"
+    # Control: the check can see a flag that is NOT in the note.
+    assert "unverified number: 1.5" not in note
