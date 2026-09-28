@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import * as barsStreamManager from '../lib/barsStreamManager'
+import { declareNeed, DELIVERY } from '../lib/panelContract'
+
+// TERM-024: this hook DECLARES its need and gets a handle onto the shared bars
+// pool — it never owns the transport. A developing bar is last-value-wins
+// (`bar_broadcaster` drops the oldest), and the contract checks that.
+const BARS = declareNeed({ kind: 'bars', delivery: DELIVERY.LAST_VALUE_WINS })
 
 /**
  * Real-time bar streaming via the SHARED /api/stream/bars connection pool.
@@ -36,11 +41,11 @@ export default function useRealtimeBars({ symbol, tf, onBar, onReconnect }) {
     // Bail when nothing changed so the pool's every-10s re-notify (which drives the
     // delivering recency gate) doesn't re-render a chart whose liveness is unchanged.
     const refresh = () => setStatus((prev) => {
-      const next = barsStreamManager.getStatus(symbol, tf)
+      const next = BARS.read(symbol, tf)
       return (prev.connected === next.connected && prev.healthy === next.healthy && prev.delivering === next.delivering)
         ? prev : next
     })
-    const unsub = barsStreamManager.subscribe(symbol, tf, {
+    const unsub = BARS.subscribe(symbol, tf, {
       onBar: (data) => {
         if (data?.bar?.t != null) lastBarTRef.current = data.bar.t
         if (onBarRef.current) onBarRef.current(data)
