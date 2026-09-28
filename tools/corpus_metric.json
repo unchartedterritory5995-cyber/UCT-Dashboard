@@ -518,7 +518,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin",
         "pine:function"
       ],
       "screenerGuards": [
@@ -1746,7 +1745,6 @@
       "screener": false,
       "hostGuards": [
         "pine:declaration-strategy",
-        "pine:builtin",
         "pine:strategy-call"
       ],
       "screenerGuards": [
@@ -2042,8 +2040,7 @@
         "pine:state",
         "pine:reassign",
         "pine:request",
-        "pine:window",
-        "pine:builtin"
+        "pine:window"
       ],
       "screenerGuards": [
         "pine:text-value",

@@ -210,6 +210,35 @@
       "tree": {"type": "textop", "name": "contains", "args": [
         {"type": "symtext", "name": "ticker"}, {"type": "str", "value": "/"}]},
       "notFoldableOn": "syminfo.ticker"
+    },
+    {
+      "id": "mintick_on_a_WITNESSED_exchange_folds_to_the_VENDOR_tick",
+      "why": "⭐⭐ 2026-09-28. `syminfo.mintick` is the one NUMERIC field a symbol settles. The door emits `tonumber(symtext mintick)`; the binding supplies the vendor's tick as decimal TEXT (`minmov / pricescale` from `symbolScope.json::tick_size`, witnessed AMEX:SPY 1 / 100) and the fold turns it back into a number. 0.01 here is the value TradingView plots as M01 on every bar of tests/fixtures/vendor/vw-mintick-spy-1d-2026-09-27.json.",
+      "tree": {"type": "textop", "name": "tonumber", "args": [{"type": "symtext", "name": "mintick"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca"},
+      "foldScalarTo": 0.01,
+      "maxLookback": 0
+    },
+    {
+      "id": "mintick_on_an_UNWITNESSED_exchange_STOPS_and_names_itself",
+      "why": "⛔ NYSE American shares SPY's Pine prefix (`AMEX`) and has NO tick-size capture of its own, so SPY's reading is not evidence for it. The fold must stop on `syminfo.mintick` with the measurement reason, never fall back to a guessed 0.01.",
+      "tree": {"type": "textop", "name": "tonumber", "args": [{"type": "symtext", "name": "mintick"}]},
+      "symbol": {"ticker": "IMO", "exchange": "NYSE American"},
+      "notFoldableOn": "syminfo.mintick",
+      "notFoldableSays": ["tick_size"]
+    },
+    {
+      "id": "mintick_on_OTC_STOPS_because_OTC_is_measured_NOT_uniform",
+      "why": "⛔ OTC:AITX is 0.0001 (pricescale 10000) while every listed name captured is 0.01 — an OTC tick is a property of the listing, so OTC has no entry and refuses. A lane that defaulted OTC to 0.01 would be wrong by 100x on exactly this symbol.",
+      "tree": {"type": "textop", "name": "tonumber", "args": [{"type": "symtext", "name": "mintick"}]},
+      "symbol": {"ticker": "AITX", "exchange": "OTC"},
+      "notFoldableOn": "syminfo.mintick"
+    },
+    {
+      "id": "tonumber_REFUSES_text_that_is_not_a_plain_decimal",
+      "why": "⛔ JavaScript's `Number` reads `0x10` as 16 and `''` as 0; Python's `float` reads `inf` and `1_000`. `tonumber` accepts ONE spelling in both lanes and stops the fold by name on anything else, so the two lanes cannot disagree on a malformed tick.",
+      "tree": {"type": "textop", "name": "tonumber", "args": [{"type": "str", "value": "0x10"}]},
+      "notFoldableOn": "\"0x10\" is not a number"
     }
   ]
 }

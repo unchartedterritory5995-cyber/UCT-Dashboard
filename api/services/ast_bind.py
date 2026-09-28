@@ -53,7 +53,9 @@ left exactly as it was.
 
 from __future__ import annotations
 
+import json
 import math
+import re
 from typing import Any, Mapping
 
 from api.services.ast_interpret import TABLE, _is_number, _refuse
@@ -135,7 +137,51 @@ _TEXT_PREDICATE = {
     "length": lambda a: float(len(str(a))),
     "eq": lambda a, b: 1.0 if str(a) == str(b) else 0.0,
     "ne": lambda a, b: 0.0 if str(a) == str(b) else 1.0,
+    # ⭐ 2026-09-28 — `syminfo.mintick` IS A NUMBER A SYMBOL SETTLES, and this is
+    # the one consumer that turns bind-time text into it. The door emits
+    # ``textop tonumber(symtext mintick)``; the symbol half supplies the vendor's
+    # decimal (``tick_text``). ⛔ A PLAIN DECIMAL OR NOTHING: text that is not
+    # one stops the fold BY NAME rather than becoming NaN or 0.
+    "tonumber": lambda a: _decimal_or_refuse(a),
 }
+
+#: ``[+-]digits[.digits][e±digits]`` -- the ONE spelling ``tonumber`` accepts.
+#: ⛔ Mirrored character for character by ``bind.js::DECIMAL_TEXT``: Python's
+#: ``float`` also accepts ``inf``, ``nan``, ``1_000`` and surrounding blanks, and
+#: JavaScript's ``Number`` accepts ``''`` as 0 and ``0x10`` -- neither may leak.
+_DECIMAL_TEXT = re.compile(r"^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$")
+
+
+def _decimal_or_refuse(text) -> float:
+    s = str(text)
+    if not _DECIMAL_TEXT.match(s):
+        # json.dumps, not repr: the JS lane quotes with JSON.stringify and the
+        # two lanes must say the SAME sentence (bind_fold_parity.json).
+        raise NotFoldable("text " + json.dumps(s) + " is not a number")
+    return float(s)
+
+
+def tick_text(minmov, pricescale):
+    """The vendor's tick size as DECIMAL TEXT -- ``minmov / pricescale`` -- or None.
+
+    ⭐ INTEGER ARITHMETIC, NOT A FLOAT PRINTED. ``pricescale`` is a power of ten
+    in every capture (100, 10000, 100000), so the quotient is ``minmov`` with the
+    point moved; printing a float instead would spell ``1e-05`` here and
+    ``0.00001`` in JavaScript, and the two lanes would disagree on the text.
+    ⛔ Anything else -- a non-integer, a non-positive value, a scale that is not a
+    power of ten -- answers None, and a symbol on it is not served.
+    """
+    if isinstance(minmov, bool) or isinstance(pricescale, bool):
+        return None
+    if not isinstance(minmov, int) or not isinstance(pricescale, int):
+        return None
+    if minmov < 1 or pricescale < 1:
+        return None
+    digits = len(str(pricescale)) - 1
+    if pricescale != 10 ** digits or digits > 15:
+        return None
+    s = str(minmov).rjust(digits + 1, "0")
+    return s[:len(s) - digits] + "." + s[len(s) - digits:] if digits else s
 
 #: The symbol-scoped vocabulary, READ OFF THE SAME DATA FILE THE JS LANE READS.
 #:
@@ -163,6 +209,17 @@ SYMBOL_EXCHANGE_CONFIRMED = {
 _PENDING = {k: v for k, v in (_SYMBOL_SCOPE.get("pending_measurement") or {}).items()
             if not k.startswith("_")}
 
+#: ``<our store exchange string>`` -> the vendor's tick size as decimal text,
+#: ONLY for an exchange whose ``symbolScope.json::tick_size`` entry names
+#: witnesses. Mirrors ``bind.js::SYMBOL_TICK_SIZE``.
+SYMBOL_TICK_SIZE = {
+    k: tick_text(v.get("minmov"), v.get("pricescale"))
+    for k, v in (_SYMBOL_SCOPE.get("tick_size") or {}).items()
+    if not k.startswith("_") and isinstance(v, Mapping)
+    and isinstance(v.get("witnesses"), list) and len(v.get("witnesses")) > 0
+    and tick_text(v.get("minmov"), v.get("pricescale")) is not None
+}
+
 
 def symbol_constants(symbol=None) -> dict:
     """What ONE symbol makes constant: ``syminfo.*``, and nothing else.
@@ -182,10 +239,10 @@ def symbol_constants(symbol=None) -> dict:
     so it is exactly as measured as its exchange half and is gated on the same
     witness.
     """
-    return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol)
+    return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE)
 
 
-def symbol_constants_with(confirmed, symbol=None) -> dict:
+def symbol_constants_with(confirmed, symbol=None, ticks=None) -> dict:
     """``symbol_constants`` with the witness map handed in.
 
     ⭐⭐ THE PRODUCTION CALL IS THE ONE-LINE SPECIALISATION ABOVE. ``confirmed``
@@ -208,6 +265,13 @@ def symbol_constants_with(confirmed, symbol=None) -> dict:
         pine = confirmed[stored]
         out["syminfo.prefix"] = pine
         out["syminfo.tickerid"] = pine + ":" + ticker
+    # ⭐ 2026-09-28 — THE TICK SIZE, ON ITS OWN WITNESS TABLE. Same key (our
+    # store's exchange), different evidence: an exchange whose prefix was
+    # measured has not thereby had its tick size measured, so ``ticks`` is read
+    # independently of ``confirmed`` and an exchange absent from it leaves
+    # ``syminfo.mintick`` unsettled -- refused by name, never defaulted.
+    if stored and ticks and stored in ticks:
+        out["syminfo.mintick"] = ticks[stored]
     return out
 
 

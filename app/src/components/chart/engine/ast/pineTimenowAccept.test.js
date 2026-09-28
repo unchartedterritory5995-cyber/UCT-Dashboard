@@ -182,7 +182,11 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
 
   it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker (measured, not overclaimed)', () => {
     const cases = [
-      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:builtin', /syminfo\.mintick/],
+      // ⚰️ WAS pine:builtin /syminfo.mintick/. 2026-09-28: `syminfo.mintick` is
+      // served on the chart pane for a witnessed exchange (symbolScope.json::
+      // tick_size), so the host lane walks past line 73 to the next wall — the
+      // `time(<timeframe>)` anchor at line 84. Still refuses, still not on `timenow`.
+      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /time\(<timeframe>\)/],
       // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since
       // 2026-09-23: the merge reconciles `time` to Pine's milliseconds for any
       // script that declares a version, so this one no longer meets a units

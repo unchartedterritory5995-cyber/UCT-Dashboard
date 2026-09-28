@@ -1542,6 +1542,43 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
  *  sentence is *"the engine grammar does not hold this name"*, and one line above
  *  `syminfo.ticker` resolves. A refusal that is false about the name next to it
  *  teaches a reader to distrust every refusal in the file. */
+/** ⭐⭐ 2026-09-28 — THE `syminfo.*` FIELDS THAT ARE A NUMBER A SYMBOL SETTLES.
+ *
+ *  `syminfo.mintick` is per-SYMBOL metadata, like `ticker`, and it is a NUMBER,
+ *  unlike `ticker`. It reaches evaluation through the SAME channel the text
+ *  fields do — `bind.js::bindingConstants({symbol})` — rather than a second one:
+ *  the door emits `tonumber(symtext mintick)`, the binding supplies the vendor's
+ *  tick as decimal text from `symbolScope.json::tick_size` (keyed by our store's
+ *  exchange, each entry backed by TradingView captures), and `foldBound` turns
+ *  the whole node into a `num` wherever it sits. No new node type, no new value
+ *  kind: `symtext` still appears only under a `textop`.
+ *
+ *  ⛔ A binding whose exchange has no `tick_size` entry leaves the node unfolded
+ *  and the evaluator REFUSES naming `syminfo.mintick` — never a guessed 0.01,
+ *  which would be wrong by 100x on an OTC sub-cent name and by 25x on ES.
+ *
+ *  ⛔ AND THE SCREENER LANE REFUSES AT THE DOOR (`symbolScope.json::
+ *  unserved_on_a_screen`): a saved screen is evaluated on the server across many
+ *  symbols whose rows carry no exchange, so nothing there could settle it. */
+export const BUILTIN_SYMBOL_NUMERIC = Object.freeze({
+  'syminfo.mintick': 'mintick',
+})
+
+/** Why a numeric symbol field refuses on a SCREEN — read off the manifest. */
+export const BUILTIN_SYMBOL_SCREEN_UNSERVED = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.unserved_on_a_screen) || {})
+    .filter(([k]) => !k.startsWith('_'))
+    .map(([k, why]) => [`syminfo.${k}`, String(why)]),
+))
+
+/** The screener-lane refusal sentence for a numeric symbol field — ONE builder,
+ *  shared by the plain refusal and the `math.max(…, syminfo.mintick)` offer, so
+ *  the two can never say different things about the same name. */
+export function screenUnservedSentence(name) {
+  return `\`${name}\` is served on the chart pane and not on a screen: `
+    + `${BUILTIN_SYMBOL_SCREEN_UNSERVED[name] || 'a screen evaluates many symbols and settles no per-symbol value'}`
+}
+
 export const BUILTIN_SYMBOL_UNSERVED = Object.freeze(Object.fromEntries(
   Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.unserved) || {})
     .filter(([k]) => !k.startsWith('_'))
@@ -5184,6 +5221,13 @@ export class Resolver {
      *  `BUILTIN_CONSTANT_TREE` lookup. Everything else about the translation is
      *  identical, which is the point: two contracts, one reading. */
     this.strict = opts.strict === true
+    /** ⭐ THE SCREENER LANE — `translatePine` without `strict`, whose definition
+     *  is SAVED and evaluated on the server across many symbols. Set ONLY by
+     *  `translatePine` (derived from `isHostLane`, never a second selector); the
+     *  runtime lane builds its resolver without it because it binds a symbol.
+     *  The one thing it changes: a per-symbol NUMBER (`syminfo.mintick`) refuses
+     *  at the door here, since no row of a screen carries an exchange. */
+    this.screen = opts.screen === true
     /** ⭐⭐ WHICH LANGUAGE A BARE NAME IS IN.
      *
      *  Pine v1–v4 spelled its technical-analysis builtins without a namespace;
@@ -6189,6 +6233,14 @@ export class Resolver {
       throw new PineRefusal('pine:builtin',
         `\`${node.name}\` is a Pine built-in this engine holds no VALUE for, though it `
         + `holds its sibling \`syminfo.ticker\`: ${BUILTIN_SYMBOL_UNSERVED[node.name]}`,
+        locate(node.tok))
+    }
+    // ⛔ A NUMERIC symbol field is not text. `str.length(syminfo.mintick)` does
+    // not compile in Pine either; name the FIELD, not the `str.*` call around it.
+    if (node.type === 'name' && own(BUILTIN_SYMBOL_NUMERIC, node.name)) {
+      throw new PineRefusal('pine:text-value',
+        `\`${node.name}\` is a NUMBER (the symbol's tick size), not text — a text `
+        + 'question cannot be asked of it',
         locate(node.tok))
     }
     if (node.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, node.name)) {
@@ -7257,6 +7309,16 @@ export class Resolver {
       if (own(BUILTIN_SYMBOL_SCOPED, name)) {
         return { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[name] }
       }
+      // ⭐⭐ (2026-09-28) A NUMBER A SYMBOL SETTLES — `syminfo.mintick`. See
+      // `BUILTIN_SYMBOL_NUMERIC`: same bind-time channel as `ticker`, one
+      // `textop` over one `symtext`, folded to a `num` by the binding.
+      if (own(BUILTIN_SYMBOL_NUMERIC, name)) {
+        if (this.screen) {
+          throw new PineRefusal('pine:builtin', screenUnservedSentence(name), locate(node.tok))
+        }
+        return { type: 'textop', name: 'tonumber',
+          args: [{ type: 'symtext', name: BUILTIN_SYMBOL_NUMERIC[name] }] }
+      }
       // ⛔ THE RULED FIELDS, EACH WITH ITS OWN SENTENCE. Checked before the
       // namespace shrug for the same reason `BUILTIN_RULED` is: a name we have
       // actually thought about gets the thinking. And the prefix is NOT
@@ -7409,6 +7471,10 @@ export class Resolver {
    * expression it repairs.
    */
   mintickGuardOffer(node) {
+    // ⭐ (2026-09-28) SCREENER LANE ONLY. On the chart pane `syminfo.mintick` now
+    // resolves to the symbol's real tick, so the idiom means exactly what Pine
+    // means and there is nothing to offer; only the screen still refuses it.
+    if (!this.screen) return null
     if (node.name !== 'math.max' && node.name !== 'max') return null
     const args = node.args || []
     if (args.length !== 2 || args.some((a) => !a || a.name)) return null
@@ -7427,7 +7493,7 @@ export class Resolver {
     const text = this.source.slice(keepSpan[0], keepSpan[1]).trim()
     if (!text) return null
     return new PineRefusal('pine:builtin',
-      `${REFUSALS['pine:builtin']} — \`syminfo.mintick\`. ${BUILTIN_SYMBOL_UNSERVED['syminfo.mintick']}`,
+      screenUnservedSentence('syminfo.mintick'),
       locate(node.tok), `(${text})`, callSpan)
   }
 
@@ -14583,7 +14649,7 @@ function translatePineResult(source, opts = {}) {
   const makeResolver = () => {
     const r = new Resolver(env, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
-        strict: opts.strict === true, pineVersion: version,
+        strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
@@ -14939,7 +15005,7 @@ function translatePineResult(source, opts = {}) {
       const probe = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
           paramMint: null,
-          strict: opts.strict === true, pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
@@ -15103,7 +15169,7 @@ function translatePineResult(source, opts = {}) {
       // call site outside the text reader passes today.
       const r = new Resolver(scope || env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
-          strict: opts.strict === true, pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath })
       // ⭐⭐ THE OBJECT PASS TAKES THE SAME TWO KNOB SETTINGS THE OUTPUT LOOP

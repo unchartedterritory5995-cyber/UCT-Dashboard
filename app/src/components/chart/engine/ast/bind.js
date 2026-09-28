@@ -106,7 +106,55 @@ export const TEXT_PREDICATE_FN = Object.freeze({
   length: (a) => String(a).length,
   eq: (a, b) => (String(a) === String(b) ? 1 : 0),
   ne: (a, b) => (String(a) === String(b) ? 0 : 1),
+  // ⭐ 2026-09-28 — `syminfo.mintick` IS A NUMBER A SYMBOL SETTLES, and this is
+  // the one consumer that turns bind-time text into it. The door emits
+  // `textop tonumber(symtext mintick)`; the symbol half supplies the vendor's
+  // decimal (`tickText`). ⛔ A PLAIN DECIMAL OR NOTHING: text that is not one
+  // stops the fold BY NAME rather than becoming NaN or 0.
+  tonumber: (a) => decimalOrRefuse(a),
 })
+
+/** `[+-]digits[.digits][e±digits]` — the ONE spelling `tonumber` accepts.
+ *  ⛔ Mirrored character for character by `ast_bind.py::_DECIMAL_TEXT`:
+ *  JavaScript's `Number` reads `''` as 0 and `0x10` as 16, and Python's `float`
+ *  reads `inf`, `nan` and `1_000` — none of which may leak into a fold. */
+const DECIMAL_TEXT = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/
+
+function decimalOrRefuse(text) {
+  const s = String(text)
+  // eslint-disable-next-line no-use-before-define
+  if (!DECIMAL_TEXT.test(s)) throw new NotFoldable(`text ${JSON.stringify(s)} is not a number`)
+  return Number(s)
+}
+
+/** The vendor's tick size as DECIMAL TEXT — `minmov / pricescale` — or null.
+ *
+ *  ⭐ INTEGER ARITHMETIC, NOT A FLOAT PRINTED. `pricescale` is a power of ten in
+ *  every capture (100, 10000, 100000), so the quotient is `minmov` with the point
+ *  moved; printing a float instead would spell `0.00001` here and `1e-05` in
+ *  Python, and the two lanes would disagree on the text. ⛔ Anything else — a
+ *  non-integer, a non-positive value, a scale that is not a power of ten —
+ *  answers null, and a symbol on it is not served. */
+export function tickText(minmov, pricescale) {
+  if (!Number.isSafeInteger(minmov) || !Number.isSafeInteger(pricescale)) return null
+  if (minmov < 1 || pricescale < 1) return null
+  const digits = String(pricescale).length - 1
+  if (digits > 15 || pricescale !== 10 ** digits) return null
+  const s = String(minmov).padStart(digits + 1, '0')
+  return digits ? `${s.slice(0, s.length - digits)}.${s.slice(s.length - digits)}` : s
+}
+
+/** `<our store's exchange string>` → the vendor's tick size as decimal text,
+ *  ONLY for an exchange whose `symbolScope.json::tick_size` entry names
+ *  witnesses. Mirrors `ast_bind.py::SYMBOL_TICK_SIZE`; the witnesses themselves
+ *  are re-read against the captures by `syminfoMintick.test.js`. */
+export const SYMBOL_TICK_SIZE = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.tick_size) || {})
+    .filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object'
+      && Array.isArray(v.witnesses) && v.witnesses.length > 0
+      && tickText(v.minmov, v.pricescale) !== null)
+    .map(([k, v]) => [k, tickText(v.minmov, v.pricescale)]),
+))
 
 /** The exchange spellings actually WITNESSED on a TradingView chart:
  *  `<our store's string>` → `<Pine's string>`.
@@ -143,7 +191,7 @@ const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement)
  *
  *  ⚠️ `tickerid` IS ASSEMBLED, NOT STORED: Pine's is `EXCHANGE:SYMBOL`, so it is
  *  exactly as measured as the exchange half and is gated on the same witness. */
-export function symbolConstantsWith(confirmed, symbol) {
+export function symbolConstantsWith(confirmed, symbol, ticks = null) {
   const out = {}
   if (!symbol || typeof symbol !== 'object') return out
   const ticker = typeof symbol.ticker === 'string' ? symbol.ticker.trim() : ''
@@ -154,6 +202,14 @@ export function symbolConstantsWith(confirmed, symbol) {
     const pine = confirmed[stored]
     out['syminfo.prefix'] = pine
     out['syminfo.tickerid'] = `${pine}:${ticker}`
+  }
+  // ⭐ 2026-09-28 — THE TICK SIZE, ON ITS OWN WITNESS TABLE. Same key (our
+  // store's exchange), different evidence: an exchange whose prefix was measured
+  // has not thereby had its tick size measured, so `ticks` is read independently
+  // of `confirmed`, and an exchange absent from it leaves `syminfo.mintick`
+  // unsettled — refused by name, never defaulted.
+  if (stored && ticks && Object.prototype.hasOwnProperty.call(ticks, stored)) {
+    out['syminfo.mintick'] = ticks[stored]
   }
   return out
 }
@@ -166,7 +222,7 @@ export function symbolConstantsWith(confirmed, symbol) {
  *  fields refuse" is a statement about the DATA rather than about a code path
  *  nobody has ever seen run (`lesson_built_tested_green_and_unreachable`). */
 export const symbolConstants = (symbol) =>
-  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol)
+  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE)
 
 /** Thrown carrying the OPERAND that stopped the fold, never a generic message. */
 export class NotFoldable extends Error {

@@ -31,7 +31,10 @@ const RETIRED = [
   ['root', 1, 1],
 ]
 /** Already rostered before (h) — the control group. */
-const ALREADY = ['type', 'currency', 'session', 'mintick', 'pointvalue', 'description']
+// ⚰️ `mintick` WAS HERE until 2026-09-28: it is now SERVED per witnessed exchange
+// (symbolScope.json::tick_size) and refuses, when it refuses, from the FOLD with
+// `pending_measurement.mintick` — not from this roster. Rails: syminfoMintick.test.js.
+const ALREADY = ['type', 'currency', 'session', 'pointvalue', 'description']
 
 const useOf = (field) => `indicator("x")\nplot(close)\nplot(str.length(syminfo.${field}))\n`
 const refusalsOf = (src) => (translatePine(src, { strict: true }).refusals || [])
@@ -93,8 +96,11 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.ticker')
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.prefix')
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.tickerid')
+    // ⭐ `mintick` joined `pending_measurement` on 2026-09-28: served where a
+    // capture backs the exchange, refused with THIS roster's sentence where not.
     expect(Object.keys(SYMBOL_SCOPE.pending_measurement).filter((k) => !k.startsWith('_')).sort())
-      .toEqual(['prefix', 'tickerid'])
+      .toEqual(['mintick', 'prefix', 'tickerid'])
+    expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.mintick')
   })
 
   it('⛔⛔ CONTROL — no 42nd REFUSALS code and no 12th node type was implied', () => {
