@@ -290,6 +290,153 @@ def test_the_inertness_rail_can_see_a_real_reference():
         "proves nothing")
 
 
+#: ⛔⛔ D2 CP3 (TERM-020) — THE RAIL, NARROWED AGAIN BY NAME, NOT DELETED.
+#:
+#: The rail above counts modules that OPEN THE FILE, and that answer is still
+#: one. But "the readers are countable and named" was never true of it: a module
+#: that imports `canonical.address_book` and asks `metric()`/`row_position()`
+#: reads the book exactly as much as one that opens it, and the file needle
+#: cannot see it. Measured at 73040c87f: FOUR such readers, none named anywhere.
+#: CP3's reader — the resolver — is the fifth, and would have been invisible too.
+#:
+#: So a reader is now a module that opens the file OR imports the accessor, and
+#: every one is named here with the line that admitted it. The next one fails
+#: BY NAME (`test_a_third_reader_fails_the_narrowed_rail_by_name` proves the
+#: detector names a planted module, so this is not a list nothing checks).
+_NAMED_BOOK_READERS = {
+    "api/services/canonical/address_book.py":
+        "GATE-D2 line 2 (CP2) — the accessor; the only module that opens the file",
+    "api/services/canonical/resolver.py":
+        "TERM-020 (D2 CP3) — resolve(address) -> Resolution, SPEC-D2 §3",
+    "api/services/ticker_returns.py":
+        "GATE-D2 line 2 (CP2) — the ONE migrated reader, dark dual-compute",
+    "api/services/canonical/indicator_axis.py":
+        "GATE-D2 §4-CP4 — the indicator axis (pre-existing at 73040c87f)",
+    "api/services/alert_taxonomy/indicator_condition.py":
+        "GATE-S7-INDICATOR-CONDITION CP1-2 (pre-existing at 73040c87f)",
+    "api/services/alert_taxonomy/indicator_condition_projection.py":
+        "GATE-S7-INDICATOR-CONDITION line 3 (pre-existing at 73040c87f)",
+}
+
+#: ⛔ The modules allowed to CALL the resolver. EMPTY: CP3 ships the resolver
+#: with no consumer, so no member-visible answer can change. A consumer is its
+#: own approval line and fails here by name until it has one.
+_ALLOWED_RESOLVER_CALLERS: dict = {}
+
+
+def _book_readers(root: pathlib.Path) -> tuple[set, int]:
+    """(readers, modules scanned) under `root`/api — a reader opens the file
+    (CODE, never prose) or imports `api.services.canonical.address_book`."""
+    readers, scanned = set(), 0
+    for p in (root / "api").rglob("*.py"):
+        try:
+            code = _code_only(p)
+            imports = _imported_modules_at(p, root)
+        except SyntaxError:
+            continue
+        scanned += 1
+        if ("canonical_address_book" in code
+                or "api.services.canonical.address_book" in imports):
+            readers.add(str(p.relative_to(root)).replace(chr(92), "/"))
+    return readers, scanned
+
+
+def _imported_modules_at(path: pathlib.Path, root: pathlib.Path) -> set:
+    """Every dotted module a file imports, at any depth (function-level too),
+    with `from pkg import name` reported as `pkg.name` as well as `pkg`.
+    Relative imports are resolved against the file's own package."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    pkg = list(path.relative_to(root).with_suffix("").parts[:-1])
+    out: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            out.update(a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            base = pkg[: len(pkg) - (node.level - 1)] if node.level else []
+            mod = ".".join(base + ([node.module] if node.module else []))
+            out.add(mod)
+            out.update(f"{mod}.{a.name}" for a in node.names)
+    return out
+
+
+def test_every_reader_of_the_book_is_NAMED():
+    """⛔⛔ TERM-020 (c): CP3's reader is named; the next one fails BY NAME."""
+    readers, scanned = _book_readers(_REPO)
+    assert scanned > 100, f"the module walk found almost nothing ({scanned}) — it is broken"
+    unnamed = sorted(readers - set(_NAMED_BOOK_READERS))
+    assert unnamed == [], (
+        "a module reads the canonical address book and is not named in "
+        f"_NAMED_BOOK_READERS — it needs its own approval line: {unnamed}")
+    stale = sorted(set(_NAMED_BOOK_READERS) - readers)
+    assert stale == [], (
+        f"_NAMED_BOOK_READERS names a module that no longer reads the book: {stale} "
+        "— a stale name would let the next real reader slip in beside it")
+
+
+def test_the_reader_detector_sees_an_ACCESSOR_import_not_only_the_file():
+    """⛔ THE CONTROL. The resolver never opens the file — it must be found
+    through its import, or the rail above passes over the one reader CP3 adds."""
+    readers, _ = _book_readers(_REPO)
+    assert "api/services/canonical/resolver.py" in readers
+    assert "canonical_address_book" not in _code_only(
+        _REPO / "api" / "services" / "canonical" / "resolver.py"), (
+        "the resolver opens the file itself — then this control proves nothing")
+
+
+def test_a_third_reader_fails_the_narrowed_rail_by_name(tmp_path):
+    """TERM-020 acceptance (c), on a fixture SEEN RED: a planted module that
+    imports the accessor — in each of the three spellings — is reported by its
+    path, and a module that only DISCUSSES the book in a docstring is not."""
+    svc = tmp_path / "api" / "services"
+    (svc / "canonical").mkdir(parents=True)
+    (svc / "third_reader.py").write_text(
+        "from api.services.canonical import address_book\n", encoding="utf-8")
+    (svc / "fourth_reader.py").write_text(
+        "def f():\n    import api.services.canonical.address_book as ab\n    return ab\n",
+        encoding="utf-8")
+    (svc / "canonical" / "fifth_reader.py").write_text(
+        "from . import address_book\n", encoding="utf-8")
+    (svc / "prose_only.py").write_text(
+        '"""talks about canonical_address_book and address_book at length"""\nX = 1\n',
+        encoding="utf-8")
+    readers, scanned = _book_readers(tmp_path)
+    assert scanned == 4
+    assert readers == {"api/services/third_reader.py", "api/services/fourth_reader.py",
+                       "api/services/canonical/fifth_reader.py"}
+    assert sorted(readers - set(_NAMED_BOOK_READERS)) == sorted(readers)
+
+
+def _resolver_callers(root: pathlib.Path) -> set:
+    out = set()
+    for p in (root / "api").rglob("*.py"):
+        rel = str(p.relative_to(root)).replace(chr(92), "/")
+        if rel == "api/services/canonical/resolver.py":
+            continue
+        try:
+            imports = _imported_modules_at(p, root)
+        except SyntaxError:
+            continue
+        if "api.services.canonical.resolver" in imports:
+            out.add(rel)
+    return out
+
+
+def test_no_product_path_calls_the_resolver_unless_named():
+    """⛔ CP3 IS DARK BY CONSTRUCTION: the resolver has no product caller, so no
+    member-visible answer changed. The first caller fails here by name."""
+    callers = _resolver_callers(_REPO)
+    unnamed = sorted(callers - set(_ALLOWED_RESOLVER_CALLERS))
+    assert unnamed == [], f"a product path resolves addresses without a line: {unnamed}"
+
+
+def test_the_resolver_caller_detector_can_fire(tmp_path):
+    svc = tmp_path / "api" / "services"
+    svc.mkdir(parents=True)
+    (svc / "consumer.py").write_text(
+        "from api.services.canonical.resolver import resolve\n", encoding="utf-8")
+    assert _resolver_callers(tmp_path) == {"api/services/consumer.py"}
+
+
 def test_the_book_is_committed_data_not_a_build_artifact():
     """It lives beside `cap_universe.json` in `api/data/`, and it is checked in.
     ⛔ A generated file that is NOT committed cannot be diffed in review, and a
