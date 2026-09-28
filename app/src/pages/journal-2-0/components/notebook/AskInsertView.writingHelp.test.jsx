@@ -16,8 +16,10 @@ describe('AskInsertView — an Ask insert is untouched by the new attrs', () => 
   it('renders byte-identical HTML whether the new attrs are absent or null', () => {
     const { container: a } = render(<AskInsertView node={{ attrs: ASK }} />)
     const { container: b } = render(<AskInsertView node={{ attrs: { ...ASK, action: null, model: null } }} />)
-    // UIcon numbers its gradient ids per render (uig1, uig2, …) — the only
-    // difference two renders of the SAME markup can have; normalise it away.
+    // UIcon numbers its gradient ids per MOUNTED icon (uig1, uig2, …; since wave 10
+    // lane 10A, once per mount rather than per render) — two separate renders of the
+    // SAME markup mount different icons, so this is the only difference they can
+    // have; normalise it away.
     const norm = (html) => html.replace(/uig\d+/g, 'uigN')
     expect(norm(b.innerHTML)).toBe(norm(a.innerHTML))
   })

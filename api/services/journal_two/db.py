@@ -471,9 +471,21 @@ CREATE VIRTUAL TABLE IF NOT EXISTS j2_notes_fts USING fts5(
 -- a contentless FTS5 table returns NULL for every column, UNINDEXED ones
 -- included, on a MATCH read (verified empirically) -- note_id, the one
 -- thing every search caller actually needs back, would become unreadable.
+-- `note_rowid` (wave 10, lane 10A): the NOTE's rowid beside the FTS rowid, so a
+-- search maps a full-text match straight to a j2_notes rowid -- an integer lookup
+-- in `idx_j2_notes_fts_map_rowid_note` -- instead of FTS rowid -> note_id TEXT ->
+-- j2_notes' TEXT primary key -> rowid. ⚠️ It stores j2_notes' IMPLICIT rowid, the
+-- one value the paragraph above refuses to KEY on, so the hazard it names is
+-- handled, not ignored: every copy path this repo uses keeps rowids (the online
+-- `.backup()` of authdb_backup.py and `VACUUM INTO`; measured, and VACUUM itself,
+-- on SQLite 3.50.4), only a LOGICAL dump/restore renumbers them, and
+-- `_repair_fts_map_note_rowid` re-derives the column from `note_id` at every boot
+-- when any row disagrees with its note. `note_id` stays the key; `note_rowid` is a
+-- derived, self-checked copy. Nullable because an older map gains it by ALTER.
 CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
     note_id    TEXT PRIMARY KEY,
-    fts_rowid  INTEGER NOT NULL
+    fts_rowid  INTEGER NOT NULL,
+    note_rowid INTEGER
 );
 
 -- Triggers, not per-writer calls: j2_notes has 11 production write statements
@@ -481,11 +493,14 @@ CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
 -- how an index goes stale on the one path someone forgets -- and the paths
 -- that would be forgotten are the importer and the sync engine, i.e. exactly
 -- the notes a migrating member most needs to find.
+-- ⛔ These bodies are duplicated in _J2_NOTES_FTS_TRIGGERS_DDL (migration v5 and the
+-- wave-10 upgrade use that copy); tests/test_journal_two_fts_map_note_rowid.py holds
+-- the two identical, so a DB built fresh and a DB upgraded in place run one trigger.
 CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 
 CREATE TRIGGER IF NOT EXISTS j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
@@ -503,8 +518,38 @@ AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
     WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
+END;
+
+-- ── Task index (wave 10, lane 10A) ──────────────────────────────────────────
+-- One row per note that holds a checklist: that note's `note_tasks.extract_tasks`
+-- output, as JSON. The tasks view (`list_tasks`) reads these small rows instead of
+-- json-parsing and walking every task-bearing note's whole body on every open
+-- (~3.8k bodies, ~9 MB at 50k notes: the ~100 ms of Python perf-budgets.md §2
+-- named as the lever).
+-- ⛔⛔ CORRECTNESS NEVER DEPENDS ON A WRITER REMEMBERING IT. The triggers below
+-- are pure SQL and DELETE a note's row whenever its body is written, by any
+-- statement on any connection, so a row is either EXACTLY its note's current
+-- tasks or ABSENT. `list_tasks` computes an absent note from its body, so an
+-- absent row costs time, never a wrong answer. The door writers REFILL the row in
+-- the same transaction (`notes._sync_note_task_digest`, from `_sync_note_sidecars`),
+-- which is what keeps the tasks view fast; a writer that does not (the connector
+-- engine's media rewrite, a migration) only leaves that note to be parsed.
+-- tests/test_journal_two_task_digest.py drives every writer derived from the code.
+CREATE TABLE IF NOT EXISTS j2_note_task_digest (
+    note_id     TEXT PRIMARY KEY,
+    user_id     TEXT NOT NULL,
+    tasks_json  TEXT NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ai AFTER INSERT ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = new.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_au AFTER UPDATE OF body_json ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
+END;
+CREATE TRIGGER IF NOT EXISTS j2_note_task_digest_ad AFTER DELETE ON j2_notes BEGIN
+    DELETE FROM j2_note_task_digest WHERE note_id = old.id;
 END;
 
 -- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
@@ -1913,6 +1958,10 @@ _PHASE_2_ALTERS = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_hub_planned_trades_user_created "
     "ON hub_planned_trades(user_id, created_at DESC)",
+    # Wave 10 (lane 10A): the search's integer hop. A map built before wave 10 has
+    # two columns; `_upgrade_fts_map_note_rowid` (end of ensure_schema) fills the
+    # rows, replaces the triggers and builds the covering index on it.
+    "ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
@@ -1957,12 +2006,13 @@ _PERF_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_tasks"
     " ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC)"
     " WHERE instr(body_json, 'taskItem') > 0",
-    # FTS match -> note id WITHOUT reading the FTS content row. A dense search
-    # term matches ~15k notes at 50k; reading `note_id` (an UNINDEXED column)
-    # back out of each match's content row cost ~40 ms, while the MATCH itself
-    # costs ~6 ms. `j2_notes_fts_map` already maps each note to its FTS rowid
-    # (the delete path's O(1) lookup); this indexes the other direction.
-    "CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid ON j2_notes_fts_map(fts_rowid)",
+    # FTS match -> note WITHOUT reading the FTS content row. A dense search term
+    # matches ~15k notes at 50k; reading `note_id` (an UNINDEXED column) back out
+    # of each match's content row cost ~40 ms, while the MATCH itself costs ~6 ms.
+    # ⚰️ Wave 7 indexed `(fts_rowid)` here as `idx_j2_notes_fts_map_rowid`. Wave 10
+    # replaced it with `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`,
+    # a NEW NAME created (and the old one dropped) by `_upgrade_fts_map_note_rowid`
+    # after the column exists -- see there for why the name had to change.
     # The sidebar's expanded-folder rows (notes_for_folders): one folder's live notes
     # by title, LIMIT 200. Without an index in title order SQLite read every note of
     # the folder and sorted them all to keep 200 -- and once idx_j2_notes_live_cover
@@ -1971,6 +2021,27 @@ _PERF_INDEXES = [
     # the LIMIT stops the walk at 200.
     "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_folder_title"
     " ON j2_notes(user_id, deleted_at, archived_at, folder_id, title COLLATE NOCASE)",
+    # Wave 10 (lane 10A): the ticker surfaces' backlinks (`get_symbol_backlinks`) drive
+    # from a symbol's note-id SET (embeds UNION mentions -- 5,000 notes for one ticker in
+    # the 50k seed) and look each one up by `id`. Through the id autoindex every lookup
+    # then read the note's ROW for user_id / deleted_at / updated_at, and those columns
+    # sit after body_json, so each read walked the body's overflow pages. Keyed by `id`
+    # and carrying what both backlink queries read, the lookups never touch a row:
+    # count 24 -> 7 ms, list 32 -> 14 ms at 50k (perf-budgets.md §7). ⛔ A NEW name, like
+    # every index this file changes (`CREATE INDEX IF NOT EXISTS` never rewrites one).
+    "CREATE INDEX IF NOT EXISTS idx_j2_notes_id_live"
+    " ON j2_notes(id, user_id, deleted_at, updated_at, title)",
+    # Wave 10 (lane 10A, clause 14b): a document's pages by `document_id = ? AND
+    # user_id = ?` -- the editor's per-note document list asks it once per document
+    # (document_ocr.document_text_state), and so do the page reads beside it. With no
+    # ANALYZE statistics the planner took `idx_j2_note_document_pages_user (user_id)`,
+    # one equality term against the primary key's one, and so walked EVERY page the
+    # member owns for each document: 819 ms p50 for a note with 50 documents in a
+    # library of 10,000 (30,000 pages). Two equality terms win the tie; 1.6 -> 0.004 ms
+    # per document (perf-budgets.md §7). Leads with user_id so it also answers every
+    # user-only read the old index serves.
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_document_pages_user_doc"
+    " ON j2_note_document_pages(user_id, document_id)",
 ]
 
 
@@ -2143,6 +2214,33 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         conn.commit()
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration] trade_ref_type index creation aborted: {e}")
+
+    # Wave 10 (lane 10A): the search's integer hop. LAST among the FTS steps, so
+    # whatever migration v4/v5 rebuilt, the map, its triggers and its covering index
+    # end in the wave-10 shape -- on a fresh database and on one that predates it.
+    try:
+        _upgrade_fts_map_note_rowid(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-fts-map] note_rowid upgrade aborted: {e}")
+
+    # Wave 10 (lane 10A): the tag index -- created, built once, drift-checked. The
+    # tag reads REQUIRE it, so a failure is printed loudly and the next boot retries;
+    # the build is one transaction and is never marked half-done.
+    try:
+        _ensure_note_tag_index(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-tag-index] ensure aborted: {e}")
+
+    # Wave 10 (lane 10A): the task index, filled in place for any note that has no
+    # row. A failure only means the tasks view parses those notes' bodies (the
+    # pre-wave-10 cost); it can never make it wrong (see the table's comment).
+    try:
+        backfill_note_task_digest(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        conn.rollback()
+        print(f"[notebook-task-digest] backfill aborted: {e}")
 
 
 def _data_dir() -> Path:
@@ -2531,11 +2629,431 @@ def _resync_fts_map(conn: sqlite3.Connection) -> None:
     migration is the sole owner of map correctness; this function is the
     one owner both call into, in whatever order their flags happen to have
     been lost."""
+    _ensure_fts_map_note_rowid_column(conn)
     conn.execute("DELETE FROM j2_notes_fts_map")
+    # `note_rowid` from the note's CURRENT rowid (wave 10), in the same full rebuild:
+    # the map row is correct by construction however it came to be rebuilt.
     conn.execute(
-        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid) "
-        "SELECT note_id, rowid FROM j2_notes_fts"
+        "INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid) "
+        "SELECT f.note_id, f.rowid, (SELECT n.rowid FROM j2_notes n WHERE n.id = f.note_id)"
+        " FROM j2_notes_fts f"
     )
+
+
+def _ensure_fts_map_note_rowid_column(conn: sqlite3.Connection) -> None:
+    """Give an older `j2_notes_fts_map` (two columns) its wave-10 `note_rowid`.
+    `_PHASE_2_ALTERS` already does this at boot; this copy is for the callers that
+    reach the map before, or without, `ensure_schema` (a lone migration re-run)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes_fts_map)")}
+    if cols and "note_rowid" not in cols:
+        conn.execute("ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER")
+
+
+# ── Schema builds: the readiness record every derived structure is read under ──
+#
+# Wave 10 (lane 10A, fix round 1, review I-2/I-3). A derived structure a READER
+# trusts -- the map's `note_rowid`, the tag index, the task index -- is recorded in
+# `j2_schema_builds` in the SAME transaction that made it true, and every reader
+# asks `schema_built` first and takes the pre-wave-10 path while it is not. So a
+# boot upgrade that fails (a `database is locked` on auth.db's 3 s timeout, a crash)
+# degrades SPEED, never RESULTS. Two rules make that hold:
+#   * a structure that must be REBUILT is UNMARKED FIRST, in its own commit, so the
+#     readers fall back for as long as the rebuild is pending -- and stay fallen
+#     back if it fails;
+#   * the version is IN the name (`j2_note_task_digest@1`): a derivation that
+#     changes bumps its version, the old record no longer answers, and the next
+#     boot rebuilds through the same guarded path
+#     (tests/test_journal_two_derivation_versions.py pins each version to a hash of
+#     its derivation's source).
+_SCHEMA_BUILDS_DDL = (
+    "CREATE TABLE IF NOT EXISTS j2_schema_builds (name TEXT PRIMARY KEY, built_at TEXT NOT NULL)"
+)
+_FTS_MAP_BUILD = "j2_notes_fts_map.note_rowid"
+
+
+def schema_built(conn: sqlite3.Connection, name: str) -> bool:
+    """Whether `name` was built on this database (and not since unmarked). A
+    database without the table has built nothing."""
+    try:
+        return conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ?",
+                            (name,)).fetchone() is not None
+    except sqlite3.OperationalError:
+        return False
+
+
+def _mark_built(conn: sqlite3.Connection, name: str) -> None:
+    """Record `name` as built -- inside the caller's transaction, never on its own."""
+    conn.execute("INSERT OR REPLACE INTO j2_schema_builds (name, built_at) VALUES (?, ?)",
+                 (name, time.strftime("%Y-%m-%dT%H:%M:%S+00:00", time.gmtime())))
+
+
+def _unmark_built(conn: sqlite3.Connection, family: str) -> int:
+    """Forget every record of `family` (its bare name and every `family@<version>`),
+    in its OWN commit: the readers fall back from this instant, before any rebuild
+    starts. Returns the records removed."""
+    cur = conn.execute("DELETE FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                       (family, family + "@%"))
+    conn.commit()
+    return cur.rowcount
+
+
+def _script_statements(script: str) -> list[str]:
+    """Split an SQL script into its statements, trigger bodies whole
+    (`sqlite3.complete_statement` knows `BEGIN ... END`). `executescript` is not an
+    option inside a guarded upgrade: it COMMITS whatever transaction is open before
+    it runs, which is how a trigger swap stopped being atomic (review I-2)."""
+    out: list[str] = []
+    buf = ""
+    for line in script.splitlines(keepends=True):
+        if not buf and (not line.strip() or line.lstrip().startswith("--")):
+            continue
+        buf += line
+        if sqlite3.complete_statement(buf):
+            out.append(buf.strip())
+            buf = ""
+    if buf.strip():
+        raise ValueError(f"an incomplete SQL statement at the end of the script: {buf[:80]!r}")
+    return out
+
+
+def _fts_map_drift(conn: sqlite3.Connection) -> bool:
+    """Whether ANY map row's `note_rowid` disagrees with its note (see
+    `_repair_fts_map_note_rowid`)."""
+    return conn.execute(
+        "SELECT 1 FROM j2_notes_fts_map m"
+        " WHERE m.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = m.note_id)"
+        " LIMIT 1"
+    ).fetchone() is not None
+
+
+def _fts_triggers_stale(conn: sqlite3.Connection) -> bool:
+    bodies = {r[0]: r[1] or "" for r in conn.execute(
+        "SELECT name, sql FROM sqlite_master WHERE type='trigger'"
+        " AND name IN ('j2_notes_fts_ai', 'j2_notes_fts_au', 'j2_notes_fts_ad')")}
+    return (any("note_rowid" not in bodies.get(n, "") for n in ("j2_notes_fts_ai", "j2_notes_fts_au"))
+            or "j2_notes_fts_ad" not in bodies)
+
+
+def _fts_map_in_shape(conn: sqlite3.Connection) -> bool:
+    """The whole wave-10 shape: the column, trigger bodies that keep it, the covering
+    index under its NEW name (and not the old one), and no row out of step."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes_fts_map)")}
+    if "note_rowid" not in cols or _fts_triggers_stale(conn):
+        return False
+    idx = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='j2_notes_fts_map'")}
+    if "idx_j2_notes_fts_map_rowid_note" not in idx or "idx_j2_notes_fts_map_rowid" in idx:
+        return False
+    return not _fts_map_drift(conn)
+
+
+def _repair_fts_map_note_rowid(conn: sqlite3.Connection) -> int:
+    """Re-derive `j2_notes_fts_map.note_rowid` from `note_id` when ANY row disagrees
+    with its note: NULL for a note that exists (an older map, or a row an older
+    trigger wrote), or a rowid whose note carries a different id (a logical
+    dump/restore renumbered j2_notes). Returns the rows rewritten; 0 means the map
+    already agreed and nothing was written.
+
+    ⛔ Why this runs at EVERY boot rather than once: `note_rowid` copies j2_notes'
+    implicit rowid, which a dump/restore can renumber long after any migration flag
+    was written. The check is one pass over the map, each row compared with the
+    rowid the `id` autoindex already carries -- the note table itself is never
+    read (~58 ms at 50k notes; probing j2_notes by rowid instead read every row,
+    ~120 ms). The rewrite happens only when the check finds drift. `IS NOT` treats
+    NULL as a value: a map row with no note settles at NULL and stays settled.
+    A search reads the column, so a wrong value would silently return a different
+    note of the same member -- or none."""
+    if not _fts_map_drift(conn):
+        return 0
+    cur = conn.execute(
+        "UPDATE j2_notes_fts_map SET note_rowid ="
+        " (SELECT n.rowid FROM j2_notes n WHERE n.id = j2_notes_fts_map.note_id)"
+    )
+    return cur.rowcount
+
+
+def _upgrade_fts_map_note_rowid(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Wave 10 (lane 10A): bring ANY database to the integer-hop shape, in place,
+    whatever it held before. Idempotent by construction; runs at every
+    `ensure_schema`, after migrations v4/v5 so it has the last word.
+
+      1. the column (`_ensure_fts_map_note_rowid_column`);
+      2. the triggers: an existing trigger whose body does not maintain
+         `note_rowid` is DROPPED and recreated from `_J2_NOTES_FTS_TRIGGERS_DDL`
+         (`CREATE TRIGGER IF NOT EXISTS` is a no-op against an existing name, so
+         `_J2_SCHEMA` alone can never replace an old body);
+      3. the rows (`_repair_fts_map_note_rowid`);
+      4. the covering index `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)`
+         under a NEW NAME, and the superseded `idx_j2_notes_fts_map_rowid
+         (fts_rowid)` dropped. ⛔ A new name is the whole mechanism: `CREATE INDEX IF
+         NOT EXISTS` never touches an index that already exists, so a changed
+         definition under the old name would leave every existing database on the
+         old shape while every fresh (test) database got the new one
+         (perf-budgets.md §2, review M-7).
+
+    ⛔⛔ Fix round 1 (review I-2): the readers trust `note_rowid` ONLY while
+    `_FTS_MAP_BUILD` is recorded, and it is recorded in the same transaction as
+    steps 1-4 -- one `BEGIN IMMEDIATE`, the trigger swap included (statement by
+    statement: `executescript` commits first). A database that needs any of the
+    work is UNMARKED FIRST, in its own commit. So a failed upgrade leaves the map
+    unmarked and every search takes the pre-wave-10 `note_id` hop: slower, and the
+    same answer. It used to answer `[]` for every note an old map row had not
+    re-derived (a NULL never satisfies `IN`)."""
+    out: dict[str, Any] = {"triggers_replaced": False, "rows_repaired": 0, "marked": False}
+    has_map = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts_map'").fetchone()
+    has_fts = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_notes_fts'").fetchone()
+    if not has_map or not has_fts:
+        return out
+    conn.execute(_SCHEMA_BUILDS_DDL)
+    conn.commit()
+    if schema_built(conn, _FTS_MAP_BUILD):
+        if _fts_map_in_shape(conn):
+            return out
+        _unmark_built(conn, _FTS_MAP_BUILD)       # the readers fall back from here on
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        _ensure_fts_map_note_rowid_column(conn)
+        if _fts_triggers_stale(conn):
+            for name in ("j2_notes_fts_ai", "j2_notes_fts_ad", "j2_notes_fts_au"):
+                conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+            for stmt in _script_statements(_J2_NOTES_FTS_TRIGGERS_DDL):
+                conn.execute(stmt)
+            out["triggers_replaced"] = True
+        out["rows_repaired"] = _repair_fts_map_note_rowid(conn)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_j2_notes_fts_map_rowid_note"
+                     " ON j2_notes_fts_map(fts_rowid, note_rowid)")
+        conn.execute("DROP INDEX IF EXISTS idx_j2_notes_fts_map_rowid")
+        _mark_built(conn, _FTS_MAP_BUILD)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    out["marked"] = True
+    return out
+
+
+# ── The tag index (wave 10, lane 10A) ─────────────────────────────────────────
+#
+# One row per (note, tag value) -- `json_each` over `j2_notes.tags`, maintained by
+# PURE-SQL triggers, so no writer can forget it (the reason wave 7 rejected a
+# Python-maintained tag aggregate, perf-budgets.md §2). What it answers:
+#   * the search box's "a note whose tag IS the text typed" and the `tag=` filter
+#     (`notes._tag_rowid_set_sql`): an index seek on `fold`, instead of reading
+#     every note's `tags` and testing it in Python (~25 ms of every `q=` search and
+#     ~56 ms of `tag=setups` at 50k notes, perf-budgets.md §7);
+#   * `GET /notes/tags` (`notes._tag_scan`): one grouped pass over this index.
+#
+# ⛔ `fold` is a SUPERSET key, never the identity. The identity is Python's
+# `notes.tag_key` (path-normalised, Unicode-lower-cased), which a trigger cannot
+# call. `fold` is what SQL CAN compute for an ASCII TEXT tag: the value
+# lower-cased with every character `tag_key` may remove -- Python's ASCII
+# whitespace and "/" -- removed. For such a tag `tag_key(v) == k` implies
+# `fold == notes._tag_fold(k)`, and a tag BELOW k has a fold that starts with it.
+# Every other value (non-ASCII text, a number, a nested array) gets fold NULL and
+# is checked for every lookup. Every lookup then applies the EXACT test
+# (`j2_tag_is` / `j2_tag_match`) to its candidates, so the answer is the same set
+# the per-note scan returned (tests/test_journal_two_tag_index.py).
+#
+# `note_rowid` is j2_notes' implicit rowid -- the same derived copy, and the same
+# boot drift check, as `j2_notes_fts_map.note_rowid` (`_ensure_note_tag_index`).
+_TAG_FOLD_REMOVED = (9, 10, 11, 12, 13, 28, 29, 30, 31, 32, 47)   # Python's ASCII whitespace, and "/"
+
+#: ⛔ BUMP THIS when the tag index's DERIVATION changes -- the DDL and trigger SQL
+#: (`_NOTE_TAG_INDEX_DDL`), the fold (`_TAG_FOLD_REMOVED`, `_TAG_FOLD_OF_JE`) or the
+#: rebuild (`rebuild_note_tag_index`). Its record in `j2_schema_builds` carries the
+#: version, so the next boot drops the triggers and the table and rebuilds them from
+#: this code; until then the readers take the per-note scan.
+#: tests/test_journal_two_derivation_versions.py pins it to a hash of those sources.
+TAG_INDEX_VERSION = 1
+
+
+def _tag_fold_sql(expr: str) -> str:
+    out = expr
+    for code in _TAG_FOLD_REMOVED:
+        out = f"replace({out}, char({code}), '')"
+    return f"lower({out})"
+
+
+# The fold of one json_each row `je`: the coarse key for an ASCII text value, else NULL.
+_TAG_FOLD_OF_JE = (f"CASE WHEN je.type = 'text' AND length(CAST(je.value AS BLOB)) = length(je.value)"
+                   f" THEN {_tag_fold_sql('je.value')} END")
+_TAG_ROWS_OF_NEW = (
+    "SELECT new.id, new.rowid, new.user_id, je.value, " + _TAG_FOLD_OF_JE +
+    " FROM json_each(CASE WHEN json_valid(new.tags) THEN new.tags ELSE '[]' END) je"
+    " WHERE je.value IS NOT NULL"
+)
+_NOTE_TAG_INDEX_DDL = (
+    # `tag` carries NO declared type on purpose: json_each's value keeps its type
+    # (the integer 1 and the text '1' stay two groups, as the per-note scan had them).
+    "CREATE TABLE IF NOT EXISTS j2_note_tag_index ("
+    " note_id TEXT NOT NULL, note_rowid INTEGER NOT NULL, user_id TEXT NOT NULL, tag, fold TEXT)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_fold"
+    " ON j2_note_tag_index(user_id, fold, note_rowid, tag)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_tag"
+    " ON j2_note_tag_index(user_id, tag, note_rowid)",
+    "CREATE INDEX IF NOT EXISTS idx_j2_note_tag_index_note ON j2_note_tag_index(note_id)",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_ai AFTER INSERT ON j2_notes BEGIN"
+    " INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold) " + _TAG_ROWS_OF_NEW + ";"
+    " END",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_au AFTER UPDATE OF tags ON j2_notes BEGIN"
+    " DELETE FROM j2_note_tag_index WHERE note_id = old.id;"
+    " INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold) " + _TAG_ROWS_OF_NEW + ";"
+    " END",
+    "CREATE TRIGGER IF NOT EXISTS j2_note_tag_index_ad AFTER DELETE ON j2_notes BEGIN"
+    " DELETE FROM j2_note_tag_index WHERE note_id = old.id;"
+    " END",
+    _SCHEMA_BUILDS_DDL,
+)
+_NOTE_TAG_INDEX_FAMILY = "j2_note_tag_index"
+_NOTE_TAG_INDEX_BUILD = f"{_NOTE_TAG_INDEX_FAMILY}@{TAG_INDEX_VERSION}"
+_NOTE_TAG_INDEX_TRIGGERS = ("j2_note_tag_index_ai", "j2_note_tag_index_au", "j2_note_tag_index_ad")
+_NOTE_TAG_INDEX_INDEXES = ("idx_j2_note_tag_index_fold", "idx_j2_note_tag_index_tag",
+                           "idx_j2_note_tag_index_note")
+
+
+def rebuild_note_tag_index(conn: sqlite3.Connection) -> int:
+    """Rebuild `j2_note_tag_index` from every note's `tags`, in the caller's
+    transaction. The index is DERIVED, so a rebuild is always safe; returns rows."""
+    conn.execute("DELETE FROM j2_note_tag_index")
+    cur = conn.execute(
+        "INSERT INTO j2_note_tag_index (note_id, note_rowid, user_id, tag, fold)"
+        " SELECT n.id, n.rowid, n.user_id, je.value, " + _TAG_FOLD_OF_JE +
+        " FROM j2_notes n, json_each(CASE WHEN json_valid(n.tags) THEN n.tags ELSE '[]' END) je"
+        " WHERE je.value IS NOT NULL")
+    return cur.rowcount
+
+
+def _tag_index_in_shape(conn: sqlite3.Connection) -> bool:
+    """Every object the index needs exists, and no row's `note_rowid` is out of step
+    with its note (a logical dump/restore renumbers j2_notes; see
+    `_repair_fts_map_note_rowid`)."""
+    names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE name IN (?, ?, ?, ?, ?, ?, ?)",
+                                        (_NOTE_TAG_INDEX_FAMILY, *_NOTE_TAG_INDEX_TRIGGERS,
+                                         *_NOTE_TAG_INDEX_INDEXES))}
+    if len(names) != 1 + len(_NOTE_TAG_INDEX_TRIGGERS) + len(_NOTE_TAG_INDEX_INDEXES):
+        return False
+    return conn.execute(
+        "SELECT 1 FROM j2_note_tag_index t"
+        " WHERE t.note_rowid IS NOT (SELECT x.rowid FROM j2_notes x WHERE x.id = t.note_id)"
+        " LIMIT 1").fetchone() is None
+
+
+def _ensure_note_tag_index(conn: sqlite3.Connection) -> dict[str, Any]:
+    """Create the tag index (table, indexes, triggers) and make it TRUE, in place,
+    on any database, recorded as `_NOTE_TAG_INDEX_BUILD` in the build's own
+    transaction (a half-built index is never marked). The triggers keep it true
+    between boots.
+
+    ⛔⛔ Fix round 1 (reviews I-2, I-3). Three reasons to (re)build, one guarded path:
+      * never built on this database (`built`);
+      * built by another VERSION of the derivation (`rebuilt_for_version`): the
+        triggers are `CREATE TRIGGER IF NOT EXISTS`, which never replaces an
+        existing body, so without the version a change to the fold or the trigger
+        SQL reached fresh databases only;
+      * built, but an object is missing or a row's `note_rowid` drifted
+        (`rebuilt_for_drift`).
+    Every record of the index is DELETED FIRST, in its own commit, so the readers
+    (`notes._tag_index_ready`) take the per-note scan while the rebuild runs -- and
+    stay on it if the rebuild fails. The rebuild then drops the triggers and the
+    table and recreates them from this code, all in one `BEGIN IMMEDIATE`."""
+    out = {"built": False, "rebuilt_for_drift": False, "rebuilt_for_version": False}
+    conn.execute(_SCHEMA_BUILDS_DDL)
+    conn.commit()
+    if schema_built(conn, _NOTE_TAG_INDEX_BUILD):
+        if _tag_index_in_shape(conn):
+            return out
+        reason = "rebuilt_for_drift"
+    else:
+        other = conn.execute("SELECT 1 FROM j2_schema_builds WHERE name = ? OR name LIKE ?",
+                             (_NOTE_TAG_INDEX_FAMILY, _NOTE_TAG_INDEX_FAMILY + "@%")).fetchone()
+        reason = "rebuilt_for_version" if other else "built"
+    _unmark_built(conn, _NOTE_TAG_INDEX_FAMILY)     # the readers fall back from here on
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for name in _NOTE_TAG_INDEX_TRIGGERS:
+            conn.execute(f"DROP TRIGGER IF EXISTS {name}")
+        conn.execute(f"DROP TABLE IF EXISTS {_NOTE_TAG_INDEX_FAMILY}")
+        for stmt in _NOTE_TAG_INDEX_DDL:
+            conn.execute(stmt)
+        rebuild_note_tag_index(conn)
+        _mark_built(conn, _NOTE_TAG_INDEX_BUILD)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    out[reason] = True
+    return out
+
+
+#: ⛔ BUMP THIS when the task index's DERIVATION changes -- `note_tasks.extract_tasks`
+#: or anything it reads (`_own_text_and_due`, `parse_due`, `_DATE_RE`, `_NESTED_LISTS`).
+#: `list_tasks` trusts a row over the body, and a row is invalidated only when its
+#: note's body is written, so without the version a changed extraction would be
+#: served stale for every note not re-saved since the deploy (review I-3). With it,
+#: the next boot empties the table and refills it from this code, and until that
+#: commits `list_tasks` parses the bodies. tests/test_journal_two_derivation_versions.py
+#: pins it to a hash of those sources.
+TASK_DIGEST_VERSION = 1
+_TASK_DIGEST_FAMILY = "j2_note_task_digest"
+_TASK_DIGEST_BUILD = f"{_TASK_DIGEST_FAMILY}@{TASK_DIGEST_VERSION}"
+
+
+def backfill_note_task_digest(conn: sqlite3.Connection) -> int:
+    """Fill `j2_note_task_digest` for every checklist-bearing note that has no row
+    (wave 10, lane 10A): a database that predates the table, notes a non-door
+    writer rewrote (the triggers dropped their rows), notes inserted raw. Returns
+    the rows written. Runs at every `ensure_schema`; in a steady state the notes it
+    reads are only the ones whose body names "taskItem" without holding a task
+    (no row is ever written for those), so it is cheap after the first boot.
+
+    ⛔ Same candidate rule as `list_tasks` (`instr(body_json, 'taskItem') > 0`,
+    spelled as the partial index spells it) and the SAME extraction
+    (`note_tasks.extract_tasks`), so what it writes is what the reader would have
+    computed from the body.
+
+    ⛔ Fix round 1 (review M-1): the bodies are read INSIDE `BEGIN IMMEDIATE`, so no
+    body write can land between the read and the `INSERT OR REPLACE` -- the one
+    writer where "exact or absent" did not hold by construction now does.
+    ⛔ And (review I-3): when this database's rows were derived by another VERSION of
+    the extraction, every record of the index is forgotten first (own commit), and
+    the table is EMPTIED and refilled in the same transaction that records
+    `_TASK_DIGEST_BUILD`; `list_tasks` reads rows only while that record stands."""
+    from api.services.journal_two.note_tasks import extract_tasks
+    conn.execute(_SCHEMA_BUILDS_DDL)
+    conn.commit()
+    current = schema_built(conn, _TASK_DIGEST_BUILD)
+    if not current:
+        _unmark_built(conn, _TASK_DIGEST_FAMILY)        # the reader parses bodies from here on
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        if not current:
+            conn.execute("DELETE FROM j2_note_task_digest")
+        rows = conn.execute(
+            "SELECT n.id, n.user_id, n.body_json FROM j2_notes n"
+            " WHERE instr(n.body_json, 'taskItem') > 0"
+            " AND NOT EXISTS (SELECT 1 FROM j2_note_task_digest d WHERE d.note_id = n.id)"
+        ).fetchall()
+        written = 0
+        for r in rows:
+            try:
+                doc = json.loads(r[2] or "{}")
+            except (ValueError, TypeError):
+                continue
+            tasks = extract_tasks(doc)
+            if tasks:
+                conn.execute(
+                    "INSERT OR REPLACE INTO j2_note_task_digest (note_id, user_id, tasks_json)"
+                    " VALUES (?, ?, ?)", (r[0], r[1], json.dumps(tasks)))
+                written += 1
+        if not current:
+            _mark_built(conn, _TASK_DIGEST_BUILD)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return written
 
 
 def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
@@ -2616,16 +3134,21 @@ def run_notebook_migration_v4(conn: sqlite3.Connection) -> None:
 _J2_NOTES_FTS_MAP_DDL = """
 CREATE TABLE IF NOT EXISTS j2_notes_fts_map (
     note_id    TEXT PRIMARY KEY,
-    fts_rowid  INTEGER NOT NULL
+    fts_rowid  INTEGER NOT NULL,
+    note_rowid INTEGER
 )
 """
 
+# ⛔ The SAME bodies as _J2_SCHEMA's `CREATE TRIGGER IF NOT EXISTS` copies (wave 10
+# added `note_rowid` to both); a rail holds them identical. This copy is what
+# migration v5 and `_upgrade_fts_map_note_rowid` install over an older DB, where the
+# IF NOT EXISTS copies are no-ops against the existing trigger names.
 _J2_NOTES_FTS_TRIGGERS_DDL = """
 CREATE TRIGGER j2_notes_fts_ai AFTER INSERT ON j2_notes BEGIN
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 
 CREATE TRIGGER j2_notes_fts_ad AFTER DELETE ON j2_notes BEGIN
@@ -2640,8 +3163,8 @@ AFTER UPDATE OF title, body_plain ON j2_notes BEGIN
     WHERE rowid = (SELECT fts_rowid FROM j2_notes_fts_map WHERE note_id = old.id);
     INSERT INTO j2_notes_fts(note_id, user_id, title, body_plain)
     VALUES (new.id, new.user_id, new.title, new.body_plain);
-    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid)
-    VALUES (new.id, last_insert_rowid());
+    INSERT OR REPLACE INTO j2_notes_fts_map(note_id, fts_rowid, note_rowid)
+    VALUES (new.id, last_insert_rowid(), new.rowid);
 END;
 """
 

@@ -330,6 +330,24 @@ describe('NotebookTab — bulk actions', () => {
     expect(mockRefresh).toHaveBeenCalled()
   })
 
+  // Wave 10 10D fix round 1 (review M-8): the RENDERED bulk bar, not `runNoteBatch` called
+  // directly. One bulk action on many notes is ONE `bulk_used` — the op and two counts,
+  // never an id, a folder or a tag. (Mutation: delete the emit in noteBatch.js -> red.)
+  it('telemetry — the bulk bar\'s Move sends ONE bulk_used with the op and counts, no ids or names', async () => {
+    const { telemetryBodies } = await import('../lib/testing/telemetryFetch')
+    const bulk = () => telemetryBodies(global.fetch).filter((b) => b.event === 'bulk_used')
+    renderTab()
+    fireEvent.click(box('First note'))
+    fireEvent.click(box('Second note'))
+    expect(bulk(), 'selecting is not a bulk action').toEqual([])
+    await moveTo('f1')
+    expect(await screen.findByText('Moved 2 notes to Research.')).toBeInTheDocument()
+    await waitFor(() => expect(bulk()).toHaveLength(1))
+    expect(bulk()[0]).toEqual({ event: 'bulk_used', props: { op: 'move', changed: 2, failed: 0 } })
+    const blob = JSON.stringify(telemetryBodies(global.fetch))
+    for (const w of ['n1', 'n2', 'f1', 'Research', 'First note']) expect(blob, w).not.toContain(w)
+  })
+
   it('add a tag, remove a tag', async () => {
     renderTab()
     fireEvent.click(box('First note'))
