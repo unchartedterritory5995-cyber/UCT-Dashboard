@@ -714,6 +714,12 @@
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
     },
+    "ENTITY_MASTER_MEMBER_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-023 (FB-S3-01), ENABLEMENT GATE, default OFF, read per request in api/services/entity_master/member_resolve.py::is_enabled(). SERVICE: web. What it arms: (1) GET /api/entity/resolve (api/routers/entity_resolve.py, require_paid) - a ticker plus an optional as_of date resolves to the entity Entity Master holds for it, keyed by entityId with its dated alias history; (2) /api/ticker-search keys every instrument row to that entity at the row's own date (a delisted row names the dead company) and adds entity_status. Unset: the route is the FastAPI 404 to every caller including admins, ticker search is byte-identical and entity_master.db is never opened by either door (tests/test_entity_master_member_path.py). NOT ARMABLE YET: nothing proves entity_master.db on web holds rows - read GET /api/admin/entity-master/status (entities, figi_coverage_denominator, ambiguous_count over ambiguous_count_denominator) and run scripts/entity_master_seed.py if it is empty; arming an empty store makes every row honestly null. REVERSAL: unset it and redeploy web if the unset does not restart it (verify the boot). The store and every row are LEFT IN PLACE; never delete them to undo an arming."
+    },
     "EXCURSION_ENGINE_ENABLED": {
       "status": "armed",
       "where": [

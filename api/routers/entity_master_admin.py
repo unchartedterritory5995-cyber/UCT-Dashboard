@@ -72,6 +72,7 @@ import threading
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.middleware.auth_middleware import require_admin
+from api.services.entity_master import member_resolve as em_member
 from api.services.entity_master import schema as em_schema
 from api.services.entity_master import store as em_store
 
@@ -197,6 +198,11 @@ def get_status(_admin: dict = Depends(require_admin)):
         # zero entities, and `/status` on a fresh store must answer, not 500.
         "figi_coverage_pct": round(100.0 * figi / entities, 2) if entities else 0.0,
         "ambiguous_count": counts["ambiguous_open_aliases"],
+        # TERM-023 / the TERM-026 discipline: every rate and count is published
+        # beside the population it is counted over, so "0 ambiguous" of an
+        # empty store cannot be read as "0 ambiguous" of a seeded one.
+        "figi_coverage_denominator": entities,
+        "ambiguous_count_denominator": counts["distinct_open_aliases"],
         "last_seed_at": counts["last_seed_at"],
         "last_reconcile_at": counts["last_reconcile_at"],
         # beyond the spec's shape — what the store can also answer cheaply
@@ -210,6 +216,10 @@ def get_status(_admin: dict = Depends(require_admin)):
         "lifecycle_states": counts["lifecycle_states"],
         "db_path": em_schema.DB_PATH,
         "reconcile": _reconcile_state(),
+        # TERM-023: the member path's state and what it has answered in this
+        # process (reset on deploy). `resolve.total` and
+        # `search_rows.examined` are the denominators.
+        "member_path": {"enabled": em_member.is_enabled(), **em_member.counts()},
     }
 
 
