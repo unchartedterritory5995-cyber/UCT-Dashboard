@@ -137,7 +137,7 @@ export default function TextColorMenu({ id, editor, onClose, toggleRef }) {
 
   if (isTouch) {
     return (
-      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title="Color">
+      <Sheet open onClose={() => close(false)} variant="bottom-sheet" title="Color" labelledByTitle>
         {body}
       </Sheet>
     )

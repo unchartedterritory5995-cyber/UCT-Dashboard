@@ -297,20 +297,45 @@ def list_tasks(
         # can only use a partial index whose WHERE the query provably implies. The
         # node type is always spelled "taskItem", so the case-sensitive test finds
         # exactly the notes the case-insensitive LIKE found that hold a task.
+        # ⛔ Wave 10 (lane 10A): each note's tasks come from the task index
+        # (`j2_note_task_digest`, db.py) when it holds a row, and from the body only
+        # when it does not. `body_json` is read through the CASE, so SQLite reads a
+        # body (off its overflow pages) for exactly the notes without a row; the
+        # WHERE's `instr(...)` is the partial index's own predicate, which SQLite
+        # marks satisfied by the index rather than re-evaluating it per row. A row
+        # is exact or absent by construction (the table's triggers), so the answer
+        # equals the parse-every-body one (tests/test_journal_two_task_digest.py).
+        # ⛔⛔ Fix round 1 (review I-3): ONLY while THIS version of the extraction is
+        # recorded as having built the index (db.py `_TASK_DIGEST_BUILD`). A row written
+        # by another version of `extract_tasks` would otherwise be served for every
+        # note not re-saved since the deploy; until the next boot empties and refills
+        # the table, every note is read from its body -- the pre-wave-10 path.
+        from api.services.journal_two import db as j2_db
+        if j2_db.schema_built(conn, j2_db._TASK_DIGEST_BUILD):
+            select = ("SELECT n.id, n.title, n.updated_at, d.tasks_json,"
+                      " CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json"
+                      " FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id")
+        else:
+            select = ("SELECT n.id, n.title, n.updated_at, NULL AS tasks_json, n.body_json"
+                      " FROM j2_notes n")
         rows = conn.execute(
-            "SELECT id, title, updated_at, body_json FROM j2_notes"
-            " WHERE user_id = ?" + _live_clause(conn) +
-            " AND instr(body_json, 'taskItem') > 0 ORDER BY updated_at DESC",
+            select +
+            " WHERE n.user_id = ?" + _live_clause(conn, "n") +
+            " AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
             (user_id,),
         ).fetchall()
         tasks: list[dict[str, Any]] = []
         link_ids: set[str] = set()
         for r in rows:
-            try:
-                doc = json.loads(r["body_json"] or "{}")
-            except (ValueError, TypeError):
-                continue
-            for t in extract_tasks(doc):
+            if r["tasks_json"] is not None:
+                in_note = json.loads(r["tasks_json"])
+            else:
+                try:
+                    doc = json.loads(r["body_json"] or "{}")
+                except (ValueError, TypeError):
+                    continue
+                in_note = extract_tasks(doc)
+            for t in in_note:
                 if status == "open" and t["checked"]:
                     continue
                 if status == "done" and not t["checked"]:

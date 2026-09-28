@@ -17,6 +17,29 @@ test('renders title + children when open', () => {
   expect(screen.getByRole('dialog')).toBeInTheDocument()
 })
 
+// Wave 10 10D fix round 1 (concern 4): `labelledByTitle` names the dialog FROM its
+// visible title, so the name and the heading are one value. Opt-in: every other caller
+// keeps exactly the markup it had.
+test('labelledByTitle: the dialog is named by its title element', () => {
+  render(<Sheet open onClose={() => {}} title="Writing help" labelledByTitle>b</Sheet>)
+  const dialog = screen.getByRole('dialog', { name: 'Writing help' })
+  expect(document.getElementById(dialog.getAttribute('aria-labelledby')).textContent).toBe('Writing help')
+})
+
+test('CONTROL: without labelledByTitle a titled sheet carries no aria-labelledby and no title id', () => {
+  render(<Sheet open onClose={() => {}} title="Plain">b</Sheet>)
+  const dialog = screen.getByRole('dialog')
+  expect(dialog.hasAttribute('aria-labelledby')).toBe(false)
+  expect(screen.queryByRole('dialog', { name: 'Plain' })).toBeNull()
+  expect(screen.getByText('Plain').hasAttribute('id')).toBe(false)
+})
+
+test('an ariaLabel still wins over labelledByTitle', () => {
+  render(<Sheet open onClose={() => {}} title="Heading" ariaLabel="Named" labelledByTitle>b</Sheet>)
+  const dialog = screen.getByRole('dialog', { name: 'Named' })
+  expect(dialog.hasAttribute('aria-labelledby')).toBe(false)
+})
+
 test('close button calls onClose', () => {
   const onClose = vi.fn()
   render(<Sheet open onClose={onClose} title="X">b</Sheet>)

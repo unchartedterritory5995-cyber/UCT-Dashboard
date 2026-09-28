@@ -494,3 +494,280 @@ Each finding and where it now lives. Numbers are in the sections named, not repe
 - **`lazyChunk`'s one in-place retry is unverified in a real browser engine.** Its rails run in
   jsdom, and whether a real engine re-requests a module whose first fetch failed, rather than
   replaying the cached failure, is the walk's to establish on a device.
+
+## 7. Wave 10, lane 10A
+
+Branch `feat/notebook-w10-a` (base `c7e140b9e`). Every timing window is named with its box
+state (QUIET: no `vitest` / `pytest` / `hub_sandbox_boot` / `gate_shards` / `vite preview`
+process and more than 6,000 MB available, checked twice 20 s apart; otherwise LOADED after a
+bounded wait). ⛔ A LOADED reading is never a verdict. Scratch evidence is in the lane's
+`w10A/` directory, named beside each number.
+
+### The levers, and what each one measured
+
+| lever | what it replaced | measured |
+|---|---|---|
+| `note_rowid` on `j2_notes_fts_map`, kept by the FTS triggers; `idx_j2_notes_fts_map_rowid_note (fts_rowid, note_rowid)` | FTS rowid -> `note_id` TEXT -> j2_notes' TEXT key -> rowid, three lookups per match | the common term's match set 49 -> 19 ms at 50k (same process) |
+| a maintained task index, `j2_note_task_digest` (filled by the door writers, invalidated by triggers, backfilled at boot) | `json.loads` of every task-bearing body per `?view=tasks` | `list_tasks` 121 -> 45 ms (same process) |
+| switcher candidates (`_switcher_candidates_sql`): a per-token ASCII superset in SQL, the exact fuzzy check in Python | every live title read and scored in Python | "nvda setup" 68 -> 29 ms, "ntvds" 77 -> 46 ms |
+| tag index `j2_note_tag_index` (triggers on insert / tags update / delete; a fold column for the case-insensitive seek) | a `json_each` over every live note's `tags` per request | `tag=setups` pair 178 -> 51 ms, `/notes/tags` 175 -> 130 ms (same process) |
+| relevance: ONE ranked MATCH pass primes the request's match set; plain tuples and two sorts; candidates read from the narrow `idx_j2_notes_switcher_live`; the page's total taken from the candidate read | the MATCH run again for the WHERE and the COUNT; a second COUNT over the library | see the A/B below |
+| `idx_j2_notes_id_live (id, user_id, deleted_at, updated_at, title)` | backlinks read every matched note's ROW, behind its body's overflow pages | count 24 -> 7 ms, list 32 -> 14 ms at 50k |
+| `idx_j2_note_document_pages_user_doc (user_id, document_id)` | the per-note document list walked every page the member owns, once per document (the planner took the one-column `(user_id)` index) | a note with 50 documents: 85 -> 11 ms at 1,000 documents; 819 ms p50 in the 10,000-document tier before |
+| the document search ranks on the FTS table alone (`_RANKED_SQL`), then joins and snippets only the ranked pages (`api/services/journal_two/document_search.py`; the exact one-pass read `_one_pass` answers when the Trash takes more than the ranked window's slack) | one statement joined the document, the note (its `deleted_at` past the body, on an overflow page) and the page, and built a snippet, for every matching page before its sort kept twenty | a common term over 10,000 documents (9,075 matching pages): 134 -> 47 ms p50 (same process, loaded box); 32 of 32 answers identical to the old function (`w10A/docsearch_diff.py`) |
+| typing: `ToolButton` declared at module scope (`NoteEditorPage.jsx`) | declared INSIDE the page, a new component type per render: all twelve toolbar buttons and their SVG icons unmounted and re-mounted on every render, and the page renders on every keystroke | traced keystroke at 2,000 ¶ (loaded): main-thread busy 29.6 -> 20.6 ms/key, style recalc 7.3 -> 2.8 ms/key |
+| typing: UIcon takes its gold gradient id once per mounted icon (`components/ui/UIcon.jsx`) | an id numbered per RENDER: every re-render of every gold icon wrote a new `id` and `stroke=url(#…)` (an attribute write, a style recalc, an SVG resource invalidation) | the per-key `setAttribute` / SVG invalidation entries leave the trace (504 SVG attribute recalcs over 40 traced keys after the toolbar fix -> 0; `w10A/trace2`, `trace3`) |
+
+⚰️ **`COUNT(*) OVER ()` was measured and not adopted** (the brief's second named lever): the
+window over the SQL ranked pass read 47.7 ms against 35.7 + 10.7 ms without it. The page's total
+now comes from the candidate read the relevance order already makes, which removes the COUNT.
+
+⛔ Every index this lane added or changed has a NEW name (§2, review M-7):
+`idx_j2_notes_fts_map_rowid_note` (the old `idx_j2_notes_fts_map_rowid` is dropped at boot),
+`idx_j2_notes_id_live`, `idx_j2_note_document_pages_user_doc`, and the tag index's three.
+
+**Same-process interleaved A/B, old (`c7e140b9e`) vs new, one 50k database** (loaded box, so a
+ratio, never a millisecond verdict; `w10A/ab50k.py`): `q=common` pair 0.41, `q=rare` pair 0.43,
+relevance common 0.46 (after the relevance restructure), relevance rare 0.27, `tag=setups`
+0.31, `/notes/tags` 0.74, switcher word start 0.52, fuzzy 0.62, `list_tasks` 0.39; the
+default pair, folder counts, `notes_for_folders` and `embed_symbol` unchanged (0.96 - 1.01).
+Every answer identical. **Old-vs-new differential over one seed edited through every door**
+(update, create, trash, restore, archive, append, tag patch; `w10A/diff_50k.py`): 60 of 60 reads
+identical at 5,000 notes and at 50,000.
+
+### The new budgets (hand-edited in `perf-budgets.json`, reasons here)
+
+- **`attachments`** (clause 14b): the reads that grow with ATTACHMENTS rather than notes, timed
+  through the routes a browser calls (`GET /notes/documents/search` for a common and a rare term,
+  the search box's document half; `GET /notes/{id}/documents` for a note with 50 documents, the
+  editor's list), at the 50k gate with 10,000 extracted documents of 3 pages each
+  (`--attachments 10000`). Held to the search line, 100 ms p95. It holds only on a tier that
+  carried the attachments (`check_search` reads the tier's count), so a 50k run without them
+  checked nothing and says so.
+- **`curve`** (clause 14d): the least-squares log-log slope of every timed op's p50 over
+  1k / 5k / 10k / 25k / 50k is held at **1.1** (linear, plus an allowance for timing noise over a
+  50x range: doubling the library may cost at most 2^1.1 = 2.14x), and the last segment,
+  25k -> 50k, is held on its own at **1.3** (a curve that bends up at the top is the symptom the
+  clause names, and a five-point fit dilutes it; a two-point slope over 2x carries about twice
+  the fit's noise). Both were set BEFORE the curve was measured. An op missing at any tier, or a
+  tier not run, is a breach.
+- **`ratio_ci`** (ruling R-10): the CI latency check. Each CI-budgeted read (the `search_ci`,
+  `reads_ci` and `tasks_ci` ops, the two formerly informational ones included) is timed as a
+  RATIO to an in-run calibration op (`CALIBRATION_OP`: its own 20,000-row table, an `instr` scan
+  with a GROUP BY, a `json_each` fan-out and a Python JSON loop, touching no product code),
+  calibration then op back to back in each round, the MEDIAN of 5 rounds, and a median over the
+  line re-measured with 5 fresh rounds before it can breach. The line is the SAME 100 ms
+  (tasks 150 ms) the CI tier always used, at the reference box's speed:
+  `line_ms / calibration_ref_ms`. **`calibration_ref_ms` = 43.45 ms**, read on this box in a
+  QUIET window (2026-09-27 01:02 CT, 9 rounds of 10 reps, range 42.95 - 44.61; `w10A/calib-ref.log`).
+  It is a property of the reference machine, not a budget.
+
+### CI, per ruling R-10
+
+- **Bytes gate now:** `.github/workflows/notebook-bytes.yml`, `# promotion-gate: yes`. The byte
+  job moved out of `notebook-budgets.yml` unchanged (same tool, same budget) because promotion
+  is decided per workflow FILE (`tools/promotion_gate.py`) and one file carries one marker.
+  `notebook-budgets.yml` keeps its advisory millisecond job and its `no` marker.
+- **The ratio check:** `.github/workflows/notebook-latency.yml` runs the 10k tier with
+  `--ratio ratio_ci`. It was advisory until it had been seen red once and green once (the D-A2
+  precedent), and `tests/test_notebook_perf_scale_w10.py` refuses a `yes` without the two run
+  URLs in its header. **Promoted 2026-09-27** (`# promotion-gate: yes`):
+  SEEN GREEN, run `36323273589` (`2b0f388f8`; 14 ops, ratios 0.018 - 0.942 against the 2.301
+  line, the runner's calibration p50 about 53 ms against the reference 43.45);
+  SEEN RED, run `36323335660` (throwaway branch `ci/notebook-w10a-latency-red`, `aafb5b1d7` = the
+  same tree plus `--slow-op "GET /notes q=rare (list+count)=400"`: that op alone breached, median
+  7.588, re-measured 7.620; the other 13 stayed under the line). If it flaps in its first 20
+  runs, R-10 says gate bytes only, restate clause 4b and put the marker back to `no`. ⛔ The
+  local 50k gate stays the verdict.
+- **Its first 20 runs: 20 green, no flap.** Runs `36323273589`, `36323923444` on the lane
+  branch and 18 on the throwaway `ci/notebook-w10a-flapwatch` (each commit touches only a
+  trailing comment of the workflow, so each is the lane's tree; the token here cannot
+  dispatch a workflow). In every run the worst op was the fuzzy switcher at **0.922 - 1.016**
+  against the 2.301 line (40 - 44 % of it) while the runner's calibration ranged
+  **42.8 - 58.4 ms**: the ratio held still as the runner's speed moved by a third, which is the
+  property the check exists for (`w10A/flapwatch-summary.txt`). Clause 4b is not restated.
+- ⚠️ **The ratio check compares P50s, not p95s** (fix round 1, review M-2, ruling: keep it).
+  Each round is the op's p50 over the calibration's p50, so the number held to the line is a
+  median ratio: **a regression that lands only in the tail passes CI, on purpose** -- a round's
+  p95 on a shared runner is one burst away from a flake, and this check gates promotion. The
+  tail belongs to the local 50k gate (its p95 lines), which stays the verdict. Said the same way
+  in `ratio_ci.why`, the workflow header and the rail's comment.
+
+### Typing (clause 4d): attributed in a real browser, then fixed
+
+`tools/notebook_perf_harness.py --attribute` types the characters a second time with every
+ProseMirror plugin piece, TipTap's `emit`, the view's `dispatch` / `updateState` and React's
+scheduler tasks wrapped, and TRACES that pass (`summarize_trace`: the renderer main thread's
+self time per phase). The wrapped editor pieces were only ~2 - 3.5 ms of a keystroke; 10B's
+per-transaction column-resizing plugin is a named row (`appendTransaction selectingCells$`,
+0.02 - 0.04 ms/key) and is not the cost. The trace, a raw capture with Chrome's CPU profiler
+(`w10A/trace1`) and the invalidation tracking named the rest:
+
+| at 2,000 ¶, loaded box (attribution, never a verdict) | before (`attr2`) | after the toolbar fix (`attr3`) |
+|---|---:|---:|
+| main-thread busy per key (trace) | 29.6 ms | 20.6 ms |
+| style recalc (`UpdateLayoutTree`) per key | 7.3 ms | 2.8 ms |
+| script (`FunctionCall` self) per key | 9.1 ms | 7.0 ms |
+
+What remains per key, named: the ProseMirror transaction and its plugins (~3 ms, of which
+TipTap's `onUpdate` -> the local draft is ~1.5 ms: `captureLocalState` takes `getJSON()` of the
+whole note and writes it to localStorage on EVERY keystroke, by the Wave Q1 durability design
+-- "ONE snapshot per keystroke", `NoteEditorPage.jsx` -- which this lane did not change); the
+page's React re-render (`bumpToolbar` re-renders the whole NoteEditorPage on every transaction
+to keep the toolbar's active states current: the next lever is to re-render only when a
+toolbar-visible value changes, which needs every render-time read of the editor enumerated
+first); and the browser's own editing, style, layout and paint of the changed note.
+
+⚠️ **A typing sample includes one rendering frame.** Measured (`w10A/frames1`, 80 keys at
+2,000 ¶, loaded): the frame the keystroke produced ran BEFORE the probe's message task in 80 of
+80 keys (keydown -> frame 10.6 ms p50, frame -> sample 2.7 ms p50). It is not a vsync wait,
+but it is not script time alone either; the harness's docstring said a frame "never inflates a
+sample" and now says what is measured.
+
+**Interleaved A/B, the lane-H method** (A = the lane tip's frontend before the fixes, `dist`
+index `E774B7D72CCD`; B = both fixes, `84DD976101E4`; the same harness bytes and backend,
+`--boot --sizes 1000,2000 --opens 20 --chars 60`, a fresh data dir per run, A1 B1 … A4 B4,
+2026-09-27 11:14 - 11:36). ⛔ **Every run is LOADED**: lane 10D's long-lived sandbox shim held
+every quiet check (by rule), and the in-run sampler read each run DISTURBED (CPU median 17 - 54 %,
+up to 32 competing processes). A and B were interleaved under the same load, so the RATIOS are
+the reading; the absolute numbers are not a verdict.
+
+| typing, median of 4 runs | A p50 | B p50 | A p95 | B p95 | line |
+|---|---:|---:|---:|---:|---:|
+| 1,000 ¶ | 8.50 ms | 5.55 ms | 16.60 ms | 16.65 ms | < 16 ms |
+| 2,000 ¶ | 13.20 ms | 8.55 ms | 19.10 ms | 16.50 ms | < 16 ms |
+
+The median keystroke is 35 % cheaper at both sizes and the 2,000-¶ tail came down 2.6 ms; the
+1,000-¶ tail did not move. **Clause 4d is not closed**: no quiet reading exists, and the LOADED
+p95 sits at the line at both sizes. The budget was not moved.
+
+### The windows of this lane, as the rule reads them
+
+Quiet = no `vitest` / `pytest` / `hub_sandbox_boot` / `gate_shards` / `vite preview` process and
+more than 6,000 MB available at the start (two probes 20 s apart); since W5 a sampler runs
+DURING each window and says whether the quiet HELD (`w10A/windows.txt`, `w10A/quiet_then.ps1`).
+
+| window | when (CT) | tree | box | what it read |
+|---|---|---|---|---|
+| W1 | 09-26 22:51 | `c7e140b9e` (base) | quiet at the start (no in-run sampler yet) | the base's 50k gate: BREACH relevance common 217.7, fuzzy switcher 113.0, tasks 200.7 p95 |
+| W2 | 09-27 00:36 | `1aeebeb3e` | LOADED | not a reading |
+| CALIB-REF | 01:02 | -- | QUIET | the calibration op, 43.45 ms p50 (the `ratio_ci` reference) |
+| W3 | 01:06 | `e4647fa42` + the attachment tier | quiet at the start; 5 foreign processes by its end | every notes op under its line (relevance common 57.1 / 69.8); BREACH the per-note document list 818.6 / 887.1 (fixed: the `(user_id, document_id)` index) |
+| W4 | 08:42 | `2b0f388f8` | quiet at the start; about 2x slower than W3 throughout (no sampler) | not trusted |
+| W5 | 09:34 | `8064ce08e` | quiet at the start, DISTURBED during (23 processes) | not a verdict (relevance common 134.2) |
+| W6 | 10:34 | `8e4b51a0c` | LOADED, CPU 100 % | not a verdict |
+| W7 | 10:53 | `8e4b51a0c` | LOADED, DISTURBED (CPU median 85 %) | the curve (below) |
+| typing A/B | 11:14 - 11:36 | `8e4b51a0c` | LOADED, DISTURBED | above |
+| W8 | 11:38 | `8e4b51a0c` | LOADED, CPU 100 % | the 50k gate's 17 ops as RATIOS to the calibration op: all under their lines, worst relevance common 1.802 / 2.301 (78 %) and `list_tasks` 1.175 / 3.452 |
+| W9 | 11:45 | `8e4b51a0c` | LOADED, CPU 95 % | the page-cache experiment (below) |
+| W10 | 11:49 | `8e4b51a0c` | LOADED, CPU 98 % | the search box in the page (below) |
+
+⛔ **So the quiet-box 50k verdict (clauses 4b, 13d, 14a, 14b) was not taken on this lane.** The
+nearest reading, W3, was quiet at its start and passed every notes op; W8 converts a saturated
+box's timings into the reference box's scale through the calibration op and passes all 17 --
+a ratio reading, not the verdict.
+
+### The curve (clause 14d), and why it bent
+
+W7's curve BREACHED 9 ops, 11 lines (both `count_notes`, the three tag reads, folder counts,
+backlinks, the word-start switcher, `list_tasks`), every one bending between 10,000 and 25,000 notes. It is not a
+verdict (the tiers ran under different load: the window opened at 12.6 % CPU and averaged 85 %),
+and a same-process experiment (W9, `w10A/curve_cache.py`) names a second cause: SQLite's default
+page cache (2,000 KiB) holds a 10,000-note library's hot index pages and not a 25,000-note one's.
+With `cache_size = 64 MiB` on the same databases the 10k -> 25k step became about linear
+(backlinks x3.1 -> x2.2, `list_tasks` x2.7 -> x2.1, folder counts x2.3 -> x2.1, for 2.5x the
+notes). ⚠️ That is a property of the connection settings, not of a read: auth.db connections
+are opened per request with defaults (`auth_db.get_connection`), which is app-wide and not this
+lane's to change. Recorded as the finding; the bounds were not moved.
+
+### The search box, in the page (W10, LOADED)
+
+A 50,000-note, 10,000-document sandbox seeded by the benchmark's own seed, 24 queries typed into
+the real search box, the browser's own resource timings (`w10A/searchbox.json`; integrity CLEAN
+at pre-boot, +15 s, +120 s and shutdown; 0 page errors). On a saturated box (calibration ran 3 - 4x
+slow in W8): the notes request p50 358.8 / p95 759.2 ms, documents 55.1 / 181.6, excerpts
+48.9 / 69.9. ⚠️ Twelve of the 24 queries match EVERY seeded note ("setup", "volume", "risk", …),
+and the budgets' common term matches 30 %: in the same process a term in every note costs about
+3x the 30 % term (623 against 226 ms, loaded). No budget covers a term in every note of a
+50,000-note library; that is a gap in the budget, recorded, not closed here.
+⚠️ The relevance order's ranked MATCH pass (`_RELEVANCE_RANKED_SQL`) scores every member's
+matches, not the searcher's (the FTS table's `user_id` is UNINDEXED): with one member seeded the
+benchmark cannot see that cost, and a library of many members would pay it on every search.
+Not measured. (Closed in fix round 1, below: the pass is now scoped to the member, and the
+benchmark can seed more than one.)
+
+### Fix round 1 (the lane 10A task review)
+
+**The integer hop has a readiness record (review I-2).** The `note_rowid` upgrade -- the
+column, the repair of every NULL or drifted row, the new index, the dropped old one and the
+three FTS triggers rewritten to keep the column -- now runs in ONE `BEGIN IMMEDIATE`
+transaction, and records `j2_notes_fts_map.note_rowid` in `j2_schema_builds` inside that same
+transaction. The trigger swap no longer goes through `executescript` (which COMMITS whatever is
+open before it runs): the trigger DDL is split into whole statements (`_script_statements`, by
+`sqlite3.complete_statement`) and executed one by one inside the transaction. Every reader --
+the text set in `_q_match_parts`, the ranked relevance pass, the list and the count -- asks
+`_fts_map_ready` and, while the record is absent, takes the pre-wave-10 hop through `note_id`.
+**A failed upgrade costs speed, never results:** the rail makes the repair raise on an old-shape
+library and reads `['n1','n3','n5']` from `list_notes(q=...)`, the relevance order and
+`list_and_count_notes`, never `[]`, with the old triggers still in place. A drift found at a
+later boot deletes the record in its OWN commit before repairing, so the readers fall back for
+the length of the rebuild; the tag index does the same (`j2_note_tag_index@N` is deleted first,
+and a failed rebuild leaves every tag read correct -- railed).
+
+**Derivations are versioned (review I-3).** `TASK_DIGEST_VERSION` and `TAG_INDEX_VERSION` (both
+1) are recorded as `j2_note_task_digest@1` and `j2_note_tag_index@1`. At boot a version mismatch
+empties and refills the task index, or drops the tag triggers and rebuilds the tag index,
+through the same unmark-first path; `list_tasks` reads the index only while the current version
+is recorded, and otherwise parses the bodies as before wave 10. A rail
+(`tests/test_journal_two_derivation_versions.py`) hashes the derivation SOURCE -- `extract_tasks`,
+`_own_text_and_due`, `parse_due`, the date pattern, `_NOTE_TAG_INDEX_DDL`, the fold tables and
+`rebuild_note_tag_index`, tokenised with comments and docstrings removed, so a comment edit
+passes and a code edit does not -- and pins each hash to its version constant. Editing either
+derivation without bumping the version fails it; a control proves the hash moves on a code edit
+and holds on a comment edit. `backfill_note_task_digest` now takes its write lock before it
+reads the notes it will fill (review M-1).
+
+**The relevance pass reads only the searching member (review M-4).** The FTS table is shared by
+every member and its `user_id` is UNINDEXED, so the ranked MATCH pass scored everyone's matches.
+It now keeps a map row only when `+m.note_rowid IN (SELECT rowid FROM j2_notes WHERE user_id =
+?)`; the unary `+` is load-bearing -- without it the planner pushes the membership test into the
+map index's seek, `(fts_rowid=? AND note_rowid=?)`, a product of the two sets that ran for more
+than ten minutes at 50k before it was stopped. ⚠️ **This is not the form the brief suggested**
+(`JOIN j2_notes n ON n.rowid = m.note_rowid AND n.user_id = ?`), and the reason is measured, in
+one process on one 50k database, every answer identical (`w10A/m4_variants.py`): the common
+term's ranked pass unfiltered 18 ms, the membership test 26 ms, the JOIN 54 ms -- the JOIN reads
+each matched note's row (behind its body's overflow pages) where the membership test reads one
+narrow index. Interleaved A/B against the unfiltered pass (`w10A/m4_measure.py`, loaded box, so
+ratios): **one member, 50,000 notes** -- common term 1.19x / 1.15x (58.6 -> 69.8 ms, 64.9 -> 74.4
+ms p50), rare term 1.50x (12.6 -> 19.0 ms: the member's rowid list is read even for one match)
+(`w10A/m4-1member.log`); **two members, 25,000 each** -- common 0.87x both ways (40.6 -> 35.3,
+43.7 -> 38.1 ms: the other member's matches are no longer ranked), rare 1.32x (8.9 -> 11.8 ms)
+(`w10A/m4-2members.log`). So a one-member library pays about 6 - 11 ms p50 on a search, and a
+library shared with another member of the same size already gains. Rails: a member's results and
+totals are identical whether or not another member has matching notes, recorded and unrecorded
+(`test_a_members_search_does_not_move_when_another_member_matches`), and the other member's notes
+are never ranked and the plan's map seek never takes `note_rowid=?`
+(`test_the_relevance_pass_ranks_only_the_searching_members_matches`).
+`tools/notebook_scale_benchmark.py --members N` seeds N members of the tier's size and times the
+first member's reads; a 2 x 25,000 smoke run (one rep, box not checked, so no timing is cited)
+passed every correctness check (`w10A/members2x25k.json`).
+
+**The bytes gate has its red run (review M-3).** `.github/workflows/notebook-bytes.yml` now
+carries both runs in its header, as the latency gate does: SEEN GREEN run `36328815419`
+(`8e4b51a0c`: 2,205,893 B against the 2,260,793 B budget) and SEEN RED run `36345075379`
+(throwaway `ci/notebook-w10a-bytes-red`, `a27769fee` = `90dbfc0f0` with the budget set to
+1,000,000 B: "BREACH bytes.notebook_first_open: 2,205,893 B > budget 1,000,000 B"). The rail
+that refused the latency gate a `yes` without its runs now reads both workflows. Both headers
+also say what a red does: **any growth of the route's first-open JS past the budget -- from a
+change anywhere in the app that lands in the entry chunk -- refuses promotion until
+`perf-budgets.json` is edited by hand** (headroom at `8e4b51a0c`: 54,900 B, 2.4 %), and an
+infrastructure failure refuses too. Recovery is a re-run, `gh run rerun <run-id> --failed`, then
+promote the commit by hand, `gh workflow run promote-production.yml -f sha=<sha>` (a re-run does
+not re-trigger promotion). ⚠️ No markdown runbook carries the a11y gate's recovery today -- it
+lives in `notebook-a11y.yml`'s own header -- so the same two lines went into both perf workflow
+headers, beside the gate they recover.
+
+**Still open, by ruling:** the quiet-box verdicts (clauses 4b, 4d, 13d, 14a, 14b, 14d) are taken
+by the controller in a held quiet slot after this round; the SQLite page cache is not changed in
+wave 10; the two typing levers named above (the toolbar's whole-page re-render and the
+per-keystroke draft snapshot) are deferred, and the snapshot is not touched.

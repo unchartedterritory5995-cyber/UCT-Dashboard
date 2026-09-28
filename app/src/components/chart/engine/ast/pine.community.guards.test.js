@@ -123,7 +123,14 @@ const REFUSES = Object.freeze({
   // ⛔ A refusal moving DEEPER into a script is a win, and it is recorded as one
   // rather than re-baselined in silence: the member gets a sentence about what
   // actually stops their script instead of about the first array they wrote.
-  '22-daily-weekly-monthly-highs-lows.pine': ['pine:constant-only', null, null],
+  // ⚰️⚰️ MOVER, 2026-09-27 (H14) — AND THE 09-14 "WIN" ABOVE WAS PARTLY LUCK. The
+  // row was ['pine:constant-only', null, null]: the plot read `a_lastHighs` at its
+  // CREATION value because the `array.set` at line 106 sits inside an `if` the
+  // walk dropped without a word — the vector's creation `na` made the plot a
+  // constant, and THAT is the only reason this refused rather than drew a wrong
+  // line. The same drop drew `close - 0` on production for a script that mixed
+  // the read with a series. The refusal now names the write that is not modelled.
+  '22-daily-weekly-monthly-highs-lows.pine': ['pine:collection', 106, 'array.set'],
   // ⚰️ '23-higher-timeframe-ema.pine' WAS HERE as ['pine:request', 14,
   // 'request.security'] and it TRANSLATES now — ruling 3.5 (`29d64a2ef`, 2026-09-12):
   // its `request.security(syminfo.tickerid, "D", …)` names the engine's own base, so it

@@ -336,3 +336,50 @@ describe('the 44px touch floor', () => {
     }
   })
 })
+
+// ⭐ Wave 10 (10D, R-16): the editor's Share door counts each action that WORKED — a share
+// link made, copied or revoked; a page published, copied or unpublished — with action and
+// kind words only. Never the token, the note or the folder.
+describe('share_used and publish_used — the editor door counts actions, and nothing about the note', () => {
+  const telemetry = () => S.calls.filter((c) => c.url === '/api/j2/telemetry').map((c) => c.body)
+
+  it('create, copy and revoke each send ONE share_used with the action word', async () => {
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    await within(dialog).findByText('Share link created and copied.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Copy link' }))
+    await within(dialog).findByText('Share link copied.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Revoke link' }))
+    await within(dialog).findByText('Link revoked. It no longer works.')
+    expect(telemetry()).toEqual([
+      { event: 'share_used', props: { action: 'create' } },
+      { event: 'share_used', props: { action: 'copy' } },
+      { event: 'share_used', props: { action: 'revoke' } },
+    ])
+    expect(JSON.stringify(telemetry())).not.toMatch(/tokABC|n1|Weekly/)
+  })
+
+  it('publish and unpublish a note send publish_used {kind: note, door: editor}', async () => {
+    mount({ notebook_publish_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publish this note' }))
+    await within(dialog).findByText('Published. Page link copied.')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Unpublish' }))
+    await within(dialog).findByText('Unpublished. The page no longer works.')
+    expect(telemetry()).toEqual([
+      { event: 'publish_used', props: { action: 'publish', kind: 'note', door: 'editor' } },
+      { event: 'publish_used', props: { action: 'unpublish', kind: 'note', door: 'editor' } },
+    ])
+    expect(JSON.stringify(telemetry())).not.toMatch(/slugN|n1/)
+  })
+
+  it('a refused share link sends nothing', async () => {
+    S.shareStatus = 402
+    mount({ j2_share_links_enabled: true })
+    const dialog = await openDoor()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Create link' }))
+    await waitFor(() => expect(statusText(dialog)).toContain('Share links require a paid plan'))
+    expect(telemetry()).toEqual([])
+  })
+})

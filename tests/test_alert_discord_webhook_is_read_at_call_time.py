@@ -80,14 +80,36 @@ def test_the_module_no_longer_captures_the_webhook_at_import():
 def test_add_alert_consults_the_LIVE_value_when_deciding_to_fire(monkeypatch):
     """⭐ The behavioural half. The helper being live proves nothing if the
     decision site still reads something else — that is the exact shape of the
-    'routing computed but never applied' defect this repo keeps rediscovering."""
+    'routing computed but never applied' defect this repo keeps rediscovering.
+
+    ⚰️ TERM-011 rows 1/3 wrapped the fire decision's `discord_webhook()` read in
+    `_discord_destination(alert)` (so `regime_change`/`exposure_shift` can
+    resolve through the ops destination instead) — the literal this test
+    pinned moved with it. `_discord_destination` itself still bottoms out in
+    `discord_webhook()` for every OTHER type, which the tests above already
+    pin as live; this one is about the DECISION SITE, not the leaf read.
+    """
     monkeypatch.setenv(alerts.DISCORD_WEBHOOK_ENV, "")
     fired: list = []
     monkeypatch.setattr(alerts, "_fire_discord", lambda *a, **k: fired.append(a))
     monkeypatch.setattr(alerts, "_store_alert", lambda *a, **k: None, raising=False)
 
     src = open("api/services/alerts.py", encoding="utf-8").read()
-    assert "if discord_webhook() and fires_discord:" in src, (
+    assert "elif fires_discord and _discord_destination(alert):" in src, (
         "add_alert's fire decision no longer reads the live value")
     assert "_DISCORD_WEBHOOK," not in src, (
         "_fire_discord is still handed the captured constant")
+
+
+def test_discord_destination_reads_the_LIVE_admin_webhook_for_an_unrouted_type(
+    monkeypatch,
+):
+    """`_discord_destination` is the new decision-site leaf for every type NOT
+    in `_OPS_ROUTED_TYPES` — it must inherit the live-read guarantee, not
+    memoize `discord_webhook()`'s answer across two calls in one process."""
+    monkeypatch.setenv(alerts.DISCORD_WEBHOOK_ENV, "https://a.test/1")
+    alert = {"type": "price_alert", "severity": "warning"}
+    first = alerts._discord_destination(alert)
+    monkeypatch.setenv(alerts.DISCORD_WEBHOOK_ENV, "https://b.test/2")
+    second = alerts._discord_destination(alert)
+    assert (first, second) == ("https://a.test/1", "https://b.test/2")

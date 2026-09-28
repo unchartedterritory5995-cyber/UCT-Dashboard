@@ -258,7 +258,7 @@ def test_R4_every_class_in_the_vocabulary_has_a_row_in_every_table():
 
 @pytest.mark.parametrize("alert_class", ar.ALERT_CLASSES)
 def test_severity_never_changes_the_destination(alert_class):
-    """⛔ THE DEMOTION, asserted directly. `alerts.py:350` fires Discord on
+    """⛔ THE DEMOTION, asserted directly. `alerts.py:431` fires Discord on
     `warning` OR `critical` while `chart_health_alerts.py:37` pages on `critical`
     only — two doors, two rules, and severity deciding both DESTINATION and
     PRIORITY is the conflation this ticket exists to end."""
@@ -664,26 +664,16 @@ def _imports_alert_routing(source: str) -> bool:
     return False
 
 
-def test_nothing_under_api_imports_this_module_yet():
-    """⛔ THE "no consumer by design" PROPERTY, asserted rather than asserted-in-prose.
-
-    Spec §6 step 2: *"`resolve_channel` + its test file, with NO caller. A resolver
-    with no caller cannot break a member."* This rail is what makes that sentence
-    checkable, and it is what will go red the day the first producer is converted.
-
-    ⭐ IF YOU ARE WIRING THE FIRST CONSUMER, DELETE THIS TEST IN THAT SAME COMMIT.
-    Leaving it and marking it xfail would turn a deliberate landing into a warning
-    nobody reads; deleting it is the record that step 3 happened.
-    """
-    offenders = []
-    for path in sorted((REPO / "api").rglob("*.py")):
-        if path == MODULE_PATH or "__pycache__" in path.parts:
-            continue
-        if _imports_alert_routing(path.read_text(encoding="utf-8", errors="replace")):
-            offenders.append(path.relative_to(REPO).as_posix())
-    assert offenders == [], (
-        "alert_routing now has a consumer under api/: " + ", ".join(offenders))
-
+# ⚰️ `test_nothing_under_api_imports_this_module_yet` WAS HERE AND WAS DELETED BY
+# TERM-011 STEP 3, WHICH IS WHAT IT ASKED FOR: *"IF YOU ARE WIRING THE FIRST
+# CONSUMER, DELETE THIS TEST IN THAT SAME COMMIT … deleting it is the record that
+# step 3 happened."* Its assertion was "there are no consumers under api/" — a
+# property that does not NARROW when the first producer is converted, it simply
+# stops being true, so there is no weaker version of it to keep.
+# ⭐ WHERE THE COVERAGE WENT: `api/services/alert_destination.py` is the consumer,
+# and `tests/test_alert_destination.py` is its rail. The resolver's own purity,
+# R2 refusal and variable-name contract are still asserted by the rest of THIS
+# file — nothing about `resolve_channel` lost a test here.
 
 @pytest.mark.parametrize("source,expected", [
     ("from api.services import alert_routing\n", True),

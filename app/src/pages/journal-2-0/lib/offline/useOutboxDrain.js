@@ -17,9 +17,9 @@ import { createNoteViaApi } from '../noteCreation'
 import { notebookSchemaHeaders } from '../notebookSchema'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { FORKED, NO_BASELINE, drainOutbox, summarize } from './outboxDrain'
+import { FORKED, NO_BASELINE, SENT, drainOutbox, summarize } from './outboxDrain'
 import { postBlockedBaseline } from './blockedBaselineEvent'
-import { trackNotebookEvent } from '../notebookTelemetry'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 import {
   FOLLOWER, LEADER, READ_ONLY_FOR_SYNC, awaitSyncLeadership, claimSyncLeadership,
 } from './outboxLeader'
@@ -293,6 +293,13 @@ export function useOutboxDrain({
       for (const r of results) {
         if (r?.outcome !== FORKED) continue
         trackNotebookEvent('conflict_forked', { door: 'outbox', queued: true })
+      }
+      // ⭐ Wave 10 (10D, R-16, study task T8): a queued save the drain SENT is a
+      // member's offline words reaching the server — `save_success` from the
+      // outbox door. Same swallow-its-own-errors contract as the line above.
+      for (const r of results) {
+        if (r?.outcome !== SENT) continue
+        trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS, { door: 'outbox', queued: true })
       }
       const s = summarize(results)
       setLastSummary(s)

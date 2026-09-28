@@ -360,19 +360,26 @@ def _deliver_alert(alert: dict, current_price: float) -> dict:
         channels[CHANNEL_EMAIL] = CHANNEL_FAILED
         errors[CHANNEL_EMAIL] = f"{type(e).__name__}: {e}"
 
-    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1, WHICH IS ALSO WHERE
+    # 3. Discord — DECIDED BY `add_alert` in step 1, WHICH IS ALSO WHERE
     #    ITS OUTCOME COMES FROM (`channels["discord"]`, filled by that function).
     #
-    # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. `add_alert` posts to the
-    # webhook itself for severity warning/critical, and step 1 passes
+    # ⚰️ TERM-011 step 7 (rows 4/5), 2026-09-27: this call always carries a real
+    # `user_id` (the alert's owner), so `add_alert` now retires the Discord leg
+    # outright and step 1 reports `skipped` unconditionally, whatever severity
+    # is passed — the double-post history below is why an explicit re-add is
+    # refused; it is no longer even possible to reach the admin channel here.
+    #
+    # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. `add_alert` USED TO post
+    # to the webhook itself for severity warning/critical, and step 1 passes
     # severity="warning" — so the explicit second call that used to sit here put
     # every single triggered alert into the admin channel TWICE (verified on
     # production 2026-08-06). `add_alert` is the single owner of the webhook;
     # `tests/test_alerts_privacy.py` counts real `requests.post` calls and fails
-    # at two.
+    # on anything but zero for this lane.
     #
     # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
-    # That is the double-post again, wearing the words of this task.
+    # A private alert has no Discord leg any more — this room is for something
+    # an operator or the whole audience should see, not one member's alert.
     return _delivery_report(True, channels, errors)
 
 
@@ -535,18 +542,25 @@ def deliver_alert_payload(
         channels[CHANNEL_EMAIL] = CHANNEL_FAILED
         errors[CHANNEL_EMAIL] = f"{type(e).__name__}: {e}"
 
-    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1, WHICH IS ALSO WHERE
+    # 3. Discord — DECIDED BY `add_alert` in step 1, WHICH IS ALSO WHERE
     #    ITS OUTCOME COMES FROM (`channels["discord"]`, filled by that function).
     #
+    # ⚰️ TERM-011 step 7 (rows 4/5), 2026-09-27: this call always carries a real
+    # `user_id`, so `add_alert` now retires the Discord leg outright and step 1
+    # reports `skipped` unconditionally — the "posted a SECOND, near-identical
+    # embed" history below is why an explicit re-add is refused; it is no
+    # longer even possible to reach the admin channel from this call at all.
+    #
     # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. Step 1 passes
-    # severity="warning", which is exactly the severity `add_alert` fires the
-    # webhook on, so the explicit call that used to sit here posted a SECOND,
+    # severity="warning", which is exactly the severity `add_alert` USED TO fire
+    # the webhook on, so the explicit call that used to sit here posted a SECOND,
     # near-identical embed for every delivered alert (same title, same message,
     # same footer — only the footer timestamp's timezone differed). Removing it
     # loses no information from the admin channel and halves its volume.
     #
     # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
-    # That is the double-post again, wearing the words of this task.
+    # A private alert has no Discord leg any more — this room is for something
+    # an operator or the whole audience should see, not one member's alert.
     return _delivery_report(True, channels, errors)
 
 

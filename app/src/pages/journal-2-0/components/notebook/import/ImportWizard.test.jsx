@@ -1063,3 +1063,34 @@ describe('ImportWizard — post-migration enrichment offer (§8.1)', () => {
     expect(fetchMock.mock.calls.some((c) => /\/embeds$/.test(String(c[0])))).toBe(false)
   })
 })
+
+// ⭐ Wave 10 (10D, R-16): a FINISHED import counts itself — the adapter's id (a closed list,
+// the registry's own) and three counts. Never a file name, a title or a folder.
+describe('import_used — the finished import counts itself, and nothing the files said', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (url.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:hello.md', id: 'n1' }], updated: [], skipped: [] }))
+      if (url.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+  })
+
+  const telemetry = () => vi.mocked(fetch).mock.calls
+    .filter(([u]) => u === '/api/j2/telemetry')
+    .map(([, init]) => JSON.parse(init.body))
+
+  it('a finished import sends ONE import_used with the adapter id and the counts', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    fireEvent.change(screen.getByTestId('import-file-input'), { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
+    expect(telemetry()).toEqual([])   // a preview is not an import
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => expect(screen.getByText(/imported/i)).toBeInTheDocument())
+    expect(telemetry()).toEqual([
+      { event: 'import_used', props: { source: 'file', created: 1, updated: 0, failed: 0 } },
+    ])
+    expect(JSON.stringify(telemetry())).not.toMatch(/hello|n1/)
+  })
+})

@@ -268,3 +268,58 @@ def test_create_excerpt_returns_the_note_it_just_advanced(app, client):
     # ...and it must be the NEW revision, not a copy of the one we started from.
     assert note["updatedAt"] != before
     assert note["updatedAt"] == client.get(f"/api/j2/notes/{note_id}").json()["note"]["updatedAt"]
+
+
+def _excerpt_rows(note_id):
+    """Rows in the excerpt TABLE for this note — not the listing, which joins the
+    body's reference sidecar and so could never show an unplaced (orphaned) row."""
+    from api.services.auth_db import get_connection
+    conn = get_connection()
+    try:
+        return conn.execute("SELECT COUNT(*) FROM j2_note_excerpts WHERE note_id = ?",
+                            (note_id,)).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def _bullets(levels):
+    node = {"type": "paragraph", "content": [{"type": "text", "text": "deepest words"}]}
+    for _ in range(levels):
+        node = {"type": "bulletList", "content": [{"type": "listItem", "content": [node]}]}
+    return {"type": "doc", "content": [node]}
+
+
+def test_a_note_stored_too_deep_refuses_the_excerpt_with_a_400_and_leaves_no_orphan(app):
+    """Wave 10 10D fix round 1 (review M-10). A note stored past the H14 depth cap
+    BEFORE the cap existed (seeded here by SQL, past the write guard) cannot take
+    the excerpt node: the door answers 400 with the sentence — never a 500 — and
+    removes the excerpt row it had already written. (Mutation: drop the catch ->
+    500 and an orphan; drop only the delete -> the orphan count reds.)"""
+    import json as _json
+    from api.services.auth_db import get_connection
+    _login_as(app, "u1")
+    c = TestClient(app, raise_server_exceptions=False)
+    note_id = _create_note(c, "Stored before the cap")
+    doc_id = _upload_pdf(c, note_id, text="Management expects gross margins to normalize lower")
+    conn = get_connection()
+    try:
+        conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?",
+                     (_json.dumps(_bullets(30)), note_id))
+        conn.commit()
+    finally:
+        conn.close()
+    r = c.post(f"/api/j2/notes/{note_id}/excerpts", json={
+        "documentId": doc_id, "pageNumber": 1,
+        "capturedText": "gross margins to normalize lower",
+    })
+    assert r.status_code == 400, (r.status_code, r.text[:300])
+    assert isinstance(r.json().get("detail"), str) and r.json()["detail"], "the refusal says why"
+    assert _excerpt_rows(note_id) == 0, "a refused excerpt must not be left behind unplaced"
+    # CONTROL: the same door on a normal note writes exactly one row, so the probe
+    # above reads the table the door writes.
+    ok_note = _create_note(c, "An ordinary note")
+    ok_doc = _upload_pdf(c, ok_note, text="Management expects gross margins to normalize lower")
+    assert c.post(f"/api/j2/notes/{ok_note}/excerpts", json={
+        "documentId": ok_doc, "pageNumber": 1,
+        "capturedText": "gross margins to normalize lower"}).status_code == 200
+    assert _excerpt_rows(ok_note) == 1
