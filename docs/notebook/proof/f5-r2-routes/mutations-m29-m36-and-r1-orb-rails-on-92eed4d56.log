@@ -1,0 +1,22 @@
+{"id": "M29-locked-ignored", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  9 failed | 27 passed (36)", "red": true}
+{"id": "M30-every-route-locked", "file": "src/components/firstRun/viewportLockedRoutes.js", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  21 failed | 15 passed (36)", "red": true}
+{"id": "M31-locked-page-dismisses", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  9 failed | 27 passed (36)", "red": true}
+{"id": "M32-measured-route-dropped", "file": "src/components/firstRun/viewportLockedRoutes.js", "test": "src/components/firstRun/viewportLockedRoutes.test.js", "exit": 1, "totals": "Tests  1 failed | 3 passed (4)", "red": true}
+{"id": "M33-unmeasured-route-added", "file": "src/components/firstRun/viewportLockedRoutes.js", "test": "src/components/firstRun/viewportLockedRoutes.test.js", "exit": 1, "totals": "Tests  1 failed | 3 passed (4)", "red": true}
+{"id": "M34-nav-route-unmeasured", "file": "src/components/NavBar.jsx", "test": "src/components/firstRun/viewportLockedRoutes.test.js", "exit": 1, "totals": "Tests  1 failed | 3 passed (4)", "red": true}
+{"id": "M35-child-routes-assumed", "file": "src/components/firstRun/viewportLockedRoutes.js", "test": "src/components/firstRun/viewportLockedRoutes.test.js", "exit": 1, "totals": "Tests  1 failed | 3 passed (4)", "red": true}
+{"id": "M36-bare-prefix", "file": "src/components/firstRun/viewportLockedRoutes.js", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+{"id": "M1-stage-ignored", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+{"id": "M2-portal-to-body", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  16 failed | 20 passed (36)", "red": true}
+{"id": "M19-card-under-help", "file": "src/components/voice/FloatingOrb.module.css", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+{"id": "M21-sheet-keeps-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  2 failed | 34 passed (36)", "red": true}
+{"id": "M22-audio-keeps-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+{"id": "M23-sheet-dismisses", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  2 failed | 34 passed (36)", "red": true}
+{"id": "M24-audio-dismisses", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+{"id": "M25-tuck-with-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 35 passed (36)", "red": true}
+ALL RED
+rc=0
+app/src/components/voice/FloatingOrb.jsx: OK
+app/src/components/firstRun/viewportLockedRoutes.js: OK
+app/src/components/NavBar.jsx: OK
+?? docs/notebook/proof/f5-r2-routes/instrument/f5_mutate_r2.py
