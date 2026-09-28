@@ -1,0 +1,152 @@
+{
+ "modes": {
+  "phone": {
+   "width": 390,
+   "height": 844,
+   "touch": true
+  },
+  "tablet": {
+   "width": 820,
+   "height": 1180,
+   "touch": true
+  },
+  "desktop": {
+   "width": 1200,
+   "height": 800,
+   "touch": false
+  }
+ },
+ "cells": [],
+ "controls": {
+  "got": {
+   "plant-wide": "found",
+   "plant-small": "found",
+   "plant-covered": "found"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "mode": "phone",
+    "width": 390,
+    "wide_found": true,
+    "page_grew_px": 979,
+    "small_found": true,
+    "small_expected": true,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "tap",
+      "control": "Planted small control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "w": 20,
+      "h": 20
+     },
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       28,
+       333,
+       120,
+       44
+      ]
+     },
+     {
+      "kind": "occluded",
+      "control": "Archived",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div._orbCluster_19ke9_303 \"◉\"",
+      "hit": "circle",
+      "by_modal": false,
+      "box": [
+       82,
+       770,
+       272,
+       44
+      ]
+     }
+    ]
+   },
+   {
+    "mode": "tablet",
+    "width": 820,
+    "wide_found": true,
+    "page_grew_px": 0,
+    "small_found": true,
+    "small_expected": true,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "cutoff",
+      "what": "div",
+      "right": 1424,
+      "area": "notebook"
+     },
+     {
+      "kind": "tap",
+      "control": "Planted small control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "w": 20,
+      "h": 20
+     },
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       28,
+       268,
+       120,
+       44
+      ]
+     }
+    ]
+   },
+   {
+    "mode": "desktop",
+    "width": 1200,
+    "wide_found": true,
+    "page_grew_px": 0,
+    "small_found": false,
+    "small_expected": false,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "cutoff",
+      "what": "div",
+      "right": 1484,
+      "area": "notebook"
+     },
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       88,
+       163,
+       120,
+       44
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}
