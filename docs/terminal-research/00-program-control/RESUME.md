@@ -16,6 +16,11 @@ gappers), 088 (decision-record tab, dark), 078 (AI door census + member AI meter
 "What Syncs Across Your Devices" card; drift is a printed report unless PERSISTENCE_CENSUS_STRICT=1), 069 (yfinance/BS
 chain leg retired; Massive is the one chain — evidence `10-roadmap/evidence/2026-09-28-term069-chain-parity/`), push.py
 constant-time bearer, entitlements manifest regenerated, backlog TERM-025 row corrected (8/8 S7 types already BUILT).
+Then, later the same night: 077, 075, **073** (`18103a58d`, dated append-only analyst timeline, backed up), the
+**AI-spend caps** (`debea99d9`: per-member ET-day caps on Compass weekly/EOD/trade-review regenerate 25/25/60 and
+pre-trade verdict 150, env-overridable `COMPASS_*_DAILY_CAP`; confirm/cancel/onboarding admitted by the chat cap +
+cost breaker; atomic compare-and-set confirm), **TERM-021 ceiling** (`3a27475a8`, RETAIN_CEILING=2000 per board — the
+owed item is DONE) and the verdict card's 429 copy (`fe478a615`). Scoped runs: 330 + 279 + 51 passed, 0 failed.
 
 **Other repos, committed locally, owner to push:** `uct-intelligence` `25fade0` (setup_performance tie-break by id:
 EP win rate 42.2% → 17.2%; also get_historical_analogs) · `morning-wire` `3a15625` (TERM-085 surface line,
@@ -28,10 +33,11 @@ hours — it restarts flow-worker) · `git push origin master` in uct-intelligen
 `railway variables --service terminal-next-monitor --set CADENCE_ROLLUP_ENABLED=1`.
 
 **Rulings made under the owner's delegation ("you decide all"):** chart dividend markers split-adjusted · BTC/VIX stay
-on yfinance for now · /api/flow-scoreboard stays PAID · TERM-021 retention 30d OR newest 200 (+ a 2000/board ceiling
-owed before arming) · Wire default view kept · push-to-talk skips text fields · TERM-069 subsumed by BRK-01.
+on yfinance for now · /api/flow-scoreboard stays PAID · TERM-021 retention 30d OR newest 200, hard ceiling 2000 per
+board (built `3a27475a8`) · Wire default view kept · push-to-talk skips text fields · TERM-069 subsumed by BRK-01.
 
-**Remaining queue:** TERM-077 (in flight) → 075 → 073 → 091 (one TIER-NONE at a time). Held: band 0, 014/017,
+**Remaining queue:** TERM-091 (curriculum loader, dark behind `EDU_CURRICULUM_ENABLED`) in flight — the LAST
+agent-buildable ticket. Held: band 0, 014/017,
 TERM-011 step 8 (a week of fallback=0), CARD 16 p95 (RTH only), 082 (needs 012), 093 (owner subject), 035 (parked:
 spec read refused to its agent). Master reds that are NOT ours: reachable.test.js (3 Pine engine files),
 yf_guard_binds (financial_statements.py), shared_data_root_guard, alert_taxonomy dark_report caller,
