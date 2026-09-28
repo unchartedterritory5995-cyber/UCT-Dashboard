@@ -10,7 +10,9 @@ nightly Mon-Sat) and ``api/j2_attachments_backup.py`` (the J2 image tree) — wi
 for auth.db alone (``tools/authdb_restore_drill.py``). Every other store on the web volume had no
 off-box copy, including the member posts in ``community.db``. This module is the generalised
 schedule for the ones in ``STORES``; the two already covered are listed in ``COVERED_ELSEWHERE``
-so they are never backed up twice.
+so they are never backed up twice. Since TERM-073 it also carries one RETAINED SERIES (the
+analyst timeline in screener_analyst.db), a store worth keeping because the vendor cannot
+re-serve its history.
 
 Invariants (the same law the three sibling rails keep):
   * ⛔ NEVER a file copy of a hot WAL db. A raw copy of the main file misses every write still in
@@ -58,7 +60,10 @@ _KEY_RE = re.compile(r"^store_backups/([a-z0-9_]+)/(\d{8}T\d{6}Z)\.db\.gz$")
 
 CLASS_MEMBER = "member-authored"
 CLASS_CURATED = "firm-curated"
-CLASSES = (CLASS_MEMBER, CLASS_CURATED)
+#: A series that is retained BECAUSE it cannot be re-fetched: the vendor serves only the current
+#: value, so a lost night is lost for good (TERM-073's analyst timeline).
+CLASS_RETAINED = "retained-series"
+CLASSES = (CLASS_MEMBER, CLASS_CURATED, CLASS_RETAINED)
 
 
 @dataclass(frozen=True)
@@ -86,6 +91,9 @@ STORES: tuple[Store, ...] = (
     Store("modelbook", CLASS_CURATED, "api.services.modelbook_service", "_DB_PATH"),
     Store("education", CLASS_CURATED, "api.services.education_service", "_DB_PATH"),
     Store("desk", CLASS_CURATED, "api.services.desk_store", "_DB_PATH"),
+    # TERM-073: the nightly analyst pass's `analyst_timeline` lives in this db. The whole file is
+    # backed up (its `analyst_rows` / `analyst_runs` ride along); the timeline is why it is here.
+    Store("screener_analyst", CLASS_RETAINED, "api.services.screener.analyst_pass", "get_db_path"),
 )
 
 #: Stores another rail already backs up. Never registered above.
