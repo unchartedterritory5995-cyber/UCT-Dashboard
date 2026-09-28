@@ -1977,7 +1977,7 @@ export default function NoteEditorPage({
   // re-ran this whole component -- header, properties, thesis, backlinks, side
   // panels -- on every keystroke (lane 10A's attribution). What genuinely reads
   // per-transaction state now subscribes to it itself, and re-renders only when
-  // what it shows changed: the toolbar row (`EditorToolbarRow`, below), the text
+  // what it shows changed: the toolbar row (`EditorToolbarState`, above), the text
   // colour menu, the table toolbar, the find bar's Undo, the link-paste offer,
   // the word count and the outline.
   // ⭐ The one editor fact THIS component reads in render is `editor.isEditable`
@@ -2129,9 +2129,10 @@ export default function NoteEditorPage({
   // pure DEFAULTS as "the user's chart" — an insert/Sync in that window ships
   // the exact defect this stamp exists to fix (review finding). And key the
   // effect on the RAW pref values, not the prefs object: usePreferences hands
-  // back a new object every render, and this page re-renders per keystroke —
-  // an object dep re-parses the whole multi-KB workspace layout on every
-  // caret move (review finding).
+  // back a new object every render, and this page re-renders often (it did
+  // on every keystroke until wave 10 F1; it still does on every save-status
+  // change and every side read) — an object dep re-parses the whole multi-KB
+  // workspace layout on each of those renders (review finding).
   const { prefs, loading: prefsLoading } = usePreferences()
   useEffect(() => {
     if (prefsLoading) return

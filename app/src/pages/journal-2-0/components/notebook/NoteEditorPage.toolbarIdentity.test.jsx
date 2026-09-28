@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { Parser } from 'acorn'
+import acornJsx from 'acorn-jsx'
 import { TextSelection } from '@tiptap/pm/state'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 import { textColorClass } from '../../lib/textColor'
@@ -429,34 +431,110 @@ describe('NoteEditorPage — editability still re-renders the page (wave 10 F1)'
 })
 
 describe('NoteEditorPage — the toolbar reads the editor in ONE place (wave 10 F1, structural)', () => {
+  // ⛔ AN AST, NEVER A REGEX (fix round 1, review m-2). The regex version forbade only
+  // `.on('transaction'|...)` and `isActive(` / `getAttributes(`, so three other ways of putting a
+  // full-page re-render back on every keystroke (a page-level `useEditorState`, an
+  // `onTransaction` option, `shouldRerenderOnTransaction: true`) and a render-time `can(` or
+  // `editor.state` read in the row all left it green. acorn + acorn-jsx, the parser
+  // lib/nestedComponents.test.js already uses; comments are not nodes, so prose cannot match.
   const FILE = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'NoteEditorPage.jsx')
-  const src = readFileSync(FILE, 'utf8').replace(/\r\n/g, '\n')
-  // Comments blanked to spaces (line numbers kept), so prose naming a call is not a call.
-  const code = src
-    .replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '))
-    .replace(/(^|[^:'"`])\/\/[^\n]*/g, (c, p) => p + c.slice(p.length).replace(/[^\n]/g, ' '))
-  const lineOf = (i) => code.slice(0, i).split('\n').length
-  const start = code.indexOf('\nfunction toolbarStateOf(')
-  const end = code.indexOf('\n}\n', start)
+  const ast = Parser.extend(acornJsx()).parse(readFileSync(FILE, 'utf8'),
+    { ecmaVersion: 'latest', sourceType: 'module', locations: true })
+  const at = (n) => `NoteEditorPage.jsx:${n.loc.start.line}`
 
-  it('non-vacuity: toolbarStateOf exists and holds the reads', () => {
-    expect(start).toBeGreaterThan(0)
-    const inside = [...code.slice(start, end).matchAll(/\.(isActive|getAttributes)\(/g)]
-    expect(inside.length).toBeGreaterThanOrEqual(10)
+  /** Depth-first over every node; `visit(node, parents)` returns false to skip the subtree. */
+  function walk(node, visit, parents = []) {
+    if (!node || typeof node.type !== 'string') return
+    if (visit(node, parents) === false) return
+    parents.push(node)
+    for (const key of Object.keys(node)) {
+      if (key === 'loc') continue
+      const v = node[key]
+      if (Array.isArray(v)) v.forEach((c) => walk(c, visit, parents))
+      else if (v && typeof v.type === 'string') walk(v, visit, parents)
+    }
+    parents.pop()
+  }
+  const find = (root, pred) => { let hit = null; walk(root, (n) => { if (hit) return false; if (pred(n)) hit = n }); return hit }
+  const all = (root, pred) => { const out = []; walk(root, (n) => { if (pred(n)) out.push(n) }); return out }
+  const isFn = (n) => /Function/.test(n.type)
+  const memberName = (n) => n.type === 'MemberExpression' && !n.computed ? n.property.name : null
+  const calleeName = (n) => n.type === 'CallExpression'
+    ? (n.callee.type === 'Identifier' ? n.callee.name : memberName(n.callee)) : null
+  const keyName = (p) => p.key && (p.key.name ?? p.key.value)
+
+  const toolbarStateOf = find(ast, (n) => n.type === 'FunctionDeclaration' && n.id?.name === 'toolbarStateOf')
+  const canRunHistoryFn = find(ast, (n) => n.type === 'FunctionDeclaration' && n.id?.name === 'canRunHistory')
+  const page = find(ast, (n) => n.type === 'FunctionDeclaration' && n.id?.name === 'NoteEditorPage')
+  const useEditorCall = page && find(page, (n) => calleeName(n) === 'useEditor')
+  const editorOptions = useEditorCall?.arguments[0]?.type === 'ObjectExpression' ? useEditorCall.arguments[0] : null
+  // The toolbar row: the render-prop child of <EditorToolbarState> inside the page.
+  const holder = page && find(page, (n) => n.type === 'JSXElement' && n.openingElement.name.name === 'EditorToolbarState')
+  const row = holder && holder.children.find((c) => c.type === 'JSXExpressionContainer' && isFn(c.expression))?.expression
+  const inside = (n, fn) => !!fn && n.start >= fn.start && n.end <= fn.end
+
+  /** What the row reads WHILE RENDERING: event handlers and ref callbacks run later, and are skipped. */
+  function renderTimeNodes(fn) {
+    const out = []
+    walk(fn.body, (n, parents) => {
+      const up = parents[parents.length - 1]
+      const attr = up?.type === 'JSXExpressionContainer' ? parents[parents.length - 2] : null
+      if (isFn(n) && attr?.type === 'JSXAttribute' && /^(on[A-Z]|ref$)/.test(attr.name.name)) return false
+      out.push(n)
+    })
+    return out
+  }
+
+  it('non-vacuity: the parse finds every anchor the checks below read', () => {
+    expect(toolbarStateOf, 'toolbarStateOf').toBeTruthy()
+    expect(page, 'NoteEditorPage').toBeTruthy()
+    expect(editorOptions, 'useEditor({...})').toBeTruthy()
+    expect(row, 'the <EditorToolbarState> render-prop').toBeTruthy()
+    // The reads live where the rail says they do ...
+    expect(all(toolbarStateOf, (n) => ['isActive', 'getAttributes'].includes(calleeName(n))).length)
+      .toBeGreaterThanOrEqual(10)
+    // ... the options check sees real keys (the page's own `onUpdate` is the autosave) ...
+    expect(editorOptions.properties.map(keyName)).toEqual(expect.arrayContaining(['onUpdate', 'onCreate']))
+    // ... the row walk reaches render-time code (the `ts.*` reads, the mic's `editor.isEditable`) ...
+    const rendered = renderTimeNodes(row)
+    expect(rendered.filter((n) => n.type === 'MemberExpression' && n.object.name === 'ts').length).toBeGreaterThanOrEqual(10)
+    expect(rendered.some((n) => memberName(n) === 'isEditable')).toBe(true)
+    // ... and the handler skip is real: the row HAS handlers that read the editor (Undo's chain).
+    expect(all(row, (n) => calleeName(n) === 'chain').length).toBeGreaterThan(0)
+    expect(rendered.some((n) => calleeName(n) === 'chain')).toBe(false)
+    // ... and the event search sees the page's own lifecycle subscriptions.
+    expect(all(page, (n) => calleeName(n) === 'on' && ['mount', 'create'].includes(n.arguments[0]?.value)).length).toBeGreaterThan(0)
   })
 
-  it('every isActive( / getAttributes( in NoteEditorPage.jsx is inside toolbarStateOf', () => {
-    const outside = [...code.matchAll(/\.(isActive|getAttributes)\(/g)]
-      .filter((m) => m.index < start || m.index > end)
-      .map((m) => `NoteEditorPage.jsx:${lineOf(m.index)}`)
+  it('every isActive( / getAttributes( / can( / canRunHistory( in NoteEditorPage.jsx is inside toolbarStateOf', () => {
+    const outside = all(ast, (n) => ['isActive', 'getAttributes', 'can', 'canRunHistory'].includes(calleeName(n)))
+      .filter((n) => !inside(n, toolbarStateOf) && !(calleeName(n) === 'can' && inside(n, canRunHistoryFn)))
+      .map((n) => `${at(n)} ${calleeName(n)}(`)
     expect(outside).toEqual([])
   })
 
-  it('the page subscribes to no per-transaction editor event', () => {
-    const subs = [...code.matchAll(/\.on\(\s*['"](transaction|selectionUpdate|update)['"]/g)]
-      .map((m) => `NoteEditorPage.jsx:${lineOf(m.index)} ${m[0]}`)
-    expect(subs).toEqual([])
-    // Non-vacuity: the same search finds the page's own lifecycle subscriptions.
-    expect([...code.matchAll(/\.on\(\s*['"](mount|create|unmount)['"]/g)].length).toBeGreaterThan(0)
+  it('the toolbar row reads no editor state while rendering (only through `ts`)', () => {
+    const reads = renderTimeNodes(row)
+      .filter((n) => ['isActive', 'getAttributes', 'can', 'state', 'storage'].includes(memberName(n))
+        || ['canRunHistory', 'toolbarStateOf'].includes(calleeName(n)))
+      .map((n) => `${at(n)} ${memberName(n) || calleeName(n)}`)
+    expect(reads).toEqual([])
+  })
+
+  it('the page subscribes to no per-transaction editor state, by any of the four doors', () => {
+    const doors = [
+      // 1. an event subscription
+      ...all(page, (n) => calleeName(n) === 'on'
+        && ['transaction', 'selectionUpdate', 'update'].includes(n.arguments[0]?.value))
+        .map((n) => `${at(n)} .on('${n.arguments[0].value}')`),
+      // 2. a page-level store subscription
+      ...all(page, (n) => calleeName(n) === 'useEditorState').map((n) => `${at(n)} useEditorState(`),
+      // 3. and 4. useEditor's own per-transaction hooks
+      ...editorOptions.properties
+        .filter((p) => ['onTransaction', 'onSelectionUpdate'].includes(keyName(p))
+          || (keyName(p) === 'shouldRerenderOnTransaction' && !(p.value.type === 'Literal' && p.value.value === false)))
+        .map((p) => `${at(p)} ${keyName(p)}:`),
+    ]
+    expect(doors).toEqual([])
   })
 })

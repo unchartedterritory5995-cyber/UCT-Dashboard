@@ -242,7 +242,10 @@ describe('focus in the note editor', () => {
     act(() => { editor.commands.insertContent('/') })
     await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
     const caret = editor.state.selection.from
-    expect(active()).toBe(editor.view.dom)
+    // TipTap's `focus('end')` lands the focus in a requestAnimationFrame, and the menu mounts
+    // on its own schedule: under load the menu can win that race. Wait for the focus the member
+    // starts from; what this rail asserts is where Escape leaves it, below.
+    await waitFor(() => expect(active()).toBe(editor.view.dom))
     fireEvent.keyDown(editor.view.dom, { key: 'Escape' })
     await settle()
     expect(active()).toBe(editor.view.dom)

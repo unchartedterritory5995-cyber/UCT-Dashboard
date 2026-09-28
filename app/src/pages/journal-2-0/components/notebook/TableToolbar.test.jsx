@@ -3,7 +3,6 @@
 // Tab / Shift-Tab between cells.
 import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
-import { useEffect, useReducer } from 'react'
 import { Editor } from '@tiptap/core'
 import { TextSelection } from '@tiptap/pm/state'
 import { buildExtensions } from '../../lib/tiptap'
@@ -30,13 +29,12 @@ const TABLE = {
   ],
 }
 
-// The page re-renders on every transaction; the harness does the same.
+// Wave 10 F1: the note page no longer re-renders on an editor transaction, so the
+// bar is rendered BARE here, exactly as the page renders it. Whatever keeps it in
+// step with the caret has to be the bar's own subscription; a harness that bumped
+// on every transaction would supply the re-render the product no longer has, and
+// deleting that subscription would leave this whole suite green.
 function Harness({ ed }) {
-  const [, bump] = useReducer((x) => x + 1, 0)
-  useEffect(() => {
-    ed.on('transaction', bump)
-    return () => ed.off('transaction', bump)
-  }, [ed])
   return <TableToolbar editor={ed} />
 }
 
