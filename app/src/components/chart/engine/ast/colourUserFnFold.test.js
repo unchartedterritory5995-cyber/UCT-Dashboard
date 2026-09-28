@@ -195,7 +195,15 @@ describe('R35c — a single-expression colour helper is substituted and re-walke
       + 'plot(close, "A", color = pick(0))\n'
     const { p } = presOf(src)
     expect(p.color, 'a series-tailed body was folded to one flat colour').toBeUndefined()
-    expect(p.colorDynamic, 'the decline must be declared, not silent').toBe(true)
+    // ⚰️ WAS `colorDynamic === true` — declined, with the reason. Since
+    // 2026-09-28 a helper whose tail is a CONDITIONAL is opened and its rule
+    // carried per bar, exactly as if written inline (`colourConditional`,
+    // measured on Madrid Moving Average Ribbon against TradingView). The
+    // boundary this test exists for still holds: a series tail is never
+    // flattened into one colour — it is now carried as the per-bar rule.
+    expect(p.colorUp).toBe('#00897B')
+    expect(p.colorDown).toBe('#FF5252')
+    expect(p.colorCondition && p.colorCondition.formula).toBe('close > open')
   })
 
   it('⚠️ RECORDED DEVIATION — a multi-statement colour body DOES fold', () => {

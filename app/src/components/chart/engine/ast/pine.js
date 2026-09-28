@@ -11550,9 +11550,12 @@ function switchBinding(subjectToks, subStmts, ctx, env, firstTok) {
   }
 }
 
-function foldStatements(stmts, ctx, env) {
+function foldStatements(stmts, ctx, env, { declarationIsValue = false } = {}) {
   let value = null
   let i = 0
+  // The index of the body's LAST statement — a blank header is not one.
+  let lastStatement = stmts.length - 1
+  while (lastStatement >= 0 && !(stmts[lastStatement].header || [])[0]) lastStatement -= 1
   /** ⭐⭐ R2 STEP 1 — THE WALK RECORDS WHAT IT BOUND, PER STATEMENT.
    *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
    *  local's value. See `scopeFor`'s header for the defect this replaces. */
@@ -11710,6 +11713,26 @@ function foldStatements(stmts, ctx, env) {
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
       record(st, nameTok.value)
+      // ⭐⭐ 2026-09-28 — A DECLARATION THAT ENDS A FUNCTION BODY IS ITS VALUE.
+      // Pine returns the value of a body's LAST statement, and a declaration's
+      // value is the value it declares:
+      //
+      //     maColor(_ma, _maRef) =>
+      //         diffMA = change(_ma)
+      //         macol = diffMA>=0 and _ma>_maRef ? LIME : … : GRAY     ← returned
+      //
+      // ⚰️ This walk kept `value` only for a BARE trailing expression, so that
+      // function was refused as "ends in no value this engine can read" — and
+      // Madrid Moving Average Ribbon's eighteen lines, every one coloured through
+      // it, drew in the pane's gold where TradingView drew lime/maroon/red/
+      // green/gray (vendor harness, RDDT 1D 2026-09-28: 628 of 632 bars on MMA05).
+      // ⛔ ONLY the LAST statement. An earlier declaration is a local, never the
+      // value, and a later bare expression still overrides it as before.
+      // ⛔ ONLY A FUNCTION BODY (`declarationIsValue`, passed by the `=>` walk
+      // alone). That is where TradingView's answer was MEASURED; an `if`/`switch`
+      // arm ending in a declaration keeps refusing at `pine:block` until a
+      // capture says what the vendor does there.
+      if (declarationIsValue && i === lastStatement) value = env.get(nameTok.value)
       i += 1
       continue
     }
@@ -14273,7 +14296,7 @@ function translatePineResult(source, opts = {}) {
         // that without re-implementing the walk.
         const beforeFn = new Map(fnEnv)
         const value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv)
+          ? foldStatements(stmt.sub, ctx, fnEnv, { declarationIsValue: true })
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
         for (const [localName, localBound] of fnEnv) {
           if (beforeFn.get(localName) !== localBound) finalLocals.add(localBound)
@@ -16314,6 +16337,35 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     }
     return null
   }
+  // ⭐⭐ 2026-09-28 — A USER COLOUR HELPER WHOSE TAIL IS A CONDITIONAL IS OPENED,
+  // and its conditional carried exactly as if it were written inline.
+  //
+  // ⚰️ MEASURED against TradingView (vendor harness, RDDT 1D, 2026-09-28):
+  // Madrid Moving Average Ribbon colours all eighteen of its lines through
+  //
+  //     maColor(_ma, _maRef) =>
+  //         diffMA = change(_ma)
+  //         macol = diffMA>=0 and _ma>_maRef ? LIME : … : GRAY
+  //
+  // and every one drew in the pane's gold — 628 of 632 bars wrong on MMA05 —
+  // because this walker followed a NAME to its ternary but stopped at a CALL.
+  // `staticColourOf` has opened helpers since R35c; only the conditional reader
+  // was missing the same step.
+  //
+  // ⛔ THE CONDITION RESOLVES IN THE HELPER'S FRAME, via `Resolver.resolveInFrame`
+  // — the one substitution mechanism in this file — so `_ma`, `_maRef` and the
+  // local `diffMA` read what the CALL passed. The answer carries its `inline`
+  // frame for `outputPresentation` to hand back to the resolver.
+  // ⛔ ONE LEVEL. A helper met while already inside one declines (`resolveInFrame`
+  // pushes exactly one frame), rather than resolving the inner condition against
+  // the outer call's arguments.
+  if (node.type === 'call') {
+    if (ctx && ctx.inline) return null
+    const helper = openColourHelper(node, env, ctx)
+    if (!helper) return null
+    const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
+    return inner ? { ...inner, inline: helper.inline, withholdMint: true } : null
+  }
   if (node.type !== 'ternary') return null
   const up = staticColourOf(node.yes, env, 0, ctx)
   const down = staticColourOf(node.no, env, 0, ctx)
@@ -16440,6 +16492,29 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
   return out
 }
 
+/** A colour rule's deciding tree → a canonical tree. A rule read out of a user
+ *  colour helper (`colourConditional`'s `inline`) resolves inside that helper's
+ *  call frame — its parameters and locals mean what the CALL passed — through
+ *  `Resolver.resolveInFrame`; anything else resolves at the output's own scope,
+ *  exactly as before. */
+function resolveColourTree(resolver, cond, tree) {
+  const resolveIt = () => (cond && cond.inline ? resolver.resolveInFrame(cond.inline, tree) : resolver.resolve(tree))
+  if (!(cond && cond.withholdMint)) return resolveIt()
+  // ⛔⛔ R36 — A NEWLY CARRIED COLOUR RULE RESOLVES; IT DOES NOT MINT (see
+  // `colourNumericFold` for the measured cost). ⚰️ Measured 2026-09-28:
+  // carrying `cond ? c : na` and helper-returned conditionals minted the inputs
+  // their conditions read, mid-output, and renumbered every later
+  // `__uct_param_N` (chart-champions-part-1: 15 ids moved — the paramIds rail).
+  // ⛔ ONLY the rules this carry ADDED (`withholdMint`, set by
+  // `colourConditional`). The two-colour and all-static chain rules carried
+  // before it have minted since they landed, and their ids are in the pinned
+  // map: withholding there too was MEASURED to move 41 ids across 9 scripts.
+  // `finally`, because `resolve` refusing is the ordinary case.
+  const minted = resolver.paramMint
+  resolver.paramMint = null
+  try { return resolveIt() } finally { resolver.paramMint = minted }
+}
+
 /** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
  *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
  *  this door used to read names only — the colour was dropped and the row drew
@@ -16511,7 +16586,7 @@ function outputPresentation(args, ctx) {
       // refuses leaves the plot imported and `colorDynamicArity` saying why.
       if (cond && cond.indexTree && ctx && ctx.resolver) {
         try {
-          const ast = ctx.resolver.resolve(cond.indexTree)
+          const ast = resolveColourTree(ctx.resolver, cond, cond.indexTree)
           const formula = printFormula(ast)
           verifyRoundTrip(formula, ast)
           pres.colorPalette = cond.palette.slice()
@@ -16523,7 +16598,7 @@ function outputPresentation(args, ctx) {
       }
       if (cond && cond.up && ctx && ctx.resolver) {
         try {
-          const ast = ctx.resolver.resolve(cond.test)
+          const ast = resolveColourTree(ctx.resolver, cond, cond.test)
           const formula = printFormula(ast)
           verifyRoundTrip(formula, ast)
           pres.colorUp = cond.up
