@@ -5,6 +5,9 @@
 #   `python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds
 #   docs/notebook/perf-budgets.json --budget search --budget reads --budget tasks`
 #   (docs/notebook/perf-budgets.md). Added 2026-09-25, wave 7 lane I.
+#   ⭐ Wave 10 (lane 10A, ruling R-10): the BYTE job moved to notebook-bytes.yml, which gates;
+#   the latency check CI can trust is notebook-latency.yml (each read as a ratio to an in-run
+#   calibration op). This file now carries only the millisecond readings, advisory, as before.
 # ─── NOTEBOOK PERFORMANCE BUDGETS, IN CI ─────────────────────────────────────
 #
 # Two budgets, both read from `docs/notebook/perf-budgets.json` (edited BY HAND) and
@@ -110,30 +113,7 @@ jobs:
           path: notebook-bench.json
           if-no-files-found: warn
 
-  bytes:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: app/package-lock.json
-
-      - name: Install
-        working-directory: app
-        run: npm ci
-
-      - name: Build (writes dist/.vite/manifest.json)
-        working-directory: app
-        run: npm run build
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      # Stdlib only: the byte check reads the manifest and the files beside it.
-      - name: Notebook JS byte budget
-        run: python tools/notebook_perf_budgets.py --dist app/dist
+  # ⚰️ The `bytes` job that sat here MOVED to notebook-bytes.yml (wave 10, lane 10A), which
+  # GATES promotion per ruling R-10 -- the gate is decided per workflow file, and this one
+  # stays advisory for the millisecond readings above. The runner-noise-robust latency check
+  # R-10 asks for is notebook-latency.yml (a ratio to an in-run calibration op).

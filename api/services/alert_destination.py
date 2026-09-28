@@ -66,6 +66,24 @@ thing it would change is whether spec §6 **step 4**'s second transport fires, w
 is step 4's decision to take per producer, with the owner. Several of the converted
 producers have no severity field at all, so passing one would be an invention.
 ``destination_for`` accepts one for the step that needs it.
+
+⭐ STEP 4 — THE SECOND TRANSPORT'S ADDRESSES, AND STILL NO TRANSPORT HERE
+────────────────────────────────────────────────────────────────────────
+``second_transport_for`` / ``ops_email_recipients`` turn the resolver's
+``second_transport_env`` NAME into the addresses behind it, exactly as
+``ops_webhook`` turns ``primary_env`` into a URL. They send nothing: the send stays
+in the producer, which is spec §6 step 4's instruction — *"`catalyst/health.py:90-108`
+posts to Discord **and** emails … Reuse that shape with a delivery-only variable per
+§5.2"* — and it is why ``test_this_module_imports_no_transport`` is still true.
+
+⛔⛔ THE DECISION IS THE RESOLVER'S, AND THIS MODULE DOES NOT RE-DERIVE IT. Whether
+an alert reaches the second leg is *(OPS, critical) only*, and that rule lives once,
+in ``alert_routing.SECOND_TRANSPORT_ENV_BY_CLASS`` / ``SECOND_TRANSPORT_MIN_PRIORITY``
+(step 2). Nothing here compares a class or a severity: an empty recipient tuple IS
+the resolver's "no", carried with its reason.
+
+⛔ ``OPS_ALERT_EMAIL_TO`` HAS NO ``ADMIN_EMAILS`` FALLBACK, and that is the one place
+this deliberately does NOT copy the shipped shape — see ``_addresses_of``.
 """
 
 from __future__ import annotations
@@ -82,7 +100,9 @@ from typing import Optional
 # paying for — and it would be the authority the producers actually run on.
 from api.services.alert_routing import (
     ADMIN_WEBHOOK_ENV,
+    CHANNEL_SKIPPED,
     CLASS_OPS,
+    ROUTING_FLAG_ENV,
     ChannelDecision,
     resolve_channel,
     routing_enabled,
@@ -204,3 +224,136 @@ def ops_webhook(severity: object = "", *, producer: Optional[str] = None) -> str
     """
     return destination_for(CLASS_OPS, severity,
                            producer=_producer_of(producer)).url
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  SPEC §6 STEP 4 — THE SECOND TRANSPORT. (OPS, critical) ONLY.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class SecondTransport:
+    """WHO the second transport should reach, and why it declined when it did not.
+
+    ⭐ ADDRESSES, NOT A CREDENTIAL — the one way this differs from ``Destination``.
+    A Discord webhook URL carries its own bearer token; an email address does not,
+    so ``recipients`` is safe to report. The skip ``reason`` still names only the
+    VARIABLE, never a value, because that is the sentence an operator has to act on.
+    """
+
+    #: The addresses to send to, in the order the variable listed them. ``()`` means
+    #: the leg does not fire — and ``reason`` says which of the three whys it was.
+    recipients: tuple
+    #: The variable that was (or would have been) read; ``""`` when no class named one.
+    env_name: str
+    #: ``CHANNEL_SKIPPED`` when this leg declined, ``None`` when it named recipients
+    #: and the outcome is the producer's to report. ⛔ No new outcome word (spec §5.1).
+    status: Optional[str]
+    #: Why it declined. Present exactly when ``status`` is — spec §5.2 for this
+    #: variable: *"SILENCE on the second leg only, and it must say so."*
+    reason: Optional[str]
+    #: False when the kill switch took the pre-split path, so no class was consulted.
+    routed: bool
+    #: The resolver's answer, or ``None`` on the pre-split path.
+    decision: Optional[ChannelDecision]
+
+
+def _addresses_of(raw: object) -> tuple:
+    """Parse a comma-separated delivery-address variable.
+
+    ⭐ THE SHIPPED SHAPE, NOT A NEW ONE: ``api/services/catalyst/health.py:104-107``
+    is ``[e.strip() for e in recips.split(",") if e.strip()]`` and this is that,
+    typed once. Blank, whitespace and a trailing comma all collapse to "no
+    recipients", which is the same answer as unset — deliberately, because
+    ``feedback_kill_switch_never_a_delete`` makes BLANKING the off switch and a
+    blank that behaved differently from unset would make that lever a coin flip.
+
+    ⛔⛔ AND THE ONE PLACE THIS DOES **NOT** COPY THE SHIPPED SHAPE: there is no
+    ``or os.environ.get("ADMIN_EMAILS")`` tail. ``catalyst/health.py`` has one;
+    spec §5.2 forbids it here in the strongest terms it uses, because
+    ``api/routers/auth.py`` promotes an address in ``ADMIN_EMAILS`` to
+    ``role='admin'`` on signup and on login — so a chain ending there would make
+    "who gets paged" a function of an AUTHORIZATION variable in both directions:
+    an operator adding a pager address would grant it production admin, and an
+    operator adding an admin would silently subscribe a person to the pager.
+    ⚠️ It is also what keeps this step inert on the day it lands: ``ADMIN_EMAILS``
+    IS set on production and ``OPS_ALERT_EMAIL_TO`` is not, so a fallback would
+    start emailing three real people on the first OPS critical.
+    """
+    if not isinstance(raw, str):
+        return ()
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
+
+def second_transport_for(alert_class: object, severity: object = "", *,
+                         producer: Optional[str] = None) -> SecondTransport:
+    """Resolve the SECOND transport for ``alert_class`` at ``severity``, reading NOW.
+
+    ⛔⛔ THE ACCEPTANCE CRITERION THIS EXISTS FOR (spec §6 step 4, ``backlog.md:586-587``):
+    *"With the primary channel's variable blanked, a CRITICAL still reaches the second
+    channel."* So this function consults the primary channel's variables **not at all**
+    — no ``DISCORD_OPS_WEBHOOK_URL`` read, no ``DISCORD_WEBHOOK_URL`` read, no
+    ``Destination``. A second leg that a first-leg read could suppress would be a
+    second copy of the first channel, and the one property a single channel cannot
+    have is the one this step is for.
+
+    ⛔ THE KILL SWITCH IS READ FIRST AND ALONE, as in ``destination_for``. With
+    ``ALERT_ROUTING_ENABLED=0`` the pre-split path is in force and the pre-split path
+    has no second leg, so this declines and SAYS SO — *"restores pre-split behaviour
+    verbatim"* has to include not sending mail nobody used to get.
+
+    ⛔ IT DOES NOT DECIDE (OPS, critical). ``resolve_channel`` does, once, and an
+    unnamed ``second_transport_env`` is carried back with the RESOLVER'S OWN reason
+    rather than a locally-worded one — two wordings of one rule drift.
+
+    :raises UnroutableAlert: on any class outside ``ALERT_CLASSES`` while the switch
+        is on. R2 must not soften across a hop (spec §7).
+    """
+    asked_by = _producer_of(producer)
+
+    if not routing_enabled():                       # ⛔ the kill switch, FIRST
+        return SecondTransport(
+            recipients=(), env_name="", status=CHANNEL_SKIPPED,
+            reason=(f"class routing is off ({ROUTING_FLAG_ENV}), so the pre-split "
+                    "path is in force and it has no second leg"),
+            routed=False, decision=None)
+
+    decision = resolve_channel(alert_class, severity, producer=asked_by)
+    env_name = decision.second_transport_env
+    if not env_name:
+        # The resolver declined — not this class, or not critical. Its words, not ours.
+        return SecondTransport(recipients=(), env_name="",
+                               status=decision.second_transport_status,
+                               reason=decision.second_transport_skip_reason,
+                               routed=True, decision=decision)
+
+    recipients = _addresses_of(os.environ.get(env_name))
+    if not recipients:
+        # ⭐ THE PRECEDENT, verbatim in shape — `compass_health.py:155-157` returns
+        # "no recipients (set COMPASS_HEALTH_EMAIL_TO or ADMIN_EMAILS)" rather than
+        # skipping quietly. The NAME is the resolver's; nothing here types it.
+        return SecondTransport(recipients=(), env_name=env_name, status=CHANNEL_SKIPPED,
+                               reason=f"no recipients (set {env_name})",
+                               routed=True, decision=decision)
+
+    return SecondTransport(recipients=recipients, env_name=env_name, status=None,
+                           reason=None, routed=True, decision=decision)
+
+
+def ops_email_recipients(severity: object = "", *,
+                         producer: Optional[str] = None) -> tuple:
+    """The OPS second transport's addresses for ``severity``. ``()`` when it declines.
+
+    ⭐ THE ONE CALL THE PAGER MAKES, and it is the mirror of ``ops_webhook``: a
+    producer asks "who, for this severity?" and gets addresses or nothing. The
+    *(OPS, critical) only* rule is therefore never retyped at a call site — an empty
+    tuple is the resolver's "no", and a producer that consults it by truthiness
+    cannot disagree with the resolver about which severities page.
+
+    ⛔ TOTAL FOR THIS CLASS. ``CLASS_OPS`` is a member of ``ALERT_CLASSES``, so
+    ``resolve_channel`` cannot refuse it and this cannot raise. Its caller is the
+    pager itself, and an exception raised while looking up WHO to page would silence
+    the alarm it was looking them up for.
+    """
+    return second_transport_for(CLASS_OPS, severity,
+                                producer=_producer_of(producer)).recipients

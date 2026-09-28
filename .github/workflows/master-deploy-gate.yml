@@ -182,10 +182,25 @@ jobs:
       # empty result is a failed invocation until proven otherwise.
       - name: Secret scan (files this push changed)
         run: |
+          # ⛔ TWO EMPTY RESULTS, TWO DIFFERENT FACTS. `--diff-filter=d` EXCLUDES
+          # deletions, so a commit that only DELETES files yields an empty list while the
+          # range itself is perfectly fine. The original guard could not tell that apart
+          # from a broken invocation and failed BOTH — which blocked promotion on
+          # 6c2c68adf, a legitimate delete-only tidy-up, holding production 6 commits
+          # behind master. A check that cannot distinguish the right answer from the
+          # wrong one is not a rail.
+          ALL=$(git diff --name-only HEAD^ HEAD | tr '\n' ' ')
           FILES=$(git diff --name-only --diff-filter=d HEAD^ HEAD | tr '\n' ' ')
-          if [ -z "$FILES" ]; then
-            echo "::error::no changed files resolved from HEAD^..HEAD — the scan would be vacuous"
+          if [ -z "$ALL" ]; then
+            echo "::error::HEAD^..HEAD resolved NO paths at all — the RANGE is broken, not empty. This is the vacuous-scan case the guard exists for."
             exit 1
+          fi
+          if [ -z "$FILES" ]; then
+            echo "this commit only DELETES paths ($ALL) — nothing readable to scan."
+            echo "NOT a vacuous pass: the range RESOLVED, and a deleted file carries no"
+            echo "content forward. A secret in a deleted file was already public when it"
+            echo "was pushed, which is what the full-push-range step below exists for."
+            exit 0
           fi
           echo "scanning: $FILES"
           python tools/secret_scrub.py --scan $FILES

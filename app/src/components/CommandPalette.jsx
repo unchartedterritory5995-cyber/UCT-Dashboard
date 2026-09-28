@@ -13,6 +13,7 @@ import {
   tickerLeads, toNoteRow,
 } from '../pages/journal-2-0/lib/noteSwitcher'
 import jsonFetcher from '../utils/jsonFetcher'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -404,6 +405,16 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       }
       navigate(row.to)
     } else if (row.kind === 'note') {
+      // Wave 10 (10D, R-16, study task T4): `switcher_used` — declared in wave 6, fired from
+      // no door until now. How many note rows were offered, where the picked one sat, and
+      // which kind of row it was — never the query or the title.
+      const offered = displayRows.filter((r) => r.kind === 'note')
+      trackNotebookEvent(NOTEBOOK_EVENTS.SWITCHER_USED, {
+        results: offered.length,
+        rank: offered.indexOf(row) + 1,
+        picked: true,
+        mode: row.badge === 'Favorite' ? 'favorite' : row.badge === 'Recent' ? 'recent' : 'title',
+      })
       navigate(`/journal/notebook?note=${encodeURIComponent(row.id)}`)
     } else {
       navigate(`/research/${encodeURIComponent(row.ticker)}`)

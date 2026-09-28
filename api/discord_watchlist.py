@@ -19,16 +19,36 @@ from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
-DISCORD_FLOW_WEBHOOK_URL = (
-    # Primary: matches liveflow_worker.py's lookup so both push paths share
-    # the same channel. Env var renamed 2026-06-17 from DISCORD_FLOW_WEBHOOK_URL
-    # to DISCORD_LIVE_FLOW_WEBHOOK_URL to align with worker code expectations.
-    os.getenv("DISCORD_LIVE_FLOW_WEBHOOK_URL")
-    # Legacy name — kept for safety if the rename ever gets reverted in Railway.
-    or os.getenv("DISCORD_FLOW_WEBHOOK_URL")
-    # Last-resort generic webhook (same fallback liveflow_worker.py uses).
-    or os.getenv("DISCORD_WEBHOOK_URL", "")
-).strip()
+#: ⛔ TERM-011 step 5 — THE VARIABLES THAT TURN THIS POSTER BACK ON, named once.
+#: A log line quotes WEBHOOK_ENV rather than retyping it, so the sentence an
+#: operator acts on cannot drift from the name actually read.
+WEBHOOK_ENV = "DISCORD_LIVE_FLOW_WEBHOOK_URL"
+#: Legacy name — kept for safety if the 2026-06-17 rename ever gets reverted in
+#: Railway. It is the SAME channel, not a fallback to a different room.
+LEGACY_WEBHOOK_ENV = "DISCORD_FLOW_WEBHOOK_URL"
+
+
+def webhook_url() -> str:
+    """This poster's own webhook, read AT CALL TIME. ``""`` = do not post.
+
+    ⛔⛔ TERM-011 step 5 — IT NO LONGER FALLS BACK TO ``DISCORD_WEBHOOK_URL``.
+    This is a member-facing content card; the admin channel is the ops room, and a
+    card that lands there is in the wrong room while reading as a success. The
+    shape is ``calendar_week_poster.resolve_webhook``'s — *"`live` NEVER falls
+    back — an unset production webhook must stop the post, not redirect it"*.
+    A stopped post SAYS SO at every call site below, naming ``WEBHOOK_ENV``.
+
+    ⛔ AND IT IS READ HERE RATHER THAN BOUND AT IMPORT, which is the other half
+    of step 5. This module used to capture the chain into a module constant, so
+    blanking the variable reached nothing until the pod restarted while the
+    operator read it back empty and ``--kv`` agreed — the defect
+    ``api/services/discord_notify.py:11`` still has, named in
+    ``alert_destination.destination_for``'s own docstring. A kill switch a restart
+    is required to honour is a fiction.
+    """
+    return (os.getenv(WEBHOOK_ENV) or os.getenv(LEGACY_WEBHOOK_ENV) or "").strip()
+
+
 ET = ZoneInfo("America/New_York")
 
 # ── Discord embed color constants ──────────────────────────────────────────
@@ -464,10 +484,15 @@ async def send_to_discord(
     date_range: str = "",
 ) -> dict:
     """Build messages from bull/bear + unusual items and send to Discord webhook."""
-    if not DISCORD_FLOW_WEBHOOK_URL:
-        logger.error("[Discord] No webhook URL configured "
-                     "(set DISCORD_LIVE_FLOW_WEBHOOK_URL)")
-        return {"ok": False, "error": "No webhook URL configured"}
+    url = webhook_url()
+    if not url:
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE. This poster is manual, so the
+        # person who clicked also gets the error in the response; the log line is
+        # for the operator who has to set the variable.
+        logger.error("[Discord] watchlist NOT posted — no webhook configured, and "
+                     "this card no longer falls back to DISCORD_WEBHOOK_URL. "
+                     "Set %s to turn it back on.", WEBHOOK_ENV)
+        return {"ok": False, "error": f"No webhook URL configured (set {WEBHOOK_ENV})"}
 
     messages = build_messages(
         bull, bear, label, unusual_bull, unusual_bear,
@@ -478,7 +503,7 @@ async def send_to_discord(
         import asyncio
         async with httpx.AsyncClient(timeout=10.0) as client:
             for msg in messages:
-                resp = await client.post(DISCORD_FLOW_WEBHOOK_URL, json=msg)
+                resp = await client.post(url, json=msg)
                 resp.raise_for_status()
                 await asyncio.sleep(0.5)
 
@@ -509,8 +534,13 @@ async def send_image_to_discord(
     date_range: str = "",
 ) -> dict:
     """Post a screenshot image to Discord webhook as a file attachment with embed."""
-    if not DISCORD_FLOW_WEBHOOK_URL:
-        return {"ok": False, "error": "No webhook URL configured"}
+    url = webhook_url()
+    if not url:
+        # ⛔ TERM-011 step 5 — VISIBLE SILENCE, naming the variable.
+        logger.error("[Discord] watchlist screenshot NOT posted — no webhook "
+                     "configured, and this card no longer falls back to "
+                     "DISCORD_WEBHOOK_URL. Set %s to turn it back on.", WEBHOOK_ENV)
+        return {"ok": False, "error": f"No webhook URL configured (set {WEBHOOK_ENV})"}
 
     now = datetime.now(ET)
     date_str = date_range if date_range else now.strftime("%B %d, %Y")
@@ -528,7 +558,7 @@ async def send_image_to_discord(
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                DISCORD_FLOW_WEBHOOK_URL,
+                url,
                 data={"payload_json": payload_json},
                 files={"file": (filename, image_bytes, "image/png")},
             )
@@ -618,8 +648,13 @@ def register_discord_routes(app_or_router):
         Push a screenshot image of the watchlist to Discord.
         Frontend sends: FormData { file: PNG blob, label, date_range }
         """
-        if not DISCORD_FLOW_WEBHOOK_URL:
-            return {"ok": False, "error": "No webhook URL configured"}
+        if not webhook_url():
+            # ⛔ TERM-011 step 5 — VISIBLE SILENCE, naming the variable.
+            logger.error("[Discord] watchlist image push refused — no webhook "
+                         "configured, and this card no longer falls back to "
+                         "DISCORD_WEBHOOK_URL. Set %s to turn it back on.",
+                         WEBHOOK_ENV)
+            return {"ok": False, "error": f"No webhook URL configured (set {WEBHOOK_ENV})"}
 
         try:
             image_bytes = await file.read()

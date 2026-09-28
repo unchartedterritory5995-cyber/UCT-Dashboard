@@ -8,6 +8,7 @@ import {
   autofillCandidates, requestAutofill,
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 
 const NEW_PROPERTY_TYPES = [
   { value: 'text', label: 'Text' },
@@ -165,6 +166,9 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
     }
     const ok = await setValue(s.propertyId, s.value)
     if (!ok) return
+    // Wave 10 (10D, R-16): an autofill suggestion the member ACCEPTED is writing help that
+    // reached the note — the action word only, never the property or its value.
+    trackNotebookEvent(NOTEBOOK_EVENTS.WRITING_HELP_USED, { action: 'autofill', scope: 'property', replaced: false })
     setManuallyShown((prev) => new Set(prev).add(s.propertyId))
     dropSuggestion(s.propertyId)
   }

@@ -7,6 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import ExportDialog from './ExportDialog'
 import { EXPORT_FORMATS, notebookExportUrl, filenameFromDisposition } from './exportFormats'
+import { featureCalls, telemetryBodies } from '../../../lib/testing/telemetryFetch'
 
 let clicked
 beforeEach(() => {
@@ -70,7 +71,11 @@ describe('the format radio group', () => {
       expect(screen.getByRole('radio', { name: f.label })).toBeChecked()
       fireEvent.click(screen.getByRole('button', { name: `Download ${f.label}` }))
       await waitFor(() => expect(screen.getByText('Your download has started.')).toBeInTheDocument())
-      expect(global.fetch.mock.calls.map((c) => c[0])).toEqual([notebookExportUrl(f.id)])
+      expect(featureCalls(global.fetch).map((c) => c[0])).toEqual([notebookExportUrl(f.id)])
+      // ⭐ Wave 10 (10D, R-16): and the whole-notebook export is counted — the format only.
+      expect(telemetryBodies(global.fetch)).toEqual([
+        { event: 'export_used', props: { format: f.id, scope: 'notebook' } },
+      ])
       expect(clicked).toEqual([`uct-notebook-export-20260926-${f.id}.zip`])
     })
   }
@@ -88,6 +93,7 @@ describe('the format radio group', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'JSON' }))
     fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
     expect(await screen.findByText('An export is already running for your account. Please wait a moment and try again.')).toBeInTheDocument()
+    expect(telemetryBodies(global.fetch)).toEqual([])   // a refused export is not counted
     // Try again returns to the choice, which is kept.
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
     expect(screen.getByRole('radio', { name: 'JSON' })).toBeChecked()
