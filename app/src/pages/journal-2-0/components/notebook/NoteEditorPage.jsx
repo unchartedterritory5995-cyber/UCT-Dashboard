@@ -220,7 +220,7 @@ export function canRunHistory(editor, cmd) {
  * (NoteEditorPage.toolbarIdentity.test.jsx) holds every `isActive(` /
  * `getAttributes(` call in this file to this function.
  */
-export function toolbarStateOf(editor) {
+function toolbarStateOf(editor) {
   if (!editor || editor.isDestroyed) return IDLE_TOOLBAR_STATE
   const textStyle = editor.getAttributes('textStyle')
   return {

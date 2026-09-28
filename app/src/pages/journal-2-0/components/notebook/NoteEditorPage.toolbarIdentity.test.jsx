@@ -403,7 +403,11 @@ describe('NoteEditorPage — every toolbar control follows the editor while the 
 describe('NoteEditorPage — editability still re-renders the page (wave 10 F1)', () => {
   // `editor.isEditable` is the one editor fact the page reads in render, and it changes WITHOUT a
   // transaction (the lock effect's setEditable). Unlocking arrives as a page render in which the
-  // editor is still read-only; only the lock effect's re-render lets writing help appear.
+  // editor is still read-only; only a render AFTER the lock effect lets writing help appear.
+  // Two things give it that render today: the lock effect's own `editableSeen` update, and the
+  // history sentinel's ref (it mounts with the unlocked toolbar and sets page state). Measured:
+  // with both removed this goes red; with the sentinel's removed and the lock effect's kept it
+  // stays green, so the lock effect alone carries it (lane F1 report, mutations M7b / M7c).
   it('an unlock that arrives with the note brings writing help back', async () => {
     AUTH.isPaid = true
     latchNotebookFlags({ notebook_writing_help_enabled: true })
@@ -432,7 +436,7 @@ describe('NoteEditorPage — the toolbar reads the editor in ONE place (wave 10 
     .replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '))
     .replace(/(^|[^:'"`])\/\/[^\n]*/g, (c, p) => p + c.slice(p.length).replace(/[^\n]/g, ' '))
   const lineOf = (i) => code.slice(0, i).split('\n').length
-  const start = code.indexOf('export function toolbarStateOf(')
+  const start = code.indexOf('\nfunction toolbarStateOf(')
   const end = code.indexOf('\n}\n', start)
 
   it('non-vacuity: toolbarStateOf exists and holds the reads', () => {
