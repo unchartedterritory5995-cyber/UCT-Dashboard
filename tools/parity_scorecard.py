@@ -1720,7 +1720,7 @@ def verify(text=None, rev=None):
 # head's tree, measured). The old tags are left where they are; the `-tip2-` tags below were created
 # at the squashed heads. Wave 10's L1c has no squash yet: its tag is created by the controller at the
 # final L1c tip immediately before the squash, so its head and squash are resolved at run time (None).
-L1C_TAG = 'notebook-wave10-L1c-tip-2026-09-28'
+L1C_TAG = 'notebook-wave10-L1c-tip2-2026-09-28'  # tip2: the landing tree changed after tip-2026-09-28 was pushed (marker #11 dropped + master merged); pushed tags are never moved
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
