@@ -27,14 +27,14 @@
 // Regenerate the request half, only when the builder deliberately changed:
 //   PINE_STORE_WRITE_FIXTURE=1 npx vitest run <this file>
 // then the response half with the pytest's own write mode (see its header).
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { createElement } from 'react'
 import { SWRConfig } from 'swr'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { memberPaneDefinition } from './memberPaneDefinition'
+import { memberPaneDefinition, loadRuntimeLaneDoor } from './memberPaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
 import { runtimeLaneHandleOf } from '../../engine/pineRuntimeHandle'
 import {
@@ -53,6 +53,11 @@ const CTX = { tf: 'D', newestBarIsForming: false }
 
 const on = () => vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '1')
 const off = () => vi.stubEnv('VITE_PINE_RUNTIME_LANE_ENABLED', '')
+
+// ⭐ The door loads the runtime lane on demand; this file builds through it
+// synchronously, so the lane is loaded first. `useInstalledUserDefinitionsLaneHold
+// .test.jsx` covers a stored document meeting an unloaded lane.
+beforeAll(async () => { await loadRuntimeLaneDoor() })
 
 afterEach(() => {
   vi.unstubAllEnvs()

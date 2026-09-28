@@ -120,8 +120,13 @@ install door re-validates) → `computeFor(def, bars, undefined, {tf, symbol,
 newestBarIsForming})` (the call `binder.sync` makes per instance) → the real
 `createBinder(...).sync(...)` over the repo's recording chart double, reading
 each plot's colour off the points the renderer was handed → for a script that
-draws objects, `objectReaderFor → evaluateObjects → toRenderState`, counting
-what the render state KEEPS. It moves the vendor's bars into the product's bar
+draws objects, `objectReaderFor → evaluateObjects → toRenderState`. Lines,
+labels and boxes are counted as the runtime HOLDS them at the last bar, because
+that is what the capture's `graphics()` counts are — measured 2026-09-27 on
+Zero-Lag MA Trend Levels, TradingView keeps 18 boxes of which five have an `na`
+edge; the render state cannot draw those five, and each held-but-undrawable
+object is named in `ourNotes`. Tables and cells are counted from the render
+state. It moves the vendor's bars into the product's bar
 shape (a daily bar is an ISO date in the exchange timezone, as `/api/bars`
 serves it) and changes no number. A refusal at either door is the verdict:
 INCONCLUSIVE, with the door's own sentence.

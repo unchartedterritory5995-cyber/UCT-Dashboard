@@ -221,6 +221,43 @@ export const MAX_HANDLE_BACK = 50
  *  from a loop counter (`r + 1`), not to compute anything. */
 export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
 
+/**
+ * ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())`.
+ *
+ * ⛔ THE V2 GRAPH CANNOT SAY IT AND MUST NOT: "the bottom of whatever box
+ * `box1` holds now" is runtime OBJECT state, and a graph that depended on the
+ * object program that depends on it would be a cycle. The runtime holds the
+ * register, so the runtime answers — the same arrangement `na(l)`'s liveness
+ * lift (`requiresLive`/`requiresEmpty`) already has, one step richer.
+ *
+ * ⛔⛔ AND IT IS NOT A SECOND BOOLEAN ALGEBRA FOR THE PURE PARTS. Every getter-FREE
+ * sub-expression is still ONE interned tree (`{v:'tree'}` → a graph column);
+ * these kinds only STRUCTURE the few conjuncts that reach a getter, and the
+ * validator refuses any `bool`/`cmp`/`cross` node with no `get` beneath it — so
+ * pure logic can never migrate here. They appear in `op.when` and nowhere else
+ * (never a coordinate, a caption, a screener column or a loop body).
+ *
+ *   { v:'get',   target:{r:'reg', id}, prop }   that register's object's numeric
+ *                                               property NOW; `na` when empty
+ *   { v:'bool',  op:'and'|'or'|'not', args }    `interpret`'s own `&&`/`||`/`!`
+ *   { v:'cmp',   op:'<'|'<='|'>'|'>=', args:[a,b] }  `interpret`'s own compare
+ *   { v:'cross', dir:'over'|'under', args:[a,b] }   `ta.crossover/crossunder(a,b)`,
+ *        observed ONCE PER BAR at the op's position, previous pair carried
+ */
+export const LIVE_GUARD_KINDS = Object.freeze(['get', 'bool', 'cmp', 'cross'])
+export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
+export const LIVE_CMP_OPS = Object.freeze(['<', '<=', '>', '>='])
+/** The NUMERIC properties a getter may read, per family — Pine's
+ *  `box.get_top/bottom/left/right`, `line.get_x1/y1/x2/y2`, `label.get_x/y`.
+ *  ⛔ `get_text`/`get_price` are not here: one is text, the other interpolates. */
+export const GETTER_PROPS = Object.freeze({
+  box: Object.freeze({ get_left: 'left', get_top: 'top', get_right: 'right', get_bottom: 'bottom' }),
+  line: Object.freeze({ get_x1: 'x1', get_y1: 'y1', get_x2: 'x2', get_y2: 'y2' }),
+  label: Object.freeze({ get_x: 'x', get_y: 'y' }),
+})
+/** The value-reference kinds whose `args` are value references too. */
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross'])
+
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
@@ -332,8 +369,53 @@ function assertColorNode(v, where, depth = 0) {
   }
 }
 
-function assertValueRef(v, where) {
+/** Does this value reference read object state anywhere beneath it? */
+function containsGet(v, depth = 0) {
+  if (!isObj(v) || depth > 32) return false
+  if (v.v === 'get') return true
+  return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
+}
+
+/** The four live-guard kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs}`. */
+function assertLiveRef(v, where, live) {
+  if (v.v === 'get') {
+    const t = v.target
+    if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
+      throw new Error(`${where}: a getter reads a register as it stands now — \`{r:'reg', id}\``)
+    }
+    const reg = live.regs.get(t.id)
+    if (!reg) throw new Error(`${where}: register ${JSON.stringify(t.id)} is not declared`)
+    const props = Object.values(GETTER_PROPS[reg.family] || {})
+    if (!props.includes(v.prop)) {
+      throw new Error(`${where}: a ${reg.family} has no readable numeric property ${JSON.stringify(v.prop)} — [${props}]`)
+    }
+    return
+  }
+  const arity = v.v === 'bool' ? (v.op === 'not' ? [1, 1] : [2, 64]) : [2, 2]
+  if (v.v === 'bool' && !LIVE_BOOL_OPS.includes(v.op)) throw new Error(`${where}: unknown boolean ${JSON.stringify(v.op)}`)
+  if (v.v === 'cmp' && !LIVE_CMP_OPS.includes(v.op)) throw new Error(`${where}: unknown comparison ${JSON.stringify(v.op)}`)
+  if (v.v === 'cross' && v.dir !== 'over' && v.dir !== 'under') {
+    throw new Error(`${where}: a crossing is 'over' or 'under', got ${JSON.stringify(v.dir)}`)
+  }
+  if (!Array.isArray(v.args) || v.args.length < arity[0] || v.args.length > arity[1]) {
+    throw new Error(`${where}: ${v.v} ${v.op || v.dir} takes ${arity[0]}${arity[1] > arity[0] ? '+' : ''} argument(s)`)
+  }
+  v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+  // ⛔ PURE LOGIC NEVER LIVES HERE — it is one tree. A live node with no getter
+  // under it is a second boolean algebra for the graph's own job.
+  if (!containsGet(v)) throw new Error(`${where}: a ${v.v} guard node that reads no object state belongs in a tree`)
+}
+
+function assertValueRef(v, where, live = null) {
   if (!isObj(v)) throw new Error(`${where}: expected a value reference object, got ${typeof v}`)
+  if (LIVE_GUARD_KINDS.includes(v.v)) {
+    if (!live) {
+      throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in the guard `
+        + '(`when`) of an op outside any loop body')
+    }
+    assertLiveRef(v, where, live)
+    return
+  }
   switch (v.v) {
     case 'const':
       if (!Object.hasOwn(v, 'value')) throw new Error(`${where}: a const reference must carry a value`)
@@ -388,7 +470,7 @@ function assertValueRef(v, where) {
       if (!Array.isArray(v.args) || v.args.length < 1 || v.args.length > 2) {
         throw new Error(`${where}: a value operator takes one or two arguments`)
       }
-      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`))
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
       return
     }
     case 'param':
@@ -512,7 +594,11 @@ export function assertObjectProgram(program) {
     if (!OBJECT_OP_KINDS.includes(op.k)) {
       throw new Error(`${where}: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
     }
-    if (op.when !== null && op.when !== undefined) assertValueRef(op.when, `${where}.when`)
+    // ⭐ ONLY a guard may read object state, and only outside a loop body — a
+    // body op runs several times a bar, so "observed once per bar" has no answer.
+    if (op.when !== null && op.when !== undefined) {
+      assertValueRef(op.when, `${where}.when`, where.includes('.body[') ? null : { regs })
+    }
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
       throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
@@ -701,7 +787,7 @@ export function graphNodesReferenced(program) {
     if (v.v === 'graph') seen.add(v.node)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
-    if (v.v === 'op') (v.args || []).forEach(walkValue)
+    if (NESTED_KINDS.has(v.v)) (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   for (const [, op] of walkOps(program.ops || [])) {
@@ -749,7 +835,7 @@ export function treeRefsOfOp(op) {
     if (v.v === 'tree') seen.add(v.tree)
     if (v.v === 'text') walkText(v.node)
     if (v.v === 'color') walkColor(v.node)
-    if (v.v === 'op') (v.args || []).forEach(walkValue)
+    if (NESTED_KINDS.has(v.v)) (v.args || []).forEach(walkValue)
   }
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   if (!isObj(op)) return seen
@@ -782,7 +868,7 @@ export function paramsReferenced(program) {
   const walkValue = (v) => {
     if (!isObj(v)) return
     if (v.v === 'param') seen.add(v.id)
-    if (v.v === 'op') (v.args || []).forEach(walkValue)
+    if (NESTED_KINDS.has(v.v)) (v.args || []).forEach(walkValue)
   }
   for (const [, op] of walkOps(program.ops || [])) {
     for (const f of OP_VALUE_FIELDS) walkValue(op[f])
@@ -838,7 +924,7 @@ export function bindObjectProgram(program, nodeOf) {
     // unbound would store the forbidden `{v:'tree'}` form in a document and make
     // the runtime answer `undefined` for the address — placing every cell of a
     // loop at the same spot rather than failing.
-    if (v.v === 'op') return { ...v, args: (v.args || []).map(bindValue) }
+    if (NESTED_KINDS.has(v.v)) return { ...v, args: (v.args || []).map(bindValue) }
     return v
   }
   const bindRef = (r) => (isObj(r) && r.r === 'coll' ? { ...r, index: bindValue(r.index) } : r)
