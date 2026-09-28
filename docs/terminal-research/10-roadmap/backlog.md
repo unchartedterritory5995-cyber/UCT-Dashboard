@@ -352,7 +352,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-022 | `FB-D1-01` | The Massive adapter + the retirement queue | L | d0·b4 | **TIER-NONE** | Partial | BUILDABLE |
 | TERM-023 | `FB-S3-01` | Entity master — **a member path, not a build** | ~~L~~ → **M** | d0·b3 | **TIER-NONE** | Partial | ⚰️ RECUT — ADMIN-MOUNTED |
 | TERM-024 | `FB-S4-02` | A panel declares a need, never a transport | S now / L later | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
+| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | ⚰️ BUILT — 8/8 types registered, every CP3 merged (verified 2026-09-28 against origin/master `38bb9a421`); next is a per-type owner CP4/FLIP ruling, not a build |
 | TERM-026 | `FB-S9-01` | Auditor sees a GET; publish its denominator | S | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.5 Band 3 — CHEAP AND CLEAR (10). Packages at §4.3.
