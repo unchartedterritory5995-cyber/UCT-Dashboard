@@ -20,6 +20,8 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
+import LoadFailed from '../LoadFailed'
+import { keysInOrder, neighbourFallback, neighbourKeys } from '../../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
 import { useOpenFromList } from '../../lib/splitView'
@@ -335,6 +337,8 @@ function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, on
               onClick={() => onSelectView(view)}
               onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
               title={view.name}
+              // F7 Part C: where focus goes after a neighbouring view is deleted.
+              data-saved-view-row={view.id}
             >
               {/*
                 ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
@@ -684,6 +688,8 @@ function FolderNode({
             aria-current={activeFolderId === node.id ? 'true' : undefined}
             onClick={() => { onSelectFolder(node.id); onSelectTag(null) }}
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
+            // F7 Part C: where focus goes after a neighbouring folder is deleted.
+            data-folder-row={node.id}
           >
             <span>{node.name}</span>
           </button>
@@ -849,8 +855,12 @@ export default function FolderSidebar({
   // subfolder / Delete with the same button idiom. Nothing passes it in wave
   // 8; it is the wave-9 door for folder publish (ruling D-B8).
   extraFolderActions = [],
+  // Wave 10 F7 (Part A): the caller's own reads that this panel SHOWS -- the saved views
+  // live in NotebookTab's hook -- so a failure of one is said here, with the panel's own:
+  // `[{ what, error, retry }]`. Optional; nothing is said when nothing failed.
+  extraLoadFailures = [],
 }) {
-  const { folders, create, rename, remove } = useJ2NoteFolders()
+  const { folders, error: foldersError, refresh: refreshFolders, create, rename, remove } = useJ2NoteFolders()
   // Wave 6 item 7: a search hit opens beside on Ctrl/Cmd+click, like a row.
   const openSearchRow = useOpenFromList(onOpenNote)
   const [adding, setAdding] = useState(false)
@@ -923,7 +933,7 @@ export default function FolderSidebar({
   // P0-2 fix: the TRUE whole-library per-folder count, never derived from
   // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
   // comment and FolderNode's `honestCount`.
-  const { counts: folderCountsFromServer } = useJ2NoteFolderCounts()
+  const { counts: folderCountsFromServer, error: countsError, refresh: refreshCounts } = useJ2NoteFolderCounts()
   // The actual note rows for the tree's leaf rows, scoped to only the
   // CURRENTLY-EXPANDED folders (never the whole library in one page) —
   // sorted so re-render order never changes the SWR cache key.
@@ -964,8 +974,8 @@ export default function FolderSidebar({
   // Wave B: Favorites + Recents. Both trash-aware server-side (see
   // notes_service.list_favorites/list_recents) — no client-side filtering
   // needed here.
-  const { notes: favoriteNotes } = useJ2Favorites()
-  const { notes: recentNotes } = useJ2Recents()
+  const { notes: favoriteNotes, error: favoritesError, refresh: refreshFavorites } = useJ2Favorites()
+  const { notes: recentNotes, error: recentsError, refresh: refreshRecents } = useJ2Recents()
 
   // Server-backed search. `notes` (the prop) is only ONE loaded page, and its
   // `bodyPlain` is truncated to 400 chars in SQL for the list view — filtering
@@ -1094,7 +1104,7 @@ export default function FolderSidebar({
   // the server hasn't answered yet (or for a caller/test that stubs the
   // hook away) — never blended with the server numbers, since a partial
   // merge would recreate the same "biased sample" defect this fix closes.
-  const { tagCounts: serverTagCounts, tagTree: serverTagTree } = useJ2NoteTags()
+  const { tagCounts: serverTagCounts, tagTree: serverTagTree, error: tagsError, refresh: refreshTags } = useJ2NoteTags()
   const tagCountsFromPage = useMemo(() => {
     const c = new Map()
     for (const n of notes) for (const t of (n.tags || [])) {
@@ -1263,8 +1273,17 @@ export default function FolderSidebar({
   // Wave B: native confirm() replaced with the shared ConfirmModal (G-103) —
   // request opens the modal (holding which folder), confirm performs the
   // actual mutation.
-  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name } | null
-  const onDeleteRequest = (id, name) => setDeleteTarget({ id, name })
+  const [deleteTarget, setDeleteTarget] = useState(null) // { id, name, after } | null
+  // ⛔ F7 Part C (F4 review, Important 1): the Delete button that opens the dialog lives in
+  // the folder's own row, which the delete removes, so focus used to fall to <body>. The
+  // folder rows AROUND it are recorded now, by id and in the order they show, and the
+  // dialog's `fallbackFocus` looks them up after the delete: the next folder, else the one
+  // before, else "All notes". (A deleted folder's subfolders move up a level and stay in
+  // the list, so the first "after" is often where its contents went.)
+  const asideRef = useRef(null)
+  const onDeleteRequest = (id, name) => setDeleteTarget({
+    id, name, after: neighbourKeys(keysInOrder(asideRef.current, 'data-folder-row'), String(id)),
+  })
   const onDeleteConfirm = async () => {
     if (!deleteTarget) return
     const { id } = deleteTarget
@@ -1288,7 +1307,7 @@ export default function FolderSidebar({
   }
 
   return (
-    <aside className={styles.sidebar} data-tour="sidebar">
+    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar">
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
@@ -1709,6 +1728,17 @@ export default function FolderSidebar({
         </div>
       ) : (
         <>
+          {/* ⛔ Wave 10 F7 (Part A, 5d): a read that failed is SAID, never shown as an empty
+              list. Each section below renders nothing when it has nothing, so without this a
+              failed favorites / folders / tags read looked exactly like "you have none". */}
+          <LoadFailed compact failures={[
+            { what: 'your folders', error: foldersError, retry: refreshFolders },
+            { what: 'your folder counts', error: countsError, retry: refreshCounts },
+            { what: 'your favorites', error: favoritesError, retry: refreshFavorites },
+            { what: 'your recent notes', error: recentsError, retry: refreshRecents },
+            { what: 'your tags', error: tagsError, retry: refreshTags },
+            ...extraLoadFailures,
+          ]} />
           <RecencySection
             label="Favorites"
             icon="star-fill"
@@ -1739,6 +1769,8 @@ export default function FolderSidebar({
                 className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
                 aria-current={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
+                // F7 Part C: the list's standing control, focus's last landing after a delete.
+                data-all-notes-row=""
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page
@@ -1956,6 +1988,8 @@ export default function FolderSidebar({
           tone="danger"
           onConfirm={onDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
+          fallbackFocus={neighbourFallback(asideRef, 'data-folder-row', deleteTarget.after || [],
+            () => asideRef.current?.querySelector('[data-all-notes-row]'))}
         />
       )}
     </aside>

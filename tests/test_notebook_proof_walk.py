@@ -181,3 +181,135 @@ def test_a_wait_pumps_the_page_rather_than_sleeping(monkeypatch):
     seq = iter([False, False, True])
     assert W.wait_true(lambda: next(seq), timeout=5, every=0.01) is True
     assert calls == [10.0, 10.0]
+
+
+# ── F7: a request the page's own timer sent is never the click's effect ──────────────────
+# Run 26e03bbe8's control read the planted dead styled button LIVE on one request,
+# `GET /api/voice/insights/unspoken` -- the voice poll's first tick (8 s after load), far
+# longer than the 1.5 s idle window that learns noise endpoints. The instrument, not the
+# control, was wrong: it credited a request to the click because of WHEN it arrived.
+
+POLL = {"method": "GET", "url": "http://x/api/voice/insights/unspoken"}
+
+
+def test_a_request_the_pages_own_timer_sent_is_never_the_clicks_effect():
+    assert W.judge_click({"requests": [POLL], "background_requests": [POLL]}) == ("DEAD", [])
+    # CONTROL: the same request with no background record is still evidence -- the judge is
+    # not simply ignoring the endpoint
+    assert W.judge_click({"requests": [POLL]}) == ("LIVE", ["request"])
+
+
+def test_background_requests_are_subtracted_one_for_one():
+    # the click asked for the same URL the poll did: one of the two is the click's own
+    got = W.without_background([POLL, POLL], [POLL])
+    assert got == [POLL]
+    assert W.judge_click({"requests": [POLL, POLL], "background_requests": [POLL]})[0] == "LIVE"
+    # the method is part of the identity: a background GET does not cancel the click's POST
+    post = {"method": "POST", "url": POLL["url"]}
+    assert W.without_background([post], [POLL]) == [post]
+    # a fragment never separates two readings of one request (the page strips it, Playwright omits it)
+    assert W.without_background([POLL], [{"method": "get", "url": POLL["url"] + "#x"}]) == []
+
+
+def test_the_deadclick_control_fails_when_the_planted_poller_was_never_seen():
+    good = {"plant-dead": "DEAD", "plant-dead-styled": "DEAD", "plant-live": "LIVE", "plant-poller": "IN-WINDOW"}
+    assert W.control_ok("deadclick", good)[0] is True
+    # non-vacuity: DEAD, DEAD, LIVE with a poller that never fired inside a dead click's window
+    # proves nothing about the background fix, so it must not pass
+    assert W.control_ok("deadclick", {**good, "plant-poller": "NOT-SEEN"})[0] is False
+    # and the pre-F7 failure itself
+    assert W.control_ok("deadclick", {**good, "plant-dead-styled": "LIVE"})[0] is False
+
+
+_NODE_HARNESS = r"""
+globalThis.window = globalThis;
+globalThis.location = {href: 'http://sandbox.test/journal/notebook'};
+globalThis.document = {documentElement: null, addEventListener() {}};
+globalThis.navigator = {};
+globalThis.fetch = () => Promise.resolve({ok: true});
+globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 1);
+eval(require('fs').readFileSync(0, 'utf8'));          // INSTRUMENT_JS, then MARK_JS as `mark`
+const P = window.__proof;
+// a poller set up BEFORE the click is armed (the voice poll's shape), firing AFTER it
+setTimeout(() => fetch('/api/voice/insights/unspoken'), 30);
+const t = performance.now(); while (performance.now() - t < 3) {}   // the arm comes strictly later
+const m = mark();                                      // the click is armed here, at top level
+// a timer the CLICK schedules (a debounce) is the click's own
+setTimeout(() => fetch('/api/j2/notes/abc/favorite', {method: 'POST'}), 5);
+setTimeout(() => process.stdout.write(JSON.stringify({bg: P.bgReqs.slice(m.bgMark)})), 80);
+"""
+
+
+def test_the_in_page_half_tags_a_pre_arm_timer_request_and_not_the_clicks_own(tmp_path):
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    assert node, "node is required to run the instrument's in-page half (it is on this box and in CI)"
+    js = W.INSTRUMENT_JS + "\nglobalThis.mark = " + W.MARK_JS + ";\n"
+    r = subprocess.run([node, "-e", _NODE_HARNESS], input=js, capture_output=True, text=True,
+                       encoding="utf-8", timeout=60)
+    assert r.returncode == 0, r.stderr[-2000:]
+    bg = json.loads(r.stdout)["bg"]
+    urls = [(b["method"], b["url"]) for b in bg]
+    # the poll set up before the arm fired after it: background
+    assert ("GET", "http://sandbox.test/api/voice/insights/unspoken") in urls, urls
+    # CONTROL: the click's own timer is NOT background (else every debounced click reads DEAD)
+    assert not [u for u in urls if "favorite" in u[1]], urls
+
+
+# ── F7 Part A: a failure that is silent BY DESIGN is declared, with its reason ─────────────────
+
+def test_a_declared_silent_by_design_endpoint_reads_EXEMPT_with_its_reason():
+    row = W.exempt_verdict({"verdict": "SILENT"}, "POST", "/api/j2/notes/{id}/opened")
+    assert row["verdict"] == "EXEMPT" and "recordNoteOpened" in row["exempt_reason"]
+    # CONTROL: any other endpoint stays SILENT -- the exemption is not a blanket
+    assert W.exempt_verdict({"verdict": "SILENT"}, "POST", "/api/j2/notes/{id}/favorite")["verdict"] == "SILENT"
+    assert W.exempt_verdict({"verdict": "SILENT"}, "GET", "/api/j2/notes/{id}/opened")["verdict"] == "SILENT"
+
+
+def test_an_exemption_never_hides_a_sentence_and_is_not_a_finding():
+    said = W.exempt_verdict({"verdict": "SENTENCE"}, "POST", "/api/j2/notes/{id}/opened")
+    assert said["verdict"] == "SENTENCE" and "exempt_reason" not in said
+    out = {"writes": [{"verdict": "EXEMPT"}, {"verdict": "SILENT"}]}
+    assert W.findings_count("silent", out) == 1
+
+
+def test_the_exemption_list_is_exactly_the_declared_two_and_each_reason_names_real_code():
+    # F7: the recents touch; F7 fix round 1 (review I1): the comparison under "All Accounts".
+    assert set(W.SILENT_EXEMPT) == {("POST", "/api/j2/notes/{id}/opened"),
+                                    ("GET", "/api/j2/accounts/comparison")}
+    for reason in W.SILENT_EXEMPT.values():
+        assert len(reason) > 80, "an exemption needs a reason a reviewer can check"
+    js = (REPO / "app/src/pages/journal-2-0/hooks/useJ2Notes.js").read_text(encoding="utf-8")
+    body = js[js.index("export function recordNoteOpened"):]
+    body = body[:body.index("\n}\n") if "\n}\n" in body else len(body)]
+    # the claim the reason makes: fire-and-forget, its failure swallowed, never awaited
+    assert "/opened`" in body and ".catch(() => {})" in body
+
+
+def test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site():
+    # structural (tools/notebook_proof_walk.py::_forced): the judged row goes through
+    # exempt_verdict before it is recorded -- an exemption list the sweep never consults
+    # would leave the recents touch reading SILENT in every run
+    import inspect
+    src = inspect.getsource(W._forced)
+    assert "exempt_verdict(row, methods[0], ep)" in src
+    assert src.index("judge_failure(") < src.index("exempt_verdict(") < src.index('row["verdict"] = "NOT-TRIGGERED"')
+
+
+def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sentence():
+    # F7 fix round 1 (review I1). The reason is a claim ("the menu says it; this rail proves it"),
+    # so both halves are checked against the files it names: the rail file exists and carries the
+    # quoted describe title, the rail asserts the sentence, and AccountSelector says that sentence
+    # through the shared element inside its menu. A reason pointing at a rail that is gone reds here.
+    reason = W.SILENT_EXEMPT[("GET", "/api/j2/accounts/comparison")]
+    m = re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", reason)
+    assert m, reason
+    rail = (REPO / m.group(1)).read_text(encoding="utf-8")
+    assert f"describe('{m.group(2)}'" in rail
+    assert "Couldn't load your current balances." in rail
+    sel = (REPO / "app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx").read_text(encoding="utf-8")
+    menu = sel[sel.index("{open && ("):]
+    assert "what: 'your current balances', error: comparisonError" in menu[:menu.index("accounts.map")]
+    # CONTROL: the parser finds nothing in a reason that names no rail
+    assert re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", W.SILENT_EXEMPT[("POST", "/api/j2/notes/{id}/opened")]) is None

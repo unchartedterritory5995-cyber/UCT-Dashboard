@@ -1,0 +1,54 @@
+/* LoadFailed — the one inline "this didn't load" state (wave 10 follow-up F7, Part A). */
+.loadFailed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  min-width: 0;
+}
+
+.compact {
+  margin: 4px 0;
+  padding: 6px 8px;
+}
+
+.sentence {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.retry {
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-weight: 600;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.retry:hover:not(:disabled) {
+  border-color: var(--ut-gold);
+}
+
+.retry:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* The touch tier: a finger-sized target (the 44 px floor, --tap-min). */
+@media (max-width: 1024px) {
+  .retry {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}

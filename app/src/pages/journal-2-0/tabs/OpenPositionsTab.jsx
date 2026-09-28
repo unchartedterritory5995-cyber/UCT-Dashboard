@@ -43,6 +43,7 @@ import AddPositionModal from '../components/AddPositionModal'
 import EditPositionModal from '../components/EditPositionModal'
 import ClosePositionModal from '../components/ClosePositionModal'
 import ConfirmModal from '../components/ConfirmModal'
+import { keysInOrder, neighbourFallback, neighbourKeys } from '../lib/focusAfterRemoval'
 import Toast from '../components/Toast'
 import {
   portfolioAggregates,
@@ -236,7 +237,16 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   }, [refreshPositions, showToast])
 
   // Delete flow: click → open ConfirmModal → confirm → mutation.
+  // ⛔ F7 Part C (F4 review, Important 1): the row's Del button goes with the row, so focus
+  // used to fall to <body>. The rows around it are recorded now, by the `data-hub-pos` id
+  // the table row and the phone card already carry, in the order they show (the table
+  // sorts, so data order is not screen order), and the dialog's `fallbackFocus` finds them
+  // after the delete: the next row, else the one before, else "+ Add Position".
+  const wrapRef = useRef(null)
+  const addPositionRef = useRef(null)
+  const deleteAfterRef = useRef([])
   const handleDeleteRequest = useCallback((position) => {
+    deleteAfterRef.current = neighbourKeys(keysInOrder(wrapRef.current, 'data-hub-pos'), String(position.id))
     setDeleteTarget(position)
   }, [])
 
@@ -359,7 +369,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
   }
 
   return (
-    <div className={styles.wrap}>
+    <div ref={wrapRef} className={styles.wrap}>
       {warming && <BrokerImportingBanner broker={warmingBroker} />}
       <NudgesBanner accountId={selectedAccountId} state={nudgesState} />
       {/* ONE broker-sync surface — SyncTrustCenter absorbed the slim
@@ -473,6 +483,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           )}
           {showShares && (
             <button
+              ref={addPositionRef}
               type="button"
               className="btn btn-primary"
               onClick={() => setAddOpen(true)}
@@ -575,6 +586,7 @@ export default function OpenPositionsTab({ settings, onTradeWritten }) {
           tone="danger"
           onConfirm={handleDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
+          fallbackFocus={neighbourFallback(wrapRef, 'data-hub-pos', deleteAfterRef.current, addPositionRef)}
         />
       )}
       {editTarget && (

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { SkeletonBlock } from '../../../../components/Skeleton'
+import LoadFailed from '../LoadFailed'
 import styles from './NoteGraphView.module.css'
 import {
   ARROWS, byTitle, nearestInDirection, readGraphView, titleOf, writeGraphView,
@@ -52,8 +53,12 @@ import {
  * the graph by keyboard would watch it scatter on every press (rule H14).
  */
 
-const fetcher = (url) => fetch(url, { credentials: 'include' })
-  .then((r) => (r.ok ? r.json() : { nodes: [], edges: [], truncated: false }))
+// Wave 10 F7 (Part A, 5d): a failed read THROWS. It used to answer an empty graph, and the
+// view then said "No notes yet" to a member with notes -- a false statement, not a notice.
+const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
+  if (!r.ok) throw new Error(String(r.status))
+  return r.json()
+})
 
 // Named because each one is a knob somebody will want to turn; a magic number
 // buried in the loop is a knob nobody can find.
@@ -159,9 +164,10 @@ const themeKey = () => {
 }
 
 export default function NoteGraphView({ onOpenNote }) {
-  const { data, isLoading } = useSWR('/api/j2/notes/graph', fetcher, {
+  const { data, isLoading, error, mutate } = useSWR('/api/j2/notes/graph', fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 30000,
+    shouldRetryOnError: false,
   })
   const canvasRef = useRef(null)
   const roRef = useRef(null)
@@ -566,6 +572,13 @@ export default function NoteGraphView({ onOpenNote }) {
     return (
       <div className={styles.state} role="status" aria-label="Loading the graph…">
         <SkeletonBlock width="100%" height={420} />
+      </div>
+    )
+  }
+  if (error && !data) {
+    return (
+      <div className={styles.state}>
+        <LoadFailed what="your note graph" error={error} onRetry={() => mutate()} />
       </div>
     )
   }

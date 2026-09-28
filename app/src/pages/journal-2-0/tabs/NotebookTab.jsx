@@ -29,6 +29,8 @@ import { notebookFlag } from '../lib/offline/notebookFlags'
 import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
+import LoadFailed from '../components/LoadFailed'
+import { keysInOrder, neighbourFallback, neighbourKeys } from '../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
@@ -308,7 +310,10 @@ export default function NotebookTab() {
   const [propertyFilter, setPropertyFilter] = useState(null)
   const [propertySort, setPropertySort] = useState(null)
   const [saveViewOpen, setSaveViewOpen] = useState(false)
-  const { savedViews, create: createSavedView, rename: renameSavedView, remove: removeSavedView } = useJ2SavedViews()
+  const {
+    savedViews, error: savedViewsError, refresh: refreshSavedViews,
+    create: createSavedView, rename: renameSavedView, remove: removeSavedView,
+  } = useJ2SavedViews()
   // ⛔⛔ UX #1, 2026-09-22: the hook has always fully implemented rename/
   // remove -- the UI just never imported them. Mirrors the folder
   // rename/delete handlers in FolderSidebar.jsx exactly (same "clear the
@@ -324,8 +329,14 @@ export default function NotebookTab() {
       setSavedViewError("Couldn't rename that view. It kept its old name.")
     }
   }
-  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name } | null
-  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({ id, name })
+  const [deleteViewTarget, setDeleteViewTarget] = useState(null) // { id, name, after } | null
+  // ⛔ F7 Part C (F4 review, Important 1): the view's Delete button goes with its row, so
+  // focus used to fall to <body>. The view rows around it are recorded now (ids, in the
+  // order they show) and the dialog's `fallbackFocus` finds them after the delete: the next
+  // view, else the one before, else the pane's heading, else "All notes".
+  const onDeleteViewRequest = (id, name) => setDeleteViewTarget({
+    id, name, after: neighbourKeys(keysInOrder(wrapRef.current, 'data-saved-view-row'), String(id)),
+  })
   const onDeleteViewConfirm = async () => {
     if (!deleteViewTarget) return
     const { id } = deleteViewTarget
@@ -337,7 +348,7 @@ export default function NotebookTab() {
       setSavedViewError("Couldn't delete that view. Nothing was removed.")
     }
   }
-  const { propertyDefs } = useJ2PropertyDefs()
+  const { propertyDefs, error: propertyDefsError, refresh: refreshPropertyDefs } = useJ2PropertyDefs()
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
   const { symbol: focusSymbol } = useAppFocus()
@@ -1610,6 +1621,9 @@ export default function NotebookTab() {
             onSelectAllNotes={selectAllNotes}
             onRenameTag={onRenameTag}
             extraFolderActions={extraFolderActions}
+            // Wave 10 F7 (Part A): the saved views are read here and shown there, so their
+            // failure is said in the panel with the panel's own reads.
+            extraLoadFailures={[{ what: 'your saved views', error: savedViewsError, retry: refreshSavedViews }]}
           />
         </div>
       </div>
@@ -1953,6 +1967,8 @@ export default function NotebookTab() {
             tone="danger"
             onConfirm={onDeleteViewConfirm}
             onClose={() => setDeleteViewTarget(null)}
+            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
           />
         )}
         {savedViewError && (
@@ -1965,6 +1981,10 @@ export default function NotebookTab() {
             <button type="button" className="btn btn-ghost" onClick={refresh}>Try again</button>
           </div>
         )}
+        {/* Wave 10 F7 (Part A, 5d): without the property definitions the table's property
+            columns, the board's groups and the calendar's date fields are missing -- said,
+            not silently absent. */}
+        <LoadFailed failures={[{ what: 'your note properties', error: propertyDefsError, retry: refreshPropertyDefs }]} />
 
         {selectionOn && selection.count > 0 && (
           <BulkActionBar

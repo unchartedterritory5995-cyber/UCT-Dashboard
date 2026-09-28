@@ -19,10 +19,22 @@
  *  caller passes as a fresh arrow, so each re-render of the page behind the
  *  dialog re-ran it and pulled focus back to the confirm button.
  *  Rail: ConfirmModal.test.jsx ("keyboard" block).
+ *
+ *  ⛔⛔ F7 Part C (F4's review, Important 1): when the confirmed action REMOVES the
+ *  invoker (a folder, saved-view or position delete takes its own row with it), the
+ *  invoker is gone by the time the dialog closes and focus fell to <body>.
+ *  `fallbackFocus` -- a ref, an element, or a resolver function returning either --
+ *  is where focus goes instead: the caller's next sensible control (the neighbouring
+ *  row, else a heading or the list's standing control), resolved AT CLOSE, after the
+ *  removal. It applies only when focus was lost AND the invoker cannot take it back,
+ *  so a caller that placed focus on purpose still keeps it.
+ *  Helpers: lib/focusAfterRemoval.js. Rail: ConfirmModal.test.jsx ("fallback" block)
+ *  and one rendered rail per caller.
  */
 
 import { useEffect, useId, useRef } from 'react'
 import useFocusTrap from '../../../components/mobile/useFocusTrap'
+import { firstFocusable } from '../lib/focusAfterRemoval'
 import shellStyles from './ModalShell.module.css'
 
 export default function ConfirmModal({
@@ -33,6 +45,7 @@ export default function ConfirmModal({
   tone = 'danger',  // 'danger' | 'primary'
   onConfirm,
   onClose,
+  fallbackFocus = null,
 }) {
   const titleId = useId()
   const dialogRef = useRef(null)
@@ -40,6 +53,9 @@ export default function ConfirmModal({
   // The latest onClose, read by the listeners below without re-subscribing them.
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose })
+  // The latest fallback, read at close (a caller's resolver closes over its own state).
+  const fallbackRef = useRef(fallbackFocus)
+  useEffect(() => { fallbackRef.current = fallbackFocus })
 
   useEffect(() => {
     const invoker = document.activeElement
@@ -51,10 +67,14 @@ export default function ConfirmModal({
       // By now the dialog's nodes are gone: focus that was inside it fell to <body>.
       const active = document.activeElement
       const lost = !active || active === document.body
-      if (lost && invoker && invoker !== document.body && invoker.isConnected
+      if (!lost) return
+      if (invoker && invoker !== document.body && invoker.isConnected
           && typeof invoker.focus === 'function') {
         invoker.focus()
+        return
       }
+      // The invoker went with the thing it deleted: the caller's next sensible control.
+      firstFocusable(fallbackRef.current)?.focus()
     }
   }, [])
 

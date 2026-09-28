@@ -23,7 +23,7 @@ function json(status, body) {
 }
 
 const realFetch = global.fetch
-afterEach(() => { global.fetch = realFetch })
+afterEach(() => { global.fetch = realFetch; localStorage.clear() })
 
 describe('PersonalApiCard', () => {
   it('renders NOTHING while the feature is dark (every route 404s)', async () => {
@@ -66,7 +66,32 @@ describe('PersonalApiCard', () => {
     first.unmount()
     global.fetch = vi.fn(async () => json(502, {}))
     mount()
-    expect(await screen.findByText('Could not load your tokens.')).toBeInTheDocument()
+    expect(await screen.findByText("Couldn't load your tokens.")).toBeInTheDocument()
+  })
+
+  // ⛔ Wave 10 F7 (Part A, 5d): WHY THE PROOF WALK SAW NOTHING. A FIRST read that failed left the
+  // gate unknown, so the card vanished (M-2, above). For a member whose browser has seen this
+  // card before, it stays and says the read failed; a browser that never saw it still gets
+  // nothing -- the two M-2 rails above hold with localStorage clear.
+  it('a member whose browser has SEEN the card before is told a failed first read', async () => {
+    global.fetch = vi.fn(async () => json(200, { tokens: [] }))
+    const first = renderCard()
+    await screen.findByRole('button', { name: 'Make a token' })
+    first.unmount()
+    expect(localStorage.getItem('uct.nb.personalApi.gateSeen')).toBe('1')
+    // a fresh page (a new cache): the FIRST read fails
+    global.fetch = vi.fn(async () => json(500, {}))
+    renderCard()
+    expect(await screen.findByText("Couldn't load your tokens.")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('a 404 forgets the remembered gate (dark again means absent again)', async () => {
+    localStorage.setItem('uct.nb.personalApi.gateSeen', '1')
+    global.fetch = vi.fn(async () => json(404, { detail: 'Not Found' }))
+    const { container } = renderCard()
+    await waitFor(() => expect(localStorage.getItem('uct.nb.personalApi.gateSeen')).toBeNull())
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('lists tokens without ever showing token material, and revokes one', async () => {

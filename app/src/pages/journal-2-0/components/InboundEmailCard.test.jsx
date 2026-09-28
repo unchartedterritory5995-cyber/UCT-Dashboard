@@ -27,7 +27,7 @@ function json(status, body) {
 }
 
 const realFetch = global.fetch
-afterEach(() => { global.fetch = realFetch })
+afterEach(() => { global.fetch = realFetch; localStorage.clear() })
 
 describe('InboundEmailCard', () => {
   it('renders NOTHING while email-in is dark (every route 404s)', async () => {
@@ -154,7 +154,32 @@ describe('InboundEmailCard', () => {
     first.unmount()
     global.fetch = vi.fn(async () => json(502, {}))
     mount()
-    expect(await screen.findByText('Could not load your address.')).toBeInTheDocument()
+    expect(await screen.findByText("Couldn't load your Notebook email address.")).toBeInTheDocument()
+  })
+
+  // ⛔ Wave 10 F7 (Part A, 5d): WHY THE PROOF WALK SAW NOTHING. A FIRST read that failed left the
+  // gate unknown, so the card vanished (M-2, above). For a member whose browser has seen this
+  // card before, it stays and says the read failed; a browser that never saw it still gets
+  // nothing -- the two M-2 rails above hold with localStorage clear.
+  it('a member whose browser has SEEN the card before is told a failed first read', async () => {
+    global.fetch = vi.fn(async () => json(200, { address: ADDR }))
+    const first = renderCard()
+    await screen.findByRole('textbox', { name: 'Your Notebook email address' })
+    first.unmount()
+    expect(localStorage.getItem('uct.nb.inboundEmail.gateSeen')).toBe('1')
+    // a fresh page (a new cache): the FIRST read fails
+    global.fetch = vi.fn(async () => json(500, {}))
+    renderCard()
+    expect(await screen.findByText("Couldn't load your Notebook email address.")).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('a 404 forgets the remembered gate (dark again means absent again)', async () => {
+    localStorage.setItem('uct.nb.inboundEmail.gateSeen', '1')
+    global.fetch = vi.fn(async () => json(404, { detail: 'Not Found' }))
+    const { container } = renderCard()
+    await waitFor(() => expect(localStorage.getItem('uct.nb.inboundEmail.gateSeen')).toBeNull())
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('says a paid plan is needed on 402', async () => {
