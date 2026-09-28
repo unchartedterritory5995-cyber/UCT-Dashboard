@@ -82,6 +82,7 @@ def test_flag_off_the_preference_write_path_is_untouched(store_path, monkeypatch
     monkeypatch.setattr(wds, "_connect", spy("_connect"))
     monkeypatch.setattr(wds, "ensure_snapshot", spy("ensure_snapshot"))
     monkeypatch.setattr(wds, "mirror_pref", spy("mirror_pref"))
+    monkeypatch.setattr(wds, "prune_versions", spy("prune_versions"))
     monkeypatch.setattr(wds, "_HOOK_FAILURES", {"snapshot": 0, "mirror": 0})
     for key, value in (("charts_workspace_layout", CORRUPT), ("chart_settings", "{}"), ("theme", "oled")):
         r = client.post("/api/auth/preferences", json={"key": key, "value": value})
