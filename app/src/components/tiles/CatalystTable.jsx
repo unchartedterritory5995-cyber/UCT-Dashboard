@@ -16,6 +16,7 @@ import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import UIcon from '../ui/UIcon'
 import EpFlag, { isEpSetup } from './EpBaseRate'
+import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -29,7 +30,16 @@ const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 const EMPTY_ROWS = Object.freeze([])
 const EMPTY_SECTORS = Object.freeze([])
 
-const ALL_TAGS = ['Catalyst', 'Earnings', 'Gapper', 'News']
+// The tag vocabulary and its chip order are A8's (TERM-075) — never restated here.
+const ALL_TAGS = CATALYST_TAG_DISPLAY_ORDER
+
+// This tile's own styling, keyed by the vocabulary and checked against it at load.
+const TAG_CLASS = keyedBy(CATALYST_TAGS, {
+  Catalyst: styles.tagCatalyst,
+  Earnings: styles.tagEarnings,
+  Gapper:   styles.tagGapper,
+  News:     styles.tagNews,
+})
 
 // ET "today" as YYYY-MM-DD, and a UTC-safe day shifter for prev/next nav.
 function etTodayYmd() {
@@ -45,12 +55,7 @@ function shiftYmd(ymd, delta) {
 }
 
 function TagChip({ tag, active, onClick, count }) {
-  const cls = {
-    Catalyst: styles.tagCatalyst,
-    Earnings: styles.tagEarnings,
-    Gapper:   styles.tagGapper,
-    News:     styles.tagNews,
-  }[tag] || styles.tagDefault
+  const cls = TAG_CLASS[tag] || styles.tagDefault
   const dim = !active ? styles.chipDim : ''
   return (
     <button

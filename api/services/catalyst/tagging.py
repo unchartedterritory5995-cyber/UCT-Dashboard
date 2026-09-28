@@ -3,6 +3,11 @@ Order matters — Earnings wins, then Catalyst, then Gapper, then News."""
 import os
 from typing import Optional
 
+from api.services.a8_taxonomy import CATALYST_TAG
+
+# The tag WORDS are A8's (TERM-075, api/services/a8_taxonomy.py). This module owns
+# only the RULES that assign them, in the precedence the authority declares.
+
 
 def _f(name: str, default: float) -> float:
     raw = os.environ.get(name)
@@ -16,13 +21,13 @@ def _f(name: str, default: float) -> float:
 
 def assign_tag(c: dict) -> Optional[str]:
     if c.get("earnings_reported_recently"):
-        return "Earnings"
+        return CATALYST_TAG.EARNINGS
     # Catalyst: hard analyst action, unusual options flow, 2+ tweets, or 1+ RSS.
     if (c.get("analyst_meta")
             or c.get("flow_notable")
             or c.get("tweet_mention_count", 0) >= 2
             or c.get("rss_headline_count", 0) >= 1):
-        return "Catalyst"
+        return CATALYST_TAG.CATALYST
     gap = abs(c.get("gap_pct", 0.0))
     # Big gap alone tags Gapper for ANY candidate. The old extra vol_x>=3
     # surge requirement dropped real movers whose pre-market volume hadn't
@@ -31,7 +36,7 @@ def assign_tag(c: dict) -> Optional[str]:
     # is_real_catalyst) already ran before tagging, so a >=5% gap here is a
     # gated, liquid, real move. Env-tunable.
     if gap >= _f("CATALYST_GAPPER_PCT", 5.0):
-        return "Gapper"
+        return CATALYST_TAG.GAPPER
     # Gap-scan movers are already liquidity- and dollar-volume-qualified (they
     # ranked into the top-N most-traded names gapping >= the scan floor), so a
     # meaningful gap ALONE tags them Gapper. The vol_x>=3 surge requirement
@@ -39,7 +44,7 @@ def assign_tag(c: dict) -> Optional[str]:
     # it rarely triples even on real news — which is exactly why big-cap NEWS
     # movers (MU/SIRI/NBIS) were falling through to tag=None. Env-tunable.
     if c.get("from_gap_scan") and gap >= _f("CATALYST_GAPSCAN_GAPPER_PCT", 3.0):
-        return "Gapper"
+        return CATALYST_TAG.GAPPER
     if c.get("tweet_mention_count", 0) >= 1:
-        return "News"
+        return CATALYST_TAG.NEWS
     return None

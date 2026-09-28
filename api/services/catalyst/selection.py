@@ -3,8 +3,21 @@ redistributes empty quotas to next-highest-scored leftovers."""
 import os
 from collections import defaultdict
 
+from api.services.a8_taxonomy import CATALYST_TAGS, keyed_by
 
-_KNOWN_TAGS = ("Catalyst", "Earnings", "Gapper", "News")
+# The closed tag set is A8's (TERM-075) — membership only, so order is irrelevant.
+_KNOWN_TAGS = CATALYST_TAGS
+
+# Selection's own POLICY, keyed by A8's tag vocabulary and checked against it at
+# import. The literal's ORDER is the order the quotas are filled in, which is also
+# the tie-break order of the final stable sort — so it is load-bearing, it belongs
+# to selection (not to the vocabulary), and `keyed_by` preserves it.
+_DEFAULT_QUOTA = keyed_by(CATALYST_TAGS, {
+    "Catalyst": 10,
+    "Earnings": 5,
+    "Gapper":   3,
+    "News":     2,
+})
 
 
 def _quota(tag: str, default: int) -> int:
@@ -14,12 +27,7 @@ def _quota(tag: str, default: int) -> int:
 def select_top_12(scored: list[dict]) -> list[dict]:
     # NOTE: function name kept for backwards compat — actual total is the sum
     # of quotas (now 20 by default; was 12). Quotas are env-overridable.
-    quotas = {
-        "Catalyst": _quota("Catalyst", 10),
-        "Earnings": _quota("Earnings", 5),
-        "Gapper":   _quota("Gapper", 3),
-        "News":     _quota("News", 2),
-    }
+    quotas = {tag: _quota(tag, n) for tag, n in _DEFAULT_QUOTA.items()}
     total = sum(quotas.values())
 
     # Bucket scored candidates by tag (drop unknown tags entirely)

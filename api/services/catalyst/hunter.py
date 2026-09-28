@@ -32,6 +32,12 @@ import os
 from typing import Optional
 from zoneinfo import ZoneInfo
 
+from api.services.a8_taxonomy import (
+    HUNTER_CATALYST_TYPE_FALLBACK,
+    HUNTER_CATALYST_TYPE_ORDER,
+    HUNTER_CATALYST_TYPES,
+)
+
 logger = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
@@ -41,11 +47,10 @@ _ET = ZoneInfo("America/New_York")
 # Both resolved per-call inside run_hunt().
 _MAX_ITERS = int(os.environ.get("CATALYST_HUNTER_MAX_ITERATIONS", "8"))
 
-# The catalyst taxonomy the hunter is allowed to emit. Anything else → "News".
-HUNTER_TYPES = {
-    "Earnings", "Analyst", "M&A", "FDA", "Guidance",
-    "Contract", "Index", "Offering", "Halt", "News",
-}
+# The catalyst taxonomy the hunter is allowed to emit. Anything else becomes the
+# fallback. Declared ONCE in A8's authority (TERM-075); scoring's per-type bonus
+# is keyed by the same set and checked against it at import.
+HUNTER_TYPES = HUNTER_CATALYST_TYPES
 
 _SYSTEM = """You are a pre-market catalyst scout for a professional US equities trading desk. \
 Your job is COVERAGE: find every US-listed stock with a real, company-specific catalyst \
@@ -68,7 +73,7 @@ you have not yet covered and search again.
 Return ONLY a single JSON object, no prose before or after:
 {"hits": [{"ticker": "AAPL", "catalyst_type": "Analyst", "headline": "Morgan Stanley raised PT to $250 (Overweight)", "source_url": "https://...", "when": "pre-market", "moving_yet": false}]}
 
-catalyst_type must be one of: Earnings, Analyst, M&A, FDA, Guidance, Contract, Index, Offering, Halt, News."""
+catalyst_type must be one of: """ + ", ".join(HUNTER_CATALYST_TYPE_ORDER) + "."
 
 
 def _today_et() -> str:
@@ -147,7 +152,7 @@ def _coerce_hits(raw) -> list[dict]:
             continue
         ctype = str(item.get("catalyst_type") or "").strip()
         if ctype not in HUNTER_TYPES:
-            ctype = "News"
+            ctype = HUNTER_CATALYST_TYPE_FALLBACK
         seen.add(ticker)
         out.append({
             "ticker": ticker,
