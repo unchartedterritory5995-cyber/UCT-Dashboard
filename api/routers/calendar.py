@@ -3861,10 +3861,13 @@ def _collect_reporters_for_ics(scope: str, user_id: str | None) -> list[tuple[st
                     if sym and (scope == "all" or sym in mine):
                         result.append((sym, ds, timing))
 
-    # Try weekly cache first
-    cal = cache.get("calendar_weekly")
-    if cal and cal.get("days"):
-        _add_from_days(cal["days"])
+    # Try weekly cache first. TERM-030: a malformed week raises here, by name,
+    # instead of contributing zero reporters as if the week were quiet.
+    from api.services.calendar_week_contract import week_days
+    days = week_days(cache.get("calendar_weekly"),
+                     reader="api.routers.calendar._collect_reporters_for_ics")
+    if days:
+        _add_from_days(days)
 
     # Supplement with current month and next month (Finnhub, 30-min cached)
     today = _today_et()
