@@ -21,6 +21,11 @@ already uses. **That is the choice, and it is the runbook's.**
 channel** and is never read by this module; `tests/test_terminal_next_monitor.py`
 asserts the name does not appear in this file's code at all. An operational
 alert in a member channel is an incident, not a notification.
+⭐ TERM-015's dead-man roll-up is the one job that resolves its channel through the
+TERM-011 resolver instead (`alert_destination.ops_webhook()`, see `_ops_url`),
+because its spec puts it *"on the ops channel"*. With `DISCORD_OPS_WEBHOOK_URL`
+unset that IS `DISCORD_WEBHOOK_URL`, so today nothing moves; the other four jobs
+keep the admin read, since moving them is a TERM-011 row decision.
 
 ⚠️ **UNREADABLE IS NOT ZERO, EVERYWHERE.** A store that cannot be opened, a
 report that times out, a `web` that will not answer — each posts as UNREADABLE
@@ -88,9 +93,11 @@ def _fetch(path: str, timeout: int = 260) -> dict:
                 "stderr": "UNREADABLE: cannot reach %s (%s: %s)" % (base, type(e).__name__, e)}
 
 
-def post(title: str, body: str, *, alert: bool = False) -> bool:
-    """Post to the ADMIN Discord channel. Never raises."""
-    url = os.environ.get(ADMIN_WEBHOOK_ENV, "")
+def post(title: str, body: str, *, alert: bool = False, url: str | None = None) -> bool:
+    """Post to the ADMIN Discord channel, or to ``url`` when a job resolved its own
+    (the roll-up's ops channel). Never raises."""
+    if url is None:
+        url = os.environ.get(ADMIN_WEBHOOK_ENV, "")
     prefix = (ALERT + " ") if alert else ""
     # ⚰️ DISCORD'S `content` LIMIT IS 2000 CHARACTERS, NOT 3400, AND EXCEEDING IT
     # IS A FLAT `HTTP 400 Bad Request` — no hint, no field name. Measured on the
@@ -194,6 +201,56 @@ def job_weekly() -> tuple[str, str, bool]:
     return ("WEEKLY READ — seven types + the D2 sample gate", "\n".join(parts), bad)
 
 
+# ─────────────────────────────── TERM-015: the daily dead-man roll-up
+
+#: ⛔ DARK UNTIL SET. The roll-up posts to humans every day, so it ships off; set it
+#: to 1 on `terminal-next-monitor` only. Read per run, never at import.
+ROLLUP_FLAG = "CADENCE_ROLLUP_ENABLED"
+#: Every roll-up post's title starts with this, whatever it found — the count test
+#: keys on it, and a reader scanning the channel can find the cadence proof by it.
+ROLLUP_TITLE = "DEAD-MAN ROLL-UP"
+
+
+def rollup_enabled() -> bool:
+    return os.environ.get("CADENCE_ROLLUP_ENABLED", "0").strip().lower() in ("1", "true", "yes")
+
+
+def job_cadence_rollup() -> tuple[str, str, bool]:
+    """Daily 16:20 ET — every contracted signal, reported or not. ONE message.
+
+    ⛔ IT POSTS ON A HEALTHY DAY TOO. It is not an alert, it is the cadence proof:
+    its ABSENCE is the alarm, which only works if its presence is unconditional.
+    The verdict is the tool's exit code (`tools/cadence_rollup_report.py`), never a
+    parse of its text; the text names the signals.
+    """
+    r = _fetch("/api/terminal-next/report/cadence")
+    out = r.get("stdout") or r.get("stderr") or "(empty)"
+    code = int(r.get("exit", 126))
+    if code == 0:
+        head = "every signal reported"
+    elif code >= 124:
+        head = "UNREADABLE — no signal can be vouched for"
+    else:
+        head = "A SIGNAL DID NOT REPORT"
+    return ("%s (exit %d) — %s" % (ROLLUP_TITLE, code, head), out, code != 0)
+
+
+def _ops_url() -> str:
+    """The OPS channel through the TERM-011 resolver, read NOW. Never raises.
+
+    ⛔ Imported lazily: the monitor's other jobs need nothing from `api.services`, and
+    a failed import must not cost the roll-up its post — so it falls back to the
+    admin read, the same NOISE-never-silence direction the resolver itself takes.
+    """
+    try:
+        from api.services.alert_destination import ops_webhook
+        return ops_webhook(producer=__name__)
+    except Exception as e:                                   # noqa: BLE001
+        print("[monitor] ops resolver unavailable (%s: %s) — using the admin channel"
+              % (type(e).__name__, e))
+        return os.environ.get(ADMIN_WEBHOOK_ENV, "")
+
+
 #: (job, weekday-predicate, ET hour, ET minute). ⛔ THE SCHEDULE IS IN **ET**,
 #: decided here, because Railway cron is **UTC** and ET is UTC-4 in summer and
 #: UTC-5 in winter. A UTC crontab expressing "09:12 ET" silently becomes 10:12 ET
@@ -205,10 +262,15 @@ SCHEDULE = (
     ("ticking",    lambda d: d < 5, 9, 12),    # weekdays 09:12 ET — sweeps live
     ("gate-check", lambda d: True,  16, 30),   # daily 16:30 ET
     ("weekly",     lambda d: d == 5, 8, 0),    # Saturday 08:00 ET
+    # TERM-015 — daily 16:20 ET, weekends included: a dead-man that skips days cannot
+    # tell "the weekend" from "the cron stopped". ⛔ Chosen INSIDE the existing cron
+    # below (20:20 UTC in EDT, 21:20 UTC in EST), because that cron lives in Railway's
+    # service config and nothing in this repo can change it.
+    ("cadence",    lambda d: True,  16, 20),   # daily 16:20 ET
 )
 
 #: The Railway cron that must cover every row above, in UTC, both halves of the
-#: year. ⭐ A SUPERSET ON PURPOSE: 16 firings a day, of which 4 are due. The
+#: year. ⭐ A SUPERSET ON PURPOSE: 16 firings a day, of which at most 5 are due. The
 #: alternative — four services with four crons — is four things to forget.
 RAILWAY_CRON_UTC = "0,12,20,30 11,12,13,14,20,21 * * *"
 
@@ -225,7 +287,13 @@ JOBS = {
     "catalyst": job_catalyst_receipt,
     "gate-check": job_gate_check,
     "weekly": job_weekly,
+    "cadence": job_cadence_rollup,
 }
+
+#: Jobs behind their own flag. A dark job reads nothing and posts nothing.
+JOB_GATES = {"cadence": rollup_enabled}
+#: Jobs whose channel is the TERM-011 OPS destination rather than the admin read.
+OPS_ROUTED_JOBS = frozenset({"cadence"})
 
 
 def run_job(name: str) -> int:
@@ -233,13 +301,17 @@ def run_job(name: str) -> int:
     if fn is None:
         print("[monitor] unknown job %r; known: %s" % (name, sorted(JOBS)))
         return 2
+    gate = JOB_GATES.get(name)
+    if gate is not None and not gate():
+        print("[monitor] %s is dark (its flag is not set) — posting nothing." % name)
+        return 0
     title, body, alert = fn()
-    post(title, body, alert=alert)
+    post(title, body, alert=alert, url=_ops_url() if name in OPS_ROUTED_JOBS else None)
     print("[monitor] %s -> %s%s" % (name, "ALERT " if alert else "", title))
     return 0
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, now: dt.datetime | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--once", help="run one job and exit: " + ", ".join(sorted(JOBS)))
     a = ap.parse_args([] if (argv is None and "pytest" in sys.modules) else argv)
@@ -253,11 +325,14 @@ def main(argv=None) -> int:
     # the schedule lives in ONE place (the service config) instead of two that
     # can disagree. A container that slept between crons would also bill for the
     # sleeping.
-    due = due_jobs()
+    # `now` is injected by tests (a test that reads the wall clock is a function of the
+    # hour it runs in); production passes nothing and `due_jobs` reads the clock.
+    due = due_jobs(now)
     if not due:
         # ⛔ NOT AN ERROR. The cron fires a superset; a firing with nothing due is
         # the normal case and must cost nothing and say nothing.
-        print("[monitor] nothing due at %s — exiting quietly." % _now())
+        stamp = now.strftime("%Y-%m-%d %H:%M ET") if now is not None else _now()
+        print("[monitor] nothing due at %s — exiting quietly." % stamp)
         return 0
     rc = 0
     for name in due:

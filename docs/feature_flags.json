@@ -346,6 +346,16 @@
       ],
       "note": "ARMED 2026-09-02 (owner). Posts the ticker-buzz board into #main-chat seven times a session: 10:00, 10:30, 11:30, 12:30, 14:00, 16:15, 17:30 ET, mon-fri. Verified live the same day -- 7/7 checkpoints posted. BUZZ_DIGEST_TIMES is deliberately UNSET so the schedule has one authority, discord_buzz_digest.DEFAULT_TIMES. Destination is BUZZ_DIGEST_CHANNEL (bot token), not a webhook. Rollback is this flag alone: unset it and every slot returns {posted: False, reason: 'disarmed'} with no code change. The ingest poller and the /buzz command are NOT gated on this -- they keep running, so turning the posting off never stops counting. A slot the scheduler never fired is caught up within 20 minutes by discord_buzz_digest.catch_up (riding the 60s poll) and, past that window, pages Discord as a critical chart_health_alert. ⚰️ This entry read status=dark, where=(set on no service), \"DELIBERATELY OFF -- ships disarmed by design\", and named a single 16:10 ET slot -- for a poster that had already put six boards in front of 750 members that day. tools/flag_ledger_audit.py had it under \"LEDGER SAYS OFF, BUT IT IS SET\" the whole time; the drift was in the intent file, not the detector."
     },
+    "CADENCE_ROLLUP_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-015 / FB-OBS-04. Gates ONLY the daily dead-man roll-up job on terminal-next-monitor (api/terminal_next_monitor_main.py, SCHEDULE row 'cadence', daily 16:20 ET incl. weekends, inside the existing Railway cron). Dark because it posts to humans every day, healthy or not -- that is its purpose (its ABSENCE is the alarm), so it ships off and arming it is a person's act. Set it to 1 on terminal-next-monitor ONLY; it means nothing on web. Read per run in rollup_enabled(), never at import; unset or 0 = the job reads nothing and posts nothing, so rollback is blanking it. The roll-up resolves its channel through the TERM-011 resolver (alert_destination.ops_webhook), i.e. DISCORD_OPS_WEBHOOK_URL falling back to DISCORD_WEBHOOK_URL. The cadence MARKERS it reads (api/services/cadence_heartbeat.py, written on web's volume under $DATA_DIR/cadence) are NOT gated by this flag: writing a heartbeat pages nobody. SET NOWHERE as of 2026-09-27."
+    },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [

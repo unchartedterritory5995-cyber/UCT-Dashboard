@@ -75,6 +75,14 @@ def _run_5min_check():
     raises a chart-health alert so a freeze pages instead of silently
     persisting. Fully defensive — never raises into the audit loop.
     """
+    # ⭐ TERM-015 — the cadence heartbeat, marked on ENTRY, before any check: it says
+    # this watchdog RAN, not that the store was healthy, so the unhealthy-store path
+    # below (which pages and returns early) still reports. `mark` never raises.
+    try:
+        from api.services import cadence_heartbeat
+        cadence_heartbeat.mark("bars-freshness-watchdog")
+    except Exception:
+        pass
     try:
         from api.services import bars_sqlite as _bs
         from api.services.bars_fetch import (
