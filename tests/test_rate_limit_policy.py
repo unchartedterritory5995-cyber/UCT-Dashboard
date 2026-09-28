@@ -453,7 +453,13 @@ def _production_shape(app, *, dist=True, proxy=True, drop=()):
     a = FastAPI(openapi_url=None, docs_url=None, redoc_url=None)
     if proxy:
         a.include_router(flow_proxy.build_flow_proxy_router())
-    a.router.routes.extend(app.routes)
+    # The real app ALREADY carries the dist routes in any checkout with a built
+    # app/dist, so copying them wholesale makes `drop=` a no-op there (the route
+    # survives via the copy) and the shape stops depending on `dist=`. Strip them
+    # from the copy; the block below is their one source.
+    dist_paths = set(_dist_registrations_from_main_py()) | {rlp.SPA_CATCH_ALL}
+    a.router.routes.extend(r for r in app.routes
+                           if getattr(r, "path", None) not in dist_paths)
     if dist:
         for path, how in sorted(_dist_registrations_from_main_py().items()):
             if path in drop or path == rlp.SPA_CATCH_ALL:
