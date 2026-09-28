@@ -15,21 +15,15 @@ import { timingStart, timingMark, timingReport, timingClear } from '../../../uti
 import { isIntradayTailStale } from '../../../utils/marketSession'
 
 // ── 1. the catch-up poll counter (added with the bounded provisional lifetime) ──
-const TAIL_CATCHUP_POLL_MS = 1500
-const TAIL_CATCHUP_MAX_TRIES = 5
-const INTRADAY_POLL_MS = 30_000
+// ⭐ The REAL policy module (2026-09-28) — no longer a hand-copied mirror.
+import {
+  TAIL_CATCHUP_POLL_MS, TAIL_CATCHUP_MAX_TRIES, INTRADAY_POLL_MS,
+  createTailPollState, nextTailPollMs,
+} from '../../../utils/intradayTailPoll'
 
-/** Mirrors StockChart's `_intradayPollMs`, INCLUDING its key reset. */
 function makeKeyedPoller() {
-  const st = { key: '', tries: 0 }
-  return (sym, tf, tailT) => {
-    const key = `${sym}_${tf}`
-    if (st.key !== key) { st.key = key; st.tries = 0 }
-    if (!tailT || !isIntradayTailStale(tailT, tf)) { st.tries = 0; return INTRADAY_POLL_MS }
-    if (st.tries >= TAIL_CATCHUP_MAX_TRIES) return INTRADAY_POLL_MS
-    st.tries += 1
-    return TAIL_CATCHUP_POLL_MS
-  }
+  const st = createTailPollState()
+  return (sym, tf, tailT) => nextTailPollMs(st, `${sym}_${tf}`, { tailT, tf })
 }
 
 const NOW = new Date('2026-09-15T17:17:00Z').getTime()   // Tue 13:17 ET
