@@ -11,9 +11,18 @@ scope: >
   `file:line` read in this tree; who sees it today; what a human would observe under each available
   ruling; a recommendation with its reason; and the blast radius if the ruling is wrong. It changes
   no runtime behaviour, no routing, no severity and no variable.
-status: AWAITING OWNER RULING. Steps 1, 2 and 3 are DONE and IN PRODUCTION (see §1). Step 4 landed on
-  this branch at `3622287d5` while this pass was being written and is NOT yet in production.
-  Steps 5, 6 and 7 are blocked on the rulings in §2 of this file.
+status: RULED AND LARGELY IMPLEMENTED. Steps 1-4 are DONE and IN PRODUCTION (see §1). The owner ruled
+  §2's five decisions in commit `231c51a59` (the "RULED 2026-09-27" block at the top of §2 carries
+  the exact rulings). Step 5 (the nine
+  ↩ADMIN-FALLBACK posters) and step 6 (the nine mechanical BUSINESS conversions) are DONE and IN
+  PRODUCTION. Rows 1/3 (regime_change/exposure_shift → ops_webhook()) and rows 4/5 + the minimal
+  step 7 (a private alert's Discord leg retired via a `user_id`-gate in `add_alert`) are DONE and IN
+  PRODUCTION as of `f68eaefa7` (2026-09-28, `tests/test_term011_rows1_3_4_5_step7_alerts_gate.py` is
+  the behavioural rail). ⛔ STILL OPEN: step 7's own later commit deleting the two `severity="info"`
+  literals at `ai_search_briefings.py:282` and `ai_search_deep.py:530` — the packet's own ordering
+  rule requires the user_id gate to land FIRST, which it now has, so this is unblocked but not yet
+  done. Step 8 (removing the compatibility fallback) needs a measured week of `fallback=0` data and
+  is not reachable by building.
 source_read: >
   Working tree `C:\Users\Patrick\uct-worktrees\_merge-master`, branch `integrate/terminal-fixes`,
   branch HEAD `519203f23` when the read began, `3622287d5` when it finished — the concurrent lane
@@ -159,6 +168,13 @@ Recommended answers are filled in. Strike what you disagree with; everything uns
 > ⚠️ **What this ruling does NOT cover**, so nobody reads it as broader than it is: step 5's nine
 > posters (one of which must NOT be failed closed), step 7's `alerts.py:406`, and step 8 — which
 > is not reachable by building at all, only by a measured `fallback=0` over a full weekly cycle.
+>
+> ✅✅ **IMPLEMENTED 2026-09-28, `f68eaefa7`, IN PRODUCTION.** All five rulings above (#4/#5 the
+> `user_id` gate, #1/#3 the ops-routing) are live in `api/services/alerts.py::add_alert` +
+> `_discord_destination`. Behavioural rail: `tests/test_term011_rows1_3_4_5_step7_alerts_gate.py`.
+> ⛔ The two `"info"` severity literals (`ai_search_briefings.py:282`, `ai_search_deep.py:530`) are
+> DELIBERATELY still untouched — the ordering rule above is now satisfied (the gate landed first),
+> so deleting them is unblocked but is still its own, not-yet-taken commit.
 
 
 ### 2a. The 13 BOTH rows (§4.3), in the order §6 step 6 asks for
