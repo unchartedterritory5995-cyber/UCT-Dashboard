@@ -340,9 +340,18 @@ def _http_get_json(url: str, timeout: float = 15.0):
     import urllib.request
     import urllib.error
     sep = "&" if "?" in url else "?"
-    req = urllib.request.Request(
-        f"{url}{sep}_={int(time.time())}",
-        headers={"User-Agent": "Mozilla/5.0 (uct-liveflow-monitor)"})
+    headers = {"User-Agent": "Mozilla/5.0 (uct-liveflow-monitor)"}
+    # ⭐ OPEN_READS_GATE (api/open_reads_gate.py) moves every URL this monitor
+    # polls — /api/live/massive/{status,worker-history,restart-log} and
+    # /api/liveflow/consumer-state — behind an admin/paid gate once the owner
+    # sets it to `enforce`. Its one bypass is `Bearer <PUSH_SECRET>`; without it
+    # every poll would read 401, which this monitor classifies BLIND_WEB, and
+    # the outage oracle would go blind exactly when the gate is switched on.
+    # Harmless while the gate is off: an ungated route ignores the header.
+    _secret = (os.environ.get("PUSH_SECRET") or "").strip()
+    if _secret:
+        headers["Authorization"] = f"Bearer {_secret}"
+    req = urllib.request.Request(f"{url}{sep}_={int(time.time())}", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             if r.status != 200:

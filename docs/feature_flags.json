@@ -1057,6 +1057,17 @@
       ],
       "note": "Armed 2026-09-02 on flow-worker: the weekday 08:00 ET Morning OI card. Held off earlier in the same session on the grounds that arming it PUBLISHES; that was then checked rather than assumed, and the destination is not what the concern supposed. oi_morning._webhook() falls back OI_MORNING_WEBHOOK_URL -> ALPHA_GOLD_EOD_WEBHOOK_URL -> DISCORD_MASSIVE_WEBHOOK_URL -> DISCORD_LIVE_FLOW_WEBHOOK_URL -> DISCORD_WEBHOOK_URL, and on flow-worker only the LAST of those is set - the admin/signups channel, not a member channel. So the card lands in front of the owner, which is how it should be judged before it goes anywhere else. Point OI_MORNING_WEBHOOK_URL at a member channel to change that; it is a deliberate second act, not a side effect of this flag. TIMING WAS PART OF THE DECISION: applying it restarts flow-worker, which drops the OPRA WS, and Massive does not replay - a gap is permanent until the T+1 flat file. Done at 22:43 ET on a Wednesday with the session closed, so the restart cost no tape. Rollback is this variable plus a redeploy."
     },
+    "OPEN_READS_GATE": {
+      "status": "dark",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "shadow",
+        "enforce"
+      ],
+      "note": "A MODE, not a gate: the staged gate over TERM-026's anonymous reads (api/open_reads_gate.py; 146 read routes classified paid/admin/member in its GATED_READS table, attached at the include_router sites in api/main.py and on flow_proxy's forwarders). Read PER REQUEST on web, so changing it needs no rebuild. UNSET/off = exactly today's behaviour (the dependency returns before reading a cookie or a database) - which is why deploying it changes nothing and why it ships dark. shadow = every would-deny is counted and logged ONCE PER (route, minute) as '[open-reads-gate] would-deny mode=shadow route=... family=... status=... ua=<class> referer=<host/first-segment> session_cookie=present|absent bearer=present|absent count=N' (never a token, cookie, IP or query string); GET /api/admin/open-reads-gate (admin) serves the counts. enforce = refused with the existing gates' status/body (401 Not authenticated / 402 paid plan / 403 Admin access required). An unrecognised value is treated as shadow (never blocks, never silently off). The one bypass is Authorization: Bearer <PUSH_SECRET>. OWNER STEPS: set shadow on web, read the would-deny lines for a trading week (non-browser ua or a referer host that is not uctintelligence.com = an internal reader to migrate first), then set enforce. ROLLBACK: set it back to off (or shadow); `railway variable --set` restarts web, and a DELETE does not - verify the running process, never --kv."
+    },
     "OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED": {
       "status": "armed",
       "where": [

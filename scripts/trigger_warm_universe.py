@@ -73,7 +73,10 @@ def main():
     print("Polling status until complete...")
     last_done = -1
     while True:
-        sr = requests.get(f"{base}/api/admin/warm-universe-status", timeout=15)
+        # ⭐ Bearer: the status read is behind OPEN_READS_GATE once enforced, and
+        # an unauthenticated 401 body has no `running` key — which this loop
+        # would read as "Complete: done=None" and exit 0.
+        sr = requests.get(f"{base}/api/admin/warm-universe-status", headers=headers, timeout=15)
         s = sr.json()
         if not s.get("running"):
             print(f"Complete: done={s.get('done')}/{s.get('total')}  skipped={s.get('skipped')}  errors={s.get('errors')}")

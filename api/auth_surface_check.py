@@ -105,6 +105,15 @@ GUARD_NAMES = {
 
 MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
 
+# ⭐ The STAGED read gate (`api/open_reads_gate.py`, flag OPEN_READS_GATE).
+# ⛔ DELIBERATELY NOT IN GUARD_NAMES. It is attached where whole routers are
+# MOUNTED, so it sits in the tree of routes it does not govern — mutating routes
+# (it passes every non-GET/HEAD straight through) and unclassified reads. In
+# GUARD_NAMES it would mark an ungated POST in the same router "gated" and hide
+# it from the boot page. So it counts as a gate ONLY in the read census, and only
+# for a route its own table (`GATED_READS`) classifies.
+READ_GATE_NAME = "open_reads_gate"
+
 # ⭐ TERM-026 / GATE-7 — THE READ APERTURE. `MUTATING` above decides what PAGES
 # at boot and is deliberately unchanged; this decides what the census EXAMINES.
 # The risk the auditor exists for is an unauthenticated GET of vendor or member
@@ -392,12 +401,18 @@ def audit_surface(app, baseline: dict | None = None) -> dict:
     if baseline is None:
         baseline = load_read_baseline()
     mw_prefixes = middleware_guarded_prefixes(app)
+    try:
+        from api import open_reads_gate as _org
+        staged_family = _org.family_of
+        staged_mode = _org.mode()
+    except Exception:                          # pragma: no cover - defensive
+        staged_family, staged_mode = (lambda _p: None), "unavailable"
 
     routes_total = 0
     by_method: dict[str, int] = {}
     seen: set[tuple[str, str]] = set()
     shadowed = 0
-    gated = mw_gated = delegated = 0
+    gated = mw_gated = delegated = flag_gated = 0
     recorded = {k: 0 for k in BASELINE_KINDS}
     ungated: list[tuple[str, str]] = []
     marker_missing: list[tuple[str, str]] = []
@@ -416,8 +431,18 @@ def audit_surface(app, baseline: dict | None = None) -> dict:
                 shadowed += 1          # FastAPI serves the first registration
                 continue
             seen.add(key)
-            if _guard_names_for(route) & GUARD_NAMES:
+            names = _guard_names_for(route)
+            if names & GUARD_NAMES:
                 gated += 1
+                continue
+            # The staged read gate: a gate for THIS read only when it is in the
+            # tree AND its table classifies the route. Counted inside `gated` so
+            # the buckets still close, and reported separately WITH THE MODE —
+            # while OPEN_READS_GATE is off these answer anonymously, and a census
+            # that hid that would be a proxy for "gated" rather than the fact.
+            if READ_GATE_NAME in names and staged_family(path):
+                gated += 1
+                flag_gated += 1
                 continue
             if mw_prefixes and path.startswith(mw_prefixes):
                 mw_gated += 1
@@ -458,6 +483,8 @@ def audit_surface(app, baseline: dict | None = None) -> dict:
         "examined": reads_examined,
         "shadowed": shadowed,
         "gated": gated,
+        "flag_gated": flag_gated,
+        "flag_mode": staged_mode,
         "middleware_gated": mw_gated,
         "delegated": delegated,
         "recorded": recorded,
@@ -482,6 +509,8 @@ def format_denominator(res: dict) -> str:
     return (
         f"examined {res['examined']}/{res['routes_total']} (method,path) | "
         f"reads {r['examined']}: gated={r['gated']} "
+        f"(of which OPEN_READS_GATE-staged={r.get('flag_gated', 0)} "
+        f"mode={r.get('flag_mode', '?')}) "
         f"middleware_gated={r['middleware_gated']} delegated={r['delegated']} "
         f"public={r['recorded']['public']} inline={r['recorded']['inline']} "
         f"recorded_open={r['recorded']['open']} UNRECORDED={len(r['ungated'])} | "

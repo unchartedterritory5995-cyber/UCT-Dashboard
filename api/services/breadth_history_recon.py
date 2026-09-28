@@ -513,9 +513,15 @@ def _resolve_universe():
         return tickers, d
     import os as _os, json as _json, urllib.request as _u
     base = _os.environ.get("DASHBOARD_URL") or "https://uctintelligence.com"
+    headers = {"User-Agent": "Mozilla/5.0"}   # browser UA: Cloudflare 1010-blocks bare UAs
+    # ⭐ /universe is behind OPEN_READS_GATE (api/open_reads_gate.py) once it is
+    # enforced; its one bypass is the PUSH_SECRET bearer this pod already holds.
+    _secret = (_os.environ.get("PUSH_SECRET") or "").strip()
+    if _secret:
+        headers["Authorization"] = f"Bearer {_secret}"
     try:
         req = _u.Request(base.rstrip("/") + "/api/breadth-monitor/universe",
-                         headers={"User-Agent": "Mozilla/5.0"})   # browser UA: Cloudflare 1010-blocks bare UAs
+                         headers=headers)
         with _u.urlopen(req, timeout=30) as r:
             data = _json.loads(r.read().decode())
         t = sorted({str(x).upper() for x in (data.get("tickers") or []) if x})
