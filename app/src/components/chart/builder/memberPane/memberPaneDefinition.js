@@ -23,6 +23,7 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
+import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate } from '../../engine/ast/paneGate'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -80,6 +81,38 @@ const keyAt = (i) => (i === 0 ? 'value' : `out${i + 1}`)
  * @returns {{ok: boolean, definition: object|null, reason: string|null,
  *            guard: string|null, translation: object|null, rows: object[]}}
  */
+/** ⭐⭐ WHAT TRADINGVIEW DRAWS WHEN THE AUTHOR NAMES NO COLOUR.
+ *
+ *  A `plot` / `plotshape` / `plotchar` that says nothing about colour draws
+ *  `#2962FF` on TradingView at every version probed, v3 at 35% transparency —
+ *  measured on live captures, see `DEFAULT_SERIES_COLOUR`. Without this the row
+ *  reached the sheet colourless and the sheet gave it the engine's own gold, a
+ *  colour the author never saw.
+ *
+ *  ⛔ APPLIED HERE, NOT IN THE TRANSLATOR. `presentation` reports what the author
+ *  WROTE ("absent is absent"); a platform default is a rendering rule, and this
+ *  is the one place a Pine row becomes something the chart renders.
+ *
+ *  ⛔ ONLY WHEN THE AUTHOR SAID NOTHING. A colour the translator could not carry
+ *  (`colorDynamic`, `colorDynamicArity`) is the author speaking, and painting it
+ *  blue would present a guess as their choice; it stays uncarried. `fill`,
+ *  `hline` and the candle outputs have their own defaults, not yet measured. */
+const DEFAULT_COLOURED_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
+function tradingViewDefaultColour(output, version) {
+  const p = output.presentation || {}
+  if (!DEFAULT_COLOURED_KINDS.has(output.kind)) return p
+  const saidSomething = p.color !== undefined || p.colorUp !== undefined
+    || p.colorDown !== undefined || p.colorPalette !== undefined
+    || p.colorDynamic || p.colorDynamicArity !== undefined
+  if (saidSomething) return p
+  return {
+    ...p,
+    color: DEFAULT_SERIES_COLOUR,
+    // ⛔ An author's own `transp=` already set `opacity`; it is never overridden.
+    ...(version === 3 && p.opacity === undefined ? { opacity: V3_DEFAULT_SERIES_OPACITY } : {}),
+  }
+}
+
 export function memberPaneDefinition({ source, id, name, translation = null } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
@@ -232,7 +265,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     return key
   }
   const rows = drawable.map((o, i) => {
-    const p = o.presentation || {}
+    const p = tradingViewDefaultColour(o, t && t.version)
     // A plot coloured by a condition between two static colours draws per point.
     const condKey = (typeof p.colorUp === 'string' && typeof p.colorDown === 'string')
       ? conditionColumnFor(p.colorCondition) : null

@@ -38,7 +38,7 @@ import { methodFormCall, splitMethodName } from './ufcs.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
-  callsMethodAny, bodyEffects,
+  callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -331,34 +331,39 @@ export function collectObjectOps(stmts, h) {
       // as a whole statement, and as the whole right-hand side of an assignment.
       // Anywhere else the call sits inside an expression whose evaluation order
       // this reader does not model, and it is REFUSED by name.
+      // ⭐⭐ A METHOD THAT DRAWS is read exactly like a function that draws: the
+      // same two statement shapes inline, everything else refuses by the same
+      // names. `recv.m(…)` becomes `m(recv, …)` in `inlineAt` and nowhere else.
       const drawMethod = drawMethods.size
         ? (callsMethodAny(t, drawMethods) || callsAny(t, drawMethods)) : null
-      if (drawMethod) refuseCall('method', drawMethod, st)
       const drawCall = drawFns.size ? callsAny(t, drawFns) : null
-      if (drawCall && !drawMethod) {
+      if (drawMethod || drawCall) {
+        const headOf = (tk) => (drawMethod ? methodHead(tk, drawMethods) : null)
+          || (tk && tk.kind === 'ident' && drawFns.has(String(tk.value))
+            ? { fn: String(tk.value), recv: null } : null)
         if (word !== 'if' && word !== 'else' && word !== 'for' && word !== 'while'
             && word !== 'switch') {
-          if (first.kind === 'ident' && drawFns.has(String(first.value)) && h.isPunct(t[1], '(')
-              && closeOf(t, 1) === t.length - 1) {
-            inlineCall(String(first.value), t, 1, null, guards, inLoop, st, localScope)
+          const whole = headOf(first)
+          if (whole && h.isPunct(t[1], '(') && closeOf(t, 1) === t.length - 1) {
+            inlineAt(whole, t, 1, null, guards, inLoop, st, localScope)
             continue
           }
           const reIdx = h.findTop(t, (x) => h.isPunct(x, ':='))
           const asIdx = reIdx >= 0 ? reIdx : h.findTop(t, (x) => h.isPunct(x, '='))
           const rhs = asIdx > 0 ? t.slice(asIdx + 1) : []
-          if (rhs.length > 1 && rhs[0].kind === 'ident' && drawFns.has(String(rhs[0].value))
-              && h.isPunct(rhs[1], '(') && closeOf(rhs, 1) === rhs.length - 1) {
+          const rh = rhs.length > 1 ? headOf(rhs[0]) : null
+          if (rh && h.isPunct(rhs[1], '(') && closeOf(rhs, 1) === rhs.length - 1) {
             if (word === 'var' || word === 'varip') {
-              refuseCall('var-init', String(rhs[0].value), st)
+              refuseCall('var-init', rh.fn, st)
               continue
             }
             const intoTok = reIdx >= 0 ? t[asIdx - 1] : h.boundName(t, asIdx)
             const into = intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null
-            inlineCall(String(rhs[0].value), rhs, 1, into, guards, inLoop, st, localScope)
+            inlineAt(rh, rhs, 1, into, guards, inLoop, st, localScope)
             continue
           }
         }
-        refuseCall('in-expression', drawCall, st)
+        refuseCall('in-expression', drawMethod || drawCall, st)
       }
 
       // ⭐⭐ A `switch` IS A CHAIN OF GUARDED ARMS, and each arm runs under its own
@@ -545,6 +550,17 @@ export function collectObjectOps(stmts, h) {
         const untypedEq = h.findTop(t, (x) => h.isPunct(x, '='))
         if (untypedEq === 2 && t[1] && t[1].kind === 'ident') {
           const rhs = t.slice(untypedEq + 1)
+          // ⭐⭐ `var b = box(na)` — AN EMPTY HANDLE, TYPED BY THE CAST. The
+          // untyped spelling of `var box b = na`, and the only place the family
+          // is stated. ⚰️ Without it the name was never declared, so every
+          // `b.set_right(…)` on it matched no handle and `b := m(…)` stored the
+          // returned box in a LOCAL register that is cleared every bar — Pine's
+          // `var` keeps it. Measured on Zero-Lag MA Trend Levels, 2026-09-27.
+          const naFam = naHandleFamily(rhs)
+          if (naFam) {
+            if (!decls.has(t[1].value)) decls.set(t[1].value, { family: naFam, kind: 'var' })
+            continue
+          }
           if (rhs.length && rhs[0].kind === 'ident') {
             const ns = nsOf(rhs[0].value)
             if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(rhs[0].value) === 'new') {
@@ -565,6 +581,23 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ `b := box(na)` / `b := na` — THE HANDLE IS EMPTIED, the object is
+        // not. Pine keeps the box on the chart; only the variable forgets it, so
+        // a later `b.set_right(…)` or `b.delete()` touches nothing. ⚰️ Unread,
+        // the register kept its object and the next setter moved a box the
+        // script had let go of. ⛔ `:=` only, and only on a declared handle
+        // whose family the cast names — `b = box(na)` declares, it does not reset.
+        const held = decls.get(name)
+        if (h.isPunct(t[assign], ':=') && held && held.kind !== 'coll'
+            && (naHandleFamily(rhs) === held.family
+              || (rhs.length === 1 && rhs[0].kind === 'ident' && rhs[0].value === 'na'))) {
+          if (inLoop) { diagnostics.loopBlocked.push(`${held.family}(na)`); continue }
+          ops.push({
+            k: 'reset', into: name, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
         if (rhs.length && rhs[0].kind === 'ident') {
           const ns = nsOf(rhs[0].value)
           if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(rhs[0].value) === 'new') {
@@ -807,6 +840,17 @@ export function collectObjectOps(stmts, h) {
       if (!from || !to) return null
       return { id: t[1].value, from: { value: from }, to: { value: to } }
     } catch { return null }
+  }
+
+  /** `box(na)` / `line(na)` / … — Pine's typed empty handle — → its family,
+   *  else null. ⛔ Exactly that shape: a cast of anything but `na` is not an
+   *  empty handle and is left to the branches that read values. */
+  const naHandleFamily = (toks) => {
+    if (!toks || toks.length !== 4) return null
+    const [f, o, n, c] = toks
+    if (!f || f.kind !== 'ident' || !OBJECT_NAMESPACES.includes(String(f.value))) return null
+    if (!h.isPunct(o, '(') || !n || n.kind !== 'ident' || n.value !== 'na' || !h.isPunct(c, ')')) return null
+    return String(f.value)
   }
 
   /** The index closing the bracket opened at `open`, or -1. */
@@ -1257,9 +1301,44 @@ export function collectObjectOps(stmts, h) {
    *
    * @returns {boolean} whether the body was inlined.
    */
+  /**
+   * ⭐⭐ ONE CALL HEAD → ONE INLINE. `m(a, b)` goes straight to `inlineCall`;
+   * the METHOD FORM `recv.m(a, b)` is rewritten to `m(recv, a, b)` first —
+   * Pine's own definition of the method form — so the receiver binds to the
+   * method's first parameter through the SAME `bindArgs` every argument uses,
+   * and there is no second binder to drift.
+   *
+   * ⛔ IT REFUSES `method` WHERE THE BODY IS NOT DECIDABLE FROM THE TOKENS: a
+   * user method named like a built-in method (`set_right`, `delete`, `push`, …)
+   * called on a handle or list this pass declared, or `copy` on anything — Pine
+   * might be meaning its own. (An OVERLOADED method is refused in `inlineCall`,
+   * which both spellings reach.)
+   */
+  function inlineAt(head, callToks, open, into, guards, inLoop, st, scope) {
+    if (!head.recv) return inlineCall(head.fn, callToks, open, into, guards, inLoop, st, scope)
+    const root = head.recv.split('.')[0]
+    if (isBuiltinMethodName(head.fn) && (head.fn === 'copy' || decls.has(root))) {
+      return refuseCall('method', head.fn, st, `\`${head.recv}.${head.fn}\` could be Pine's own \`${head.fn}\``)
+    }
+    const at = callToks[0]
+    const tok = (kind, value) => ({ kind, value, line: at.line, column: at.column, index: at.index })
+    const argToks = callToks.slice(open + 1)
+    const hasArgs = !(argToks.length === 1 && h.isPunct(argToks[0], ')'))
+    const synth = [
+      tok('ident', head.fn), callToks[open], tok('ident', head.recv),
+      ...(hasArgs ? [tok('punct', ',')] : []),
+      ...argToks,
+    ]
+    return inlineCall(head.fn, synth, 1, into, guards, inLoop, st, scope)
+  }
+
   function inlineCall(fnName, callToks, open, into, guards, inLoop, st, scope) {
     const def = fnDefs.get(fnName)
     if (!def) return refuseCall('unknown', fnName, st)
+    // ⛔ AN OVERLOADED METHOD: Pine chooses its body by the receiver's type.
+    if (def.isMethod && def.overloaded) {
+      return refuseCall('method', fnName, st, `\`${fnName}\` is defined more than once`)
+    }
     if (inLoop) return refuseCall('loop', fnName, st)
     if (inlineDepth >= MAX_INLINE_DEPTH) return refuseCall('depth', fnName, st)
     const args = splitArgs(callToks, open, h.isPunct)

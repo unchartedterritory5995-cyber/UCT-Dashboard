@@ -114,7 +114,24 @@ describe('⛔ an arm condition this lane cannot read is refused, never run ungua
       && trees[w.tree].type === 'num' && trees[w.tree].value === 1
     const labels = ((objs && objs.ops) || []).filter((op) => op.k === 'create' && op.family === 'label')
     expect(labels.filter((op) => !op.when || constTrue(op.when)), 'a label that fires on every bar').toEqual([])
-    // …and the member is told, rather than shown nothing silently.
+    // ⭐ 2026-09-27: the arms' box getters are now LIFTED (see `liftLive` in
+    // pine.js), so both labels are carried — each under a guard that reads the
+    // box register's edge through a crossing, never a constant.
+    const readsBox = (w) => JSON.stringify(w).includes('"v":"cross"') && JSON.stringify(w).includes('"v":"get"')
+    expect(labels.length).toBe(2)
+    for (const op of labels) expect(readsBox(op.when), JSON.stringify(op.when)).toBe(true)
+  })
+
+  it('a getter this lane cannot lift (inside arithmetic) refuses the arm, and the member is told', () => {
+    const body = 'var b = box(na)\n'
+      + 'if close > open\n    b := box.new(bar_index, high, bar_index, low)\n'
+      + 'switch\n'
+      + `    close > b.get_top() + 1 => label.new(bar_index, high, ${Q}U${Q})\n`
+    const d = memberPaneDefinition({ source: H + body, id: 'u_sw', name: 'sw' })
+    expect(d.ok, d.reason).toBe(true)
+    const labels = ((d.definition.objects && d.definition.objects.ops) || [])
+      .filter((op) => op.k === 'create' && op.family === 'label')
+    expect(labels).toEqual([])
     expect((d.notes || []).map((n) => n.note).join(' ')).toMatch(/aren't supported yet/)
   })
 })

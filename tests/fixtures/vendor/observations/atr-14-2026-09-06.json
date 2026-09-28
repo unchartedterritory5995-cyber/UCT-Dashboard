@@ -3,7 +3,12 @@
   "shape": "seeded",
   "script": {
     "dialect": "pine",
-    "source": "//@version=5\nindicator(\"uct-rsi-atr-parity-v1\", overlay=false)\nrsi14 = ta.rsi(close, 14)\natr14 = ta.atr(14)\nplot(rsi14, title=\"rsi14\")\nplot(atr14, title=\"atr14\")\n"
+    "source": "//@version=5\nindicator(\"uct-rsi-atr-parity-v1\", overlay=false)\nrsi14 = ta.rsi(close, 14)\natr14 = ta.atr(14)\nplot(rsi14, title=\"rsi14\")\nplot(atr14, title=\"atr14\")\n",
+    "pasteLowersTo": {
+      "formula": "atrPine(high, low, close, 14)",
+      "since": "2026-09-27",
+      "why": "Since 2026-09-27 a pasted Pine `ta.atr` lowers to `atrPine` (Pine's own seed: bar 0's range is high - low, seed on bar n-1), not to the house `atr`. This observation's `engine` block is deliberately LEFT on the house formula: it is the evidence `divergences.json::atr-tr-starts-at-bar-1` cites for the house column's steady state, and `tests/test_vendor_parity_rsi_atr.py` still grades that formula. `vendorTruth.test.js` asserts the paste produces THIS formula, and the vendor harness maps the plot by it."
+    }
   },
   "engine": {
     "formula": "atr(high, low, close, 14)",
