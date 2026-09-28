@@ -772,7 +772,8 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, idbDelete, mergeDelta, _closeMismatch, _findRecentBarByT } from '../utils/barsIDB'
 import { memPeek, memPut, memPeekSavedAt } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
-import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isIntradayTailStale, isTradingSessionTodayET, isHolidayISO } from '../utils/marketSession'
+import { classifyIntradayTail, isCurrentEnoughForPaint, isDailyTodayCloseProvisionalForPaint, isDailyTodayBarStaleForPaint, dailyMissingSessionsForPaint, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { createTailPollState, nextTailPollMs, tailRetriesExhausted, watchdogGapMs, intradayDedupMs, liveBadgeState } from '../utils/intradayTailPoll'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4196,6 +4197,7 @@ export default function StockChart({
   // revalidation to pull the missing bars. Throttled so it fires at most once per
   // window instead of on every push tick while the chart is catching up.
   const gapHealAtRef = useRef(0)
+  const watchdogTriesRef = useRef(0)   // frozen-chart watchdog backoff (reset on catch-up / sym-tf change)
   const barsMutateRef = useRef(null)  // latest SWR mutate() for the bars key (stale-closure-safe)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
@@ -6889,14 +6891,21 @@ export default function StockChart({
   // poll forever — a self-inflicted load storm on exactly the names the origin is
   // slowest for. Five tries ≈ 7.5 s of catch-up, then back to the normal cadence;
   // the counter resets on a fresh tail and on any symbol/timeframe change.
-  const TAIL_CATCHUP_POLL_MS = 1500
-  const TAIL_CATCHUP_MAX_TRIES = 5
-  const INTRADAY_POLL_MS = 30_000
-  const _tailCatchupRef = useRef({ key: '', tries: 0 })
+  // ⭐ The pacing is ONE module (`utils/intradayTailPoll`) so its rails test the real
+  // policy, not a copy. 2026-09-28: it also honours the server's `tail_status` —
+  // an UNVERIFIED answer (repair shed/failed) keeps the catch-up going even when the
+  // client's own classifier has no objection — and its Retry-After.
+  const _tailCatchupRef = useRef(createTailPollState())
+  // The server's latest verdict for THIS chart, readable before useSWR returns (the
+  // dedupe window above must be decided when a request starts).
+  const _lastTailStatusRef = useRef(null)
+  // The retry counter lives in a ref and advances inside SWR's timer, which renders
+  // nothing — so UPDATING → DELAYED (and back) would never reach the screen. Bump a
+  // render exactly when the budget flips.
+  const [, _bumpTailBudget] = useState(0)
   const _intradayPollMs = useCallback((latest) => {
     const key = `${sym}_${resolvedTf}`
-    const st = _tailCatchupRef.current
-    if (st.key !== key) { st.key = key; st.tries = 0 }
+    const _wasSpent = tailRetriesExhausted(_tailCatchupRef.current, key)
     // The tail ACTUALLY ON SCREEN: a `since=` response carries only the delta (and
     // is empty when nothing is new), so the merged cache tail is the honest reading.
     const rows = latest?.bars
@@ -6906,17 +6915,24 @@ export default function StockChart({
       typeof respT === 'number' ? respT : 0,
       typeof idbT === 'number' ? idbT : 0,
     )
-    if (!tailT || !isIntradayTailStale(tailT, resolvedTf)) { st.tries = 0; return INTRADAY_POLL_MS }
-    if (st.tries >= TAIL_CATCHUP_MAX_TRIES) return INTRADAY_POLL_MS
-    st.tries += 1
-    return TAIL_CATCHUP_POLL_MS
+    const _ms = nextTailPollMs(_tailCatchupRef.current, key, {
+      tailT, tf: resolvedTf,
+      tailStatus: latest?.tail_status ?? null,
+      retryAfterSec: latest?.retry_after ?? null,
+    })
+    if (tailRetriesExhausted(_tailCatchupRef.current, key) !== _wasSpent) _bumpTailBudget(n => n + 1)
+    return _ms
   }, [sym, resolvedTf])
   const refreshInterval = replayCutoff ? 0 : (isIntraday ? _intradayPollMs : 300_000)
   const { data, error, mutate, isValidating } = useSWR(
     swrUrl,
     instFetcher,
     {
-      dedupingInterval: dedupMs,
+      // ⭐ Narrowed only while an intraday tail repair is active (see intradayDedupMs):
+      // a 15 s dedupe silently swallowed every 1.5 s catch-up try.
+      dedupingInterval: isIntraday
+        ? intradayDedupMs({ tailClass: _intradayTail, tailStatus: _lastTailStatusRef.current })
+        : dedupMs,
       revalidateOnFocus: false,
       refreshInterval,
       refreshWhenHidden: false,
@@ -7295,6 +7311,13 @@ export default function StockChart({
   const _netClosed = (_netMatches && data.bars.length >= 2) ? data.bars[data.bars.length - 2] : null
   const _idbBasisMismatch = resolvedTf === 'D' && !!_netClosed && idbBars?.length > 0
     && _closeMismatch(_findRecentBarByT(idbBars, _netClosed.t), _netClosed)
+  // A `since=` answer that actually carries rows past the cached tail (the merge
+  // effect will advance the chart), vs one that cannot cure it.
+  const _deltaAdvancesTail = !!(data?.delta && Array.isArray(data.bars)
+    && typeof idbSinceRef.current === 'number'
+    && data.bars.some(b => typeof b?.t === 'number' && b.t > idbSinceRef.current))
+  const _idbHistoryContext = (idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}`)
+    ? idbBars : null
   const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane && !_idbBasisMismatch && !_idbNotCurrent
   // SPLIT-FETCH deep render. When split-fetch is on, `data.bars` is a fresh SHORT tail
   // (capped to FIRST_PAINT_BARS via _primaryBars) and idbBars is the DEEP sealed+tail
@@ -7393,7 +7416,16 @@ export default function StockChart({
                     // effect below folds this delta into idbBars, refreshes
                     // idbSinceRef, and the very next render classifies 'fresh' and
                     // paints the COMPLETE, CURRENT series.
-                    ? null
+                    // ⛔⛔ …UNLESS THE DELTA CANNOT CURE IT (2026-09-28). When the server
+                    // could not repair the tail (shed / failed — `tail_status:
+                    // 'unverified'`), the delta carries nothing past our tail, the
+                    // merge is a no-op, and waiting for "the next render" waits
+                    // forever on a BLANK chart. The authority has now answered and
+                    // the answer is "not yet", so the history is shown as CONTEXT —
+                    // the currentness state (UPDATING / DELAYED) says it is not
+                    // current, and the LIVE badge cannot light. Stale history may
+                    // paint; it may never pass as current.
+                    ? (_deltaAdvancesTail ? null : _idbHistoryContext)
                     : (_netMatches
                         ? data.bars
                         : (_memBars?.length
@@ -7515,6 +7547,35 @@ export default function StockChart({
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
+  // ── BAR CURRENTNESS (2026-09-28) — separate from FEED CONNECTIVITY ─────────────
+  // ⛔⛔ `feed.state` says the PRICE FEED is connected; it says nothing about the
+  // candles. On 2026-09-28 it glowed ● LIVE over AVGO 5m bars a whole session old.
+  // This is the ONE currentness verdict for the rendered chart, derived from the tail
+  // ON SCREEN, the session frontier, the server's own verification, and where the
+  // repair budget stands. Intraday only: D/W/M keep their existing contract (null here
+  // leaves their badge exactly as it was).
+  // The latest answer is about THIS symbol (an empty `since=` delta still carries the
+  // server's verdict, so this must not require rows the way `_netMatches` does).
+  const _respForSym = !!data && (!data.ticker || data.ticker === _symU)
+  _lastTailStatusRef.current = (_respForSym && isIntraday) ? (data?.tail_status ?? null) : null
+  const _renderedTailT = (isIntraday && Array.isArray(bars) && bars.length)
+    ? bars[bars.length - 1]?.t : null
+  const barCurrentness = (isIntraday && !_isCustomTf && !replayCutoff && !_hasOverride)
+    ? intradayBarCurrentness({
+        tf: resolvedTf,
+        tailT: typeof _renderedTailT === 'number' ? _renderedTailT : null,
+        session: showExtended ? 'extended' : 'rth',
+        verifiedThrough: (_respForSym && typeof data?.verified_through === 'number') ? data.verified_through : null,
+        serverStatus: _respForSym ? (data?.tail_status ?? null) : null,
+        pending: !!isValidating,
+        retriesExhausted: tailRetriesExhausted(_tailCatchupRef.current, `${sym}_${resolvedTf}`),
+        terminalNoData: !!(data?.no_data && !(Array.isArray(bars) && bars.length)),
+      })
+    : null
+  // LIVE is the COMPLETE user-facing truth only when BOTH hold: the feed is live AND
+  // the rendered bars satisfy the currentness contract.
+  const barsSettled = barCurrentness == null || isCurrentnessSettled(barCurrentness)
+  const liveBadge = liveBadgeState(feed.state, barCurrentness)
 
   // ── Frozen-chart watchdog (independent of the live-bar writers) ──
   // Uses the existing livePricesRef (assigned each render below) — stale-closure-safe.
@@ -7531,6 +7592,7 @@ export default function StockChart({
   // catches up. Runs only for intraday; a same-session live price naturally sits
   // within a bar or two of the tail, so this never fires on a healthy chart.
   useEffect(() => {
+    watchdogTriesRef.current = 0
     if (!sym || !isIntraday) return
     const id = setInterval(() => {
       try {
@@ -7541,10 +7603,13 @@ export default function StockChart({
         // tail.time is (server unix seconds + _ET_OFFSET); lp.updated_at is raw unix
         // seconds — undo the offset to compare like-for-like.
         const tailServerSec = tail.time - _ET_OFFSET
-        if (lp.updated_at - tailServerSec <= 2.5 * period) return
+        if (lp.updated_at - tailServerSec <= 2.5 * period) { watchdogTriesRef.current = 0; return }
         const nowMs = Date.now()
-        if (nowMs - gapHealAtRef.current <= 6000) return
+        // ⛔ BACKOFF, NOT A HAMMER (2026-09-28): 6 s, 12 s, 24 s, 48 s, then once a
+        // minute while the chart stays behind; reset below when it catches up.
+        if (nowMs - gapHealAtRef.current <= watchdogGapMs(watchdogTriesRef.current)) return
         gapHealAtRef.current = nowMs
+        watchdogTriesRef.current += 1
         // Fetch the fresh FULL series directly (no `since`) and INJECT it into SWR's
         // cache via mutate(payload, {revalidate:false}). This deterministically drives
         // the `[data]` effect's non-delta REPLACE branch → setData → the tail advances,
@@ -17523,22 +17588,38 @@ export default function StockChart({
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
 
   return (
-    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}>
+    <div ref={wrapperRef} className={`${styles.wrapper} ${className}`} style={{ height, ...panelVars }}
+      data-bar-currentness={barCurrentness ?? undefined}
+      data-bar-tail={typeof _renderedTailT === 'number' ? _renderedTailT : undefined}
+      data-live-badge={liveBadge}>
       {replayMode && sessionBars?.length > 0 && (
         <div className={styles.replayBadge} title="Time Machine — historical replay active">
           <UIcon name="skipBack" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />REPLAY {Math.round(((replayIndex ?? 0) / Math.max(1, sessionBars.length - 1)) * 100)}%
         </div>
       )}
       {liveUpdates && realtimeTfEligible && (
+        // ⛔ ● LIVE requires the feed AND the candles. A connected feed over bars that
+        // fail the currentness contract reads UPDATING (repair in progress) or DELAYED
+        // (fast retries spent, still retrying) — never LIVE.
         <div
-          className={feed.state === 'live' ? styles.liveIndicator : styles.staleIndicator}
+          className={liveBadge === 'live' ? styles.liveIndicator : styles.staleIndicator}
+          data-testid="chart-live-state"
+          data-live-badge={liveBadge}
           title={
-            feed.state === 'reconnecting' ? 'Reconnecting to the live feed…'
-            : feed.state === 'stale' ? 'Live feed has paused — last tick is older than expected'
+            liveBadge === 'reconnecting' ? 'Reconnecting to the live feed…'
+            : liveBadge === 'stale' ? 'Live feed has paused — last tick is older than expected'
+            : liveBadge === 'delayed' ? 'Chart data is delayed — the newest bars have not arrived yet. Retrying automatically.'
+            : liveBadge === 'unavailable' ? 'No current bars are available for this symbol.'
+            : liveBadge === 'updating' ? 'Updating — fetching the newest bars for this session.'
             : 'Live feed connected'
           }
         >
-          {feed.state === 'live' ? '● LIVE' : feed.state === 'reconnecting' ? '⟳ RECONNECTING' : <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />STALE</>}
+          {liveBadge === 'live' ? '● LIVE'
+            : liveBadge === 'updating' ? '⟳ UPDATING'
+            : liveBadge === 'delayed' ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />DELAYED</>
+            : liveBadge === 'unavailable' ? 'NO DATA'
+            : liveBadge === 'reconnecting' ? '⟳ RECONNECTING'
+            : <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />STALE</>}
         </div>
       )}
       {correctionFlash && (

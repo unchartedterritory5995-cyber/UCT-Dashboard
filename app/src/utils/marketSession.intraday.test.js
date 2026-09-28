@@ -2,7 +2,7 @@
 // that lets the intraday pack paint instantly (the intraday analog of isDailyTailStale).
 // Time-mocked: the function reads `now` via expectedLatestDailySessionET().
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { isIntradayTailStale } from './marketSession'
+import { isIntradayTailStale, classifyIntradayTail } from './marketSession'
 
 const sec = (iso) => Math.floor(Date.parse(iso) / 1000)   // unix seconds for an ISO/UTC instant
 
@@ -13,8 +13,13 @@ describe('isIntradayTailStale', () => {
   describe('Wednesday 11:00 ET (RTH — last closed session is Tuesday)', () => {
     beforeEach(() => vi.setSystemTime(new Date('2026-08-19T15:00:00Z')))  // Wed 11:00 EDT
 
-    it('FRESH: tail = Tuesday 15:55 close (the pre-seeded pack; today rides live)', () => {
-      expect(isIntradayTailStale(sec('2026-08-18T19:55:00Z'), '5')).toBe(false)
+    // ⛔⛔ REWRITTEN 2026-09-28. This case used to assert FRESH ("today rides live") —
+    // i.e. it PINNED the defect that let AVGO 5m settle on Friday's bars on a Monday.
+    // At 11:00 today's session has completed buckets, so a closed-session tail is
+    // BEHIND: still a sound base (never gapped — history is kept), never current.
+    it('BEHIND (not fresh, not gapped): tail = Tuesday 15:55 close while Wednesday has completed buckets', () => {
+      expect(isIntradayTailStale(sec('2026-08-18T19:55:00Z'), '5')).toBe(true)
+      expect(classifyIntradayTail(sec('2026-08-18T19:55:00Z'), '5')).toBe('behind')
     })
     it('STALE: tail = Monday (missing the whole Tuesday session)', () => {
       expect(isIntradayTailStale(sec('2026-08-17T19:55:00Z'), '5')).toBe(true)
@@ -36,7 +41,13 @@ describe('isIntradayTailStale', () => {
   describe('Monday 11:00 ET (RTH — last closed session is FRIDAY across the weekend)', () => {
     beforeEach(() => vi.setSystemTime(new Date('2026-08-17T15:00:00Z')))  // Mon 11:00 EDT
 
-    it("FRESH: tail = Friday 15:55 close — 65h old but the last closed session (THE bug the old 26h/2-day gates killed)", () => {
+    // ⛔⛔ REWRITTEN 2026-09-28 — this is the exact production failure shape.
+    it('BEHIND: tail = Friday 15:55 close on Monday 11:00 — sound history, NOT current', () => {
+      expect(isIntradayTailStale(sec('2026-08-14T19:55:00Z'), '5')).toBe(true)
+      expect(classifyIntradayTail(sec('2026-08-14T19:55:00Z'), '5')).toBe('behind')
+    })
+    it('CONTROL: the same Friday tail at Monday 08:00 (pre-open) is fresh — nothing of today is expected yet', () => {
+      vi.setSystemTime(new Date('2026-08-17T12:00:00Z'))   // Mon 08:00 EDT
       expect(isIntradayTailStale(sec('2026-08-14T19:55:00Z'), '5')).toBe(false)
     })
     it('STALE: tail = Thursday (missing the whole Friday session)', () => {
@@ -56,8 +67,10 @@ describe('isIntradayTailStale', () => {
   describe('Tuesday 11:00 ET, the day after an NYSE holiday (MLK Mon 2026-01-19) — last closed session is FRIDAY 2026-01-16', () => {
     beforeEach(() => vi.setSystemTime(new Date('2026-01-20T16:00:00Z'))) // Tue 11:00 EST
 
-    it('FRESH: tail = Friday 15:55 close — the holiday Monday is correctly never the answer', () => {
-      expect(isIntradayTailStale(sec('2026-01-16T20:55:00Z'), '5')).toBe(false)
+    // REWRITTEN 2026-09-28: still never GAPPED (the holiday Monday is never the answer),
+    // but Tuesday 11:00 has completed buckets, so Friday is BEHIND, not current.
+    it('BEHIND (never gapped): tail = Friday 15:55 close — the holiday Monday is correctly never the answer', () => {
+      expect(classifyIntradayTail(sec('2026-01-16T20:55:00Z'), '5')).toBe('behind')
     })
     it('STALE: tail = Thursday (missing the whole Friday session)', () => {
       expect(isIntradayTailStale(sec('2026-01-15T20:55:00Z'), '5')).toBe(true)
@@ -103,8 +116,9 @@ describe('isIntradayTailStale — session completeness (gate ON)', () => {
     it('FRESH: tail = today 10:57 (current session — recency gate owns it, not completeness)', () => {
       expect(isIntradayTailStale(sec('2026-08-19T14:57:00Z'), '5')).toBe(false)
     })
-    it('FRESH: tail = Tuesday 15:55 (complete prior session — the pre-seed still paints)', () => {
-      expect(isIntradayTailStale(sec('2026-08-18T19:55:00Z'), '5')).toBe(false)
+    // REWRITTEN 2026-09-28: complete prior session is a sound base (BEHIND), not current.
+    it('BEHIND: tail = Tuesday 15:55 (complete prior session, but Wednesday has completed buckets)', () => {
+      expect(classifyIntradayTail(sec('2026-08-18T19:55:00Z'), '5')).toBe('behind')
     })
     it('STALE: tail = Tuesday 13:30 (INCOMPLETE prior session — now caught)', () => {
       expect(isIntradayTailStale(sec('2026-08-18T17:30:00Z'), '5')).toBe(true)
