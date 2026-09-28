@@ -203,7 +203,7 @@ export function ratchetVerdict(current, baseline) {
 
 const NOTE = [
   'TERM-066 HAND-ROLLED FORMATTER CENSUS BASELINE. Read by handRolledFormatters.census.test.js.',
-  'Per file: how many hand-rolled formatter sites it had when this was last written.',
+  'Per file: how many hand-rolled MAGNITUDE-SUFFIX (K/M/B/T) sites it had when last written.',
   'SHRINK-ONLY. Tightening is mechanical:',
   '  cd app && UPDATE_FORMAT_CENSUS_BASELINE=1 npx vitest run src/lib/presentation/handRolledFormatters.census.test.js',
   'The update mode REFUSES to raise a count or add a file. Growth is a HAND EDIT to this',
@@ -226,8 +226,16 @@ function readBaseline() {
   return { raw, sites: JSON.parse(raw).sites }
 }
 
+// ⛔ ONLY THE MAGNITUDE-SUFFIX KIND BLOCKS (narrowed 2026-09-28). `toFixed` /
+// `toLocaleString` are 1,500+ ordinary sites that every concurrent lane (Pine,
+// Notebook, ...) adds to daily; ratcheting them failed unrelated PRs by name.
+// Hand-rolled K/M/B/T suffixing is the duplication TERM-066 exists to retire,
+// so it is the one kind held to the baseline. Every kind is still PRINTED below.
+export const BLOCKING_KIND = 'magnitudeSuffix'
 const currentCounts = () => Object.fromEntries(
-  Object.entries(census().sites).map(([f, r]) => [f, r.total]))
+  Object.entries(census().sites)
+    .map(([f, r]) => [f, r.kinds[BLOCKING_KIND] || 0])
+    .filter(([, n]) => n > 0))
 
 const fmtList = (rows, render) => rows.map(render).join('\n  ')
 const UPDATE_CMD = 'cd app && UPDATE_FORMAT_CENSUS_BASELINE=1 npx vitest run '
