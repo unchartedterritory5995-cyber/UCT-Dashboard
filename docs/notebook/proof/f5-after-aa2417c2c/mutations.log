@@ -1,0 +1,22 @@
+{"id": "M1-stage-ignored", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 6 passed (7)", "red": true}
+{"id": "M2-portal-to-body", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  2 failed | 5 passed (7)", "red": true}
+{"id": "M3-tour-no-claim", "file": "src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx", "test": "src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.stage.test.jsx", "exit": 1, "totals": "Tests  3 failed | 1 passed (4)", "red": true}
+{"id": "M4-layout-no-slot", "file": "src/components/Layout.jsx", "test": "src/components/Layout.firstRunSlot.test.jsx", "exit": 1, "totals": "Tests  2 failed | 1 passed (3)", "red": true}
+{"id": "M5-hint-absolute", "file": "src/pages/journal-2-0/components/VoiceInputButton.jsx", "test": "src/pages/journal-2-0/components/VoiceInputButton.hintInFlow.test.jsx", "exit": 1, "totals": "Tests  1 failed | 6 passed (7)", "red": true}
+{"id": "M6-editor-no-opt-in", "file": "src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx", "test": "src/pages/journal-2-0/components/VoiceInputButton.hintInFlow.test.jsx", "exit": 1, "totals": "Tests  1 failed | 6 passed (7)", "red": true}
+{"id": "M7-search-overlap", "file": "src/pages/journal-2-0/components/notebook/FolderSidebar.module.css", "test": "src/pages/journal-2-0/a11y/targetFloors.test.js", "exit": 1, "totals": "Tests  1 failed | 13 passed (14)", "red": true}
+{"id": "M8-toggle-22", "file": "src/pages/journal-2-0/components/notebook/FolderSidebar.module.css", "test": "src/pages/journal-2-0/a11y/targetFloors.test.js", "exit": 1, "totals": "Tests  1 failed | 13 passed (14)", "red": true}
+{"id": "M9-floor-unscoped", "file": "src/pages/journal-2-0/components/notebook/NoteEditorPage.module.css", "test": "src/pages/journal-2-0/a11y/targetFloors.test.js", "exit": 1, "totals": "Tests  2 failed | 12 passed (14)", "red": true}
+{"id": "M10-checkbox-16", "file": "src/pages/journal-2-0/components/notebook/NoteCard.module.css", "test": "src/pages/journal-2-0/a11y/targetFloors.test.js", "exit": 1, "totals": "Tests  1 failed | 13 passed (14)", "red": true}
+{"id": "M11-switcher-nowrap", "error": "anchor found 0 times in src/pages/journal-2-0/tabs/NotebookTab.module.css"}
+{"id": "M12-hint-opacity", "file": "src/pages/journal-2-0/components/notebook/CaptureDialog.module.css", "test": "src/pages/journal-2-0/components/notebook/CaptureDialog.hintContrast.test.js", "exit": 1, "totals": "Tests  4 failed | 2 passed (6)", "red": true}
+{"id": "M13-region-untabbable", "file": "src/pages/journal-2-0/components/notebook/PdfDocumentViewer.jsx", "test": "src/pages/journal-2-0/components/notebook/PdfDocumentViewer.scrollRegion.test.jsx", "exit": 1, "totals": "Tests  1 failed | 1 passed (2)", "red": true}
+{"id": "M14-icon-floor", "file": "src/pages/journal-2-0/components/notebook/FolderSidebar.module.css", "test": "src/pages/journal-2-0/a11y/targetFloors.test.js", "exit": 1, "totals": "Tests  1 failed | 13 passed (14)", "red": true}
+{"id": "M15-board-not-contained", "file": "src/pages/journal-2-0/components/notebook/NoteBoardView.module.css", "test": "src/pages/journal-2-0/components/notebook/NoteBoardView.scrollsAlone.test.js", "exit": 1, "totals": "Tests  1 failed | 4 passed (5)", "red": true}
+{"id": "M16-board-no-affordance", "file": "src/pages/journal-2-0/components/notebook/NoteBoardView.module.css", "test": "src/pages/journal-2-0/components/notebook/NoteBoardView.scrollsAlone.test.js", "exit": 1, "totals": "Tests  1 failed | 4 passed (5)", "red": true}
+NOT RED: ['M11-switcher-nowrap']
+{"id": "M11-switcher-nowrap", "file": "src/pages/journal-2-0/tabs/NotebookTab.module.css", "test": "src/pages/journal-2-0/tabs/NotebookTab.viewSwitcherFits.test.js", "exit": 1, "totals": "Tests  2 failed | 1 passed (3)", "red": true}
+ALL RED
+{"id": "M17-store-release-counts", "file": "src/components/firstRun/firstRunStage.js", "test": "src/components/firstRun/firstRunStage.test.jsx", "exit": 1, "totals": "Tests  1 failed | 4 passed (5)", "red": true}
+{"id": "M18-store-silent-claim", "file": "src/components/firstRun/firstRunStage.js", "test": "src/components/firstRun/firstRunStage.test.jsx", "exit": 1, "totals": "Tests  1 failed | 4 passed (5)", "red": true}
+ALL RED

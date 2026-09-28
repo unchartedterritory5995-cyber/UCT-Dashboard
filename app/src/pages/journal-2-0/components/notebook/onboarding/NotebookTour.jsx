@@ -35,6 +35,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../../context/AuthContext'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
+import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY, TOUR_UI } from './tourCopy'
@@ -196,6 +197,15 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
       if (first) record(TOUR_STATES.started, first.id)
     }, AUTO_START_DELAY_MS)
   }, [enabled, location.state, location.pathname, location.search, navigate, open, record])
+
+  // ── the first-run stage: held for exactly as long as the card is open ──────────────
+  // Wave 10 follow-up F5: the tour card and the voice orb's "Meet Compass" card both
+  // arrive on a new member's first visit, and the tour card covered the other's "Got it"
+  // at every width (proof walk 10E-1 6b). They are SEQUENCED: while the tour is open it
+  // holds the stage and the Compass card waits; it shows once the tour closes.
+  // components/firstRun/firstRunStage.js; rail NotebookTour.stage.test.jsx.
+  const tourOpen = Boolean(steps)
+  useEffect(() => (tourOpen ? claimFirstRunStage() : undefined), [tourOpen])
 
   // ── the anchor, outlined in place (an attribute, never a measurement) ───────────────
   const step = steps ? steps[index] : null

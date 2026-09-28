@@ -3566,10 +3566,13 @@ export default function NoteEditorPage({
                 "Dictate" starts the same mic). Paid members only — the mic
                 renders nothing for anyone else, and is not even loaded.
                 `holdOnFailure` (review I-4): a failed transcription keeps the
-                member's recording and says why, never a silent drop. */}
+                member's recording and says why, never a silent drop.
+                `hintInFlow` (wave 10 follow-up F5): the first-run hint takes its
+                own place in this wrapping row instead of hanging over the tag
+                input (1200 px) and the formatting row (820 / 390 px). */}
             {isPaid === true && (
               <Suspense fallback={null}>
-                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure />
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow />
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and

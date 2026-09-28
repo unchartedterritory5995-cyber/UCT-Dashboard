@@ -1,0 +1,9 @@
+{"id": "M21-sheet-keeps-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  2 failed | 11 passed (13)", "red": true}
+{"id": "M22-audio-keeps-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 12 passed (13)", "red": true}
+{"id": "M23-sheet-dismisses", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  2 failed | 11 passed (13)", "red": true}
+{"id": "M24-audio-dismisses", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 12 passed (13)", "red": true}
+{"id": "M25-tuck-with-card", "file": "src/components/voice/FloatingOrb.jsx", "test": "src/components/voice/FloatingOrb.coachmark.test.jsx", "exit": 1, "totals": "Tests  1 failed | 12 passed (13)", "red": true}
+{"id": "M26-slot-rule-removed", "file": "src/components/voice/FloatingOrb.module.css", "test": "src/components/voice/FloatingOrb.chartShellSlot.test.js", "exit": 1, "totals": "Tests  2 failed | 2 passed (4)", "red": true}
+{"id": "M27-slot-rule-phone-only", "file": "src/components/voice/FloatingOrb.module.css", "test": "src/components/voice/FloatingOrb.chartShellSlot.test.js", "exit": 1, "totals": "Tests  2 failed | 2 passed (4)", "red": true}
+{"id": "M28-slot-rule-wrong-attr", "file": "src/components/voice/FloatingOrb.module.css", "test": "src/components/voice/FloatingOrb.chartShellSlot.test.js", "exit": 1, "totals": "Tests  2 failed | 2 passed (4)", "red": true}
+ALL RED
