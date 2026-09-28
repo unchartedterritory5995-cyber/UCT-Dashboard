@@ -30,6 +30,7 @@ import { buildDefinition } from './BuilderSheet.jsx'
 import { evaluateFormula } from './FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE, BUILDER_INPUTS } from './builderInputs.js'
 import { validateDefinition } from '../engine/defSchema'
+import { absentOf, itNeedsLocalOnly } from '../engine/ast/__tests__/oosLocalOnly.js'
 
 const OOS = path.resolve(process.cwd(), '../tests/fixtures/pine_oos')
 const SET = path.resolve(process.cwd(),
@@ -279,15 +280,26 @@ describe('C3A-CLOSE — the fixed parity set, remeasured at HEAD', () => {
     expect(typeof ov.declaration).toBe('string')
     expect(ov.declaration.overlay).toBeUndefined()
 
-    // ⛔ AND THE GAP IS NAMED AND STAYS RED. Three members are `local-only` in
-    // `pine_oos/MANIFEST.json` and are not committed, so the published numbers
-    // below cover SEVEN of ten. Re-publishing all ten is owed the moment those
-    // captures land.
+    // ⛔ AND THE GAP IS NAMED. Some members are `local-only` in
+    // `pine_oos/MANIFEST.json` and are never committed (licence), so on a fresh
+    // checkout this measures only the rest. ⚰️ This assertion used to stay RED on
+    // every such checkout — a red that is always red is a red nobody reads. The
+    // licence-held absentees now go to the named SKIP below instead; a missing
+    // member that is NOT an absent local-only one is still a hard red here.
     const missing = rows.filter((r) => r.grade === 'SOURCE_MISSING').map((r) => r.key)
-    expect(missing, `these parity members have no committed source, so the set is `
-      + `measured on ${10 - missing.length} of 10:\n  ${missing.join('\n  ')}\n\n`
-      + 'They are `storage: "local-only"` in tests/fixtures/pine_oos/MANIFEST.json '
-      + 'and each needs a fresh capture; their sha256_source is already recorded, '
-      + 'so each one is verifiable on arrival.').toEqual([])
+    const unexplained = missing.filter((k) => absentOf([k]).length === 0)
+    expect(unexplained, `these parity members have no source and are NOT licence-held `
+      + `local-only members, so they were deleted or renamed:\n  ${unexplained.join('\n  ')}`)
+      .toEqual([])
+  })
+
+  // ⏭ The half of the old assertion a fresh checkout cannot satisfy: EVERY member
+  // measured. Its title names the absent members, so a skipped run reads as
+  // "not verified", never as a pass. Each absentee needs a fresh capture; its
+  // sha256_source is already recorded, so each one is verifiable on arrival.
+  const MEMBERS = JSON.parse(fs.readFileSync(SET, 'utf8')).selected.map((m) => m.key)
+  itNeedsLocalOnly(MEMBERS, 'every parity member has a source, so the set is measured whole', () => {
+    const missing = MEMBERS.filter((k) => !fs.existsSync(path.join(OOS, `${k}.pine`)))
+    expect(missing).toEqual([])
   })
 })

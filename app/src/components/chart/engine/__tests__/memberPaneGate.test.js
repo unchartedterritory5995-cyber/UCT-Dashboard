@@ -52,6 +52,73 @@ const importers = (moduleBase) => sourceFiles().filter((f) => {
   return stat.test(src) || dyn.test(src)
 })
 
+const ENTRY = path.join(APP, 'src', 'main.jsx')
+const RUNTIME = path.join(APP, 'src', 'components', 'chart', 'engine', 'ast', 'pineRuntimeFrontend.js')
+const MEMBER_PANE = path.join(APP, 'src', 'components', 'chart', 'builder', 'memberPane', 'MemberPane.jsx')
+const rel = (f) => (path.isAbsolute(f) ? path.relative(APP, f).split(path.sep).join('/') : f)
+
+/** Does this module CALL the gate? Comments stripped — CODE, NEVER PROSE. */
+const consultsGate = (f) => stripComments(fs.readFileSync(f, 'utf8')).includes('memberPaneEnabled()')
+
+/** The non-test import graph of app/src: file → the app/src files it imports,
+ *  statically, by re-export, for side effect, or through a dynamic `import()`
+ *  (the app's routes are lazy, so a walk that skipped `import()` would stop at
+ *  the router and see nothing). Comments are stripped first, so a commented-out
+ *  import is not an edge. Bare (package) specifiers are not app code and are
+ *  dropped. */
+let GRAPH = null
+function importGraph() {
+  if (GRAPH) return GRAPH
+  const files = sourceFiles()
+  const known = new Set(files)
+  const resolve = (from, spec) => {
+    const base = path.resolve(path.dirname(from), spec)
+    for (const c of [base, `${base}.js`, `${base}.jsx`, `${base}.mjs`,
+      path.join(base, 'index.js'), path.join(base, 'index.jsx')]) {
+      if (known.has(c)) return c
+    }
+    return null
+  }
+  const SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"]*)\1/g
+  GRAPH = new Map()
+  for (const f of files) {
+    const src = stripComments(fs.readFileSync(f, 'utf8'))
+    const deps = []
+    for (const m of src.matchAll(SPEC)) {
+      const r = resolve(f, m[2])
+      if (r && !deps.includes(r)) deps.push(r)
+    }
+    GRAPH.set(f, deps)
+  }
+  return GRAPH
+}
+
+/** ⭐⭐ THE RULE, AS A PURE FUNCTION OF A GRAPH, so it can be shown to fire on a
+ *  synthetic one while the real tree is clean. Breadth-first from `entry`,
+ *  NOT descending past any module that `consults` the gate: a door that calls
+ *  `memberPaneEnabled()` is where the member path is decided. Returns the first
+ *  path that reaches `target` without passing one, or null.
+ *  ⚠️ ITS LIMIT, STATED: a module that calls the gate is treated as gating
+ *  everything it imports. It proves a consult is ON the path, not that the call
+ *  guards that particular render. */
+function ungatedPathTo(graph, entry, target, consults) {
+  const parent = new Map([[entry, null]])
+  const queue = [entry]
+  while (queue.length) {
+    const f = queue.shift()
+    if (f === target) {
+      const out = []
+      for (let p = f; p !== null; p = parent.get(p)) out.unshift(p)
+      return out
+    }
+    if (f !== entry && consults(f)) continue
+    for (const d of graph.get(f) || []) {
+      if (!parent.has(d)) { parent.set(d, f); queue.push(d) }
+    }
+  }
+  return null
+}
+
 describe('the member-pane gate', () => {
   afterEach(() => { vi.unstubAllEnvs() })
 
@@ -120,18 +187,54 @@ describe('the member-pane gate', () => {
     expect(fs.readFileSync(path.join(REPO, named), 'utf8')).toContain(GATE_NAME)
   })
 
-  it('⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail', () => {
-    // The claim that becomes real tomorrow: any module that pulls in the member
-    // runtime must also consult this gate. Today the left side is empty — which is
-    // exactly what `pineRuntimeFrontendGate.test.js` enforces — so this asserts the
-    // emptiness and says what changes when it ends.
-    const consumers = importers('pineRuntimeFrontend')
-      .map((f) => path.relative(APP, f).split(path.sep).join('/'))
-    expect(consumers,
-      'pineRuntimeFrontend.js now has a non-test importer. This test stops being '
-      + 'vacuous at that moment: make that importer call memberPaneEnabled() before '
-      + 'it renders anything, then replace this assertion with the real one.')
-      .toEqual([])
+  // ⚰️ WAS VACUOUS. This case asserted `importers('pineRuntimeFrontend')` was
+  // EMPTY and said: "the moment it has a non-test importer, make that importer
+  // call memberPaneEnabled() before it renders anything, then replace this
+  // assertion with the real one." It got one — `runtime/objectLane.js`, the lane
+  // seam — and went red on master. objectLane RENDERS NOTHING (its header: "a
+  // lane, not a door"), and its only importer is `ast/peelToBuilding.js`, a
+  // census helper only tests import. So the importer is not the thing that can
+  // show a member anything; a DOOR that reaches it is. The real claim is about
+  // the path from the app's entry, not about the first hop.
+  it('⭐⭐ NO PATH FROM THE APP ENTRY REACHES THE RUNTIME LANE WITHOUT PASSING THROUGH A GATE CONSULT', () => {
+    const graph = importGraph()
+    const hit = ungatedPathTo(graph, ENTRY, RUNTIME, consultsGate)
+    expect(hit && hit.map(rel),
+      'the member runtime lane is reachable from the app entry along a path on which '
+      + 'no module calls memberPaneEnabled(). Make the door on this path consult the '
+      + 'gate before it renders anything.').toBeNull()
+  })
+
+  it('⛔ …NON-VACUITY: the lane HAS a consumer, and the walk from the entry really reaches the gated surface', () => {
+    const graph = importGraph()
+    // The importer side is not empty — the reason the old case went red.
+    const consumers = [...graph].filter(([, deps]) => deps.includes(RUNTIME)).map(([f]) => rel(f))
+    expect(consumers.length, 'pineRuntimeFrontend.js has no non-test importer; the '
+      + 'rule above is vacuous again').toBeGreaterThan(0)
+    // The entry side is not empty either: an UNPRUNED walk reaches MemberPane.jsx,
+    // the one surface that consults the gate — so the resolver follows the app's
+    // real (lazy) imports and the pruned walk above had something to prune.
+    const all = ungatedPathTo(graph, ENTRY, MEMBER_PANE, () => false)
+    expect(all && all.map(rel), 'the walk from main.jsx cannot reach MemberPane.jsx — '
+      + 'the resolver is broken and the rule above passes by seeing nothing').toBeTruthy()
+    expect(consultsGate(MEMBER_PANE)).toBe(true)
+  })
+
+  it('⛔ …CONTROL: the path predicate fires on an ungated door and is silenced only by a consult ON the path', () => {
+    const g = new Map([
+      ['main', ['app']], ['app', ['door', 'other']], ['other', []],
+      ['door', ['lane']], ['lane', ['runtime']], ['runtime', []],
+    ])
+    expect(ungatedPathTo(g, 'main', 'runtime', () => false))
+      .toEqual(['main', 'app', 'door', 'lane', 'runtime'])
+    expect(ungatedPathTo(g, 'main', 'runtime', (f) => f === 'door')).toBeNull()
+    // A consult OFF the path does not count.
+    expect(ungatedPathTo(g, 'main', 'runtime', (f) => f === 'other'))
+      .toEqual(['main', 'app', 'door', 'lane', 'runtime'])
+    // A second, ungated route beside a gated one still fires.
+    g.set('app', ['door', 'side']); g.set('side', ['lane'])
+    expect(ungatedPathTo(g, 'main', 'runtime', (f) => f === 'door'))
+      .toEqual(['main', 'app', 'side', 'lane', 'runtime'])
   })
 
   it('⭐⭐ THE GATE NOW HAS A CONSUMER, AND IT CONSULTS THE GATE (T5)', () => {

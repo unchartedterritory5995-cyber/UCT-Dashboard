@@ -381,6 +381,18 @@ const AWAITING_A_DECISION = {
     + 'compute (arrays, loops, sorts). Deliberately unmounted: ruling D2 keeps '
     + 'the member pane on the HOST lane\'s saved definition, and wiring this to a '
     + 'member is a separate, flagged decision. Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/handles.js':
+    'PINE RUNTIME — opaque drawing handles (a `line`/`label`/`box` as a value '
+    + 'a script can store and pass). Reached only through the runtime lane. '
+    + 'Same mount, same expiry.',
+  'app/src/components/chart/engine/runtime/records.js':
+    'PINE RUNTIME — user-defined `type` records. Reached only through the '
+    + 'runtime lane. Same mount, same expiry.',
+  'app/src/components/chart/engine/ast/peelToBuilding.js':
+    'CORPUS INSTRUMENT — the one peeler shared by the distance-to-working '
+    + 'censuses; it reads `corpus/committed` from disk and is imported by '
+    + 'measurement tests only. No member route by design and NOT waiting on '
+    + 'the pane.',
   'app/src/components/chart/engine/ast/oosHarness.js':
     'OUT-OF-SAMPLE HARNESS — an instrument, not a product surface: it runs the '
     + 'corpus against both lanes and is invoked by tooling and tests only. It '
