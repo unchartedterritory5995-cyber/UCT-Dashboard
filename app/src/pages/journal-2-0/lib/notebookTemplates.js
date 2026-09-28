@@ -334,3 +334,44 @@ export function getTemplate(key) {
 export function templatesByFamily(familyKey) {
   return TEMPLATES.filter((t) => t.family === familyKey)
 }
+
+// ── Gallery preview (wave 10 lane D2, design finding D-4) ─────────────────────
+
+/** How many lines a template card previews, and how long one line may run. */
+export const PREVIEW_LINES = 3
+const PREVIEW_LINE_CHARS = 72
+
+function nodeText(node) {
+  if (!node || typeof node !== 'object') return ''
+  if (node.type === 'text') return node.text || ''
+  return (node.content || []).map(nodeText).join('')
+}
+
+function clip(text) {
+  const t = text.replace(/\s+/g, ' ').trim()
+  return t.length > PREVIEW_LINE_CHARS ? `${t.slice(0, PREVIEW_LINE_CHARS - 1).trimEnd()}…` : t
+}
+
+/**
+ * The first lines of a template, as the note it makes will open: built from the
+ * template's OWN `build()` with a bare context (every template must produce a sane
+ * doc from `{}` -- see the header), never from a second, hand-typed description.
+ * A line is `{ kind: 'heading' | 'text' | 'bullet', text }`; empty paragraphs and
+ * rules are skipped, a list contributes one line per item.
+ */
+export function templatePreview(tpl, maxLines = PREVIEW_LINES) {
+  if (!tpl || typeof tpl.build !== 'function') return []
+  const lines = []
+  const push = (kind, text) => {
+    const t = clip(text)
+    if (t && lines.length < maxLines) lines.push({ kind, text: t })
+  }
+  for (const node of tpl.build({})?.content || []) {
+    if (lines.length >= maxLines) break
+    if (node.type === 'heading') push('heading', nodeText(node))
+    else if (node.type === 'bulletList' || node.type === 'orderedList' || node.type === 'taskList') {
+      for (const item of node.content || []) push('bullet', nodeText(item))
+    } else if (node.type !== 'horizontalRule') push('text', nodeText(node))
+  }
+  return lines
+}
