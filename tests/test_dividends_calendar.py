@@ -32,12 +32,14 @@ class _FakeMassive:
         self.fail = set(fail)
         self.urls = []
 
-    def _get(self, url, timeout=None):
+    def _typed_get(self, url, *, timeout=None):
+        # TERM-022: reads go through `massive_adapter` -> the typed transport.
         from urllib.parse import urlparse, parse_qs
+        from api.services import massive as _m
         self.urls.append(url)
         tk = (parse_qs(urlparse(url).query).get("ticker") or [""])[0]
         if tk in self.fail:
-            raise RuntimeError("HTTP 503")
+            raise _m.MassiveTransient("HTTP 503", vendor="massive", status=503)
         if "/v3/reference/dividends" in url:
             return {"results": list(self.dividends.get(tk, []))}
         if "/v3/reference/splits" in url:

@@ -68,37 +68,38 @@ def fetch_confirmed_splits(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
     ⛔ Owns its OWN pagination rather than reusing `get_split_tickers`'s (now
     retired) — that function discarded everything but the ticker, which is not
     enough to write a confirmed ROW (execution date + ratio are the row).
-    """
-    from api.services import massive as _massive
 
-    out: list[dict[str, Any]] = []
+    TERM-022: reads through `massive_adapter` (one client, one budget, typed
+    errors). The `[]` on failure is THIS sweep's own, logged decision — its only
+    caller upserts — not the adapter's; and past 20 pages it now answers `[]`
+    rather than upserting a silently truncated window.
+    """
+    from api.services import massive_adapter
+
     try:
-        client = _massive._get_client()
-        url = (
-            f"{_massive._REST_BASE}/v3/reference/splits"
-            f"?execution_date.gte={from_iso}&execution_date.lte={to_iso}"
-            f"&limit=1000&apiKey={client._api_key}"
-        )
-        for _ in range(20):  # safety cap on pagination, same bound as the retired reader
-            data = client._get(url) or {}
-            for r in (data.get("results") or []):
-                ticker = r.get("ticker")
-                execution_date = r.get("execution_date")
-                if not (ticker and execution_date):
-                    continue
-                out.append({
-                    "ticker": str(ticker).upper(),
-                    "execution_date": str(execution_date),
-                    "split_from": r.get("split_from"),
-                    "split_to": r.get("split_to"),
-                })
-            nxt = data.get("next_url")
-            if not nxt:
-                break
-            url = f"{nxt}&apiKey={client._api_key}"
+        rows = massive_adapter.get_pages(
+            "/v3/reference/splits",
+            params={"execution_date.gte": from_iso, "execution_date.lte": to_iso, "limit": 1000},
+            data_class="reference", activity="reference_corp_actions.fetch_confirmed_splits",
+            max_pages=20,  # same bound as the retired reader
+        ).value
     except Exception as e:
         _log.info("[reference-corp-actions] splits fetch failed: %s", e)
         return []
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+        ticker = r.get("ticker")
+        execution_date = r.get("execution_date")
+        if not (ticker and execution_date):
+            continue
+        out.append({
+            "ticker": str(ticker).upper(),
+            "execution_date": str(execution_date),
+            "split_from": r.get("split_from"),
+            "split_to": r.get("split_to"),
+        })
     return out
 
 
@@ -133,36 +134,32 @@ def _ticker_read(path: str, date_field: str, ticker: str,
                  gte: str | None, lte: str | None) -> list[dict[str, Any]]:
     """`path` is the literal endpoint path, spelled out at each call site so
     `tools/corp_actions_census.py` (which reads URLs, not variables) sees both
-    reads. The API key never enters an exception message."""
-    from urllib.parse import quote
+    reads. The API key never enters an exception message.
 
+    TERM-022: reads through `massive_adapter`, which raises on every failure —
+    including more than `_TICKER_READ_MAX_PAGES` pages — so an outage stays
+    distinguishable from a real empty answer."""
     from api.services import massive as _massive
+    from api.services import massive_adapter
 
     sym = _massive.to_polygon_symbol((ticker or "").strip())
     if not sym:
         return []
+    params: dict[str, Any] = {"ticker": sym}
+    if gte:
+        params[f"{date_field}.gte"] = gte
+    if lte:
+        params[f"{date_field}.lte"] = lte
+    params.update({"order": "asc", "sort": date_field, "limit": 1000})
     try:
-        client = _massive._get_client()
-        qs = [f"ticker={quote(sym, safe='.')}"]
-        if gte:
-            qs.append(f"{date_field}.gte={gte}")
-        if lte:
-            qs.append(f"{date_field}.lte={lte}")
-        qs += ["order=asc", f"sort={date_field}", "limit=1000", f"apiKey={client._api_key}"]
-        url = f"{_massive._REST_BASE}{path}?" + "&".join(qs)
-        out: list[dict[str, Any]] = []
-        for _ in range(_TICKER_READ_MAX_PAGES):
-            data = client._get(url) or {}
-            out.extend(r for r in (data.get("results") or []) if isinstance(r, dict))
-            nxt = data.get("next_url")
-            if not nxt:
-                return out
-            url = f"{nxt}&apiKey={client._api_key}"
+        rows = massive_adapter.get_pages(
+            path, params=params, data_class="reference",
+            activity=f"reference_corp_actions.{date_field}", max_pages=_TICKER_READ_MAX_PAGES,
+        ).value
     except Exception as e:
         raise CorpActionsUnavailable(
             f"Massive {path} failed for {sym}: {type(e).__name__}") from e
-    raise CorpActionsUnavailable(
-        f"Massive {path} for {sym} exceeded {_TICKER_READ_MAX_PAGES} pages")
+    return [r for r in rows if isinstance(r, dict)]
 
 
 def fetch_ticker_splits(ticker: str, *, gte: str | None = None,

@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "about": "TERM-022 retirement-queue ratchet -- see tools/vendor_callsite_census.py. Lower only: run `python tools/vendor_callsite_census.py --write-baseline`.",
+  "counts": {
+    "alphavantage": {
+      "api/routers/admin_api_health.py": 1,
+      "api/routers/earnings.py": 3,
+      "api/services/av_transcripts.py": 2,
+      "api/services/catalyst/sources.py": 1,
+      "api/services/engine.py": 2
+    },
+    "bullflow": {
+      "api/liveflow_worker.py": 2
+    },
+    "finnhub": {
+      "api/routers/admin_api_health.py": 1,
+      "api/routers/calendar.py": 1,
+      "api/routers/earnings.py": 2,
+      "api/services/engine.py": 1,
+      "api/services/realtime_stream.py": 2,
+      "api/services/ticker_meta.py": 1
+    },
+    "fmp": {
+      "api/main.py": 1,
+      "api/routers/admin_api_health.py": 1,
+      "api/routers/earnings.py": 22,
+      "api/routers/fmp_adapter_status.py": 1,
+      "api/services/bars_fetch.py": 2,
+      "api/services/calendar_alerts.py": 2,
+      "api/services/catalyst/sources.py": 2,
+      "api/services/earnings_estimates.py": 3,
+      "api/services/engine.py": 3,
+      "api/services/etf_holdings.py": 1,
+      "api/services/implied_store.py": 4,
+      "api/services/index_constituents.py": 2,
+      "api/services/news/adapters/fmp_news.py": 2,
+      "api/services/screener/fundamentals_bulk.py": 2,
+      "api/services/ticker_logos.py": 1
+    },
+    "forexfactory": {
+      "api/routers/calendar.py": 2
+    },
+    "massive": {
+      "api/backfill_rest.py": 2,
+      "api/darkpool_flatfile_ingest.py": 1,
+      "api/darkpool_massive_ingest.py": 2,
+      "api/flow_rest_backfill.py": 2,
+      "api/massive_flatfiles_worker.py": 1,
+      "api/massive_oi_snapshots.py": 2,
+      "api/oi_massive_snapshots.py": 2,
+      "api/oi_morning.py": 2,
+      "api/oi_snapshot_router.py": 2,
+      "api/routers/admin_api_health.py": 2,
+      "api/routers/live_prices.py": 4,
+      "api/routers/massive_adapter_status.py": 1,
+      "api/routers/provenance_quote.py": 1,
+      "api/services/audit.py": 2,
+      "api/services/bar_stream.py": 2,
+      "api/services/bars_fetch.py": 11,
+      "api/services/breadth_dividends.py": 3,
+      "api/services/breadth_wick_recon.py": 3,
+      "api/services/build_intraday_cache.py": 3,
+      "api/services/etf_holdings.py": 2,
+      "api/services/massive.py": 16,
+      "api/services/polygon_extras.py": 2,
+      "api/services/polygon_news.py": 2,
+      "api/services/polygon_options.py": 2,
+      "api/services/scan_ipo.py": 3,
+      "api/services/scan_volume.py": 3,
+      "api/services/trade_conditions.py": 2,
+      "api/services/watchlist_prebuilt_refresh.py": 2,
+      "api/ticker_types.py": 2,
+      "api/worker_main.py": 1
+    },
+    "polygon_direct": {
+      "api/daily_tracker.py": 2
+    },
+    "yfinance": {
+      "api/index_bars.py": 2,
+      "api/routers/charts.py": 1,
+      "api/schwab_service.py": 2,
+      "api/services/annual_financials.py": 2,
+      "api/services/catalyst/ticker_metadata.py": 1,
+      "api/services/earnings_enrichment.py": 3,
+      "api/services/earnings_estimates.py": 1,
+      "api/services/earnings_table.py": 1,
+      "api/services/engine.py": 1,
+      "api/services/financial_statements.py": 1,
+      "api/services/fundamentals.py": 1,
+      "api/services/industry_map.py": 1,
+      "api/services/institutional_holdings.py": 1,
+      "api/services/massive.py": 4,
+      "api/services/news_aggregator.py": 2,
+      "api/services/options_chain.py": 1,
+      "api/services/research/estimates.py": 1,
+      "api/services/research/financials.py": 1,
+      "api/services/research/ownership.py": 1,
+      "api/services/short_interest.py": 1,
+      "api/services/ticker_logos.py": 1,
+      "api/services/ticker_meta.py": 1,
+      "api/services/yfinance_pool.py": 1
+    }
+  }
+}

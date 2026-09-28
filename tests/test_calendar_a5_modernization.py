@@ -267,7 +267,7 @@ class TestDividendsCalendarModernization:
         class _FakeMassive:
             _api_key = "k"
 
-            def _get(self, url, timeout=None):
+            def _typed_get(self, url, *, timeout=None):  # TERM-022: via massive_adapter
                 if "/v3/reference/dividends" in url:
                     return {"results": [{"ticker": "DUAL", "ex_dividend_date": "2099-01-01",
                                          "cash_amount": 0.5}]}

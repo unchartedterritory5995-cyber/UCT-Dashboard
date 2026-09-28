@@ -14,14 +14,16 @@ from api.services import massive, reference_corp_actions as rca
 
 
 class _FakeClient:
+    """Stands at the typed transport `massive_adapter` reads through
+    (TERM-022): `_typed_get(path)` with the path relative to the REST host."""
     _api_key = "k"
 
     def __init__(self, pages):
         self._pages = list(pages)
         self.urls = []
 
-    def _get(self, url):
-        self.urls.append(url)
+    def _typed_get(self, path, *, timeout=None):
+        self.urls.append(path)
         return self._pages.pop(0) if self._pages else {}
 
 
@@ -46,7 +48,7 @@ def test_fetch_confirmed_splits_builds_the_correct_url_and_paginates(monkeypatch
     assert "execution_date.lte=2026-09-30" in client.urls[0]
     assert "/v3/reference/splits" in client.urls[0]
     # page 2 followed next_url, carrying the api key forward
-    assert client.urls[1].startswith("https://api.massive.com/v3/reference/splits?cursor=abc")
+    assert client.urls[1].startswith("/v3/reference/splits?cursor=abc")
     assert "apiKey=k" in client.urls[1]
 
 
@@ -67,8 +69,8 @@ def test_fetch_confirmed_splits_returns_empty_on_provider_failure(monkeypatch):
     class _Boom:
         _api_key = "k"
 
-        def _get(self, url):
-            raise RuntimeError("provider down")
+        def _typed_get(self, path, *, timeout=None):
+            raise massive.MassiveTransient("provider down", vendor="massive", status=503)
 
     monkeypatch.setattr(massive, "_get_client", lambda: _Boom())
     assert rca.fetch_confirmed_splits("2026-09-01", "2026-09-30") == []
