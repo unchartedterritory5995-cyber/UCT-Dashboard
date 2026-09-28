@@ -20,6 +20,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { translatePine } from './pine.js'
+import { interpret } from './interpret.js'
+import { parseFormula } from './parse.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const VENDOR = path.join(REPO, 'tests', 'fixtures', 'vendor')
@@ -154,5 +156,89 @@ describe('a screener column the budget refuses is refused at the translate door 
   it('the control: the bare session vwap, and an ordinary window, still translate on the screener lane', () => {
     expect(screener(`${V6}plot(ta.vwap)`).ok).toBe(true)
     expect(screener(`${V6}plot(ta.sma(close, 3))`).ok).toBe(true)
+  })
+})
+
+// ─── ⭐⭐ THE 2026-09-28 READINGS, HELD BAR BY BAR ────────────────────────────
+//
+// Each describe below takes a vendor capture, translates the SOURCE THE VENDOR
+// RAN (`capture.source.text`, sha-checked against the probe when it was taken),
+// evaluates every output this door produces over the capture's OWN bars, and
+// compares against the vendor's plotted value on every bar — `na` where the
+// vendor is `na`, the number where it is not. The `atrPine.vendor.test.js`
+// pattern, applied to a whole probe at once.
+
+/** Translate a capture's source and compare every named plot bar by bar.
+ *  Returns `{ t, byTitle }` where `byTitle[title] = {bad, n, first}`, or
+ *  `{refused: guard}` for an output the door refused. */
+function againstCapture(rel, basePeriod) {
+  const d = JSON.parse(fs.readFileSync(path.join(VENDOR, rel), 'utf8'))
+  const t = translatePine(d.source.text, { strict: true, basePeriod })
+  const bars = d.bars.rows.map((r) => ({ t: r[0], o: r[1], h: r[2], l: r[3], c: r[4], v: r[5] }))
+  const index = new Map(d.bars.rows.map((r, i) => [r[0], i]))
+  const titles = d.study.plots.map((p) => p.title)
+  const byTitle = {}
+  for (const o of (t.outputs || [])) {
+    if (!o.formula) { byTitle[o.title] = { refused: o.refusal && o.refusal.guard }; continue }
+    const col = titles.indexOf(o.title)
+    expect(col, `${o.title} is not a plot of ${rel}`).toBeGreaterThanOrEqual(0)
+    const ours = interpret(parseFormula(o.formula).ast, bars, {}, undefined, undefined, { tf: basePeriod })
+    let bad = 0
+    let first = null
+    for (const r of d.plotValues.rows) {
+      const got = ours[index.get(r[0])]
+      const want = r[1 + col]
+      const same = (want === null || want === undefined)
+        ? Number.isNaN(got)
+        : Math.abs(got - want) <= 1e-9 * Math.max(1, Math.abs(want))
+      if (!same) { bad += 1; if (!first) first = { t: r[0], want, got } }
+    }
+    byTitle[o.title] = { bad, n: d.plotValues.rows.length, first, formula: o.formula }
+  }
+  return { t, d, byTitle }
+}
+
+/** Every named row matches on every bar, and the capture is not vacuous. */
+function expectRowsMatch(res, rows, minBars) {
+  for (const title of rows) {
+    const r = res.byTitle[title]
+    expect(r, `${title}: this door produced no output for it`).toBeTruthy()
+    expect(r.refused, `${title}: refused at ${r.refused}`).toBeUndefined()
+    expect(r.n, `${title}: capture too short`).toBeGreaterThanOrEqual(minBars)
+    expect(r.bad, `${title}: ${r.bad}/${r.n} bars differ, first ${JSON.stringify(r.first)} — ${r.formula}`).toBe(0)
+  }
+}
+
+describe('⭐⭐ int(x) TRUNCATES TOWARD ZERO — vw-int-cast, I01–I09 on every bar', () => {
+  const CAP = 'vw-int-cast-spy-1d-2026-09-27.json'
+  const ROWS = ['I01_int_2p7', 'I02_int_neg2p7', 'I03_int_2p5', 'I04_int_neg2p5',
+    'I05_int_3p5_CONTROL', 'I06_int_minus_TRUNC_series', 'I07_int_minus_FLOOR_series',
+    'I08_int_minus_ROUND_series', 'I09_int_of_na_IS_NA']
+
+  it('the capture discriminates: trunc is 0 on every bar, floor and round are NOT', () => {
+    // ⛔ NON-VACUITY. If the series never went negative or never had a half,
+    // all three candidates would agree and the capture could not have chosen.
+    const d = JSON.parse(fs.readFileSync(path.join(VENDOR, CAP), 'utf8'))
+    const titles = d.study.plots.map((p) => p.title)
+    const col = (name) => 1 + titles.indexOf(name)
+    const rows = d.plotValues.rows
+    expect(rows.length).toBeGreaterThanOrEqual(200)
+    expect(rows.every((r) => r[col('I06_int_minus_TRUNC_series')] === 0)).toBe(true)
+    expect(rows.filter((r) => r[col('I07_int_minus_FLOOR_series')] !== 0).length).toBeGreaterThan(50)
+    expect(rows.filter((r) => r[col('I08_int_minus_ROUND_series')] !== 0).length).toBeGreaterThan(50)
+  })
+
+  it('the door matches I01–I09 on every one of the 300 bars', () => {
+    const res = againstCapture(CAP, 'D')
+    expect(res.t.ok).toBe(true)
+    expectRowsMatch(res, ROWS, 300)
+  })
+
+  it('the fractional series reads as `idiv(x, 1)`, and `int(na)` stays `na`', () => {
+    expect(formulaOf(`${V6}plot(int(close / 3))`).formula).toBe('idiv(close / 3, 1)')
+    expect(formulaOf(`${V6}plot(close + int(-2.7))`).formula).toBe('close + -2')
+    const na = interpret(parseFormula(formulaOf(`${V6}plot(close + int(float(na)))`).formula).ast,
+      [{ t: 1700000000, o: 1, h: 1, l: 1, c: 1, v: 1 }])
+    expect(Number.isNaN(na[0])).toBe(true)
   })
 })

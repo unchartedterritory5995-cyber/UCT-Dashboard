@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-09-27",
+  "measured_at": "2026-09-28",
   "scripts": 266,
   "host_ok": 45,
   "screener_ok": 52,
@@ -175,14 +175,12 @@
       "hostGuards": [
         "pine:declaration-strategy",
         "pine:state",
-        "pine:function",
         "pine:block",
         "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:state",
-        "pine:function",
         "pine:block",
         "pine:strategy-call"
       ]
@@ -2325,11 +2323,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function",
+        "pine:window",
         "pine:offset-literal"
       ],
       "screenerGuards": [
-        "pine:function",
+        "pine:window",
         "pine:offset-literal"
       ]
     },

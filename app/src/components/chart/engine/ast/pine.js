@@ -7533,25 +7533,37 @@ export class Resolver {
     // `pine:window` sentence that actually helps it, which names `hma` as the thing
     // that spares the expansion entirely.
     //
-    // ⛔ A FRACTIONAL ARGUMENT STILL REFUSES, AND SAYS WHY. Guessing a rounding
-    // here is the same defect as the `bool` ruling above pointing the other way:
-    // one of them invented a meaning, and this one would too.
+    // ⚰️⚰️ (2026-09-28) "A FRACTIONAL ARGUMENT STILL REFUSES" — THE VENDOR HAS
+    // NOW ANSWERED, SO IT NO LONGER DOES. `tests/fixtures/vendor/vw-int-cast-spy-
+    // 1d-2026-09-27.json` (probe `tools/visual_conformance/probes/vw-int-cast.pine`)
+    // read TradingView directly: `int(2.7)` 2, `int(-2.7)` −2, `int(2.5)` 2,
+    // `int(-2.5)` −2, `int(3.5)` 3 — every constant chosen so that truncation,
+    // floor and both roundings give DIFFERENT answers — and on a 300-bar series
+    // `int(x) − trunc(x)` is 0 on every bar while `− floor(x)` and `− round(x)`
+    // are not; `int(na)` is `na`. So `int(x)` TRUNCATES TOWARD ZERO, which is
+    // exactly `idiv(x, 1)` (the manifest's own sentence: "divided by, rounded
+    // toward zero"), and `idiv` already answers `na` for `na`. No new name, no
+    // rounding rule invented: the rule is the one the vendor was measured using.
+    // `pineVocabularyWave.test.js` compares this door against the capture bar by
+    // bar, I01–I09.
     if (name === 'int' && node.args.length === 1 && !node.args[0].name
         && !this.shadowedByDefinition(name)) {
       const inner = this.resolve(node.args[0].value)
       const folded = foldWindow(inner)
       if (folded && folded.type === 'num' && Number.isInteger(folded.value)) return folded
+      // A constant folds to its truncation here rather than riding `idiv` to
+      // every bar — the same number, decided once. `foldScalar` (the one
+      // evaluator a window length already uses) reaches `u-` and arithmetic
+      // that `foldWindow` leaves as a tree; anything per-bar throws and falls
+      // through to `idiv`.
+      let constant = null
+      try { constant = foldScalar(inner, {}) } catch { constant = null }
+      if (Number.isFinite(constant)) return cNum(Math.trunc(constant) + 0)
       // ⭐ AN ARGUMENT THAT IS WHOLE (OR `na`) ON EVERY BAR IS ITS OWN `int`.
-      // See `wholeValued`: no rounding rule is involved, so none is invented.
+      // See `wholeValued`: the truncation is the identity there, so the tree is
+      // left exactly as it was rather than wrapped in a no-op.
       if (wholeValued(inner)) return inner
-      throw new PineRefusal('pine:function',
-        `${REFUSALS['pine:function']} — \`int\` is only taken here when its argument `
-        + 'already reduces to a whole number, and this one does not. TradingView does '
-        + 'not publish whether casting a fractional float truncates, rounds or floors, '
-        + 'and picking one would compute a different indicator under your own title. '
-        + 'TO UNBLOCK: write the rounding you mean — `idiv(x, 1)` rounds toward zero '
-        + 'and `round(x)` rounds to nearest, and both are declared.',
-        locate(node.tok))
+      return cCall('idiv', [inner, cNum(1)])
     }
     // ⭐ ONE UNNAMED ARGUMENT, AND IT YIELDS TO A USER DEFINITION — the same two
     // conditions `na`/`nz` carry above, for the same reason: a member writing

@@ -56,14 +56,16 @@ describe('float(x) is the identity, and int(x) still is not', () => {
     expect(formulaOf(out)).toContain('0 / 0')
   })
 
-  it('⛔⛔ int(x) is NOT folded alongside it, and that asymmetry is deliberate', () => {
-    // The whole reason `float` is safe and `int` is not. If this ever goes green
-    // somebody has widened `int` on the assumption that the three casts are one
-    // family — they are not, and TradingView publishes no rounding direction.
+  it('⭐⭐ int(x) of a fraction is `idiv(x, 1)` — MEASURED, not assumed from float', () => {
+    // ⚰️ This asserted `int(close)` REFUSES, because TradingView publishes no
+    // rounding direction. It still does not PUBLISH one — it was MEASURED
+    // instead (`tests/fixtures/vendor/vw-int-cast-spy-1d-2026-09-27.json`:
+    // truncation toward zero on every constant and every one of 300 bars), and
+    // `pineVocabularyWave.test.js` holds this door to that capture bar by bar.
+    // The asymmetry with `float` survives in a different form: `float` is the
+    // identity; `int` is a TRUNCATION, and the tree says so.
     const out = wrap('plot(int(close))')
-    expect(out.refusal).toBeTruthy()
-    expect(out.refusal.guard).toBe('pine:function')
-    expect(out.refusal.token).toBe('int')
+    expect(formulaOf(out)).toBe('idiv(close, 1)')
   })
 
   it('⛔ a member’s OWN float() wins over the fold', () => {
