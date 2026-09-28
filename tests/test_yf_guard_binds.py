@@ -174,12 +174,10 @@ def test_fundamentals_reaches_yfinance_through_the_guard(spy):
     assert "error" in out
 
 
-def test_dividends_calendar_reaches_yfinance_through_the_guard(spy):
-    from api.services import dividends_calendar
-    from api.services.cache import cache
-    cache.invalidate(dividends_calendar._syms_cache_key(["ZZZQ"]))
-    assert dividends_calendar.get_events(["ZZZQ"]) == []
-    assert spy.fired
+# ⚰️ `test_dividends_calendar_reaches_yfinance_through_the_guard` lived here.
+# TERM-036 (2026-09-27) moved dividends_calendar off yfinance entirely (Massive
+# reference data via reference_corp_actions), so there is no yfinance reach left
+# to bind — and the stale check below would red on it if it were still listed.
 
 
 def test_industry_map_fallback_reaches_yfinance_through_the_guard(spy):
@@ -223,7 +221,6 @@ BOUND_HERE = {
     "api/index_bars.py",
     "api/routers/charts.py",
     "api/services/catalyst/ticker_metadata.py",
-    "api/services/dividends_calendar.py",
     "api/services/engine.py",
     "api/services/fundamentals.py",
     "api/services/industry_map.py",
