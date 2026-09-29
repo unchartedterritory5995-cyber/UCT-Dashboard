@@ -97,7 +97,10 @@ def run():
     out = re.sub(r"\x1b\[[0-9;]*m", "", p.stdout + p.stderr)
     tot = [l.strip() for l in out.splitlines() if l.strip().startswith("Tests ")]
     failed = sorted({l.strip()[:160] for l in out.splitlines() if l.strip().startswith(("×", "FAIL"))})[:8]
-    return p.returncode, (tot[-1] if tot else "NO TOTALS LINE"), failed
+    # WHY each red is red: the assertion message, so a mutation cannot be counted RED on a
+    # failure that has nothing to do with what it mutates.
+    why = [l.strip()[:200] for l in out.splitlines() if "AssertionError" in l][:4]
+    return p.returncode, (tot[-1] if tot else "NO TOTALS LINE"), failed + why
 
 
 def committed(path):
