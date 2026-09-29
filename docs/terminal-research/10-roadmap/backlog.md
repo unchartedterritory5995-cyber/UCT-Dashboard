@@ -378,7 +378,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-038 | `FB-S2-03` | A published address space: saved things become names | L | d1·b1 | **TIER-NONE** | Partial | behind 021 |
 | TERM-039 | `FB-S12-02` | Member-facing feature status at the point of use | S | d1·b0 | tier 0–2 | Yes | behind 068 |
 | TERM-040 | `FB-A10-04` | Warm the two named cold-pack shard keys | M | d1·b0 | tier 4 pref / 3 | No ⚠️ PARTNER | behind 022 |
-| TERM-041 | `FB-A11-02` | A fixed, published regime vocabulary, permanently | S | d1·b0 | tier 4 pref / 3 | Yes | behind 071 |
+| TERM-041 | `FB-A11-02` | A fixed, published regime vocabulary, permanently | S | d1·b0 | tier 4 pref / 3 | Yes | ✅ BUILT 2026-09-29, not pushed — the vocabulary lives in TERM-071's authority (`voice_regime_classifier.py`: `REGIME_VOCABULARY_VERSION`, `REGIMES`, `REGIME_DISPLAY`, `REGIME_BAND(S)`, `REGIME_UNKNOWN`, `label_of`), published at paid `GET /api/regime/vocabulary`, pinned per version by `tests/test_regime_vocabulary.py::_PUBLISHED`; Portfolio Risk + the Awareness R4 headline render `label_of`. ⚠️ No `#### TERM-041` package exists (band 4 is register-only, §2.9); the spec used was `FB-A11-02`. Survey, disagreements, 7 follow-ups: `evidence/2026-09-29-term041/results.md` |
 | TERM-042 | `FB-A11-04` | Re-source the authoritative EOD breadth row | L | d1·b0 | **TIER-NONE** | No | behind 022 |
 | TERM-043 | `FB-A3-02` | Figure-to-source-page link per statement line | M | d1·b0 | tier 4 pref / 3 | Yes | behind 020 |
 | TERM-044 | `FB-A6-02` | Span-anchored citation on the call recap | M | d1·b0 | tier 4 pref / 3 | Yes | behind 019 |
@@ -396,7 +396,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-056 | `FB-S2-04` | The command string as an interchange format | S after 038 / L before | d2·b0 | **TIER-NONE** | Yes | behind 038 |
 | TERM-057 | `FB-A8-03` | "Why isn't X here" as an S8 receipt | M | d2·b0 | tier 4 pref / 3 | Yes | behind 019 |
 | TERM-058 | `FB-A9-01` | An authoring-time live match count | M | d2·b1 | tier 4 pref / 3 | Yes | behind 023 |
-| TERM-059 | `FB-A11-03` | Label a stale or proxied value at the value | S | d2·b0 | tier 4 pref / 3 | Yes | behind 041 |
+| TERM-059 | `FB-A11-03` | Label a stale or proxied value at the value | S | d2·b0 | tier 4 pref / 3 | Yes | BUILDABLE (041 built 2026-09-29) — ⚠️ its other input, the max-age sentence (`TERM-006`), exists twice and unreconciled (roadmap RM-N03: CARD 33 vs `freshnessAge.js`); cite one before building |
 | TERM-060 | `FB-I1-02` | A machine-checkable citation pointer per claim | L | d2·b0 | tier 4 pref / 3 | Partial | behind 020 |
 | TERM-061 | `FB-X2-01` | Skill file + endpoint whitelist, then an MCP surface | S / M | d2·b0 | tier 4 pref / 3 | Yes | behind 080, 053 |
 | TERM-062 | `FB-S7-02` | Publish the cooldowns; show fire-frequency | M | **d3**·b0 | tier 4 pref / 3 | Yes | behind 025 |
@@ -413,7 +413,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-068 | `FB-S12-01` | Cohort store + master flag + a real kill switch | M | d0·b1 | tier 0–2 | Yes | BUILDABLE |
 | TERM-069 | `FB-A10-02` | Retire the yfinance/Black-Scholes chain leg | M | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-070 | `FB-A10-03` | `/api/schwab/market-narrative`: 1 KB in 20.8 s | S? diagnose | d0·b0 | tier 4 pref / 3 | No ⚠️ PARTNER | BUILDABLE |
-| TERM-071 | `FB-A11-01` | Name ONE regime authority | M | d0·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
+| TERM-071 | `FB-A11-01` | Name ONE regime authority | M | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT `6a2e59f3d`, merged `1423d8500` (`tests/test_regime_authority.py`; this cell said BUILDABLE until TERM-041 read it) |
 | TERM-072 | `FB-A3-01` | Six `_fmp_get` helpers onto one D1 adapter | M | d0·b0 | tier 4 pref / 3 | Yes | ⭐ 022's proof case |
 | TERM-073 | `FB-A4-01` | Retain the nightly analyst pass into a timeline | S retain / M surface | d0·b0 | **TIER-NONE** | Yes | ⭐ cost of delay |
 | TERM-074 | `FB-A5-04` | Make the Wire view reachable by migration | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
