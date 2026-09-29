@@ -1,6 +1,6 @@
 # Economic Data Phase 1 — cohort census (real local backfill)
 
-Generated from `C:\w\econ1-data\econ.db` (local, keyless, no R2) by `C:\w\econ1-data\tools\census.py` + `census_md.py` after the cohort backfill (non-BLS full history; BLS 2017+ so far, see §5), a day of live polls by the local service, and its currentness evaluation. Machine-readable copy: `COHORT-CENSUS.csv`. Times are America/New_York.
+Generated from `C:\w\econ1-data\econ.db` (local, keyless, no R2) by `C:\w\econ1-data\tools\census.py` + `census_md.py` after the cohort backfill (non-BLS full history; BLS 1967+ so far — 1913–1966 windows pending on the quota watcher), a day of live polls by the local service, and the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`, `LIVE-RELEASES.md`). Latest-view values are unchanged by the rebuild; `available_at`/method/PIT of backfilled rows are recomputed. Machine-readable copy: `COHORT-CENSUS.csv`. Times are America/New_York.
 
 Columns: *count* = periods in the latest view; *NA* = provider-stated missing periods kept as `null`; *latest avail.* = the newest period's FIRST availability (where the point is placed) and the vintage's `available_method`; *PIT V/U/L/X* = classes over the latest view; *src pub.* = the provider publication time carried by the last validated fetch (`series_ops.last_published_at`), blank when the provider states none.
 
@@ -8,49 +8,99 @@ Columns: *count* = periods in the latest view; *NA* = provider-stated missing pe
 
 | symbol | status | adapter | provider id | freq | units raw → display (fmt, scale) | oldest | newest | count | NA | latest value | latest avail. (method) | src pub. | PIT V/U/L/X | revision | validation | currentness |
 |---|---|---|---|---|---|---|---|---:|---:|---:|---|---|---|---|---|---|
-| USCPI | enabled | bls | CUSR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 2017-01-01 | 2026-08-01 | 116 | 1 | 334.131 | 2026-09-25 08:30 ET (rule) |  | 0/0/116/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCPINSA | enabled | bls | CUUR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 2017-01-01 | 2026-08-01 | 116 | 1 | 334.98 | 2026-09-25 08:30 ET (rule) |  | 0/116/0/0 | none | no rejections | CURRENT |
-| USCORECPI | enabled | bls | CUSR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 2017-01-01 | 2026-08-01 | 116 | 1 | 337.765 | 2026-09-25 08:30 ET (rule) |  | 0/0/116/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCORECPINSA | enabled | bls | CUUR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 2017-01-01 | 2026-08-01 | 116 | 1 | 338.041 | 2026-09-25 08:30 ET (rule) |  | 0/116/0/0 | none | no rejections | CURRENT |
-| USCPIYOY | enabled | derived | yoy_pct(USCPINSA) | M | Percent → % (pct1, 1) | 2018-01-01 | 2026-08-01 | 104 | 1 | 3.39655 | 2026-09-25 08:30 ET (derived:yoy_pct@1) |  | 0/104/0/0 | none | no rejections | CURRENT |
-| USCPIMOM | enabled | derived | mom_pct(USCPI) | M | Percent → % (pct1, 1) | 2017-02-01 | 2026-08-01 | 115 | 2 | 0.396018 | 2026-09-25 08:30 ET (derived:mom_pct@1) |  | 0/0/115/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCORECPIYOY | enabled | derived | yoy_pct(USCORECPINSA) | M | Percent → % (pct1, 1) | 2018-01-01 | 2026-08-01 | 104 | 1 | 2.44598 | 2026-09-25 08:30 ET (derived:yoy_pct@1) |  | 0/104/0/0 | none | no rejections | CURRENT |
-| USPPIFD | enabled | bls | WPSFD4 | M | Index Nov 2009=100 → index (num3, 1) | 2017-01-01 | 2026-08-01 | 116 | 0 | 157.411 (p) | 2026-09-25 08:30 ET (rule) |  | 0/0/116/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USECI | enabled | bls | CIS1010000000000Q | Q | Percent change, 3-month → % (pct1, 1) | 2017-01-01 | 2026-04-01 | 38 | 0 | 0.9 | 2026-08-04 08:30 ET (rule) |  | 0/0/38/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USUNRATE | enabled | bls | LNS14000000 | M | Percent → % (pct1, 1) | 2017-01-01 | 2026-08-01 | 116 | 1 | 4.1 | 2026-09-12 08:30 ET (rule) |  | 0/0/116/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USNFP | enabled | bls | CES0000000001 | M | Thousands of jobs → persons (k_persons, 1000) | 2017-01-01 | 2026-08-01 | 116 | 0 | 159,075 (p) | 2026-09-12 08:30 ET (rule) |  | 0/0/116/0 | annual_benchmark | no rejections | CURRENT |
-| USNFPCHG | enabled | derived | diff(USNFP) | M | Thousands of jobs → persons (k_persons, 1000) | 2017-02-01 | 2026-08-01 | 115 | 0 | 162 | 2026-09-12 08:30 ET (derived:diff@1) |  | 0/0/115/0 | annual_benchmark | no rejections | CURRENT |
-| USJOLTSO | enabled | bls | JTS000000000000000JOL | M | Thousands → persons (k_persons, 1000) | 2017-01-01 | 2026-08-01 | 116 | 0 | 7,079 (p) | 2026-09-29 10:00 ET (scheduled) |  | 2/0/114/0 | annual_benchmark | no rejections | CURRENT |
+| USCPI | enabled | bls | CUSR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 334.131 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCPINSA | enabled | bls | CUUR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 334.98 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/264/0 | none | no rejections | CURRENT |
+| USCORECPI | enabled | bls | CUSR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 337.765 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCORECPINSA | enabled | bls | CUUR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 338.041 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/264/0 | none | no rejections | CURRENT |
+| USCPIYOY | enabled | derived | yoy_pct(USCPINSA) | M | Percent → % (pct1, 1) | 1968-01-01 | 2026-08-01 | 704 | 1 | 3.39655 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/270/0 | none | no rejections | CURRENT |
+| USCPIMOM | enabled | derived | mom_pct(USCPI) | M | Percent → % (pct1, 1) | 1967-02-01 | 2026-08-01 | 715 | 2 | 0.396018 | 2026-09-11 08:30 ET (derived:mom_pct@1) |  | 0/0/715/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCORECPIYOY | enabled | derived | yoy_pct(USCORECPINSA) | M | Percent → % (pct1, 1) | 1968-01-01 | 2026-08-01 | 704 | 1 | 2.44598 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/270/0 | none | no rejections | CURRENT |
+| USPPIFD | enabled | bls | WPSFD4 | M | Index Nov 2009=100 → index (num3, 1) | 2009-11-01 | 2026-08-01 | 202 | 0 | 157.411 (p) | 2026-09-10 08:30 ET (scheduled:calendar) |  | 0/0/202/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USECI | enabled | bls | CIS1010000000000Q | Q | Percent change, 3-month → % (pct1, 1) | 2001-01-01 | 2026-04-01 | 102 | 0 | 0.9 | 2026-07-31 08:30 ET (scheduled:history) |  | 0/0/102/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USUNRATE | enabled | bls | LNS14000000 | M | Percent → % (pct1, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 4.1 | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USNFP | enabled | bls | CES0000000001 | M | Thousands of jobs → persons (k_persons, 1000) | 1967-01-01 | 2026-08-01 | 716 | 0 | 159,075 (p) | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/716/0 | annual_benchmark | no rejections | CURRENT |
+| USNFPCHG | enabled | derived | diff(USNFP) | M | Thousands of jobs → persons (k_persons, 1000) | 1967-02-01 | 2026-08-01 | 715 | 0 | 162 | 2026-09-04 08:30 ET (derived:diff@1) |  | 0/0/715/0 | annual_benchmark | no rejections | CURRENT |
+| USJOLTSO | enabled | bls | JTS000000000000000JOL | M | Thousands → persons (k_persons, 1000) | 2000-12-01 | 2026-08-01 | 309 | 0 | 7,079 (p) | 2026-09-29 10:00 ET (scheduled) |  | 2/0/307/0 | annual_benchmark | no rejections | CURRENT |
 | USICSA | enabled | dol | DOL ETA r539cy national InitialClaims/SA (history XML) + weekly news r | W/SAT | Number of claims → count (num0, 1) | 1967-01-01 | 2026-09-13 | 3116 | 0 | 197,000 (a) | 2026-09-25 08:30 ET (rule) | 2026-09-24 08:30 ET | 0/0/3116/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USGDP | enabled | bea | NIPA T10105 L1 (A191RC) | Q | Millions USD, SAAR → USD (usd_compact, 1000000) | 1947-01-01 | 2026-04-01 | 318 | 0 | 32,486,066.00 | 2026-08-01 08:30 ET (rule) | 2026-08-26 08:30 ET | 0/0/318/0 | comprehensive | no rejections | CURRENT |
-| USRGDP | enabled | bea | NIPA T10106 L1 (A191RX) | Q | Millions chained 2017 USD, SAAR → USD (usd_compact, 1000000) | 1947-01-01 | 2026-04-01 | 318 | 0 | 24,269,613.00 | 2026-08-01 08:30 ET (rule) | 2026-08-26 08:30 ET | 0/0/318/0 | comprehensive | no rejections | CURRENT |
-| USRGDPQA | enabled | bea | NIPA T10101 L1 (A191RL) | Q | Percent, annualized → % (pct1, 1) | 1947-04-01 | 2026-04-01 | 317 | 0 | 1.5 | 2026-08-01 08:30 ET (rule) | 2026-08-26 08:30 ET | 0/0/317/0 | comprehensive | no rejections | CURRENT |
-| USPCEPI | enabled | bea | NIPA T20804 L1 (DPCERG) | M | Index 2017=100 → index (num3, 1) | 1959-01-01 | 2026-07-01 | 811 | 0 | 131.659 | 2026-09-04 08:30 ET (rule) | 2026-08-26 08:30 ET | 0/0/811/0 | comprehensive | no rejections | CURRENT |
-| USCOREPCE | enabled | bea | NIPA T20804 L25 (DPCCRG) | M | Index 2017=100 → index (num3, 1) | 1959-01-01 | 2026-07-01 | 811 | 0 | 130.658 | 2026-09-04 08:30 ET (rule) | 2026-08-26 08:30 ET | 0/0/811/0 | comprehensive | no rejections | CURRENT |
-| USPCEPIYOY | enabled | derived | yoy_pct(USPCEPI) | M | Percent → % (pct1, 1) | 1960-01-01 | 2026-07-01 | 799 | 0 | 3.70117 | 2026-09-04 08:30 ET (derived:yoy_pct@1) |  | 0/0/799/0 | comprehensive | no rejections | CURRENT |
+| USGDP | enabled | bea | NIPA T10105 L1 (A191RC) | Q | Millions USD, SAAR → USD (usd_compact, 1000000) | 1947-01-01 | 2026-04-01 | 318 | 0 | 32,486,066.00 | 2026-07-30 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/318/0 | comprehensive | no rejections | CURRENT |
+| USRGDP | enabled | bea | NIPA T10106 L1 (A191RX) | Q | Millions chained 2017 USD, SAAR → USD (usd_compact, 1000000) | 1947-01-01 | 2026-04-01 | 318 | 0 | 24,269,613.00 | 2026-07-30 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/318/0 | comprehensive | no rejections | CURRENT |
+| USRGDPQA | enabled | bea | NIPA T10101 L1 (A191RL) | Q | Percent, annualized → % (pct1, 1) | 1947-04-01 | 2026-04-01 | 317 | 0 | 1.5 | 2026-07-30 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/317/0 | comprehensive | no rejections | CURRENT |
+| USPCEPI | enabled | bea | NIPA T20804 L1 (DPCERG) | M | Index 2017=100 → index (num3, 1) | 1959-01-01 | 2026-07-01 | 811 | 0 | 131.659 | 2026-08-26 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/811/0 | comprehensive | no rejections | CURRENT |
+| USCOREPCE | enabled | bea | NIPA T20804 L25 (DPCCRG) | M | Index 2017=100 → index (num3, 1) | 1959-01-01 | 2026-07-01 | 811 | 0 | 130.658 | 2026-08-26 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/811/0 | comprehensive | no rejections | CURRENT |
+| USPCEPIYOY | enabled | derived | yoy_pct(USPCEPI) | M | Percent → % (pct1, 1) | 1960-01-01 | 2026-07-01 | 799 | 0 | 3.70117 | 2026-08-26 08:30 ET (derived:yoy_pct@1) |  | 0/0/799/0 | comprehensive | no rejections | CURRENT |
 | USRETAIL | unverified | census | marts/44X72/SM | M | Millions USD → USD (usd_compact, 1000000) |  |  | 0 | 0 |  |  |  | 0/0/0/0 | seasonal_factor_revision | no rejections |  |
-| USHOUST | enabled | census | resconst/ASTARTS/TOTAL | M | Thousands of units, SAAR → units (num0, 1000) | 1959-01-01 | 2026-08-01 | 812 | 0 | 1,275 (p) | 2026-09-22 08:30 ET (rule) |  | 0/0/812/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USDURGOODS | enabled | census | m3/MDM/NO | M | Millions USD → USD (usd_compact, 1000000) | 1992-02-01 | 2026-08-01 | 415 | 0 | 338,604 (a) | 2026-09-28 22:41 ET (rule) |  | 0/0/415/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USTRADEBAL | enabled | census | ftd/BOPGS/BAL | M | Millions USD → USD (usd_compact, 1000000) | 1994-01-01 | 2026-07-01 | 391 | 0 | -88,576 | 2026-09-11 08:30 ET (rule) |  | 0/0/391/0 | seasonal_factor_revision | no rejections | CURRENT |
-| UST2Y | enabled | fed_ddp | H15/H15/RIFLGFCY02_N.B | D | Percent → % (pct2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 4.81 | 2026-09-28 16:15 ET (rule) |  | 0/13129/0/0 | none | no rejections | CURRENT |
-| UST10Y | enabled | fed_ddp | H15/H15/RIFLGFCY10_N.B | D | Percent → % (pct2, 1) | 1962-01-02 | 2026-09-25 | 16889 | 720 | 5.17 | 2026-09-28 16:15 ET (rule) |  | 0/16889/0/0 | none | no rejections | CURRENT |
-| UST10Y2Y | enabled | derived | spread(UST10Y, UST2Y) | D | Percentage points → pp (pp2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 0.36 | 2026-09-28 16:15 ET (derived:spread@1) |  | 0/13129/0/0 | none | no rejections | CURRENT |
+| USHOUST | enabled | census | resconst/ASTARTS/TOTAL | M | Thousands of units, SAAR → units (num0, 1000) | 1959-01-01 | 2026-08-01 | 812 | 0 | 1,275 (p) | 2026-09-17 08:30 ET (scheduled:calendar) |  | 0/0/812/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USDURGOODS | enabled | census | m3/MDM/NO | M | Millions USD → USD (usd_compact, 1000000) | 1992-02-01 | 2026-08-01 | 415 | 0 | 338,604 (a) | 2026-09-25 08:30 ET (scheduled:calendar) |  | 0/0/415/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USTRADEBAL | enabled | census | ftd/BOPGS/BAL | M | Millions USD → USD (usd_compact, 1000000) | 1994-01-01 | 2026-07-01 | 391 | 0 | -88,576 | 2026-09-03 08:30 ET (scheduled:history) |  | 0/0/391/0 | seasonal_factor_revision | no rejections | CURRENT |
+| UST2Y | enabled | fed_ddp | H15/H15/RIFLGFCY02_N.B | D | Percent → % (pct2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 4.81 | 2026-09-28 16:15 ET (rule) |  | 0/12868/261/0 | none | no rejections | CURRENT |
+| UST10Y | enabled | fed_ddp | H15/H15/RIFLGFCY10_N.B | D | Percent → % (pct2, 1) | 1962-01-02 | 2026-09-25 | 16889 | 720 | 5.17 | 2026-09-28 16:15 ET (rule) |  | 0/12868/4021/0 | none | no rejections | CURRENT |
+| UST10Y2Y | enabled | derived | spread(UST10Y, UST2Y) | D | Percentage points → pp (pp2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 0.36 | 2026-09-28 16:15 ET (derived:spread@1) |  | 0/12868/261/0 | none | no rejections | CURRENT |
 | USFEDBAL | enabled | fed_ddp | H41/H41/RESPPMA_N.WW | W/WED | Millions USD → USD (usd_compact, 1000000) | 2002-12-12 | 2026-09-17 | 1241 | 0 | 6,747,704.00 | 2026-09-25 16:30 ET (rule) |  | 0/1241/0/0 | none | no rejections | CURRENT |
 | USM2 | enabled | fed_ddp | H6/H6_M2/M2.M | M | Billions USD → USD (usd_compact, 1000000000) | 1959-01-01 | 2026-08-01 | 812 | 0 | 23,342.8 | 2026-09-28 22:40 ET (rule) |  | 0/0/812/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USINDPRO | enabled | fed_ddp | G17/IP_MARKET_GROUPS/IP.B50001.S | M | Index 2017=100 → index (num1, 1) | 1919-01-01 | 2026-08-01 | 1292 | 0 | 103.068 | 2026-09-20 09:15 ET (rule) |  | 0/0/1292/0 | annual_benchmark | no rejections | CURRENT |
+| USINDPRO | enabled | fed_ddp | G17/IP_MARKET_GROUPS/IP.B50001.S | M | Index 2017=100 → index (num1, 1) | 1919-01-01 | 2026-08-01 | 1292 | 0 | 103.068 | 2026-09-18 09:15 ET (scheduled:calendar) |  | 0/0/1292/0 | annual_benchmark | no rejections | CURRENT |
 | USEFFR | enabled | nyfed | /api/rates/unsecured/effr (percentRate) | D | Percent → % (pct2, 1) | 2016-03-01 | 2026-09-28 | 2658 | 0 | 3.88 | 2026-09-29 09:00 ET (scheduled) |  | 1/0/2657/0 | minor_routine | no rejections | CURRENT |
 | USFEDFUNDSU | enabled | nyfed | /api/rates/unsecured/effr (targetRateTo) | D | Percent → % (pct2, 1) | 2008-12-16 | 2026-09-28 | 4468 | 0 | 4 | 2026-09-29 09:00 ET (scheduled) |  | 1/4467/0/0 | none | no rejections | CURRENT |
 | USFEDFUNDSL | enabled | nyfed | /api/rates/unsecured/effr (targetRateFrom) | D | Percent → % (pct2, 1) | 2008-12-16 | 2026-09-28 | 4468 | 0 | 3.75 | 2026-09-29 09:00 ET (scheduled) |  | 1/4467/0/0 | none | no rejections | CURRENT |
 | USSOFR | enabled | nyfed | /api/rates/secured/sofr (percentRate) | D | Percent → % (pct2, 1) | 2018-04-02 | 2026-09-28 | 2121 | 0 | 3.9 | 2026-09-29 08:00 ET (scheduled) |  | 1/0/2120/0 | minor_routine | no rejections | CURRENT |
 | USRRP | enabled | nyfed | /api/rp/results/search.json (Reverse Repo, Overnight, primary op: tota | D | USD → USD (usd_compact, 1) | 2013-09-23 | 2026-09-28 | 3250 | 0 | 851,000,000.00 | 2026-09-28 14:00 ET (rule) |  | 0/3250/0/0 | none | no rejections | CURRENT |
-| USEMPIRE | enabled | nyfed_esms | esms_seasonallyadjusted_diffusion.csv:GACDISA | M | Diffusion index → index (num1, 1) | 2001-07-01 | 2026-09-01 | 303 | 0 | 7.6 | 2026-09-18 08:30 ET (rule) |  | 0/0/303/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USDEBT | enabled | fiscaldata | v2/accounting/od/debt_to_penny : tot_pub_debt_out_amt | D | USD → USD (usd_compact, 1) | 1993-04-01 | 2026-09-25 | 8401 | 0 | 40,097,178,119,750.91 | 2026-09-28 17:00 ET (rule) |  | 0/8401/0/0 | none | no rejections | CURRENT |
+| USEMPIRE | enabled | nyfed_esms | esms_seasonallyadjusted_diffusion.csv:GACDISA | M | Diffusion index → index (num1, 1) | 2001-07-01 | 2026-09-01 | 303 | 0 | 7.6 | 2026-09-15 08:30 ET (scheduled:calendar) |  | 0/0/303/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USDEBT | enabled | fiscaldata | v2/accounting/od/debt_to_penny : tot_pub_debt_out_amt | D | USD → USD (usd_compact, 1) | 1993-04-01 | 2026-09-25 | 8401 | 0 | 40,097,178,119,750.91 | 2026-09-28 17:00 ET (rule) |  | 0/5397/3004/0 | none | no rejections | CURRENT |
 | USTGA | enabled | fiscaldata | v1/accounting/dts/operating_cash_balance : account_type='Treasury Gene | D | Millions USD → USD (usd_compact, 1000000) | 2005-10-03 | 2026-09-25 | 5271 | 0 | 945,290 | 2026-09-28 17:00 ET (rule) |  | 0/5271/0/0 | none | no rejections | CURRENT |
 | USMTSDEF | enabled | fiscaldata | v1/accounting/mts/mts_table_1 : current_month_dfct_sur_amt (record_typ | M | USD → USD (usd_compact, 1) | 2013-10-01 | 2026-08-01 | 155 | 0 | 166,796,952,277.38 | 2026-09-15 14:00 ET (rule) |  | 0/0/155/0 | annual_benchmark | no rejections | CURRENT |
-| USDEBTGDP | enabled | derived | ratio_pct(USDEBT, USGDP) | Q | Percent of GDP → % (pct1, 1) | 1993-04-01 | 2026-04-01 | 133 | 0 | 121.475 | 2026-08-01 08:30 ET (derived:ratio_pct@1) |  | 0/0/133/0 | comprehensive | no rejections | CURRENT |
-| USCRUDEINV | enabled | eia | PET.WCESTUS1.W | W/FRI | Thousand barrels → bbl (mbbl, 1000) | 1982-08-14 | 2026-09-12 | 2295 | 0 | 426,398 | 2026-09-24 11:00 ET (rule) | 2026-09-23 11:48 ET | 0/0/2295/0 | minor_routine | no rejections | CURRENT |
+| USDEBTGDP | enabled | derived | ratio_pct(USDEBT, USGDP) | Q | Percent of GDP → % (pct1, 1) | 1993-04-01 | 2026-04-01 | 133 | 0 | 121.475 | 2026-07-30 08:30 ET (derived:ratio_pct@1) |  | 0/0/133/0 | comprehensive | no rejections | CURRENT |
+| USCRUDEINV | enabled | eia | PET.WCESTUS1.W | W/FRI | Thousand barrels → bbl (mbbl, 1000) | 1982-08-14 | 2026-09-12 | 2295 | 0 | 426,398 | 2026-09-23 10:30 ET (scheduled:history) | 2026-09-23 11:48 ET | 0/0/2295/0 | minor_routine | no rejections | CURRENT |
 | USGASPRICE | enabled | eia | PET.EMM_EPMR_PTE_NUS_DPG.W | W/MON | USD per gallon → USD/gal (usd3, 1) | 1990-08-14 | 2026-09-22 | 1885 | 6 | 4.465 | 2026-09-29 10:00 ET (scheduled) | 2026-09-29 08:45 ET | 1/0/1884/0 | minor_routine | no rejections | CURRENT |
 | USFHFAHPI | enabled | fhfa | hpi_master.csv: traditional / purchase-only / monthly / 'USA or Census | M | Index Jan 1991=100 → index (num2, 1) | 1991-01-01 | 2026-07-01 | 427 | 0 | 443.52 | 2026-09-29 09:00 ET (scheduled) |  | 24/0/403/0 | comprehensive | no rejections | CURRENT |
+
+### PIT class distribution (per series)
+
+PIT classes after the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`). *latest view* = one row per period (the value a chart shows); *all vintages* = every stored row. V = captured live (true vintage), U = unrevised history on a documented late-side rule (PIT-usable), L = latest backfill / back-cast / lapse-affected (chartable, NOT PIT-safe), X = unknown.
+
+| symbol | latest V | latest U | latest L | latest X | all V | all U | all L | all X | PIT-safe share (latest) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| USCPI | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
+| USCPINSA | 0 | 452 | 264 | 0 | 0 | 452 | 264 | 0 | 63.1% |
+| USCORECPI | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
+| USCORECPINSA | 0 | 452 | 264 | 0 | 0 | 452 | 264 | 0 | 63.1% |
+| USCPIYOY | 0 | 434 | 270 | 0 | 0 | 434 | 270 | 0 | 61.6% |
+| USCPIMOM | 0 | 0 | 715 | 0 | 0 | 0 | 715 | 0 | 0.0% |
+| USCORECPIYOY | 0 | 434 | 270 | 0 | 0 | 434 | 270 | 0 | 61.6% |
+| USPPIFD | 0 | 0 | 202 | 0 | 0 | 0 | 202 | 0 | 0.0% |
+| USECI | 0 | 0 | 102 | 0 | 0 | 0 | 102 | 0 | 0.0% |
+| USUNRATE | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
+| USNFP | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
+| USNFPCHG | 0 | 0 | 715 | 0 | 0 | 0 | 715 | 0 | 0.0% |
+| USJOLTSO | 2 | 0 | 307 | 0 | 2 | 0 | 308 | 0 | 0.6% |
+| USICSA | 0 | 0 | 3116 | 0 | 0 | 0 | 3116 | 0 | 0.0% |
+| USGDP | 0 | 0 | 318 | 0 | 0 | 0 | 318 | 0 | 0.0% |
+| USRGDP | 0 | 0 | 318 | 0 | 0 | 0 | 318 | 0 | 0.0% |
+| USRGDPQA | 0 | 0 | 317 | 0 | 0 | 0 | 317 | 0 | 0.0% |
+| USPCEPI | 0 | 0 | 811 | 0 | 0 | 0 | 811 | 0 | 0.0% |
+| USCOREPCE | 0 | 0 | 811 | 0 | 0 | 0 | 811 | 0 | 0.0% |
+| USPCEPIYOY | 0 | 0 | 799 | 0 | 0 | 0 | 799 | 0 | 0.0% |
+| USHOUST | 0 | 0 | 812 | 0 | 0 | 0 | 812 | 0 | 0.0% |
+| USDURGOODS | 0 | 0 | 415 | 0 | 0 | 0 | 415 | 0 | 0.0% |
+| USTRADEBAL | 0 | 0 | 391 | 0 | 0 | 0 | 391 | 0 | 0.0% |
+| UST2Y | 0 | 12868 | 261 | 0 | 0 | 12868 | 261 | 0 | 98.0% |
+| UST10Y | 0 | 12868 | 4021 | 0 | 0 | 12868 | 4021 | 0 | 76.2% |
+| UST10Y2Y | 0 | 12868 | 261 | 0 | 0 | 12868 | 261 | 0 | 98.0% |
+| USFEDBAL | 0 | 1241 | 0 | 0 | 0 | 1241 | 0 | 0 | 100.0% |
+| USM2 | 0 | 0 | 812 | 0 | 0 | 0 | 812 | 0 | 0.0% |
+| USINDPRO | 0 | 0 | 1292 | 0 | 0 | 0 | 1292 | 0 | 0.0% |
+| USEFFR | 1 | 0 | 2657 | 0 | 1 | 0 | 2657 | 0 | 0.0% |
+| USFEDFUNDSU | 1 | 4467 | 0 | 0 | 1 | 4467 | 0 | 0 | 100.0% |
+| USFEDFUNDSL | 1 | 4467 | 0 | 0 | 1 | 4467 | 0 | 0 | 100.0% |
+| USSOFR | 1 | 0 | 2120 | 0 | 1 | 0 | 2120 | 0 | 0.0% |
+| USRRP | 0 | 3250 | 0 | 0 | 0 | 3250 | 0 | 0 | 100.0% |
+| USEMPIRE | 0 | 0 | 303 | 0 | 0 | 0 | 303 | 0 | 0.0% |
+| USDEBT | 0 | 5397 | 3004 | 0 | 0 | 5397 | 3004 | 0 | 64.2% |
+| USTGA | 0 | 5271 | 0 | 0 | 0 | 5271 | 0 | 0 | 100.0% |
+| USMTSDEF | 0 | 0 | 155 | 0 | 0 | 0 | 155 | 0 | 0.0% |
+| USDEBTGDP | 0 | 0 | 133 | 0 | 0 | 0 | 133 | 0 | 0.0% |
+| USCRUDEINV | 0 | 0 | 2295 | 0 | 0 | 0 | 2295 | 0 | 0.0% |
+| USGASPRICE | 1 | 0 | 1884 | 0 | 1 | 0 | 1884 | 0 | 0.1% |
+| USFHFAHPI | 24 | 0 | 403 | 0 | 24 | 0 | 426 | 0 | 5.6% |
+| **total** | 31 | 64469 | 33682 | 0 | 31 | 64469 | 33706 | 0 | 65.7% |
 
 ### Units / frequency verification notes
 
@@ -102,10 +152,10 @@ Columns: *count* = periods in the latest view; *NA* = provider-stated missing pe
 
 | symbol | op(inputs) | count | newest | latest value | independent recomputation from stored inputs | secondary |
 |---|---|---:|---|---:|---:|---|
-| USCPIYOY | yoy_pct(USCPINSA) | 104 | 2026-08-01 | 3.39655 | 3.39655 | 100*(USCPINSA/USCPINSA[-12m]-1) |
-| USCPIMOM | mom_pct(USCPI) | 115 | 2026-08-01 | 0.396018 | 0.396018 | 100*(USCPI/USCPI[-1m]-1) |
-| USCORECPIYOY | yoy_pct(USCORECPINSA) | 104 | 2026-08-01 | 2.44598 | 2.44598 | 100*(USCORECPINSA/USCORECPINSA[-12m]-1) |
-| USNFPCHG | diff(USNFP) | 115 | 2026-08-01 | 162 | 162 | USNFP - USNFP[-1m] |
+| USCPIYOY | yoy_pct(USCPINSA) | 704 | 2026-08-01 | 3.39655 | 3.39655 | 100*(USCPINSA/USCPINSA[-12m]-1) |
+| USCPIMOM | mom_pct(USCPI) | 715 | 2026-08-01 | 0.396018 | 0.396018 | 100*(USCPI/USCPI[-1m]-1) |
+| USCORECPIYOY | yoy_pct(USCORECPINSA) | 704 | 2026-08-01 | 2.44598 | 2.44598 | 100*(USCORECPINSA/USCORECPINSA[-12m]-1) |
+| USNFPCHG | diff(USNFP) | 715 | 2026-08-01 | 162 | 162 | USNFP - USNFP[-1m] |
 | USPCEPIYOY | yoy_pct(USPCEPI) | 799 | 2026-07-01 | 3.70117 |  | BEA BPCERO (T20811 L32) published 1dp, see full-series check |
 | UST10Y2Y | spread(UST10Y, UST2Y) | 13129 | 2026-09-25 | 0.36 | 0.36 | UST10Y-UST2Y from store; Treasury par curve 09/25: 5.17-4.81=0.36 (fed_ddp.txt §4) |
 | USDEBTGDP | ratio_pct(USDEBT, USGDP) | 133 | 2026-04-01 | 121.475 | 121.475 | 100*USDEBT[2026-06-30]/(USGDP*1e6) |

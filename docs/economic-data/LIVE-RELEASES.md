@@ -9,6 +9,48 @@ RUNNING so it captures the releases below. Nothing here touches production (LOCA
 PID **69928** (`C:\w\econ1-data\service.pid`). The earlier instance (04:14Z–07:13Z, worker 38684) was stopped to load
 the quota fixes; its log is `logs/service-run1.log`.
 
+## Rebuild 2026-09-29 (backfill timing corrected; see BACKFILL-TIMING.md)
+
+Between 11:30 and 11:33 ET (15:30–15:33Z) the local DB was rebuilt under the corrected backfill placement. Nothing was re-fetched from any agency.
+
+**Procedure**
+1. Four BLS history windows (2007-16, 1997-06, 1987-96, 1977-86) completed first.
+2. Stopped the BLS watcher (PIDs 24664/79436) and then the service (69928/37628). Both were checked as ours by command line, and the `lease` table was empty.
+3. `PRAGMA wal_checkpoint(TRUNCATE)` and `integrity_check` = ok.
+4. Ran `tools/econ/rebuild_local_db.py`, then swapped the files:
+   - old → `C:\w\econ1-data\econ-pre-rebuild-2026-09-29.db` (renamed, kept);
+   - rebuilt → `econ.db`.
+5. Republished all 42 series artifacts locally (`publish_all`, `r2=False`).
+6. Restarted the service with `start_service.ps1` (same command line) and the watcher.
+
+**Carried and recomputed**
+- Carried verbatim: acquisition (62), calendar_event (502), calendar_coverage, series_ops, provider_ops, provider_quota, series_state, and all 5 live releases with their **31 live rows**.
+- Re-placed: **80,556 backfill rows**.
+  - 38,344 re-timed: 33,234 later, and 5,110 earlier (every earlier one by an authoritative snap).
+  - 7,574 PIT U→L.
+  - 227 on a funding-lapse floor.
+- Recomputed fresh: 16,419 derived rows.
+
+**Verification** (report `C:\w\econ1-data\rebuild-report-2026-09-29.json`):
+- counts per series equal the old DB for backfill + live;
+- the live rows are byte-identical;
+- **0** rows are available before their release's scheduled time;
+- `audit_derived` is clean;
+- latest (value, flag) is identical for every series, derived included.
+
+As-of probes:
+
+| series | period | as of | value |
+|---|---|---|---:|
+| FHFA | June | 08:59:59 ET | 442.53 |
+| FHFA | June | 09:00 ET | 442.34 |
+| JOLTS | July | 09:59:59 ET | 7,271 |
+| JOLTS | July | 10:00 ET | 7,335 |
+
+**New processes** (`service.pid`, `bls_watcher.pid`):
+- service: venv launcher **51896**, worker **4056**; `/status` shows 42 CURRENT.
+- watcher: launcher **25984**, worker **55432**. It resumed from its log, skipped the 4 done windows, and wrote 1967-1976 at 15:31Z under the new rules. Windows 1913–1966 are pending the BLS quota.
+
 ## Captured so far (2026-09-29, times ET; raw evidence `C:\w\econ1-data\evidence-*.json`)
 
 Leak invariant after all captures: `observation.available_at < release.scheduled_at` → **0 rows**.
@@ -120,7 +162,7 @@ What to look for:
 ## Restart / stop
 
 ```powershell
-Stop-Process -Id 69928, 37628                      # worker + venv launcher (C:\w\econ1-data\service.pid)
+Stop-Process -Id 4056, 51896                       # worker + venv launcher (since the 2026-09-29 rebuild; C:\w\econ1-data\service.pid)
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" | ? { $_.CommandLine -like '*bls_backfill_when_ready*' } | % { Stop-Process -Id $_.ProcessId }
 & C:\w\econ1-data\start_service.ps1               # restart (blanks every R2/AWS/Cloudflare/provider-key env var)
 ```

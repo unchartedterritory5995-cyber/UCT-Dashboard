@@ -34,6 +34,7 @@ from typing import Optional, Union
 from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
+_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 DateLike = Union[date, str]
 
@@ -303,8 +304,9 @@ def et_to_utc(d: DateLike, hhmm="00:00") -> int:
 
 
 def utc_to_et(ts: Union[int, float]) -> datetime:
-    """unix seconds UTC -> aware datetime in America/New_York."""
-    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(ET)
+    """unix seconds UTC -> aware datetime in America/New_York. Epoch arithmetic, not
+    fromtimestamp: Windows' C runtime refuses negative (pre-1970) timestamps."""
+    return (_EPOCH + timedelta(seconds=ts)).astimezone(ET)
 
 
 def et_date(ts: Union[int, float]) -> date:

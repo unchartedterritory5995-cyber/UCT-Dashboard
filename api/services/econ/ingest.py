@@ -14,8 +14,10 @@ ORDER (one call)
      queued -- ETag/Last-Modified are committed ONLY after the whole call
      validated, so a payload that fails validation can never turn every future
      poll into a 304.
-  3. optional raw archive (ECON_ARCHIVE=local -> ECON_ARCHIVE_DIR/<adapter>/<sha256>.bin);
-     refused if the bytes contain a configured secret.
+  3. optional raw archive (ECON_ARCHIVE=local -> ECON_ARCHIVE_DIR/<adapter>/<sha256>.bin, once per
+     sha256); refused if the bytes contain a configured secret. Retention: only history/backfill/
+     reconcile payloads, payloads that FAILED validation, and live payloads that WROTE >= 1 row
+     (decided after step 6; `archive_wanted`).
   4. validate.validate_fetch per (series, result). Any reason -> validation_event
      + VALIDATION_FAILED facts; NOTHING is written for that series; last good kept.
   5. diff against the stored latest vintages; classify every new/changed row
@@ -46,10 +48,12 @@ than the first sighting)
   live, seen BEFORE the schedule   -> scheduled_at (the row is invisible to as-of
                                       reads until then: no future-release leakage)
   live, no event                   -> provider time if stated and <= first-seen, else first-seen
-  backfill / gap fill              -> registry lag_rule (conservative late side),
-                                      capped at first-seen, THEN raised to the matched
-                                      event's schedule (the schedule wins: never earlier
-                                      than scheduled); pit = backfill_class
+  backfill / gap fill              -> backfill_timing.place: registry lag_rule + holiday/
+                                      closure/era bounds (late side), funding-lapse floor
+                                      (pit -> L), then SNAPPED to the authoritative release
+                                      time of the period when one is known (release history
+                                      / calendar event); an unsnapped time is capped at
+                                      first-seen; never earlier than a matched schedule
   revision found by a history pull -> first-seen ('detected')
 """
 from __future__ import annotations
@@ -58,9 +62,10 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from typing import Callable, Iterable, Optional
 
+from . import backfill_timing
 from . import calendar as cal
 from . import currentness as cur
 from . import secrets, timeutil, validate
@@ -136,18 +141,9 @@ def _spec_key(spec) -> str:
 
 
 def rule_available_at(spec, period_start: str, period_end: str) -> Optional[int]:
-    """Registry lag_rule -> unix seconds (conservative late side). None if no rule."""
-    lag = (_g(spec, "release") or {}).get("lag_rule") or {}
-    kind, days, t = lag.get("kind"), lag.get("days"), lag.get("time_et") or "23:59"
-    if kind == "period_end_plus_days":
-        d = timeutil.as_date(period_end) + timedelta(days=int(days))
-    elif kind == "period_start_plus_days":
-        d = timeutil.as_date(period_start) + timedelta(days=int(days))
-    elif kind == "business_days_after":
-        d = timeutil.add_business_days(period_end, int(days))
-    else:
-        return None
-    return timeutil.et_to_utc(d, t)
+    """Registry lag_rule -> unix seconds (step 1 of backfill placement only; the full
+    late-side placement is `backfill_timing.place`). None if no rule."""
+    return backfill_timing.registry_rule(spec, period_start, period_end)
 
 
 def live_available_at(scheduled_at: Optional[int], first_seen: int,
@@ -275,7 +271,6 @@ def _classify(store, spec, accepted, *, purpose: str, now: int, events, publishe
         return []
     stored = {r.period_start: r for r in store.latest_rows(sym, start=min(o.period_start for o in accepted))}
     newest_stored = store.period_bounds(sym)["newest"]
-    backfill_pit = str((_g(spec, "pit") or {}).get("backfill_class") or "L")
     groups: dict[str, _Group] = {}
     day = time.strftime("%Y-%m-%d", time.gmtime(now))
 
@@ -287,15 +282,20 @@ def _classify(store, spec, accepted, *, purpose: str, now: int, events, publishe
     def row(o, avail, method, pit):
         return (o.period_start, o.period_end, o.value, o.flag or "", int(avail), method, pit, acq_id, None)
 
+    known_periods: list = []
+
     def rule_row(o):
-        ra = rule_available_at(spec, o.period_start, o.period_end)
-        if ra is None:
+        # backfill placement (backfill_timing.place): registry rule -> holiday/closure/era
+        # bounds -> backcast PIT -> funding-lapse floor -> snap to the authoritative release
+        # time of THIS period -> capped at first sighting, never before a known schedule
+        if not known_periods:
+            known_periods.extend(sorted({timeutil.as_date(p.period_end) for p in accepted} |
+                                        {timeutil.as_date(r.period_end) for r in stored.values()}))
+        pl = backfill_timing.place(spec, o.period_start, o.period_end, now=now, events=events,
+                                   periods=known_periods)
+        if pl is None:
             raise ValidationFailed(sym, ["schema: no backfill lag_rule; cannot place history"])
-        ra = min(ra, now)                          # never later than first sighting ...
-        ev = _match_new(spec, events, o.period_start)
-        if ev is not None:
-            ra = max(ra, ev.scheduled_at)          # ... and never earlier than a known schedule (wins)
-        return row(o, ra, M.RULE.value, backfill_pit)
+        return row(o, pl.available_at, pl.method, pl.pit_class)
 
     detected_key = f"{adapter}:{sym}:{day}"
     cur_ev = _current_event(spec, events, now) if purpose == "live" else None
@@ -516,10 +516,11 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
     accepted_by_sym: dict[str, list] = {}
     pub_by_sym: dict[str, Optional[int]] = {}
     seen_sym: set = set()
+    archive_todo: list = []
+    acq_by_sym: dict[str, int] = {}
     for r in results:
         acq = store.record_acquisition(out.adapter, secrets.redact(r.request_key)[:900], started_at=now)
         out.acq_ids.append(acq)
-        ref = archive_payload(out.adapter, r.raw_payload, r.payload_sha256)
         covered = sorted({o.series_id for o in r.observations} & set(syms)) or (syms if r.not_modified else [])
         outcome = "not_modified" if r.not_modified else "ok"
         if r.not_modified:
@@ -548,11 +549,13 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
                 if out.series[s].status == "rejected":
                     continue
                 accepted_by_sym.setdefault(s, []).extend(acc)
+                acq_by_sym.setdefault(s, acq)          # rows cite the result that CARRIED the series
                 if r.source_published_at is not None:
                     pub_by_sym[s] = max(pub_by_sym.get(s) or 0, int(r.source_published_at))
-        store.finish_acquisition(acq, outcome=outcome, http_status=r.http_status, payload_sha256=r.payload_sha256,
-                                 payload_bytes=r.payload_bytes, source_published_at=r.source_published_at,
-                                 archive_ref=ref, finished_at=now)
+        fin = dict(outcome=outcome, http_status=r.http_status, payload_sha256=r.payload_sha256,
+                   payload_bytes=r.payload_bytes, source_published_at=r.source_published_at, finished_at=now)
+        store.finish_acquisition(acq, **fin)
+        archive_todo.append((acq, r, fin, outcome, set(covered) | ({o.series_id for o in r.observations} & set(syms))))
         per_result_acq.append(acq)
 
     if dh is not None:
@@ -563,7 +566,7 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
         else:
             out.validators_committed = dh.commit()
 
-    acq_for_rows = per_result_acq[0] if per_result_acq else call_acq
+    acq_default = per_result_acq[0] if per_result_acq else call_acq
     touched: list[str] = []
     for s in syms:
         res = out.series[s]
@@ -576,6 +579,7 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
             cur.note_failure(store, s, now, "empty", "provider returned no observations for this series")
             continue
         acc = accepted_by_sym.get(s, [])
+        acq_for_rows = acq_by_sym.get(s, acq_default)
         uniq = {}
         for o in acc:
             uniq[o.period_start] = o
@@ -607,6 +611,7 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
         elif purpose == "backfill":
             cur.update_series_ops(store, s, now, last_backfill_at=now)
 
+    _archive_results(out, archive_todo, purpose, store)
     ents = _registry_entries(entries)
     derived_specs = downstream_derived(touched, ents) if touched else []
     for d in derived_specs:
@@ -622,6 +627,25 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
         out.published = publish_symbols(store, pend, now, publisher)
     _refresh_states(store, list(specs) + [SeriesSpec(d) for d in derived_specs], now, ents, lookup, events_for)
     return out
+
+
+def archive_wanted(purpose: str, outcome: str, wrote: bool) -> bool:
+    """Archive retention (PERFORMANCE.md 'Raw archive'): a raw payload is kept when it
+    is evidence -- a history/backfill/reconcile pull, a payload that FAILED validation,
+    or a live poll that WROTE at least one observation row. The many identical live
+    polls of a release burst (each a full provider file) are not kept; their bytes are
+    already in the archive under the same sha256 whenever they ever wrote a row."""
+    return purpose != "live" or outcome == "rejected" or wrote
+
+
+def _archive_results(out, todo, purpose: str, store) -> None:
+    for acq, r, fin, outcome, syms in todo:
+        wrote = any((out.series[s].inserted or out.series[s].revised) for s in syms if s in out.series)
+        if not archive_wanted(purpose, outcome, wrote):
+            continue
+        ref = archive_payload(out.adapter, r.raw_payload, r.payload_sha256)
+        if ref:
+            store.finish_acquisition(acq, archive_ref=ref, **fin)
 
 
 def _derive(store, entry) -> int:

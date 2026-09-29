@@ -48,6 +48,14 @@ DEFAULT_HOST_INTERVALS = {
     "api.bls.gov": 0.3,          # BLS v2: 50 requests / 10 s
 }
 DEFAULT_INTERVAL = 0.25
+# Per-host cap on HTTP ATTEMPTS for one request (retries included). BLS keyless is a
+# 25-queries/day quota and every attempt -- a 503 included -- is charged against it
+# (the scheduler charges max(stats delta, estimate)); on 2026-09-29 one JOLTS poll
+# spent 12 attempts (10x 503). Two attempts per request, then the poll fails and the
+# NEXT poll comes from the schedule (burst/keyless profile + provider backoff).
+DEFAULT_HOST_MAX_ATTEMPTS = {
+    "api.bls.gov": 2,
+}
 RETRY_STATUSES = frozenset({408, 429})
 # Location / header markers of a provider "error page" redirect.
 _ERROR_REDIRECT_MARKERS = ("missing_key", "invalid_key", "error", "keyerror")
@@ -208,7 +216,8 @@ class HttpClient:
                  user_agent: str = DEFAULT_USER_AGENT, timeout=(10, 60), max_retries: int = 4,
                  backoff_base: float = 1.0, backoff_cap: float = 60, sleep=time.sleep,
                  clock=time.time, validator_store=None, host_intervals: Optional[dict] = None,
-                 default_interval: float = DEFAULT_INTERVAL, rng: Optional[Callable[[], float]] = None):
+                 default_interval: float = DEFAULT_INTERVAL, rng: Optional[Callable[[], float]] = None,
+                 host_max_attempts: Optional[dict] = None):
         self._transport = transport
         self.user_agent = user_agent
         self.timeout = timeout
@@ -220,6 +229,7 @@ class HttpClient:
         self.validator_store = validator_store
         self.host_intervals = dict(DEFAULT_HOST_INTERVALS if host_intervals is None else host_intervals)
         self.default_interval = float(default_interval)
+        self.host_max_attempts = dict(DEFAULT_HOST_MAX_ATTEMPTS if host_max_attempts is None else host_max_attempts)
         self._rng = rng or random.random
         self._last_request: dict[str, float] = {}
         self._stats: dict[str, dict[str, int]] = {}
@@ -327,6 +337,9 @@ class HttpClient:
 
         transport = self._get_transport()
         total = self.max_retries + 1
+        cap = self.host_max_attempts.get(host)
+        if cap is not None:
+            total = max(1, min(total, int(cap)))
         last = "no attempt"
         for attempt in range(1, total + 1):
             self._polite_wait(host)

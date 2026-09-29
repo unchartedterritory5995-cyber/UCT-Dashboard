@@ -1,0 +1,68 @@
+{
+  "_doc": "U.S. federal funding lapses (government shutdowns) and the release families they DELAYED. Used by backfill placement (api/services/econ/backfill_timing.py): a backfilled row of an affected family whose rule time falls in [start, window_end] is placed at max(rule time, window_end 23:59 ET) and its PIT class is downgraded to L (never U/V). window_end = max(end + 60 days, catch_up_end[family]) -- 60 days is the FLOOR, not the claim: the 2025 lapse delayed Census releases until 2026-04-29 (168 days after it ended), so each lapse carries the last catch-up release actually observed per family. A family is listed as affected when an official/secondary source says it stopped or moved releases, or when no source clears it (conservative; marked in 'confidence'). Evidence and reasoning: docs/economic-data/BACKFILL-TIMING.md.",
+  "id": "funding_lapses",
+  "imported_at": "2026-09-29",
+  "lapses": [
+    {
+      "id": "1995-11",
+      "start": "1995-11-14",
+      "end": "1995-11-19",
+      "affected": ["bls:*", "bea:*", "census:*", "dol:claims", "fed:g17", "fiscal:*"],
+      "catch_up_end": {},
+      "confidence": "secondary: CRS R41759 'began on November 14, 1995, and ended on November 19, 1995'. Affected families: BLS histreleasedates.pdf footnote (Nov 1995 CPI delayed one day because 'many Federal agencies, including BLS and the Bureau of the Census, were closed'); BEA/DOL/Treasury/G.17 not cleared by any source -> included conservatively",
+      "citations": ["https://www.congress.gov/crs-product/R41759", "https://www.bls.gov/bls/histreleasedates.pdf"]
+    },
+    {
+      "id": "1995-12",
+      "start": "1995-12-16",
+      "end": "1996-01-06",
+      "affected": ["bls:*", "bea:*", "census:*", "dol:claims", "fed:g17", "fiscal:*"],
+      "catch_up_end": {"bls:*": "1996-02-28"},
+      "confidence": "secondary: CRS R41759 'from December 16, 1995 through January 6, 1996'. BLS (official, histreleasedates.pdf): Dec 1995 Employment Situation delayed to 1996-01-19; Dec 1995 CPI to 1996-02-01 and Jan 1996 CPI to 1996-02-28 ('furlough and severe weather'); PPI to 1996-01-31 / 1996-02-27. Others not cleared -> included conservatively",
+      "citations": ["https://www.congress.gov/crs-product/R41759", "https://www.bls.gov/bls/histreleasedates.pdf"]
+    },
+    {
+      "id": "2013-10",
+      "start": "2013-10-01",
+      "end": "2013-10-16",
+      "affected": ["bls:*", "bea:*", "census:*", "fed:g17", "eia:*", "dol:claims"],
+      "catch_up_end": {"census:*": "2013-12-18"},
+      "confidence": "official: BLS 'shut down or were operating at reduced staffing levels from October 1, 2013, through October 16, 2013'. Census cb13-198: Sep/Oct housing starts released 2013-12-18 (lapse end + 63 d). G.17 (source data from BLS) Sep 2013 released 2013-10-28 (Fed archive). EIA: website 'not updated after 1:00 p.m. ... October 11, 2013' (secondary), WPSR w/e 10-11 released 10-21 (EIA archive). DOL claims: secondary reports say published on schedule -- included conservatively (no official citation)",
+      "citations": ["https://www.bls.gov/bls/shutdown_2013_cps_ces.htm", "https://www.census.gov/newsroom/archives/2013-pr/cb13-175.html", "https://www.federalreserve.gov/releases/g17/default.htm", "https://www.eia.gov/petroleum/supply/weekly/archive/"]
+    },
+    {
+      "id": "2018-12",
+      "start": "2018-12-22",
+      "end": "2019-01-25",
+      "affected": ["bea:*", "census:*", "fiscal:mts"],
+      "catch_up_end": {"bea:*": "2019-03-29", "census:*": "2019-05-09"},
+      "confidence": "official: Census 'lapse in federal funding from December 22, 2018, through January 25, 2019'; partial lapse -- Commerce (BEA, Census) and Treasury lacked appropriations, Labor (BLS, ETA) and Energy (EIA) were funded (secondary). BEA 2018Q4 initial GDP 2019-02-28, 'back on schedule' with the 2019-03-28 third estimate; Jan-2019 PIO 2019-03-29 is taken as the catch-up end (conservative). Census revised calendar: Mar-2019 FT-900 on 2019-05-09. MTS: Treasury unfunded, MTS timing not evidenced -> included conservatively",
+      "citations": ["https://www.census.gov/construction/c30/pdf/pr201812.pdf", "https://www.bea.gov/news/blog/2019-03-22/gdp-back-schedule-third-estimate", "https://www.census.gov/newsroom/press-releases/2019/revised-indicator-calendar.html"]
+    },
+    {
+      "id": "2025-10",
+      "start": "2025-10-01",
+      "end": "2025-11-12",
+      "affected": ["bls:*", "bea:*", "census:*", "dol:claims", "fed:g17", "fiscal:mts"],
+      "catch_up_end": {"bls:*": "2026-01-30", "bea:*": "2026-03-13", "census:*": "2026-04-29", "fed:g17": "2025-12-23"},
+      "confidence": "official: DOL 'lapse in appropriations in effect from October 1, 2025, through November 12, 2025'; P.L. 119-37 signed 2025-11-12. BLS revised release dates (official): Sep Employment Situation 2025-11-20, Oct CPI cancelled, PPI Dec 2025 moved to 2026-01-30. BEA: Q3 initial GDP 2025-12-23, Q4 second estimate 2026-03-13. Census list view: Feb/Mar 2026 housing starts 2026-04-29. G.17 (BLS source data): Sep 2025 on 2025-12-03, Oct/Nov on 2025-12-23. DOL claims not published 2025-10-02..11-13. EIA: 'publications will continue to be released according to established schedules' -> not affected. MTS: not evidenced -> included conservatively",
+      "citations": ["https://www.bls.gov/bls/2025-lapse-revised-release-dates.htm", "https://www.congress.gov/crs_external_products/R/PDF/R48765/R48765.2.pdf", "https://www.bea.gov/news/2025/gross-domestic-product-3rd-quarter-2025-initial-estimate", "https://www.census.gov/economic-indicators/calendar-listview.html", "https://www.federalreserve.gov/releases/g17/default.htm", "https://www.dol.gov/newsroom/releases/eta/eta20251120"]
+    },
+    {
+      "id": "2026-01",
+      "start": "2026-01-31",
+      "end": "2026-02-03",
+      "affected": ["bls:*", "bea:*", "census:*", "dol:claims", "fed:g17", "fiscal:mts"],
+      "catch_up_end": {"bls:*": "2026-02-27"},
+      "confidence": "secondary (no official citation found): partial lapse 'began Saturday, January 31, and ended on Tuesday, February 3' (news coverage); BLS lapsed (BLS page 'the 2026 lapse in appropriations': Jan 2026 Employment Situation 2026-02-06 -> 02-11, Jan CPI 02-11 -> 02-13, Jan PPI moved to 2026-02-27). Which other departments lacked appropriations is NOT evidenced -> every family that depends on appropriations is included (conservative wider scope)",
+      "citations": ["https://www.bls.gov/bls/2025-lapse-revised-release-dates.htm", "https://en.wikipedia.org/wiki/2026_United_States_federal_government_shutdowns"]
+    }
+  ],
+  "not_affected": {
+    "fed:h15 fed:h41 fed:h6": "Federal Reserve Board is self-funded (not appropriated); H.15/H.4.1/H.6 need no BLS input. G.17 IS listed (it waits for BLS source data: 2013-10-28, 2025-12-03 releases)",
+    "nyfed:*": "Federal Reserve Bank of New York is not appropriated",
+    "fhfa:*": "FHFA is funded by assessments, not appropriations",
+    "fiscal:dts fiscal:dtp": "Daily Treasury Statement / Debt to the Penny continued through the 2013, 2018-19 and 2025 lapses (debt-limit cash monitoring; secondary); daily placement also uses the provider's own next observation date",
+    "eia:* (2018-19, 2025)": "Energy funded in 2018-19; 2025 EIA: 'publications will continue to be released according to established schedules' (eia.gov/about/announcement.php)"
+  }
+}

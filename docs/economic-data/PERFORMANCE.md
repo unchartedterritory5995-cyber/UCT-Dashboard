@@ -28,7 +28,11 @@ not ET midnight and its accounting is not "25/day by ET date". Fixes in this pas
 for 3 h instead of retrying at the 15-min source backoff; the first fetch of an uninitialized BLS series is ONE recent
 window (1 query: 2017–2026, 965 rows, succeeded 09:11 ET); older windows are sent one query at a time by an operator
 backfill that takes the scheduler's lease. At release time (JOLTS 10:00 ET) api.bls.gov answered **503** for ~3 min;
-the HTTP client's 5 attempts per call are all counted against the local quota (12 attempts for one successful poll).
+the HTTP client's 5 attempts per call were all counted against the local quota (12 attempts for one successful poll).
+**Fixed 2026-09-29:** `HttpClient` now makes at most **2 attempts per BLS request** (`DEFAULT_HOST_MAX_ATTEMPTS`), every
+attempt is still counted and charged, and the next try comes from the poll schedule + provider backoff
+(`test_scheduler.py::test_bls_503_storm_costs_two_attempts_per_poll_and_every_attempt_is_charged`). The same 503 storm
+now costs ≤ 2 quota units per poll instead of ≤ 5.
 
 ## 2. Incremental (latest-mode) fetch per adapter — one poll, then an immediate second poll
 
@@ -64,7 +68,7 @@ Live service polls observed (2026-09-29, `logs/service.log`): SOFR probe 07:58 +
 | `econ.db` (42 series, 91,863 vintage rows, 14,040 releases) | **16.2 MB** (≈ 176 B per observation incl. both indexes + release rows) |
 | rows by table | observation 91,863 · release 14,040 · calendar_event 502 · acquisition 54 · series_state/series_ops 42 · calendar_coverage 32 |
 | artifacts (`econ/v1/series` + `vintages` + catalog + status, 33 series) | 2.36 MB on disk (series 1.15 MB gz + vintages 1.16 MB gz; catalog 40 KB; status 9.6 KB) |
-| raw archive (`ECON_ARCHIVE=local`, content-addressed) | **142 MB** after the backfill + one day of polls |
+| raw archive (`ECON_ARCHIVE=local`, content-addressed) | **142 MB** after the backfill + one day of polls: 124.7 MB = one-time history payloads (21 files), 17.5 MB = the live day. It is NOT a daily rate |
 
 `release` rows: 13,129 of 14,040 are derived UST10Y2Y releases — derive.py writes one release per distinct input
 `available_at`, i.e. one per trading day for a daily derived series.
@@ -115,9 +119,39 @@ change, H.4.1 9 MB weekly, BEA 2×35 MB per GDP/PIO release, FHFA 17 MB monthly)
   provenance tuple, and daily derived series create one `release` row per day. Both are cheap to shrink if it ever
   matters (collapse derived releases per run; drop `observation(series_id, available_at)` if `since()` moves to the
   release table) — not needed at 151 (≈ 50 MB).
-- **Raw archive is the real growth term**: at the cohort's cadence ≈ 3–4 GB/year if every changed payload is kept
-  (H.15 alone ≈ 1.1 GB/yr). Before production, archive to R2 with a lifecycle rule, or keep only payloads that produced
-  a write (today the archive keeps every distinct payload, including unchanged-value re-posts).
+- **Raw archive (re-measured 2026-09-29).** Retention now keeps a live payload only when the poll WROTE ≥ 1 row or
+  FAILED validation. History/backfill/reconcile pulls are always kept, and identical bytes are stored once
+  (content-addressed `<sha256>.bin`, verified by `tools/econ/prune_archive.py --verify`: 27/27 files hash to their
+  names).
+
+  **Measured on the live day** (09-29, 11 live result payloads):
+
+  | rule | kept |
+  |---|---|
+  | old (every distinct payload) | 34.7 MB |
+  | new | **17.5 MB** |
+
+  The difference is FHFA's 17 MB pre-release poll, which differed from the release file and wrote nothing.
+
+  **Projection at the cohort's cadence, new rule:**
+
+  | payload | calculation | per year |
+  |---|---|---|
+  | BEA flat files (dominant) | ~35 MB per GDP/PIO release day × ~24 | ≈ 0.85 GB |
+  | FHFA CSV | 17 MB × 12 | ≈ 0.2 GB |
+  | DOL press PDFs | 0.7 MB × 52 | ≈ 36 MB |
+  | EIA pages | 2 × 0.2 MB × 52 | ≈ 21 MB |
+  | fed_ddp latest (`lastobs`) | KB per poll; the G.17 full-file fallback 8.6 MB × 12 ≈ 0.1 GB | ≈ 0.1 GB |
+  | NY Fed / fiscaldata / Census / BLS | KB-sized | small |
+  | **total** | | **≈ 1.2–1.3 GB/yr (≈ 3.5 MB/day)** |
+
+  The old rule adds every changed-but-unwritten payload on top of this. The earlier "3–4 GB/yr, H.15 ≈ 1.1 GB" line
+  assumed a full H.15 zip per day, but latest-mode polls use `lastobs`.
+
+  `tools/econ/prune_archive.py` (dry run by default) prunes an existing archive to the same rule. On the current
+  archive it keeps 27 files (15 that wrote rows, 12 siblings of a call that wrote rows) and would prune 2 NY Fed
+  polls (< 0.1 MB). Before production: archive to R2 with a lifecycle rule; BEA's full flat files are the one
+  payload worth a size-based policy.
 - Query latency is linear in periods returned; the worst full-history read (16.9 k daily points) is 43 ms, and the
   member path reads the prebuilt artifact, not the DB.
 - BLS keyless cannot scale: 1,000 series is ~40 v1 queries per history window × 12 windows. A BLS key (v2, 500/day,

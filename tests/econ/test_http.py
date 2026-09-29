@@ -72,6 +72,7 @@ def client(transport, clock=None, **kw):
     clock = clock or FakeClock()
     kw.setdefault("host_intervals", {})
     kw.setdefault("default_interval", 0)
+    kw.setdefault("host_max_attempts", {})
     kw.setdefault("rng", lambda: 1.0)
     return HttpClient(transport=transport, sleep=clock.sleep, clock=clock, **kw), clock
 
@@ -371,3 +372,37 @@ def test_response_headers_lowercased_and_json():
     c, _ = client(t)
     r = c.get("https://x.example/a")
     assert r.headers == {"content-type": "application/json"} and r.json() == {"x": 1}
+
+
+# --------------------------------------------------------------------------- per-host attempt cap (BLS quota)
+
+def test_bls_default_cap_is_two_attempts_per_request_and_every_attempt_is_counted():
+    """2026-09-29: one JOLTS poll spent 12 BLS attempts (10x 503) against a 25/day quota.
+    Default client: at most 2 attempts per BLS request; both are counted in stats (the
+    scheduler charges the stats delta to provider_quota)."""
+    t = ScriptTransport(FakeResp(503), FakeResp(503), FakeResp(503), FakeResp(200))
+    clock = FakeClock()
+    c = HttpClient(transport=t, sleep=clock.sleep, clock=clock, host_intervals={}, default_interval=0,
+                   rng=lambda: 1.0)                        # production defaults otherwise
+    with pytest.raises(SourceUnavailable) as ei:
+        c.get("https://api.bls.gov/publicAPI/v1/timeseries/data/")
+    assert len(t.requests) == 2 and "2 attempt(s)" in str(ei.value)
+    assert c.stats()["by_host"]["api.bls.gov"] == {"503": 2}
+    # other hosts keep the general retry budget
+    t2 = ScriptTransport(FakeResp(503), FakeResp(503), FakeResp(503), FakeResp(200, {}, b"ok"))
+    c2 = HttpClient(transport=t2, sleep=clock.sleep, clock=clock, host_intervals={}, default_interval=0,
+                    rng=lambda: 1.0)
+    assert c2.get("https://apps.bea.gov/x").attempts == 4
+
+
+def test_host_cap_never_raises_the_budget_and_transport_errors_count():
+    t = ScriptTransport(TransportError("x"), TransportError("y"), FakeResp(200))
+    c, _ = client(t, max_retries=0, host_max_attempts={"api.bls.gov": 2})
+    with pytest.raises(SourceUnavailable):
+        c.get("https://api.bls.gov/a")                    # max_retries=0 -> 1 attempt, cap 2 not a floor
+    assert len(t.requests) == 1
+    t2 = ScriptTransport(TransportError("x"), TransportError("y"), FakeResp(200))
+    c2, _ = client(t2, max_retries=4, host_max_attempts={"api.bls.gov": 2})
+    with pytest.raises(SourceUnavailable):
+        c2.get("https://api.bls.gov/a")
+    assert c2.stats()["by_host"]["api.bls.gov"] == {"error:TransportError": 2}

@@ -154,10 +154,11 @@ def test_backfill_rule_times_pit_and_idempotence(tmp_path):
     o1 = ingest.backfill(s, E, http=None, now=NOW0, adapter_for=lambda n: fa, entries=E, publish=False, run_id="r1")
     assert o1[0].written == 88
     rows = s.versions("USCPI", "2026-07-01")
-    assert rows[0].available_method == "rule" and rows[0].pit_class == "L"          # SA series: revises
+    assert rows[0].pit_class == "L"                                                  # SA series: revises
     assert s.versions("USCPINSA", "2026-07-01")[0].pit_class == "U"                 # NSA: revision none
-    # Jul CPI: rule (Aug 31 +25d = Aug 25 08:30) raised to the configured event (Aug 12)? rule is LATER -> rule wins
-    assert rows[0].available_at == T("2026-08-25", "08:30")
+    # Jul CPI: rule (Jul 31 +25d = Aug 25 08:30) is LATE; the BLS archive states the release (Aug 12, 08:30
+    # embargo) -> the row is SNAPPED to it (backfill_timing step 5)
+    assert rows[0].available_at == T("2026-08-12", "08:30") and rows[0].available_method == "scheduled:history"
     rel = s.get_release(rows[0].release_id)
     assert rel["release_key"] == "backfill:USCPI:r1" and rel["kind"] == "backfill"
     n_rel = n_releases(s)
@@ -256,8 +257,8 @@ def test_first_ever_latest_fetch_is_history_not_a_live_cluster(tmp_path, keyed):
     fa = FakeAdapter([{"observations": HIST}], name="bls")
     ingest.run_fetch(s, E, "latest", NOW0, None, fa, entries=E, publish=False)
     avs = {r.period_start: r for r in s.vintages("USCPI")}
-    assert avs["2023-01-01"].available_method == "rule" and avs["2023-01-01"].available_at < T("2023-03-01")
-    assert all(r.available_at <= NOW0 or r.available_method == "rule" for r in avs.values())
+    assert avs["2023-01-01"].available_method == "scheduled:history" and         avs["2023-01-01"].available_at == T("2023-02-14", "08:30")                  # Jan 2023 CPI release
+    assert all(r.available_at <= NOW0 for r in avs.values())
 
 
 # ─────────────────────────────── validation / failure ────────────────────────
@@ -413,6 +414,44 @@ def test_archive_ref_recorded_on_acquisition(tmp_path, keyed, monkeypatch):
     ingest.run_fetch(s, E, "latest", CPI_OCT + 5, None, fa, entries=E, publish=False)
     refs = [r[0] for r in s.conn.execute("SELECT archive_ref FROM acquisition WHERE archive_ref IS NOT NULL")]
     assert len(refs) == 1 and refs[0].startswith("local:bls/")
+
+
+def test_archive_retention_keeps_only_evidence(tmp_path, keyed, monkeypatch):
+    """PERFORMANCE.md 'Raw archive': a live poll archives its payload only when it WROTE a row
+    or FAILED validation; history pulls always archive; identical bytes are stored once."""
+    E = ents("USCPI")
+    s = seeded(tmp_path, E)
+    arch = tmp_path / "arch"
+    monkeypatch.setenv("ECON_ARCHIVE", "local")
+    monkeypatch.setenv("ECON_ARCHIVE_DIR", str(arch))
+
+    def files():
+        return sorted(p.name for p in (arch / "bls").glob("*.bin")) if (arch / "bls").exists() else []
+
+    def refs():
+        return [r[0] for r in s.conn.execute("SELECT archive_ref FROM acquisition WHERE archive_ref IS NOT NULL")]
+    # 1. identical live polls (a release burst that sees nothing new): nothing archived
+    fa = FakeAdapter([{"observations": HIST[-2:], "payload": b"same-bytes-1"},
+                      {"observations": HIST[-2:], "payload": b"same-bytes-2"}], name="bls")
+    ingest.run_fetch(s, E, "latest", CPI_OCT - 60, None, fa, entries=E, publish=False)
+    ingest.run_fetch(s, E, "latest", CPI_OCT - 30, None, fa, entries=E, publish=False)
+    assert files() == [] and refs() == []
+    # 2. the poll that WRITES the new period is archived and referenced
+    fa.push({"observations": HIST[-2:] + [SEP], "payload": b"release-bytes"})
+    ingest.run_fetch(s, E, "latest", CPI_OCT + 5, None, fa, entries=E, publish=False)
+    assert len(files()) == 1 and len(refs()) == 1
+    # 3. a payload that FAILS validation is archived (evidence)
+    fa.push({"observations": HIST[-2:] + [("USCPI", "2026-10-02", "2026-10-31", 1.0)], "payload": b"bad-bytes"})
+    out = ingest.run_fetch(s, E, "latest", CPI_OCT + 65, None, fa, entries=E, publish=False)
+    assert out.series["USCPI"].status == "rejected" and len(files()) == 2
+    # 4. a history pull is archived even when it writes nothing; identical bytes dedupe by sha256
+    fa.push({"observations": HIST[-2:] + [SEP], "payload": b"history-bytes"})
+    fa.push({"observations": HIST[-2:] + [SEP], "payload": b"history-bytes"})
+    ingest.run_fetch(s, E, "history", CPI_OCT + 700, None, fa, entries=E, publish=False)
+    ingest.run_fetch(s, E, "history", CPI_OCT + 900, None, fa, entries=E, publish=False)
+    assert len(files()) == 3 and len(refs()) == 4                                  # 2 acquisitions, 1 file
+    assert ingest.archive_wanted("live", "ok", False) is False
+    assert ingest.archive_wanted("reconcile", "ok", False) is True
 
 
 def test_deferring_http_holds_and_commits():

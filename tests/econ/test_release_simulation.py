@@ -157,7 +157,7 @@ OK_NEW = (200, {}, json.dumps(NEW).encode())
 
 def test_provider_500s_then_recovery(tmp_path, keyed):
     clock = Clock(S)
-    tr = Transport([(500, {}, b"err")] * 9 + [OK_NEW])                    # 3 polls x 3 attempts fail
+    tr = Transport([(500, {}, b"err")] * 6 + [OK_NEW])                    # 3 polls x 2 attempts (BLS cap) fail
     sim = Sim(tmp_path, [http_step()], http=client(tr, clock), on_exhausted="repeat")
     sim.run(S, S + 29)
     assert sim.state(S + 29) == C.CHECKING                                 # one failure: still checking
@@ -191,7 +191,7 @@ def test_network_timeout(tmp_path, keyed):
     tr = Transport([TimeoutError("read timed out")])
     sim = Sim(tmp_path, [http_step()], http=client(tr, clock), on_exhausted="repeat")
     sim.run(S, S)
-    assert len(tr.requests) == 3                                           # bounded retries
+    assert len(tr.requests) == 2                                           # BLS: at most 2 attempts / request
     o = cur.series_ops(sim.s, "USCPI")
     assert o["last_failure_kind"] == "source" and "TimeoutError" in o["last_error"]
     call = sim.s.list_acquisitions("bls", limit=5)[0]

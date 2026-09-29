@@ -237,3 +237,33 @@ def test_quota_provider_first_fetch_is_one_recent_window(tmp_path, monkeypatch):
     assert job.purpose == "backfill" and job.mode == "history" and job.start == date(2017, 1, 1)
     from api.services.econ.adapters.bls import estimate_queries
     assert estimate_queries(E, start=job.start) == 1
+
+
+def test_bls_503_storm_costs_two_attempts_per_poll_and_every_attempt_is_charged(tmp_path, monkeypatch):
+    """2026-09-29 JOLTS: one poll burned 12 BLS attempts (10x 503) of a 25/day keyless quota.
+    With the production HttpClient defaults a poll now makes at most 2 attempts, both charged to
+    provider_quota; the next poll comes from the schedule + provider backoff, not a retry loop."""
+    from api.services.econ.http import HttpClient
+
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
+    E = ents("USCPI")
+    s = seeded(tmp_path, E)
+    sent = []
+
+    class R503:
+        status_code, headers, content = 503, {}, b""
+
+    def transport(req):
+        sent.append(req.url)
+        return R503()
+    http = HttpClient(transport=transport, sleep=lambda x: None, host_intervals={}, default_interval=0)
+
+    def step(specs, mode, start, end, http):
+        http.post_json("https://api.bls.gov/publicAPI/v1/timeseries/data/", {"seriesid": ["x"]})
+    fa = FakeAdapter([step, step], name="bls")
+    sc = sch.Scheduler(s, entries=E, http=http, adapter_for=lambda n: fa, publish=False)
+    r = sc.tick(CPI_OCT)
+    assert [x.status for x in r] == ["ran"] and not r[0].outcome.ok
+    assert len(sent) == 2 and sch.quota_used(s, "bls", CPI_OCT) == 2
+    assert cur.provider_ops(s, "bls")["backoff_until"] == CPI_OCT + 30         # next poll: schedule + backoff
+    assert sc.due(CPI_OCT + 20) == []
