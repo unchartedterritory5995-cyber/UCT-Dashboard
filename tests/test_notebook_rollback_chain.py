@@ -1,9 +1,10 @@
 """Rails for the Notebook rollback chain (tools/notebook_rollback_chain.py; the procedure is
 docs/notebook/wave5-rollback.md; scorecard clause 3b, lane R1 2026-09-28).
 
-1. The chain names EVERY Notebook landing up to the tip it was measured at, and no landing
-   after that tip is missing from it -- a landing the chain does not revert is a landing the
-   procedure cannot roll back (derived from git, never a typed list).
+1. The chain names EVERY Notebook landing up to the tip it was measured at (derived from git,
+   never a typed list), and the tool is current AT that tip. Whether it is current at a LIVE base
+   (origin/master moves) is the operator's `--check`, railed here on synthetic commits; this file
+   never asserts it of HEAD, where the world moving would read as a defect (R1b fix round 1).
 2. The chain is newest first, one-parent squashes, each built on the next.
 3. Rebuilding the chain from MEASURED_AT reproduces, tree for tree, the trees that were booted
    on a sandbox (docs/notebook/evidence/rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl),
@@ -12,6 +13,12 @@ docs/notebook/wave5-rollback.md; scorecard clause 3b, lane R1 2026-09-28).
 
 Every git call goes through `git -C <repo root>`; each assertion over git output has a
 non-vacuity control (an empty answer is a failed invocation until proven otherwise).
+
+Mutation record (docs/notebook/evidence/rollback-rehearsal-2026-09-29/mutations-r1b*.log): the
+mutation that reverts the whole-file fingerprint fix is killed by the TREE-REBUILD test
+(test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees: the recorded pin no longer
+matches, so the chain stops), NOT by test_no_pin_is_the_fingerprint_of_nothing -- PINS is a typed
+table, and reverting the code does not change what is typed in it.
 """
 from __future__ import annotations
 
@@ -25,8 +32,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-28" / "chain" / "chain-primary-r2.jsonl"
+# Re-recorded at MEASURED_AT f4cec49be (L2 #242) by lane R1b, 2026-09-29. The 2026-09-28 record
+# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) is the same chain one landing
+# shorter, from 38bb9a421; it stays as the evidence of that rehearsal.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
+# The tip the chain was measured at BEFORE lane R1b moved MEASURED_AT. Every commit between it and
+# MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
+# is in REVIEWED_NOT_LANDINGS.
+PREVIOUS_MEASURED_AT = "38bb9a421"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -158,14 +172,128 @@ def test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool(chain):
         chain.run(sha, "L1c", emit=lambda _l: None)
 
 
-def test_no_notebook_landing_after_MEASURED_AT_is_left_out(chain):
-    """The tool's own refusal, asked of this branch's HEAD. A landing newer than the measured tip
-    makes the procedure stale; the message the tool prints says what to re-measure."""
-    head = full("HEAD")
-    if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", chain.MEASURED_AT, head],
-                      capture_output=True).returncode != 0:
-        pytest.skip(f"HEAD does not contain {chain.MEASURED_AT}: nothing newer to audit on this branch")
-    assert chain.check_base(head) is None, chain.check_base(head)
+def test_the_chain_is_current_at_MEASURED_AT(chain):
+    """The tool's own refusal, asked of the tip it was measured at: deterministic. ⚰️ Until R1b
+    fix round 1 this asked HEAD, so the world moving (another workstream's commit on master, a
+    lane's own commits) turned a correct chain red. Staleness at a LIVE base is the operator's
+    question, answered by `--check --from origin/master` (railed below), not by this file."""
+    assert chain.check_base(full(chain.MEASURED_AT)) is None, chain.check_base(full(chain.MEASURED_AT))
+
+
+def _check(chain, capsys, rev):
+    rc = chain.main(["--check", "--from", rev])
+    return rc, json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+
+
+def test_check_says_current_on_a_base_with_nothing_uncharted(chain, capsys):
+    """`--check` exit 0: MEASURED_AT itself, and a later docs-only commit on top of it."""
+    rc, out = _check(chain, capsys, chain.MEASURED_AT)
+    assert (rc, out["check"]) == (0, "current") and "stopped" not in out
+    sha = synthetic_commit(full(chain.MEASURED_AT), "docs(terminal): synthetic, not Notebook work",
+                           "docs/notebook/wave5-rollback.md", lambda b: b + b"\n")
+    rc, out = _check(chain, capsys, sha)
+    assert (rc, out["check"], out["from"]) == (0, "current", sha)
+
+
+def test_check_says_stale_and_why_on_an_uncharted_landing(chain, capsys):
+    """`--check` exit 2, naming the commit: a synthetic Notebook landing on top of MEASURED_AT,
+    and a base that does not contain MEASURED_AT at all."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "fix(notebook): a landing the chain does not name",
+                           "app/src/pages/journal-2-0/tabs/NotebookTab.module.css",
+                           lambda b: b + b"/* synthetic */\n")
+    rc, out = _check(chain, capsys, sha)
+    assert (rc, out["check"]) == (2, "stale")
+    assert re.search(sha[:9] + r".*subject and path", out["stopped"])
+    rc, out = _check(chain, capsys, "4bba30b73")
+    assert (rc, out["check"]) == (2, "stale") and "does not contain MEASURED_AT" in out["stopped"]
+
+
+def test_the_subject_criterion_selects_every_chain_landing(chain):
+    """NOTEBOOK_SUBJECT is read off CHAIN's own squash subjects: every CHAIN entry is still
+    selected by SUBJECT (it ships app/ or api/ and its subject takes a landing's form)."""
+    missed = []
+    for key, s, _w in chain.CHAIN:
+        rows = chain.notebook_landings(f"{s}^..{s}")
+        if not (rows and rows[0]["by_subject"]):
+            missed.append((key, _git("log", "-1", "--format=%s", s).strip()[:70]))
+    assert len(chain.CHAIN) >= 14 and not missed, f"CHAIN landings the SUBJECT criterion misses: {missed}"
+
+
+# Commits on master after MEASURED_AT that are not Notebook landings; the SUBJECT criterion must
+# not select them (R1b fix round 1, 2026-09-29). Measured under the old `\bnotebook\b` pattern:
+# 3e5153f1d WAS subject-selected (its subject says "Notebook bytes"); 3646a4c19 was not (the
+# reviewer's second master commit, kept as a control that the narrowing loses nothing).
+NOT_LANDING_SUBJECTS = {
+    "3e5153f1d": "perf(build): strip symbolScope.json's prose from the bundle (Notebook bytes back under budget)",
+    "3646a4c19": "test(pine): param ids re-pinned after new inputs minted; a partial-rig regen no longer erases licence-held maps",
+}
+
+
+def test_the_subject_criterion_refuses_a_subject_that_only_mentions_the_notebook(chain):
+    for sha, subject in NOT_LANDING_SUBJECTS.items():
+        assert not chain.NOTEBOOK_SUBJECT.search(subject), subject
+        if _have(sha):                                  # the real commit, when this clone has it
+            rows = chain.notebook_landings(f"{sha}^..{sha}")
+            assert not any(r["by_subject"] for r in rows), f"{sha} is selected by SUBJECT"
+    # control: the same pattern still selects a real landing's subject and a hotfix's
+    assert chain.NOTEBOOK_SUBJECT.search("Notebook 10/10 — wave 10 L2: phone Journal header (#242)")
+    assert chain.NOTEBOOK_SUBJECT.search("hotfix(notebook): H14 -- depth cap (#203)")
+
+
+def test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed(chain):
+    """Lane R1b moved MEASURED_AT from 38bb9a421 to f4cec49be. Everything the census selects in
+    between was ruled on: a landing is in CHAIN, anything else in REVIEWED_NOT_LANDINGS. Derived
+    from the tool's census, never from a typed list of what was expected."""
+    rows = chain.notebook_landings(f"{PREVIOUS_MEASURED_AT}..{chain.MEASURED_AT}")
+    assert len(rows) >= 2, "non-vacuity: the census found nothing in the window it was asked about"
+    named = {full(s) for _k, s, _w in chain.CHAIN}
+    assert full(chain.MEASURED_AT) in named          # the newest landing is the measured tip
+    unruled = [f"{c['sha'][:9]} {c['subject'][:60]}" for c in rows
+               if c["sha"] not in named and c["sha"] not in chain.REVIEWED_NOT_LANDINGS]
+    assert not unruled, f"selected by the census, ruled on by nobody: {unruled}"
+
+
+def test_a_reviewed_commit_is_real_selected_by_path_only_and_never_a_landing(chain):
+    """REVIEWED_NOT_LANDINGS can only ever quiet the PATH criterion: an entry the SUBJECT criterion
+    selects is a landing and must be in CHAIN, and an entry the census does not select at all is a
+    stale ruling. Each reason is a sentence, not a placeholder."""
+    reviewed = chain.REVIEWED_NOT_LANDINGS
+    assert len(reviewed) >= 1
+    rows = {c["sha"]: c for c in chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")}
+    named = {full(s) for _k, s, _w in chain.CHAIN}
+    for sha, why in reviewed.items():
+        assert re.fullmatch(r"[0-9a-f]{40}", sha), f"{sha}: REVIEWED_NOT_LANDINGS keys are full shas"
+        assert sha not in named, f"{sha[:9]} is in CHAIN and in REVIEWED_NOT_LANDINGS"
+        assert sha in rows, f"{sha[:9]}: the census does not select it; the ruling is stale"
+        assert rows[sha]["by_path"] and not rows[sha]["by_subject"], (
+            f"{sha[:9]} is selected by SUBJECT: a Notebook landing, not a reviewed neighbour")
+        assert len(why.split()) >= 6, f"{sha[:9]}: the reason must say why it is not a landing"
+
+
+_EMPTY_FP = __import__("hashlib").sha256(b"").hexdigest()[:16]
+
+
+def test_no_pin_is_the_fingerprint_of_nothing(chain):
+    """A pin over no bytes matches every conflict of its kind, so it can never stop the chain. It is
+    what a whole-file rule recorded from its (absent) conflict markers used to produce."""
+    pins = [(s, p, fp) for s, per in chain.PINS.items() for p, fp in per.items()]
+    assert len(pins) >= 14
+    empty = [(s, p) for s, p, fp in pins if fp == _EMPTY_FP]
+    assert not empty, f"pins over no bytes: {empty}"
+    unpinned = [(s, p) for s, per in chain.RULES.items() for p in per if p not in chain.PINS.get(s, {})]
+    assert not unpinned, f"rules with no pin: {unpinned}"
+
+
+def test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain(chain, monkeypatch):
+    """R1b: wave 7's revert keeps `api/services/daily_counters.py` ("ours": two later features
+    import it). A later commit that changes that file is not what the rule was measured on, so the
+    chain must stop at wave 7 -- before the fingerprint fix it resolved silently."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): a synthetic counter change",
+                           "api/services/daily_counters.py", lambda b: b + b"\n# synthetic\n")
+    monkeypatch.setattr(chain, "REVIEWED_NOT_LANDINGS", {sha: "synthetic terminal counter edit, test"})
+    assert chain.check_base(sha) is None
+    with pytest.raises(chain.ChainStopped, match=r"f883e0996: the conflict in api/services/daily_counters\.py"):
+        chain.run(sha, "wave7", emit=lambda _l: None)
 
 
 def test_the_tool_refuses_a_base_that_does_not_contain_MEASURED_AT(chain):

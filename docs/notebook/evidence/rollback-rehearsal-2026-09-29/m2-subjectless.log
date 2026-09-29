@@ -1,0 +1,23 @@
+clean tree, test alone: run 1 rc=0 :: 1 passed in 1.48s
+clean tree, test alone: run 2 rc=0 :: 1 passed in 1.64s
+clean tree, test alone: run 3 rc=0 :: 1 passed in 1.63s
+daily_counters ours->delete mutation, test alone: mutated run 1 rc=0 :: 1 passed in 1.46s
+daily_counters ours->delete mutation, test alone: mutated run 2 rc=0 :: 1 passed in 1.53s
+daily_counters ours->delete mutation, test alone: mutated run 3 rc=0 :: 1 passed in 1.85s
+daily_counters ours->delete mutation, test alone: RESTORED = HEAD blob
+daily_counters ours->delete mutation, WHOLE file: mutated run 1 rc=1 :: 1 failed, 20 passed in 120.02s (0:02:00)
+daily_counters ours->delete mutation, WHOLE file:     E       AssertionError: assert [('f4cec49be'...1843a2'), ...] == [('f4cec49be'...1843a2'), ...]
+daily_counters ours->delete mutation, WHOLE file:     E         
+daily_counters ours->delete mutation, WHOLE file:     E         At index 9 diff: ('f883e0996', '6097ad66522f35ec934d283eaa0ed3c22d15b67e') != ('f883e0996', 'aca09c134b8b51d501c7f43dbb3f027d2cebf9c1')
+daily_counters ours->delete mutation, WHOLE file:     E         Use -v to get more diff
+daily_counters ours->delete mutation, WHOLE file: mutated run 2 rc=1 :: 1 failed, 20 passed in 134.13s (0:02:14)
+daily_counters ours->delete mutation, WHOLE file:     E       AssertionError: assert [('f4cec49be'...1843a2'), ...] == [('f4cec49be'...1843a2'), ...]
+daily_counters ours->delete mutation, WHOLE file:     E         
+daily_counters ours->delete mutation, WHOLE file:     E         At index 9 diff: ('f883e0996', '6097ad66522f35ec934d283eaa0ed3c22d15b67e') != ('f883e0996', 'aca09c134b8b51d501c7f43dbb3f027d2cebf9c1')
+daily_counters ours->delete mutation, WHOLE file:     E         Use -v to get more diff
+daily_counters ours->delete mutation, WHOLE file: mutated run 3 rc=1 :: 1 failed, 20 passed in 101.25s (0:01:41)
+daily_counters ours->delete mutation, WHOLE file:     E       AssertionError: assert [('f4cec49be'...1843a2'), ...] == [('f4cec49be'...1843a2'), ...]
+daily_counters ours->delete mutation, WHOLE file:     E         
+daily_counters ours->delete mutation, WHOLE file:     E         At index 9 diff: ('f883e0996', '6097ad66522f35ec934d283eaa0ed3c22d15b67e') != ('f883e0996', 'aca09c134b8b51d501c7f43dbb3f027d2cebf9c1')
+daily_counters ours->delete mutation, WHOLE file:     E         Use -v to get more diff
+daily_counters ours->delete mutation, WHOLE file: RESTORED = HEAD blob

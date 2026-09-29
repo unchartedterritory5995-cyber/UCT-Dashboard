@@ -1,0 +1,34 @@
+CONTROL rc=0 :: 21 passed in 137.11s (0:02:17)
+KILLED rc=1 :: drop L2 from CHAIN :: 8 failed, 13 passed in 89.87s (0:01:29)
+    red: test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT
+    red: test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+    red: test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain
+    red: test_a_non_notebook_commit_on_top_runs_and_warns
+    red: test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+    red: test_an_unrecorded_conflict_stops_the_chain
+    red: test_the_runbooks_chain_table_is_the_tools_chain
+KILLED rc=1 :: tamper the new L1a writing-help pin :: 4 failed, 17 passed in 117.95s (0:01:57)
+    red: test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain
+    red: test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+    red: test_an_unrecorded_conflict_stops_the_chain
+KILLED rc=1 :: tamper the new wave-7 daily_counters pin :: 1 failed, 20 passed in 153.97s (0:02:33)
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+KILLED rc=1 :: tamper the new wave-5 paywall-test pin :: 1 failed, 20 passed in 180.25s (0:03:00)
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+KILLED rc=1 :: fingerprint fix reverted (ours pinned by its absent hunks) :: 1 failed, 20 passed in 212.48s (0:03:32)
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+KILLED rc=1 :: L1a rule theirs -> ours (keep the autofill route) :: 2 failed, 19 passed in 175.32s (0:02:55)
+    red: test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+KILLED rc=1 :: wave-7 daily_counters ours -> delete :: 2 failed, 19 passed in 184.95s (0:03:04)
+    red: test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool
+    red: test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees
+KILLED rc=1 :: one reviewed ruling removed (TERM-089) :: 2 failed, 19 passed in 137.99s (0:02:17)
+    red: test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+    red: test_a_reviewed_commit_is_real_selected_by_path_only_and_never_a_landing
+KILLED rc=1 :: the landing itself filed as reviewed :: 1 failed, 20 passed in 140.78s (0:02:20)
+    red: test_a_reviewed_commit_is_real_selected_by_path_only_and_never_a_landing
+RESTORED: sha256 c3da01e3c791fb56 and equal to HEAD:tools/notebook_rollback_chain.py (line endings aside)
+TOTAL: 9/9 killed

@@ -1,0 +1,26 @@
+CONTROL rc=0 :: 25 passed in 122.60s (0:02:02)
+KILLED rc=1 :: --check always exits 0 :: 1 failed, 24 passed in 117.51s (0:01:57)
+    red: test_check_says_stale_and_why_on_an_uncharted_landing
+      E       AssertionError: assert (0, 'stale') == (2, 'stale')
+KILLED rc=1 :: run() skips check_base :: 4 failed, 21 passed in 119.74s (0:01:59)
+    red: test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool
+    red: test_the_tool_refuses_a_base_that_does_not_contain_MEASURED_AT
+    red: test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path
+    red: test_the_tool_refuses_a_landing_the_subject_criterion_misses
+      E       AssertionError: Regex pattern did not match.
+      E       AssertionError: Regex pattern did not match.
+KILLED rc=1 :: NOTEBOOK_SUBJECT over-narrowed: the fix(notebook)/hotfix(notebook) form dropped :: 5 failed, 20 passed in 114.04s (0:01:54)
+    red: test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT
+    red: test_check_says_stale_and_why_on_an_uncharted_landing
+    red: test_the_subject_criterion_selects_every_chain_landing
+    red: test_the_subject_criterion_refuses_a_subject_that_only_mentions_the_notebook
+    red: test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path
+      E       AssertionError: tools/notebook_rollback_chain.py CHAIN must list every Notebook landing, newest first.
+      E       assert ['f4cec49be44...c53d5cf', ...] == ['f4cec49be44...aae6ef7', ...]
+      E       assert None
+      E       AssertionError: CHAIN landings the SUBJECT criterion misses: [('225', "fix(notebook): on a phone the Notebook's skip link no longer takes the"), ('204', 'hotfix(notebook): H14 -- every read-th
+      E       assert (14 >= 14 and not [('225', "fix(notebook): on a phone the Notebook's skip link no longer takes the"), ('204', 'hotfix(notebook): H14 -- ...ord-file intake, PDF extraction b'), ('201', '
+      E       AssertionError: assert None
+      E       AssertionError: Regex pattern did not match.
+RESTORED: sha256 51fde4328966cd29 and equal to HEAD:tools/notebook_rollback_chain.py (line endings aside)
+TOTAL: 3/3 killed
