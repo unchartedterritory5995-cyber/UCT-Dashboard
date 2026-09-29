@@ -48,6 +48,15 @@ CONTROLS (the run is INVALID and no verdict is read unless every one comes out a
 
     python l3_layout_measure.py --data-dir C:/data-w10l3 --port 8230 --tip <sha> --out-dir <dir>
     python l3_layout_measure.py --self-check      (the pure judge against hand-made readings)
+
+LANE D3P additions (2026-09-28), all RECORD-ONLY -- the judge is unchanged, so BEFORE and AFTER
+compare: `--coach-seen no|both` (a FIRST visit, the "Meet Compass" card still pending, next to
+`--hint-seen`); `editor_probe` on the editor (the toolbar's row count, the title and first body
+line, the first-run card and hint, each toolbar control's at-rest centre hit) plus, when the page
+has a "Format" disclosure on screen, `editor_probe_open` / `editor_probe_closed_again`; and
+`more_probe` on the open "More note actions" panel (each item's hit and fold position, N-3).
+
+    python l3_layout_measure.py --data-dir C:/data-w10d3p --port 8231 --tip <sha> --out-dir <dir>         --widths 390 --heights 667,740,844,932 --hint-seen both --coach-seen both --only editor,more-menu-open
 """
 from __future__ import annotations
 
@@ -395,6 +404,104 @@ CAL_JS = r"""() => {
 }"""
 
 
+# Lane D3P (record-only, no verdict reads it): the phone editor toolbar. How many ROWS the
+# "Editor toolbar" wraps to (its flex items -- descending through `display: contents` wrappers --
+# grouped by vertical band), the note title's box, whether the dictation first-run hint is on
+# screen, the "Format" disclosure toggle if there is one, and every visible toolbar control's
+# at-rest centre hit, with the chrome layer that owns the hit (the same class names the judge's
+# `classify` uses: log-fab, voice-orb, hub, top-bar, feedback).
+EDITOR_JS = r"""() => {
+  const row = document.querySelector('[role="toolbar"][aria-label="Editor toolbar"]');
+  const box = (el) => { const r = el.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; };
+  const shown = (el) => { const cs = getComputedStyle(el); return el.getClientRects().length > 0 && cs.display !== 'none' && cs.visibility !== 'hidden'; };
+  const layer = (hit) => { if (!hit || !hit.closest) return 'nothing';
+    if (hit.closest('header[class*="_topBar_"]')) return 'top-bar';
+    if (hit.closest('[class*="_logFab_"]')) return 'log-fab';
+    if (hit.closest('[class*="_orbCluster_"]')) return 'voice-orb';
+    if (hit.closest('[data-testid="hub-root"]')) return 'hub';
+    if (hit.closest('[class*="_fab_"]')) return 'feedback';
+    return 'other'; };
+  const nm = (el) => String(el.getAttribute('aria-label') || (el.innerText || '').trim().split('\n')[0] || el.getAttribute('title') || el.tagName).replace(/\s+/g, ' ').slice(0, 50);
+  const out = {vw: innerWidth, vh: innerHeight, row: null, title: null, body: null, hint: null, coach: null, toggle: null, controls: []};
+  const t = document.querySelector('[data-note-title]');
+  if (t) out.title = {box: box(t), visible: shown(t), fullyAboveFold: t.getBoundingClientRect().bottom <= innerHeight};
+  // the note's FIRST BODY LINE: the first client rect of the editor's first block
+  const pm = document.querySelector('.ProseMirror');
+  const first = pm && pm.firstElementChild;
+  if (first) { const rs = first.getClientRects(); const r0 = rs.length ? rs[0] : first.getBoundingClientRect();
+    out.body = {tag: first.tagName, line: [Math.round(r0.x), Math.round(r0.y), Math.round(r0.width), Math.round(r0.height)],
+                fullyAboveFold: r0.bottom <= innerHeight, text: (first.innerText || '').trim().slice(0, 40)}; }
+  // the in-flow "Meet Compass" first-run card (FloatingOrb's coach-mark, portaled into the slot)
+  const cm = document.querySelector('[data-orb-coachmark]');
+  out.coach = cm ? {shown: shown(cm), box: shown(cm) ? box(cm) : null} : {shown: false};
+  const slot = document.querySelector('[data-first-run-slot]');
+  out.firstRunSlot = slot ? box(slot) : null;
+  const hint = document.querySelector('[data-hint-placement="in-flow"]');
+  out.hint = hint ? {present: true, shown: shown(hint), box: shown(hint) ? box(hint) : null} : {present: false, shown: false};
+  if (!row) return out;
+  // the row's flex items: children, descending through display:contents
+  const items = [];
+  const walk = (p) => { for (const c of p.children) { const cs = getComputedStyle(c);
+    if (cs.display === 'contents') { walk(c); continue; }
+    if (cs.display === 'none' || cs.position === 'fixed' || cs.position === 'absolute') continue;
+    const r = c.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) continue; items.push(c); } };
+  walk(row);
+  const bands = [];
+  for (const c of items) { const r = c.getBoundingClientRect();
+    const b = bands.find(x => r.top < x.bottom - 4 && r.bottom > x.top + 4);
+    if (b) { b.top = Math.min(b.top, r.top); b.bottom = Math.max(b.bottom, r.bottom); } else bands.push({top: r.top, bottom: r.bottom}); }
+  out.row = {box: box(row), rows: bands.length, items: items.length, bands: bands.map(b => [Math.round(b.top), Math.round(b.bottom)])};
+  const tg = row.querySelector('[data-format-toggle]');
+  if (tg) out.toggle = {shown: shown(tg), expanded: tg.getAttribute('aria-expanded'), box: shown(tg) ? box(tg) : null};
+  for (const el of row.querySelectorAll('button,select,input,[role=button]')) {
+    if (!shown(el)) continue;
+    const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) continue;
+    const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+    const onScreen = cx >= 0 && cy >= 0 && cx <= innerWidth && cy <= innerHeight;
+    const hit = onScreen ? document.elementFromPoint(cx, cy) : null;
+    const own = !!hit && (hit === el || el.contains(hit) || hit.contains(el));
+    out.controls.push({name: nm(el), box: box(el), onScreen, covered: onScreen && !own, by: onScreen && !own ? layer(hit) : null});
+  }
+  return out;
+}"""
+
+
+# Lane D3P (record-only): the open "More note actions" panel -- its box, and every item's
+# at-rest centre hit (which chrome layer, if any, owns it) and whether it is above the fold.
+# Fix round 1 (review M-3), NOT yet re-run: each item is also intersected with the PANEL's own
+# visible box, because the panel scrolls inside itself -- an item can be on screen and uncovered
+# and still be partly scrolled out of the panel (Delete at 390x667: y 480-524, panel bottom 507).
+# `clippedPx` is how many px of the item the panel hides; `inPanelView` is true when it hides none.
+MORE_JS = r"""() => {
+  const p = document.querySelector('[role="group"][aria-label="More note actions"]');
+  if (!p) return {panel: false};
+  const box = (el) => { const r = el.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; };
+  const layer = (hit) => { if (!hit || !hit.closest) return 'nothing';
+    if (hit.closest('header[class*="_topBar_"]')) return 'top-bar';
+    if (hit.closest('[class*="_logFab_"]')) return 'log-fab';
+    if (hit.closest('[class*="_orbCluster_"]')) return 'voice-orb';
+    if (hit.closest('[data-testid="hub-root"]')) return 'hub';
+    if (hit.closest('[class*="_fab_"]')) return 'feedback';
+    return 'other'; };
+  const cs = getComputedStyle(p);
+  const pr = p.getBoundingClientRect();
+  const items = [];
+  for (const el of p.querySelectorAll('button,a[href],select,input,[role=menuitem],[role=button]')) {
+    const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) continue;
+    const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
+    const onScreen = cx >= 0 && cy >= 0 && cx <= innerWidth && cy <= innerHeight;
+    const hit = onScreen ? document.elementFromPoint(cx, cy) : null;
+    const own = !!hit && (hit === el || el.contains(hit) || hit.contains(el));
+    const clippedPx = Math.round(Math.max(0, r.bottom - pr.bottom) + Math.max(0, pr.top - r.top));
+    items.push({name: String(el.getAttribute('aria-label') || (el.innerText || '').trim().split(String.fromCharCode(10))[0]).slice(0, 40), box: box(el),
+                onScreen, belowFold: r.bottom > innerHeight, covered: onScreen && !own, by: onScreen && !own ? layer(hit) : null,
+                clippedPx, inPanelView: clippedPx === 0});
+  }
+  return {panel: true, box: box(p), position: cs.position, bottom: cs.bottom, top: cs.top, vh: innerHeight,
+          scrollTop: Math.round(p.scrollTop), scrollHeight: Math.round(p.scrollHeight), clientHeight: Math.round(p.clientHeight), items};
+}"""
+
+
 def ensure_lib(pg) -> None:
     pg.evaluate("() => { if (window.__l3) return true; " + LIB_JS + " return true; }")
 
@@ -714,13 +821,14 @@ def take(pg, path: Path) -> str:
 
 
 def run_config(br, H, base: str, notes: dict, pass_: str, width: int, storage, art: Path, only: set | None,
-               height: int | None = None, hint_seen: bool = False, tag: str = "") -> list[dict]:
+               height: int | None = None, hint_seen: bool = False, tag: str = "", coach_seen: bool = True) -> list[dict]:
     w, h, touch, mobile = VIEWPORTS[width]
     if height:   # fix round 1: the same tier at another phone height (the FAB is bottom-anchored)
         h = height
     ctx = br.new_context(viewport={"width": w, "height": h}, has_touch=touch, is_mobile=mobile,
                          reduced_motion="reduce", storage_state=storage)
-    ctx.add_init_script("try { localStorage.setItem('voice.orb.coachmarkSeen', '1'); } catch (e) {}")
+    if coach_seen:  # lane D3P: False = a FIRST visit, with the "Meet Compass" card still pending
+        ctx.add_init_script("try { localStorage.setItem('voice.orb.coachmarkSeen', '1'); } catch (e) {}")
     if hint_seen:   # fix round 1: the dictation first-run hint already seen (steady state)
         ctx.add_init_script("try { localStorage.setItem('voice.dictation.hintSeen', '1'); } catch (e) {}")
     rows = []
@@ -763,8 +871,24 @@ def run_config(br, H, base: str, notes: dict, pass_: str, width: int, storage, a
                             shots.append({"control": f["control"], "shot": nm})
                         pg.evaluate("() => window.__l3.unmark()")
                 row["finding_shots"] = shots
+                if name == "more-menu-open":   # lane D3P, RECORD-ONLY (N-3): the panel's items at rest
+                    row["more_probe"] = pg.evaluate(MORE_JS)
                 if name == "calendar":   # fix round 1, RECORD-ONLY: each day-cell chip against its cell
                     row["calendar_cells"] = pg.evaluate(CAL_JS)
+                if name == "editor":     # lane D3P, RECORD-ONLY: the toolbar at rest, then (if the page
+                    top0(pg)             # has a "Format" disclosure and it is on screen) opened, then closed
+                    row["editor_probe"] = pg.evaluate(EDITOR_JS)
+                    tg = pg.locator('[data-format-toggle]').filter(visible=True)
+                    if tg.count():
+                        press(pg, tg.first, touch)
+                        pg.wait_for_timeout(600)
+                        row["editor_probe_open"] = pg.evaluate(EDITOR_JS)
+                        row["editor_probe_open"]["focus"] = pg.evaluate(
+                            "() => { const a = document.activeElement; return a ? (a.getAttribute('aria-label') || a.tagName) : null }")
+                        row["shot_open"] = take(pg, art / f"{pass_}-{width}-{name}-format-open.jpg")
+                        pg.keyboard.press("Escape")
+                        pg.wait_for_timeout(400)
+                        row["editor_probe_closed_again"] = pg.evaluate(EDITOR_JS)
                 if name == "list":
                     # the in-product plants: same code path, same surface
                     top0(pg)
@@ -827,6 +951,8 @@ def main() -> int:
                     "(default: the tier's own); each labels its rows <pass>@<h>")
     ap.add_argument("--hint-seen", default="no", choices=["no", "yes", "both"],
                     help="fix round 1: mark the dictation first-run hint seen (steady state); 'both' runs each")
+    ap.add_argument("--coach-seen", default="yes", choices=["no", "yes", "both"],
+                    help="lane D3P: mark the 'Meet Compass' card seen (default, as before); 'no' = a first visit")
     a = ap.parse_args()
     if a.self_check:
         return self_check()
@@ -875,9 +1001,11 @@ def main() -> int:
                     heights = [int(x) for x in a.heights.split(",") if x] if wdt <= 640 else []
                     for hgt in (heights or [None]):
                         for seen in ({"no": [False], "yes": [True], "both": [False, True]}[a.hint_seen]):
-                            label = pass_ + (f"@{hgt}" if hgt else "") + ("+hintseen" if seen else "")
+                          for cseen in ({"no": [False], "yes": [True], "both": [True, False]}[a.coach_seen]):
+                            label = (pass_ + (f"@{hgt}" if hgt else "") + ("+hintseen" if seen else "")
+                                     + ("" if cseen else "+coachpending"))
                             res["rows"].extend(run_config(br, H, base, notes, label, wdt, storage, art, only,
-                                                          height=hgt, hint_seen=seen))
+                                                          height=hgt, hint_seen=seen, coach_seen=cseen))
             br.close()
         sb.wait_checkpoint("post-prewarm (+120s)", 200)
     except Exception as e:  # noqa: BLE001

@@ -277,6 +277,17 @@
    observes it to decide when to float the pair. No box (so it never floats
    anything) except at phone width, below. */
 .historySentinel { display: none; }
+/* Wave 10 lane D3P (D-3 PHONE): the phone's ONE formatting disclosure. Above 640 px the
+   toggle does not exist and each run of moved controls lays out as if it were not there, so
+   the desktop and tablet row -- its order, its Tab order, its wrapping -- is the row it was.
+   The collapse itself lives ONLY in the `max-width: 640px` block below (rail:
+   NoteEditorPage.phoneFormat.test.jsx). */
+.formatToggle { display: none; }
+.formatRun { display: contents; }
+.formatGlyph {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+}
 .proseEditor {
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 17px;
@@ -597,6 +608,13 @@
      nothing renders any more). */
   .chrome { position: static; }
   .toolBtn { padding: 8px 12px; font-size: 15px; min-height: var(--tap-min, 44px); }
+  /* Wave 10 lane D3P (D-3 PHONE): at 390 px the full formatting row wrapped to ~8 rows and
+     pushed the note's title below the first screen (L3, measured). A phone keeps Undo / Redo,
+     Bold, Italic, the bullet list and the mic (controller ruling) in the row; every other formatting control waits behind
+     "Aa Format" and opens IN PLACE (the runs are not unmounted, only not displayed).
+     Measured before/after: docs/notebook/proof/d3p-*. */
+  .formatToggle { display: inline-flex; align-items: center; gap: 6px; }
+  .toolbarRow:not([data-format-open]) .formatRun { display: none; }
   /* Review M-5: with the chrome static, the touch Undo / Redo scrolled away as
      the member typed. Once the toolbar row is above the top bar
      (NoteEditorPage's `historyFloating`), the pair floats at the top-right,

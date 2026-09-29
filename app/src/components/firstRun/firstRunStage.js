@@ -60,6 +60,10 @@ export function useFirstRunSlot() {
 /**
  * A first-run TOUR claims the stage while its card is on screen. Returns the release;
  * calling it twice is a no-op, so an effect cleanup and a close can both call it.
+ *
+ * Wave 10 lane D3P round 2: the Notebook note EDITOR also claims it, on a phone only
+ * (NoteEditorPage.jsx), so the coach card waits there exactly as it waits behind a tour and
+ * shows on the next page. Claiming is a render condition for the card; it never marks it seen.
  */
 export function claimFirstRunStage() {
   const token = {}
