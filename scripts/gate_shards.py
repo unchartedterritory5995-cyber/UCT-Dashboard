@@ -351,6 +351,9 @@ GATE_READ_PATHS = (
     "tools/vendor_harness/schema.mjs",
     "tools/vendor_harness/tv_capture.js",
     "tools/vendor_harness/verify_capture.mjs",
+    # READ BY app/src/lib/persistence/persistenceManifest.test.js (TERM-076): the vitest suite
+    # imports the census tool itself, so a change to it can change a suite result.
+    "tools/persistence_census.mjs",
     # ⛔ READ BY app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js (wave 10,
     # lane 10C): the write-door census classifies every note door as loss / fork / none and
     # CITES its evidence -- it statSync()s each cited file and readFileSync()s the Python
