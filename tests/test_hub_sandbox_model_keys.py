@@ -209,3 +209,171 @@ def test_c_derivation_can_see_a_new_key(tmp_path):
     (fake_api / "test_new_provider.py").write_text('X = "SKIPPED_API_KEY"\n', encoding="utf-8")
     found = derive_api_key_reads(tmp_path)
     assert found == {"XAI_API_KEY": ["api/services/new_provider.py:2"]}, found
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Fix round 1 -- credentials the SDK reads ON ITS OWN, the keyring, the wisdom
+#  job flags. (a)/(b)/(c) labels as above.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The SDK client modules api/ constructs from (anthropic.Anthropic/AsyncAnthropic,
+# openai.OpenAI). Read as SOURCE, from the installed package, never re-typed.
+SDK_CLIENT_FILES = (("anthropic", "_client.py"), ("openai", "_client.py"))
+ENV_GET = re.compile(r"""os\.environ\.get\(\s*["']([A-Z0-9_]+)["']""")
+CREDENTIAL_SHAPE = re.compile(r"(TOKEN|API_KEY)$")
+# Client classes that read credentials the two files above do not (AWS, GCP,
+# Azure, Foundry). None is constructed in api/ today; one appearing reds (c).
+OTHER_SDK_CLIENTS = re.compile(
+    r"\b(AnthropicBedrock|AsyncAnthropicBedrock|AnthropicVertex|AsyncAnthropicVertex|"
+    r"AnthropicFoundry|AsyncAnthropicFoundry|AzureOpenAI|AsyncAzureOpenAI)\b")
+
+
+def derive_sdk_implicit_env():
+    names = {}
+    for pkg, rel in SDK_CLIENT_FILES:
+        spec = importlib.util.find_spec(pkg)
+        assert spec and spec.submodule_search_locations, f"{pkg} SDK not installed"
+        path = pathlib.Path(list(spec.submodule_search_locations)[0]) / rel
+        for m in ENV_GET.finditer(path.read_text(encoding="utf-8")):
+            names.setdefault(m.group(1), f"{pkg}/{rel}")
+    return names
+
+
+def test_c_sdk_implicit_env_is_fully_classified(launcher):
+    derived = derive_sdk_implicit_env()
+    # Non-vacuity: the scan must see the explicit keys it is reading past.
+    assert {"ANTHROPIC_API_KEY", "OPENAI_API_KEY"} <= set(derived), derived
+    implicit = set(derived) - set(launcher.MODEL_PROVIDER_KEYS)
+    classified = set(launcher.SDK_IMPLICIT_KEYS) | set(launcher.SDK_NON_CREDENTIAL_ENV)
+    assert not (set(launcher.SDK_IMPLICIT_KEYS) & set(launcher.SDK_NON_CREDENTIAL_ENV))
+    assert implicit == classified, (
+        f"unclassified SDK env reads: {sorted(implicit - classified)}; "
+        f"classified but not read by the SDK: {sorted(classified - implicit)}")
+
+
+def test_c_every_credential_shaped_sdk_read_is_blanked(launcher):
+    blanked = set(launcher.MODEL_PROVIDER_KEYS) | set(launcher.SDK_IMPLICIT_KEYS)
+    missed = sorted(n for n in derive_sdk_implicit_env()
+                    if CREDENTIAL_SHAPE.search(n) and n not in blanked)
+    assert not missed, f"SDK reads these credentials implicitly and nothing blanks them: {missed}"
+    assert "ANTHROPIC_AUTH_TOKEN" in blanked
+
+
+def test_c_api_constructs_no_sdk_client_with_other_credentials():
+    hits = []
+    for path in sorted((REPO / "api").rglob("*.py")):
+        if _is_test_module(path, REPO / "api"):
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if OTHER_SDK_CLIENTS.search(line):
+                hits.append(f"{path.relative_to(REPO).as_posix()}:{i}")
+    assert not hits, (f"api/ constructs an SDK client whose credentials SDK_IMPLICIT_KEYS "
+                      f"does not cover: {hits}")
+    assert OTHER_SDK_CLIENTS.search("client = anthropic.AnthropicBedrock()")  # control
+
+
+def test_a_sdk_implicit_keys_and_keyring_are_neutralised(launcher, restore_env, tmp_path):
+    for key in launcher.MODEL_PROVIDER_KEYS + launcher.SDK_IMPLICIT_KEYS:
+        os.environ[key] = SENTINEL
+    os.environ["PYTHON_KEYRING_BACKEND"] = "keyring.backends.Windows.WinVaultKeyring"
+    os.environ.pop(launcher.ALLOW_MODEL_KEYS_ENV, None)
+    launcher.apply_sandbox_env(str(tmp_path / "sbx"), reclaim_conftest_temp=False,
+                               allow_model_keys=False)
+    assert {k: os.environ.get(k) for k in launcher.SDK_IMPLICIT_KEYS} == \
+        {k: "" for k in launcher.SDK_IMPLICIT_KEYS}
+    # keyring core reads PYTHON_KEYRING_BACKEND at first use (keyring/core.py:151 in
+    # keyring 25.6.0); the null backend answers every get_password with None.
+    assert os.environ.get("PYTHON_KEYRING_BACKEND") == "keyring.backends.null.Keyring"
+
+
+def test_b_opt_in_leaves_sdk_implicit_keys_and_keyring_alone(launcher):
+    env = {k: SENTINEL for k in launcher.MODEL_PROVIDER_KEYS + launcher.SDK_IMPLICIT_KEYS}
+    launcher.apply_model_key_policy(env, allow=True)
+    assert all(env[k] == SENTINEL for k in launcher.SDK_IMPLICIT_KEYS)
+    assert "PYTHON_KEYRING_BACKEND" not in env
+
+
+def test_a_wisdom_model_jobs_are_pinned_off(launcher, restore_env, tmp_path):
+    names = ("WISDOM_EXTRACT_ENABLED", "WISDOM_EXTRACT_AUDIT_ENABLED", "WISDOM_VISION_ENABLED")
+    for n in names:
+        os.environ[n] = "1"                       # an operator shell that armed them
+    launcher.apply_sandbox_env(str(tmp_path / "sbx"), reclaim_conftest_temp=False)
+    assert {n: os.environ.get(n) for n in names} == {n: "0" for n in names}
+
+
+def _capture_requests(run):
+    """Run `run(base_url)` against a local listener; return the credential each
+    request carried: a list of (x_api_key, bearer_token) strings, '' when empty."""
+    import socket
+    import threading
+    srv = socket.socket()
+    srv.bind(("127.0.0.1", 0))
+    srv.listen(8)
+    srv.settimeout(0.3)
+    seen, stop = [], threading.Event()
+
+    def _accept():
+        while not stop.is_set():
+            try:
+                conn, _ = srv.accept()
+            except OSError:
+                continue
+            conn.settimeout(2)
+            try:
+                head = conn.recv(65536).decode("latin-1")
+            except OSError:
+                head = ""
+            hdr = {}
+            for line in head.split("\r\n")[1:]:
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    hdr[k.strip().lower()] = v.strip()
+            bearer = hdr.get("authorization", "")
+            bearer = bearer[len("Bearer"):].strip() if bearer.lower().startswith("bearer") else bearer
+            seen.append((hdr.get("x-api-key", ""), bearer))
+            conn.close()
+
+    t = threading.Thread(target=_accept, daemon=True)
+    t.start()
+    try:
+        try:
+            run(f"http://127.0.0.1:{srv.getsockname()[1]}")
+        except Exception:  # noqa: BLE001 -- the listener closes without answering
+            pass
+    finally:
+        stop.set()
+        t.join(2)
+        srv.close()
+    return seen
+
+
+def test_a_no_request_leaves_with_a_credential_after_the_policy(launcher, restore_env):
+    """Behavioural, on the shape of ai_search_personal.py:273 -- a client built from
+    the env's key with no check first.
+
+    MEASURED, SDK 0.83.0: a blank ANTHROPIC_AUTH_TOKEN does NOT stop the request.
+    The SDK keeps "" (it only defaults on None) and sends `Authorization: Bearer `,
+    which passes its own header check; only an UNSET token raises before sending.
+    What blanking guarantees is that nothing it sends can authenticate (a 401,
+    never a billed call), and a setdefault .env loader cannot put a token back.
+    So the rail asserts on the CREDENTIAL carried, not on whether a socket opened.
+    CONTROL: the same call with the operator's token left in place carries it."""
+    anthropic = pytest.importorskip("anthropic")
+
+    def call(base):
+        c = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+                                base_url=base, max_retries=0, timeout=2)
+        return c.messages.create(model="x", max_tokens=1,
+                                 messages=[{"role": "user", "content": "hi"}])
+
+    os.environ["ANTHROPIC_API_KEY"] = SENTINEL
+    os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL
+    launcher.apply_model_key_policy(os.environ, allow=False)
+    carried = _capture_requests(call)
+    assert all(k == "" and b == "" for k, b in carried), (
+        f"a request left the process carrying a credential: {carried}")
+
+    os.environ["ANTHROPIC_AUTH_TOKEN"] = SENTINEL          # control: token back
+    control = _capture_requests(call)
+    assert (("", SENTINEL) in control), (
+        f"CONTROL FAILED: the listener did not see the token it was handed: {control}")

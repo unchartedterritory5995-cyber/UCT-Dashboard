@@ -25,8 +25,12 @@ def run():
     return r.returncode, (totals[-1].strip() if totals else "NO TOTALS LINE"), failed
 
 MUT = [
- ("M1 blanking loop removed", "a", SCRIPT, '        environ[key] = ""\n', '        pass\n'),
- ("M2 pop instead of blank", "a", SCRIPT, '        environ[key] = ""\n', '        environ.pop(key, None)\n'),
+ ("M1 blanking loop removed", "a", SCRIPT,
+  '    for key in MODEL_PROVIDER_KEYS:\n        environ[key] = ""\n',
+  '    for key in MODEL_PROVIDER_KEYS:\n        pass\n'),
+ ("M2 pop instead of blank", "a", SCRIPT,
+  '    for key in MODEL_PROVIDER_KEYS:\n        environ[key] = ""\n',
+  '    for key in MODEL_PROVIDER_KEYS:\n        environ.pop(key, None)\n'),
  ("M3 policy not called by apply_sandbox_env", "a", SCRIPT,
   '    print(apply_model_key_policy(os.environ, allow_model_keys), flush=True)\n', '    pass\n'),
  ("M4 opt-in ignored (always blanks)", "b", SCRIPT, '    if allow:\n', '    if False:\n'),
@@ -42,6 +46,23 @@ MUT = [
   'import os\nXAI = os.environ.get("XAI_API_KEY", "")\n'),
  ("M9 phantom classified name with no read site", "c", SCRIPT,
   '    "TWITTERAPI_IO_API_KEY", "UW_API_KEY",\n', '    "TWITTERAPI_IO_API_KEY", "UW_API_KEY", "GHOST_API_KEY",\n'),
+ # -- fix round 1 --
+ ("M10 ANTHROPIC_AUTH_TOKEN blank dropped", "a", SCRIPT,
+  '    for key in SDK_IMPLICIT_KEYS:\n        environ[key] = ""\n', ''),
+ ("M11 keyring null backend dropped", "a", SCRIPT,
+  '    environ["PYTHON_KEYRING_BACKEND"] = KEYRING_NULL_BACKEND\n', ''),
+ ("M12 wisdom model-job flags dropped from KILL_LIST", "a", SCRIPT,
+  [('    "WISDOM_EXTRACT_ENABLED": "0",\n', ''),
+   ('    "WISDOM_EXTRACT_AUDIT_ENABLED": "0",\n', ''),
+   ('    "WISDOM_VISION_ENABLED": "0",\n', '')], None),
+ ("M13 api.main imported above apply_sandbox_env in main()", "a", SCRIPT,
+  [('        from api.main import app as _app\n', ''),
+   ('    pins = apply_sandbox_env(sandbox, args.test_email,\n',
+    '    from api.main import app as _app\n    pins = apply_sandbox_env(sandbox, args.test_email,\n')],
+  None),
+ ("M14 ANTHROPIC_AUTH_TOKEN reclassified as non-credential", "c", SCRIPT,
+  [('    "ANTHROPIC_AUTH_TOKEN",\n)', ')'),
+   ('    "ANTHROPIC_BASE_URL",\n', '    "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN",\n')], None),
 ]
 
 lines = [f"# lane SK mutation log -- {time.strftime('%Y-%m-%dT%H:%M:%S%z')}",
