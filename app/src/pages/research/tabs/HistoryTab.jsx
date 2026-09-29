@@ -43,6 +43,12 @@ export default function HistoryTab({ sym }) {
     const lanes = (body && body.lanes) || {}
     return Object.keys(lanes).filter((k) => lanes[k] && lanes[k].status !== 'ok')
   }, [body])
+  // A lane whose store began after the window opened: rows before `covers_from` were
+  // never recorded. Without this, "0 wire mentions" read as "never named" (2026-09-29).
+  const partialLanes = useMemo(() => {
+    const lanes = (body && body.lanes) || {}
+    return Object.keys(lanes).filter((k) => lanes[k] && lanes[k].status === 'ok' && lanes[k].partial)
+  }, [body])
 
   if (isLoading && !data) return <div className={styles.card}>Loading history…</div>
   if (data && !data.ok) {
@@ -62,6 +68,15 @@ export default function HistoryTab({ sym }) {
       {unavailableLanes.length > 0 && (
         <p className={styles.muted} data-testid="history-lane-unavailable">
           Could not read: {unavailableLanes.map((k) => LANE_LABEL[k] || k).join(', ')}. Rows from those lanes are missing, not absent.
+        </p>
+      )}
+      {partialLanes.length > 0 && (
+        <p className={styles.muted} data-testid="history-lane-partial">
+          Recorded only from:{' '}
+          {partialLanes.map((k) => {
+            const from = body.lanes[k].covers_from
+            return `${LANE_LABEL[k] || k} ${from ? `since ${from}` : '(nothing recorded yet)'}`
+          }).join(' · ')}. Earlier dates in this window were not recorded, so a missing row there is not a no.
         </p>
       )}
       {rows.length === 0 ? (

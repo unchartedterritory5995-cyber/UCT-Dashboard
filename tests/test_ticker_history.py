@@ -136,3 +136,22 @@ def test_history_never_closes_the_shared_buzz_connection(stores):
     th.history("NVDA", days=90)                      # the second call is what failed live
     assert th.history("NVDA", days=30)["lanes"]["room"]["status"] == "ok"
     buzz_store.connect().execute("SELECT 1").fetchone()   # raises on a closed connection
+
+
+def test_each_lane_names_where_its_store_begins(stores):
+    """A lane whose store starts after the window opens is PARTIAL, and says from when.
+    The wire archive began 2026-09-28, so a bare '0 mentions in 90 days' read as
+    'never named' for every ticker."""
+    lanes = th.history("NVDA", days=30)["lanes"]
+    assert lanes["wire"]["covers_from"] == D1          # first archived wire in the fixture
+    assert lanes["book"]["covers_from"] == D1
+    assert lanes["catalysts"]["covers_from"] == D1
+    assert lanes["room"]["covers_from"] == D2
+    assert all(lanes[k]["partial"] for k in th.LANES)  # every fixture store starts days ago
+    wide = th.history("NVDA", days=2)["lanes"]         # a window opening after the stores do
+    assert wide["wire"]["partial"] is False
+
+
+def test_an_empty_store_is_partial_not_complete(stores, monkeypatch):
+    monkeypatch.setitem(th._COVERAGE_FNS, "wire", lambda: None)
+    assert th.history("NVDA", days=30)["lanes"]["wire"]["partial"] is True
