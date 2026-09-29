@@ -16,6 +16,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, waitFor, cleanup } from '@testing-library/react'
 import { SWRConfig } from 'swr'
+import userEvent from '@testing-library/user-event'
 
 import TheReadStrip from './TheReadStrip'
 import { splitFigures } from './theReadFigures'
@@ -198,6 +199,77 @@ describe('The Read never issues a network request', () => {
     // …and every call came from the lens, on the lens's own key.
     for (const call of fetchSpy.mock.calls) {
       expect(String(call[0])).toBe(attributionKey(ROWS[0].date, ROWS.length))
+    }
+  })
+})
+
+/**
+ * ⭐ TERM-060 — THE CALLER'S RENDERED OUTPUT, asserted by rendered TEXT.
+ *
+ * The attribution total now arrives with `claims.total`: a pointer into the
+ * canonical address book and the server's check of the stated total against
+ * the stored `breadth_score`. What a member reads is asserted here — the
+ * sentence the composer wrote, and beside it either nothing (verified) or a
+ * visible note (anything else). Never a citation lent to a number it is not
+ * about, and still never a fetch.
+ */
+describe('TERM-060 — the attribution total is cited through the provenance renderer', () => {
+  const POINTER = `uct://breadth_snapshot_numeric.breadth_score/D?as_of=${ROWS[0].date}`
+  const body = (claimOver = {}, checkOver = {}) => ({
+    ...ATTRIBUTION_BODY,
+    claims: { total: {
+      v: 1, pointer: POINTER, stated: 80, decimals: 0,
+      check: { verdict: 'verified', reason: 'match', status: 'resolved',
+               resolved_value: 80, resolved_as_of: ROWS[0].date, ...checkOver },
+      ...claimOver,
+    } },
+  })
+  const SENTENCE = 'Score attribution 80, +10.0 from the prior session (1 of 1 inputs).'
+  const renderWith = (data) => {
+    const cache = new Map()
+    cache.set(attributionKey(ROWS[0].date, ROWS.length), { data })
+    render(wrap(strip(), cache))
+    return screen.getByTestId('the-read-clause-attribution')
+  }
+
+  it('verified: the sentence reads exactly as composed, with a citation toggle and no note', async () => {
+    const el = renderWith(body())
+    expect(el.textContent).toBe(SENTENCE)
+    expect(el.querySelector('[data-testid="cited-claim"]').getAttribute('data-verdict')).toBe('verified')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Show citation detail' }))
+    expect(screen.getByTestId('cited-panel').textContent).toContain(`Address: ${POINTER}`)
+    expect(screen.getByTestId('cited-panel').textContent)
+      .toContain('Checked: the stated figure matches the stored value')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('a total that disagrees with the store is FLAGGED on the page, never shown as verified', () => {
+    const el = renderWith(body({}, { verdict: 'mismatch', reason: 'value_differs', resolved_value: 71.9 }))
+    expect(el.textContent).toBe(`${SENTENCE}does not match the stored record`)
+  })
+
+  it('an unresolvable pointer reads "not verified"', () => {
+    const el = renderWith(body({}, { verdict: 'unverified', reason: 'not_resolved',
+                                     status: 'not_computable', resolved_value: null }))
+    expect(el.textContent).toBe(`${SENTENCE}not verified`)
+  })
+
+  it('a payload with no claim says "citation unavailable" — it does not look cited', () => {
+    const el = renderWith(ATTRIBUTION_BODY)
+    expect(el.textContent).toBe(`${SENTENCE}citation unavailable`)
+    expect(el.querySelector('[data-testid="cited-toggle"]')).toBeNull()
+  })
+
+  it('a verified claim about a DIFFERENT number is not lent to this one', () => {
+    const el = renderWith(body({ stated: 81 }))
+    expect(el.textContent).toBe(`${SENTENCE}citation unavailable`)
+    expect(el.querySelector('[data-testid="cited-claim"]')).toBeNull()
+  })
+
+  it('the other clauses gain nothing — only a clause that states a stored figure is cited', () => {
+    renderWith(body())
+    for (const k of ['regime', 'divergence', 'events', 'rotation', 'percentile']) {
+      expect(screen.getByTestId(`the-read-clause-${k}`).querySelector('[data-testid^="cited"]')).toBeNull()
     }
   })
 })

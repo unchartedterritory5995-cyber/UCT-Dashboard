@@ -46,6 +46,28 @@ folded in) and STORE_BACKUP_ENABLED with one real `--rehearse` PASS on workspace
 Pre-existing master red NOT ours: `usePreferences.additionsOnly` (Watchlists A12 9/25, Notebook wave 8 9/26).
 New owner question: TERM-055 — CARD 7's sentence needs `vendor`/`dividends` the adjustment-basis endpoint does not return.
 
+**⭐⭐ STATE AFTER THE RULINGS (2026-09-29, after a PC restart):** pushed `14cb488e5` = 2e139d2d7 (curriculum credits
+removed) + TERM-062 (count dropped), TERM-044 (transcript citations), TERM-021 read-new phase (dark), TERM-046 (Finviz
+short interest, dark `SHORT_INTEREST_SOURCE`), freshnessAge 60 s ceiling. **FLAGS NOT YET SET** (checked live: gate
+`shadow`, `/api/education/lessons` 404). The owner runs ONE command (the agent is refused flag writes):
+`railway variables --service web --set "OPEN_READS_GATE=enforce" --set "EDGAR_OWNERSHIP_ENABLED=1" --set
+"WATCHLIST_ALERTS_S7_ENABLED=1" --set "BREADTH_EOD_SOURCE=shadow" --set "BREADTH_DIVIDEND_BASIS=1" --set
+"EDU_CURRICULUM_ENABLED=1"` — then verify in-process + smoke, and update `docs/feature_flags.json`.
+**TERM-060 INTERRUPTED** by the account's weekly limit (subagents blocked until Oct 2, 6pm CT): uncommitted work is
+preserved in `C:/Users/Patrick/uct-dashboard/.claude/worktrees/agent-a67cd8cfb732683cd` (resolver, Cited, breadth
+TheReadStrip/theRead, test_canonical_address_book) — it was re-running tests when cut off. Do NOT delete that worktree.
+Still owed: TERM-049 (counts-only history; needs address-book stores), 021 arming (backup rehearsal), 018 gate after a
+week, 042 server mode after ~10 clean shadow sessions, 046 arming after one real pull shows Short Float/Ratio present.
+
+**⭐ 2026-09-29 AFTERNOON — FLAGS LIVE, AND THREE OPERATIONAL FINDINGS:**
+- The six owner switch-ons are LIVE, verified on a fresh pod: open-reads gate `enforce` (anonymous read -> 401, members unaffected — the only recorded denial was the verifier's own anonymous probe), curriculum lessons 200, EDGAR insiders, S7 watchlist receipts, breadth EOD `shadow` + `BREADTH_DIVIDEND_BASIS=1` (now declared via `BREADTH_DIVIDEND_MODE_FLAGS`). Ledger `2d7eeabb9`. Smoke PASS after recovery.
+- ⛔ A WEB RESTART DURING MARKET HOURS DEGRADES THE SCREENER FOR ~1-2 h: the fresh pod's `bars.db` WAL was ~660 MB, the screener live tier took 157-436 s per pass (log fields `held_lock_ms`, `sqlite_anchor_read_ms`, `wal_state_at_sweep`), and `/api/screener/meta` hung >120 s (smoke failed on /screener and /options-flow). It self-cleared once `bars_wal_checkpointer` drained the WAL (16 MB, 2-4 s passes, meta 2-3 s). Not caused by any code change. Prefer pushing web after the close.
+- Railway sat ~30 min in INITIALIZING/QUEUED on 16:18 UTC deploys; it was NOT waiting on the report-only full suite (earlier deploys shipped with it pending) — a Railway builder backlog. It cleared on its own.
+- ⛔ DISK FULL (0 GB free) broke SQLite tests and the session transcript. Cause: ~57 agent/other worktrees each holding an `app/node_modules` (~0.31 GB) plus ~70 GB of Temp test databases. Freed to 57.7 GB by deleting `app/node_modules` in worktrees whose HEAD is merged into integrate/terminal-fixes (junctions and unmerged branches skipped). ⚠️ That also removed node_modules from 13 OTHER sessions' merged worktrees (base-gate, fix-bars-denial-storm, landing-pine, pine-atr, pine-baseline-check, pine-import-rvol, pine-objint, pine-objpass, pine-palette, pine-partial, pine-plotoffset, pine-road, pine-table-gaps) — no code touched; they need `npm ci` in `app/` before their next vitest run. Temp was not cleaned.
+- Helper agents are blocked by the weekly limit until Oct 2, 6pm CT; TERM-060 was finished by the integrator (`983e892cc`). Pending push: TERM-060 + ledger, after the close.
+
+**RESOLVER APPROVAL LINE (delegated, 2026-09-29):** caller `api/routers/breadth_monitor.py::_with_total_claim` resolves `breadth_snapshot_numeric.breadth_score` @ D for the session it scores, so The Read's stated score carries a checked pointer. Test: `tests/test_term060_claims.py` + `_ALLOWED_RESOLVER_CALLERS` in `tests/test_canonical_address_book.py`. Approved by the integrator under the owner's delegation. TERM-060 finished by the integrator after its agent hit the weekly limit (`983e892cc`; 259 pytest + 122 vitest; mutation 2 red).
+
 **⭐ OWNER RULINGS, 2026-09-29 ~07:30 ET (asked one by one; these SUPERSEDE the outstanding list below):**
 062 drop the pre-save fire COUNT, ship the rest · 053 OPEN_READS_GATE → **enforce now** (read the would-deny log first),
 `/api/stream/prices` stays OPEN, `/api/r/*` token left as is · 045 ARM `EDGAR_OWNERSHIP_ENABLED`, keep FMP/Finnhub for

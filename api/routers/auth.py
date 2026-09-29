@@ -193,6 +193,16 @@ def _notebook_flag_key(env_name: str) -> str:
     return env_name.lower()
 
 
+def _ticker_history_enabled() -> bool:
+    """TERM-049: the Research "History" tab's switch -- the SAME reader the route's
+    dark gate uses. Never raises."""
+    try:
+        from api.services import ticker_history
+        return bool(ticker_history.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _decision_record_enabled() -> bool:
     """TERM-088: the Research "Decision Record" tab's switch -- the SAME reader
     the route's dark gate uses, so the two cannot disagree. Never raises: a
@@ -438,6 +448,8 @@ def _access_payload(user: dict, plan: str) -> dict:
         # second env read of the same name here -- so the tab and the route
         # cannot disagree about whether the surface exists.
         "decision_record_enabled": _decision_record_enabled(),
+        # TERM-049: the Research "History" tab. Same one-authority rule as above.
+        "ticker_history_enabled": _ticker_history_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten

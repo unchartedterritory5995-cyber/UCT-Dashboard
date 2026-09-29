@@ -20,6 +20,7 @@ import CallsTab from './tabs/CallsTab'
 import FilingsTab from './tabs/FilingsTab'
 import AskAiTab from './tabs/AskAiTab'
 import DecisionRecordTab from './tabs/DecisionRecordTab'
+import HistoryTab from './tabs/HistoryTab'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -107,7 +108,7 @@ import styles from './ResearchPage.module.css'
 // on the market-view side of the MY RESEARCH boundary. Ships DARK behind
 // DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled), same
 // mechanism and polarity as the Flow tab.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'Filings', 'Ask AI', 'My Research']
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -117,13 +118,14 @@ const SECTION_TO_TAB = {
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
   'decision-record': 'Decision Record',
+  history: 'History',
   filings: 'Filings', ai: 'Ask AI', research: 'My Research',
 }
 
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -146,7 +148,8 @@ export default function ResearchPage() {
   const tabs = TABS.filter(t =>
     (t !== 'Technical' || researchTechnicalTabEnabled) &&
     (t !== 'Flow' || researchFlowTabEnabled) &&
-    (t !== 'Decision Record' || decisionRecordEnabled === true))
+    (t !== 'Decision Record' || decisionRecordEnabled === true) &&
+    (t !== 'History' || tickerHistoryEnabled === true))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -194,6 +197,7 @@ export default function ResearchPage() {
       {active === 'Calls & Transcript' && <CallsTab sym={sym} />}
       {active === 'Model Book' && <ModelBookTab sym={sym} />}
       {active === 'Decision Record' && <DecisionRecordTab sym={sym} />}
+      {active === 'History' && <HistoryTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (

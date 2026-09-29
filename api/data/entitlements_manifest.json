@@ -140,6 +140,7 @@
         "api/routers/wisdom_extract.py",
         "api/routers/wisdom_publish.py",
         "api/routers/wisdom_sources.py",
+        "api/services/skill_whitelist.py",
         "api/services/wisdom/core/owner.py",
         "api/services/wisdom/publish/adapters/routes.py"
       ],
@@ -200,6 +201,7 @@
         "api/routers/theme_index.py",
         "api/routers/theme_performance.py",
         "api/routers/theme_sets.py",
+        "api/routers/ticker_history.py",
         "api/routers/traders.py",
         "api/routers/user_definitions.py",
         "api/routers/volume_scan.py",
@@ -268,10 +270,12 @@
         "api/routers/theme_index.py",
         "api/routers/theme_performance.py",
         "api/routers/theme_sets.py",
+        "api/routers/ticker_history.py",
         "api/routers/traders.py",
         "api/routers/user_definitions.py",
         "api/routers/volume_scan.py",
-        "api/services/ai_doors.py"
+        "api/services/ai_doors.py",
+        "api/services/skill_whitelist.py"
       ]
     },
     "note": "a population, not a duplication finding by itself -- CP2+ is where an owner-informed consolidation would use this inventory. Reported so it exists BEFORE that answer, not assembled by hand at that point."
