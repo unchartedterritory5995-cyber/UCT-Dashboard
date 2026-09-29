@@ -3307,7 +3307,7 @@ def build(pages_dir=None):
           record('docs/notebook/gate-runs/wave10-L6/classification.md', 13, 'Landing: PASS'),
           test_f3('tests/test_account_tombstones.py'), test_l6('tests/test_authdb_archive_restore.py')],
          'wave 10 lane AD (PR #253, landed L6) closed the one exception this cell used to carry: '
-         '`authdb/archive/` objects are kept forever by design (never pruned), and `authdb_restore_drill.py '
+         'authdb/archive/ objects are kept forever by design (never pruned), and `authdb_restore_drill.py '
          '--archive` now drills that lineage through the SAME tombstone-replay code a regular restore uses '
          '(`tombstone_check()` -> `account_tombstones.replay_on_db`/`.replay_on_attachment_tree`), lifting only '
          'the freshness-age check -- never the replay. `tests/test_authdb_archive_restore.py` drills a seeded '
@@ -3415,7 +3415,7 @@ def build(pages_dir=None):
          'inserted it into the note (`document_changed_by_accept: true`). The probe process itself exited 1 on a '
          'cleanup read-back race (one read 1.5s after delete, fixed in the same lane by polling the note by id); '
          'an independent read-back found the test note gone (404 direct, absent live, present in trash) -- the '
-         'product path, not the probe bug, is what this clause reads on. The earlier run (`wh-2026-09-29/`) found '
+         'product path, not the probe bug, is what this clause reads on. The earlier run (wh-2026-09-29/) found '
          'the vendor credit exhausted and observed no output; this run is what closed it', None),
         ('semantic retrieval', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'dark until zero retention in writing (G-127)', OWNER),
         ('all on verified vendor terms', 'NOT MET',
