@@ -36,8 +36,13 @@ hours — it restarts flow-worker) · `git push origin master` in uct-intelligen
 on yfinance for now · /api/flow-scoreboard stays PAID · TERM-021 retention 30d OR newest 200, hard ceiling 2000 per
 board (built `3a27475a8`) · Wire default view kept · push-to-talk skips text fields · TERM-069 subsumed by BRK-01.
 
-**Remaining queue:** TERM-091 (curriculum loader, dark behind `EDU_CURRICULUM_ENABLED`) in flight — the LAST
-agent-buildable ticket. Held: band 0, 014/017,
+**TERM-091 MERGED** (`de98a6647`, dark behind `EDU_CURRICULUM_ENABLED`): table `edu_lessons` in education.db, 79
+lessons + 7 toolkit artifacts, the 181-example spec_verdict census (from `uct_method_scripts.json`), a "Lesson notes"
+block on the Desk Courses section, reversal `scripts/load_edu_curriculum.py --unload`. ⛔ **Two owner calls before
+arming:** (1) `docs/curriculum/HANDOFF.md` says the 79 lessons ALREADY exist in production as admin-only DRAFT
+`edu_paths` courses (unrecorded video slots) — is a second, text copy wanted beside them? (2) attribution is
+rule-derived and INCOMPLETE: 47/86 rows attributed; no source basis for Brandt/Wyckoff/Minervini, nor for 2B, Oops,
+Power Earnings Gap, Wedge Pop/EMA Crossback, U&R, flat/IPO base — rule on those. **Agent-buildable queue: EMPTY.** Held: band 0, 014/017,
 TERM-011 step 8 (a week of fallback=0), CARD 16 p95 (RTH only), 082 (needs 012), 093 (owner subject), 035 (parked:
 spec read refused to its agent). Master reds that are NOT ours: reachable.test.js (3 Pine engine files),
 yf_guard_binds (financial_statements.py), shared_data_root_guard, alert_taxonomy dark_report caller,
