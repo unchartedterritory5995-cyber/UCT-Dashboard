@@ -103,19 +103,19 @@ describe('ruling 1 — a selector that reads a KNOB is never folded', () => {
     expect(r.definition.inputs.some((i) => i.key === 'show')).toBe(true)
   })
 
-  it('⚠️ STATED, NOT HIDDEN: an input read ONLY by a colour is no member control, so its default IS the colour', () => {
-    // The member door declares an input only where an output's VALUE reads it
-    // (`builderInputs.inputsFromFolded`). One read only by a colour has no
-    // control on the member's chart — nothing the member can set — so the rule
-    // is evaluated at its default. Making it a control would add a member-visible
-    // input to every such document; that is reported, not done here.
+  it('⭐ an input read ONLY by a colour is a member control too, and the rule reads it live', () => {
+    // ⚰️ This was "STATED, NOT HIDDEN: … is no member control, so its default IS
+    // the colour" — the member door declared an input only where an output's
+    // VALUE read it. Since 2026-09-28 it also declares one only a colour reads
+    // (`builderInputs.withColourInputs`), appended after the value inputs, as
+    // TradingView lists it: see `memberPane/colourOnlyInputs.test.js`.
     const src = `${theme('Aurora')}show = input.bool(false, "Show")\nplot(close, "a", show ? color.new(thA, 0) : na)\n`
     const r = memberPaneDefinition({ source: V5 + src, id: 'u_member-pane-knobprobe' })
     expect(r.ok, r.reason).toBe(true)
     const plot = r.rows.find((row) => row.label === 'a')
     const cond = r.rows.find((row) => plot.colorMode === `column:${row.key}`)
-    expect(cond.source).toBe('1')
-    expect(r.definition.inputs.some((i) => i.key === 'show')).toBe(false)
+    expect(cond.source).toBe('show != 0 ? 0 : 1')
+    expect(r.definition.inputs.some((i) => i.key === 'show')).toBe(true)
   })
 
   it('⭐ re-translated with the member\'s value, the rule follows it', () => {

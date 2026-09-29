@@ -35,7 +35,7 @@ import {
 import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { evaluateFormula } from '../FormulaField'
-import { BUILDER_INPUT_SCOPE } from '../builderInputs'
+import { BUILDER_INPUT_SCOPE, seriesNamesOf } from '../builderInputs'
 
 /** ⭐ ≈ A QUARTER OF THE CHART, and the unit is the schema's own.
  *  `defSchema` validates `placement.pane.height` as a FRACTION in (0, 1) — a
@@ -125,7 +125,9 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // ⭐ `paramManifest: true` RIDES ON THIS TRANSLATION, for the reason
       // `PineBox` gives: the manifest and the saved computation must come from
       // ONE translation result, or the parameter ids address a tree nobody built.
-      t = memberInputTranslation(translatePine, source, { paramManifest: true, strict: true })
+      // ⭐ `colourInputs: true` (2026-09-28): an input only a COLOUR reads is
+      // declared too, as TradingView lists it — `builderInputs.withColourInputs`.
+      t = memberInputTranslation(translatePine, source, { paramManifest: true, strict: true, colourInputs: true })
     } catch (err) {
       // ⛔ A THROW IS A REASON, NOT A CRASH ON THE PAINT PATH. `PreviewPane`'s
       // header is explicit that a pane which dies reads as "correctly inert"
@@ -211,9 +213,18 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // does: a WITHHELD drawing (a lost removal, `withholdObjects`) is not in the
   // document, and an input only it reads would be a knob that moves nothing.
   const memberSpecs = withObjectInputs(memberInputSpecs(drawable), drawsObjects ? t : null)
+  // ⭐⭐ 2026-09-28 — THE INPUTS ONLY A COLOUR READS (`t.colourInputs`, from
+  // `builderInputs.withColourInputs`). In the lint scope from the start, because a
+  // condition column below may name one; declared on the document only where a
+  // condition column ACTUALLY reads one (`colourDeclared`, below), so a knob that
+  // would move nothing is never handed out. ⛔ APPENDED after every value input:
+  // the inputs a document already declared keep their exact order and index.
+  const colourSpecs = (t.colourInputs || [])
+    .filter((s) => s && typeof s.key === 'string' && !(memberSpecs || []).some((m) => m.key === s.key))
   const lintScope = {
     ...BUILDER_INPUT_SCOPE,
     ...Object.fromEntries((memberSpecs || []).map((spec) => [spec.key, true])),
+    ...Object.fromEntries(colourSpecs.map((spec) => [spec.key, true])),
   }
   // ⭐⭐ R34 / C1 — THE CONDITION COLUMNS THIS DOCUMENT NEEDS, minted at most once
   // per canonical formula, for a conditionally coloured FILL (j.3b) and — since
@@ -499,6 +510,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   const primary = rows.length ? rows[0] : OBJECTS_ONLY_ANCHOR
 
   const declaredName = String(name || t.title || 'Pine script').slice(0, 40)
+  // ⭐ A colour-only input joins the document only where a condition column the
+  // document carries reads it (see `colourSpecs`), appended after the value inputs.
+  const colourRead = new Set()
+  for (const cr of conditionRows) seriesNamesOf(cr.ast, colourRead)
+  const colourDeclared = colourSpecs.filter((s) => colourRead.has(s.key))
+  const docInputs = colourDeclared.length ? [...(memberSpecs || []), ...colourDeclared] : memberSpecs
   let definition = null
   try {
     definition = buildDefinition({
@@ -508,7 +525,7 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ast: primary.ast,
       mode: primary.mode,
       readback: primary.readback,
-      inputs: memberSpecs,
+      inputs: docInputs,
       plots: rows.length ? rows : [primary],
       // ⭐ THE AUTHOR'S OWN PANE INTENT. `overlay = true` means the price pane;
       // anything else gets its own sub-pane at a quarter of the chart.
