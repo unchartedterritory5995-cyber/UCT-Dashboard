@@ -1,0 +1,51 @@
+setting   rd  op                                        fit   last  p50 by tier
+bench      0  count_notes (whole library)             1.262  3.018  [0.047, 0.266, 0.613, 1.207, 9.775] <-- BREACH
+bench      1  count_notes (whole library)             1.206  2.798  [0.06, 0.311, 0.615, 1.388, 9.653] <-- BREACH
+cache256   0  count_notes (whole library)             1.055  0.836  [0.046, 0.242, 0.54, 1.497, 2.673]
+cache256   1  count_notes (whole library)             0.945  1.081  [0.058, 0.264, 0.579, 1.14, 2.412]
+cache64    0  count_notes (whole library)             0.934  0.693  [0.061, 0.31, 0.513, 1.406, 2.273]
+cache64    1  count_notes (whole library)             0.935  0.627  [0.062, 0.344, 0.635, 1.497, 2.312]
+mmap512    0  count_notes (whole library)             0.832  1.034  [0.094, 0.249, 0.495, 1.168, 2.392]
+mmap512    1  count_notes (whole library)             0.872  0.810  [0.085, 0.242, 0.522, 1.347, 2.362]
+percall    0  count_notes (whole library)             0.318  0.514  [3.529, 4.943, 6.58, 8.71, 12.436]
+percall    1  count_notes (whole library)             0.321  0.643  [3.693, 5.313, 5.503, 8.822, 13.78]
+bench      0  folder_note_counts (whole library)      1.118  2.288  [0.141, 0.535, 1.203, 2.84, 13.874] <-- BREACH
+bench      1  folder_note_counts (whole library)      1.145  2.279  [0.112, 0.472, 1.044, 2.525, 12.259] <-- BREACH
+cache256   0  folder_note_counts (whole library)      0.951  0.776  [0.143, 0.481, 1.064, 3.094, 5.299]
+cache256   1  folder_note_counts (whole library)      0.965  0.955  [0.108, 0.506, 1.238, 2.397, 4.646]
+cache64    0  folder_note_counts (whole library)      1.030  0.610  [0.085, 0.614, 1.112, 2.995, 4.572]
+cache64    1  folder_note_counts (whole library)      0.991  1.158  [0.111, 0.586, 1.094, 2.545, 5.678]
+mmap512    0  folder_note_counts (whole library)      0.942  1.037  [0.137, 0.583, 1.126, 2.693, 5.526]
+mmap512    1  folder_note_counts (whole library)      0.888  0.956  [0.154, 0.458, 1.051, 2.427, 4.707]
+percall    0  folder_note_counts (whole library)      0.341  0.494  [4.259, 4.858, 7.154, 10.992, 15.476]
+percall    1  folder_note_counts (whole library)      0.350  0.639  [3.825, 5.658, 6.321, 10.137, 15.783]
+bench      0  get_symbol_backlinks                    1.152  1.073  [0.66, 2.771, 5.413, 25.85, 54.375] <-- BREACH
+bench      1  get_symbol_backlinks                    1.229  0.895  [0.496, 2.435, 5.854, 27.874, 51.831] <-- BREACH
+cache256   0  get_symbol_backlinks                    0.996  0.961  [0.616, 2.474, 5.533, 14.756, 28.723]
+cache256   1  get_symbol_backlinks                    1.072  0.908  [0.445, 2.811, 5.876, 15.42, 28.934]
+cache64    0  get_symbol_backlinks                    1.095  0.811  [0.383, 2.465, 5.74, 14.951, 26.227]
+cache64    1  get_symbol_backlinks                    1.028  1.120  [0.56, 2.549, 5.533, 14.311, 31.1]
+mmap512    0  get_symbol_backlinks                    1.045  0.849  [0.513, 2.424, 5.804, 15.691, 28.273]
+mmap512    1  get_symbol_backlinks                    1.023  1.051  [0.56, 2.538, 5.873, 14.439, 29.908]
+percall    0  get_symbol_backlinks                    0.645  0.704  [4.62, 8.506, 13.29, 33.117, 53.945]
+percall    1  get_symbol_backlinks                    0.611  1.071  [5.048, 10.17, 12.761, 28.209, 59.26]
+bench      0  list_tasks (open, ?view=tasks)          1.127  1.043  [1.143, 6.389, 18.51, 43.417, 89.45] <-- BREACH
+bench      1  list_tasks (open, ?view=tasks)          1.169  0.896  [0.959, 6.894, 20.404, 46.842, 87.153] <-- BREACH
+cache256   0  list_tasks (open, ?view=tasks)          1.036  0.853  [1.112, 6.613, 13.359, 34.538, 62.369]
+cache256   1  list_tasks (open, ?view=tasks)          1.091  0.748  [0.91, 6.691, 13.226, 37.055, 62.22]
+cache64    0  list_tasks (open, ?view=tasks)          1.179  0.640  [0.606, 6.254, 15.127, 36.901, 57.505] <-- BREACH
+cache64    1  list_tasks (open, ?view=tasks)          1.094  0.812  [0.879, 6.757, 13.379, 35.506, 62.354]
+mmap512    0  list_tasks (open, ?view=tasks)          1.213  0.847  [0.568, 5.924, 13.576, 35.611, 64.058] <-- BREACH
+mmap512    1  list_tasks (open, ?view=tasks)          1.031  0.967  [1.128, 6.83, 12.877, 33.004, 64.503]
+percall    0  list_tasks (open, ?view=tasks)          0.761  0.779  [4.992, 12.661, 24.367, 54.024, 92.731]
+percall    1  list_tasks (open, ?view=tasks)          0.718  0.884  [5.377, 17.473, 23.496, 50.984, 94.111]
+bench      0  tag_counts (whole library)              1.048  0.973  [1.474, 6.847, 14.367, 43.142, 84.691]
+bench      1  tag_counts (whole library)              1.105  0.989  [1.188, 6.888, 14.458, 43.684, 86.688] <-- BREACH
+cache256   0  tag_counts (whole library)              1.116  0.704  [0.915, 7.131, 14.932, 41.75, 67.992] <-- BREACH
+cache256   1  tag_counts (whole library)              1.032  0.885  [1.375, 7.674, 14.179, 41.195, 76.072]
+cache64    0  tag_counts (whole library)              1.141  1.038  [0.905, 6.52, 14.737, 38.201, 78.454] <-- BREACH
+cache64    1  tag_counts (whole library)              1.071  0.912  [1.171, 7.28, 14.462, 40.235, 75.717]
+mmap512    0  tag_counts (whole library)              1.045  0.828  [1.258, 7.325, 14.604, 40.652, 72.17]
+mmap512    1  tag_counts (whole library)              1.030  1.087  [1.368, 7.47, 13.803, 37.133, 78.909]
+percall    0  tag_counts (whole library)              0.744  0.818  [5.714, 12.286, 22.367, 55.802, 98.389]
+percall    1  tag_counts (whole library)              0.750  0.738  [5.074, 13.801, 22.214, 54.972, 91.663]
