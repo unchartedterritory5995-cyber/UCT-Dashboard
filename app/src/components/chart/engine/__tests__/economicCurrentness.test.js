@@ -6,9 +6,9 @@ import {
   ECON_CURRENTNESS_MAP, economicCurrentnessState, economicCurrentness, economicNextRelease, readEconomicSeries,
 } from '../economicSeries'
 import { CURRENTNESS, isCurrentnessSettled } from '../../../../utils/marketSession'
-import CPI_SAMPLE from '../../../../../../docs/economic-data/samples/USCPI.json'
-import GDP_SAMPLE from '../../../../../../docs/economic-data/samples/USRGDPQA.json'
-import FFU_SAMPLE from '../../../../../../docs/economic-data/samples/USFEDFUNDSU.json'
+import CPI_SAMPLE from '../../../../econHarness/fixtures/real/USCPI.json'
+import GDP_SAMPLE from '../../../../econHarness/fixtures/real/USRGDPQA.json'
+import FFU_SAMPLE from '../../../../econHarness/fixtures/real/USFEDFUNDSU.json'
 
 // Every state `api/services/econ/model.py::Currentness` defines (pinned by value).
 const BACKEND_STATES = ['CURRENT', 'CHECKING', 'DELAYED', 'SOURCE_UNAVAILABLE', 'VALIDATION_FAILED',
