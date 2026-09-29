@@ -242,7 +242,7 @@ export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor'
  *  Measured 2026-08-06 (Task 3: repo-wide, zero identifiers, this comment plus
  *  spec §3.1); made real 2026-08-07 by the constant below and its one consumer,
  *  `nativeRegistry.validateUserDefinitions`. */
-export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script'])
+export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script', 'runtime'])
 
 /**
  * The lanes THIS CLIENT CAN EXECUTE — the `supportedKinds` filter, as an
@@ -710,6 +710,8 @@ function validateCompute(compute, errors, inputScope) {
 
   if (compute.kind === 'ast') {
     validateAstCompute(compute, errors, inputScope)
+  } else if (compute.kind === 'runtime') {
+    validateRuntimeCompute(compute, errors)
   } else {
     // ⛔ THE MULTI-TREE KEYS BELONG TO THE `ast` LANE ALONE. On any other kind
     // they would be preserved by the unknown-key policy and read by nothing —
@@ -721,6 +723,40 @@ function validateCompute(compute, errors, inputScope) {
         `lane alone, and kind ${fmt(compute.kind)} names a compute handle, not a tree. Got ${fmt(compute[k])}.`,
       )
     }
+  }
+}
+
+/**
+ * ⭐⭐ THE `runtime` LANE'S SHAPE (2026-09-28) — a member's Pine, computed bar by
+ * bar by the per-bar runtime lane (`engine/runtime/runtimeColumns.js`).
+ *
+ * It exists for the scripts the columnar lane cannot represent — two `var`s that
+ * each read the other before setting their own — and which TradingView draws.
+ * The document carries the member's SOURCE (the implementation, exactly as the
+ * `ast` lane's tree is) and `outputs`, the map from each plot key to the runtime
+ * program's output index.
+ *
+ * ⛔ WELL-FORMED IS NOT RUNNABLE. Like `script`, `runtime` is NOT in
+ * `SUPPORTED_KINDS`: `nativeRegistry.validateUserDefinitions` admits it only while
+ * `runtimePaneGate.runtimePaneEnabled()` is on, and the server's save door takes
+ * `ast` alone — so a runtime document is a PREVIEW until that door is widened.
+ */
+function validateRuntimeCompute(compute, errors) {
+  if (!isNonEmptyString(compute.source)) {
+    errors.push(`compute.source: a "runtime" definition carries the script it runs — required non-empty string, got ${fmt(compute.source)}`)
+  }
+  if (!isPlainObject(compute.outputs) || !Object.keys(compute.outputs).length) {
+    errors.push(`compute.outputs: a "runtime" definition maps each plot key to a runtime output index — required non-empty object, got ${fmt(compute.outputs)}`)
+  } else {
+    for (const [key, index] of Object.entries(compute.outputs)) {
+      if (!Number.isInteger(index) || index < 0) {
+        errors.push(`compute.outputs.${key}: required integer >= 0 (a runtime output index), got ${fmt(index)}`)
+      }
+    }
+  }
+  for (const k of V2_COMPUTE_KEYS) {
+    if (compute[k] === undefined) continue
+    errors.push(`compute.${k}: only an "ast" definition carries it — a "runtime" definition's implementation is its source. Got ${fmt(compute[k])}.`)
   }
 }
 

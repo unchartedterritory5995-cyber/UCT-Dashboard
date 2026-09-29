@@ -24,7 +24,10 @@
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { translatePine } from '../../engine/ast/pine'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
-import { paneGate, paneObjectsGate } from '../../engine/ast/paneGate'
+import { paneGate, paneObjectsGate, runtimeRouteOf } from '../../engine/ast/paneGate'
+import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
+import { registerRuntimeLane } from '../../engine/nativeRegistry'
+import { runtimeColumnsFor, probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
@@ -140,7 +143,16 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   // the UI layer is what knows how this build was configured.
   const allowObjectsOnly = objectsOnlyPaneEnabled()
   const gate = paneGate(t, { allowObjectsOnly })
-  if (!gate.ok) return no(gate.reason, gate.guard, t)
+  if (!gate.ok) {
+    // ⭐⭐ WHAT THE COLUMNAR LANE CANNOT REPRESENT ROUTES TO THE PER-BAR RUNTIME
+    // LANE (owner principle, PR #241, 2026-09-28) — behind its own gate, OFF by
+    // default, and only for a refusal that names that lane (`runtimeRouteOf`).
+    // Off, or not routable, this is exactly the refusal it always was.
+    if (runtimePaneEnabled() && runtimeRouteOf(t)) {
+      return runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, no })
+    }
+    return no(gate.reason, gate.guard, t)
+  }
   // ⭐⭐ 2026-09-27 (owner ruling, option b) — WHAT THE OBJECT PROGRAM LOST.
   // `paneGate` has already refused a drawing-only script that lost a removal. A
   // script that ALSO plots reaches here with the same loss, and its plots are
@@ -646,6 +658,156 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // The pane finishes the sentence with `parse.js::requirementNote` once the
     // series has loaded; the producer still owns the wording.
     requirementTags,
+  }
+}
+
+/** The Pine outputs a runtime document draws: the ones a chart row carries.
+ *  `alertcondition` is ruling D1's (not drawn); `fill`, `hline`, `bgcolor`,
+ *  `barcolor` and the candle outputs have no row on the host lane's document
+ *  either, so a runtime document carries exactly what a host one would. */
+const RUNTIME_ROW_KINDS = new Set(['plot', 'plotshape', 'plotchar'])
+
+/** A repaint verdict the runtime lane can state WITHOUT a linter: a script that
+ *  reads no other timeframe, no realtime clock and no live bar state is computed
+ *  from closed bars alone and does not repaint. Anything else is not routed — an
+ *  unstated verdict would be a badge nobody measured. Conservative by
+ *  construction: a mention in a comment also declines the route. */
+const RUNTIME_REPAINT_RISK = /\b(request\.|security\s*\(|barstate\.|timenow\b|varip\b|lookahead\b|calc_on_every_tick)/
+
+/**
+ * ⭐⭐ THE RUNTIME-LANE DOCUMENT — a member's script drawn by the per-bar lane.
+ *
+ * Reached ONLY from `memberPaneDefinition`, only while `runtimePaneEnabled()`,
+ * and only for a host translation whose every refusal carries `route: 'runtime'`.
+ *
+ * ⛔ IT IS A PREVIEW, NOT A SAVE. The server's store takes `compute.kind: 'ast'`
+ * alone (`api/services/user_definitions.py`), so `saveable: false` is returned
+ * and the pane offers no "Add to my chart" for it — a button whose only outcome
+ * is a refusal would be worse than none.
+ *
+ * ⛔ AND IT MAPS ROWS TO OUTPUTS BY KIND AND ORDER, then DECLINES on any
+ * disagreement. Both lanes emit outputs in source order, so the n-th `plotshape`
+ * of the one is the n-th of the other — and when the counts differ the mapping
+ * is unknown, which is a refusal, never a guess.
+ */
+function runtimeLaneDefinition({ source, id, name, t, hostReason, no }) {
+  const decline = (why) => no(`${hostReason} — and the per-bar lane that could draw it `
+    + `declined: ${why}`, 'pine:state', t)
+  if (RUNTIME_REPAINT_RISK.test(source)) {
+    return decline('the script reads another timeframe or the live bar, so its repaint '
+      + 'behaviour cannot be stated without the linter this lane does not have')
+  }
+  const probe = probeRuntimeProgram(source)
+  if (!probe.ok) {
+    const r = probe.refusal || {}
+    return decline(`${r.guard || 'runtime'}${r.message ? ` — ${r.message}` : ''}`)
+  }
+  const carried = []
+  ;(t.outputs || []).forEach((o, index) => {
+    if (o && RUNTIME_ROW_KINDS.has(o.kind) && !o.hidden) carried.push({ o, index })
+  })
+  if (!carried.length) return decline('the script declares nothing a chart row draws')
+  const runtimeByKind = new Map()
+  probe.outputs.forEach((ro, k) => {
+    if (!runtimeByKind.has(ro.call)) runtimeByKind.set(ro.call, [])
+    runtimeByKind.get(ro.call).push(k)
+  })
+  const hostByKind = new Map()
+  for (const c of carried) hostByKind.set(c.o.kind, (hostByKind.get(c.o.kind) || 0) + 1)
+  for (const [kind, n] of hostByKind) {
+    const m = (runtimeByKind.get(kind) || []).length
+    if (m !== n) {
+      return decline(`the two lanes disagree on how many \`${kind}\` outputs the script has `
+        + `(${n} against ${m}), so which column is which cannot be known`)
+    }
+  }
+  const seen = new Map()
+  const outputs = {}
+  const rows = carried.slice(0, CARRY_MAX).map(({ o, index }, i) => {
+    const ord = seen.get(o.kind) || 0
+    seen.set(o.kind, ord + 1)
+    const key = keyAt(i)
+    outputs[key] = runtimeByKind.get(o.kind)[ord]
+    const p = tradingViewDefaultColour(o, t && t.version)
+    return {
+      key,
+      label: o.title || '',
+      // ⛔ A PLACEHOLDER TREE, never a formula a reader could mistake for the
+      // computation: `buildDefinition` shapes the document around one, and the
+      // compute block below replaces it wholesale.
+      source: '0',
+      ast: { type: 'num', value: 0 },
+      mode: 'non-repainting',
+      readback: '',
+      style: typeof p.style === 'string' ? p.style : 'line',
+      color: typeof p.color === 'string' ? p.color : undefined,
+      hidden: false,
+      ...(p.opacity !== undefined ? { opacity: p.opacity } : {}),
+      ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
+      // The host output this row draws — the vendor harness and the pane's
+      // disclosures read it; nothing computes from it.
+      output: index,
+    }
+  })
+  const objectsGate = paneObjectsGate(t)
+  const drawsObjects = objectsGate.draw && !!(t.objects && (t.objects.ops || []).length)
+  let definition
+  try {
+    definition = buildDefinition({
+      defId: id || MEMBER_PANE_DEF_PREFIX,
+      name: String(name || t.title || 'Pine script').slice(0, 40),
+      source: rows[0].source,
+      ast: rows[0].ast,
+      mode: 'non-repainting',
+      readback: '',
+      inputs: withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null),
+      plots: rows,
+      placement: (t.presentation && t.presentation.overlay === true)
+        ? { target: 'price' }
+        : { target: 'pane', pane: { height: MEMBER_PANE_HEIGHT } },
+      paramManifest: null,
+      objects: drawsObjects ? t.objects : null,
+    })
+  } catch (err) {
+    return decline(`the document could not be built: ${String((err && err.message) || err)}`)
+  }
+  // ⭐ THE IMPLEMENTATION IS THE SCRIPT ITSELF, and nothing of the placeholder
+  // survives: a `runtime` compute block may not carry the `ast` lane's keys.
+  definition.compute = {
+    kind: 'runtime',
+    fn: `runtime:${definition.id}`,
+    rev: 1,
+    source,
+    outputs,
+  }
+  const notes = [{
+    name: 'Drawn bar by bar',
+    note: 'This script keeps values from one bar to the next in a way a single formula '
+      + 'cannot hold, so it is drawn by running the script bar by bar, the way '
+      + 'TradingView does. It is a preview here: it cannot be saved to your chart yet.',
+  }]
+  const drawingNote = objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  if (drawingNote) notes.unshift(drawingNote)
+  definition.meta = {
+    ...(definition.meta || {}),
+    lane: 'runtime',
+    disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
+    requirementTags: [],
+  }
+  // Registered only once a runtime document exists, so a chart that never
+  // routes a script never loads the lane (`nativeRegistry.registerRuntimeLane`).
+  registerRuntimeLane(runtimeColumnsFor)
+  return {
+    ok: true,
+    definition,
+    reason: null,
+    guard: null,
+    translation: t,
+    rows,
+    notes,
+    requirementTags: [],
+    lane: 'runtime',
+    saveable: false,
   }
 }
 
