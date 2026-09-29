@@ -1434,6 +1434,11 @@
       ],
       "note": ""
     },
+    "WATCHLIST_ALERTS_S7_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "TERM-048 / FB-A12-01, 2026-09-29. ENABLEMENT GATE, default OFF, read per call in api/services/alert_taxonomy/watchlist_price_alerts.py::enabled() (strictly \"1\"; any other value, including unset, is the CURRENT behaviour). SERVICE: web (the 15 s /api/live-prices poll -> watchlist_alert_service.run_alert_check -> check_alerts_against_prices). OFF: members' watchlist price/line/trendline alerts fire exactly as before and the alert_taxonomy store is never opened (railed: the file is not even created). ON: a crossing the LEGACY checker already decided to fire (same level test, same one-shot is_active=0 deactivate-first ordering) is first recorded in alert_taxonomy.alert_fires via receipts.record_fire (trigger_type price-level, predicate_id watchlist:<row id>, fire_key fire:<row id>, detail.rule legacy_level_one_shot), its lease is claimed with receipts.claim_delivery, the member is told by the UNCHANGED _deliver_alert (same bell entry, email and retired Discord leg, so browser notification and sound fire once), and the per-channel outcome is stamped on the receipt. The deterministic fire key makes a crossing fire ONCE even when two checkers both saw the row armed (the legacy UPDATE is not a compare-and-set). If the receipt store cannot be written the member is still told once, on the legacy path, with no receipt. It does NOT adopt S7 price-level's CROSS rule and does NOT create alert_predicates rows (projection, not mirror); watchlist_alerts is unchanged and nothing is deleted. Rollback = unset this variable; receipts already written stay. Rails: tests/test_term048_watchlist_alerts_s7.py."
+    },
     "WATCHLIST_COPY_OR_LINK_ENABLED": {
       "status": "dark",
       "where": [],
