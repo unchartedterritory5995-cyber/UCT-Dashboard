@@ -1,0 +1,158 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 3,
+    "fixed": 4,
+    "unchanged": 140,
+    "missing": 9,
+    "baseline": 153,
+    "current": 144,
+    "current_ran": 33475,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 9,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 3
+  },
+  "arithmetic": "baseline 153 = unchanged 140 + fixed 4 + missing 9  |  current 144 = unchanged 140 + new 3 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36549974905",
+  "current_run_id": "36568439484",
+  "baseline_sha": "5acc73133efcd5bf08e0425006cb858ed4db9998",
+  "current_sha": "7cc6f7b1b9923be19f39fff15ac8afd8aee24e73",
+  "commit_range": "5acc73133efcd5bf08e0425006cb858ed4db9998..7cc6f7b1b9923be19f39fff15ac8afd8aee24e73",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO"
+  ],
+  "missing": [
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor",
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js",
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format",
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format",
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move",
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear"
+  ],
+  "fixed": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_price_target-timeout]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_expired_day_serves_last_good_at_once_and_one_refresh_runs"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor",
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js",
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format",
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format",
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move",
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear"
+  ],
+  "missing_buckets": {
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/pine.depth.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/pine.timeout.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/targetScriptReport.measure.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed": [
+      "UNATTRIBUTED",
+      "src/hooks/usePreferences.additionsOnly.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format": [
+      "UNATTRIBUTED",
+      "src/lib/journal-2-0/format.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format": [
+      "UNATTRIBUTED",
+      "src/lib/journal-2-0/format.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move": [
+      "UNATTRIBUTED",
+      "src/pages/breadth/heatmapRegistry.golden.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear": [
+      "UNATTRIBUTED",
+      "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js is absent and no deletion is attributable in the diff"
+    ]
+  },
+  "attribution": {
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_gate_shards.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_launch_hardening.py or anything it imports"
+    },
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_term018_every_guard_can_fire.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_discord_close_note.py or anything it imports"
+    },
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_price_target-timeout]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_term072_fmp_parity.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_expired_day_serves_last_good_at_once_and_one_refresh_runs": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 5acc73133..7cc6f7b1b touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    }
+  }
+}
