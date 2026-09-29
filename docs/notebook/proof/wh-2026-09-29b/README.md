@@ -32,13 +32,16 @@ note fully cleaned up:
 - the note is **absent from the live list**;
 - the note is **present in the trash**.
 
-The test note is removed. Two explanations fit the probe's reading: a race
-against the delete, or a delay in the title-search index. This run cannot tell
-them apart. **Follow-up:** the probe should look the note up by id rather than by
-title search, and poll rather than read once.
+The test note is removed. `gone_from_live_list=False` with HTTP 200 means the
+single read still **found the note in the live list** 1.5 s after the click: the
+delete had not landed yet. That is a race in the check, not an index delay (a lagging
+index would have hidden the note, not shown it). **Fixed in the probe:** the
+read-back now polls by note id, up to ~15 s, and records how many attempts it took.
 
-## Known defect in the raw artifact
+## Correction: there is no encoding defect in the artifact
 
-The strings in `run.json` are double-encoded ("â€”" where "—" belongs). The
-probe's own text is affected; the product's is not, as the screenshots and
-`inserted-block.html` show. **Follow-up:** fix the probe's writer encoding.
+An earlier version of this README reported double-encoded strings in `run.json`.
+That was wrong. The file is correct UTF-8: counting its bytes finds 4 real em dashes
+and 0 double-encoded sequences. The garbling came from the reader, which opened
+the file with Python's default Windows codec (cp1252) and not UTF-8. Read these
+artifacts with `encoding="utf-8"`.
