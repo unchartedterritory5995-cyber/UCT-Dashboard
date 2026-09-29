@@ -26,6 +26,21 @@
 > returned on its own before the re-run that produced the results below. Evidence:
 > `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/` (`sandbox-results.md` is the table).
 >
+> ⭐ **RE-MEASURED AGAIN AT `8d08da86f` (L6 #253 + L7 #254, production's tip, 2026-09-29; lane
+> R1d).** L7 and L6 are the new top two rows; both revert with 0 conflicts. L6 ships zero `app/`
+> or `api/` files (rollback-chain tooling + rehearsal evidence for L4/L5, a restore-drill fix,
+> proof-walk evidence) -- a real wave-10 landing anyway, selected by PATH only (its one
+> Notebook-owned file is `tests/test_notebook_rollback_chain.py`), declared in
+> `CHAIN_BY_PATH_ONLY`. The whole chain was rebuilt from the new tip: all fifteen pins recorded at
+> `0812b5ec3` came back byte-identical, and one new conflict was found four steps further down, at
+> wave 5's own revert (`2c3ed3093`, `app/src/components/CommandPalette.jsx` -- TERM-038 built its
+> dark "saved" rows inside the same functions wave 5's own quick-switcher introduced, seven hunks
+> deep with no separable lines), ruled "ours" (keep the newer work), now a rule and a pin
+> (*Measured, 2026-09-29, lane R1d*). `MEASURED_AT` is `8d08da86f`. Rehearsed on a sandbox: the
+> tip, `L7` and `L6`, all three boots CLEAN; L7's Find-in-note touch-tier floor measured 44px at
+> the tip, 18px through `L7` and through `L6`. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1d/` (`sandbox-results.md` is the table).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
