@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2086,
+  "passed": 2075,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 254.25,
+  "failed_files": [
+    "tests/test_wisdom_extract_tools.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2075 passed, 10 skipped, 7 warnings in 254.25s (0:04:14)",
+  "ok": true
+}
