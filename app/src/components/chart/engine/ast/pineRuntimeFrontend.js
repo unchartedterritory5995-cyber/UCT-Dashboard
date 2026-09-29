@@ -43,7 +43,7 @@ import {
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
-  clock, session, drawing,
+  clock, session, drawing, readGlobal,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
   // uses both words as local variables; an IR constructor shadowed by one would
   // build the wrong node with nothing red.
@@ -1138,6 +1138,34 @@ export function buildRuntimeIr(source, opts = {}) {
    *  a reference to a global mutable variable is refused BY NAME rather than
    *  arriving at the columnar resolver as an undefined name. */
   let guardOuter = null
+  /** ⭐⭐ C11 — A GLOBAL THIS FUNCTION BODY MAY READ, or null.
+   *
+   *  Pine lets a function body read any variable declared above it, at its
+   *  value AT THE MOMENT OF THE CALL, and — an array being a reference — push
+   *  into, clear or read a global array through it. That is a READ of the
+   *  global's slot; what Pine forbids is ASSIGNING one (`g := …` does not
+   *  compile), and nothing here admits that. The read is addressed at the MAIN
+   *  program's frame (`readGlobal`), never frame-relative, which is the whole of
+   *  what "a frame has no address for one" was missing.
+   *
+   *  ⛔ NOT INSIDE A REQUEST'S VALUE. A request region runs as its own sub-run
+   *  over another symbol's bars, with its own main frame, so a main-frame
+   *  address there would read that sub-run's slot rather than this chart's —
+   *  `runtime:function-global-state` keeps refusing it by name.
+   *  ⛔ AND ONLY A PLAIN READ. History (`g[1]`) and a window or change over a
+   *  global look the name up THEMSELVES and keep refusing: whose past a
+   *  global's history inside a frame is has not been measured on a chart. */
+  const outerSlot = (name) => {
+    if (owner === null || !guardOuter || inRequestValue) return null
+    return guardOuter.lookup(name)
+  }
+  /** `scope.lookup`, falling back to a readable global — for the KIND
+   *  questions (`holdsArray`, `holdsText`, a method receiver) that must answer
+   *  the same about `strikes` inside a helper as they do at the root. */
+  const lookupReadable = (name, scope) => {
+    const s = scope.lookup(name)
+    return s !== null ? s : outerSlot(name)
+  }
 
   const newSlot = (name, persistent, index) => {
     slots.push({
@@ -1222,7 +1250,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // form compiled and the method form did not, for the same program.
     if (node.type === 'call') {
       const uf = splitMethodName(String(node.name || ''))
-      if (uf && scope.lookup(uf.recv) !== null) return true
+      if (uf && lookupReadable(uf.recv, scope) !== null) return true
     }
     // ⭐⭐ A FIELD PATH READS ITS HEAD, AND THE HEAD IS A SLOT. `ob.top`
     // arrives as ONE dotted `name` token, so the plain lookup above cannot see
@@ -1340,7 +1368,7 @@ export function buildRuntimeIr(source, opts = {}) {
     if (!node || typeof node !== 'object' || depth > 24) return false
     if (node.type === 'string') return true
     if (node.type === 'name') {
-      const slot = scope.lookup(node.name)
+      const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].text)
       const bound = env.get(node.name)
       if (bound) return !!(bound.kind === 'expr' && holdsText(bound.node, scope, depth + 1))
@@ -1466,7 +1494,7 @@ export function buildRuntimeIr(source, opts = {}) {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
       if (colourHexByName(node.name, pineVersion) !== null) return true
-      const slot = scope.lookup(node.name)
+      const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].colour)
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsColour(bound.node, scope))
@@ -1668,7 +1696,7 @@ export function buildRuntimeIr(source, opts = {}) {
         && !Object.prototype.hasOwnProperty.call(ARRAY_FNS, node.name)
     }
     if (node.type === 'name') {
-      const slot = scope.lookup(node.name)
+      const slot = lookupReadable(node.name, scope)
       if (slot !== null) return !!(slots[slot] && slots[slot].collection)
       const bound = env.get(node.name)
       return !!(bound && bound.kind === 'expr' && holdsArray(bound.node, scope))
@@ -1740,7 +1768,7 @@ export function buildRuntimeIr(source, opts = {}) {
       return null
     }
     if (node.type === 'name') {
-      const slot = scope.lookup(node.name)
+      const slot = lookupReadable(node.name, scope)
       if (slot !== null) return (slots[slot] && slots[slot].udt) || null
       const path = fieldPathOf(node, scope)
       if (path) return path.type
@@ -3327,6 +3355,10 @@ export function buildRuntimeIr(source, opts = {}) {
           // plainly gives a value to one line above, which sends the reader
           // hunting for a typo that is not there.
         }
+        {
+          const g = outerSlot(node.name)
+          if (g !== null) return readGlobal(g)
+        }
         if (guardOuter && guardOuter.lookup(node.name) !== null) {
           note('runtime:function-global-state')
           throw new RuntimeRefusal('runtime:function-global-state', `\`${node.name}\``, locate(node.tok))
@@ -3745,7 +3777,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // same arity check, same void rule, same lowering as the name form.
         {
           const uf = splitMethodName(String(node.name || ''))
-          const rslot = uf && !definedNames.has(uf.method) ? scope.lookup(uf.recv) : null
+          const rslot = uf && !definedNames.has(uf.method) ? lookupReadable(uf.recv, scope) : null
           if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
             const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
@@ -5579,7 +5611,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // ADMITTER — same arity check, same void rule, same lowering as a
           // hand-written `array.push(a, x)`. The rewrite happens first and
           // nothing below this line knows the spelling it came from.
-          const rslot = scope.lookup(uf.recv)
+          const rslot = lookupReadable(uf.recv, scope)
           if (rslot !== null && slots[rslot] && slots[rslot].collection) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
