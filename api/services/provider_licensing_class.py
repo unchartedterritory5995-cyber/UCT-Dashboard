@@ -87,6 +87,12 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("fmp", "news"): LicensingClassEntry(
         "R", "Company news / press releases — no DDLA assumed (R without a data redistribution license agreement; LA with one).", "T-38",
     ),
+    ("sec_edgar", "insider"): LicensingClassEntry(
+        "A", "Form 4 insider transactions read from EDGAR — public domain; the User-Agent and ~10 req/s fair-access rule are etiquette, not display restrictions (TERM-045).", "T-83",
+    ),
+    ("sec_edgar", "ownership"): LicensingClassEntry(
+        "A", "Form 13F information tables read from EDGAR — public domain, same row as Form 4 (TERM-045).", "T-83",
+    ),
     # No ("fmp", "ipo") row: the licensing register's IPO-calendar row (T-52)
     # covers Finnhub's leg, not FMP's `stable/ipos-calendar` specifically — no
     # research exists for that pair, so it is left unregistered and correctly

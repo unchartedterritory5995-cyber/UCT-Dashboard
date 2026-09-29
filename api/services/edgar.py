@@ -153,10 +153,22 @@ def _ticker_to_cik_bulk() -> dict[str, str]:
             for c, t in _fetch_cik_ticker_map().items() if t}
 
 
+_PROFILE_PATH = "/stable/profile"
+
+
 def _fmp_cik(path: str, params: dict, timeout: int = 10):
-    """Indirection so the chain's paid tier is stubbable by name."""
-    from api.services.earnings_estimates import _fmp_get
-    return _fmp_get(path, params, timeout=timeout)
+    """Indirection so the chain's paid tier is stubbable by name.
+
+    TERM-072: through the D1 adapter's `get_company_profile`; it used to
+    delegate to `earnings_estimates._fmp_get`. The `(path, params, timeout)`
+    shape is kept for the stubs, but ⛔ this is not a generic FMP client -- any
+    path other than the profile is refused, so it cannot grow back into one.
+    `body_or_none` returns what `_fmp_get` did: the body, `[]`, or None."""
+    if path != _PROFILE_PATH:
+        raise ValueError(f"_fmp_cik serves {_PROFILE_PATH} only, not {path}")
+    from api.services import fmp_client
+    return fmp_client.body_or_none(fmp_client.get_company_profile,
+                                   params["symbol"], timeout=timeout)
 
 
 def resolve_cik(ticker: str) -> str | None:
@@ -188,7 +200,7 @@ def resolve_cik(ticker: str) -> str | None:
 
     if not cik:
         try:
-            d = _fmp_cik("/stable/profile", {"symbol": t}, timeout=8)
+            d = _fmp_cik(_PROFILE_PATH, {"symbol": t}, timeout=8)
             row = d[0] if isinstance(d, list) and d else (d if isinstance(d, dict) else None)
             raw = (row or {}).get("cik")
             if raw:

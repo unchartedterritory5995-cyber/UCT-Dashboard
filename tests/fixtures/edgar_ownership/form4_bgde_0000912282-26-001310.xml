@@ -1,0 +1,233 @@
+<?xml version="1.0"?>
+<ownershipDocument>
+
+    <schemaVersion>X0609</schemaVersion>
+
+    <documentType>4</documentType>
+
+    <periodOfReport>2026-09-24</periodOfReport>
+
+    <issuer>
+        <issuerCik>0001218683</issuerCik>
+        <issuerName>Big Digital Energy, Inc.</issuerName>
+        <issuerTradingSymbol>BGDE</issuerTradingSymbol>
+        <issuerForeignTradingSymbol></issuerForeignTradingSymbol>
+    </issuer>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002101945</rptOwnerCik>
+            <rptOwnerName>Endeavor Blockchain, LLC</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>false</isDirector>
+            <isOfficer>false</isOfficer>
+            <isTenPercentOwner>true</isTenPercentOwner>
+            <isOther>true</isOther>
+            <otherText>SEE REMARKS</otherText>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002105932</rptOwnerCik>
+            <rptOwnerName>Kilgore Joshua Allen</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>false</isDirector>
+            <isOfficer>true</isOfficer>
+            <isTenPercentOwner>true</isTenPercentOwner>
+            <isOther>false</isOther>
+            <officerTitle>SEE REMARKS</officerTitle>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002106415</rptOwnerCik>
+            <rptOwnerName>Smith Cody</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>false</isDirector>
+            <isOfficer>false</isOfficer>
+            <isTenPercentOwner>true</isTenPercentOwner>
+            <isOther>true</isOther>
+            <otherText>SEE REMARKS</otherText>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0001972752</rptOwnerCik>
+            <rptOwnerName>PM Squared LLC</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>false</isDirector>
+            <isOfficer>false</isOfficer>
+            <isTenPercentOwner>true</isTenPercentOwner>
+            <isOther>true</isOther>
+            <otherText>SEE REMARKS</otherText>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <reportingOwner>
+        <reportingOwnerId>
+            <rptOwnerCik>0002144081</rptOwnerCik>
+            <rptOwnerName>Six Thirty AI, LLC</rptOwnerName>
+        </reportingOwnerId>
+        <reportingOwnerRelationship>
+            <isDirector>false</isDirector>
+            <isOfficer>false</isOfficer>
+            <isTenPercentOwner>true</isTenPercentOwner>
+            <isOther>false</isOther>
+        </reportingOwnerRelationship>
+    </reportingOwner>
+
+    <aff10b5One>false</aff10b5One>
+
+    <nonDerivativeTable>
+        <nonDerivativeTransaction>
+            <securityTitle>
+                <value>Series D Preferred Shares</value>
+            </securityTitle>
+            <transactionDate>
+                <value>2026-09-24</value>
+            </transactionDate>
+            <transactionCoding>
+                <transactionFormType>4</transactionFormType>
+                <transactionCode>J</transactionCode>
+                <equitySwapInvolved>false</equitySwapInvolved>
+                <footnoteId id="F1"/>
+            </transactionCoding>
+            <transactionAmounts>
+                <transactionShares>
+                    <value>650</value>
+                </transactionShares>
+                <transactionPricePerShare>
+                    <value>5.4840</value>
+                </transactionPricePerShare>
+                <transactionAcquiredDisposedCode>
+                    <value>D</value>
+                </transactionAcquiredDisposedCode>
+            </transactionAmounts>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>15000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F2"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeTransaction>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Shares</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>28850</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F3"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Shares</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>8000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F4"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Shares</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>105000</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F5"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+        <nonDerivativeHolding>
+            <securityTitle>
+                <value>Common Shares</value>
+            </securityTitle>
+            <postTransactionAmounts>
+                <sharesOwnedFollowingTransaction>
+                    <value>2092899</value>
+                </sharesOwnedFollowingTransaction>
+            </postTransactionAmounts>
+            <ownershipNature>
+                <directOrIndirectOwnership>
+                    <value>D</value>
+                    <footnoteId id="F6"/>
+                </directOrIndirectOwnership>
+            </ownershipNature>
+        </nonDerivativeHolding>
+    </nonDerivativeTable>
+
+    <footnotes>
+        <footnote id="F1">On September 24, 2026, YA II PN, Ltd. (&quot;YA&quot;) exercised its right to exchange outstanding debt owed by Six Thirty AI, LLC (&quot;Six Thirty&quot;) for 650 shares of the Series D preferred stock of Big Digital Energy, Inc. pursuant to the terms of a Loan and Guaranty Agreement between the parties dated June 30, 2026.  Six Thirty maintained no control over the timing, pricing or amount of this exchange.  YA and the lenders represented by it are not affiliated with Six Thirty or the other group members identified on this Form 4.  Accordingly, the transaction is reported using Code J as an unorthodox transaction under the doctrine of Kern County Land Co. v. Occidental Petroleum Corp., 411 U.S. 582 (1973).</footnote>
+        <footnote id="F2">These shares are owned solely by Six Thirty AI, LLC, a Texas limited liability company managed and controlled by Cody Smith, Phillip Stanley and Joshua Kilgore.</footnote>
+        <footnote id="F3">These shares are owned solely by PM Squared, LLC, which is a member of a &quot;group&quot; with Endeavor Blockchain, LLC for purposes of Section 13(d) of the Exchange Act. Phil Stanley, the managing member and Chief Executive Officer of PM Squared, LLC, was appointed as the Chief Executive Officer and as a director of the Issuer as of April 6, 2026.</footnote>
+        <footnote id="F4">These shares are owned solely by Joshua Kilgore, who is a member of a &quot;group&quot; with Endeavor Blockchain, LLC for purposes of Section 13(d) of the Exchange Act. Joshua Kilgore is the Executive Chairman and a director of the Issuer as of April 6, 2026.</footnote>
+        <footnote id="F5">These shares are owned solely by Cody Smith, who is a member of a &quot;group&quot; with Endeavor Blockchain, LLC for purposes of Section 13(d) of the Exchange Act. Cody Smith was appointed as the Chief Operating Officer and as a director of the Issuer as of April 6, 2026.</footnote>
+        <footnote id="F6">These shares are owned solely by Endeavor Blockchain, LLC.  Joshua Kilgore is the sole member and manager of Endeavor Blockchain, LLC.</footnote>
+    </footnotes>
+
+    <remarks>As of April 6, 2026, Joshua Kilgore is the Executive Chairman and a director of the Issuer; Phillip Stanley is the Chief Executive Officer and a director of the Issuer; and Cody Smith is the Chief Operating Officer and a director of the Issuer.</remarks>
+
+    <ownerSignature>
+        <signatureName>ENDEAVOR BLOCKHAIN, LLC
+
+By:  ___________________________________________________
+        Joshua Kilgore, Managing Member</signatureName>
+        <signatureDate>2026-09-28</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>/s/ Joshua Kilgore</signatureName>
+        <signatureDate>2026-09-28</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>/s/ Cody Smith</signatureName>
+        <signatureDate>2026-09-28</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>PM SQUARED LLC
+
+By:  /s/ Phil Stanley, Managing Member</signatureName>
+        <signatureDate>2026-09-28</signatureDate>
+    </ownerSignature>
+
+    <ownerSignature>
+        <signatureName>SIX THIRTY AI, LLC
+
+By:  /s/ Cody Smith, Managing Member</signatureName>
+        <signatureDate>2026-09-28</signatureDate>
+    </ownerSignature>
+</ownershipDocument>

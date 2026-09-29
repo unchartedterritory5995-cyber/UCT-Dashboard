@@ -5,10 +5,13 @@ read `ownershipPercent` which isn't a real field either — the real endpoint
 is /stable/institutional-ownership/extract-analytics/holder with field
 `ownership`. Because get_ownership() silently fell through to the sparse
 yfinance fallback on any FMP failure, this shipped without a visible error.
-Mocks only ee._fmp_get with a REAL captured response shape and exercises the
-actual parsing function — the level that would have caught it."""
+Mocks only the FMP transport with a REAL captured response shape and exercises
+the actual parsing function — the level that would have caught it. (TERM-072:
+the transport is now the D1 adapter's `fmp_client._get_raw`, answered by
+`tests/_fmp_legacy_stub.route_fmp`; it was `ee._fmp_get`.)"""
 import importlib
 import api.services.institutional_holdings as ih_mod
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _mod():
@@ -59,7 +62,7 @@ def test_fmp_ownership_uses_extract_analytics_holder_endpoint(monkeypatch):
     # institutional_holdings imports earnings_estimates lazily inside the
     # function, so patch it at the source module.
     import api.services.earnings_estimates as ee_mod
-    monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp_get)
+    route_fmp(monkeypatch, fake_fmp_get)
 
     rows = ih._fmp_ownership("AAPL")
     assert calls, "expected at least one FMP call"
@@ -83,7 +86,7 @@ def test_fmp_ownership_falls_back_to_earlier_quarter_when_current_is_empty(monke
         return EXTRACT_ANALYTICS_HOLDER_FIXTURE
 
     import api.services.earnings_estimates as ee_mod
-    monkeypatch.setattr(ee_mod, "_fmp_get", fake_fmp_get)
+    route_fmp(monkeypatch, fake_fmp_get)
 
     rows = ih._fmp_ownership("AAPL")
     assert len(seen_quarters) == 2  # tried the newest, fell back one quarter

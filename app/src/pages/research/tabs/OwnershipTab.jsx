@@ -72,8 +72,82 @@ function fmtChgInt(v) {
 }
 function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
 
+/** TERM-045 (dark, EDGAR_OWNERSHIP_ENABLED): present only when the server
+ *  sourced the insider section from SEC EDGAR Form 4. Every state says what it
+ *  is in words. Only a complete read with no rows may say "none were filed";
+ *  pending / not_found / unavailable are unknowns and never render as an
+ *  empty list. */
+function edgarStateLine(src, sym) {
+  switch (src.state) {
+    case 'pending': return `Reading SEC EDGAR Form 4 filings for ${sym}.`
+    case 'not_found': return `No SEC filer could be matched to ${sym}, so insider activity is unknown.`
+    case 'unavailable': return 'SEC EDGAR could not be read just now, so insider activity is unknown.'
+    default: return null
+  }
+}
+
+function EdgarInsiderSection({ src, rows, sym, onRetry }) {
+  const readable = src.state === 'ok' || src.state === 'partial'
+  const unread = src.filings_unread || []
+  const windowDays = src.window_days || 180
+  return (
+    <section className={styles.card} data-testid="edgar-insider">
+      <div className={styles.ct}>Insider activity (recent)</div>
+      {!readable && (
+        <div className={styles.muted} style={{ fontSize: 12 }}>
+          {edgarStateLine(src, sym)}
+          {onRetry && (
+            <button type="button" className={styles.explainNewConvoBtn} style={{ marginLeft: 8 }} onClick={() => onRetry()}>
+              Check again
+            </button>
+          )}
+        </div>
+      )}
+      {readable && rows.length === 0 && (
+        <div className={styles.muted} style={{ fontSize: 12 }}>
+          {`No open-market insider buys or sells were filed on Form 4 in the last ${windowDays} days.`}
+        </div>
+      )}
+      {readable && rows.length > 0 && (
+        <div className={styles.rclist}>
+          {rows.map((t, i) => (
+            <div key={`${t.accession}-${t.date}-${i}`} className={styles.insrow}>
+              <span className={styles.rcdate}>{t.date}</span>
+              <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
+              <span className={t.type === 'buy' ? styles.up : styles.down}>{t.type}</span>
+              <span>{fmtShares(t.shares)}</span>
+              <span className={styles.muted}>{fmtMoney(t.amount)}</span>
+              {t.url
+                ? <a href={t.url} target="_blank" rel="noopener noreferrer" className={styles.muted}>{`Form ${t.form || '4'}`}</a>
+                : <span className={styles.muted}>{`Form ${t.form || '4'}`}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {readable && unread.length > 0 && (
+        <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }} data-testid="edgar-unread">
+          {`${unread.length} of ${src.filings_listed} filings could not be read: ${unread.map(u => u.accession).join(', ')}`}
+        </div>
+      )}
+      {readable && src.truncated_at_cap && (
+        <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>
+          {`Only the newest ${src.filings_read + unread.length} of ${src.filings_listed} filings were read.`}
+        </div>
+      )}
+      {readable && src.index_short && (
+        <div className={styles.muted} style={{ fontSize: 11, marginTop: 4 }}>
+          Older filings in this window are outside the SEC index read here.
+        </div>
+      )}
+      <div className={styles.muted} style={{ fontSize: 11, marginTop: 6 }}>
+        {`Source: SEC EDGAR Form 4 · open-market buys and sells filed in the last ${windowDays} days`}
+      </div>
+    </section>
+  )
+}
+
 export default function OwnershipTab({ sym }) {
-  const { data, isLoading } = useOwnership(sym)
+  const { data, isLoading, mutate } = useOwnership(sym)
   const session = useMarketOpen()
 
   if (isLoading) {
@@ -85,11 +159,12 @@ export default function OwnershipTab({ sym }) {
   const sh = o.short || {}
   const sc = o.share_counts || {}
   const insider = o.insider || []
+  const edgarSrc = o.insider_source || null
   const tf = o.thirteen_f || null
   const tfs = tf?.summary || {}
   const sessionContext = sessionModel(session)
   const empty = !(inst.holders?.length) && !insider.length && sh.shares_short == null
-    && inst.pct_held == null && !tf && sc.float_shares == null
+    && inst.pct_held == null && !tf && sc.float_shares == null && !edgarSrc
 
   return (
     <div className={styles.finWrap}>
@@ -221,7 +296,11 @@ export default function OwnershipTab({ sym }) {
         </section>
       )}
 
-      {!!insider.length && (
+      {edgarSrc && (
+        <EdgarInsiderSection src={edgarSrc} rows={insider} sym={o.sym || sym} onRetry={mutate} />
+      )}
+
+      {!edgarSrc && !!insider.length && (
         <section className={styles.card}>
           <div className={styles.ct}>Insider activity (recent)</div>
           <div className={styles.rclist}>

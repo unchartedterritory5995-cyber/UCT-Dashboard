@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 _FWD_YEARS = 4
 
 from api.services import earnings_estimates as ee
+from api.services import fmp_client
 from api.services import fundamentals_estimates_store as store
 from api.services import yf_util
 
@@ -43,7 +44,11 @@ def _pct_chg(cur, prev):
 # ── Actuals sources (mockable) ───────────────────────────────────────────────
 def _annual_actuals_from_fmp(ticker: str) -> dict[int, dict]:
     """{year: {eps, sales}} from FMP stable/income-statement (annual)."""
-    data = ee._fmp_get("/stable/income-statement", {"symbol": ticker, "limit": 12}, timeout=10)
+    # TERM-072: through the D1 adapter; `body_or_none` keeps the retired
+    # `_fmp_get`'s "body, [] or None" contract (tests/test_term072_fmp_parity.py).
+    # period="annual" sends no `period` param -- exactly the legacy request.
+    data = fmp_client.body_or_none(fmp_client.get_income_statement, ticker,
+                                   period="annual", limit=12, timeout=10)
     out: dict[int, dict] = {}
     if isinstance(data, list):
         for row in data:
@@ -141,8 +146,8 @@ def _forward_estimates_fmp(ticker: str, now: float, last_actual_year: int | None
     off-by-one). Empty when gated off (FMP Ultimate feature) → yfinance backstop."""
     if os.environ.get("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "0").lower() not in ("1", "true", "yes"):
         return []
-    data = ee._fmp_get("/stable/analyst-estimates",
-                       {"symbol": ticker, "period": "annual", "limit": 20}, timeout=10)
+    data = fmp_client.body_or_none(fmp_client.get_analyst_estimates, ticker,
+                                   period="annual", limit=20, timeout=10)
     if not isinstance(data, list):
         return []
     floor = (last_actual_year if last_actual_year is not None
