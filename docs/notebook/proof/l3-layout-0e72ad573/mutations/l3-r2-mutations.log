@@ -1,0 +1,3 @@
+{"mutation": "M4-calendar-floor-removed", "file": "NoteCalendarView.module.css", "rc": 1, "totals": "Tests  2 failed | 22 passed (24)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M5-calendar-touch-floor-removed", "file": "NoteCalendarView.module.css", "rc": 1, "totals": "Tests  1 failed | 23 passed (24)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"control_all_restored": {"rc": 0, "totals": "Tests  24 passed (24)"}}

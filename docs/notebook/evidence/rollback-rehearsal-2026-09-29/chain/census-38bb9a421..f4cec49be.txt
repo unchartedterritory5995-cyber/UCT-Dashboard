@@ -1,0 +1,14 @@
+count 13 files 834
+f4cec49be S P Notebook 10/10 — wave 10 L2: phone Journal header + deep links, template gallery, editor h | app/src/pages/journal-2-0/JournalLayout.compactHeader.test.jsx,app/src/pages/journal-2-0/JournalLayout.jsx,app/src/pages/journal-2-0/JournalLayout.module.css
+3998b7c70 - P feat(TERM-035): derive nyseCalendar.js and nyse_calendar.py from market_calendar.json | app/src/components/screener/reachable.test.js
+3fa6e6bec - P test(reachable): register TERM-035's staged sessionCalendar.js, expiry 2026-11-30 | app/src/components/screener/reachable.test.js
+1b26a787b - P feat(charts): one Moving Average, timeframe visibility, calculation timeframes | app/src/pages/Settings.jsx
+c7a8a7309 - P fix(ai-spend): cap the Compass doors that spent model calls outside the chat cap | api/routers/journal_two.py
+4cd31df8b - P feat(term-077): copy-or-link a watchlist, chosen at import (dark) | api/routers/auth.py
+11f9c5803 - P feat(term-076): census and publish device-local vs cross-device settings | app/src/pages/Settings.jsx
+105e611ab - P feat(term-086): inbound TradingView alert receiver behind INBOUND_ALERTS_ENABLED (dark) | api/main.py
+948af2c17 - P feat(term-078): member-visible AI meters + a population-wide daily cap (FB-I1-04) | api/routers/journal_two.py,api/routers/notebook_writing_help.py,api/services/daily_counters.py
+dccc0acc4 - P feat(term-088): the decision record gets a member surface - DARK | api/main.py,api/routers/auth.py
+59eefe391 - P feat(term-081): give entitlements.py the users.toolkit column it reads | api/services/auth_db.py
+c26c8f863 - P feat(term-089): paid replay of past Morning Wire issues by date | tests/test_paywall_gate_free_tier.py
+91a33ea28 - P feat(term-080): per-route-family rate limits behind RATE_LIMIT_POLICY (shadow/enforce, def | api/main.py

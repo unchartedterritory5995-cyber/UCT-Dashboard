@@ -139,6 +139,10 @@
   font-size: 11px;
   line-height: 1.3;
   padding: 3px 5px;
+  /* Wave 10 lane L3 (clause 6c): 22.3 px tall at 820 and 1200; beside the hub's fixed
+     "Notebook actions" button it had no spacing to excuse it (WCAG 2.5.8). Rail:
+     a11y/targetFloors.test.js. */
+  min-height: 24px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,4 +225,16 @@
   font-size: 11px;
   font-style: italic;
   color: var(--text-muted);
+}
+
+/* Wave 10 lane L3, fix round 1 (review I-1): on the touch tier a note chip is a finger
+   target, like the timeline's bars and the tag remove x. Same selector as the base rule
+   and LATER in the file, so it wins at <=1024 px. Day cells grow to fit (min-height, not a
+   fixed height): measured with three chips on one day, before and after, in
+   docs/notebook/proof/l3-layout-0e72ad573/r1-calendar-{before,after}/ (calendar_cells).
+   Rail: a11y/targetFloors.test.js. */
+@media (max-width: 1024px) {
+  .chip {
+    min-height: var(--tap-min);
+  }
 }

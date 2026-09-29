@@ -1,0 +1,162 @@
+{
+  "label": "s-L2",
+  "mode": "check",
+  "identity": "http://127.0.0.1:8231 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1b\\t\\s-L2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T01-34-08.md (identity b6f22f4d25f3..., data dir C:\\data-w10r1b)",
+  "proven": true,
+  "fixtures": {
+    "n0": "434a9b485a7c42b6a4e3b5f7662e47c2",
+    "n1": "2f0db318393a40fc99993696bd905fd1",
+    "n2": "17d9dc5b535b45e0ad6db77a8812fbec"
+  },
+  "landings": {
+    "L1c_switcher_body_recall": {
+      "status": 200,
+      "text_matches": 1,
+      "rows": 1
+    },
+    "L1b_admin_notebook_slo": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "L1a_unbuildable_body_at_create": {
+      "status": 400
+    },
+    "h203_depth_cap_at_create": {
+      "status": 400
+    },
+    "w9_batch_export_bogus_format": {
+      "status": 422
+    },
+    "w8_share_links": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w8_publish": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "9C_admin_notebook_soak": {
+      "status": 422,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w7_personal_tokens": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w6_note_templates": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w5_switcher_door": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json",
+      "has_notes_key": true
+    }
+  },
+  "r1b_doors": {
+    "L1a_writing_help_autofill": {
+      "status": 422,
+      "content_type": "application/json",
+      "detail": "Writing help couldn't read that request. Reload the page and try again."
+    },
+    "w7_writing_help_stream": {
+      "status": 422,
+      "content_type": "application/json",
+      "detail": "Writing help couldn't read that request. Reload the page and try again."
+    },
+    "kept_TERM078_ai_meters": {
+      "status": 200,
+      "json": true,
+      "keys": [
+        "all_readable",
+        "meters",
+        "population"
+      ]
+    }
+  },
+  "L2_editor_header": {
+    "editor_mounted": true,
+    "more_note_actions_buttons": 0,
+    "page_errors": []
+  },
+  "dom": {
+    "skip_link": {
+      "present": true,
+      "pointerEvents": "none",
+      "opacity": "0"
+    },
+    "pane_heading": {
+      "present": true,
+      "focused": true,
+      "position": "absolute",
+      "pointerEvents": "none"
+    },
+    "page_errors": []
+  },
+  "editor": {
+    "n2": {
+      "note_id": "17d9dc5b535b45e0ad6db77a8812fbec",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n1": {
+      "note_id": "2f0db318393a40fc99993696bd905fd1",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n0": {
+      "note_id": "434a9b485a7c42b6a4e3b5f7662e47c2",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    }
+  }
+}

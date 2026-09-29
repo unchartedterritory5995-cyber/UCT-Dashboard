@@ -1,0 +1,145 @@
+{
+  "label": "r2-p13b-fd87271fd",
+  "mode": "check",
+  "identity": "http://127.0.0.1:8229 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1rb\\t\\r2-p13b-fd87271fd\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T18-11-01.md (identity 60cdf047f7d2..., data dir C:\\data-w10rb)",
+  "proven": true,
+  "fixtures": {
+    "n0": "30f4b9fc26494463bcc6259e53f85ae9",
+    "n1": "796689a565b7421cbf6a08feb244d3e5",
+    "n2": "90ed0e16d78a42498d26825e253aaf1f"
+  },
+  "landings": {
+    "L1c_switcher_body_recall": {
+      "status": 404,
+      "text_matches": 0,
+      "rows": 0
+    },
+    "L1b_admin_notebook_slo": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "L1a_unbuildable_body_at_create": {
+      "status": 200
+    },
+    "h203_depth_cap_at_create": {
+      "status": 400
+    },
+    "w9_batch_export_bogus_format": {
+      "status": 405
+    },
+    "w8_share_links": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "w8_publish": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "9C_admin_notebook_soak": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "w7_personal_tokens": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "w6_note_templates": {
+      "status": 200,
+      "json": false,
+      "content_type": "text/html"
+    },
+    "w5_switcher_door": {
+      "status": 404,
+      "json": true,
+      "content_type": "application/json",
+      "has_notes_key": false
+    }
+  },
+  "dom": {
+    "skip_link": {
+      "present": false
+    },
+    "pane_heading": {
+      "present": false
+    },
+    "page_errors": []
+  },
+  "editor": {
+    "n2": {
+      "note_id": "90ed0e16d78a42498d26825e253aaf1f",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [
+        "newer version of the app",
+        "Reload to edit it"
+      ],
+      "body_puts": [
+        {
+          "schema": "0"
+        },
+        {
+          "schema": "0"
+        }
+      ],
+      "put_statuses": [
+        409,
+        409
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": false,
+      "page_errors": []
+    },
+    "n1": {
+      "note_id": "796689a565b7421cbf6a08feb244d3e5",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [
+        "newer version of the app",
+        "Reload to edit it"
+      ],
+      "body_puts": [
+        {
+          "schema": "0"
+        },
+        {
+          "schema": "0"
+        }
+      ],
+      "put_statuses": [
+        409,
+        409
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": false,
+      "page_errors": []
+    },
+    "n0": {
+      "note_id": "30f4b9fc26494463bcc6259e53f85ae9",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "0"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    }
+  }
+}

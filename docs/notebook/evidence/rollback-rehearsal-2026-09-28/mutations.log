@@ -1,0 +1,12 @@
+M1 drop #201 from CHAIN: rc 1 | 3 failed, 4 passed in 27.97s | red: ['test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT', 'test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees', 'test_the_runbooks_chain_table_is_the_tools_chain']
+M2 tools/ no longer kept: rc 1 | 1 failed, 6 passed in 72.52s (0:01:12) | red: ['test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees']
+M3 tables and rails not restored: rc 1 | 1 failed, 6 passed in 22.77s | red: ['test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees']
+M11 rails not kept (round-1 behaviour): rc 1 | 1 failed, 6 passed in 22.89s | red: ['test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees']
+M4 census blind to wave 9C: rc 1 | 1 failed, 6 passed in 29.54s | red: ['test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT']
+M5 wave8 and 9C swapped in CHAIN: rc 1 | 5 failed, 2 passed in 20.50s | red: ['test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT', 'test_the_chain_is_newest_first_one_parent_squashes', 'test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees', 'test_an_unrecorded_conflict_stops_the_chain', 'test_the_runbooks_chain_table_is_the_tools_chain']
+M6 stale procedure: measured at #225, L1c left out: rc 1 | 4 failed, 3 passed in 25.35s | red: ['test_no_notebook_landing_after_MEASURED_AT_is_left_out', 'test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees', 'test_an_unrecorded_conflict_stops_the_chain', 'test_the_runbooks_chain_table_is_the_tools_chain']
+M7 wave-8 main.py rule set to ours: rc 1 | 1 failed, 6 passed in 25.84s | red: ['test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees']
+M8 doc chain table rows swapped: rc 1 | 1 failed, 6 passed in 28.85s | red: ['test_the_runbooks_chain_table_is_the_tools_chain']
+M9 doc drops the kept mark on #203: rc 1 | 1 failed, 6 passed in 28.63s | red: ['test_the_runbooks_chain_table_is_the_tools_chain']
+M10 tool keeps #204 only: rc 1 | 2 failed, 5 passed in 71.81s (0:01:11) | red: ['test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees', 'test_the_runbooks_chain_table_is_the_tools_chain']
+restored: {'notebook_rollback_chain.py': '023c168f8e81', 'test_notebook_rollback_chain.py': '4cd40bd7c333', 'wave5-rollback.md': '02162e9f1714'}

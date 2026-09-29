@@ -1,0 +1,608 @@
+"""Roll the Notebook back, newest landing first, as a CHAIN of commits built from objects only.
+
+    python tools/notebook_rollback_chain.py --through wave7              # from origin/master
+    python tools/notebook_rollback_chain.py --through wave5 --from <rev>
+    python tools/notebook_rollback_chain.py --list                        # the chain and keep-list
+    python tools/notebook_rollback_chain.py --check --from origin/master  # current (0) or stale (2)?
+
+It never touches a worktree, an index (only a temporary GIT_INDEX_FILE) or a ref. It writes ONE
+commit per step, each the parent of the next (so the result is a chain of commits on top of
+`--from`), prints one JSON line per step and, last, the chain's tip to review, e.g.
+
+    {"result": "<sha>", "tree": "<tree>", "through": "wave7", "from": "<sha>",
+     "next": "git switch -c rollback/notebook-through-wave7 <sha>"}
+
+⛔ The branch lands on master as ONE SQUASH-MERGE, so "revert the rollback" (rolling FORWARD) is
+reverting that one squash. Merged as a chain instead, `git revert <result>` would undo only the
+last step; the range `<from>..<result>` is what a revert would have to cover.
+
+⛔ FAIL CLOSED on anything not measured (review round 1, 2026-09-28). The tool refuses to run when
+`MEASURED_AT` is not an ancestor of `--from`, and when `MEASURED_AT..--from` holds a commit the
+landing census (subject, OR a path in the derived Notebook file set) marks as Notebook work
+that neither `CHAIN` nor `REVIEWED_NOT_LANDINGS` names. Every recorded
+conflict resolution is PINNED to the conflict content it was measured on (`PINS`): a later commit
+that changes the lines of a recorded conflict stops the chain instead of being resolved by a rule
+written for different lines.
+
+What "rolling back wave N" means at the measured tip (docs/notebook/wave5-rollback.md, the
+procedure; rehearsed on a sandbox for every step, 2026-09-28, and re-measured with L2 on top at
+f4cec49be, 2026-09-29, lane R1b): revert EVERY Notebook landing
+newer than or equal to N, newest first, one squash at a time, because every later wave is built
+on the earlier ones. At every step:
+
+  * `docs/`, `tools/`, `scripts/` and `CLAUDE.md` stay exactly as the previous step has them
+    (so as the tip has them): a rollback reverts what ships to members, never the records,
+    the runbook it is following, or the operator's own instruments;
+  * both schema tables stay byte-identical to the tip (`SCHEMA_FILES`): a table entry is never
+    removed (wave5-rollback.md, "Rules that outlive this wave"); so do the two rails that test
+    them (`SCHEMA_RAILS`);
+  * a product conflict is resolved ONLY by a recorded rule (`RULES`); any other conflict STOPS
+    the chain and names the file -- fail closed, never a guess.
+
+The keep-list, by rule (never reverted): the two server H14 hotfixes (`KEPT`), the schema tables,
+and, after wave 5's revert, the guard commits 8167f7aa0 and fd87271fd re-applied (tags
+notebook-wave5-guard-*). 82c56dd63 is not re-applied: measured, it conflicts in five files whose
+context wave 5's revert removes, and a rolled-back bundle declares schema 0 from every door,
+where it is not load-bearing (wave5-rollback.md, "Why 82c56dd63 rides along").
+
+MEASURED_AT is the tip the chain, its rules and the rehearsal were measured on.
+`tests/test_notebook_rollback_chain.py` rebuilds the chain from MEASURED_AT and asserts every
+step's tree equals the rehearsed one, and that no Notebook landing is missing from `CHAIN`.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+MEASURED_AT = "f4cec49be"          # moved from 38bb9a421 by lane R1b, 2026-09-29 (L2 #242 live)
+SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
+                "api/services/journal_two/notebook_schema.py")
+# The two rails that test those tables stay with them: a table kept at the tip checked by a rail
+# reverted to an older wave is a red rail on a correct tree (measured 2026-09-28: wave 6's revert
+# brought back a rail that expects no level 2; the 8167f7aa0 pick brought back one that expects
+# levels {0, 1} only).
+SCHEMA_RAILS = ("app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js",
+                "tests/test_notebook_schema_guard.py")
+KEEP_AT_TIP = SCHEMA_FILES + SCHEMA_RAILS
+KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
+
+# Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
+# A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
+CHAIN = [
+    ("L2", "f4cec49be", "wave 10 L2 #242"),
+    ("L1c", "38bb9a421", "wave 10 L1c #228"),
+    ("225", "4bba30b73", "#225 H14: the phone skip link"),
+    ("L1b", "d9e887ca0", "wave 10 L1b #224"),
+    ("L1a", "4f708a0d2", "wave 10 L1a #205"),
+    ("204", "2ab637644", "#204 H14: every read-then-write note door takes the write lock"),
+    ("203", "c6a8a9d3a", "#203 H14: depth cap, Word intake, PDF extraction budget"),
+    ("wave9", "1c4b0bf74", "wave 9 #202"),
+    ("201", "7e3f9e117", "#201 H14: the pane heading never moves the toolbar"),
+    ("wave8", "caf6d1b9e", "wave 8 #198"),
+    ("9C", "2e0598bfa", "wave 9C #197: the soak instrument"),
+    ("wave7", "f883e0996", "wave 7 #196"),
+    ("wave6", "271a078b6", "wave 6 #193"),
+    ("wave5", "2c3ed3093", "wave 5 #186"),
+]
+# Server write-safety hotfixes: never reverted with the features (measured merge-clean at every
+# step below them). --revert-hotfixes reverts them too (also measured merge-clean).
+KEPT = {"2ab637644", "c6a8a9d3a"}
+# After wave 5's revert, in this order.
+GUARD_PICKS = ("8167f7aa0", "fd87271fd")
+
+# The landing census (what counts as a Notebook landing past MEASURED_AT): two criteria, and a
+# one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
+#   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject takes one of the forms a
+#     Notebook LANDING's squash subject takes (`NOTEBOOK_SUBJECT`). Over wave5^..MEASURED_AT this
+#     selects exactly CHAIN.
+#   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
+#     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
+#     later change there cannot make a revert wrong). Review round 2 (2026-09-28): a hand-typed
+#     path regex missed real Notebook files (useJ2Notes.js, importer/commit.js,
+#     public_note_payload.py). ⚠️ The union is BROAD on purpose: shared files such as `app/src/
+#     App.jsx` and `api/main.py` are in it, so another workstream's commit that touches them is
+#     flagged too. Each such commit needs a REVIEWED_NOT_LANDINGS entry with a reason; that is the
+#     intended fail-closed behaviour, not noise to tune away.
+# The three forms CHAIN's own squash subjects take, read off them (a rail iterates CHAIN and asserts
+# every entry is still selected by this pattern):
+#   "Notebook [10/10 — ]wave N ..."            -- every wave squash (5 to 10 L2);
+#   "fix(notebook): ..." / "hotfix(notebook): ..." -- the H14 hotfixes #201 #203 #204 #225;
+#   "Wave 9C: ..."                              -- the soak instrument.
+# ⚰️ Until fix round 1 of lane R1b (2026-09-29) this was `\bnotebook\b` ANYWHERE in the subject,
+# which selected 3e5153f1d "perf(build): ... (Notebook bytes back under budget)" -- a build fix
+# the REVIEWED rail may not rule out (a subject-selected commit is a landing), so the next
+# re-measure would have had to add a build perf fix to the chain and revert it. A Notebook change
+# in any other form is still caught by the PATH criterion.
+NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebook\):|wave 9c\b)")
+# Commits a person reviewed and ruled NOT a Notebook landing although a criterion selects them:
+# {full sha: why}. Each one is selected by PATH only (never by subject: a subject-selected commit
+# is a landing and belongs in CHAIN); the rail re-derives that. Lane R1b, 2026-09-29: the twelve
+# path-only commits in 38bb9a421..f4cec49be, read one by one. Only 948af2c17 edits Notebook CODE
+# (the Ask and writing-help doors); it is a Terminal feature, not a landing, and its lines are
+# handled by the L1a and wave-7 rules below -- reported, not buried.
+REVIEWED_NOT_LANDINGS: dict[str, str] = {
+    "91a33ea2899afa7a635740b14c44b98d11f08169":
+        "Terminal TERM-080: rate-limit middleware mounted in api/main.py (shared file); dark, "
+        "edits no Notebook file",
+    "c26c8f8634152af58e289b769069cfbb730debdc":
+        "Terminal TERM-089: wire archive rows appended to tests/test_paywall_gate_free_tier.py "
+        "(shared rail wave 5 touched); the wave-5 rule keeps them",
+    "59eefe3913a11232e776052bd917f102927a99c8":
+        "Terminal TERM-081: users.toolkit column in api/services/auth_db.py (shared file), "
+        "not a Notebook change",
+    "dccc0acc4b4a474ecc32669d737c7ea8019444e4":
+        "Terminal TERM-088: decision-record router mounted in api/main.py and flag in "
+        "api/routers/auth.py (shared files); dark",
+    "948af2c17d034f2cf938acf2fa01f45e96d89671":
+        "Terminal TERM-078: AI meters + population cap. EDITS NOTEBOOK CODE (a dark population "
+        "gate in notebook_writing_help.py and the Ask door in journal_two.py, a read() in "
+        "daily_counters.py); not a landing -- the L1a and wave-7 rules resolve its lines",
+    "105e611abe18b16db6c3287861b153edcc10a5a5":
+        "Terminal TERM-086: inbound-alerts router mounted in api/main.py (shared file); dark",
+    "11f9c5803da4bb4981bdf68fdf9271c999ed777d":
+        "Terminal TERM-076: DeviceSyncCard mounted in app/src/pages/Settings.jsx (shared file)",
+    "4cd31df8b24024b7958af0bd0335d0d31ea14cd1":
+        "Terminal TERM-077: watchlist copy-or-link flag in api/routers/auth.py (shared file); dark",
+    "c7a8a7309c963032d45c1cc129efdd3b52a1eb74":
+        "Compass ai-spend: daily caps on Compass routes in api/routers/journal_two.py (shared "
+        "J2 router), no Notebook route touched",
+    "1b26a787bf556fe8a8a9b3850ddff3a0c5e51c40":
+        "Charts: moving-average settings in app/src/pages/Settings.jsx (shared file)",
+    "3fa6e6becb4d43f23129931f405458d2041566a7":
+        "Terminal TERM-035: registers sessionCalendar.js in "
+        "app/src/components/screener/reachable.test.js (shared rail)",
+    "3998b7c7053ebddbc17d315ed9acee08c3359ae7":
+        "Terminal TERM-035: NYSE calendar derivation; edits "
+        "app/src/components/screener/reachable.test.js (shared rail)",
+}
+_NOTEBOOK_FILES: dict[str, frozenset] = {}
+# `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
+# the hunk -- the tip's `_OPEN_READS` dependency on the journal_two mount (94926db1e, not a
+# Notebook commit) included -- stays.
+# Recorded resolutions for PRODUCT conflicts, {squash: {path: rule}}:
+#   "delete"  the file goes (the wave added it; a later commit only touched its prose)
+#   "ours"    the previous step's copy
+#   ("hunks", [choice per conflict hunk], {post})  choice: "ours", "theirs", a literal
+#       replacement, or ["ours_drop", <substring>...] = ours minus the lines holding them
+#       (each substring must drop exactly one line); "all-ours" for every hunk.
+RULES: dict[str, dict] = {
+    # Lane R1b, measured at f4cec49be: TERM-078 (948af2c17) put one population-gate call inside
+    # L1a's property-autofill route. The route is L1a's own and goes whole ("theirs" = the
+    # pre-L1a side, which has no route); the `_population_gate` helper it calls stays, because
+    # the writing-help stream route (wave 7) still calls it.
+    "4f708a0d2": {"api/routers/notebook_writing_help.py": ("hunks", ["theirs"])},
+    "d9e887ca0": {
+        "app/src/components/CommandPalette.jsx": ("hunks", [["ours_drop", "lib/notebookTelemetry'"]]),
+        "tests/test_alert_destination.py": ("hunks", [[
+            "ours_drop", "Notebook wave 10 lane 10D: the Notebook save-SLO pager",
+            "read and converted at the Notebook's L1b integration",
+            "so it never shipped as a literal reader", "api/services/journal_two/notebook_slo.py"]]),
+    },
+    "caf6d1b9e": {
+        "api/main.py": ("hunks", [[
+            "ours_drop", "Wave 8 seam S8-2: the share routes' own router",
+            "# same pre-journal_two slot; tests/test_notebook_share_routes.py +",
+            "# tests/test_main_router_order.py).", "notebook_shares_router.router",
+            "Wave 8 seam S8-2: three STUB routers", "/api/j2/publish*|published* (8B)",
+            "Outside /api/j2/notes/..., so mount order", "notebook_publish_router.router",
+            "notebook_export_router.router", "notebook_onboarding_router.router"]]),
+        "api/routers/auth.py": ("hunks", [[
+            "ours_drop",
+            "# Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /",
+            "# falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.",
+            "from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on"]]),
+        "api/services/journal_two/public_note_payload.py": "delete",
+        "tests/test_share_publish_authorization.py": "delete",
+    },
+    "f883e0996": {
+        "api/main.py": ("hunks", [[
+            "ours_drop", "# Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.",
+            "# Mounted beside the other pre-journal_two Notebook routers; no path here can",
+            "# be shadowed by journal_two's /api/j2/notes/{note_id} (different depth), but",
+            "# the family is kept together and the mount is railed by name",
+            "# (tests/test_main_router_order.py).", "notebook_writing_help_router.router"]]),
+        # Lane R1b, measured at f4cec49be (modify/delete: wave 7 added both files, TERM-078
+        # 948af2c17 edited both). The writing-help router is wave 7's own door and goes; its
+        # only later edit is TERM-078's population gate, which gates nothing once the route
+        # is gone.
+        "api/routers/notebook_writing_help.py": "delete",
+        # ⛔ daily_counters.py STAYS: it is no longer the Notebook's alone. TERM-078's
+        # ai_population_cap.py and c7a8a7309's compass_daily_caps.py import it at module
+        # level (journal_two.py imports compass_daily_caps), so deleting it stops the server
+        # from importing at all. Keep the newer work.
+        "api/services/daily_counters.py": "ours",
+    },
+    "271a078b6": {"api/main.py": ("hunks", [[
+        "ours_drop", "# Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before",
+        "# journal_two, or /api/j2/notes/tasks is answered as a note called",
+        "# (lane F's report; rail tests/test_main_router_order.py).",
+        "notebook_insights_router.router", "client_errors_router.router",
+        "notebook_link_preview_router.router"]]),
+                  "api/services/client_errors.py": "delete"},
+    # Lane R1b, measured at f4cec49be: TERM-089 (c26c8f863) appended its two /api/wire/archive
+    # rows to REACHED_FROM_FREE_PAGE right after wave 5's five editor-widget rows. The hunk's
+    # pre-wave-5 side is empty, so the resolution is exactly TERM-089's block: wave 5's rows go,
+    # TERM-089's stay (its PAID_NOW rows merged cleanly).
+    "2c3ed3093": {"tests/test_paywall_gate_free_tier.py": ("hunks", [
+        "    # TERM-089 (2026-09-28): the Morning Wire page itself mounts WireArchive, the\n"
+        "    # replay of PAST issues. Verdict, made out loud: today's wire stays free, past\n"
+        "    # issues are paid. The component renders NOTHING and fetches NOTHING unless\n"
+        "    # `useIsPaid()` is true (WireArchive.test.jsx asserts no request for a free\n"
+        "    # member), so a free member's page never sends the 402 this file proves.\n"
+        "    \"/api/wire/archive\":\n"
+        "        \"WireArchive on /morning-wire, rendered and fetched only for a paid \"\n"
+        "        \"member; a free member sees today's wire exactly as before.\",\n"
+        "    \"/api/wire/archive/\":\n"
+        "        \"Same component, the by-date read behind its date picker; same gate.\",\n"])},
+    "8167f7aa0": {
+        "app/src/pages/journal-2-0/lib/tiptap.js": ("hunks", "all-ours", {
+            "import_after": ("import StarterKit from '@tiptap/starter-kit'",
+                             "import { getSchema } from '@tiptap/core'"),
+            "append": (
+                "let editorSchemaCache = null\n"
+                "/**\n"
+                " * The app's REAL editor schema, built once from `buildExtensions()`. It is\n"
+                " * what notebookSchema.js::declaredNotebookSchema reads to declare which note\n"
+                " * types this bundle can read (X-UCT-Notebook-Schema).\n"
+                " */\n"
+                "export function editorSchema() {\n"
+                "  if (!editorSchemaCache) editorSchemaCache = getSchema(buildExtensions())\n"
+                "  return editorSchemaCache\n"
+                "}\n")}),
+    },
+}
+
+# Every recorded resolution is PINNED to the conflict it was measured on: sha256 (first 16 hex)
+# of the conflict hunks' two sides (a hunk rule) or of the previous step's file (a "delete" or
+# "ours" rule), recorded at MEASURED_AT with `--record-pins`. A different conflict on the same
+# path STOPS. Re-recorded at f4cec49be (lane R1b, 2026-09-29): the ten pins recorded at
+# 38bb9a421 came back byte-identical, so the chain below L2 still composes unchanged from the
+# new tip; the four new pins are the four conflicts TERM-078 and TERM-089 introduced.
+PINS: dict[str, dict[str, str]] = {
+    "271a078b6": {
+        "api/main.py": "64a4d181d834d6cc",
+        "api/services/client_errors.py": "660c00227b8c0bc3",
+    },
+    "2c3ed3093": {
+        "tests/test_paywall_gate_free_tier.py": "3033a4865ff1c3ba",
+    },
+    "4f708a0d2": {
+        "api/routers/notebook_writing_help.py": "ecb06e27a7c24dea",
+    },
+    "8167f7aa0": {
+        "app/src/pages/journal-2-0/lib/tiptap.js": "af62a614d13bcc04",
+    },
+    "caf6d1b9e": {
+        "api/main.py": "e19c020e021008a4",
+        "api/routers/auth.py": "5525f10d14838f71",
+        "api/services/journal_two/public_note_payload.py": "77da29e1bdb202e7",
+        "tests/test_share_publish_authorization.py": "9f65da1bb6ff25e2",
+    },
+    "d9e887ca0": {
+        "app/src/components/CommandPalette.jsx": "01c1a8f549ba6de9",
+        "tests/test_alert_destination.py": "c50343b6f961eb35",
+    },
+    "f883e0996": {
+        "api/main.py": "ca48146728a32293",
+        "api/routers/notebook_writing_help.py": "f84695dfd9aa2ba4",
+        "api/services/daily_counters.py": "258b54f4a653f1c3",
+    },
+}
+
+NL = bytes([10])
+HUNK = re.compile(rb"<<<<<<< [^\n]*\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n", re.S)
+
+
+class ChainStopped(Exception):
+    """A conflict with no recorded rule: the chain refuses to guess."""
+
+
+def _git(*a, env=None, inp=None, ok=(0,)):
+    r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, env=env, input=inp)
+    if r.returncode not in ok:
+        raise RuntimeError(f"git {' '.join(a)}: rc {r.returncode}: {r.stderr.decode(errors='replace')}")
+    return r
+
+
+def _out(*a, **k) -> str:
+    return _git(*a, **k).stdout.decode("utf-8", errors="replace")
+
+
+def _blob(tree: str, path: str) -> str | None:
+    return _git("rev-parse", "--verify", "-q", f"{tree}:{path}", ok=(0, 1, 128)).stdout.decode().strip() or None
+
+
+def _fingerprint(merged: str, prev: str, path: str, rule) -> str:
+    """What a recorded rule was measured against: the conflict hunks' two sides for a hunk rule,
+    the previous step's file for a whole-file rule ("delete" removes it, "ours" keeps it).
+
+    ⛔ A whole-file rule is never fingerprinted by its hunks: on a modify/delete conflict git
+    leaves the file with NO conflict markers, so the hunk fingerprint is sha256(b"") -- the same
+    for every such conflict, i.e. a pin that can never fail (measured 2026-09-29: the first
+    record of wave 7's `api/services/daily_counters.py` "ours" rule came back e3b0c44298fc1c14)."""
+    import hashlib
+    if rule in ("delete", "ours"):
+        data = _git("cat-file", "blob", f"{prev}:{path}", ok=(0, 128)).stdout
+    else:
+        text = _git("cat-file", "blob", f"{merged}:{path}").stdout
+        data = bytes([0]).join(m.group(1) + bytes([1]) + m.group(2) for m in HUNK.finditer(text))
+    return hashlib.sha256(data).hexdigest()[:16]
+
+
+def _resolve_hunks(text: bytes, choices) -> bytes:
+    hunks = list(HUNK.finditer(text))
+    if choices == "all-ours":
+        choices = ["ours"] * len(hunks)
+    if len(hunks) != len(choices):
+        raise ChainStopped(f"{len(hunks)} conflict hunks, the rule names {len(choices)}")
+    res, pos = [], 0
+    for m, c in zip(hunks, choices):
+        res.append(text[pos:m.start()])
+        if isinstance(c, list) and c[:1] == ["ours_drop"]:
+            lines = m.group(1).splitlines(keepends=True)
+            keep = [ln for ln in lines if not any(s.encode("utf-8") in ln for s in c[1:])]
+            if len(lines) - len(keep) != len(c) - 1:
+                raise ChainStopped(f"ours_drop removed {len(lines) - len(keep)} lines for {len(c) - 1} substrings")
+            res.append(b"".join(keep))
+        elif c == "ours":
+            res.append(m.group(1))
+        elif c == "theirs":
+            res.append(m.group(2))
+        else:
+            res.append(c.encode("utf-8"))
+        pos = m.end()
+    res.append(text[pos:])
+    return b"".join(res)
+
+
+def apply_step(prev: str, squash: str, tip: str, *, pick: bool = False, pins=None) -> dict:
+    """One revert (or, `pick`, one cherry-pick) of `squash` onto `prev` -> a resolved tree."""
+    base, theirs = (f"{squash}^", squash) if pick else (squash, f"{squash}^")
+    r = _git("merge-tree", "--write-tree", "--name-only", "--messages", f"--merge-base={base}",
+             prev, theirs, ok=(0, 1))
+    lines = r.stdout.decode("utf-8", errors="replace").splitlines()
+    merged, conflicts, i = lines[0], [], 1
+    if r.returncode == 1:
+        while i < len(lines) and lines[i].strip():
+            conflicts.append(lines[i])
+            i += 1
+    conflicts = sorted(set(conflicts))
+    fd, idx = tempfile.mkstemp(prefix="nb-rollback-idx-")
+    os.close(fd)
+    os.remove(idx)
+    env = dict(os.environ, GIT_INDEX_FILE=idx)
+    try:
+        _git("read-tree", merged, env=env)
+        # KEEP_PATHS: the index's entries there are replaced wholesale by prev's.
+        want = {}
+        for ln in _out("ls-tree", "-r", prev, "--", *KEEP_PATHS).splitlines():
+            meta, path = ln.split("\t", 1)
+            mode, _kind, sha = meta.split()
+            want[path] = (mode, sha)
+        have = {}
+        for ln in _out("ls-files", "-s", "--", *KEEP_PATHS, env=env).splitlines():
+            meta, path = ln.split("\t", 1)
+            mode, sha, _stage = meta.split()
+            have[path] = (mode, sha)
+        info = [f"0 {'0' * 40}\t{p}" for p in have if p not in want]
+        info += [f"{m} {s}\t{p}" for p, (m, s) in want.items() if have.get(p) != (m, s)]
+        if info:
+            _git("update-index", "--index-info", env=env, inp=("\n".join(info) + "\n").encode("utf-8"))
+
+        def put_from(tree, path):
+            b = _blob(tree, path)
+            if b is None:
+                _git("update-index", "--force-remove", "--", path, env=env)
+            else:
+                mode = _out("ls-tree", tree, "--", path).split()[0]
+                _git("update-index", "--add", "--cacheinfo", f"{mode},{b},{path}", env=env)
+
+        def put_bytes(path, data):
+            b = _git("hash-object", "-w", "--stdin", inp=data).stdout.decode().strip()
+            _git("update-index", "--add", "--cacheinfo", f"100644,{b},{path}", env=env)
+
+        product = [p for p in conflicts if p not in KEEP_AT_TIP
+                   and not any(p == k or p.startswith(k + "/") for k in KEEP_PATHS)]
+        rules = RULES.get(squash, {})
+        missing = [p for p in product if p not in rules]
+        if missing:
+            raise ChainStopped(f"{'cherry-pick' if pick else 'revert'} {squash}: no recorded rule for "
+                               f"the conflict in {', '.join(missing)}")
+        for p in product:
+            rule = rules[p]
+            fp = _fingerprint(merged, prev, p, rule)
+            if pins is not None:                       # --record-pins: collect, never enforce
+                pins.setdefault(squash, {})[p] = fp
+            elif PINS.get(squash, {}).get(p) != fp:
+                raise ChainStopped(
+                    f"{'cherry-pick' if pick else 'revert'} {squash}: the conflict in {p} is not the one "
+                    f"its rule was measured on at {MEASURED_AT} (fingerprint {fp}, recorded "
+                    f"{PINS.get(squash, {}).get(p)}). A later commit changed those lines: resolve by "
+                    "hand (keep the newer work, take out only this landing's own lines), record the "
+                    "rule and its pin, and rehearse the step (wave5-rollback.md, 'If the tool stops').")
+            if rule == "delete":
+                _git("update-index", "--force-remove", "--", p, env=env)
+            elif rule == "ours":
+                put_from(prev, p)
+            else:
+                post = rule[2] if len(rule) > 2 else {}
+                data = _resolve_hunks(_git("cat-file", "blob", f"{merged}:{p}").stdout, rule[1])
+                if post.get("import_after"):
+                    anchor, line = post["import_after"]
+                    if line.encode() not in data:
+                        j = data.index(NL, data.index(anchor.encode())) + 1
+                        data = data[:j] + line.encode() + NL + data[j:]
+                if post.get("append"):
+                    data = data.rstrip(NL) + NL + NL + post["append"].encode("utf-8")
+                if re.search(rb"^(<<<<<<<|>>>>>>>) ", data, re.M):
+                    raise ChainStopped(f"conflict markers left in {p}")
+                put_bytes(p, data)
+        would_change = [p for p in KEEP_AT_TIP if p in conflicts or _blob(merged, p) != _blob(prev, p)]
+        for p in KEEP_AT_TIP:
+            put_from(tip, p)
+        tree = _out("write-tree", env=env).strip()
+    finally:
+        if os.path.exists(idx):
+            os.remove(idx)
+    return {"op": "cherry-pick" if pick else "revert", "squash": squash, "conflicts": conflicts,
+            "product_conflicts": product, "schema_change_undone": would_change, "tree": tree,
+            "schema_identical_to_tip": all(_blob(tree, p) == _blob(tip, p) for p in KEEP_AT_TIP)}
+
+
+def plan(through: str, revert_hotfixes: bool = False) -> list[tuple[str, str, str, bool]]:
+    keys = [k for k, _s, _w in CHAIN]
+    if through not in keys:
+        raise SystemExit(f"--through must be one of {', '.join(keys)}")
+    kept = {k: s for k, s, _w in CHAIN if s in KEPT}
+    if through in kept and not revert_hotfixes:
+        raise ChainStopped(
+            f"--through {through}: {kept[through]} is a kept server hotfix, never reverted with the "
+            "features, so a rollback 'through' it would stop where the landing above it stops and "
+            "leave it in place. Name the landing above or below it, or pass --revert-hotfixes to "
+            "revert the hotfixes too (merge-clean, never booted).")
+    steps = []
+    for key, squash, what in CHAIN[: keys.index(through) + 1]:
+        if squash in KEPT and not revert_hotfixes:
+            continue
+        steps.append((key, squash, what, False))
+    if through == "wave5":
+        steps += [(f"guard-{g}", g, f"re-apply guard {g}", True) for g in GUARD_PICKS]
+    return steps
+
+
+def notebook_files() -> frozenset:
+    """The Notebook's file set, derived from git: every path any CHAIN landing's own squash
+    changed (its diff against its one parent), minus KEEP_PATHS. Cached per process."""
+    key = ",".join(s for _k, s, _w in CHAIN)
+    if key not in _NOTEBOOK_FILES:
+        files = set()
+        for _k, squash, _w in CHAIN:
+            files.update(_out("diff-tree", "--no-commit-id", "--name-only", "-r", squash).splitlines())
+        _NOTEBOOK_FILES[key] = frozenset(
+            f for f in files if f and not any(f == k or f.startswith(k + "/") for k in KEEP_PATHS))
+    return _NOTEBOOK_FILES[key]
+
+
+def notebook_landings(rng: str) -> list[dict]:
+    """Every one-parent commit in `rng` (newest first) that EITHER census criterion selects:
+    [{"sha", "subject", "by_subject", "by_path", "paths"}]. Merges are skipped: a Notebook landing
+    is a squash."""
+    out = []
+    for line in _out("log", "--format=%H %P%x09%s", rng).splitlines():
+        head, subject = line.split("\t", 1)
+        sha, *parents = head.split()
+        if len(parents) != 1:
+            continue
+        files = _out("diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines()
+        ships = any(f.startswith(("app/", "api/")) for f in files)
+        by_subject = bool(ships and NOTEBOOK_SUBJECT.search(subject))
+        nb = notebook_files()
+        paths = [f for f in files if f in nb]
+        if by_subject or paths:
+            out.append({"sha": sha, "subject": subject, "by_subject": by_subject,
+                        "by_path": bool(paths), "paths": paths[:5]})
+    return out
+
+
+def check_base(start_sha: str) -> str | None:
+    """Why the chain must not run from `start_sha`, or None. The reason says what to re-measure."""
+    measured = _out("rev-parse", "--verify", f"{MEASURED_AT}^{{commit}}").strip()
+    if _git("merge-base", "--is-ancestor", measured, start_sha, ok=(0, 1)).returncode != 0:
+        return (f"{start_sha[:9]} does not contain MEASURED_AT {MEASURED_AT}: the chain and every rule "
+                "were measured on a tree this base is not built on. Re-measure the chain from this base "
+                "(wave5-rollback.md, 'If the tool stops') before rolling anything back.")
+    named = {_out("rev-parse", f"{s}^{{commit}}").strip() for _k, s, _w in CHAIN}
+    new = [c for c in notebook_landings(f"{measured}..{start_sha}")
+           if c["sha"] not in named and c["sha"] not in REVIEWED_NOT_LANDINGS]
+    if new:
+        rows = "; ".join(
+            f"{c['sha'][:9]} {c['subject'][:70]!r} (selected by "
+            + " and ".join(k for k, v in (("subject", c["by_subject"]), ("path", c["by_path"])) if v)
+            + (": " + ", ".join(c["paths"]) if c["paths"] else "") + ")" for c in new)
+        return (f"{len(new)} commit(s) after MEASURED_AT {MEASURED_AT} look like Notebook landings the "
+                f"chain does not name: {rows}. Add each landing to CHAIN newest first (or, if a person "
+                "rules it is NOT one, to REVIEWED_NOT_LANDINGS with the reason), re-run from the new "
+                "tip, record a rule and a pin for each conflict, rehearse the new step on a sandbox, "
+                "and move MEASURED_AT.")
+    return None
+
+
+def run(start: str, through: str, revert_hotfixes: bool = False, emit=print, pins=None) -> dict:
+    tip = _out("rev-parse", "--verify", f"{start}^{{commit}}").strip()
+    why = check_base(tip)
+    if why:
+        raise ChainStopped(why)
+    measured = _out("rev-parse", "--verify", f"{MEASURED_AT}^{{commit}}").strip()
+    if tip != measured:
+        n = len(_out("rev-list", f"{measured}..{tip}").split())
+        emit(json.dumps({"warning": (
+            f"the rules were measured at {MEASURED_AT}; this run is at {tip[:9]}, {n} commit(s) later, "
+            "with no uncharted Notebook landing among them and every conflict matching its pin. The "
+            "check list (step 2) and the sandbox rehearsal (step 3) are MANDATORY before this ships.")}))
+    prev = tip
+    for key, squash, what, pick in plan(through, revert_hotfixes):
+        res = apply_step(prev, squash, tip, pick=pick, pins=pins)
+        res.update(key=key, what=what)
+        msg = (f"{'Re-apply' if pick else 'Revert'} {squash} ({what}) -- Notebook rollback through "
+               f"{through}, built by tools/notebook_rollback_chain.py")
+        res["commit"] = _out("commit-tree", res["tree"], "-p", prev, "-m", msg).strip()
+        emit(json.dumps(res))
+        prev = res["commit"]
+    final = {"result": prev, "tree": _out("rev-parse", f"{prev}^{{tree}}").strip(), "through": through,
+             "from": tip, "next": f"git switch -c rollback/notebook-through-{through} {prev}"}
+    emit(json.dumps(final))
+    return final
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    ap.add_argument("--through", help="the oldest landing to roll back (see --list)")
+    ap.add_argument("--from", dest="start", default="origin/master")
+    ap.add_argument("--revert-hotfixes", action="store_true",
+                    help=f"revert the kept server hotfixes {sorted(KEPT)} as well")
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--check", action="store_true",
+                    help="is the chain current at --from? Prints the verdict; exit 0 current, 2 stale "
+                         "(re-measure first: wave5-rollback.md, 'If the tool stops')")
+    ap.add_argument("--record-pins", action="store_true",
+                    help="run --through from MEASURED_AT with pins NOT enforced and print the pins "
+                         "measured there (paste into PINS; the rail rebuilds and checks them)")
+    a = ap.parse_args(argv)
+    if a.record_pins:
+        got: dict = {}
+        run(MEASURED_AT, a.through or "wave5", a.revert_hotfixes, emit=lambda _l: None, pins=got)
+        print(json.dumps(got, indent=4, sort_keys=True))
+        return 0
+    if a.check:
+        # The same question run() asks before it builds anything (run() still asks it itself).
+        tip = _out("rev-parse", "--verify", f"{a.start}^{{commit}}").strip()
+        why = check_base(tip)
+        print(json.dumps({"check": "stale" if why else "current", "from": tip,
+                          "measured_at": MEASURED_AT, **({"stopped": why} if why else {})}))
+        return 2 if why else 0
+    if a.list:
+        for key, squash, what in CHAIN:
+            print(f"{key:6} {squash}  {what}{'  [KEPT unless --revert-hotfixes]' if squash in KEPT else ''}")
+        print(f"after wave5: re-apply {', '.join(GUARD_PICKS)}; kept paths: {', '.join(KEEP_PATHS)}; "
+              f"schema tables: {', '.join(SCHEMA_FILES)}")
+        return 0
+    if not a.through:
+        ap.error("--through is required (or --list)")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    try:
+        run(a.start, a.through, a.revert_hotfixes)
+    except ChainStopped as e:
+        print(json.dumps({"stopped": str(e)}))
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
