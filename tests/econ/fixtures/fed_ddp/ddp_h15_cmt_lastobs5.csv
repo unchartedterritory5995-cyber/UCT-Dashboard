@@ -1,0 +1,11 @@
+"Series Description","Market yield on U.S. Treasury securities at 1-month   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 3-month   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 6-month   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 1-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 2-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 3-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 5-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 7-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 10-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 20-year   constant maturity, quoted on investment basis","Market yield on U.S. Treasury securities at 30-year   constant maturity, quoted on investment basis"
+"Unit:","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year","Percent:_Per_Year"
+"Multiplier:","1","1","1","1","1","1","1","1","1","1","1"
+"Currency:","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA","NA"
+"Unique Identifier: ","H15/H15/RIFLGFCM01_N.B","H15/H15/RIFLGFCM03_N.B","H15/H15/RIFLGFCM06_N.B","H15/H15/RIFLGFCY01_N.B","H15/H15/RIFLGFCY02_N.B","H15/H15/RIFLGFCY03_N.B","H15/H15/RIFLGFCY05_N.B","H15/H15/RIFLGFCY07_N.B","H15/H15/RIFLGFCY10_N.B","H15/H15/RIFLGFCY20_N.B","H15/H15/RIFLGFCY30_N.B"
+"Time Period","RIFLGFCM01_N.B","RIFLGFCM03_N.B","RIFLGFCM06_N.B","RIFLGFCY01_N.B","RIFLGFCY02_N.B","RIFLGFCY03_N.B","RIFLGFCY05_N.B","RIFLGFCY07_N.B","RIFLGFCY10_N.B","RIFLGFCY20_N.B","RIFLGFCY30_N.B"
+2026-09-21,3.96,4.17,4.27,4.45,4.76,4.82,4.83,4.89,4.96,5.33,5.29
+2026-09-22,3.97,4.16,4.26,4.43,4.71,4.81,4.83,4.89,4.96,5.33,5.29
+2026-09-23,3.99,4.19,4.31,4.49,4.85,4.97,4.99,5.05,5.11,5.45,5.40
+2026-09-24,4.01,4.24,4.34,4.51,4.87,4.99,5.03,5.10,5.18,5.53,5.47
+2026-09-25,4.04,4.24,4.33,4.50,4.81,4.94,4.98,5.06,5.17,5.54,5.49

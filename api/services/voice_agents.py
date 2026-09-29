@@ -416,10 +416,11 @@ def _compass_tool_union() -> set[str]:
     out.add("get_recent_splits")       # corporate actions
     out.add("get_crypto_snapshot")     # BTC/ETH/SOL/etc
     out.add("get_forex_snapshot")      # EURUSD/USDJPY/etc
-    # FRED economic data (yields, CPI, GDP, unemployment, M2, Fed balance,
-    # etc). Free public API with friendly alias catalog.
-    out.add("get_economic_series")
-    out.add("list_economic_series")
+    # Economic data series: the FRED lane is RETIRED (not a licensed
+    # production source -- api/services/fred_economic.py). The tools stay
+    # registered but answer "unavailable"; they are NOT offered to the global
+    # agent so Compass does not burn a turn on a tool that cannot answer.
+    # Re-add them when the licensed econ service (api/services/econ) is wired.
     # SEC EDGAR filings — recent + full-text. Free.
     out.add("get_sec_filings")
     out.add("search_sec_filings")

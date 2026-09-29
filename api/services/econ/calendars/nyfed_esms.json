@@ -1,0 +1,15 @@
+{
+  "_doc": "NY Fed Empire State Manufacturing Survey release dates, transcribed from the NY Fed survey overview month grid; the page states 'Released at or shortly after 8:30 a.m.' (date and time agency-stated, precision exact). The survey is released mid-month for the SAME month.",
+  "id": "nyfed_esms",
+  "coverage": {"start": "2026-07-01", "end": "2026-12-31"},
+  "imported_at": "2026-09-28",
+  "citations": {
+    "esms": "https://www.newyorkfed.org/survey/empire/empiresurvey_overview (fetched 2026-09-28): 2026 JUL 15, AUG 17, SEP 15, OCT 15, NOV 16, DEC 15; 'Released at or shortly after 8:30 a.m.'"
+  },
+  "calendars": {
+    "nyfed:esms": {"source": "configured", "precision": "exact", "time_et": "08:30",
+                   "date_cite": "esms", "time_cite": "esms",
+                   "events": [["2026-07-15", "2026-07"], ["2026-08-17", "2026-08"], ["2026-09-15", "2026-09"],
+                              ["2026-10-15", "2026-10"], ["2026-11-16", "2026-11"], ["2026-12-15", "2026-12"]]}
+  }
+}

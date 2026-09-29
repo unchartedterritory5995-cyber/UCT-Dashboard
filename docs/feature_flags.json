@@ -792,6 +792,19 @@
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
     },
+    "ECON_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Economic Data Phase 1 member API (api/routers/econ.py): GET /api/econ/catalog + /api/econ/series/{symbol} (require_bars_access, the chart-data gate) and the unauthenticated values-free /api/econ/status. SERVICE: web. Unset/0: every /api/econ/* route is the FastAPI 404 to every caller including admins (a router dependency, so it answers before auth and parameter validation); the frontend's `econ:` source reads 404 as UNSUPPORTED/NO_DATA and draws nothing. Dark until the econ service has ingested, validated and PUBLISHED artifacts (econ/v1/* in the data_sync bucket, ECON_SERVING_SOURCE=r2) -- arming before that makes every series an honest 404 no_data. Rollback = unset; published artifacts and econ.db are left in place. docs/economic-data/API.md."
+    },
+    "ECON_PUBLISH_R2": {
+      "status": "dark",
+      "where": [],
+      "exposure": "internal",
+      "default": "0",
+      "values": ["0", "1"],
+      "note": "Economic Data Phase 1 (api/services/econ/publish.py). SERVICE: the dedicated econ ingestion service only (python -m api.econ_main). 1 = publish series/vintages/catalog/status artifacts to the data_sync bucket under econ/v1/* so web can serve /api/econ/* with ECON_SERVING_SOURCE=r2; unset/0 = artifacts are written to the local ECON_ARTIFACT_DIR only and nothing leaves the service. INTERNAL exposure: the artifacts are served ONLY through the entitlement-gated /api/econ routes (require_bars_access) and the values-free status route; the bucket is not public and no edge cache keys them by URL alone. Never set during Phase 1 (owner no-deploy hold 2026-09-29). Rollback = unset; already-published objects are left in place."
+    },
     "EDGAR_OWNERSHIP_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",

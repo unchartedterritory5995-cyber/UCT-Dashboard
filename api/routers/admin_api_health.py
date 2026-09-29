@@ -29,7 +29,14 @@ _KEYS = {
         "FINNHUB_API_KEY",
         "FMP_API_KEY",
         "ALPHAVANTAGE_API_KEY",
-        "FRED_API_KEY",
+    ],
+    # Economic data (api/services/econ). FRED_API_KEY is gone on purpose: FRED is
+    # retired as a source and api/services/fred_economic.py ignores the key.
+    "economic_data": [
+        "BLS_API_KEY",
+        "BEA_API_KEY",
+        "CENSUS_API_KEY",
+        "EIA_API_KEY",
     ],
     "news_and_social": [
         "TWITTERAPI_IO_API_KEY",

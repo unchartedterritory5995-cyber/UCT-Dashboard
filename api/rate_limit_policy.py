@@ -194,7 +194,7 @@ FAMILIES: dict[str, Family] = {
         "reads a dashboard page mounts once and re-polls slowly.",
         ("/api/breadth", "/api/breadth-monitor", "/api/breadth-symbols", "/api/nhnl",
          "/api/rs-rankings", "/api/sector-strength", "/api/volume-scan",
-         "/api/scatter", "/api/market-indicators", "/api/regime", "/api/cot",
+         "/api/scatter", "/api/market-indicators", "/api/econ", "/api/regime", "/api/cot",
          "/api/analogs", "/api/leader-persistence", "/api/confluence",
          "/api/confidence-scores", "/api/theme-index", "/api/theme-performance",
          "/api/theme-rotation", "/api/theme-sets", "/api/themes", "/api/groups",
