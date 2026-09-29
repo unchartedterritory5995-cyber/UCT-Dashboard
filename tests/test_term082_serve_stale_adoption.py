@@ -446,6 +446,40 @@ def test_get_movers_other_callers_never_see_a_stale_list(mov, clock):
     assert mov.recomputes == 2
 
 
+def test_finviz_fetch_reports_a_failed_export_as_incomplete(monkeypatch):
+    """The completeness flag must come from the REAL fetch: a failed export is
+    swallowed and parses to [], exactly like a quiet tape, so without the flag
+    a Finviz outage would be cached and remembered as a complete movers list."""
+    from unittest.mock import MagicMock
+
+    monkeypatch.setenv("FINVIZ_API_KEY", "fake-token")
+    csv_ok = "Ticker,Company,Change\nAAA,Alpha Corp,+9.00%\n"
+    calls = {"n": 0, "fail_on": None}
+
+    def _get(url, **kw):
+        calls["n"] += 1
+        if calls["n"] == calls["fail_on"]:
+            raise RuntimeError("finviz 503")
+        r = MagicMock()
+        r.text = csv_ok
+        r.raise_for_status = MagicMock()
+        return r
+
+    monkeypatch.setattr(massive.httpx, "get", _get)
+
+    rip, drl, ok = massive._fetch_finviz_movers_checked()
+    assert ok is True and rip and rip[0]["sym"] == "AAA"
+
+    for fail_on in (1, 2):                        # either export failing
+        calls.update(n=0, fail_on=fail_on)
+        _rip, _drl, ok = massive._fetch_finviz_movers_checked()
+        assert ok is False, f"export {fail_on} failed and the fetch reported complete"
+
+    monkeypatch.delenv("FINVIZ_API_KEY")
+    assert massive._fetch_finviz_movers_checked() == ([], [], False)
+    assert massive._fetch_finviz_movers_live() == ([], [])   # old 2-tuple shape kept
+
+
 def test_server_timing_matches_the_bars_shape():
     st = serve_stale_mod.server_timing("snapshot", "stale-swr", 1.5, 20.0)
     assert st == 'snapshot;desc="stale-swr";dur=1.5, stale-age;dur=20000'
