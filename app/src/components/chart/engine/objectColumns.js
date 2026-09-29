@@ -27,6 +27,7 @@ import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret } from './ast/interpret'
 import { resolveInputs, bindConstsFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
+import { barOpenInstant } from '../indicators.js'
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -147,7 +148,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
  *        over the definition's declared defaults by the plot lane's own
  *        `resolveInputs`) and the chart's timeframe. The document's budget is
  *        read off the definition, never passed in.
- * @returns {{program, readNode, failed, form}} or null when there is nothing to read
+ * @returns {{program, readNode, readTime, failed, form}} or null when there is
+ *        nothing to read. `readTime` is the runtime's reader for a bare `time`.
  */
 export function objectReaderFor(definition, bars, opts = {}) {
   const program = definition && definition.objects
@@ -184,10 +186,23 @@ export function objectReaderFor(definition, bars, opts = {}) {
     tf: opts.tf,
     fold,
   }
+  // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
+  // instant in MILLISECONDS, exactly what the same name reads inside a tree
+  // (`time * 1000`, off the clock column `barOpenInstant` fills). The runtime
+  // reads it through `readTime`, so it is decided HERE, beside the trees, from
+  // the same bars and timeframe.
+  // ⚰️ The callers passed the bar's KEY (`bars[i].t`): a date string on a daily
+  // chart, unix seconds on an intraday one. So `label.new(time, …,
+  // xloc.bar_time)` handed the render state a different unit from
+  // `label.new(time + 1, …)`, and on a daily chart a string it dropped as `na`.
+  const readTime = (i) => {
+    const at = barOpenInstant(bars && bars[i] ? bars[i].t : undefined, opts.tf)
+    return at === null ? NaN : at * 1000
+  }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
     const { readNode, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, failed, refusals, form: 'graph' }
+    return { program, readNode, readTime, failed, refusals, form: 'graph' }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -221,5 +236,5 @@ export function objectReaderFor(definition, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { program: bound, readNode, failed, refusals, form: 'trees' }
+  return { program: bound, readNode, readTime, failed, refusals, form: 'trees' }
 }

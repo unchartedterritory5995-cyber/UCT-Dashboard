@@ -616,11 +616,13 @@ export function createBinder({ chart, LWC }) {
         const run = evaluateObjects(reader.program, {
           barCount: bars.length,
           readNode: reader.readNode,
-          readTime: (i) => bars[i] && bars[i].t,
+          readTime: reader.readTime,
         })
         return {
           run,
-          state: toRenderState(run.live, { bars }),
+          // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
+          // object on the bar whose opening instant it names.
+          state: toRenderState(run.live, { bars, tf: ctx.tf }),
           form: reader.form,
           // ⛔⛔ THE NODES THE OBJECT LANE COULD NOT EVALUATE, CARRIED OUT OF THE
           // ATTEMPT INSTEAD OF DISCARDED. `objectReaderFor` has always answered

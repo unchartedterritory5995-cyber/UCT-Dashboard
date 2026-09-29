@@ -156,9 +156,9 @@ function objectsOf(def, bars, ctx) {
     const reader = objectReaderFor(def, bars, { inputs: undefined, tf: ctx.tf, symbol: ctx.symbol })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
-      barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+      barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
     })
-    const state = toRenderState(run.live, { bars })
+    const state = toRenderState(run.live, { bars, tf: ctx.tf })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
     // runtime's LIVE set at the last bar — because that is what the capture's

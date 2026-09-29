@@ -146,9 +146,11 @@ describe('C3B — render state', () => {
     })
   })
 
-  it('⭐ `xloc.bar_time` means the coordinate ALREADY IS a time', () => {
+  it('⭐ `xloc.bar_time` means the coordinate ALREADY IS a time — a Pine time, in MILLISECONDS', () => {
+    // The series keys bars by unix SECONDS; Pine's `time` is milliseconds, and the
+    // render state hands the painter the series' own unit (objectBarTime.test.js).
     const t = BARS[3].t
-    const rs = toRenderState([live({ props: { x1: t, y1: 1, x2: t, y2: 2, xloc: 'bar_time' } })],
+    const rs = toRenderState([live({ props: { x1: t * 1000, y1: 1, x2: t * 1000, y2: 2, xloc: 'bar_time' } })],
       { bars: BARS })
     expect(rs.lines[0].x1).toBe(t)
   })
