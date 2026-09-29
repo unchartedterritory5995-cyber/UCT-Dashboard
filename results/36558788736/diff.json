@@ -1,0 +1,56 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 4,
+    "fixed": 4,
+    "unchanged": 149,
+    "missing": 0,
+    "baseline": 153,
+    "current": 153,
+    "current_ran": 63877,
+    "new_flaky": 0,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 153 = unchanged 149 + fixed 4 + missing 0  |  current 153 = unchanged 149 + new 4 + new-but-flaky 0",
+  "invalid_because": [
+    "current: shards_success 17 of 18"
+  ],
+  "baseline_run_id": "36549974905",
+  "current_run_id": "36558788736",
+  "baseline_sha": "5acc73133efcd5bf08e0425006cb858ed4db9998",
+  "current_sha": "98b82f7515d5bf0f8670c05a9bbf6ce2109b999a",
+  "commit_range": "5acc73133efcd5bf08e0425006cb858ed4db9998..98b82f7515d5bf0f8670c05a9bbf6ce2109b999a",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "vitest|src/lib/presentation/presentationSingleFormatter.test.js|the S8 provenance family formats nothing of its own > no file in it calls a locale formatter in CODE",
+    "vitest|src/lib/presentation/presentationSingleFormatter.test.js|the S8 provenance family formats nothing of its own > none of these files contains a regex literal the stripper cannot model"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_price_target-timeout]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_expired_day_serves_last_good_at_once_and_one_refresh_runs"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
