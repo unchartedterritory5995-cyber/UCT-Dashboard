@@ -2,12 +2,21 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'
-import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
+import { CHART_DEFAULTS, PRESETS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import { ENGINE_OWNED, engineDrawnInputs } from '../flipState'
 import { setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled } from '../instanceControls'
 import { SHIPPED_STACK_ORDER } from '../instances'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 // ─── ENGINE_ENABLED — THE FLAG THAT DECIDED NOTHING, DELETED ────────────────
 //

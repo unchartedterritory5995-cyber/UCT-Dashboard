@@ -33,11 +33,18 @@ import {
  *  question these writers exist to answer. `rsi` declares `placement.target:
  *  'pane'`, which is also what makes it the legacy-mirror case below. */
 function twoRsis() {
+  // ⚠️ THE NEW ID BY DIFFERENCE, NOT BY POSITION. `withInstances` sorts by
+  // definition rank, and since `maAdoption.js` a default blob carries the four
+  // adopted averages — so "the last element" is no longer the instance just added.
+  const ids = (c) => new Set(c.indicatorInstances.map((i) => i.instanceId))
+  const added = (before, after) => [...ids(after)].find((id) => !ids(before).has(id))
   let cs = mergeChartSettings({})
+  let prev = cs
   cs = addInstance(cs, 'rsi', registry)
-  const a = cs.indicatorInstances[cs.indicatorInstances.length - 1].instanceId
+  const a = added(prev, cs)
+  prev = cs
   cs = addInstance(cs, 'rsi', registry)
-  const b = cs.indicatorInstances[cs.indicatorInstances.length - 1].instanceId
+  const b = added(prev, cs)
   expect(a).not.toBe(b)
   return { cs, a, b }
 }

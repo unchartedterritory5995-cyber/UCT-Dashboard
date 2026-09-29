@@ -4,9 +4,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
-import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips, legendAlways } from './legendProbe'
+import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips, legendAlways as legendAlwaysBase } from './legendProbe'
 import { DEBOUNCE_MS } from '../../IndicatorSettingsDialog'
 import { stripComments } from './sourceScan'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+const legendAlways = (cs) => legendAlwaysBase(noDefaultAverages(cs))
 
 /** `StockChart.jsx`, resolved from THIS file rather than from `process.cwd()` —
  *  vitest is run from `app/` and from the repo root at different times. */
@@ -204,7 +208,9 @@ beforeEach(() => {
 
 const { default: StockChart } = await import('../../../StockChart')
 const registry = await import('../nativeRegistry')
-const { mergeChartSettings } = await import('../../chartDefaults')
+const { mergeChartSettings: mergeChartSettingsReal } = await import('../../chartDefaults')
+const mergeChartSettings = (x) => mergeChartSettingsReal(
+  typeof x === 'string' ? JSON.stringify(noDefaultAverages(JSON.parse(x))) : noDefaultAverages(x))
 const { ENGINE_OWNED } = await import('../flipState')
 const { isIndicatorEnabled } = await import('../instanceControls')
 const { computePaneLayout } = await import('../paneLayout')
@@ -1414,7 +1420,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
       'the eye did not hide the instance it names').toBe(true)
     // …and it moved ONE instance. A door addressing the DEFINITION would take
     // every copy with it, which is exactly what makes this door door EIGHT.
-    const others = (next.indicatorInstances || []).filter(i => i && i.instanceId !== id)
+    const others = withoutAdopted(next.indicatorInstances).filter(i => i && i.instanceId !== id)
     expect(others.length, 'the fixture drew only one instance — "nothing else moved" is vacuous')
       .toBeGreaterThan(1)
     expect(others.some(i => i.hidden === true || i.deleted === true),
@@ -1613,6 +1619,9 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     return {
       ...cs,
       indicatorInstances: [
+        // ⭐ The adopted averages' tombstones stay: they are what keeps the global
+        // blob's live `ovl:<i>` off this chart through the override merge.
+        ...cs.indicatorInstances.filter(i => i && /^ovl:/.test(i.instanceId)),
         { ...seeded, inputs: { ...(seeded.inputs || {}), period: 14 } },
         { instanceId: 'inst:rsi:1', defId: 'rsi', defVersion: seeded.defVersion,
           inputs: { ...(seeded.inputs || {}), period: 7 },

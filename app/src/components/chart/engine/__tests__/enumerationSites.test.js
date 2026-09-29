@@ -4,11 +4,20 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { ENGINE_OWNED } from '../flipState'
 import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
-import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
+import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
 import { REGISTRY_SIZES } from '../registrySizes'
 import { stripComments, stripPyComments } from './sourceScan'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 // ─── THE ENUMERATION LEDGER ─────────────────────────────────────────────────
 //

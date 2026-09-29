@@ -137,12 +137,15 @@ function SwatchRow({ label, value, onChange }) {
  * other study currently ON (library adds, member formulas, carved-out rows), so
  * what this sheet shows always agrees with the toolbar's ƒx badge — a running
  * study the sheet hides would read as a badge counting ghosts. */
-import { isOverlayRemoved } from '../../../components/chart/chartDefaults'
+// ⭐ The default averages are `movingAverage` INSTANCES (`maAdoption.js`); this
+// sheet still lists them by slot, reading and writing through the adopted
+// instance so the switch here and the chart agree.
+import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
 export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBrowseLibrary, onOpenSettings, className = '', initialEditing = null }) {
-  const overlays = Array.isArray(cs?.overlays) ? cs.overlays : []
+  const overlays = averageSlotView(cs)
   // Wave 8: tap a row's NAME to edit its parameters in a stacked mini-sheet —
   // period/color without the trip through the desktop settings modal.
   // null | {kind:'ma', idx} | {kind:'study', defId, instanceId?}
@@ -159,13 +162,16 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
 
   const toggle = (idx) => {
     haptics.tap()
-    const next = overlays.map((o, i) => (i === idx ? { ...o, enabled: !o.enabled } : o))
-    onWrite({ ...cs, overlays: next, preset: 'custom' })
+    const o = overlays[idx]
+    if (!o) return
+    const next = writeAverageSlot(cs, idx, 'enabled', !o.enabled)
+    if (next !== cs) onWrite({ ...next, preset: 'custom' })
   }
 
   const writeOverlay = (idx, patch) => {
-    const next = overlays.map((o, i) => (i === idx ? { ...o, ...patch } : o))
-    onWrite({ ...cs, overlays: next, preset: 'custom' })
+    let next = cs
+    for (const [field, value] of Object.entries(patch)) next = writeAverageSlot(next, idx, field, value)
+    if (next !== cs) onWrite({ ...next, preset: 'custom' })
   }
 
   // The instance an edit lands on. A legend-chip tap names the EXACT instance
@@ -202,7 +208,11 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
   const studyRows = useMemo(() => {
     const byId = new Map(rows.map((r) => [r.id, r]))
     const quick = QUICK_STUDY_IDS.map((id) => byId.get(id)).filter(Boolean)
-    const extras = rows.filter((r) => !QUICK_STUDY_IDS.includes(r.id) && isRowOn(r, cs))
+    // ⛔ NOT THE MOVING AVERAGE. Its instances are listed ABOVE, one switch per
+    // average; a per-DEFINITION switch here would tombstone every one of them —
+    // the member's default EMA 9 included — with one tap (`toggledRow` turns a
+    // definition off by tombstoning ALL its live instances).
+    const extras = rows.filter((r) => !QUICK_STUDY_IDS.includes(r.id) && r.id !== MA_DEF_ID && isRowOn(r, cs))
     return [...quick, ...extras]
   }, [rows, cs])
 
@@ -236,7 +246,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
             the slot in the STORED array, so `i` must stay the real index. A moving
             average the member removed keeps its slot (positional merge; see
             `chartDefaults`'s tombstone header) and only stops being LISTED. */}
-        {overlays.map((o, i) => [o, i]).filter(([o]) => !isOverlayRemoved(o)).map(([o, i]) => (
+        {overlays.map((o, i) => [o, i]).filter(([o]) => !!o).map(([o, i]) => (
           <div key={i} className={styles.indRow}>
             <button
               type="button"

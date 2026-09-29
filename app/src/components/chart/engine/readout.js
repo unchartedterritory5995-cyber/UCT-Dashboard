@@ -95,6 +95,7 @@
 // naming rule is shared and the other is deliberately spelled twice.
 import { semanticName, namesItselfSemantically } from './semanticName'
 import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
+import { tfLabel } from '../timeframes'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -386,8 +387,13 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     const format = fundamentalFormatOfInstance(
       (Array.isArray(instances) ? instances : []).find((i) => i && i.instanceId === e.instanceId) || { inputs },
       get, instances)
+    // ⭐ 2026-09-28 — A SERIES CALCULATED ON ANOTHER TIMEFRAME SAYS SO, QUIETLY:
+    // `SMA 200 · 1D`. Only a binding the binder computed in a HIGHER frame carries
+    // `frame` (a chart-frame series has none), so an ordinary indicator's chip is
+    // byte-identical to before.
+    const frameSuffix = typeof e.frame === 'string' && e.frame ? ` · ${tfLabel(e.frame)}` : ''
     const label = chipLabel(def, plot, inputs,
-      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null)
+      typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null) + frameSuffix
 
     out.push({
       defId: def.id,
@@ -400,6 +406,7 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       ...(format ? { format } : {}),
       value,
       text: `${label} ${chipValueText({ value, decimals, compact, format })}`,
+      ...(frameSuffix ? { frameSuffix } : {}),
     })
     inputsByChip.set(out.length - 1, inputs)
   }
@@ -681,7 +688,8 @@ export function engineChips(bindings, seriesData, registry, instances) {
   const entries = (Array.isArray(bindings) ? bindings : [])
     .filter(b => b && b.series)
     .map(b => ({ defId: b.defId, plotKey: b.plotKey, series: b.series, lastValue: b.lastValue, instanceId: b.instanceId,
-      ...(typeof b.valueAt === 'function' ? { valueAt: b.valueAt } : {}) }))
+      ...(typeof b.valueAt === 'function' ? { valueAt: b.valueAt } : {}),
+      ...(typeof b.frame === 'string' && b.frame ? { frame: b.frame } : {}) }))
   // ⛔ PER INSTANCE, NEVER PER DEFINITION. `cs.indicators[defId]` is the LEGACY
   // lane's answer and is simply wrong here: two instances of one definition are
   // two different periods and two different colours on one chart.
@@ -759,6 +767,12 @@ export function legendChips(bindings, seriesData, registry, instances) {
     // A tombstone has no defId by design; asking the registry about it would
     // only ever produce a misleading null.
     if (inst.deleted === true) continue
+    // ⛔ HIDDEN BY THE TIMEFRAME IS NOT HIDDEN BY THE MEMBER, AND IT GETS NO CHIP.
+    // A greyed chip is a "click to show" offer; showing it for an indicator the
+    // member set to "Daily only" while they look at a 5m chart would offer a click
+    // that cannot work here and leave a legend ghost on every excluded timeframe.
+    // `eligibility.eligibleInstances` stamps `hiddenBy` on the render copy only.
+    if (typeof inst.hiddenBy === 'string') continue
     const def = get(inst.defId)
     if (!def) continue
     const instHidden = inst.hidden === true
@@ -943,7 +957,10 @@ export function paneReadoutLabel(chip, def, sourceName) {
   if (!def) return chip.label
   // The sibling suffix travels with whichever name we choose — see
   // `disambiguateSiblings`, which stamps it onto the chip for exactly this.
-  const suffix = typeof chip.suffix === 'string' ? chip.suffix : ''
+  // ⭐ …and the calculation timeframe after it (`SMA 200 · 1D`), so the long name
+  // says what the chip says.
+  const suffix = (typeof chip.suffix === 'string' ? chip.suffix : '')
+    + (typeof chip.frameSuffix === 'string' ? chip.frameSuffix : '')
   if (def.meta && def.meta.labelFrom === 'source') {
     return (typeof sourceName === 'string' && sourceName)
       ? `${sourceName}${suffix}`

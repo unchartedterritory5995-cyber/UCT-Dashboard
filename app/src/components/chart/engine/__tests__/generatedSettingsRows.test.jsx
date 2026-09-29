@@ -4,7 +4,7 @@ import {
   listEngineIndicators, listAllIndicators, applyRowPatch, readEnabled,
   indTarget, splitIndTarget,
 } from '../../indicatorRegistry'
-import { mergeChartSettings, CHART_DEFAULTS } from '../../chartDefaults'
+import { mergeChartSettings as mergeChartSettingsReal, CHART_DEFAULTS } from '../../chartDefaults'
 import { CARVED_OUT_ROWS, NOT_IN_BLOB } from '../../indicatorCatalog'
 import { isIndicatorEnabled } from '../instanceControls'
 import { ENGINE_OWNED } from '../flipState'
@@ -13,6 +13,11 @@ import { computeIchimoku } from '../../indicators'
 import { makeBars } from './fakeChart'
 import ChartSettingsModal from '../../ChartSettingsModal'
 import { paneMap } from '../../chartDataMap'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+const mergeChartSettings = (x) => mergeChartSettingsReal(
+  typeof x === 'string' ? JSON.stringify(noDefaultAverages(JSON.parse(x))) : noDefaultAverages(x))
 
 /** Enough bars that every declared period actually computes (senkouB is 52). */
 const BARS = makeBars(260)
@@ -61,8 +66,10 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
     // FOUR overlay slots (EMA9/EMA20/SMA50/SMA200) — the terminal SMA5 was removed
     // 2026-08-27. Count is DERIVED from the blob (`CHART_DEFAULTS`), not typed.
     expect(base().overlays.length, 'the overlay slot count moved').toBe(4)
-    expect(rows.filter((r) => r.path.kind !== 'indicator').map((r) => r.id))
-      .toEqual([...base().overlays.map((_, i) => `overlay-${i}`), 'volume'])
+    // ⭐ 2026-09-28 — THE OVERLAY ROWS ARE GONE: every slot is adopted as a
+    // `movingAverage` instance (`maAdoption.js`), which lists as an ENGINE row. The
+    // volume pane is the one hand-written row left.
+    expect(rows.filter((r) => r.path.kind !== 'indicator').map((r) => r.id)).toEqual(['volume'])
     // …and the loop below is not iterating over an empty registry.
     expect(DEFS.length, 'the registry lists nothing — every case here would pass vacuously')
       .toBeGreaterThanOrEqual(14)
@@ -160,7 +167,7 @@ describe('the Indicators tab is generated from the definitions, all of them', ()
   // modal at once, with 4,485 green tests.
   it('⭐ a row for an indicator with NO instance shows the DEFINITION defaults, not blanks', () => {
     const cs = base()
-    expect(cs.indicatorInstances, 'the fixture has an instance — this case is the OTHER branch')
+    expect(withoutAdopted(cs.indicatorInstances), 'the fixture has an instance — this case is the OTHER branch')
       .toEqual([])
     expect(Object.keys(cs.indicators), 'the blob still carries indicator sections')
       .toEqual(['volumeProfile'])
@@ -380,7 +387,7 @@ describe('⭐ TASK 6 — one row per LIVE INSTANCE, and each row edits its own',
 
   it('a definition with NO instance still gets exactly ONE row — the "turn it on" control', () => {
     const cs = base()
-    expect(cs.indicatorInstances, 'the fixture already has instances — wrong branch').toEqual([])
+    expect(withoutAdopted(cs.indicatorInstances), 'the fixture already has instances — wrong branch').toEqual([])
     const rows = listAllIndicators(cs, engineRegistry, {}).filter(r => r.defId === 'obv')
     expect(rows).toHaveLength(1)
     expect(rows[0].instanceId, 'an off definition has no instance to name').toBeUndefined()

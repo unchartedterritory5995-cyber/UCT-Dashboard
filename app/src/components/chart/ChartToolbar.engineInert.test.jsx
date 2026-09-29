@@ -154,7 +154,10 @@ describe('the launcher that replaced them', () => {
       'stoch', true, engineRegistry)
     mount(cs)
     await openPanel(user)
-    expect(activeCount()).toBe('2')
+    // ⭐ 2026-09-28 — THREE: RSI, Stochastic AND the Moving Average. A default chart's
+    // four averages are `movingAverage` instances now (`maAdoption.js`), so the one
+    // reader (`isIndicatorEnabled`) truthfully reports the definition on.
+    expect(activeCount()).toBe('3')
   })
 
   it('⭐ …and a TOMBSTONE lowers it — a count off the raw mirror would not', async () => {
@@ -176,7 +179,8 @@ describe('the launcher that replaced them', () => {
     const user = userEvent.setup()
     mount(mergeChartSettings(JSON.stringify({ indicators: { volumeProfile: { enabled: true } } })))
     await openPanel(user)
-    expect(activeCount()).toBe('1')
+    // Volume Profile + the (adopted) Moving Average — see the case above.
+    expect(activeCount()).toBe('2')
     expect(catalogRows().some((r) => r.id === 'volumeProfile'),
       'volumeProfile left the catalog — the count above no longer covers it').toBe(true)
   })

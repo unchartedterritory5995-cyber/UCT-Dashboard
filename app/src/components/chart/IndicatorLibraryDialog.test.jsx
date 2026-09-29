@@ -313,7 +313,10 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // but a default blob DRAWS four moving averages and a volume pane, so `ma`
     // and `volume` are legitimately ON here and their ＋ is correct. Their own
     // on-ness is asserted in the built-in cases below.
-    const off = OFFERED().filter((r) => !r.builtIn).map((r) => r.id).filter((id) => id !== 'rsi')
+    // ⭐ 2026-09-28 — AND `movingAverage` IS ON TOO: those four default averages are
+    // `movingAverage` instances now (`maAdoption.js`), so its ＋ is correct here.
+    const off = OFFERED().filter((r) => !r.builtIn).map((r) => r.id)
+      .filter((id) => id !== 'rsi' && id !== 'movingAverage')
     expect(off.length, 'nothing is off — the control half is vacuous').toBeGreaterThan(5)
     for (const id of off) {
       expect(addAnotherIn(id), `${id} is OFF and offers "Add another" — there is nothing to `

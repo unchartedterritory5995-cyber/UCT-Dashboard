@@ -16,6 +16,7 @@
 // the workspace (patchOptsWithTheme + ChartsWorkspace.applyThemeToAllCharts).
 
 import { APP_THEME_BY_ID } from '../../styles/appThemes'
+import { isAdoptedSlot, recolorAdoptedAverage } from './maAdoption'
 
 // The families, in gallery order. Each theme carries a `family` key matching one
 // of these ids; the modal renders one filter pill per family (+ "All").
@@ -349,7 +350,7 @@ export function applyThemeToSettings(settings, theme) {
   const legend = theme.legend || (isLightBg ? '#1c2128' : '#d6d8dd')
   const title = theme.title || (isLightBg ? '#14181d' : '#e8e8ec')
 
-  return {
+  const out = {
     ...s,
     preset: 'custom',
     // Canvas
@@ -391,6 +392,17 @@ export function applyThemeToSettings(settings, theme) {
       close: { ...((s.prevDayLevels || {}).close || {}), ...(theme.text ? { color: theme.text } : {}) },
     },
   }
+  // ⭐ AN ADOPTED SLOT'S COLOUR LIVES ON ITS INSTANCE (`maAdoption.js`): the
+  // recoloured slot above is kept for an older client, and the average a member
+  // actually sees is `ovl:<i>` — so the theme's palette lands there, by position,
+  // exactly as it always landed on the slot.
+  let themed = out
+  if (Array.isArray(s.overlays)) {
+    s.overlays.forEach((o, i) => {
+      if (maColors[i] && isAdoptedSlot(o)) themed = recolorAdoptedAverage(themed, i, _rgbaAlpha(maColors[i], 0.75))
+    })
+  }
+  return themed
 }
 
 /**

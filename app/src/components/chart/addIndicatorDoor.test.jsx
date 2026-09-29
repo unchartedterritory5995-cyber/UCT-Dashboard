@@ -129,9 +129,16 @@ describe('⭐⭐ ONE MOVING AVERAGE IN BROWSE (owner §34)', () => {
     expect(row, 'the revive row is gone').toBeTruthy()
     expect(row.textContent).toMatch(/Restore EMA 9/)
     fireEvent.click(row)
-    expect(seen.cs.overlays[0].removed, 'the tombstone was not revived').toBe(false)
-    expect(seen.cs.overlays[0].period, 'the member’s own period was replaced').toBe(9)
-    expect(seen.cs.overlays[0].color, 'the member’s own colour was replaced').toBe('#4ade80')
+    // ⭐ 2026-09-28 — THE REVIVED SLOT IS RE-ADOPTED ON THE SPOT (`maAdoption.reviveSlot`):
+    // what the member gets back is the INSTANCE `ovl:0`, live, carrying the period
+    // and colour the slot kept — and the slot is marked adopted again, so no older
+    // reader draws it twice.
+    const back = (seen.cs.indicatorInstances || []).find((i) => i && i.instanceId === 'ovl:0')
+    expect(back && back.deleted !== true && back.hidden !== true, 'the tombstone was not revived').toBe(true)
+    expect(back.inputs.period, 'the member’s own period was replaced').toBe(9)
+    expect(back.inputs.color, 'the member’s own colour was replaced').toBe('#4ade80')
+    expect(back.inputs.maType).toBe('ema')
+    expect(seen.cs.overlays[0].adopted, 'the revived slot was not re-adopted').toBe('ovl:0')
     expect(seen.cs.overlays, 'a new slot was appended instead of reviving').toHaveLength(4)
   })
 

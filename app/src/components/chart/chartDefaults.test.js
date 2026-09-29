@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
+import { withoutAdopted } from './__fixtures__/adoptedAverages'
 // The real array the settings panel renders its rows from — imported, never
 // mirrored, so a key renamed on the toolbar side fails here instead of shipping
 // a checkbox that ticks and does nothing.
@@ -146,8 +147,10 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
       indicatorInstances: [{ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } }],
     }))
     expect(merged.settingsVersion).toBe(2)
-    expect(merged.indicatorInstances).toHaveLength(1)
-    expect(merged.indicatorInstances[0]).toEqual({ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } })
+    // ⭐ The four default averages ride too (`maAdoption.js`); the stored instance
+    // is what this line pins, unchanged.
+    expect(withoutAdopted(merged.indicatorInstances)).toHaveLength(1)
+    expect(withoutAdopted(merged.indicatorInstances)[0]).toEqual({ instanceId: 'a1', defId: 'rsi', inputs: { period: 7 } })
   })
 
   it('defaults them when absent — engine state starts empty, not undefined', () => {
@@ -156,7 +159,15 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
     // READ is what heals — so what comes out is the current version whatever
     // went in, and a fresh blob starts there.
     expect(merged.settingsVersion).toBe(2)
-    expect(merged.indicatorInstances).toEqual([])
+    // ⭐⭐ 2026-09-28 — A FRESH CHART STARTS WITH ITS FOUR DEFAULT AVERAGES AS
+    // INSTANCES, and nothing else. `maAdoption.js` folds `CHART_DEFAULTS.overlays`
+    // (EMA 9, EMA 20, SMA 50, SMA 200) into `movingAverage` instances on every
+    // read, so "engine state starts empty" became "engine state starts with the
+    // averages every chart has always drawn". Still an array, never undefined.
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([])
+    expect(merged.indicatorInstances.map((i) => [i.instanceId, i.defId, i.inputs.maType, i.inputs.period]))
+      .toEqual([['ovl:0', 'movingAverage', 'ema', 9], ['ovl:1', 'movingAverage', 'ema', 20],
+        ['ovl:2', 'movingAverage', 'sma', 50], ['ovl:3', 'movingAverage', 'sma', 200]])
   })
 
   it('⭐ …and the version is what comes OUT, not what went in — the read heals', () => {
@@ -172,7 +183,8 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
 
   it('a non-array indicatorInstances is coerced, never trusted', () => {
     const merged = mergeChartSettings(JSON.stringify({ indicatorInstances: { nope: true } }))
-    expect(merged.indicatorInstances).toEqual([])
+    expect(Array.isArray(merged.indicatorInstances)).toBe(true)
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([])
   })
 
   // ─── engineEnabled — DELETED AT B5 TASK 4, AND THE CASES ARE INVERTED ──────
@@ -199,7 +211,7 @@ describe('engine settings passthrough (settingsVersion + indicatorInstances)', (
     // …and the surrounding blob is otherwise intact, so this is the allow-list
     // dropping ONE key and not the merge failing.
     expect(merged.settingsVersion).toBe(2)
-    expect(merged.indicatorInstances).toEqual([])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([])
   })
 
   it('every stored value of it is destroyed alike — true, false and the impostors', () => {

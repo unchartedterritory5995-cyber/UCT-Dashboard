@@ -516,7 +516,10 @@ describe('golden blobs', () => {
 
       it('MERGING FIRST changes nothing an indicator says — it only makes defaults explicit', () => {
         const rawOut = migrateLegacyToInstances(fixture.cs)
+        // ⭐ `mergeChartSettings` also adopts the four default averages
+        // (`maAdoption.js`); what THIS case compares is the legacy fold.
         const mergedOut = migrateLegacyToInstances(mergeChartSettings(fixture.cs))
+          .filter(i => !/^ovl:/.test(i.instanceId))
         expect(ids(mergedOut)).toEqual(ids(rawOut))
         for (const before of rawOut) {
           const after = byId(mergedOut, before.instanceId)
@@ -531,7 +534,8 @@ describe('golden blobs', () => {
   it('all four presets migrate to nothing — every preset ships its indicators off', () => {
     for (const [name, preset] of Object.entries(PRESETS)) {
       expect(migrateLegacyToInstances(preset.settings), name).toEqual([])
-      expect(migrateLegacyToInstances(mergeChartSettings(preset.settings)), name).toEqual([])
+      expect(migrateLegacyToInstances(mergeChartSettings(preset.settings))
+        .filter(i => !/^ovl:/.test(i.instanceId)), name).toEqual([])
     }
   })
 })

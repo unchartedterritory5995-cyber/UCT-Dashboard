@@ -140,10 +140,18 @@ describe('where the control appears', () => {
     let cs = addInstance(mergeChartSettings({}), 'bb', registry)
     cs = withSeries(cs, 'QQQ').cs
     show(cs); openIndicators()
-    for (const name of [/^EMA 9$/, /^Volume$/]) {
+    for (const name of [/^Volume$/]) {
       openRow(name)
       expect(displayIn(name), `${name} grew a Display-in control`).toBeFalsy()
     }
+    // ⭐⭐ 2026-09-28 — AND EMA 9 IS NO LONGER A FIXTURE. The default averages are
+    // `movingAverage` INSTANCES (`maAdoption.js`), and one Moving Average means one
+    // Core: its Display control is the same one an added average has — offered
+    // because an average of close CAN draw in another pane (RSI's, QQQ's), which
+    // `displayTargetOptions` derives, not a rule written here.
+    openRow(/^EMA 9$/)
+    expect(displayIn(/^EMA 9$/), 'the default EMA 9 lost the Display control every average has')
+      .toBeTruthy()
     openRow(/Bollinger|^BB/)
     expect(displayIn(/Bollinger|^BB/), 'a plain price overlay grew one').toBeFalsy()
     // …and the control case really is present, so this is a contrast and not an

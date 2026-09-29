@@ -83,6 +83,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 import ChartsWorkspace, { uctDefaultChartSettings } from './ChartsWorkspace'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../components/chart/chartDefaults'
+import { withoutAdopted } from '../../components/chart/__fixtures__/adoptedAverages'
 
 function renderWS() {
   return render(
@@ -326,8 +327,10 @@ function expectEngineKeysFollowTheDefault(parsed) {
   // …and the deleted flag is not resurrected on the way out.
   expect(Object.prototype.hasOwnProperty.call(parsed, 'engineEnabled'),
     'the write stamped a key that no longer exists').toBe(false)
-  // …and read back through the real merge, which is what StockChart sees.
-  expect(mergeChartSettings(JSON.stringify(parsed)).indicatorInstances).toEqual([])
+  // …and read back through the real merge, which is what StockChart sees. ⭐ Since
+  // `maAdoption.js` that read also adopts the template's four averages as
+  // `ovl:<i>` instances — the template's OWN instance list is still the default.
+  expect(withoutAdopted(mergeChartSettings(JSON.stringify(parsed)).indicatorInstances)).toEqual([])
 }
 
 test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
@@ -363,7 +366,7 @@ test('site #22: the written blob follows the default when the default MOVES', ()
     const parsed = JSON.parse(uctDefaultChartSettings())
     expect(parsed.indicatorInstances,
       'the frozen capture is still pinning the pre-engine instance list').toEqual(moved)
-    expect(mergeChartSettings(uctDefaultChartSettings()).indicatorInstances).toEqual(moved)
+    expect(withoutAdopted(mergeChartSettings(uctDefaultChartSettings()).indicatorInstances)).toEqual(moved)
   } finally {
     CHART_DEFAULTS.indicatorInstances = restore
   }

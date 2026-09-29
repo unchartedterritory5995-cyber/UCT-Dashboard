@@ -549,8 +549,13 @@ export function seriesOptionsForPlot(plot, ctx) {
     // guide bands and Ichimoku's cloud edges are shape, not readings, and a
     // definition that already declines to put a plot in the legend has said so
     // once. Tag set == chip set, decided in one place, by the author.
-    lastValueVisible: c.lastValue === true
-      && !!(plot && plot.legend && plot.legend.hide !== true),
+    // ⭐ 2026-09-28 — A PLOT-LEVEL ANSWER OUTRANKS PLACEMENT'S, and only the
+    // surface's render look writes one (`presentation.lineLookPatch`): an adopted
+    // moving average shows its value tag exactly when `showMaLabels` says so, the
+    // rule the `cs.overlays` renderer applied — not when its placement owns an axis.
+    lastValueVisible: typeof (plot && plot.lastValueVisible) === 'boolean'
+      ? plot.lastValueVisible
+      : (c.lastValue === true && !!(plot && plot.legend && plot.legend.hide !== true)),
     visible: c.indicatorsHidden !== true,
     priceScaleId: (typeof c.scaleId === 'string' && c.scaleId) ? c.scaleId : MAIN_PRICE_SCALE_ID,
     // ⭐ A historical fundamental reads in ITS unit on the axis (`$365.0B`, `24.3%`,
@@ -561,7 +566,10 @@ export function seriesOptionsForPlot(plot, ctx) {
     // stretch it; anything owning its own band must. Always emitted, because a
     // key that can be set must be set on every bind or a re-purpose inherits it —
     // and there is no "omit to reset" for this one (LWC's merge skips undefined).
-    autoscaleInfoProvider: autoscaleProvider(c.autoscale),
+    // ⭐ …AND THE SAME OUTRANKING FOR AUTOSCALE: a moving average on price is
+    // part of the candles' framing (a far SMA 200 stays in view), as the overlay
+    // renderer drew it, unless the surface fits price to the candles.
+    autoscaleInfoProvider: autoscaleProvider((plot && plot.autoscale) || c.autoscale),
   }
 
   // ── A CANDLESTICK, WHICH SHARES ONLY THE BASE ─────────────────────────
@@ -614,7 +622,10 @@ export function seriesOptionsForPlot(plot, ctx) {
   base.lineWidth = markers ? 0 : (Number.isFinite(plot.width) ? plot.width : DEFAULT_LINE_WIDTH)
   const declared = lineStyleValue(plot.lineStyle, c.LineStyle)
   base.lineStyle = declared === undefined ? lineStyleValue('solid', c.LineStyle) : declared
-  base.lineType = lineTypeValue(plot.style === 'stepline' ? 'WithSteps' : 'Simple', c.LineType)
+  // ⭐ `plot.lineType: 'curved'` is the surface's smooth-curve look for a LINE
+  // (`presentation.lineLookPatch` never stamps it on a step).
+  base.lineType = lineTypeValue(plot.style === 'stepline' ? 'WithSteps'
+    : (plot.lineType === 'curved' ? 'Curved' : 'Simple'), c.LineType)
   base.pointMarkersVisible = markers
   base.pointMarkersRadius = (markers && Number.isFinite(plot.width)) ? plot.width : DEFAULT_DOT_RADIUS
 

@@ -9,7 +9,7 @@
 // is a TDZ crash inside the merge every chart is on. Both helpers moved to
 // `./instanceShape`, which imports nothing; this file re-exports them.
 import { UCT_DRAW_GOLD } from './drawingColors'
-import { migrateLegacyToInstances, normalizeInstances, instanceScope } from './engine/instances'
+import { migrateLegacyToInstances, normalizeInstances, instanceScope, stackRank } from './engine/instances'
 import * as engineRegistry from './engine/nativeRegistry'
 // The legend's one reader. Imported (never re-implemented) so the merge below
 // resolves `legendMode` by the SAME rule every surface reads it by — see the
@@ -17,6 +17,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 // this cannot start a cycle.
 import { explicitLegendMode } from './legendMode'
 import { explicitBarInfoFields } from './barInfoFields'
+import { adoptOverlayAverages } from './maAdoption'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -515,6 +516,38 @@ export function chartDefaultsForTheme(theme) {
 // ─── Deep merge user settings over defaults ──────────────────────────────────
 
 export function mergeChartSettings(userSettings) {
+  // ⭐ EVERY RETURN IS ADOPTED — see `maAdoption.js`. A member with no stored blob
+  // reads the defaults, and the defaults' four averages are instances too; a blob
+  // that fails to parse falls back to those same defaults.
+  const raw = mergeChartSettingsRaw(userSettings)
+  const out = adoptOverlayAverages(raw)
+  return out === raw ? out : placeAdopted(out, raw)
+}
+
+/**
+ * Put freshly adopted averages WHERE THE STACK ORDER PUTS THEM.
+ *
+ * ⛔ THE LIST ORDER IS READ BEFORE ANYONE WRITES. `withInstances` sorts by
+ * `stackRank` on every write, so a list the fold merely PREPENDED to would show one
+ * legend/z-order on first paint and another after the member's first edit. The
+ * adopted averages are inserted before the first instance ranked after
+ * `movingAverage` (the five price overlays, then anything later, then tombstones —
+ * the same place the writer's stable sort would move them), in slot order.
+ */
+function placeAdopted(out, raw) {
+  const before = new Set((raw.indicatorInstances || []).map((i) => i && i.instanceId))
+  const list = out.indicatorInstances || []
+  const fresh = list.filter((i) => i && !before.has(i.instanceId))
+  if (!fresh.length) return out
+  const rest = list.filter((i) => !(i && !before.has(i.instanceId)))
+  const maRank = stackRank('movingAverage')
+  const rankOf = (i) => (i && typeof i.defId === 'string' ? stackRank(i.defId) : Infinity)
+  let at = rest.findIndex((i) => rankOf(i) > maRank)
+  if (at < 0) at = rest.length
+  return { ...out, indicatorInstances: [...rest.slice(0, at), ...fresh, ...rest.slice(at)] }
+}
+
+function mergeChartSettingsRaw(userSettings) {
   if (!userSettings) return { ...CHART_DEFAULTS }
 
   let parsed = userSettings

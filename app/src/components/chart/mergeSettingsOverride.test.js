@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mergeChartSettings, mergeSettingsOverride, CHART_DEFAULTS } from './chartDefaults'
+import { withoutAdopted } from './__fixtures__/adoptedAverages'
 
 describe('mergeSettingsOverride', () => {
   const base = mergeChartSettings({ chartType: 'hollow', candles: { upColor: '#111111' } })
@@ -46,7 +47,8 @@ describe('mergeSettingsOverride', () => {
     })
     // the override patches b2 and LEAVES a1 alone — a wholesale array replace
     // would silently delete the user's other indicators in that grid cell
-    expect(out.indicatorInstances).toHaveLength(2)
+    // (The four adopted default averages ride in both — `maAdoption.js`.)
+    expect(withoutAdopted(out.indicatorInstances)).toHaveLength(2)
     expect(out.indicatorInstances.find(i => i.instanceId === 'a1').inputs.period).toBe(14)
     expect(out.indicatorInstances.find(i => i.instanceId === 'b2').inputs.fastPeriod).toBe(8)
   })

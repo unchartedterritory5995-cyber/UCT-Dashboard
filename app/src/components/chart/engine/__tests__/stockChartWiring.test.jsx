@@ -4,7 +4,11 @@ import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
 // where `settledLegend` is wrapped below.
-import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED, legendAlways } from './legendProbe'
+import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED, legendAlways as legendAlwaysBase } from './legendProbe'
+// ⭐ The four default averages are engine instances since maAdoption.js; this suite
+// measures the engine with nothing else drawn, so its charts delete them.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+const legendAlways = (cs) => legendAlwaysBase(noDefaultAverages(cs))
 // ⭐ PHASE D TASK 8 — the one place a registry count lives. See the loop-counter
 // note far below for why this is NOT the tautology the literal was guarding
 // against: `REGISTRY_SIZES` is a hand-written manifest's arithmetic, not the set
@@ -310,7 +314,11 @@ const { default: StockChart, ENGINE_OWNED } = await import('../../../StockChart'
 const registry = await import('../nativeRegistry')
 // The two settings ALLOW-LISTS a migrated instance has to survive — see the
 // round-trip suite at the bottom of this file.
-const { mergeChartSettings, mergeSettingsOverride } = await import('../../chartDefaults')
+const { mergeChartSettings: mergeChartSettingsReal, mergeSettingsOverride, CHART_DEFAULTS } = await import('../../chartDefaults')
+// ⭐ Same premise as `legendAlways` above: a blob this suite merges has no default
+// averages unless it names `overlays` itself.
+const mergeChartSettings = (x) => mergeChartSettingsReal(
+  typeof x === 'string' ? JSON.stringify(noDefaultAverages(JSON.parse(x))) : noDefaultAverages(x))
 // The FLIP-B writer. Cases that used to move `cs.indicators.<id>.enabled` by hand
 // have to go through it for a flipped id, because that field stopped being the
 // switch — writing it by hand is now a test of a mirror, not of a control.
@@ -1107,7 +1115,15 @@ describe('an engine series is inserted where its legacy twin would have been', (
   )
 
   it('lands AFTER volume and the MA overlays, and BEFORE the first legacy indicator', () => {
+    // ⭐ 2026-09-28 — THE DEFAULT AVERAGES ARE KEPT ON THIS CHART (explicit
+    // `overlays`), and they are ENGINE series now (`maAdoption.js`), ranked
+    // ahead of the five price overlays. So the invariants that still mean
+    // something are: the averages draw over volume, BB draws over the averages,
+    // and the engine block still lands after volume. RSI vs the averages is no
+    // longer an ordering question — both are the engine's, and RSI's band
+    // overlaps nothing.
     draw({
+      overlays: CHART_DEFAULTS.overlays,
       indicatorInstances: [RSI_INSTANCE],
       volume: { show: true },
       indicators: { rsi: { enabled: true }, bb: { enabled: true } },
@@ -1126,7 +1142,8 @@ describe('an engine series is inserted where its legacy twin would have been', (
     expect(bbIdx, 'no Bollinger bands').toBeGreaterThan(-1)
 
     expect(engineIdx).toBeGreaterThan(volumeIdx)
-    expect(engineIdx).toBeGreaterThan(lastMaIdx)
+    expect(lastMaIdx, 'an average drew under the volume bars').toBeGreaterThan(volumeIdx)
+    expect(bbIdx, 'BB drew under an average — the shipped stacking inverted').toBeGreaterThan(lastMaIdx)
     expect(engineIdx).toBeLessThan(bbIdx)
   })
 
@@ -2250,7 +2267,8 @@ describe('BB Flip A — the legacy block stands down, z-order is preserved', () 
   })
 
   it('lands AFTER volume and the MA overlays — it draws OVER them, as legacy does', () => {
-    draw({ ...BB_ON, indicatorInstances: [BB_INSTANCE], volume: { show: true } })
+    // ⭐ The default averages kept (engine series since `maAdoption.js`).
+    draw({ ...BB_ON, overlays: CHART_DEFAULTS.overlays, indicatorInstances: [BB_INSTANCE], volume: { show: true } })
     const MA_COLOURS = ['#4ade80', '#f472b6', '#60a5fa', '#fb923c', 'rgba(168,162,144,0.55)']
     const first = H.addSeriesCalls.findIndex(c => (c.options || {}).color === BB_COLOUR)
     const volumeIdx = H.addSeriesCalls.findIndex(c => (c.options || {}).priceFormat?.type === 'custom')
@@ -2785,7 +2803,7 @@ describe('a BB instance survives BOTH settings allow-lists', () => {
     // undeclared value riding in every stored blob again.
     const stored = JSON.stringify({ ...BB_ON, engineEnabled: true, indicatorInstances: [BB_INSTANCE] })
     const merged = mergeChartSettings(stored)
-    expect(merged.indicatorInstances).toEqual([BB_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([BB_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
     // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
     // ONE THIS TASK DESTROYS. It asserted `merged.indicators.bb.enabled === true`
@@ -2806,7 +2824,7 @@ describe('a BB instance survives BOTH settings allow-lists', () => {
     const out = mergeSettingsOverride(base, {
       indicatorInstances: [{ instanceId: 'legacy:bb', inputs: { stdDev: 3 } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(2)
     const bb = out.indicatorInstances.find(i => i.instanceId === 'legacy:bb')
     expect(bb.inputs).toEqual({ period: 20, stdDev: 3, color: BB_COLOUR })
     expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
@@ -3390,7 +3408,7 @@ describe('a MACD instance survives BOTH settings allow-lists', () => {
     // undeclared value riding in every stored blob again.
     const stored = JSON.stringify({ ...MACD_ON, engineEnabled: true, indicatorInstances: [MACD_INSTANCE] })
     const merged = mergeChartSettings(stored)
-    expect(merged.indicatorInstances).toEqual([MACD_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([MACD_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
     // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
     // ONE THIS TASK DESTROYS. It asserted `merged.indicators.macd.enabled === true`
@@ -3411,7 +3429,7 @@ describe('a MACD instance survives BOTH settings allow-lists', () => {
     const out = mergeSettingsOverride(base, {
       indicatorInstances: [{ instanceId: 'legacy:macd', inputs: { slowPeriod: 35 } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(2)
     const macd = out.indicatorInstances.find(i => i.instanceId === 'legacy:macd')
     expect(macd.inputs).toEqual({ ...MACD_INSTANCE.inputs, slowPeriod: 35 })
     expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
@@ -3955,7 +3973,7 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
     const merged = mergeChartSettings(JSON.stringify({
       ...VWAP_ON, engineEnabled: true, indicatorInstances: [VWAP_INSTANCE],
     }))
-    expect(merged.indicatorInstances).toEqual([VWAP_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([VWAP_INSTANCE])
     expect('engineEnabled' in merged).toBe(false)
     // ⭐⭐ B5 TASK 9 MOVED THIS DOWN A LEVEL, AND THE CONTROL IT REPLACES IS THE
     // ONE THIS TASK DESTROYS. It asserted `merged.indicators.vwap.enabled === true`
@@ -3969,7 +3987,7 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
     expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
     // …and the three style keys a narrower allow-list used to drop are on the
     // INSTANCE now, which is where the chart reads them from.
-    expect(merged.indicatorInstances[0].inputs)
+    expect(withoutAdopted(merged.indicatorInstances)[0].inputs)
       .toMatchObject({ opacity: 100, lineStyle: 'solid', lineWidth: 1 })
   })
 
@@ -3980,7 +3998,7 @@ describe('a VWAP instance survives BOTH settings allow-lists', () => {
     const out = mergeSettingsOverride(base, {
       indicatorInstances: [{ instanceId: 'legacy:vwap', inputs: { lineStyle: 'dotted' } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(2)
     const vwap = out.indicatorInstances.find(i => i.instanceId === 'legacy:vwap')
     expect(vwap.inputs).toEqual({ ...VWAP_INSTANCE.inputs, lineStyle: 'dotted' })
     expect(out.indicatorInstances.find(i => i.instanceId === RSI_INSTANCE.instanceId))
@@ -4569,13 +4587,18 @@ describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
     // answered for them would route them at `setIndicatorEnabled`, which refuses
     // an unknown id and returns `cs` UNCHANGED, so the keystroke would do nothing
     // and `lastSettings()` would throw rather than read as a pass.
-    const base = mergeChartSettings(null)
+    // ⭐ The REAL defaults — this case is about the four averages, which since
+    // `maAdoption.js` are `movingAverage` instances `ovl:<i>` whose `hidden` flag
+    // is the show/hide fact the slot's `enabled` used to be.
+    const base = mergeChartSettingsReal(null)
     const view = renderChart({ settings: base })
     // Direction-agnostic: the shipped defaults already enable some MA slots, so
     // `Ctrl+M`'s "if any are on, turn them all off" is a turn-OFF here. What must
     // hold is that the keystroke MOVED the overlays, not which way it moved them.
-    const anyOn = (s) => s.overlays.some(o => o && o.enabled)
-    expect(base.overlays.length, 'no MA overlay slots — vacuous').toBeGreaterThan(0)
+    const anyOn = (s) => (s.indicatorInstances || [])
+      .some(i => i && /^ovl:/.test(i.instanceId) && i.deleted !== true && i.hidden !== true)
+    expect(withoutAdopted(base.indicatorInstances).length + 4, 'vacuous')
+      .toBe((base.indicatorInstances || []).length)
 
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, code: 'KeyM', key: 'm' }) })
     const afterMa = view.lastSettings()
@@ -4658,8 +4681,10 @@ describe('B4 Task 5 — the share link is derived, not a hand-list of the pilots
     expect(cs.indicatorInstances.length, 'no instance to carry — vacuous').toBeGreaterThan(0)
     const view = renderChart({ settings: cs })
     const state = sharedState(await view.copyShareUrl())
-    expect(state.indicatorInstances, 'the sender\'s instances did not reach the link')
-      .toEqual(cs.indicatorInstances)
+    // ⚠️ The adopted `ovl:<i>` entries ride too, in the override merge's order (the
+    // base blob's first) — the sender's OWN instances are the claim here.
+    expect(withoutAdopted(state.indicatorInstances), 'the sender\'s instances did not reach the link')
+      .toEqual(withoutAdopted(cs.indicatorInstances))
     // ⭐ AND IT CARRIES NO FLAG (B5 Task 4). This asserted
     // `state.engineEnabled === (cs.engineEnabled === true)`; the key is deleted, so
     // emitting it would put an undeclared value in every shared URL that
@@ -5116,7 +5141,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
       indicators: { ...STOCH_ON, ...ATR_ON },
       indicatorInstances: [STOCH_INSTANCE, ATR_INSTANCE],
     }))
-    expect(merged.indicatorInstances).toEqual([STOCH_INSTANCE, ATR_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([STOCH_INSTANCE, ATR_INSTANCE])
     // ⭐ B5 TASK 9: the per-key list is ONE line now, so what the definitions
     // declare lives on the INSTANCE and the legacy sections are DESTROYED.
     expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
@@ -5128,7 +5153,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:stoch', inputs: { kPeriod: 34 } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(2)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(2)
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:stoch').inputs)
       .toEqual({ ...STOCH_INSTANCE.inputs, kPeriod: 34 })
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:atr')).toEqual(ATR_INSTANCE)
@@ -5521,7 +5546,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicators: { ...MFI_ON, ...CCI_ON, ...WR_ON },
       indicatorInstances: [MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE],
     }))
-    expect(merged.indicatorInstances).toEqual([MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE])
     // ⭐ B5 TASK 9: the per-key list is ONE line, so the mirror is DESTROYED and
     // the declared inputs live on the instance. Both directions asserted.
     expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
@@ -5535,7 +5560,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:williamsR', inputs: { period: 34 } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(3)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(3)
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:williamsR').inputs)
       .toEqual({ ...WR_INSTANCE.inputs, period: 34 })
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:mfi')).toEqual(MFI_INSTANCE)
@@ -5985,7 +6010,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
       indicatorInstances: [ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE],
     }))
-    expect(merged.indicatorInstances).toEqual([ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE])
+    expect(withoutAdopted(merged.indicatorInstances)).toEqual([ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE])
     // ⭐ ADX CARRIES THREE COLOURS — the widest row the allow-list used to have,
     // and the one where a dropped key is a line that renders in LWC's default
     // blue rather than not at all. B5 Task 9 moved that row onto the INSTANCE
@@ -5999,7 +6024,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     const out = mergeSettingsOverride(merged, {
       indicatorInstances: [{ instanceId: 'engine-test:donchian', inputs: { period: 89 } }],
     })
-    expect(out.indicatorInstances, 'the generic array path replaced the list').toHaveLength(3)
+    expect(withoutAdopted(out.indicatorInstances), 'the generic array path replaced the list').toHaveLength(3)
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:donchian').inputs)
       .toEqual({ ...DON_INSTANCE.inputs, period: 89 })
     expect(out.indicatorInstances.find(i => i.instanceId === 'engine-test:adx')).toEqual(ADX_INSTANCE)

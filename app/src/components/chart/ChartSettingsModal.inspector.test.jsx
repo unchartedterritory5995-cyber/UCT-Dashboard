@@ -257,18 +257,22 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     // indicator nobody has written yet is sized correctly on its first render.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
+    // ⭐ 2026-09-28 — EMA 9 IS A `movingAverage` INSTANCE NOW (`maAdoption.js`), so
+    // its editor IS the engine average's: `maType` rather than the slot's `type`,
+    // a live Source picker and Display control rather than two read-only facts.
     select(/^EMA 9$/)
     expect(measureOf('period'), 'a number is not compact').toBe('compact')
-    expect(measureOf('type'), 'a two-word enum did not become a segment').toBe('segment')
+    expect(measureOf('maType'), 'a two-word enum did not become a segment').toBe('segment')
     expect(measureOf('lineWidth'), '`1px`/`2px` is not compact').toBe('compact')
-    expect(measureOf('lineStyle'), '`LargeDashed` needs real room').toBe('medium')
+    expect(measureOf('lineStyle'), '`Dashed` needs real room').toBe('medium')
     expect(measureOf('offset')).toBe('compact')
+    expect(measureOf('__timeframe__'), 'Chart / 1D / 1W is a short enum').toBe('medium')
     // ⛔ AND THE TWO THE BRIEF PROTECTS KEEP THE CELL. `Close`, `Price`,
     // `Automatic · Price`, `QQQ · Close`, another pane's name — solving oversized
     // controls by truncating a semantic identity would trade one defect for a
     // worse one.
-    expect(measureOf('__source__'), 'the source lost its room').toBe('wide')
-    expect(measureOf('__where__'), 'the destination lost its room').toBe('wide')
+    expect(measureOf('source'), 'the source lost its room').toBe('wide')
+    expect(measureOf('__display__'), 'the destination lost its room').toBe('wide')
 
     select(ENGINE_MA)
     expect(measureOf('source'), 'a real source picker was made narrow').toBe('wide')
@@ -314,14 +318,18 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     const { cs, id } = withMA(base(), 'close')
     show(cs, seen); openTab()
 
-    // LEGACY — `cs.overlays[0].type`
+    // ⭐ 2026-09-28 — THE DEFAULT EMA 9 IS THE ADOPTED INSTANCE `ovl:0`
+    // (`maAdoption.js`), so the SAME segment writes the SAME canonical input.
     select(/^EMA 9$/)
-    expect(checked('type').textContent.trim()).toBe('EMA')
-    fireEvent.click(radios('type').find((r) => r.textContent.trim() === 'SMA'))
-    expect(seen.cs.overlays[0].type, 'the segment did not reach the overlay slot').toBe('SMA')
-    expect(seen.cs.overlays[0].period, 'the segment disturbed the period').toBe(cs.overlays[0].period)
+    expect(checked('maType').textContent.trim()).toBe('EMA')
+    fireEvent.click(radios('maType').find((r) => r.textContent.trim() === 'SMA'))
+    const ema9 = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0')
+    expect(ema9.inputs.maType, 'the segment did not reach the adopted instance').toBe('sma')
+    expect(ema9.inputs.period, 'the segment disturbed the period').toBe(9)
+    expect(seen.cs.overlays[0], 'editing the average rewrote its (kept) legacy slot')
+      .toEqual(cs.overlays[0])
     expect((seen.cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage'),
-      'editing a legacy overlay minted an instance — that is a migration')
+      'editing an average minted or dropped an instance')
       .toHaveLength((cs.indicatorInstances || []).filter((x) => x.defId === 'movingAverage').length)
 
     // ENGINE — the instance's own `maType` input
@@ -335,19 +343,21 @@ describe('THE EDITOR IS SIZED TO ITS VALUES, and the empty state says what is on
     const seen = { cs: null }
     show(base(), seen); openTab()
     select(/^EMA 9$/)
-    const grp = segOf('type')
+    // (The adopted instance's `maType` — see the case above.)
+    const grp = segOf('maType')
     expect(grp.getAttribute('role')).toBe('radiogroup')
     expect(grp.getAttribute('aria-label')).toBe('Type')
     // ⛔ ROVING TABINDEX — landing on every option in turn is how a two-choice
     // control becomes two controls for a keyboard member.
-    expect(radios('type').map((r) => r.tabIndex)).toEqual([-1, 0])
-    expect(checked('type').tabIndex, 'the chosen option is not the tab stop').toBe(0)
+    expect(radios('maType').map((r) => r.tabIndex)).toEqual([-1, 0])
+    expect(checked('maType').tabIndex, 'the chosen option is not the tab stop').toBe(0)
 
+    const typeOf = () => seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0').inputs.maType
     fireEvent.keyDown(grp, { key: 'ArrowLeft' })
-    expect(seen.cs.overlays[0].type, 'ArrowLeft did not move the choice').toBe('SMA')
-    expect(checked('type').textContent.trim()).toBe('SMA')
+    expect(typeOf(), 'ArrowLeft did not move the choice').toBe('sma')
+    expect(checked('maType').textContent.trim()).toBe('SMA')
     fireEvent.keyDown(grp, { key: 'ArrowRight' })
-    expect(seen.cs.overlays[0].type).toBe('EMA')
+    expect(typeOf()).toBe('ema')
   })
 
   // ═════════════════════════════════════════════════════════════════════
@@ -771,7 +781,8 @@ describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
 
     const next = seen.cs
     expect(next, 'the drag wrote nothing at all').toBeTruthy()
-    expect(next[PANE_SERIES_ORDER_KEY].price[0]).toBe('overlay-1')
+    // (EMA 20 is the adopted instance ovl:1 — maAdoption.js)
+    expect(next[PANE_SERIES_ORDER_KEY].price[0]).toBe('ovl:1')
     expect(next.overlays, 'the drag reordered `cs.overlays` — that renumbers every row id')
       .toEqual(cs.overlays)
     expect(next.indicatorInstances, 'the drag reordered the instance array — that is COMPUTE order')
@@ -874,7 +885,7 @@ describe('DRAG — SERIES ORDER **INSIDE** A PANE', () => {
     // A blob arranged when the chart held other indicators. The ids it names are
     // gone; the rows it does not name are still on the chart.
     const cs = { ...base(), [PANE_SERIES_ORDER_KEY]: {
-      price: ['overlay-77', 'inst:rsi:9', 'overlay-3'],
+      price: ['overlay-77', 'inst:rsi:9', 'ovl:3'],
       'inst:gone:1': ['whatever'],
     } }
     show(cs); openTab()
@@ -921,23 +932,31 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     .querySelector(`[data-section="${section}"]`).querySelectorAll('[data-field]')]
     .map((f) => f.querySelector('[class*="insFieldLabel"]').textContent.trim())
 
-  it('⭐⭐ LEGACY AND ENGINE MOVING AVERAGES SHOW THE SAME CORE, in the same order', () => {
-    // A default chart carries four legacy overlays; this adds an engine MA beside
-    // them. The two implementations are then read from one screen.
+  it('⭐⭐ DEFAULT AND ADDED MOVING AVERAGES SHOW THE SAME CORE, in the same order', () => {
+    // ⭐⭐ 2026-09-28 — AND NOW IT IS ONE IMPLEMENTATION, NOT TWO THAT AGREE. The
+    // default EMA 9 is the adopted `movingAverage` instance `ovl:0`
+    // (`maAdoption.js`), so its Core is the SAME controls as an average added
+    // through + Add Indicator — Timeframe included — not a legacy editor dressed
+    // to match.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
+    const CORE = ['Source', 'Period', 'Type', 'Timeframe', 'Display']
 
     select(/^EMA 9$/)
-    expect(coreOf()).toEqual(['Source = Close', 'Period = 9', 'Type = EMA', 'Display = Price'])
+    expect(coreOf().map((r) => r.split(' = ')[0])).toEqual(CORE)
+    expect(coreOf()).toEqual(expect.arrayContaining(['Period = 9', 'Type = EMA', 'Timeframe = Chart']))
 
     select(/^SMA 50$/)
-    expect(coreOf()).toEqual(['Source = Close', 'Period = 50', 'Type = SMA', 'Display = Price'])
+    expect(coreOf()).toEqual(expect.arrayContaining(['Period = 50', 'Type = SMA', 'Timeframe = Chart']))
 
     select(ENGINE_MA)
-    // ⛔ THE ENGINE MA'S VALUES DIFFER — it really is sourced and placed
-    // differently. The SHAPE is what must not.
-    expect(coreOf().map((r) => r.split(' = ')[0]))
-      .toEqual(['Source', 'Period', 'Type', 'Display'])
+    expect(coreOf().map((r) => r.split(' = ')[0])).toEqual(CORE)
+    // …and the APPEARANCE block is the same list on both.
+    const look = labelsOf('appearance')
+    select(/^EMA 9$/)
+    expect(labelsOf('appearance'), 'the default and added averages show different Appearance')
+      .toEqual(look)
+    expect(look).toEqual(['Color', 'Overlap candles', 'Line style', 'Line width', 'Offset', 'Plot style'])
   })
 
   it('⭐ ONE VOCABULARY FOR THE TYPE — never `Exponential` beside `EMA`', () => {
@@ -964,54 +983,42 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     }
   })
 
-  it('⛔⛔ THE LEGACY PERIOD STILL WRITES ITS OWN SLOT, and nothing else moves', () => {
-    // The normalisation is a READ. The writer under `Period` is the one it always
-    // was — `applyRowPatch` → `patchFor` → `cs.overlays[index]` — and the proof is
-    // that the OTHER overlays come back byte-identical.
+  it('⛔⛔ THE DEFAULT AVERAGE\'S PERIOD WRITES ITS OWN INSTANCE, and nothing else moves', () => {
+    // ⭐ 2026-09-28 — THE WRITER IS THE INSTANCE'S (`setInstanceInput` via
+    // `applyRowPatch`) on the adopted `ovl:0`; the proof it is exact is that the
+    // other three averages AND the kept legacy slots come back byte-identical.
     const seen = { cs: null }
-    show(base(), seen); openTab()
+    const start = base()
+    show(start, seen); openTab()
     select(/^EMA 9$/)
-    const before = JSON.parse(JSON.stringify(base().overlays))
     fireEvent.change(inspector().querySelector('[data-field="period"] input'), { target: { value: '12' } })
 
-    const after = seen.cs.overlays
-    expect(after[0].period, 'the period did not reach the overlay slot').toBe(12)
-    expect(after[0].type, 'the write disturbed the type').toBe(before[0].type)
-    for (let i = 1; i < before.length; i += 1) {
-      expect(after[i], `overlay slot ${i} moved`).toEqual(before[i])
+    const byId = (cs, id) => cs.indicatorInstances.find((i) => i.instanceId === id)
+    expect(byId(seen.cs, 'ovl:0').inputs.period, 'the period did not reach the instance').toBe(12)
+    expect(byId(seen.cs, 'ovl:0').inputs.maType, 'the write disturbed the type').toBe('ema')
+    for (const id of ['ovl:1', 'ovl:2', 'ovl:3']) {
+      expect(byId(seen.cs, id), `${id} moved`).toEqual(byId(start, id))
     }
-    // ⛔ AND NO INSTANCE WAS MINTED. A legacy MA stays legacy.
-    expect((seen.cs.indicatorInstances || []).some((x) => x.defId === 'movingAverage'),
-      'editing a legacy overlay created an engine instance — that is a migration').toBe(false)
+    expect(seen.cs.overlays, 'the kept legacy slots were rewritten').toEqual(start.overlays)
+    // ⛔ AND NO INSTANCE WAS MINTED OR DROPPED.
+    expect(seen.cs.indicatorInstances.filter((x) => x.defId === 'movingAverage'))
+      .toHaveLength(start.indicatorInstances.filter((x) => x.defId === 'movingAverage').length)
   })
 
-  it('⛔⛔ THE LEGACY SOURCE AND DISPLAY ARE STATED, NOT FAKED', () => {
-    // ⚰️ THEY WERE SIMPLY ABSENT, which is why the two editors looked unrelated.
-    // `cs.overlays` has no source and no placement: the renderer averages the
-    // CLOSE and draws on the PRICE pane, and neither is writable without renderer
-    // and persistence work this pass does not do.
-    //
-    // ⛔ SO THEY ARE VALUES, NOT DISABLED CONTROLS. A greyed dropdown claims there
-    // are other choices being withheld; there are none. And they are DERIVED —
-    // the source from `paneRowMeta` (which has declared `Close` for an overlay
-    // since the read model was written) and the destination from the pane group
-    // `chartDataMap` actually filed the row under — so neither can go stale.
+  it('⭐⭐ THE DEFAULT AVERAGE HAS A REAL SOURCE AND A REAL DISPLAY — no stand-ins', () => {
+    // ⚰️⚰️ THE READ-ONLY `Source: Close` / `Display: Price` FACTS ARE GONE, because
+    // the thing they apologised for is gone: an adopted average IS a
+    // `movingAverage` instance, so it can read RSI, QQQ or another output and draw
+    // wherever its placement allows — exactly as an added one can.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    select(/^EMA 9$/)
-
-    for (const key of ['__source__', '__where__']) {
-      const f = inspector().querySelector(`[data-field="${key}"]`)
-      expect(f, `${key} is missing from the legacy MA`).toBeTruthy()
-      expect(f.getAttribute('data-readonly')).toBe('true')
-      expect(f.querySelector('select'), 'a read-only fact rendered as a select').toBeNull()
-      expect(f.querySelector('[class*="insFieldValue"]').getAttribute('aria-readonly')).toBe('true')
-      expect(f.getAttribute('title'), 'the value carries no reason').toBeTruthy()
+    for (const re of [/^EMA 9$/, ENGINE_MA]) {
+      select(re)
+      expect(inspector().querySelector('[data-field="__source__"]'), `${re}: a read-only Source stand-in`).toBeNull()
+      expect(inspector().querySelector('[data-field="__where__"]'), `${re}: a read-only Display stand-in`).toBeNull()
+      expect(inspector().querySelector('[data-field="source"]'), `${re}: no Source control`).toBeTruthy()
+      expect(inspector().querySelector('[data-field="__display__"] select'), `${re}: no Display control`).toBeTruthy()
     }
-    // ⛔ AND THE ENGINE MA GETS NEITHER — it has real controls for both.
-    select(ENGINE_MA)
-    expect(inspector().querySelector('[data-field="__source__"]'),
-      'the engine MA grew a read-only stand-in beside its real Source control').toBeNull()
   })
 
   it('⛔ AN INERT FIELD IS NEVER CORE — it is demoted, not deleted', () => {
@@ -1036,32 +1043,61 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     expect(offset.getAttribute('aria-disabled')).toBe('true')
   })
 
-  it('⭐ LEGACY-ONLY APPEARANCE SURVIVES, and still writes', () => {
-    // `Line style`, `Line width` and `Overlap candles` are real capabilities the
-    // engine MA does not have. Normalising CORE must not cost them.
+  it('⭐ THE AVERAGE APPEARANCE — Overlap, Line style, Line width — on every average, and it writes', () => {
+    // ⭐ 2026-09-28 — THESE WERE LEGACY-ONLY; they are the definition's now
+    // (`meta.appearance`), stored in `presentation` on the instance, so an average
+    // added through + Add Indicator has them too.
     const seen = { cs: null }
-    show(base(), seen); openTab()
+    const { cs, id } = withMA(base(), 'close')
+    show(cs, seen); openTab()
     select(/^EMA 9$/)
     expect(labelsOf('appearance')).toEqual(expect.arrayContaining(
       ['Color', 'Overlap candles', 'Line style', 'Line width']))
 
     fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '3' } })
-    expect(seen.cs.overlays[0].lineWidth, 'the line width did not reach the slot').toBe(3)
+    const ema9 = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:0')
+    expect(ema9.presentation.lineWidth, 'the line width did not reach the instance').toBe(3)
+    expect(ema9.inputs, 'a stroke became an INPUT — an older client would drop the instance')
+      .not.toHaveProperty('lineWidth')
+
+    select(ENGINE_MA)
+    fireEvent.change(inspector().querySelector('[data-field="lineStyle"] select'), { target: { value: 'dashed' } })
+    const added = seen.cs.indicatorInstances.find((i) => i.instanceId === id)
+    expect(added.presentation.lineStyle, 'the added average has no working Line style').toBe('dashed')
   })
 
-  it('⭐ DUPLICATE AND REMOVE STILL TARGET THE EXACT OBJECT, on both sides', () => {
+  it('⭐⭐ DUPLICATE COPIES THE WHOLE AVERAGE under a NEW identity', () => {
+    // ⭐ 2026-09-28 — `duplicateInstance`, on both doors: source, period, type,
+    // timeframe, display, stroke and visibility travel; the id is new.
+    const seen = { cs: null }
+    show(base(), seen); openTab()
+    select(/^SMA 200$/)
+    fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '2' } })
+    fireEvent.change(inspector().querySelector('[data-field="__timeframe__"] select'), { target: { value: 'W' } })
+    fireEvent.click([...inspector().querySelectorAll('button')].find((b) => b.textContent === 'Duplicate'))
+    const src = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:3')
+    const copy = seen.cs.indicatorInstances.find((i) => i.defId === 'movingAverage'
+      && !/^ovl:/.test(i.instanceId) && i.deleted !== true)
+    expect(copy, 'Duplicate made nothing').toBeTruthy()
+    expect(copy.instanceId).not.toBe(src.instanceId)
+    expect(copy.inputs).toEqual(src.inputs)
+    expect(copy.calculationTimeframe).toBe('W')
+    expect(copy.presentation).toEqual(src.presentation)
+  })
+
+  it('⭐ DUPLICATE AND REMOVE STILL TARGET THE EXACT OBJECT', () => {
     const seen = { cs: null }
     const { cs } = withMA(base(), 'close')
     show(cs, seen); openTab()
 
-    // Removing the SECOND legacy overlay must tombstone slot 1 and move nothing.
+    // Removing the SECOND default average must tombstone `ovl:1` and nothing else.
     select(/^EMA 20$/)
     fireEvent.click([...inspector().querySelectorAll('button')]
       .find((b) => /^Remove /.test(b.getAttribute('aria-label') || '')))
-    expect(seen.cs.overlays[1].removed, 'the wrong slot was tombstoned').toBe(true)
-    expect(seen.cs.overlays[0].removed, 'a neighbour was tombstoned').toBeFalsy()
-    expect(seen.cs.overlays.length, 'the array was spliced — that renumbers every later slot')
-      .toBe(cs.overlays.length)
+    const byId = (iid) => seen.cs.indicatorInstances.find((i) => i.instanceId === iid)
+    expect(byId('ovl:1').deleted, 'the wrong average was tombstoned').toBe(true)
+    expect(byId('ovl:0').deleted, 'a neighbour was tombstoned').toBeFalsy()
+    expect(seen.cs.overlays, 'the kept legacy slots were touched').toEqual(cs.overlays)
   })
 
   it('⚰️⚰️ A READ-ONLY CORE FACT TAKES THE CONTROL CELL, not the right margin', () => {
@@ -1084,16 +1120,24 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     //   1. THE DOM: the value is a direct child of the control cell, exactly where
     //      a select sits, not a bare span appended after one.
     //   2. THE RULE: `.insFieldValue` declares the control's own box.
-    show(base()); openTab()
-    select(/^EMA 9$/)
+    // ⭐ 2026-09-28 — THE READ-ONLY CORE FACT THAT REMAINS is an average sourced
+    // from another indicator: its Timeframe reads `From source · …` (it inherits
+    // its source's frame — `calcTimeframeCapability.resolveInstanceFrames`). The
+    // default averages' Source / Display stand-ins are gone (they are real now).
+    let cs = addInstance(base(), 'rsi', registry)
+    const rsiId = lastCreatedInstance(base(), cs).instanceId
+    cs = withMA(cs, `@${rsiId}::rsi`).cs
+    show(cs); openTab()
+    select(ENGINE_MA)   // ⚠️ NOT `/^SMA 5/` — that matches the default `SMA 50`
 
-    for (const key of ['__source__', '__where__']) {
+    for (const key of ['__timeframe__']) {
       const cell = inspector().querySelector(`[data-field="${key}"] [class*="insFieldCtl"]`)
       expect(cell, `${key} has no control cell at all`).toBeTruthy()
       const kids = [...cell.children]
       expect(kids.length, `${key}'s cell holds something besides the value`).toBe(1)
       expect(/insFieldValue/.test(kids[0].className),
         `${key}'s value is not the class the width rule addresses`).toBe(true)
+      expect(kids[0].textContent).toMatch(/^From source/)
     }
 
     // ⛔ AND THE RULE ITSELF, READ FROM SOURCE. A class name alone would still

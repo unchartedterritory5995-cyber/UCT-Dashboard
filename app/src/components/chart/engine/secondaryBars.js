@@ -233,6 +233,7 @@ function _notify(url) {
 export function clearSecondaryBars() {
   _cache.clear()
   _inflight.clear()
+  _lastRefresh.clear()
   // ⛔ AND EVERY PENDING RETRY. A timer armed against a cache that no longer
   // exists notifies subscribers about a URL nobody holds — and inside a test
   // file it arrives during the NEXT case as a request nothing asked for.
@@ -251,7 +252,24 @@ export function clearSecondaryBars() {
  */
 function _read(payload) {
   const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
-  if (bars.length) return { bars, status: SOURCE_STATUS.AVAILABLE }
+  if (bars.length) {
+    // ⭐ 2026-09-28 — THE NEWEST BAR'S CLOSE STATE TRAVELS WITH THE BARS IT
+    // DESCRIBES. A calculation-timeframe frame (`mtfProjection.js`) may only treat
+    // its newest bar as a COMPLETED period when the server said so; dropping the
+    // tri-state here would make every forming weekly bar look final. `null` stays
+    // `null` (unknown) — never coerced to `false` (settled).
+    // Attached only when the payload carries the field at all, so an entry built
+    // from a payload that predates it keeps its exact old shape.
+    if (!Object.prototype.hasOwnProperty.call(payload, 'newest_bar_is_forming')) {
+      return { bars, status: SOURCE_STATUS.AVAILABLE }
+    }
+    const forming = payload.newest_bar_is_forming
+    return {
+      bars,
+      status: SOURCE_STATUS.AVAILABLE,
+      newestBarIsForming: typeof forming === 'boolean' ? forming : null,
+    }
+  }
   const note = payload && typeof payload.note === 'string' ? payload.note : ''
   return { bars, status: note ? SOURCE_STATUS.UNSUPPORTED : SOURCE_STATUS.NO_DATA, note: note || undefined }
 }
@@ -453,4 +471,53 @@ export function primeSecondaryBars(symbol, tf, bars, payload) {
 /** How many requests are in flight — a test seam for the dedup rail. */
 export function inflightCount() {
   return _inflight.size
+}
+
+/** The minimum spacing between two refreshes of one window — a frame that stays
+ *  behind (a provider lag) must not turn into a request per paint. */
+export const REFRESH_MIN_MS = 20000
+const _lastRefresh = new Map()   // url -> ms
+
+/**
+ * RE-FETCH one window whose cached snapshot has gone BEHIND the chart.
+ *
+ * ⭐⭐ WHY THIS EXISTS. `ensureSecondaryBars` caches one fetch per window for the
+ * session, which is right for a secondary SYMBOL's history and wrong for a
+ * calculation-timeframe FRAME: a 1h frame fetched at 10:05 does not know the 10:30
+ * bar has closed at 11:31. `mtfProjection` detects that (the chart's own bars are
+ * the witness) and reports it; this is the one door that answers it.
+ *
+ * ⛔ THE OLD ENTRY STAYS UNTIL THE NEW ONE LANDS. The projection already refuses to
+ * show anything the old snapshot cannot prove, so keeping it costs nothing and
+ * dropping it would blank every correct historical value for the length of a fetch.
+ * ⛔ THROTTLED PER WINDOW (`REFRESH_MIN_MS`) and deduped with an in-flight fetch.
+ *
+ * @returns {boolean} whether a fetch was started
+ */
+export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
+  const url = secondaryBarsUrl(symbol, tf, bars)
+  if (!url || _inflight.has(url)) return false
+  const now = Date.now()
+  const last = _lastRefresh.get(url) || 0
+  if (now - last < REFRESH_MIN_MS) return false
+  _lastRefresh.set(url, now)
+  const keep = _cache.get(url)
+  const get = typeof fetcher === 'function' ? fetcher : _defaultFetch
+  const p = Promise.resolve()
+    .then(() => get(url))
+    .then((payload) => {
+      const entry = _read(payload)
+      // ⛔ AN EMPTY ANSWER DOES NOT REPLACE BARS WE HAVE — same rule as
+      // `primeSecondaryBars`: a transient empty payload is not "no history".
+      if (!entry.bars.length && keep && keep.bars && keep.bars.length) return keep
+      _cache.set(url, entry)
+      return entry
+    })
+    .catch(() => keep || null)
+    .finally(() => {
+      _inflight.delete(url)
+      _notify(url)
+    })
+  _inflight.set(url, p)
+  return true
 }

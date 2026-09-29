@@ -148,8 +148,11 @@ describe('an inert field says WHY, to a screen reader and not only to a pointer'
       const dis = disabledControls()
       // ⛔ THE CONTROL, PER ROW. If nothing renders disabled every assertion below
       // is vacuous — and the MA rows are the reason this test exists.
+      // ⭐ 2026-09-28 — ONE, NOT TWO: the averages are `movingAverage` instances now
+      // (`maAdoption.js`) and their Plot style is LIVE (Line / Step…); Offset is the
+      // one control still shown disabled ("Coming soon"), exactly as before.
       expect(dis.length, `${row}: no disabled control rendered — the sweep proves nothing`)
-        .toBeGreaterThan(1)
+        .toBeGreaterThan(0)
       seen += dis.length
 
       for (const el of dis) {
@@ -165,8 +168,9 @@ describe('an inert field says WHY, to a screen reader and not only to a pointer'
       }
       expand(row)   // collapse before the next, so each sweep stays one row's
     }
-    expect(seen, 'the four MA rows between them rendered fewer inert controls than one row has')
-      .toBeGreaterThan(4)
+    // ⭐ 2026-09-28 — one inert control (Offset) per average now; see above.
+    expect(seen, 'an average rendered no inert Offset control')
+      .toBeGreaterThanOrEqual(MA_ROWS.length)
   })
 
   it('an ENABLED control gets none of it — the reason is not sprayed everywhere', () => {
@@ -417,8 +421,11 @@ describe('ChartSettingsModal — the row is a CONTROL DOOR onto a flipped indica
     expect(within(row).queryByText('Active'), 'a restore offer must not read as Active').toBeNull()
     fireEvent.click(row)
     const next = lastCall(onChange)
-    expect(next.overlays[0].removed, 'add-back did not revive the tombstoned slot').toBe(false)
-    expect(next.overlays[0].period, 'add-back replaced the member\'s EMA 9 with a stranger')
+    // ⭐ 2026-09-28 — the revived slot is RE-ADOPTED on the spot (`maAdoption.reviveSlot`):
+    // the member gets back the INSTANCE `ovl:0`, live, with the slot's own period.
+    const back = next.indicatorInstances.find((i) => i && i.instanceId === 'ovl:0')
+    expect(back && back.deleted !== true, 'add-back did not revive the tombstoned slot').toBe(true)
+    expect(back.inputs.period, 'add-back replaced the member\'s EMA 9 with a stranger')
       .toBe(removed.overlays[0].period)
     expect(next.overlays, 'add-back appended instead of reviving')
       .toHaveLength(removed.overlays.length)
@@ -659,11 +666,13 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
    *  link — while `data-inspector-for` names the row the form actually belongs
    *  to, which is what these cases were always trying to pin.
    *
-   *  ⚠️ THE CALL SITES ARE UNCHANGED, deliberately: every `toEqual(['overlay-0'])`
+   *  ⚠️ THE CALL SITES ARE UNCHANGED, deliberately: every `toEqual(['ovl:0'])`
    *  below still reads as "the deep link opened exactly that row, and nothing
    *  else". The defect this describe block exists to catch — the legend spelling
    *  `ma:0` failing to reach the row this tab calls `overlay-0` — is caught here
    *  exactly as before. */
+  // ⭐ 2026-09-28 — the four averages are the INSTANCES `ovl:<i>` (`maAdoption.js`),
+  // so the legend's `ma:<i>` now lands on `ovl:<i>` (`ChartSettingsIndicators.aliasRowId`).
   const expandedRowIds = () => [...document.body.querySelectorAll('[data-inspector-for]')]
     .map((el) => el.getAttribute('data-inspector-for'))
 
@@ -674,7 +683,7 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
     // `ma:0` is `LegendRow`'s `rowId` for the first stored overlay — the string
     // `StockChart` puts in `ind:` — and `overlay-0` is what this tab calls it.
     render(<ChartSettingsModal open scrollTo="ind:ma:0" settings={base()} onChange={vi.fn()} />)
-    expect(expandedRowIds()).toEqual(['overlay-0'])
+    expect(expandedRowIds()).toEqual(['ovl:0'])
   })
 
   it('…and EVERY moving average, addressed the way the legend addresses it', () => {
@@ -682,8 +691,8 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
     // the position in the visible list. A test that only checked `ma:0` would miss
     // an off-by-one in the translation.
     for (const [legendId, settingsId] of [
-      ['ma:0', 'overlay-0'], ['ma:1', 'overlay-1'],
-      ['ma:2', 'overlay-2'], ['ma:3', 'overlay-3'],
+      ['ma:0', 'ovl:0'], ['ma:1', 'ovl:1'],
+      ['ma:2', 'ovl:2'], ['ma:3', 'ovl:3'],
     ]) {
       cleanup()
       render(<ChartSettingsModal open scrollTo={`ind:${legendId}`} settings={base()} onChange={vi.fn()} />)
@@ -696,7 +705,7 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
     // and nothing else. The case above would still pass for `ma:1`..`ma:3`.
     render(<ChartSettingsModal open scrollTo="ind:ma:0" settings={base()} onChange={vi.fn()} />)
     expect(expandedRowIds(), 'the FIRST moving average is the one a falsy guard eats')
-      .toContain('overlay-0')
+      .toContain('ovl:0')
   })
 
   it('volume and an engine instance pass straight through, unchanged', () => {
@@ -738,7 +747,7 @@ describe('a gear deep link opens the row it names — every row, not a sample', 
     cleanup()
     render(<ChartSettingsModal open scrollTo="data:ma:0" settings={base()} onChange={vi.fn()} />)
     expect(expandedRowIds(), "the legend's MA spelling does not survive the data: prefix")
-      .toEqual(['overlay-0'])
+      .toEqual(['ovl:0'])
   })
 
   it('⛔ and the control: no `ind:`/`data:` target opens NOTHING', () => {

@@ -35,13 +35,22 @@
 // on precisely the case the objection does not cover, and the sibling cases below
 // pin the objection itself so a later change cannot quietly widen the write.
 import { describe, it, expect } from 'vitest'
-import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
+import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import {
   setIndicatorEnabled, setInstanceInput, findInstance, addInstance, removeInstance,
 } from '../instanceControls'
 import { legacyInstanceId } from '../instances'
 import { migrateLegacyToInstances } from '../instances'
 import * as engineRegistry from '../nativeRegistry'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 /** A valid value for `input` that is NOT `current` — so a preserved value can
  *  never be confused with a default that happened to match. */
