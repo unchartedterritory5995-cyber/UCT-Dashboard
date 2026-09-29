@@ -18,7 +18,8 @@
  * `refreshFrame` below is the one answer, throttled per window by `secondaryBars`.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { isVisibleOnTimeframe, isIntradayCode } from './instanceTimeframe'
 import { ensureSecondaryBars, refreshSecondaryBars, subscribe } from './secondaryBars'
 import { orderByDependency, sourceInputsOf, parseSource } from './sourceRef'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
@@ -79,8 +80,27 @@ export function framesNeeded(instances, defOf, sym, chartTf) {
   if (!list.length || !sym) return []
   const { ordered } = orderByDependency(list, defOf)
   const frames = resolveInstanceFrames(ordered, defOf, String(chartTf))
+  // ⭐ ONLY WHAT WILL BE DRAWN HERE, AND WHAT THAT READS. An instance hidden on this
+  // timeframe (its visibility, or the member's eye) needs no bars unless something
+  // VISIBLE reads it — measured: a "Daily only" weekly average fetched its weekly
+  // frame on every 5m chart it could never appear on.
+  const byId = new Map(ordered.map((i) => [i.instanceId, i]))
+  const needed = new Set()
+  const visit = (inst) => {
+    if (!inst || needed.has(inst.instanceId)) return
+    needed.add(inst.instanceId)
+    const def = defOf(inst.defId)
+    for (const [, value] of (def ? sourceInputsOf(def, inst) : [])) {
+      const p = parseSource(value)
+      if (p && p.kind === 'instance') visit(byId.get(p.instanceId))
+    }
+  }
+  for (const inst of ordered) {
+    if (inst.hidden !== true && isVisibleOnTimeframe(inst, String(chartTf))) visit(inst)
+  }
   const out = new Map()
   for (const inst of ordered) {
+    if (!needed.has(inst.instanceId)) continue
     const f = frames.get(inst.instanceId)
     if (!f || !f.frame) continue
     out.set(frameKey(f.frame, sym), { frame: f.frame, symbol: String(sym).toUpperCase() })
@@ -91,6 +111,16 @@ export function framesNeeded(instances, defOf, sym, chartTf) {
     }
   }
   return [...out.values()]
+}
+
+/** Do these chart bars belong to `chartTf`? Intraday bars carry unix times, D/W/M
+ *  bars carry dates — the one distinction that cannot drift. No bars: no plan. */
+export function chartBarsMatchTf(chartBars, chartTf) {
+  const b = Array.isArray(chartBars) && chartBars.length ? chartBars[chartBars.length - 1] : null
+  if (!b) return false
+  const intraday = isIntradayCode(chartTf)
+  const unix = typeof b.t === 'number' && b.t > 1e8
+  return intraday ? unix : (!unix && etDateOf(b.t) !== null)
 }
 
 function sameEntries(a, b) {
@@ -108,8 +138,17 @@ const EMPTY = Object.freeze({ key: '', map: null })
  */
 export function useCalcFrames(instances, defOf, sym, chartTf, chartBars, fetcher, revalidate) {
   const [state, setState] = useState(EMPTY)
-  const needed = framesNeeded(instances ? instances() : null, defOf, sym, chartTf)
-  const plan = needed.map((n) => ({ ...n, depth: frameDepthFor(n.frame, chartBars) }))
+  // ⛔ NOT WHILE THE CHART'S BARS ARE STILL THE PREVIOUS TIMEFRAME'S. For one render
+  // after a timeframe switch the chart hands over its OLD bars; sizing a window
+  // from them asked for a 2,500-bar daily window on a 5m chart, which the chart's
+  // own abortable fetcher then cancelled (measured in the browser). The last plan
+  // made from bars that match is held until the new bars arrive.
+  const lastPlan = useRef([])
+  if (chartBarsMatchTf(chartBars, chartTf)) {
+    const needed = framesNeeded(instances ? instances() : null, defOf, sym, chartTf)
+    lastPlan.current = needed.map((n) => ({ ...n, depth: frameDepthFor(n.frame, chartBars) }))
+  }
+  const plan = lastPlan.current
   const planKey = plan.map((p) => `${p.frame}|${p.symbol}|${p.depth}`).join(',')
 
   useEffect(() => {
