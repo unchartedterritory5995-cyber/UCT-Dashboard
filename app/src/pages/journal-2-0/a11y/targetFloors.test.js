@@ -414,3 +414,33 @@ describe('WK: the Find-in-note input gets the same touch floor as its row-mates 
     expect(lastDecl(old, '.input', 'min-height', TOUCH)).toBeUndefined()
   })
 })
+
+// Wave 10 lane WK2 (proof walk wk-7bd834b9f, clause 6c -- two more sub-24px targets from the
+// same geometry.json the WK block above reads): the import wizard's "How do I get my export
+// file?" accordion toggle (195.4x23 at both 390 and 820) and the widget palette's "Close insert
+// panel" x (21.8x24 at 820 -- height already clears the floor, width did not).
+describe('WK2: the export-guide accordion toggle reaches 24px height (ImportWizard.module.css)', () => {
+  const wiz = rulesWithMedia(read(join(NB, 'import', 'ImportWizard.module.css')))
+
+  it('the accordion header has a 24px height floor outside any @media', () => {
+    expect(px(lastDecl(wiz, '.accordionHeader', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (padding only, no min-height) fails the floor check', () => {
+    const old = rulesWithMedia('.accordionHeader { padding: 4px 0; font-size: 13px; }')
+    expect(lastDecl(old, '.accordionHeader', 'min-height')).toBeUndefined()
+  })
+})
+
+describe('WK2: the widget palette head buttons reach 24px width (WidgetPalette.module.css)', () => {
+  const pal = rulesWithMedia(read(join(NB, 'WidgetPalette.module.css')))
+
+  it('"Close insert panel" (and its row-mate "‹ Back") get a 24px width floor', () => {
+    expect(px(lastDecl(pal, '.headBtn', 'min-width'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (padding only, no min-width) fails the floor check', () => {
+    const old = rulesWithMedia('.headBtn { padding: 4px 6px; font-size: 12px; }')
+    expect(lastDecl(old, '.headBtn', 'min-width')).toBeUndefined()
+  })
+})
