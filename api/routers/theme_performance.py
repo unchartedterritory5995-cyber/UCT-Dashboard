@@ -18,6 +18,7 @@ anonymous caller could hold that pool down indefinitely by re-firing it — and
 because the read path is `memory cache → disk → {status: "computing"}`, every
 member would see "computing" for as long as the attacker kept going. ADMIN.
 """
+import builtins
 import os
 import time
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -156,7 +157,10 @@ def get_theme_performance(response: Response = None, refresh: bool = False,
             if (now - _last_theme_warm) >= _THEME_WARM_INTERVAL:
                 from api.routers.bars import warm_bars_async
                 tickers: list[str] = []
-                seen: set[str] = set()
+                # ⛔ `set` is this route's query parameter (the personal theme set, 614235fd8), so
+                # the bare builtin is SHADOWED here: `set()` raised TypeError, the except below
+                # swallowed it, and this warm silently never ran from 2026-09-05. Reach the builtin.
+                seen: set[str] = builtins.set()
                 themes = result if isinstance(result, list) else (result.get("themes") or [])
                 for theme in themes:
                     etf = theme.get("ticker")

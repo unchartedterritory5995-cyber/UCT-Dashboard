@@ -128,9 +128,11 @@ def test_admin_guard_prefixes_are_the_confirmed_ungated_families():
 
 # ── Fix 2: theme warm is throttled ────────────────────────────────────────────
 def test_theme_warm_is_throttled_and_capped(monkeypatch):
-    import importlib
+    # ⛔ NO importlib.reload: it rebuilt the router module, and with it the TERM-082
+    # serve-stale slot, so every test that captured `tp._THEME_STALE` at import then
+    # inspected a dead slot (5 order-dependent reds). The one piece of state this test
+    # needs fresh is `_last_theme_warm`, which it resets explicitly below.
     import api.routers.theme_performance as tp
-    importlib.reload(tp)
 
     warm_calls = []
     monkeypatch.setattr("api.routers.bars.warm_bars_async",
