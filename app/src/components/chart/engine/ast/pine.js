@@ -8439,22 +8439,24 @@ export class Resolver {
    *  The readings: probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`
    *  on AMEX:SPY at full history — `tests/fixtures/vendor/harness/vw-clock-close-
    *  tfchange-spy-{1d,1w}-2026-09-28.json` (8,473 and 1,758 bars) and a 20,616-bar
-   *  60m capture kept outside git for size. The column meanings, and the counted
-   *  early-close / holiday mismatch of `time_close`, are
+   *  60m capture kept outside git for size. The column meanings, and how
+   *  `time_close` reads the vendor's early closes and holiday weeks, are
    *  `indicators.js::CLOCK_TIME_DERIVED`'s.
    *
    *   `timeframe.change("D"|"W"|"M")` — equal, bar for bar on all three charts,
    *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). It is
    *     translated as `isfirst ? 0 : <first-of-period column>`: false on the
    *     oldest bar exactly as the vendor reads it, and BLANK wherever the clock is
-   *     blank (the pane's date-keyed weekly/monthly bars, Q-T1) rather than a
-   *     confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
+   *     blank (a series the unit gate refuses; until 2026-09-28 also the pane's
+   *     date-keyed weekly/monthly bars, which now read their period's first
+   *     session) rather than a confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
    *     the same spellings (`PINE_TF_SPELLING`).
    *     ⛔ CHART PANE ONLY. A screen evaluates stored daily bars whose `t` is a
    *     `YYYYMMDD` int, so the clock is blank there, and the window-dependent
    *     `isfirst` is refused by every screen consumer anyway; the refusal here
    *     says so at the door instead of at save time.
-   *   `time_close("D")` — 16:00 New York on the date the bar opened (`dayclosetime`),
+   *   `time_close("D")` — the session close (16:00 New York, 13:00 on a half-day
+   *     the vendor honours) on the date the bar opened (`dayclosetime`),
    *     in milliseconds for a script that declares a `//@version`, exactly as
    *     `time("D")` is; SECONDS for a versionless one, as `time("D")` is too.
    *
@@ -8494,11 +8496,12 @@ export class Resolver {
       // ⭐ FALSE ON THE OLDEST BAR, THE COLUMN EVERYWHERE ELSE — the vendor's
       // reading, written so a BLANK clock stays blank. The member pane translates
       // once, before it knows the chart's timeframe (`basePeriod` is `BASE_TF`
-      // there), so the translation cannot refuse a weekly chart; and on the
-      // pane's weekly/monthly bars — date-keyed and unread, Q-T1 — every clock
-      // column is blank. `col != 0` read that blank as false on every bar
-      // (measured: the W capture's 1,757 new-day bars all read 0 through the
-      // product's bar shape), a confident wrong answer; this reads blank there.
+      // there), so the translation cannot refuse a weekly chart; and wherever
+      // the clock is blank (until 2026-09-28 that was every date-keyed weekly /
+      // monthly bar, Q-T1 — they read their period's first session now) `col != 0`
+      // read that blank as false on every bar (measured: the W capture's 1,757
+      // new-day bars all read 0 through the product's bar shape), a confident
+      // wrong answer; this reads blank there.
       // ⚠️ `isfirst` makes the tree WINDOW-DEPENDENT (`_requirement_tags`), and
       // that is TRUE of the vendor's own answer: bar 0 reads false because it is
       // the first bar LOADED, whether or not it opened a period. A pane accepts it.
@@ -10606,9 +10609,9 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
   // names "our clock does not declare... so this map could never be
   // consulted" for it. It can be now.
   timenow: 'lastbartime',
-  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END on the regular-
-  // session template (`indicators.js::CLOCK_TIME_DERIVED`, the `timeclose` note),
-  // measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
+  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END, at the session
+  // close as TradingView's calendar applies it (`indicators.js::CLOCK_TIME_DERIVED`,
+  // the `timeclose` note), measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
   // it is also in `PINE_CLOCK_MISMATCH` and `PINE_CLOCK_TRANSFORM`, exactly as
   // `time` is: milliseconds for a script that declares a `//@version`, refused by
   // its unit for one that does not.

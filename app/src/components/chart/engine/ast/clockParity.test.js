@@ -22,7 +22,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { computeClock, CLOCK_COLUMNS } from '../../indicators.js'
+import { computeClock, CLOCK_COLUMNS, etClockAt } from '../../indicators.js'
 import { TABLE } from './parse.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -157,13 +157,28 @@ describe('the clock oracle — this lane against the committed fixture', () => {
     expect([...utcHours].sort()).toEqual([13.5, 14.5])
   })
 
-  it('⛔ the SAME dates under a WEEKLY timeframe stay blank — the key day of a week is unmeasured', () => {
-    const cols = computeClock(doc.iso_daily_bars, 'W', false)
-    for (const name of Object.keys(doc.iso_weekly_expected)) {
-      same(clean(cols[name]), doc.iso_weekly_expected[name], `iso weekly ${name}`)
+  // ⚰️ Until 2026-09-28: "⛔ the SAME dates under a WEEKLY timeframe stay blank —
+  // the key day of a week is unmeasured". It is measured now (all 1,758 SPY weeks).
+  it('⭐ the SAME dates under W / M read as the open of their week\'s / month\'s first vendor session', () => {
+    for (const [tf, exp] of [['W', doc.iso_weekly_expected], ['M', doc.iso_monthly_expected]]) {
+      const cols = computeClock(doc.iso_daily_bars, tf, false)
+      for (const name of Object.keys(exp)) same(clean(cols[name]), exp[name], `iso ${tf} ${name}`)
     }
-    expect(doc.iso_weekly_expected.time.every((v) => v === null)).toBe(true)
+    expect(new Set(doc.iso_weekly_expected.time).size).toBe(4)
+    expect(new Set(doc.iso_monthly_expected.time).size).toBe(3)
     expect(doc.iso_weekly_expected.isweekly.every((v) => v === 1)).toBe(true)
+  })
+
+  it('⭐⭐ weekly / monthly bars keyed as the PRODUCT keys them (Friday / the 1st) — both lanes, bar for bar', () => {
+    for (const [bars, exp, tf] of [[doc.iso_weekly_bars, doc.iso_weekly_keys_expected, 'W'],
+      [doc.iso_monthly_bars, doc.iso_monthly_keys_expected, 'M']]) {
+      const cols = computeClock(bars, tf, false)
+      for (const name of Object.keys(exp)) same(clean(cols[name]), exp[name], `${tf} keys ${name}`)
+    }
+    // non-vacuity: the Good-Friday key closes Thursday; the MLK week opens Tuesday
+    const wk = doc.iso_weekly_keys_expected
+    expect(etClockAt(wk.timeclose[6]).dow).toBe(5)
+    expect(etClockAt(wk.time[5]).dow).toBe(3)
   })
 
   it('⭐⭐ `time_close`, `time_close("D")` and the `timeframe.change` columns, on every close case (C8)', () => {
@@ -185,6 +200,12 @@ describe('the clock oracle — this lane against the committed fixture', () => {
     expect(e.sixty_product_grid.timeclose[2] - e.sixty_product_grid.time[2]).toBe(1800)
     expect(e.sixty_vendor_grid.timeclose[0] - e.sixty_vendor_grid.time[0]).toBe(3600)
     expect(e.sixty_grid_unknown.timeclose).toEqual([null, null])
+    // ⭐ THE CALENDAR AS TRADINGVIEW APPLIES IT (2026-09-28): 13:00 on a half-day
+    // it honours, 16:00 on 2018-12-24 and 2020-11-27, which it keeps full.
+    const half = e.daily_half_days
+    expect(half.timeclose.map((c, i) => c - half.time[i])).toEqual([23400, 12600, 23400, 23400, 12600, 12600])
+    expect(e.sixty_vendor_grid_half_days.timeclose[11]).toBe(null)
+    expect(e.sixty_product_grid_half_day.timeclose[4]).toBe(null)
   })
 
   it('⛔ `sessionfirst` is WINDOW-INDEPENDENT — every slice agrees from its second bar', () => {

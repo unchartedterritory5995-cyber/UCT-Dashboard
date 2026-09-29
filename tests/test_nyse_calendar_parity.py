@@ -291,3 +291,99 @@ class TestTheReExportIsTheLeafTheEngineActuallyReads:
             "liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD is no longer the leaf's "
             "object -- see the sibling test above for why that is not cosmetic."
         )
+
+
+# --------------------------------------------------------------------------
+# 5. The TradingView view: one set of vendor facts, two runtimes, derived
+# --------------------------------------------------------------------------
+
+_TV_JS_PATH = _CLOCK_DIR / "tradingViewSession.js"
+_TV_PY_PATH = _ROOT / "api" / "services" / "tradingview_session.py"
+
+#: A plain-node ESM driver that can import a module that imports JSON
+#: (``sessionCalendar.js`` does) -- the loader hook ``test_ast_interpret`` uses.
+_JSON_HOOK = (
+    "import { register } from 'node:module'\n"
+    "register('data:text/javascript,"
+    "import%20%7B%20readFile%20%7D%20from%20%27node%3Afs/promises%27%3B"
+    "export%20async%20function%20load(u%2Cc%2Cn)%7Bif(u.endsWith(%27.json%27))"
+    "%7Bconst%20s%3Dawait%20readFile(new%20URL(u)%2C%27utf8%27)%3B"
+    "return%7Bformat%3A%27module%27%2CshortCircuit%3Atrue%2C"
+    "source%3A%60export%20default%20%24%7Bs%7D%60%7D%7Dreturn%20n(u%2Cc)%7D')\n"
+)
+
+
+def _js_string_const(name: str) -> str:
+    m = re.search(rf"export const {re.escape(name)} = '([^']*)'",
+                  _TV_JS_PATH.read_text(encoding="utf-8"))
+    assert m, f"{name} not found in tradingViewSession.js -- has it been renamed?"
+    return m.group(1)
+
+
+def _js_dates_in_export(name: str) -> set[int]:
+    m = re.search(rf"export const {re.escape(name)} = Object\.freeze\(\[(.*?)\]\)",
+                  _TV_JS_PATH.read_text(encoding="utf-8"), re.DOTALL)
+    assert m, f"{name} not found in tradingViewSession.js -- has it been renamed?"
+    return {_ymd(d) for d in re.findall(r"date: '(\d{4}-\d{2}-\d{2})'", m.group(1))}
+
+
+class TestTheTradingViewViewIsOneFactInTwoFiles:
+    """⭐ WHAT THE VENDOR'S SESSION APPLIES (the C8 ``time_close`` lane) -- four
+    measured facts per runtime, compared, and the DERIVED views compared too, so
+    a JS derivation that drifted from the Python one (a ``>`` for a ``>=``)
+    cannot hide behind equal inputs. The NYSE dates themselves come from the
+    dataset on both sides; only the vendor's exceptions are typed, once each."""
+
+    def test_the_two_floors_agree(self):
+        from api.services import tradingview_session as tv
+        assert _ymd(_js_string_const("TRADINGVIEW_CLOSURES_FROM")) == tv.TRADINGVIEW_CLOSURES_FROM_YYYYMMDD
+        assert _ymd(_js_string_const("TRADINGVIEW_EARLY_CLOSES_FROM")) == tv.TRADINGVIEW_EARLY_CLOSES_FROM_YYYYMMDD
+
+    def test_the_two_exception_lists_agree_and_name_real_nyse_dates(self):
+        from api.services import tradingview_session as tv
+        js_c = _js_dates_in_export("TRADINGVIEW_UNAPPLIED_CLOSURES")
+        js_e = _js_dates_in_export("TRADINGVIEW_UNAPPLIED_EARLY_CLOSES")
+        assert js_c == set(tv.TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD) and len(js_c) == 6
+        assert js_e == set(tv.TRADINGVIEW_UNAPPLIED_EARLY_CLOSES_YYYYMMDD) and len(js_e) == 2
+        # an exception must name a date the DATASET holds, or it subtracts nothing
+        # and reads as a rule that was applied
+        assert js_c <= _JSON_HOLIDAYS
+        assert js_e <= _JSON_EARLY_CLOSES
+
+    def test_the_vendor_view_reads_the_nyse_dates_through_the_one_calendar(self):
+        assert re.search(r"""from\s+['"]\./sessionCalendar(\.js)?['"]""",
+                         _TV_JS_PATH.read_text(encoding="utf-8"))
+        api_imports = {m for m in _imported_modules(_TV_PY_PATH) if m.startswith("api.")}
+        assert api_imports == {"api.services.nyse_calendar"}, api_imports
+
+    def test_the_js_derivation_of_the_vendor_view_equals_the_python_one(self):
+        import shutil
+        import subprocess
+        from api.services import tradingview_session as tv
+        node = shutil.which("node")
+        assert node, "node is required for this rail; a skipped cross-lane rail rots"
+        prog = _JSON_HOOK + (
+            "import { pathToFileURL } from 'node:url'\n"
+            f"const m = await import(pathToFileURL({json.dumps(str(_TV_JS_PATH))}).href)\n"
+            "const out = {closures: [], early: []}\n"
+            "for (let y = 1993; y <= 2029; y++) for (let mo = 1; mo <= 12; mo++)\n"
+            " for (let d = 1; d <= 31; d++) {\n"
+            "  const k = y * 10000 + mo * 100 + d\n"
+            "  const dt = new Date(Date.UTC(y, mo - 1, d))\n"
+            "  if (dt.getUTCMonth() !== mo - 1) continue\n"
+            "  const dow = dt.getUTCDay(); if (dow === 0 || dow === 6) continue\n"
+            "  const c = m.tradingViewCloseMinute(k)\n"
+            "  if (c === null) out.closures.push(k); else if (c === 780) out.early.push(k)\n"
+            " }\n"
+            "process.stdout.write(JSON.stringify(out))\n"
+        )
+        res = subprocess.run([node, "--input-type=module", "-e", prog], cwd=str(_ROOT),
+                             capture_output=True, text=True, encoding="utf-8", timeout=120)
+        assert res.returncode == 0, res.stderr[-2000:]
+        got = json.loads(res.stdout)
+        # non-vacuity: the sweep SAW the vendor view, not an empty one
+        assert len(got["closures"]) > 200 and len(got["early"]) >= 13
+        assert set(got["closures"]) == set(tv.TRADINGVIEW_CLOSURES_YYYYMMDD)
+        assert set(got["early"]) == set(tv.TRADINGVIEW_EARLY_CLOSES_YYYYMMDD)
+        for k in got["closures"][:40] + got["early"]:
+            assert tv.tradingview_close_minute(k) == (None if k in got["closures"] else 780), k

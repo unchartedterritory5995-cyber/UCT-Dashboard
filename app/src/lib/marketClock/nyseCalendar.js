@@ -47,7 +47,7 @@ import {
   EARLY_CLOSE_ROWS,
   HOLIDAY_ROWS,
   horizon,
-} from './sessionCalendar'
+} from './sessionCalendar.js'
 
 function _yearOf(isoDate) {
   return Number(isoDate.slice(0, 4))
