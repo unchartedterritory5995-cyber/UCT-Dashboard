@@ -61,6 +61,9 @@ const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
  *  Pine's runtime error stops the script. */
 export const PINE_ARRAY_MAX = 100000
 
+/** A latch whose condition read the warm-up curtain (`readUnknown`). */
+const LATCH_UNKNOWN = Symbol('latch-unknown')
+
 /** The most addresses one `table.merge_cells` may span — Pine's own table is at
  *  most 100 × 100 and anything larger is an argument that was never a size. */
 const MAX_MERGE_AREA = 10000
@@ -218,6 +221,7 @@ export function beginObjects(program, ctx) {
       if (Array.isArray(v.args) && (v.v === 'bool' || v.v === 'cmp' || v.v === 'cross')) v.args.forEach(walk)
     }
     walk(op.when)
+    walk(op.cond)
     crossAtoms.set(op, found)
     return found
   }
@@ -516,6 +520,9 @@ export function beginObjects(program, ctx) {
     const loopVars = new Map()
     /** `cross` node → its answer on THIS bar (see `crossState`). */
     const crossNow = new Map()
+    /** ⭐ C16 — latch id → its condition's answer where its `if` stands, this
+     *  bar (this ITERATION inside a loop): `true`, `false` or `LATCH_UNKNOWN`. */
+    const latches = new Map()
     let opsThisBar = 0
 
     /**
@@ -695,9 +702,21 @@ export function beginObjects(program, ctx) {
           return xs.reduce((acc, x) => f(acc, x))
         }
         case 'cmp': return BINARY[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
+        // ⭐ C16 — the `if`'s condition as it was evaluated ONCE, where it stands.
+        case 'latch': {
+          const x = latches.get(ref.id)
+          return x === true ? 1 : x === false ? 0 : NaN
+        }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
         default: return undefined
       }
+    }
+
+    /** Does this guard read a latch whose condition was unknowable? */
+    const readsUnknownLatch = (v, depth = 0) => {
+      if (!isObj(v) || v.v === 'graph' || v.v === 'tree' || depth > 32) return false
+      if (v.v === 'latch') return latches.get(v.id) === LATCH_UNKNOWN
+      return Array.isArray(v.args) && v.args.some((a) => readsUnknownLatch(a, depth + 1))
     }
 
     /** Step every crossing in this op's guard, once, for this bar. */
@@ -758,7 +777,15 @@ export function beginObjects(program, ctx) {
     for (const op of list) {
       // ⭐ A guard that reads object state steps its crossings HERE, at the op's
       // own position and before any skip below — once per bar, every bar.
-      if (op.when && op.when.v !== 'graph' && op.when.v !== 'tree') observeCrossings(op)
+      if ((op.when && op.when.v !== 'graph' && op.when.v !== 'tree') || op.cond) observeCrossings(op)
+      // ⭐⭐ C16 — A LATCH: the `if`'s object-state condition, evaluated ONCE,
+      // here, before any op of its block runs (Pine evaluates it once). An
+      // unknowable condition (the warm-up curtain) is remembered as unknown, and
+      // every op reading it is withheld and counted below, never run off a guess.
+      if (op.k === 'latch') {
+        latches.set(op.id, unknownAt(op, bar) ? LATCH_UNKNOWN : truthy(value(op.cond)))
+        continue
+      }
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
       // Pine's own idiom for a dashboard is "draw it once, on the newest bar",
       // and an object program is a picture of the chart as it stands — so this
@@ -776,7 +803,7 @@ export function beginObjects(program, ctx) {
       // than values so that object state can never leak into the pure graph.
       if (op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar)) { withheldUnknown += 1; continue }
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
       opsThisBar += 1
       opsExecuted += 1

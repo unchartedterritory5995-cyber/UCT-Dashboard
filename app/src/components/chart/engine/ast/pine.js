@@ -13455,6 +13455,28 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return tail
   }
 
+  /** ⭐ C16 — a name whose binding is, through plain name bindings only, an
+   *  `input.string(…)` / `input(…)` with a string-literal default → that
+   *  default; else null. See the note where `textNodeOf` asks it. */
+  const inputStringText = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node ? inputStringText(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || (node.name !== 'input.string' && node.name !== 'input')) return null
+    const args = node.args || []
+    // ⛔ v4's `input(…, type=input.symbol|input.resolution|…)` is NOT a string
+    // input: a symbol's text is what TradingView resolves it to, and no capture
+    // pins that. Only `input.string` and a bare `input` with a string default
+    // (v4's string input) are read; any `type=` other than `input.string` refuses.
+    const typed = args.find((a) => a && a.name === 'type')
+    if (typed && !(typed.value && typed.value.type === 'name' && typed.value.name === 'input.string')) return null
+    const named = args.find((a) => a && a.name === 'defval')
+    const first = args.find((a) => a && !a.name)
+    const dv = named ? named.value : first ? first.value : null
+    return depth > 0 && dv && dv.type === 'string' ? String(dv.value) : null
+  }
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
@@ -13594,6 +13616,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const sw = switchTextOf(bound, depth, null)
         if (sw) return sw
       }
+      // ⭐⭐ C16 (2026-09-29) — AN `input.string` DEFAULT IN A TEXT SLOT IS THE
+      // TEXT THE CHART SHOWS. `input.string` has no knob in this product (see
+      // `constantColourSelector`'s ruling: the Resolver reads its default and
+      // nothing overrides it), so its default is the only text the drawing can
+      // ever carry. MEASURED on institutional-smc: `text=zone_text_val`, an
+      // `input.string("Order Block", …)` — TradingView's two boxes both read
+      // "Order Block", and this slot was the last thing keeping them off.
+      // ⛔ ONLY a plain string literal default, reached through plain name
+      // bindings. `timeframe.period`, a ternary, a concatenation — anything the
+      // literal does not settle — falls through to the readers below.
+      const lit = inputStringText(node, scope)
+      if (lit !== null) return { t: 'lit', s: lit }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
     //
@@ -14379,6 +14413,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const ast = canonicalOf(node)
     return ast ? internTree(ast) : null
   }
+  /** ⭐ C16 — one latch per `if` condition (its token array), emitted into the
+   *  sink where the first op that needs it is being converted — just before it,
+   *  so the condition is evaluated where the `if` stands, in source order. */
+  const latchIds = new Map()
+  const latchOf = (toks, live) => {
+    let id = latchIds.get(toks)
+    if (!id) {
+      id = `l${latchIds.size}`
+      latchIds.set(toks, id)
+      ops.push({ k: 'latch', id, cond: live })
+    }
+    return { v: 'latch', id }
+  }
   /** Does a live reference observe a crossing anywhere beneath it? */
   const liveHasCross = (v, depth = 0) => {
     if (!v || typeof v !== 'object' || depth > 32) return false
@@ -14495,7 +14542,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         // smc). ⛔ Only a crossing still refuses there: it is observed once per
         // bar, and a body runs several times a bar.
         if (loopIds.length && liveHasCross(live)) return undefined
-        liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [live] } : live)
+        // ⭐⭐ C16 — LATCHED: evaluated ONCE where the `if` stands, and read by
+        // every op of its block and of its `else` (the reader hands both the
+        // SAME condition tokens). Re-evaluating it per op let the block's own
+        // `box.delete(b)` flip `box.get_top(b)` to `na` under the
+        // `array.remove` beside it (institutional-smc, measured).
+        const latched = latchOf(g.toks, live)
+        liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [latched] } : latched)
         continue
       }
       let ast = canonicalOf(node)
@@ -15038,19 +15091,22 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // into the same ledgers a dropped op feeds (`lostCreate`, `lostRemovals`,
   // `contentLost`), so the member door's partial-drawing rule sees it.
   if (divergedColls.size || taintedRegs.size || lostCreateRegs.size) {
+    const unknownLatches = new Set()
     const readsUnknown = (v, depth = 0) => {
       if (!v || typeof v !== 'object' || depth > 32) return false
       if (v.v === 'size') return divergedColls.has(v.coll)
+      if (v.v === 'latch') return unknownLatches.has(v.id)
       if (v.v === 'get') return !!(v.target && v.target.r === 'reg' && taintedRegs.has(v.target.id))
       return Array.isArray(v.args) && v.args.some((a) => readsUnknown(a, depth + 1))
     }
     const refUnknown = (r) => !!r && ((r.r === 'coll' && (divergedColls.has(r.id) || readsUnknown(r.index)))
       || (r.r === 'reg' && taintedRegs.has(r.id)))
-    const valueFields = (o) => [o.when, o.index, o.from, o.to, o.step, o.col, o.row, o.col2, o.row2]
+    const valueFields = (o) => [o.when, o.index, o.from, o.to, o.step, o.col, o.row, o.col2, o.row2, o.cond]
     const guardUnknown = (o) => valueFields(o).some((v) => readsUnknown(v))
     const taintWrites = (o, all) => {
       let changed = false
       const mark = (set, id) => { if (id != null && !set.has(id)) { set.add(id); changed = true } }
+      if (o.k === 'latch' && (all || guardUnknown(o))) mark(unknownLatches, o.id)
       if (o.k === 'setreg' && (all || guardUnknown(o) || (o.value && refUnknown(o.value)))) mark(taintedRegs, o.reg)
       if (o.k === 'create' && o.into && (all || guardUnknown(o))) mark(taintedRegs, o.into)
       if (['push', 'collset', 'collremove', 'collclear'].includes(o.k)
@@ -15080,7 +15136,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         && Object.keys(o.props || {}).some((k) => CONTENT[famOf(o.target)].has(k))) contentLost.push(o.target)
       dropped('coll:diverged')
     }
-    const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); lose(o) } }
+    const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); if (o.k !== 'latch') lose(o) } }
     const opUnknown = (o) => guardUnknown(o) || (o.target && refUnknown(o.target))
       || ((o.k === 'setreg' || o.k === 'push' || o.k === 'collset') && o.value && refUnknown(o.value))
     const pruneDiverged = (list) => {
@@ -15093,6 +15149,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           out.push({ ...o, body })
           continue
         }
+        // ⭐ A latch whose condition is unknown goes silently: it draws nothing,
+        // and every op that reads it is withheld and counted in its own right.
+        if (o.k === 'latch') { if (!opUnknown(o)) out.push(o); continue }
         if (opUnknown(o)) { lose(o); continue }
         out.push(o)
       }

@@ -154,6 +154,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
   'from', 'to',                                // the `loop` bounds
   'step',                                      // …and its `by` step
+  'cond',                                      // C16: a `latch`'s condition
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -165,6 +166,12 @@ export const OBJECT_OP_KINDS = Object.freeze([
   'cellpatch', 'clearcells',
   // ⭐ `table.merge_cells` — a rectangle drawn as one cell (2026-09-28).
   'mergecells',
+  // ⭐⭐ C16 — `latch`: an `if`'s object-state condition, evaluated ONCE where
+  // the `if` stands and read by every op of its block (and of its `else`) as
+  // `{v:'latch', id}`. Pine evaluates the condition once; re-evaluating it per
+  // op let `box.delete(b)` change `box.get_top(b)` under the `array.remove`
+  // written beside it, which then never ran (institutional-smc, measured).
+  'latch',
   // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
   //
   // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
@@ -267,7 +274,7 @@ export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
  *   · a collection index — `array.pop(bs)` is slot `array.size(bs) - 1`.
  * ⛔ Still never a coordinate, a caption, a screener column or a tree.
  */
-export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'bool', 'cmp', 'cross'])
+export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross'])
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
 /** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
  *  `BINARY` table, like the four orderings. */
@@ -413,12 +420,18 @@ function assertColorNode(v, where, depth = 0) {
 /** Does this value reference read object state anywhere beneath it? */
 function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
-  if (v.v === 'get' || v.v === 'size') return true
+  if (v.v === 'get' || v.v === 'size' || v.v === 'latch') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
 /** The live kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs, colls, inLoop}`. */
 function assertLiveRef(v, where, live) {
+  if (v.v === 'latch') {
+    if (!live.latches || !live.latches.has(v.id)) {
+      throw new Error(`${where}: latch ${JSON.stringify(v.id)} is read but never set`)
+    }
+    return
+  }
   if (v.v === 'size') {
     if (!live.colls || !live.colls.has(v.coll)) {
       throw new Error(`${where}: collection ${JSON.stringify(v.coll)} is not declared`)
@@ -643,6 +656,8 @@ export function assertObjectProgram(program) {
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
   const siteFamily = new Map()
+  const latches = new Set()
+  for (const [, op] of walkOps(ops)) if (isObj(op) && op.k === 'latch') latches.add(op.id)
   for (const [where, op] of walkOps(ops)) {
     if (!isObj(op)) throw new Error(`${where}: expected an operation object`)
     if (!OBJECT_OP_KINDS.includes(op.k)) {
@@ -651,7 +666,7 @@ export function assertObjectProgram(program) {
     // ⭐ A GUARD, A LOOP BOUND AND A COLLECTION INDEX may read object state
     // (`LIVE_GUARD_KINDS`). ⛔ Inside a loop body a `cross` is still refused —
     // it is observed once per bar, and a body runs several times a bar.
-    const live = { regs, colls, inLoop: where.includes('.body[') }
+    const live = { regs, colls, latches, inLoop: where.includes('.body[') }
     if (op.when !== null && op.when !== undefined) {
       assertValueRef(op.when, `${where}.when`, live)
     }
@@ -680,7 +695,10 @@ export function assertObjectProgram(program) {
     // separately still falls through to it — and a loop was reported as
     // *"names undeclared collection undefined"*, a sentence about a feature it
     // has nothing to do with.
-    if (op.k === 'loop') {
+    if (op.k === 'latch') {
+      if (!ID_RE.test(String(op.id))) throw new Error(`${where}: a latch needs an id matching ${ID_RE}`)
+      assertValueRef(op.cond, `${where}.cond`, live)
+    } else if (op.k === 'loop') {
       if (!ID_RE.test(String(op.id))) {
         throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
