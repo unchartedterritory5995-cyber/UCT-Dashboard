@@ -49,6 +49,7 @@ says which name and why — it never guesses a meaning.
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
 | `isweekly` | 1 when the chart's timeframe is weekly, otherwise 0 |
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
+| `periodseconds` | the length of one bar of the chart's timeframe, in seconds -- 60 times the minutes on an intraday chart, 86400 on daily, 604800 on weekly and 2628003 on monthly, the same value on every bar; blank when no timeframe was given. This engine's answer for Pine's timeframe.in_seconds() on the chart's own timeframe, and the grid the session clock time(timeframe.period, session) is read on |
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
 | `lastbarindex` | the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar |

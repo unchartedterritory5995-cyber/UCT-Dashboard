@@ -91,7 +91,8 @@ function truthy(v) {
  * @param {number} ctx.barCount
  * @param {(node:number, bar:number)=>*} ctx.readNode   V2 graph node value at a bar
  * @param {(id:string)=>*}               [ctx.readParam] logical parameter value
- * @param {(bar:number)=>number}         [ctx.readTime]  bar timestamp
+ * @param {(bar:number)=>number}         [ctx.readTime]  Pine's `time` for the bar:
+ *        its opening instant in MILLISECONDS (`objectReaderFor` builds it)
  * @param {object}                       [ctx.limits]    override the envelope
  * @param {boolean}                      [ctx.trace]     keep a per-bar event log
  * @returns {{barCount:number, ok:()=>boolean, step:(bar:number)=>void,

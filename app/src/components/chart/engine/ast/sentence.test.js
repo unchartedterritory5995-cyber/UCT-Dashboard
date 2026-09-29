@@ -1045,6 +1045,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:minute',
       'clock:month',
       'clock:monthfirst',
+      // ⭐ `periodseconds` (2026-09-28): the chart's bar length, the session
+      // clock's grid, read where the tree is evaluated rather than folded.
+      'clock:periodseconds',
       'clock:sessionfirst',
       'clock:time',
       'clock:timeclose',
@@ -1186,9 +1189,10 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    // ⭐ 123 -> 128 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(entries.length).toBe(128)
+    // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(entries.length).toBe(129)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
+    // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1205,9 +1209,10 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    // ⭐ 123 -> 128 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(subjects.length).toBe(128)
+    // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(subjects.length).toBe(129)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
+    // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2418,7 +2423,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_dayopentime',
       // ⭐ (2026-09-28, C8) the four `time_close` / `timeframe.change` columns.
       'clock_timeclose', 'clock_dayclosetime', 'clock_weekfirst', 'clock_monthfirst', 'clock_barindex', 'clock_isintraday',
-      'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
+      'clock_isdaily', 'clock_isweekly', 'clock_ismonthly', 'clock_periodseconds',
       // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
       // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
       // is declarable: with no argument columns to pack there is no fabricated
@@ -2634,9 +2639,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    // ⭐ 123 -> 128 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 128)
+    // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 129)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
+    // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

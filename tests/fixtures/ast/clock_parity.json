@@ -2093,6 +2093,29 @@
       0,
       0
     ],
+    "periodseconds": [
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300
+    ],
     "sessionfirst": [
       null,
       0,
@@ -2502,6 +2525,15 @@
       0,
       0
     ],
+    "periodseconds": [
+      86400,
+      86400,
+      86400,
+      86400,
+      86400,
+      86400,
+      86400
+    ],
     "sessionfirst": [
       null,
       1,
@@ -2782,6 +2814,15 @@
       null,
       null,
       null
+    ],
+    "periodseconds": [
+      604800,
+      604800,
+      604800,
+      604800,
+      604800,
+      604800,
+      604800
     ],
     "sessionfirst": [
       null,
@@ -3686,85 +3727,99 @@
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     },
     "1": {
       "isdaily": 0,
       "isintraday": 1,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 60
     },
     "15": {
       "isdaily": 0,
       "isintraday": 1,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 900
     },
     "1H": {
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     },
     "2D": {
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     },
     "3": {
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     },
     "30": {
       "isdaily": 0,
       "isintraday": 1,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 1800
     },
     "5": {
       "isdaily": 0,
       "isintraday": 1,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 300
     },
     "60": {
       "isdaily": 0,
       "isintraday": 1,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 3600
     },
     "D": {
       "isdaily": 1,
       "isintraday": 0,
       "ismonthly": 0,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 86400
     },
     "M": {
       "isdaily": 0,
       "isintraday": 0,
       "ismonthly": 1,
-      "isweekly": 0
+      "isweekly": 0,
+      "periodseconds": 2628003
     },
     "W": {
       "isdaily": 0,
       "isintraday": 0,
       "ismonthly": 0,
-      "isweekly": 1
+      "isweekly": 1,
+      "periodseconds": 604800
     },
     "__absent__": {
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     },
     "d": {
       "isdaily": null,
       "isintraday": null,
       "ismonthly": null,
-      "isweekly": null
+      "isweekly": null,
+      "periodseconds": null
     }
   }
 }

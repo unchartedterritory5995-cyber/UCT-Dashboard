@@ -8244,6 +8244,25 @@ export class Resolver {
     if (!period) {
       throw no(`it was measured on daily and intraday charts, and this one is \`${this.basePeriod}\``)
     }
+    // ⭐⭐ THE GRID IS THE BARS' OWN LENGTH, READ WHERE THE BARS ARE (2026-09-28).
+    // ⚰️ It was `period` above, folded into the tree as a constant, and the member
+    // door translates with the DEFAULT base (`'D'`) because it has no chart in hand
+    // and saves ONE definition that is then drawn on every timeframe. So on a 60m
+    // chart the grid was 1,440 minutes: S04 ("0930-1600", seconds since the grid
+    // bar) was wrong on 258 of 300 RTH bars and 95 of 300 extended-hours bars of
+    // `harness/vw-time-session-spy-60-*-2026-09-28.json`, e.g. vendor 0 against
+    // ours −3600. `pineVocabularyWave.test.js` never saw it: it translates with
+    // `basePeriod: '60'`. Membership never read the grid, which is why S03, S05,
+    // S09 and S11 matched throughout.
+    // ⭐ `timeframe.period` therefore reads the `periodseconds` clock column, which
+    // `computeClock` fills from the timeframe the tree is EVALUATED on, so one
+    // saved tree is right on every chart it is drawn on.
+    // ⛔ A LITERAL period keeps its own length and answers `na` on a chart of any
+    // other length: `time("D", …)` drawn on hourly bars is a daily-bar question
+    // this engine has no bars for, and the hourly grid would be a wrong answer.
+    const gridSecs = isOwnTf ? clockLeaf('periodseconds') : cNum(timeframeSeconds(code))
+    const onItsOwnChart = isOwnTf ? null
+      : cOp('==', [clockLeaf('periodseconds'), cNum(timeframeSeconds(code))])
 
     // ── 2. THE SESSION STRING. ───────────────────────────────────────────────
     const spec = this.sessionTextOf(sessNode)
@@ -8313,8 +8332,9 @@ export class Resolver {
         .reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
       inside = cOp('&&', [inside, anyDay])
     }
+    if (onItsOwnChart) inside = cOp('&&', [inside, onItsOwnChart])
     const secs = cOp('-', [cSeries('time'),
-      cOp('*', [cCall('mod', [cOp('-', [minuteOfDay, cNum(start)]), cNum(period)]), cNum(60)])])
+      cCall('mod', [cOp('*', [cOp('-', [minuteOfDay, cNum(start)]), cNum(60)]), gridSecs])])
     // Pine's `time` is milliseconds for a versioned script — the same gate the
     // bare name and `time("D")` use (`clockTransformFor`).
     const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs

@@ -810,11 +810,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # bar-corpus case: `clock_dayopentime`. The scalar half is untouched at
     # 137 -- a per-bar clock column names no per-symbol column.
     # (2026-09-27) 122 -> 123: `atrPine` (Pine's `ta.atr`). Scalars untouched.
-    # ⭐ 123 -> 128 (2026-09-28, C8): `timeclose`, `dayclosetime`, `weekfirst`,
+    # ⭐ 123 -> 129 (2026-09-28, C8): `timeclose`, `dayclosetime`, `weekfirst`,
     # `monthfirst`. New bar-corpus cases: `clock_timeclose`, `clock_dayclosetime`,
     # `clock_weekfirst`, `clock_monthfirst`. The scalar half is untouched at 137.
-    assert len(parts["bar"]) == 128 and len(parts["scalar"]) == 137
+    assert len(parts["bar"]) == 129 and len(parts["scalar"]) == 137
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
+    # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

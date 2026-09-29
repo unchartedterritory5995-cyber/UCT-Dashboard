@@ -1176,6 +1176,34 @@ export function timeframeFlags(tf) {
   }
 }
 
+/** ⭐⭐ HOW LONG ONE BAR OF THE CHART'S TIMEFRAME IS, IN SECONDS: Pine's
+ *  `timeframe.in_seconds()` for the chart's own period (2026-09-28).
+ *
+ *  Every value is the vendor's own reading: `harness/vw-time-tf-spy-1d-2026-09-28`
+ *  answered `timeframe.in_seconds("1" | "60" | "D" | "W" | "M")` with 60, 3600,
+ *  86400, 604800 and 2628003 (a 30.4167-day month), and a minute code is its
+ *  count of minutes times 60.
+ *
+ *  ⭐ IT IS A COLUMN, NOT A TRANSLATE-TIME CONSTANT, BECAUSE A MEMBER'S SCRIPT IS
+ *  TRANSLATED ONCE AND DRAWN ON EVERY TIMEFRAME. The member door translates with
+ *  no chart in hand (`memberPaneDefinition`), the definition is saved, and the
+ *  binder evaluates that one tree on whatever timeframe the chart shows. A bar
+ *  length folded into the tree at translation is the default base's (`'D'`,
+ *  86400) on every chart: measured on the session clock, where
+ *  `time(timeframe.period, "0930-1600")` took its grid from it and was wrong on
+ *  258 of 300 hourly bars. The bars' own timeframe is known where the tree is
+ *  EVALUATED, which is here.
+ *
+ *  ⛔ DECLARED, NEVER PARSED OFF THE CODE, and an unknown or absent code is BLANK,
+ *  the same fail-closed answer the four timeframe booleans give.
+ *  ⛔ MIRRORED BY `indicator_compute.CLOCK_PERIOD_SECONDS` value for value, and
+ *  `pine.js::timeframeSeconds` must agree with it for every code
+ *  (`sessionClockTimeframe.test.js`), so the translator's `in_seconds(<code>)`
+ *  and this column cannot drift apart. */
+export const CLOCK_PERIOD_SECONDS = Object.freeze({
+  1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600, D: 86400, W: 604800, M: 2628003,
+})
+
 /** The nine columns that read the bar's `t`, and therefore the nine the unit
  *  gate below refuses together. Derived from nothing: it IS the partition, and
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
@@ -1379,7 +1407,7 @@ export const CLOCK_BARSTATE = Object.freeze([...CLOCK_EXTENT, ...CLOCK_REALTIME]
 
 export const CLOCK_COLUMNS = Object.freeze([
   ...CLOCK_TIME_DERIVED, 'barindex', 'isintraday', 'isdaily', 'isweekly', 'ismonthly',
-  ...CLOCK_EXTENT, ...CLOCK_REALTIME, ...CLOCK_LASTBAR_TIME,
+  'periodseconds', ...CLOCK_EXTENT, ...CLOCK_REALTIME, ...CLOCK_LASTBAR_TIME,
 ])
 
 /**
@@ -1513,6 +1541,9 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   cols.isdaily.fill(flags ? (flags.isdaily ? 1 : 0) : NA)
   cols.isweekly.fill(flags ? (flags.isweekly ? 1 : 0) : NA)
   cols.ismonthly.fill(flags ? (flags.ismonthly ? 1 : 0) : NA)
+  // ⭐ THE BAR LENGTH IS THE SAME KIND OF FACT: it reads no bar, so it sits above
+  // the unit gate beside the four booleans and blanks exactly when they do.
+  cols.periodseconds.fill(flags ? CLOCK_PERIOD_SECONDS[tf] : NA)
 
   // `barindex` is the loop counter and nothing else. It is HERE rather than in
   // `interpret` so the clock has ONE owner: a second place that knew what bar

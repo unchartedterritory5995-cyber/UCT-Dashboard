@@ -146,6 +146,11 @@
       "yields": "bool",
       "sentence": "1 when the chart's timeframe is monthly, otherwise 0"
     },
+    "periodseconds": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the length of one bar of the chart's timeframe, in seconds -- 60 times the minutes on an intraday chart, 86400 on daily, 604800 on weekly and 2628003 on monthly, the same value on every bar; blank when no timeframe was given. This engine's answer for Pine's timeframe.in_seconds() on the chart's own timeframe, and the grid the session clock time(timeframe.period, session) is read on"
+    },
     "islast": {
       "lookback": 0,
       "yields": "bool",
