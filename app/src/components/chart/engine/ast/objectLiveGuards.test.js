@@ -57,7 +57,7 @@ describe('⛔ …and nowhere else', () => {
 
   it('a CROSSING inside a LOOP BODY is refused — it is observed once per bar', () => {
     const loop = { k: 'loop', id: 'i', from: { v: 'const', value: 0 }, to: { v: 'const', value: 1 }, body: [label(CROSS)] }
-    expect(() => assertObjectProgram(prog(loop))).toThrow(/cannot be read inside a loop body/)
+    expect(() => assertObjectProgram(prog(loop))).toThrow(/a cross in a loop body/)
   })
 
   it('⭐ C16 — a getter or length COMPARISON inside a loop body is legal: one answer per iteration', () => {
@@ -78,7 +78,13 @@ describe('⛔ …and nowhere else', () => {
     const del = { k: 'delete', target: { r: 'coll', id: 'c0', index: { v: 'op', op: '-', args: [size, { v: 'const', value: 1 }] } }, when: null }
     expect(() => assertObjectProgram(prog(del, colls))).not.toThrow()
     expect(() => assertObjectProgram(prog(label({ v: 'cmp', op: '>=', args: [{ ...size, coll: 'c9' }, { v: 'const', value: 3 }] }), colls)))
-      .toThrow(/not declared/)
+      .toThrow(/undeclared size/)
+    // ⛔ a latch is read only after the op that sets it
+    expect(() => assertObjectProgram(prog(label({ v: 'bool', op: 'not', args: [{ v: 'latch', id: 'l0' }] }))))
+      .toThrow(/undeclared latch/)
+    const latched = { programVersion: 1, regs: [{ id: 'r0', family: 'box' }], colls: [],
+      ops: [{ k: 'latch', id: 'l0', cond: { v: 'cmp', op: '<', args: [{ v: 'tree', tree: 0 }, GET] } }, label({ v: 'latch', id: 'l0' })] }
+    expect(() => assertObjectProgram(latched)).not.toThrow()
     // ⛔ …and still never a property
     const inProp = { ...label(null), props: { x: { v: 'bar' }, y: size } }
     expect(() => assertObjectProgram(prog(inProp, colls))).toThrow(/legal only in a guard/)

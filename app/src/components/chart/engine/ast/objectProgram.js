@@ -426,23 +426,15 @@ function containsGet(v, depth = 0) {
 
 /** The live kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs, colls, inLoop}`. */
 function assertLiveRef(v, where, live) {
-  if (v.v === 'latch') {
-    if (!live.latches || !live.latches.has(v.id)) {
-      throw new Error(`${where}: latch ${JSON.stringify(v.id)} is read but never set`)
-    }
-    return
-  }
-  if (v.v === 'size') {
-    if (!live.colls || !live.colls.has(v.coll)) {
-      throw new Error(`${where}: collection ${JSON.stringify(v.coll)} is not declared`)
-    }
+  // ⭐ C16 — a length reads a DECLARED collection; a latch is read only AFTER
+  // the op that sets it (the validator walks ops in the runtime's order).
+  if (v.v === 'size' || v.v === 'latch') {
+    if (!(v.v === 'size' ? live.colls.has(v.coll) : live.latches.has(v.id))) throw new Error(`${where}: undeclared ${v.v}`)
     return
   }
   // ⛔ A CROSSING IS OBSERVED ONCE PER BAR, AT THE OP'S POSITION; a loop body
   // runs several times a bar, so "the previous pair" has no single answer there.
-  if (v.v === 'cross' && live.inLoop) {
-    throw new Error(`${where}: a crossing cannot be read inside a loop body`)
-  }
+  if (v.v === 'cross' && live.inLoop) throw new Error(`${where}: a cross in a loop body`)
   if (v.v === 'get') {
     const t = v.target
     if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
@@ -475,8 +467,8 @@ function assertValueRef(v, where, live = null) {
   if (!isObj(v)) throw new Error(`${where}: expected a value reference object, got ${typeof v}`)
   if (LIVE_GUARD_KINDS.includes(v.v)) {
     if (!live) {
-      throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in a guard `
-        + '(`when`), a loop bound or a collection index')
+      throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in a guard, `
+        + 'a loop bound or an index')
     }
     assertLiveRef(v, where, live)
     return
@@ -559,7 +551,7 @@ function assertValueRef(v, where, live = null) {
   }
 }
 
-function assertRefExpr(v, where, regs, colls, live = null) {
+function assertRefExpr(v, where, regs, colls, live) {
   if (!isObj(v)) throw new Error(`${where}: expected an object reference expression`)
   switch (v.r) {
     case 'reg': {
@@ -657,7 +649,6 @@ export function assertObjectProgram(program) {
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
   const siteFamily = new Map()
   const latches = new Set()
-  for (const [, op] of walkOps(ops)) if (isObj(op) && op.k === 'latch') latches.add(op.id)
   for (const [where, op] of walkOps(ops)) {
     if (!isObj(op)) throw new Error(`${where}: expected an operation object`)
     if (!OBJECT_OP_KINDS.includes(op.k)) {
@@ -696,8 +687,9 @@ export function assertObjectProgram(program) {
     // *"names undeclared collection undefined"*, a sentence about a feature it
     // has nothing to do with.
     if (op.k === 'latch') {
-      if (!ID_RE.test(String(op.id))) throw new Error(`${where}: a latch needs an id matching ${ID_RE}`)
+      // ⭐ its id is only ever a key its readers name — `undeclared latch` above
       assertValueRef(op.cond, `${where}.cond`, live)
+      latches.add(op.id)
     } else if (op.k === 'loop') {
       if (!ID_RE.test(String(op.id))) {
         throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
@@ -802,7 +794,7 @@ export function assertObjectProgram(program) {
   return { sites: [...siteFamily.keys()], regs: [...regs.keys()], colls: [...colls.keys()] }
 }
 
-function resolveTargetFamily(op, where, regs, colls, siteFamily, live = null) {
+function resolveTargetFamily(op, where, regs, colls, siteFamily, live) {
   const fam = assertRefExpr(op.target, `${where}.target`, regs, colls, live)
   if (fam !== null) return fam
   const f = siteFamily.get(op.target.id)
