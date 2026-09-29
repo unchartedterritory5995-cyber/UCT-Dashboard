@@ -98,8 +98,10 @@ def acquire_company(conn, cik: int, *, now: float, fetch_company=None, fetch_ins
     st = I.ingest_company(conn, cik, cf, main, pages, now=now)
     sig = INC.check_signals(conn, cik, fetch_instance=fetch_instance, now=now)
     subs = parse_submission_pages(pages)
-    cited = {f["accn"] for units in (cf.get("facts") or {}).values() for c in units.values()
-             for rows in (c.get("units") or {}).values() for f in rows if f.get("accn")}
+    # "cited" must mean what INGEST keeps: a filing cited only by tags V5 does not retain is (correctly) never
+    # stored -- exactly as in the full rebuild -- so it is NO_FINANCIAL_FACTS, not a retry.
+    _keep, facts, _anom = I.parse_company(cf, pages)
+    cited = {f.accn for f in facts}
     return {"ingest": st, "signals": sig, "submissions": subs, "cited": cited}
 
 

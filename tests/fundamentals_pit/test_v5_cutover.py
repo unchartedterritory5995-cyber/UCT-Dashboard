@@ -200,6 +200,20 @@ def test_periodic_filing_without_facts_after_48h_is_failed_visibly(env):
     assert rec["acquisition"]["outcomes"] == {"FAILED": 1}
 
 
+def test_filing_cited_only_by_unretained_tags_is_no_financial_facts(env):
+    """MEASURED in the catch-up rehearsal: 39 S-1/F-1/F-3/S-4 filings cited only by tags V5 does not retain sat in
+    RETRY forever and blocked the daily horizon. Ingest never stores them (same as the full rebuild)."""
+    s1 = ("0000000000-26-000009", "2026-09-28", "2026-09-28T12:00:00.000Z", "S-1")
+    cf = _cf(FACTS)
+    cf["facts"]["dei"] = {"EntityPublicFloat": {"units": {"USD": [
+        {"end": "2026-06-30", "val": 1, "accn": s1[0], "fy": 2026, "fp": "FY", "form": "S-1", "filed": "2026-09-28"}]}}}
+    SV.clear_cache()
+    rec = PL.run_batch("replay", target=env["t"], p=env["p"], now=NOW, entries=[{"accn": s1[0], "cik": CIK, "form": "S-1"}],
+                       fetch_company=lambda c: (cf, _sub(ACCNS + [s1]), [_sub(ACCNS + [s1])["filings"]["recent"]]),
+                       fetch_instance=lambda c, a: None, sync_split=False)
+    assert rec["acquisition"]["outcomes"] == {"NO_FINANCIAL_FACTS": 1}
+
+
 # ── validation gates ────────────────────────────────────────────────────────
 def test_unexplained_retroactive_change_quarantines_the_company_and_keeps_the_parent(env, monkeypatch):
     cur0 = PUB.read_current(env["t"])
