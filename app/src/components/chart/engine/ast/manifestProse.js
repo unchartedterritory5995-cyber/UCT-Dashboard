@@ -223,6 +223,10 @@ export const DROP = Object.freeze([
   "_functions_math",
   "_functions_sum_dev",
   "_benchmarks",
+  // ⭐ (2026-09-29) Prose: why `periodseconds` is chart-scoped yet held off the
+  // bind-time predicate roster. Read only by `tests/test_ast_bind_fold.py`, off the
+  // file on disk, so it DROPS from the bundle.
+  "_bind_time_held_out",
   "_functions_vendor_parity_resolutions",
   // ⚰️ `_clock_barstate` STOOD HERE AND IS GONE — CORRECTLY, AND ITS SUCCESSOR
   // MUST NOT REPLACE IT. That key was a flat prose STRING: one note arguing why

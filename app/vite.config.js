@@ -118,7 +118,18 @@ function stripManifestProse() {
     apply: 'build',
     enforce: 'pre',
     async transform(code, id) {
-      if (!id.split('\\').join('/').endsWith('/engine/ast/closedTable.json')) return null
+      const file = id.split('\\').join('/')
+      if (file.endsWith('/engine/ast/symbolScope.json')) {
+        // ⭐ The second manifest, same rule: `symbolScopeProse.js::KEEP` decides and
+        // `symbolScopeProse.test.js` derives it from what the runtime reads.
+        const { stripSymbolScope } = await import('./src/components/chart/engine/ast/symbolScopeProse.js')
+        const { doc, dropped, savedBytes } = stripSymbolScope(JSON.parse(code))
+        // eslint-disable-next-line no-console
+        console.log(`[uct] symbolScope: dropped ${dropped.length} prose keys, `
+          + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
+        return { code: JSON.stringify(doc), map: null }
+      }
+      if (!file.endsWith('/engine/ast/closedTable.json')) return null
       const { stripProse } = await import('./src/components/chart/engine/ast/manifestProse.js')
       const { table, dropped, savedBytes } = stripProse(JSON.parse(code))
       // ⚠️ SAY IT OUT LOUD AT BUILD TIME. A silent transform of the engine's own
