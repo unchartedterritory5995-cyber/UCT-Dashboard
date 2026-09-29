@@ -139,6 +139,10 @@
   font-size: 11px;
   line-height: 1.3;
   padding: 3px 5px;
+  /* Wave 10 lane L3 (clause 6c): 22.3 px tall at 820 and 1200; beside the hub's fixed
+     "Notebook actions" button it had no spacing to excuse it (WCAG 2.5.8). Rail:
+     a11y/targetFloors.test.js. */
+  min-height: 24px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
