@@ -126,6 +126,61 @@ export default function NoteBoardView({
 
   const columns = useMemo(() => (def ? columnsFor(def) : []), [def])
 
+  // ⛔⛔ WAVE 10 D-5 (design review; proof walk 10E-1 6b + F5 + the wave10
+  // design-recheck). F5 made the row scroll ALONE and gave it a thin,
+  // theme-token thumb -- but the recheck found NO scrollbars-shown capture of
+  // the real board proving that thumb paints: at 1200/820 the recheck's own
+  // pixel scan under the columns "finds nothing above black". This is a
+  // SECOND, OS-independent cue that does not depend on the OS ever painting a
+  // scrollbar: a mask on the scroller's own right edge, present only while a
+  // column sits past the visible edge and gone once the last one is fully in
+  // view -- driven by real scroll position, not a static width guess, so it
+  // is honest at 1200, 820 AND 390 with no @media needed (the same scroll
+  // arithmetic is correct at every width; see NoteBoardView.module.css
+  // `.columnsFadeRight`, which is the idiom `VideosSection.module.css`
+  // `.chipsFadeR` already uses for exactly this reason: a mask reads
+  // correctly against any theme background, where a colour-matched overlay
+  // would have to know it).
+  //
+  // The element is obtained via a CALLBACK ref -> state, not a ref object,
+  // for the same reason `Shelf.jsx`'s `useScrollEdges` does: if a parent ever
+  // starts async-loading `notes`/`propertyDefs` into an already-mounted
+  // `NoteBoardView`, `defs.length` can go from 0 to >0 within the SAME
+  // instance and `.columns` mounts for the first time -- a plain `useRef`
+  // effect would already have run once against `null` and never re-arm.
+  const [columnsEl, setColumnsEl] = useState(null)
+  const [moreRight, setMoreRight] = useState(false)
+  useEffect(() => {
+    const el = columnsEl
+    if (!el) {
+      setMoreRight((prev) => (prev ? false : prev))
+      return
+    }
+    let dead = false
+    const update = () => {
+      if (dead) return
+      const max = el.scrollWidth - el.clientWidth
+      const next = max > 2 && el.scrollLeft < max - 2
+      setMoreRight((prev) => (prev === next ? prev : next))
+    }
+    update()
+    el.addEventListener('scroll', update, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null
+    ro?.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      dead = true
+      el.removeEventListener('scroll', update)
+      ro?.disconnect()
+      window.removeEventListener('resize', update)
+    }
+    // `columns.length` is the CONTENT key: switching "Group by" (or the
+    // notebook gaining/losing a select property) changes the column count --
+    // and with it scrollWidth -- without resizing the scroller's own box,
+    // which ResizeObserver cannot see (Shelf.jsx's useScrollEdges carries
+    // the identical comment for the identical reason).
+  }, [columnsEl, columns.length])
+
   const byColumn = useMemo(() => {
     if (!def) return {}
     const out = {}
@@ -199,7 +254,16 @@ export default function NoteBoardView({
         {error ? <span className={styles.error} role="status">{error}</span> : null}
       </div>
 
-      <div className={styles.columns}>
+      <div
+        ref={setColumnsEl}
+        // ⛔ Ground truth for the D-5 cue, read by both the rail and the R-RAW
+        // probe (tools/notebook_d5_scroll_probe.py) -- a `data-*` attribute
+        // rather than the CSS module class because a class name is hashed
+        // per-build and this needs to be findable in a real production
+        // bundle, not only under vitest's dev transform.
+        data-board-scroll-more={moreRight ? 'true' : 'false'}
+        className={`${styles.columns} ${moreRight ? styles.columnsFadeRight : ''}`}
+      >
         {columns.map((col) => {
           const cards = byColumn[col.id] || []
           return (
