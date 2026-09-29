@@ -1,0 +1,1 @@
+First run of this boot. Its GET-door columns recorded the STATUS only; an unmounted /api path is answered 200 text/html by the SPA catch-all (seen here on p03: L1b 200 after its revert), so the probe was changed to require a JSON answer and the boot was re-run as sandbox/p02-4bba30b73. Every other reading is as measured.

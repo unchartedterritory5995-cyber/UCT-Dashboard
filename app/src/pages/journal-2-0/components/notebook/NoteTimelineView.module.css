@@ -96,6 +96,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Wave 10 lane L3 (clause 6c): a note bar rendered 81x20 at 1200 px, stacked 3 px from
+   the next -- under WCAG 2.5.8's 24 px with no spacing to excuse it
+   (docs/notebook/proof/l3-layout-0e72ad573/before). The touch tier's 44 px floor
+   below comes later in the file and still wins there. Rail: a11y/targetFloors.test.js. */
+.chip {
+  min-height: 24px;
+}
 .chip:hover,
 .zoomBtn:hover,
 .navBtn:hover {

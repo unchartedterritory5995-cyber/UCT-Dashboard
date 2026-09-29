@@ -1,0 +1,150 @@
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGjwtu1CefPNb23yCQY'}
+2026-09-29 01:39:40,389 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for HELE (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:39:40,587 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:39:41,726 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for NRIX (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:39:42,320 INFO api.services.bars_sanitize: [d5-cp4-dual-compute] HELE outcome=FMP_ONLY fmp=4 d5=0
+2026-09-29 01:39:42,383 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 750/2617 warmed=217 failed=533
+2026-09-29 01:39:43,243 WARNING api.services.earnings_enrichment: AI key-quotes extraction failed for ODC: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkDbTj1qwvnmS5qpBd'}
+2026-09-29 01:39:43,406 WARNING api.services.engine: AI preview failed for ODC: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkEJsfHUyr9u1wNF6R'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L1a\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkEJsfHUyr9u1wNF6R'}
+2026-09-29 01:39:43,455 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:39:45,511 WARNING api.services.earnings_enrichment: AI key-quotes extraction failed for DAL: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkPRZZjQPkpoaep8uu'}
+2026-09-29 01:39:45,672 WARNING api.services.engine: AI preview failed for DAL: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkPxoQdf9xNB6JoEh1'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L1a\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGkPxoQdf9xNB6JoEh1'}
+2026-09-29 01:39:52,647 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-29 01:39:52,935 INFO api.services.ticker_logos: [logo-hires] starting: 1284 cached logos to upgrade
+2026-09-29 01:39:53,807 INFO api.routers.calendar: Calendar: econ loaded � FF 0 events / 0 days, FMP filled 24 across 5 uncovered days
+2026-09-29 01:39:53,808 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set � bulk refresh skipped
+2026-09-29 01:39:55,165 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for PEP (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:39:56,459 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:39:56,530 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:39:56,561 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:39:56,973 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-29 01:39:56,973 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-29 06:39:56 UTC], next run at: 2026-09-29 06:39:56 UTC)" (scheduled at 2026-09-29 06:39:56.969401+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': False, 'reason': 'before-seven', 'day': '2026-09-29'}
+2026-09-29 01:39:56,974 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-29 06:39:56 UTC], next run at: 2026-09-29 06:39:56 UTC)" executed successfully
+2026-09-29 01:39:57,535 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for ODC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:39:59,346 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:39:59,362 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:40:00,015 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_insider_capture (trigger: cron[hour='2', minute='40'], next run at: 2026-09-30 02:40:00 EDT)" (scheduled at 2026-09-29 02:40:00-04:00)
+2026-09-29 01:40:00,264 INFO api.main: [screener] screener_insider_capture receipt: {'ok': True, 'error': None, 'seen': 41, 'upserted': 41, 'skipped': 0}
+2026-09-29 01:40:00,265 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_insider_capture (trigger: cron[hour='2', minute='40'], next run at: 2026-09-30 02:40:00 EDT)" executed successfully
+2026-09-29 01:40:01,456 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for ACI (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:02,062 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:40:02,386 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 01:40:03,032 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/292 syms; week-2 5 day(s)/7 syms
+2026-09-29 01:40:10,988 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for AZZ (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:13,670 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BLK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:17,343 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for C (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:22,654 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-29 01:40:22,655 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-29 01:40:24,069 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" (scheduled at 2026-09-29 01:40:24.066368-05:00)
+2026-09-29 01:40:24,075 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" executed successfully
+2026-09-29 01:40:24,301 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" (scheduled at 2026-09-29 01:40:24.287273-05:00)
+2026-09-29 01:40:24,303 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-29 01:40:24,304 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" executed successfully
+2026-09-29 01:40:24,407 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 02:41:24 EDT)" (scheduled at 2026-09-29 02:40:24.404554-04:00)
+2026-09-29 01:40:24,409 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 02:41:24 EDT)" executed successfully
+2026-09-29 01:40:24,422 INFO apscheduler.executors.default: Running job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 02:42:24 EDT)" (scheduled at 2026-09-29 02:40:24.420359-04:00)
+2026-09-29 01:40:24,435 INFO apscheduler.executors.default: Job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 02:42:24 EDT)" executed successfully
+2026-09-29 01:40:24,438 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" (scheduled at 2026-09-29 01:40:24.428098-05:00)
+2026-09-29 01:40:24,440 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-29 01:40:24,441 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 01:41:24 CDT)" executed successfully
+2026-09-29 01:40:25,369 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1000/2617 warmed=390 failed=610
+2026-09-29 01:40:26,869 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for DPZ (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:29,483 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for EQBK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:31,772 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-29 01:40:33,125 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for FBK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:40:42,770 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for GS (Anthropic call failed or empty � will retry after cooldown)
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-29 01:40:45,223 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for JNJ (Anthropic call failed or empty � will retry after cooldown)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-29 01:40:45,569 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-09-29 01:40:45,573 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running � nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-09-29 01:40:45,574 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-09-29 01:40:46,124 INFO api.services.cache_snapshot: [cache-snapshot] saved 942/966 entries (3447.1 KB)
+[shutdown] cache snapshot saved: 942 entries, 3447 KB
+2026-09-29 01:40:46,150 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-09-29 01:40:46,156 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [32628]
+2026-09-29 01:40:46,632 INFO api.services.rs_ranking: [rs_ranking] Cached 3621 RS rankings
+2026-09-29 01:40:46,636 INFO api.main: [rs-rankings] warmed: 3621 entries
+2026-09-29 01:40:48,956 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for JPM (Anthropic call failed or empty � will retry after cooldown)
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L1a\docs\plans\joystick\sandbox-runs\2026-09-29T01-37-53.md
+2026-09-29 01:40:58,617 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for UNH (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:41:00,972 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for UNTY (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:41:04,852 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for WFC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:41:07,788 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1250/2617 warmed=572 failed=678
+2026-09-29 01:41:14,473 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BAC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:41:16,697 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BSVN (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:41:20,853 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for FAST (Anthropic call failed or empty � will retry after cooldown)

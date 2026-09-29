@@ -1,0 +1,49 @@
+tests/test_alert_taxonomy_indicator_condition_schema.py | master: 1 failed, 46 passed, 2539 warnings in 21.40s | landing: 1 failed, 46 passed, 2539 warnings in 22.44s | landing-only: 0
+tests/test_alert_taxonomy_position_risk_schema.py | master: 1 failed, 22 passed, 1190 warnings in 21.06s | landing: 1 failed, 22 passed, 1190 warnings in 22.41s | landing-only: 0
+tests/test_audit_sandbox_env.py | master: 4 failed, 1 passed, 271 warnings in 33.95s | landing: 4 failed, 1 passed, 271 warnings in 36.57s | landing-only: 0
+tests/test_bars_ordinal_census.py | master: 1 failed, 8 passed, 487 warnings in 20.78s | landing: 1 failed, 8 passed, 487 warnings in 23.52s | landing-only: 0
+tests/test_bars_server_include_today.py | master: 1 failed, 19 passed, 1153 warnings in 4.06s | landing: 1 failed, 19 passed, 1153 warnings in 3.78s | landing-only: 0
+tests/test_cadence_heartbeat.py | master: 1 failed, 33 passed, 1629 warnings in 15.47s | landing: 1 failed, 33 passed, 1629 warnings in 14.94s | landing-only: 0
+tests/test_calendar_actuals_patch.py | master: 4 passed, 275 warnings in 1.60s | landing: 4 passed, 275 warnings in 1.65s | landing-only: 0
+tests/test_calendar_paging.py | master: 12 passed, 6527 warnings in 11.07s | landing: 12 passed, 6527 warnings in 11.24s | landing-only: 0
+tests/test_closed_table_citations.py | master: 1 failed, 6 passed, 326 warnings in 89.55s (0:01:29) | landing: 1 failed, 6 passed, 326 warnings in 52.56s | landing-only: 0
+tests/test_cold_fetch_pool_protection.py | master: 1 failed, 3 passed, 217 warnings in 3.54s | landing: 1 failed, 3 passed, 217 warnings in 3.53s | landing-only: 0
+tests/test_concept_vocabulary.py | master: 6 failed, 32 passed, 2000 warnings in 2.01s | landing: 6 failed, 32 passed, 2000 warnings in 1.99s | landing-only: 0
+tests/test_definition_concierge.py | master: 1 failed, 96 passed, 5784 warnings in 20.44s | landing: 1 failed, 96 passed, 5784 warnings in 19.57s | landing-only: 0
+tests/test_desk_session_recap.py | master: 16 passed, 865 warnings in 1.18s | landing: 16 passed, 865 warnings in 1.05s | landing-only: 0
+tests/test_discord_render_observe.py | master: 1 failed, 32 passed, 1574 warnings in 2.61s | landing: 1 failed, 32 passed, 1574 warnings in 2.59s | landing-only: 0
+tests/test_e2e_sandbox_guard.py | master: 1 failed, 12 passed, 554 warnings in 6.00s | landing: 1 failed, 12 passed, 554 warnings in 6.23s | landing-only: 0
+tests/test_earnings_analysis.py | master: 25 passed, 1554 warnings in 5.97s | landing: 25 passed, 1554 warnings in 3.42s | landing-only: 0
+tests/test_flow_classification.py | master: 1 failed, 57 passed, 3213 warnings in 1.93s | landing: 1 failed, 57 passed, 3213 warnings in 2.03s | landing-only: 0
+tests/test_fundamentals_snapshot_store.py | master: 2 failed, 10 passed, 649 warnings in 2.47s | landing: 2 failed, 10 passed, 649 warnings in 2.61s | landing-only: 0
+tests/test_gate_shards.py | master: 1 failed, 87 passed, 2 skipped, 4271 warnings in 11.66s | landing: 1 failed, 87 passed, 2 skipped, 4271 warnings in 13.49s | landing-only: 0
+tests/test_gitattributes_eol.py | master: 2 failed, 6 passed, 433 warnings in 9.70s | landing: 2 failed, 6 passed, 433 warnings in 11.87s | landing-only: 0
+tests/test_graph_wire_size.py | master: 5 failed, 2 passed, 386 warnings in 2.43s | landing: 5 failed, 2 passed, 386 warnings in 3.30s | landing-only: 0
+tests/test_implied_backfill.py | master: 15 failed, 47 passed, 3740 warnings in 7.24s | landing: 15 failed, 47 passed, 3740 warnings in 7.26s | landing-only: 0
+tests/test_mutation_check.py | master: 1 failed, 13 passed, 796 warnings in 36.58s | landing: 1 failed, 13 passed, 796 warnings in 37.28s | landing-only: 0
+tests/test_mutation_harness_anchors.py | master: 14 failed, 24 passed, 304 warnings in 4.62s | landing: 14 failed, 24 passed, 304 warnings in 5.90s | landing-only: 0
+tests/test_mutation_harness_hygiene.py | master: 2 failed, 28 passed, 1097 warnings in 18.47s | landing: 2 failed, 28 passed, 1097 warnings in 19.72s | landing-only: 0
+tests/test_no_cr_in_tracked_text_blobs.py | master: 1 failed, 2 passed, 163 warnings in 20.25s | landing: 1 failed, 2 passed, 163 warnings in 22.11s | landing-only: 0
+tests/test_notebook_bench_uct.py | master: 1 failed, 28 passed, 1185 warnings in 9.46s | landing: 1 failed, 28 passed, 1185 warnings in 9.84s | landing-only: 0
+tests/test_notes_unbuildable_body_refused.py | master: 67 passed, 26698 warnings in 58.53s | landing: 67 passed, 26698 warnings in 56.61s | landing-only: 0
+tests/test_pattern_join_canonical_shadow_benchmark.py | master: 1 passed, 55 warnings in 36.83s | landing: 1 passed, 55 warnings in 36.04s | landing-only: 0
+tests/test_pattern_vision_active_set_hygiene.py | master: 13 passed, 6579 warnings in 9.16s | landing: 13 passed, 6579 warnings in 11.35s | landing-only: 0
+tests/test_program_doc_shas_resolve.py | master: 1 failed, 8 passed, 496 warnings in 109.33s (0:01:49) | landing: 1 failed, 8 passed, 496 warnings in 104.10s (0:01:44) | landing-only: 0
+tests/test_render_token_never_logged.py | master: 1 failed, 5 passed, 272 warnings in 1.53s | landing: 1 failed, 5 passed, 272 warnings in 1.50s | landing-only: 0
+tests/test_requirement_tags.py | master: 2 failed, 15 passed, 707 warnings in 1.12s | landing: 2 failed, 15 passed, 707 warnings in 1.06s | landing-only: 0
+tests/test_scan_screener_auth.py | master: 7 failed, 1 passed, 996 warnings in 3.94s | landing: 7 failed, 1 passed, 996 warnings in 3.92s | landing-only: 0
+tests/test_screener_filters.py | master: 2 failed, 41 passed, 2323 warnings in 2.64s | landing: 2 failed, 41 passed, 2323 warnings in 2.75s | landing-only: 0
+tests/test_screener_saved.py | master: 1 failed, 8 passed, 487 warnings in 5.21s | landing: 1 failed, 8 passed, 487 warnings in 5.29s | landing-only: 0
+tests/test_screener_wave1_columndefs.py | master: 1 failed, 5 passed, 325 warnings in 1.09s | landing: 1 failed, 5 passed, 325 warnings in 0.94s | landing-only: 0
+tests/test_screener_wave2_analyst_store.py | master: 9 failed, 9 passed, 973 warnings in 2.43s | landing: 9 failed, 9 passed, 973 warnings in 2.69s | landing-only: 0
+tests/test_screener_wave2_earnings_dates.py | master: 4 failed, 18 passed, 1189 warnings in 3.62s | landing: 4 failed, 18 passed, 1189 warnings in 3.77s | landing-only: 0
+ttests/test_shared_data_root_guard.py | master: 2 failed, 19 passed, 1135 warnings in 80.87s (0:01:20) | landing: 2 failed, 19 passed, 1135 warnings in 74.88s (0:01:14) | landing-only: 0
+tests/test_shared_state_landmines.py | master: 1 failed, 6 passed, 394 warnings in 36.41s | landing: 1 failed, 6 passed, 394 warnings in 34.76s | landing-only: 0
+tests/test_starter_library.py | master: 3 failed, 27 passed, 1681 warnings in 3.30s | landing: 3 failed, 27 passed, 1681 warnings in 3.22s | landing-only: 0
+tests/test_ticker_logos.py | master: 4 failed, 41 passed, 8344 warnings in 9.65s | landing: 4 failed, 41 passed, 8344 warnings in 9.24s | landing-only: 0
+tests/test_ticker_meta.py | master: 5 failed, 20 passed, 1351 warnings in 2.69s | landing: 5 failed, 20 passed, 1351 warnings in 2.47s | landing-only: 0
+tests/test_two_engines_do_not_agree.py | master: 1 failed, 23 passed, 1297 warnings in 1.59s | landing: 1 failed, 23 passed, 1297 warnings in 1.56s | landing-only: 0
+tests/test_voice_position_sizing.py | master: 15 passed, 811 warnings in 3.54s | landing: 15 passed, 811 warnings in 3.96s | landing-only: 0
+tests/test_voice_prompt_registry.py | master: 13 passed, 703 warnings in 2.06s | landing: 13 passed, 703 warnings in 2.34s | landing-only: 0
+tests/test_web_capture_coverage.py | master: 8 failed, 11 passed, 1073 warnings in 1.09s | landing: 8 failed, 11 passed, 1073 warnings in 1.17s | landing-only: 0ttests/test_workspace_doc_store.py | master: 51 passed, 2378 warnings in 5.21s | landing: 51 passed, 2378 warnings in 3.63s | landing-only: 0
+TOTAL landing-only ids: 0

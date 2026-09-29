@@ -1,0 +1,7 @@
+{"pass": "orb", "width": 390, "surface": "calendar", "error": null, "findings": 0}
+{"pass": "orb", "width": 820, "surface": "calendar", "error": null, "findings": 0}
+{"pass": "orb", "width": 1200, "surface": "calendar", "error": null, "findings": 0}
+{"pass": "hub", "width": 390, "surface": "calendar", "error": null, "findings": 1}
+{"pass": "hub", "width": 820, "surface": "calendar", "error": null, "findings": 1}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\Users\Patrick\uct-worktrees\notebook-w10s2\docs\plans\joystick\sandbox-runs\2026-09-28T20-09-29.md
+{"controls_valid": true, "findings": 2, "named_leads": {"CLEARED": 16, "CONFIRMED": 2}, "errors": 0}

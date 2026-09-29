@@ -1,0 +1,30 @@
+{
+  "mode": "blanked",
+  "data_dir": "C:\\data-w10sk\\pair-blanked",
+  "port": 8233,
+  "ceiling_s": 1500,
+  "started": "2026-09-29T03:45:47-0500",
+  "healthy": true,
+  "healthy_after_s": 44.7,
+  "markers_seen": {
+    "dashboard-warm earnings-previews": {
+      "line": "[dashboard-warm] earnings-previews ok",
+      "after_s": 60.8
+    },
+    "dashboard-warm enrichment": {
+      "line": "[dashboard-warm] enrichment ok",
+      "after_s": 226.1
+    },
+    "calendar-enrich-warm": {
+      "line": "[calendar-enrich-warm] current week",
+      "after_s": 226.1
+    }
+  },
+  "complete": true,
+  "alive_at_stop": true,
+  "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+  "stopped_after_s": 264.4,
+  "port_released": true,
+  "exit_code": 1,
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-sk\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T03-45-49.md"
+}

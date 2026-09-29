@@ -1,0 +1,19 @@
+path-only commits: 35  selected ONLY via the 6 shared files: 21
+ 10 api/main.py
+  7 tests/test_alert_destination.py
+  5 app/src/components/screener/reachable.test.js
+  5 api/routers/auth.py
+  3 app/src/pages/Settings.jsx
+  2 api/routers/journal_two.py
+  1 api/routers/notebook_writing_help.py
+  1 api/services/daily_counters.py
+  1 api/services/auth_db.py
+  1 tests/test_paywall_gate_free_tier.py
+  1 app/src/components/CommandPalette.jsx
+  1 app/package.json
+in squashes of api/main.py ['L1b', 'wave8', '9C', 'wave7', 'wave6']
+in squashes of api/routers/auth.py ['L1a', 'wave8', '9C', 'wave7']
+in squashes of api/services/auth_db.py ['L1b']
+in squashes of app/src/App.jsx ['wave8']
+in squashes of app/src/components/screener/reachable.test.js ['wave8']
+in squashes of app/src/pages/Settings.jsx ['wave8', 'wave7']

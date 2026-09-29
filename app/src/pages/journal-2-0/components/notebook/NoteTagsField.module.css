@@ -32,8 +32,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  /* Wave 10 lane L3 (clause 6c): 20x20 at 1200 px, within 12 px of the Subtitle field
+     (WCAG 2.5.8's 24 px, no spacing to excuse it). Rail: a11y/targetFloors.test.js. */
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
   border-radius: 999px;
