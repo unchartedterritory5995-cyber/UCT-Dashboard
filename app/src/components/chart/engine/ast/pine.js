@@ -8478,6 +8478,21 @@ export class Resolver {
     }
     // A folded constant is a `num`; anything per-bar resolves to `series`/`op`
     // and is correctly not a branch anybody can name.
+    // ⭐⭐ C10 (2026-09-29) — A TEST BUILT ONLY OF CONSTANTS FOLDS TOO.
+    // `TF_Choise == false ? timeframe.period : TF` (linear-regression-channel's
+    // MTF toggle) resolves its test to `op('==', num 0, num 0)`: every leaf a
+    // constant, yet not a `num`, so the toggle refused while the SAME toggle
+    // written `TF_Choise ? TF : timeframe.period` translated. `bind.js::foldScalar`
+    // is the evaluator this file already uses for exactly this question, and with
+    // EMPTY constants it throws on any `series` leaf — a per-bar value, a declared
+    // input knob, a clock — so only a test that is the same number on every bar
+    // folds. A non-finite fold (a `na` reaching the test) stays unanswered.
+    if (test && test.type !== 'num') {
+      let v = null
+      try { v = foldScalar(test, {}) } catch { v = null }
+      if (typeof v !== 'number' || !Number.isFinite(v)) return null
+      return v ? node.yes : node.no
+    }
     if (!test || test.type !== 'num') return null
     return test.value ? node.yes : node.no
   }
