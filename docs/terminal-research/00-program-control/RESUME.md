@@ -23,6 +23,17 @@ Ravi … fully communicated and approved", saved to memory `project_partner_coll
 - ⚠️ The deploy watcher must check `origin/production` ANCESTRY, not a deploy record for our SHA: a refused promotion
   can still ship inside a later commit.
 
+**`5acc73133`** (pushed ~05:35 ET): TERM-018 (wire + seam clauses, advisory CI `term018-guards.yml`), TERM-042 (dark
+`BREADTH_EOD_SOURCE`, collector|shadow|server; needs `BREADTH_DIVIDEND_BASIS` on + N shadow sessions), gate read-set
++`tools/persistence_census.mjs`, screener-auth rail caught up with #173 (admin `rebuild-universe`, `run_scan(user=)`).
+
+**Blocked-ticket survey (read-only, 2026-09-29 @5acc73133):** BUILDABLE NOW — 047, 052 (derive from WORKSPACE_PREF_KEYS),
+055 (⚠️ CARD 7's sentence needs `vendor`/`dividends` the endpoint lacks — re-rule first), 057, 059 (the TERM-006 ⚠️
+is stale: `82a547a49` reconciled RM-N03). DARK-FLAG — 051 (restore UI on the dark 021 store), 061 (generate the
+whitelist, do not publish). ENGINEERING — 038 (no saved-object registry), 043 (no line-item address), 056 (behind 038).
+OWNER — 044 (licensing T-43 transcript derivatives), 046 (FINRA purchase/licence), 049 (OI-15 consent), 060 (resolver
+approval line). 058 is largely SHIPPED (`a6950a079`); only a Builder-path count may remain. In flight: 059, 057, 047.
+
 **OWNER DECISIONS OUTSTANDING:** TERM-062 held off the branch (fire-frequency count reveals whether anyone watched a
 ticker — options: ship / drop the count / rebuild from SEC history); TERM-053 four open families (OPEN_READS_GATE
 enforce flip; `/api/stream/prices` + Discord Activity; `/api/r/*` token in the bundle → rotate + remove VITE var);
