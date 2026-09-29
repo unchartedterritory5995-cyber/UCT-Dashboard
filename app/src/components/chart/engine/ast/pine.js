@@ -7461,11 +7461,15 @@ export class Resolver {
           // every tree that translated keeps its exact shape (and its parameter
           // addresses); only a right side that REFUSES is skipped, because the
           // left has already decided the answer on every bar.
+          if (!this.objectPass) {
+            return foldLogicalIdentity(mapped, decidedBy,
+              this.condition(this.resolve(node.right), node.op, node.tok), this.table)
+          }
           let right
           try {
             right = this.condition(this.resolve(node.right), node.op, node.tok)
           } catch (err) {
-            if (this.objectPass && err instanceof PineRefusal && err.guard !== 'pine:timeout'
+            if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
               && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
             throw err
           }
@@ -7516,20 +7520,20 @@ export class Resolver {
         // tree that translated keeps its exact shape and parameter addresses
         // (`paramIds.test.js`); only a DEAD arm that refuses is skipped. A live
         // arm's refusal is still the answer.
-        const rescuable = (err) => this.objectPass && err instanceof PineRefusal
-          && err.guard !== 'pine:timeout'
+        if (!this.objectPass) return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
         let yes
         try {
           yes = this.resolve(node.yes)
         } catch (err) {
-          if (rescuable(err) && constantTestValue(test) === 0) return this.resolve(node.no)
+          if (err instanceof PineRefusal && err.guard !== 'pine:timeout'
+            && constantTestValue(test) === 0) return this.resolve(node.no)
           throw err
         }
         let no
         try {
           no = this.resolve(node.no)
         } catch (err) {
-          if (rescuable(err)) {
+          if (err instanceof PineRefusal && err.guard !== 'pine:timeout') {
             const folded = constantTestValue(test)
             if (folded !== null && folded !== 0) return yes
           }
