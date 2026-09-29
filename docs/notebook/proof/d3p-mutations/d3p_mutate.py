@@ -84,6 +84,10 @@ MUTS = {
     # the editor stops telling its mic to wait; the mic stops listening to it
     "M22-hint-prop-not-passed": (EDITOR, r" hintDeferred=\{deferFirstRun\}", ""),
     "M23-mic-ignores-hintDeferred": (MIC, r" && !hintDeferred<NL>", "<NL>"),
+    # re-review m-1: the claim effect runs once at mount, so a width change never re-decides it
+    "M24-claim-once-at-mount": (EDITOR,
+        r"(?P<head>  useEffect\(\(\) => \(deferFirstRun \? claimFirstRunStage\(\) : undefined\), )\[deferFirstRun\]\)",
+        r"\g<head>[])"),
 }
 
 

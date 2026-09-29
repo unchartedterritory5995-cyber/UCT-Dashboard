@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { FOCUSABLE_SELECTOR } from '../../../../components/mobile/useFocusTrap'
 import { MQ } from '../../../../styles/breakpoints'
+import { isFirstRunStageHeld } from '../../../../components/firstRun/firstRunStage'
 
 // Wave 10 lane D3P (D-3 PHONE): at 390 px the editor's formatting row wrapped to about eight
 // rows, the note's title sat below the first screen, and the phone's Log FAB covered one of the
@@ -220,29 +221,53 @@ describe('D3P fix round 1: the disclosure never outlives what it was opened on',
     expect(back.closest('[role="toolbar"]')).not.toHaveAttribute('data-format-open')
   }, 60000)
 
-  // M-4a. Widening past 640 px with it open closes it (the toggle does not exist up there).
-  it('a matchMedia change that leaves the phone tier closes an open disclosure', async () => {
-    // listeners per query, so only the PHONE query's change is fired (other media hooks untouched)
+  /** A matchMedia whose queries all answer `matches`, with 'change' listeners kept PER QUERY so
+   *  a cell can fire the canonical phone query's change alone (other media hooks untouched).
+   *  Every MQ.phone listener is fired -- the disclosure's AND useIsPhone's (round 2's gate). */
+  function mockMatchMedia(matches) {
     const listeners = new Map()
     const setFor = (q) => { if (!listeners.has(q)) listeners.set(q, new Set()); return listeners.get(q) }
     const original = window.matchMedia
     window.matchMedia = vi.fn((query) => ({
-      matches: true, media: query, onchange: null,
+      matches, media: query, onchange: null,
       addEventListener: (type, fn) => { if (type === 'change') setFor(query).add(fn) },
       removeEventListener: (type, fn) => { if (type === 'change') setFor(query).delete(fn) },
       addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
     }))
+    const fire = (to) => act(() => { for (const fn of [...setFor(MQ.phone)]) fn({ matches: to, media: MQ.phone }) })
+    return { phone: () => setFor(MQ.phone), fire, restore: () => { window.matchMedia = original } }
+  }
+
+  // M-4a. Widening past 640 px with it open closes it (the toggle does not exist up there).
+  // Re-review m-1: the same change RELEASES round 2's first-run hold (the card may show now).
+  it('a matchMedia change that leaves the phone tier closes an open disclosure and releases the first-run stage', async () => {
+    const mm = mockMatchMedia(true)
     try {
       const toolbar = await mountToolbar()
       fireEvent.click(toggleOf(toolbar))
       expect(toggleOf(toolbar)).toHaveAttribute('aria-expanded', 'true')
-      const phone = setFor(MQ.phone)
-      expect(phone.size, 'non-vacuity: the open disclosure listens on the canonical phone query').toBeGreaterThan(0)
-      act(() => { for (const fn of [...phone]) fn({ matches: false, media: MQ.phone }) })
+      expect(mm.phone().size, 'non-vacuity: the open disclosure listens on the canonical phone query').toBeGreaterThan(0)
+      expect(isFirstRunStageHeld(), 'at phone width the open editor holds the first-run stage').toBe(true)
+      mm.fire(false)
+      expect(isFirstRunStageHeld(), 'widened past 640 px, the editor lets go of it').toBe(false)
       expect(toggleOf(toolbar)).toHaveAttribute('aria-expanded', 'false')
       expect(toolbar).not.toHaveAttribute('data-format-open')
     } finally {
-      window.matchMedia = original
+      mm.restore()
+    }
+  }, 60000)
+
+  // Re-review m-1, the reverse: narrowing INTO the phone tier with the editor open claims the stage.
+  it('a matchMedia change that enters the phone tier with the editor open claims the first-run stage', async () => {
+    const mm = mockMatchMedia(false)
+    try {
+      await mountToolbar()
+      expect(isFirstRunStageHeld(), 'above 640 px the editor holds nothing').toBe(false)
+      expect(mm.phone().size, 'non-vacuity: something listens on the canonical phone query').toBeGreaterThan(0)
+      mm.fire(true)
+      expect(isFirstRunStageHeld(), 'narrowed to a phone, the open editor now holds the stage').toBe(true)
+    } finally {
+      mm.restore()
     }
   }, 60000)
 })
