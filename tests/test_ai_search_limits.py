@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.ai_search as ai
+from api.services import ticker_resolver
 from api.middleware.auth_middleware import (
     get_current_user,
     get_current_user_with_plan,
@@ -186,7 +187,7 @@ def test_grounding_injects_desk_context(monkeypatch):
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend", "confidence": 0.8})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 743.2, "direction": "up", "abs_pct": 1.4})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: f"{s} catalyst (UCT board, today): AI capex ramp.")
-    monkeypatch.setattr(ai, "_UNI", {"NVDA", "SMCI"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA", "SMCI"})
     r = _client().post("/api/ai-search", json={"query": "what do you think of NVDA here"})
     assert r.status_code == 200
     assert "UCT DESK CONTEXT" in captured["system"]
@@ -208,7 +209,7 @@ def test_grounding_absent_without_signal(monkeypatch):
 
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
     monkeypatch.setattr(ai, "_regime_provider", lambda: {})
-    monkeypatch.setattr(ai, "_UNI", set())
+    monkeypatch.setattr(ticker_resolver, "_UNI", set())
     r = _client().post("/api/ai-search", json={"query": "what happened in the market"})
     assert r.status_code == 200
     assert "UCT DESK CONTEXT" not in captured["system"]
@@ -225,7 +226,7 @@ def test_intent_routed_desk_feeds(monkeypatch):
 
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
-    monkeypatch.setattr(ai, "_UNI", set())
+    monkeypatch.setattr(ticker_resolver, "_UNI", set())
     monkeypatch.setattr(ai, "_ctx_movers", lambda: "Movers (UCT live feed): up — TSLA +5.0%; down — none")
     monkeypatch.setattr(ai, "_ctx_breadth", lambda: "Breadth (UCT): score 71")
     c = _client()
@@ -255,7 +256,7 @@ def test_tape_injected_for_named_tickers(monkeypatch):
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
     monkeypatch.setattr(ai, "_ctx_tape", lambda s: f"{s} tape (UCT curated wires, last 8h): guidance raised")
-    monkeypatch.setattr(ai, "_UNI", {"SMCI"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"SMCI"})
     r = _client().post("/api/ai-search", json={"query": "anything new on SMCI"})
     assert r.status_code == 200
     assert "SMCI tape (UCT curated wires" in captured["system"]
@@ -315,7 +316,7 @@ def test_flow_grounding_wiring(monkeypatch):
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
     monkeypatch.setattr(ai, "_ctx_tape", lambda s: "")
     monkeypatch.setattr(ai, "_ctx_flow_ticker", lambda s: f"{s} options flow today (UCT tape): 12 notable prints")
-    monkeypatch.setattr(ai, "_UNI", {"NVDA"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA"})
     c = _client()
     # flow phrasing → flow grounds
     c.post("/api/ai-search", json={"query": "what is the options flow saying on NVDA"})
@@ -342,7 +343,7 @@ def test_setup_question_declares_a_gap_not_the_raw_pattern_feed(monkeypatch):
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: "")
     monkeypatch.setattr(ai, "_ctx_tape", lambda s: "")
-    monkeypatch.setattr(ai, "_UNI", {"NVDA"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA"})
     c = _client()
     c.post("/api/ai-search", json={"query": "is there a setup on NVDA right now"})
     assert "active setups (UCT pattern engine)" not in captured["system"]
@@ -363,7 +364,7 @@ def test_scope_guard_present_in_widget_prompt():
 
 
 def test_ticker_extraction_filters_noise(monkeypatch):
-    monkeypatch.setattr(ai, "_UNI", {"NVDA", "COHR", "ALL"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA", "COHR", "ALL"})
     # bare uppercase must be in universe and not a stopword; cashtags always pass
     assert ai._extract_tickers("what do you think of NVDA and $smci") == ["NVDA", "SMCI"]
     assert ai._extract_tickers("IS ALL OF THE MARKET UP") == []   # ALL is stopworded

@@ -1,0 +1,40 @@
+{
+ "tip": "fa6710394",
+ "instrument": "d2_phone_measure.py",
+ "data_dir": "C:/data-w10d2",
+ "port": 8228,
+ "started": "2026-09-28T12:34:11-0500",
+ "rows": [],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T12-34-13.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T12-34-13.md",
+  "required": [],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-28 12:34:20",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-28 12:35:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-28 12:36:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ }
+}

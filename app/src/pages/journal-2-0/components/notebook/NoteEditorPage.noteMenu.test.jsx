@@ -33,6 +33,13 @@ beforeEach(() => {
   updateMock.mockReset()
   updateMock.mockImplementation(async (patch) => ({ ...NOTE, ...patch, updatedAt: '2026-01-03T00:00:00Z' }))
 })
+// Wave 10 lane K2 (D-3): the page-level actions (Duplicate, Lock, Archive, Save as template,
+// Open beside, Delete) sit behind the note's "More note actions" door -- open it first.
+const openMoreNoteActions = (scope = screen) => {
+  const more = scope.getByRole('button', { name: 'More note actions' })
+  if (more.getAttribute('aria-expanded') !== 'true') fireEvent.click(more)
+}
+
 afterEach(() => vi.clearAllMocks())
 
 function fetchRouter(overrides) {
@@ -56,12 +63,13 @@ async function renderEditor(noteMenu) {
 }
 
 describe('NoteEditorPage — the note menu door (wave 6 fix round 1, I1)', () => {
-  it('renders the four organise-this-note actions in the header, wired to the REAL note', async () => {
+  it('renders the four organise-this-note actions behind "More note actions" (K2, D-3), wired to the REAL note', async () => {
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
     const onOpenBeside = vi.fn()
     await renderEditor((note, api) => (
       <NoteMenuActions note={note} onChanged={api.refresh} onOpenBeside={onOpenBeside} />
     ))
+    openMoreNoteActions()
     expect(screen.getByRole('button', { name: 'Lock' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Archive' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Save as template' })).toBeTruthy()
@@ -78,6 +86,7 @@ describe('NoteEditorPage — the note menu door (wave 6 fix round 1, I1)', () =>
     ])
     const onChanged = vi.fn()
     await renderEditor((note) => <NoteMenuActions note={note} onChanged={onChanged} />)
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Lock' }))
     await waitFor(() => expect(onChanged).toHaveBeenCalledWith({ id: 'n1', locked: true, updatedAt: '2026-01-02T00:00:00Z' }))
     expect(await screen.findByText('Locked. Editing is off until you unlock it.')).toBeTruthy()
@@ -92,6 +101,7 @@ describe('NoteEditorPage — the note menu door (wave 6 fix round 1, I1)', () =>
       }],
     ])
     await renderEditor((note) => <NoteMenuActions note={note} onChanged={vi.fn()} />)
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Save as template' }))
     const input = screen.getByLabelText('Template name')
     fireEvent.change(input, { target: { value: 'My template' } })
@@ -107,6 +117,7 @@ describe('NoteEditorPage — the note menu door (wave 6 fix round 1, I1)', () =>
     ])
     const onOpenBeside = vi.fn()
     await renderEditor((note) => <NoteMenuActions note={note} onChanged={vi.fn()} onOpenBeside={onOpenBeside} />)
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Open a note beside…' }))
     const search = screen.getByLabelText('Find a note to open beside')
     fireEvent.change(search, { target: { value: 'weekly' } })

@@ -164,3 +164,25 @@ describe('the row checkboxes on the touch tier (A2R-10)', () => {
     expect(lastDecl(rules, '.selectBox', 'min-height', TOUCH)).toBe('var(--tap-min)')
   })
 })
+
+// Wave 10 lane K2 (keyboard walk row S6-02 at 820 px): after F5 the row checkboxes passed, and
+// the one target left under 24 px was a folder row's NAME button, 20x44 -- squeezed by the
+// chevron and four 44 px row actions on the same line. Structural, like the rest of this file;
+// the verdict is the walk's own row (docs/notebook/evidence/a11y-k2-keyboard-2026-09-28/).
+describe('a folder row keeps its name tappable on the touch tier (S6-02)', () => {
+  const rules = rulesWithMedia(read(join(NB, 'FolderSidebar.module.css')))
+
+  it('the name button has a 44 px width floor on the touch tier (it was `min-width: 0`)', () => {
+    expect(lastDecl(rules, '.rowWrap .row', 'min-width')).toBe('0')
+    expect(lastDecl(rules, '.rowWrap .row', 'min-width', TOUCH)).toBe('var(--tap-min, 44px)')
+  })
+
+  it('...and the row wraps its actions under the name rather than overflow the panel', () => {
+    expect(lastDecl(rules, '.folderRow', 'flex-wrap', TOUCH)).toBe('wrap')
+  })
+
+  it('CONTROL: a touch tier without the floor fails the check', () => {
+    const old = rulesWithMedia('.rowWrap .row { flex: 1; min-width: 0; } @media (max-width: 1024px) { .row { min-height: 44px; } }')
+    expect(lastDecl(old, '.rowWrap .row', 'min-width', TOUCH)).toBeUndefined()
+  })
+})

@@ -1,0 +1,20 @@
+M | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx |  Tests 35 passed (35)
+L | src/pages/journal-2-0/lib/offline/f5p1OwnerSendsQueued.test.jsx |  Tests 35 passed (35)
+M | src/components/chart/engine/__tests__/memberPaneGate.test.js |  Tests 1 failed | 6 passed (7)
+   M      × ⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail 343ms
+   M  FAIL  src/components/chart/engine/__tests__/memberPaneGate.test.js > the member-pane gate > ⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail
+L | src/components/chart/engine/__tests__/memberPaneGate.test.js |  Tests 1 failed | 6 passed (7)
+   L      × ⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail 157ms
+   L  FAIL  src/components/chart/engine/__tests__/memberPaneGate.test.js > the member-pane gate > ⚰️ WAS VACUOUS, AND IS KEPT AS THE BEFORE-CASE: this asserted that nothing consulted the gate. T5 gave it a consumer — see the next case, which is the one that can now fail
+M | src/components/chart/engine/ast/pineStrictCensus.test.js |  Tests 1 passed (1)
+L | src/components/chart/engine/ast/pineStrictCensus.test.js |  Tests 1 passed (1)
+M | src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js |  Tests 2 passed (2)
+L | src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js |  Tests 2 passed (2)
+M | src/components/chart/pane/attachedPineDisclosures.test.jsx |  Tests 1 failed | 13 passed (14)
+   M      × ⭐⭐ renders all four disclosures, verbatim, with the live bar count 4170ms
+   M  FAIL  src/components/chart/pane/attachedPineDisclosures.test.jsx > ⭐⭐ the member route — indicatorInstances on ChartPane > ⭐⭐ renders all four disclosures, verbatim, with the live bar count
+L | src/components/chart/pane/attachedPineDisclosures.test.jsx |  Tests 1 failed | 13 passed (14)
+   L      × ⭐⭐ renders all four disclosures, verbatim, with the live bar count 4189ms
+   L  FAIL  src/components/chart/pane/attachedPineDisclosures.test.jsx > ⭐⭐ the member route — indicatorInstances on ChartPane > ⭐⭐ renders all four disclosures, verbatim, with the live bar count
+M | src/pages/journal-2-0/components/notebook/NoteEditorPage.unsentTrash.test.jsx |  Tests 10 passed (10)
+L | src/pages/journal-2-0/components/notebook/NoteEditorPage.unsentTrash.test.jsx |  Tests 10 passed (10)

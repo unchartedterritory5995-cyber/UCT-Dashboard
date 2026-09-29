@@ -1,0 +1,3 @@
+run1-no-back-from-list-case: first AFTER run; the instrument did not yet have the list -> note -> back-control case.
+Top level (run 2): with that case. It shows the defect fixed in 04fadfaa5: back_control_from_list path=/journal/notebook (Research Home), not ?view=all.
+Both runs: integrity CLEAN at pre-boot, +15 s, +120 s, shutdown (62 db files).

@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.ai_search as ai
+from api.services import ticker_resolver
 from api.middleware.auth_middleware import (
     get_current_user,
     get_current_user_with_plan,
@@ -49,7 +50,7 @@ def client(monkeypatch):
         return {"answer": "ok", "citations": [], "related_questions": [], "cached": True}
 
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake_search)
-    monkeypatch.setattr(ai, "_UNI", set(TICKERS))
+    monkeypatch.setattr(ticker_resolver, "_UNI", set(TICKERS))
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend", "confidence": 0.7})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 100.0, "direction": "up", "abs_pct": 1.0})
     monkeypatch.setattr(ai, "_ctx_catalyst", lambda s: f"[CATALYST:{s}]")
@@ -319,7 +320,7 @@ def test_lowercase_idiom_collisions_not_extracted(monkeypatch):
     # that the broad cues ("on X", "hold X", "trading X") wrongly extracted from
     # ordinary trading idioms — injecting the wrong company as authoritative
     # desk data. Universe patched to CONTAIN them so this test discriminates.
-    monkeypatch.setattr(ai, "_UNI", {"DECK", "TAP", "MAIN", "CASH", "WELL", "NVDA"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"DECK", "TAP", "MAIN", "CASH", "WELL", "NVDA"})
     assert ai._extract_tickers("what's on deck for tomorrow?") == []
     assert ai._extract_tickers("what's on tap this week?") == []
     assert ai._extract_tickers("main street vs wall street sentiment?") == []

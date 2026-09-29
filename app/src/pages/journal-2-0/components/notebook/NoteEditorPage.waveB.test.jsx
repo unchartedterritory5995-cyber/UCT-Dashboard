@@ -22,6 +22,13 @@ vi.mock('../../hooks/useJ2Notes', () => ({
   setNoteFavorite: (...args) => setNoteFavoriteMock(...args),
 }))
 vi.mock('../../../../context/AuthContext', () => ({ useAuth: () => ({ user: null }) }))
+// Wave 10 lane K2 (D-3): the page-level actions (Duplicate, Lock, Archive, Save as template,
+// Open beside, Delete) sit behind the note's "More note actions" door -- open it first.
+const openMoreNoteActions = (scope = screen) => {
+  const more = scope.getByRole('button', { name: 'More note actions' })
+  if (more.getAttribute('aria-expanded') !== 'true') fireEvent.click(more)
+}
+
 vi.mock('../../hooks/useJ2NoteFolders', () => ({ default: () => ({ folders: [] }) }))
 
 let fetchMock
@@ -80,6 +87,7 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
   it('clicking Delete opens a modal instead of calling window.confirm', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm')
     await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(confirmSpy).not.toHaveBeenCalled()
     expect(screen.getByText('Delete this note?')).toBeInTheDocument()
@@ -87,6 +95,7 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
 
   it('cancel closes the modal without deleting', async () => {
     await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByText('Delete this note?')).not.toBeInTheDocument()
@@ -95,6 +104,7 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
 
   it('confirming deletes the note and navigates back', async () => {
     const { onBack } = await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     // The modal's own confirm button carries the same accessible name as the
     // header's Delete trigger -- disambiguate by scoping to the dialog.
@@ -106,6 +116,7 @@ describe('NoteEditorPage — Wave B delete uses ConfirmModal, not native confirm
 
   it('Escape closes the modal without deleting', async () => {
     await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(screen.getByText('Delete this note?')).toBeInTheDocument()
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -168,6 +179,7 @@ describe('NoteEditorPage — Duplicate note (UX #12)', () => {
     ))
     global.fetch = fetchMock
     await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
     await waitFor(() => expect(postCreate()).toBeTruthy())
     const body = JSON.parse(postCreate()[1].body)
@@ -194,6 +206,7 @@ describe('NoteEditorPage — Duplicate note (UX #12)', () => {
       </MemoryRouter>,
     )
     await screen.findByPlaceholderText('Title')
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
     await waitFor(() => expect(screen.getByTestId('loc').textContent).toContain('note=dup1'))
   })
@@ -207,6 +220,7 @@ describe('NoteEditorPage — Duplicate note (UX #12)', () => {
     global.fetch = fetchMock
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await renderEditor()
+    openMoreNoteActions()
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate note' }))
     await waitFor(() => expect(postCreate()).toBeTruthy())
     expect(screen.getByPlaceholderText('Title')).toHaveValue('Original Title')
@@ -222,6 +236,7 @@ describe('NoteEditorPage — Duplicate note (UX #12)', () => {
     ))
     global.fetch = fetchMock
     await renderEditor()
+    openMoreNoteActions()
     const btn = screen.getByRole('button', { name: 'Duplicate note' })
     fireEvent.click(btn)
     fireEvent.click(btn)

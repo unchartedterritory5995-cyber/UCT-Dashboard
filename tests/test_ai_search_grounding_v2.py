@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.ai_search as ai
+from api.services import ticker_resolver
 from api.middleware.auth_middleware import (
     get_current_user,
     get_current_user_with_plan,
@@ -32,7 +33,7 @@ def client(monkeypatch):
         return {"answer": "ok", "citations": [], "related_questions": [], "cached": False}
 
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
-    monkeypatch.setattr(ai, "_UNI", {"NVDA", "AMD", "AVGO", "LLY", "XOM", "AAPL"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA", "AMD", "AVGO", "LLY", "XOM", "AAPL"})
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 100.0, "direction": "up", "abs_pct": 1.0})
     for fn in ("_ctx_catalyst", "_ctx_tape", "_ctx_flow_ticker"):

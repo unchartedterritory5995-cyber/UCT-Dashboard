@@ -73,7 +73,7 @@ export default function PortfolioHeat() {
   const {
     risk_heat_pct, notional_exposure_pct, per_position = [], by_sector = [],
     concentration_flags = [], caps = {}, room_to_add_pct, account_size_is_default,
-    regime,
+    regime, regime_label,
   } = data
 
   return (
@@ -103,7 +103,9 @@ export default function PortfolioHeat() {
           {regime && (
             <div className={styles.stat}>
               <div className={styles.statLabel}>Regime</div>
-              <div className={styles.statValue}>{regime}</div>
+              {/* TERM-041: the published words for the regime, not the raw id;
+                  the id is shown only by a server that predates regime_label. */}
+              <div className={styles.statValue}>{regime_label ?? regime}</div>
             </div>
           )}
         </div>

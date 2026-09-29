@@ -1,0 +1,1471 @@
+{
+ "meta": {
+  "tool": "d3_measure",
+  "base": "http://127.0.0.1:8227",
+  "nonce": "0654d31ca70d8907d6bdc64cb5742953",
+  "tip": "75c7ef596",
+  "started": "2026-09-28T13:47:04-0500",
+  "note": "Alpha thesis NVDA",
+  "browser_version": "145.0.7632.6",
+  "finished": "2026-09-28T13:49:42-0500"
+ },
+ "widths": {
+  "390-returning": {
+   "viewport": [
+    390,
+    844
+   ],
+   "touch": true,
+   "visit": "returning",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    60,
+    1765,
+    270,
+    34
+   ],
+   "root_top": 1354,
+   "rows_above_title": 8,
+   "controls_above_title": 29,
+   "rows": [
+    {
+     "row": 1,
+     "top": 1362,
+     "bottom": 1406,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ],
+      [
+       108,
+       67
+      ],
+      [
+       183,
+       62
+      ],
+      [
+       253,
+       71
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 1414,
+     "bottom": 1451,
+     "names": [
+      "Folder",
+      "Ticker"
+     ],
+     "x_w": [
+      [
+       56,
+       111
+      ],
+      [
+       175,
+       84
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 1459,
+     "bottom": 1503,
+     "names": [
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       56,
+       102
+      ],
+      [
+       166,
+       77
+      ],
+      [
+       251,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 1515,
+     "bottom": 1559,
+     "names": [
+      "Undo",
+      "Redo",
+      "Font family"
+     ],
+     "x_w": [
+      [
+       62,
+       47
+      ],
+      [
+       111,
+       47
+      ],
+      [
+       159,
+       150
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 1561,
+     "bottom": 1605,
+     "names": [
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1"
+     ],
+     "x_w": [
+      [
+       60,
+       58
+      ],
+      [
+       120,
+       44
+      ],
+      [
+       166,
+       44
+      ],
+      [
+       212,
+       44
+      ],
+      [
+       258,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 6,
+     "top": 1607,
+     "bottom": 1651,
+     "names": [
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ],
+      [
+       152,
+       50
+      ],
+      [
+       204,
+       44
+      ],
+      [
+       250,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 7,
+     "top": 1653,
+     "bottom": 1697,
+     "names": [
+      "Insert link",
+      "Insert image",
+      "Scan a document with the camera",
+      "Attach a file",
+      "Start voice input"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ],
+      [
+       152,
+       63
+      ],
+      [
+       217,
+       44
+      ],
+      [
+       263,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 8,
+     "top": 1699,
+     "bottom": 1743,
+     "names": [
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    44,
+    302
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     251,
+     1459,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "390-first_visit": {
+   "viewport": [
+    390,
+    844
+   ],
+   "touch": true,
+   "visit": "first_visit",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    60,
+    1879,
+    270,
+    34
+   ],
+   "root_top": 1354,
+   "rows_above_title": 10,
+   "controls_above_title": 30,
+   "rows": [
+    {
+     "row": 1,
+     "top": 1362,
+     "bottom": 1406,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ],
+      [
+       108,
+       67
+      ],
+      [
+       183,
+       62
+      ],
+      [
+       253,
+       71
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 1414,
+     "bottom": 1451,
+     "names": [
+      "Folder",
+      "Ticker"
+     ],
+     "x_w": [
+      [
+       56,
+       111
+      ],
+      [
+       175,
+       84
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 1459,
+     "bottom": 1503,
+     "names": [
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       56,
+       102
+      ],
+      [
+       166,
+       77
+      ],
+      [
+       251,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 1515,
+     "bottom": 1559,
+     "names": [
+      "Undo",
+      "Redo",
+      "Font family"
+     ],
+     "x_w": [
+      [
+       62,
+       47
+      ],
+      [
+       111,
+       47
+      ],
+      [
+       159,
+       150
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 1561,
+     "bottom": 1605,
+     "names": [
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1"
+     ],
+     "x_w": [
+      [
+       60,
+       58
+      ],
+      [
+       120,
+       44
+      ],
+      [
+       166,
+       44
+      ],
+      [
+       212,
+       44
+      ],
+      [
+       258,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 6,
+     "top": 1607,
+     "bottom": 1651,
+     "names": [
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ],
+      [
+       152,
+       50
+      ],
+      [
+       204,
+       44
+      ],
+      [
+       250,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 7,
+     "top": 1653,
+     "bottom": 1697,
+     "names": [
+      "Insert link",
+      "Insert image",
+      "Scan a document with the camera",
+      "Attach a file"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ],
+      [
+       152,
+       63
+      ],
+      [
+       217,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 8,
+     "top": 1699,
+     "bottom": 1743,
+     "names": [
+      "Start voice input"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 9,
+     "top": 1756,
+     "bottom": 1800,
+     "names": [
+      "Dismiss tip"
+     ],
+     "x_w": [
+      [
+       261,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 10,
+     "top": 1813,
+     "bottom": 1857,
+     "names": [
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    44,
+    302
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     251,
+     1459,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "820-returning": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "touch": true,
+   "visit": "returning",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    354,
+    594,
+    378,
+    57
+   ],
+   "root_top": 318,
+   "rows_above_title": 5,
+   "controls_above_title": 29,
+   "rows": [
+    {
+     "row": 1,
+     "top": 324,
+     "bottom": 368,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share",
+      "Folder"
+     ],
+     "x_w": [
+      [
+       326,
+       44
+      ],
+      [
+       378,
+       67
+      ],
+      [
+       453,
+       62
+      ],
+      [
+       523,
+       71
+      ],
+      [
+       602,
+       90
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 376,
+     "bottom": 420,
+     "names": [
+      "Ticker",
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       326,
+       84
+      ],
+      [
+       418,
+       102
+      ],
+      [
+       528,
+       77
+      ],
+      [
+       613,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 430,
+     "bottom": 474,
+     "names": [
+      "Undo",
+      "Redo",
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight"
+     ],
+     "x_w": [
+      [
+       326,
+       47
+      ],
+      [
+       375,
+       47
+      ],
+      [
+       423,
+       136
+      ],
+      [
+       561,
+       58
+      ],
+      [
+       621,
+       44
+      ],
+      [
+       667,
+       44
+      ],
+      [
+       713,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 476,
+     "bottom": 520,
+     "names": [
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image"
+     ],
+     "x_w": [
+      [
+       326,
+       44
+      ],
+      [
+       372,
+       44
+      ],
+      [
+       418,
+       44
+      ],
+      [
+       464,
+       50
+      ],
+      [
+       516,
+       44
+      ],
+      [
+       562,
+       44
+      ],
+      [
+       608,
+       44
+      ],
+      [
+       654,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 522,
+     "bottom": 566,
+     "names": [
+      "Scan a document with the camera",
+      "Attach a file",
+      "Start voice input",
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       326,
+       63
+      ],
+      [
+       391,
+       44
+      ],
+      [
+       437,
+       44
+      ],
+      [
+       483,
+       44
+      ],
+      [
+       529,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    310,
+    466
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     613,
+     376,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "820-first_visit": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "touch": true,
+   "visit": "first_visit",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    354,
+    658,
+    378,
+    57
+   ],
+   "root_top": 318,
+   "rows_above_title": 6,
+   "controls_above_title": 30,
+   "rows": [
+    {
+     "row": 1,
+     "top": 324,
+     "bottom": 368,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share",
+      "Folder"
+     ],
+     "x_w": [
+      [
+       326,
+       44
+      ],
+      [
+       378,
+       67
+      ],
+      [
+       453,
+       62
+      ],
+      [
+       523,
+       71
+      ],
+      [
+       602,
+       90
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 376,
+     "bottom": 420,
+     "names": [
+      "Ticker",
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       326,
+       84
+      ],
+      [
+       418,
+       102
+      ],
+      [
+       528,
+       77
+      ],
+      [
+       613,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 430,
+     "bottom": 474,
+     "names": [
+      "Undo",
+      "Redo",
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight"
+     ],
+     "x_w": [
+      [
+       326,
+       47
+      ],
+      [
+       375,
+       47
+      ],
+      [
+       423,
+       136
+      ],
+      [
+       561,
+       58
+      ],
+      [
+       621,
+       44
+      ],
+      [
+       667,
+       44
+      ],
+      [
+       713,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 476,
+     "bottom": 520,
+     "names": [
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image"
+     ],
+     "x_w": [
+      [
+       326,
+       44
+      ],
+      [
+       372,
+       44
+      ],
+      [
+       418,
+       44
+      ],
+      [
+       464,
+       50
+      ],
+      [
+       516,
+       44
+      ],
+      [
+       562,
+       44
+      ],
+      [
+       608,
+       44
+      ],
+      [
+       654,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 529,
+     "bottom": 575,
+     "names": [
+      "Scan a document with the camera",
+      "Attach a file",
+      "Start voice input",
+      "Dismiss tip"
+     ],
+     "x_w": [
+      [
+       326,
+       63
+      ],
+      [
+       391,
+       44
+      ],
+      [
+       437,
+       44
+      ],
+      [
+       688,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 6,
+     "top": 586,
+     "bottom": 630,
+     "names": [
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       326,
+       44
+      ],
+      [
+       372,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    310,
+    466
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     613,
+     376,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "1200-returning": {
+   "viewport": [
+    1200,
+    800
+   ],
+   "touch": false,
+   "visit": "returning",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    414,
+    335,
+    698,
+    57
+   ],
+   "root_top": 213,
+   "rows_above_title": 2,
+   "controls_above_title": 26,
+   "rows": [
+    {
+     "row": 1,
+     "top": 221,
+     "bottom": 251,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share",
+      "Folder",
+      "Ticker",
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       456,
+       37
+      ],
+      [
+       501,
+       59
+      ],
+      [
+       568,
+       62
+      ],
+      [
+       639,
+       71
+      ],
+      [
+       718,
+       90
+      ],
+      [
+       816,
+       84
+      ],
+      [
+       908,
+       102
+      ],
+      [
+       1018,
+       77
+      ],
+      [
+       1103,
+       37
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 263,
+     "bottom": 307,
+     "names": [
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image",
+      "Attach a file",
+      "Start voice input",
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       386,
+       112
+      ],
+      [
+       500,
+       58
+      ],
+      [
+       560,
+       26
+      ],
+      [
+       588,
+       24
+      ],
+      [
+       614,
+       27
+      ],
+      [
+       643,
+       33
+      ],
+      [
+       678,
+       33
+      ],
+      [
+       714,
+       44
+      ],
+      [
+       760,
+       50
+      ],
+      [
+       812,
+       24
+      ],
+      [
+       838,
+       35
+      ],
+      [
+       876,
+       32
+      ],
+      [
+       910,
+       32
+      ],
+      [
+       944,
+       32
+      ],
+      [
+       978,
+       44
+      ],
+      [
+       1024,
+       30
+      ],
+      [
+       1056,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    370,
+    786
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     1103,
+     223,
+     37,
+     27
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "Open a note beside\u2026",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 10,
+    "delete_is_last": true
+   }
+  },
+  "1200-first_visit": {
+   "viewport": [
+    1200,
+    800
+   ],
+   "touch": false,
+   "visit": "first_visit",
+   "note_id": "191c266eecab401883515896c3ec9f3f",
+   "title_rect": [
+    414,
+    380,
+    698,
+    57
+   ],
+   "root_top": 213,
+   "rows_above_title": 3,
+   "controls_above_title": 27,
+   "rows": [
+    {
+     "row": 1,
+     "top": 221,
+     "bottom": 251,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Share",
+      "Folder",
+      "Ticker",
+      "Writing help",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       456,
+       37
+      ],
+      [
+       501,
+       59
+      ],
+      [
+       568,
+       62
+      ],
+      [
+       639,
+       71
+      ],
+      [
+       718,
+       90
+      ],
+      [
+       816,
+       84
+      ],
+      [
+       908,
+       102
+      ],
+      [
+       1018,
+       77
+      ],
+      [
+       1103,
+       37
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 263,
+     "bottom": 288,
+     "names": [
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image",
+      "Attach a file"
+     ],
+     "x_w": [
+      [
+       386,
+       112
+      ],
+      [
+       500,
+       58
+      ],
+      [
+       560,
+       26
+      ],
+      [
+       588,
+       24
+      ],
+      [
+       614,
+       27
+      ],
+      [
+       643,
+       33
+      ],
+      [
+       678,
+       33
+      ],
+      [
+       714,
+       44
+      ],
+      [
+       760,
+       50
+      ],
+      [
+       812,
+       24
+      ],
+      [
+       838,
+       35
+      ],
+      [
+       876,
+       32
+      ],
+      [
+       910,
+       32
+      ],
+      [
+       944,
+       32
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 297,
+     "bottom": 343,
+     "names": [
+      "Start voice input",
+      "Dismiss tip",
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       386,
+       44
+      ],
+      [
+       637,
+       44
+      ],
+      [
+       688,
+       30
+      ],
+      [
+       720,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    370,
+    786
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     1103,
+     223,
+     37,
+     27
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "Open a note beside\u2026",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 10,
+    "delete_is_last": true
+   }
+  }
+ }
+}

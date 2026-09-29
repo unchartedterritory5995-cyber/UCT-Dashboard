@@ -2,7 +2,33 @@
 
 ---
 
-## ⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 early: SECOND DEPLOY LIVE, and a third batch on the branch
+## ⭐⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 00:15–01:00 ET: THREE MORE DEPLOYS, pushed by the agent on owner instruction
+
+The owner said "push that autonomously yourself and proceed" (2026-09-29). Each push was after hours, one at a time,
+each deploy settled + `hub_nav_smoke --auth` exit 0 before the next:
+- `76bbbe126` — TERM-082 ranks 1-2 (`/api/snapshot`, `/api/movers` serve last-good), TERM-035, TERM-012. Smoke PASS.
+- `85b9e97cd` — TERM-035 follow-up #1: `nyseCalendar.js` + `nyse_calendar.py` (hence `bars_fetch`, `liveflow_monitor`)
+  DERIVE from `market_calendar.json`; client coverage now 2025-2028; runway alert names the JSON. Smoke PASS.
+- `15a100749` — TERM-082 rank 3 (`/api/earnings` + `/api/earnings-gaps` serve last-good; `/api/push` kicks one refresh
+  and a build straddling a push is discarded). Smoke: see the next block / the session log.
+⚠️ flow_worker_watch_coverage flagged `massive.py`, `nyse_calendar.py`/`session_calendar.py`, `engine.py` in turn; each
+traced INERT (flow-worker's closure calls none of the changed functions; same-name hits were other modules). flow-worker
+was never restarted, so it runs pre-change copies — behaviour identical through 2027. Every service builds the whole
+repo, so the JSON dataset ships to flow-worker on its next watched redeploy.
+Known clock-dependent red (pre-existing): `test_bars_server_include_today::test_todays_daily_bar_stamps_today_and_caches`
+fails before 09:30 ET. `freshnessAge.test.js` times out only when run beside 15 other files (77/77 alone).
+In flight: TERM-082 ranks 4 (theme live overlay) + 6 (calendar day-metrics-batch), TERM-064 (one ticker resolver),
+TERM-041 (fixed regime vocabulary).
+
+⚰️ **"Agent-buildable queue: EMPTY" (below) WAS WRONG.** The backlog's status column still reads "behind X" for tickets
+whose X has since been built. Re-derived 2026-09-29: BUILDABLE now — 018, 064, 070 (⚠️ lives in partner-owned
+`schwab_router.py`: coordinate first), 072; UNBLOCKED by built deps — 037 (024), 039 (068), 040/042/045/046 (022),
+041 (071), 048/062 (025), 053 (026), 054 (013); and 059 once 041 lands. Still genuinely held: 001-010, 014, 017, 092,
+093, and everything "behind 019/020/021/023" should be re-checked (019/020/021/023 shipped as slices, not whole).
+
+---
+
+## ⭐⭐⭐⭐ 2026-09-29 early: SECOND DEPLOY LIVE, and a third batch on the branch
 
 **Deployed to production 2026-09-29 ~01:50Z as `337507afd`** (everything in the block below, plus TERM-073, the
 AI-spend caps, the TERM-021 ceiling, the verdict 429 copy and TERM-091 dark). flow-worker was NOT restarted (watched

@@ -390,16 +390,51 @@ def _run_computation() -> None:
 
 # ── Live 1d overlay ───────────────────────────────────────────────────────────
 
+# TERM-082 (census rank 4): whether a live map was built WHOLE. `get_etf_snapshots`
+# drops a chunk (~200 names) that fails twice and says nothing, so an overlay
+# built on it looks complete while those names silently keep their base %. The
+# route's serve-stale slot must never remember such an overlay as last-good.
+# Each live map therefore reports a dropped chunk or a client failure:
+#   * to the build that is collecting (`_collect_live_legs`, a thread-local, so
+#     the route's background refresh and a concurrent request never mix), and
+#   * to a marker key cached beside the map with the SAME TTL, because the map
+#     is reused from the cache by a later overlay (after a base recompute
+#     invalidates only the overlaid key) that must not take it as whole.
+# The maps themselves, their keys and TTLs, and what every caller gets back are
+# unchanged.
+_LIVE_PARTIAL_SUFFIX = ":partial"
+_live_legs = threading.local()
+
+
+def _note_live_leg(leg: str, key: str, failures: list | None) -> None:
+    """Record a failed live leg for the collecting build, if any. `failures` is
+    None on a cache hit, where the marker key is what knows."""
+    if failures is None:
+        failed = cache.get(key + _LIVE_PARTIAL_SUFFIX) is not None
+    else:
+        failed = bool(failures)
+        if failed:
+            cache.set(key + _LIVE_PARTIAL_SUFFIX, True, ttl=_LIVE_1D_TTL)
+        else:
+            cache.invalidate(key + _LIVE_PARTIAL_SUFFIX)
+    legs = getattr(_live_legs, "failed", None)
+    if failed and legs is not None:
+        legs.add(leg)
+
+
 def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
     """Return todaysChangePerc for all holdings via batch snapshot. Cached 30s."""
     cached = cache.get(_LIVE_1D_KEY)
     if cached is not None:
+        _note_live_leg("1d", _LIVE_1D_KEY, None)
         return cached
     from api.services.massive import get_etf_snapshots
     # stale_to_zero: a holding that hasn't traded this session reads 0% instead of retaining its
     # base (prior-session) 1D — so a pre-market theme reflects only names that actually moved.
-    live_map = get_etf_snapshots(syms, stale_to_zero=True)
+    failures: list = []
+    live_map = get_etf_snapshots(syms, stale_to_zero=True, failures=failures)
     cache.set(_LIVE_1D_KEY, live_map, ttl=_LIVE_1D_TTL)
+    _note_live_leg("1d", _LIVE_1D_KEY, failures)
     return live_map
 
 
@@ -409,10 +444,13 @@ def _fetch_live_open_map(syms: list[str]) -> dict[str, float]:
     "From Open" aggregate and shown as "—"."""
     cached = cache.get(_LIVE_OPEN_KEY)
     if cached is not None:
+        _note_live_leg("open", _LIVE_OPEN_KEY, None)
         return cached
     from api.services.massive import get_etf_open_snapshots
-    open_map = get_etf_open_snapshots(syms)
+    failures: list = []
+    open_map = get_etf_open_snapshots(syms, failures=failures)
     cache.set(_LIVE_OPEN_KEY, open_map, ttl=_LIVE_1D_TTL)
+    _note_live_leg("open", _LIVE_OPEN_KEY, failures)
     return open_map
 
 
@@ -685,42 +723,75 @@ def get_theme_performance() -> dict:
     """Return theme performance data. Never blocks — always returns immediately.
 
     Priority: in-memory cache → disk → trigger background compute.
-    """
-    global _computing
 
+    TERM-082: the `/api/theme-performance` ROUTE fronts this with a serve-stale
+    slot; this function (voice, theme_index's quotes, rotation signals, the
+    lifespan dashboard warm) never serves a stale overlay — a cache hit, else a
+    synchronous build.
+    """
     # 0. Fully overlaid + enriched response cache (short TTL == live window).
     #    Collapses thousands of redundant ~345KB rebuilds into one per window.
     overlaid = cache.get(_OVERLAID_KEY)
     if overlaid is not None:
         return overlaid
+    return build_theme_performance()[0]
+
+
+def _overlay_and_memoize(base: dict) -> tuple[dict, bool]:
+    """Overlay live 1d, enrich, memoize — and say whether the overlay is COMPLETE.
+
+    Complete (TERM-082): the live 1D map was APPLIED (`_apply_live_returns`
+    returns the base itself when there are no themes or the map is empty) and
+    neither live map dropped a chunk or lost its client. An empty "From Open"
+    map on its own is not a failure: before the open prints it is the right
+    answer. A partial is still served and cached exactly as before (the live
+    window is already the short TTL, so `ttl_partial` equals it); only the
+    route's slot uses the flag, to keep a partial out of last-good."""
+    prior = getattr(_live_legs, "failed", None)
+    failed: set = set()
+    _live_legs.failed = failed
+    try:
+        overlaid = _apply_live_returns(base)
+    finally:
+        _live_legs.failed = prior
+    complete = overlaid is not base and not failed
+    out = _strip_delisted(_enrich_with_taxonomy(overlaid))
+    out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
+    set_by_completeness(_OVERLAID_KEY, out, complete=complete,
+                        ttl_ok=_LIVE_1D_TTL, ttl_partial=_LIVE_1D_TTL)
+    return out, complete
+
+
+def build_theme_performance() -> tuple[dict, bool]:
+    """`get_theme_performance` below the overlaid-response cache:
+    `(payload, complete)`. The `/api/theme-performance` route's serve-stale
+    slot builds through this; every other caller goes through
+    `get_theme_performance`, which is this plus the cache read, as before.
+
+    The "computing" stub (cold base, tier 3) is never complete."""
+    global _computing
 
     # 1. In-memory cache hit (fast path) — overlay live 1d, enrich, memoize
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        out = _strip_delisted(_enrich_with_taxonomy(_apply_live_returns(cached)))
-        out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
-        cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
-        return out
+        return _overlay_and_memoize(cached)
 
     # 2. Disk hit — load into memory cache, overlay, enrich, memoize
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        out = _strip_delisted(_enrich_with_taxonomy(_apply_live_returns(disk_data)))
-        out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
-        cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
-        return out
+        return _overlay_and_memoize(disk_data)
 
     # 3. Cache cold — trigger background computation if not already running
     with _compute_lock:
         if _computing:
             return {"themes": [], "status": "computing",
-                    "generated_at": datetime.now(timezone.utc).isoformat()}
+                    "generated_at": datetime.now(timezone.utc).isoformat()}, False
         _computing = True
 
     threading.Thread(target=_run_computation, daemon=True, name="theme-perf-compute").start()
     return {"themes": [], "status": "computing",
-            "generated_at": datetime.now(timezone.utc).isoformat()}
+            "generated_at": datetime.now(timezone.utc).isoformat()}, False
 
 
 def compute_rotation_signals() -> dict:

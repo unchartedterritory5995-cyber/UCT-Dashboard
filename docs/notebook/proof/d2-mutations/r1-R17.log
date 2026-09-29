@@ -1,0 +1,2 @@
+R17 RED rc=1 [M-5: a prefix match folds a sibling route (/journal/notebookx)] app/src/pages/journal-2-0/lib/compactHeaderRoute.js :: Test Files  1 failed (1) | Tests  1 failed | 20 passed (21) :: restored sha 757d31c0dbce == capture == HEAD: True
+CONTROL unmutated tree rc=0 :: Test Files  1 passed (1) | Tests  21 passed (21)

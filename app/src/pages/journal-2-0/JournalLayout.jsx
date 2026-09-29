@@ -23,7 +23,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { NavLink, Navigate, Outlet, useNavigate, useSearchParams } from 'react-router-dom'
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
@@ -31,6 +31,8 @@ import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
 import useInstantFills from './hooks/useInstantFills'
 import { mapJ2TabToRoute } from './j2tabRedirect'
+import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
+import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
 import PortfolioSettingsModal from './components/PortfolioSettingsModal'
@@ -52,7 +54,7 @@ const PRIMARY_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
   { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
-  { to: '/journal/notebook', label: 'Notebook', icon: 'journal' },
+  { to: NOTEBOOK_PATH, label: 'Notebook', icon: 'journal' },
   { to: '/journal/insights', label: 'Insights', icon: 'chart' },
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]
@@ -70,7 +72,7 @@ export const HOTKEY_ROUTES = {
   'g>p': '/journal/trades?seg=open', // Open Positions (was `positions`)
   'g>j': '/journal/trades?seg=closed', // Closed Trades (was `journal`)
   'g>a': '/journal/calendar', // Calendar (own top tab)
-  'g>n': '/journal/notebook', // Notebook (own top tab)
+  'g>n': NOTEBOOK_PATH, // Notebook (own top tab)
   'g>y': '/journal/insights', // Insights (was `analytics`)
   'g>t': '/journal/accounts', // Accounts
   'g>k': '/journal/compass', // Compass (paid-gated — see PAID_HOTKEY_CHORDS)
@@ -93,6 +95,19 @@ export default function JournalLayout() {
   const { settings, isLoading, error, save, accountName, isAllAccounts } = useJ2Settings()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const compactHeader = isCompactHeaderRoute(pathname)
+  // D2 (D-1): the phone Notebook's header tools, folded until asked for.
+  const [toolsOpen, setToolsOpen] = useState(false)
+  // Fix round 1 (M-1): folded again on every route change. JournalLayout stays
+  // mounted across /journal/*, so without this the member who opened the tools to
+  // reach More -> Accounts came back to the Notebook with the full 257 px header.
+  // (React's "adjust state when a value changes" pattern -- no effect, no flash.)
+  const [toolsPath, setToolsPath] = useState(pathname)
+  if (toolsPath !== pathname) {
+    setToolsPath(pathname)
+    setToolsOpen(false)
+  }
 
   const [showSettings, setShowSettings] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -155,7 +170,11 @@ export default function JournalLayout() {
   }
 
   return (
-    <div className={styles.root}>
+    <div
+      className={styles.root}
+      data-compact-header={compactHeader ? 'true' : undefined}
+      data-tools-open={toolsOpen ? 'true' : undefined}
+    >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
         <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
@@ -198,6 +217,26 @@ export default function JournalLayout() {
           {/* Persistent "+ Log Trade" — the primary write affordance, on every
               surface (A5). Owns its own add-position / add-trade modals. */}
           <LogTradeButton />
+          {/* D2 (D-1): shown only on the Notebook route at <=640 px (the
+              stylesheet decides the width). A disclosure, not a menu: the
+              controls it reveals are the header's own, unchanged. */}
+          {compactHeader && (
+            <button
+              type="button"
+              className={styles.toolsToggle}
+              onClick={() => setToolsOpen((x) => !x)}
+              aria-expanded={toolsOpen}
+              aria-controls="journal-header-tools"
+              data-journal-tools-toggle=""
+            >
+              Journal tools
+              <UIcon name={toolsOpen ? 'chevronUp' : 'chevronDown'} size={14} gold={false} aria-hidden="true" />
+            </button>
+          )}
+          {/* `display: contents` everywhere except a folded phone header, so the
+              controls stay flex items of this row (and the More menu keeps the
+              row as its anchor on a phone). */}
+          <div id="journal-header-tools" className={styles.headerTools}>
           <button
             type="button"
             className={styles.shortcutsBtn}
@@ -269,6 +308,7 @@ export default function JournalLayout() {
                 </div>
               </>
             )}
+          </div>
           </div>
         </div>
       </div>

@@ -178,6 +178,7 @@ async function unlockAndType(pane, noteId) {
   })
   expect(editor.isEditable, `${noteId} started editable`).toBe(false)
 
+  fireEvent.click(within(pane).getByRole('button', { name: 'More note actions' }))   // K2 (D-3)
   const menu = within(pane).getByRole('group', { name: 'Organise this note' })
   fireEvent.click(within(menu).getByRole('button', { name: 'Unlock' }))
   await waitFor(() => expect(editor.isEditable, `${noteId} never became editable`).toBe(true))

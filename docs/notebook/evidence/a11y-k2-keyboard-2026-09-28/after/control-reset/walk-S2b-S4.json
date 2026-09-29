@@ -1,0 +1,227 @@
+{
+ "meta": {
+  "tool": "keyboard_walk",
+  "started": "2026-09-28T13:42:59-0500",
+  "base": "http://127.0.0.1:8227",
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T13-16-29.md",
+  "only": [
+   "S2b",
+   "S4"
+  ],
+  "browser": "chromium (playwright)",
+  "viewport": "1280x800 unless a step says otherwise",
+  "tip": "75c7ef596",
+  "nonce": "0654d31ca70d8907d6bdc64cb5742953",
+  "browser_version": "145.0.7632.6",
+  "account_paid": true,
+  "finished": "2026-09-28T13:46:12-0500"
+ },
+ "steps": [
+  {
+   "id": "C0",
+   "section": "control",
+   "keys": "Tab x12; Tab x8 inside a trap",
+   "expected": "unreachable button NOT found; trap detected",
+   "observed": "unreachable found=False after 12; trap detected=True; trail=[\"button 'Alpha'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\"]",
+   "verdict": "PASS",
+   "t": "13:43:01"
+  },
+  {
+   "id": "S2-10",
+   "section": "editor: reach the body",
+   "keys": "Tab x106",
+   "expected": "the body is a Tab stop",
+   "observed": "div 'Note body' (editable) found=True",
+   "verdict": "PASS",
+   "t": "13:44:20",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-11",
+   "section": "editor: slash menu",
+   "keys": "type '/', ArrowDown, Escape",
+   "expected": "a menu/listbox opens on '/', arrows move in it, Escape closes it and leaves focus in the body",
+   "observed": "open: [{'role': 'listbox', 'label': 'Insert block'}]; after Escape: []; focus div 'Note body' (editable)",
+   "verdict": "PASS",
+   "t": "13:44:21",
+   "sc": "2.1.1/2.1.2"
+  },
+  {
+   "id": "S2-12",
+   "section": "editor: emoji menu",
+   "keys": "type ' :smi', Escape",
+   "expected": "an emoji list opens and Escape closes it",
+   "observed": "open: [{'role': 'listbox', 'label': 'Insert emoji'}]; after Escape []",
+   "verdict": "PASS",
+   "t": "13:44:22",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-13",
+   "section": "editor: [[ note link",
+   "keys": "type ' [[Beta'; wait for the picker; Enter",
+   "expected": "a note picker opens; Enter inserts the link; the picker closes and focus stays in the body",
+   "observed": "picker options ['Beta rates note', 'Delta plain (conflicted ']; links 4 -> 5 (new: ['Beta rates note']); picker after Enter None; focus div 'Note body' (editable)",
+   "verdict": "PASS",
+   "t": "13:44:22",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-13b",
+   "section": "editor: [[ keyboard selection",
+   "keys": "type ' [[a'; ArrowDown; Enter",
+   "expected": "ArrowDown moves the selected option; Enter inserts the option that was selected, not the first",
+   "observed": "options ['Delta plain', 'Alpha thesis NVDA', 'Delta plain (conflic']; selected after ArrowDown ['Alpha thesis NVDA']; inserted ['Alpha thesis NVDA']; focus div 'Note body' (editable)",
+   "verdict": "PASS",
+   "t": "13:44:23",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-13c",
+   "section": "editor: [[ picker Escape",
+   "keys": "type ' [[Gam'; Escape; type 'x'",
+   "expected": "Escape closes the picker, inserts nothing, and the next key types into the body where the caret was",
+   "observed": "picker before Escape ['Gamma earnings']; after Escape None; links 6 -> 6; focus div 'Note body' (editable); '[[Gamx' in the body=True",
+   "verdict": "PASS",
+   "t": "13:44:24",
+   "sc": "2.1.1/2.1.2"
+  },
+  {
+   "id": "S2-14",
+   "section": "editor: @ date",
+   "keys": "type ' @tomorrow ' (the rule's trigger is the space)",
+   "expected": "the words become one date chip for tomorrow (ET); focus stays in the body and typing continues",
+   "observed": "date chips 2 -> 3 (new: ['2026-09-29'], tomorrow ET 2026-09-29); '@tomorrow' left as text=False; menus []; focus div 'Note body' (editable)",
+   "verdict": "PASS",
+   "t": "13:44:24",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-14c",
+   "section": "editor: @ date CONTROL",
+   "keys": "type ' @notaday '",
+   "expected": "a word that is not a date stays text: the probe must be able to say no",
+   "observed": "date chips 3 -> 3; '@notaday' left as text=True",
+   "verdict": "PASS",
+   "t": "13:44:25",
+   "sc": "control"
+  },
+  {
+   "id": "S2-15",
+   "section": "editor: find and replace",
+   "keys": "Ctrl+F, type, Ctrl+H, Escape",
+   "expected": "Ctrl+F puts focus in a find field; Ctrl+H shows replace; Escape closes and returns focus to the body",
+   "observed": "after Ctrl+F input [searchbox] 'Find in note'; after Ctrl+H input [searchbox] 'Find in note'; after Escape div 'Note body' (editable)",
+   "verdict": "PASS",
+   "t": "13:44:27",
+   "sc": "2.1.1/2.4.3"
+  },
+  {
+   "id": "S2-16",
+   "section": "editor: table created and walked",
+   "keys": "'/table' Enter; Tab x3; Tab x12 more",
+   "expected": "a table is inserted; Tab moves cell to cell; Tab at the last cell adds a row (documented)",
+   "observed": "in table after insert=True; rows 3 -> 6",
+   "verdict": "PASS",
+   "t": "13:44:30",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-17",
+   "section": "editor: leave a table by keyboard (2.1.2)",
+   "keys": "Escape / Ctrl+Enter / ArrowDown, then ArrowDown x8",
+   "expected": "the caret can leave the table without a pointer",
+   "observed": "after the tries: {'Escape': {'inTable': True, 'inEditor': True, 'text': '', 'rows': 6}, 'Control+Enter': {'inTable': True, 'inEditor': True, 'text': '', 'rows': 6}, 'ArrowDown': {'inTable': False, 'inEditor': True, 'text': ' Beta rates note Delta plain (conflicted', 'rows': None}}; after ArrowDown x8 caret in table=False; Shift+Tab lands button 'CHANGELOG'",
+   "verdict": "PASS",
+   "t": "13:44:31",
+   "sc": "2.1.2"
+  },
+  {
+   "id": "S2-18",
+   "section": "editor: move a block with the keys",
+   "keys": "Ctrl+Home; Alt+Shift+ArrowDown",
+   "expected": "the first block moves down one place (2.5.7 alternative to the drag grip)",
+   "observed": "first block '' -> ''",
+   "verdict": "FAIL",
+   "t": "13:44:40",
+   "sc": "2.5.7"
+  },
+  {
+   "id": "S4-01",
+   "section": "dialog: command palette (Ctrl+K)",
+   "keys": "open; Tab x10; Escape",
+   "expected": "focus moves in on open, stays in while open, Escape closes, focus returns to the opener",
+   "observed": "dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Command palette'}]; focus on open input [combobox] 'Search a security, company, or note' inDialog=Command palette; Tab x10 stayed inside=True; after Escape a 'Skip to main content'; dialogs left []",
+   "verdict": "PASS",
+   "t": "13:44:48",
+   "sc": "2.4.3"
+  },
+  {
+   "id": "S4-02",
+   "section": "dialog: Save view",
+   "keys": "open; Tab x10; Escape",
+   "expected": "focus moves in on open, stays in while open, Escape closes, focus returns to the opener",
+   "observed": "dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Save view'}]; focus on open input 'Name' inDialog=Save view; Tab x10 stayed inside=True; after Escape button 'Save view'; dialogs left []",
+   "verdict": "PASS",
+   "t": "13:45:02",
+   "sc": "2.4.3"
+  },
+  {
+   "id": "S4-03",
+   "section": "dialog: Templates",
+   "keys": "open; Tab x10; Escape",
+   "expected": "focus moves in on open, stays in while open, Escape closes, focus returns to the opener",
+   "observed": "dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'New note' inDialog=dialog; Tab x10 stayed inside=True; after Escape button 'Templates'; dialogs left []",
+   "verdict": "PASS",
+   "t": "13:45:17",
+   "sc": "2.4.3"
+  },
+  {
+   "id": "S4-04",
+   "section": "dialog: Import",
+   "keys": "open; Tab x10; Escape",
+   "expected": "focus moves in on open, stays in while open, Escape closes, focus returns to the opener",
+   "observed": "dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'Import notes' inDialog=dialog; Tab x10 stayed inside=True; after Escape button 'Import'; dialogs left []",
+   "verdict": "PASS",
+   "t": "13:45:31",
+   "sc": "2.4.3"
+  },
+  {
+   "id": "S4-05",
+   "section": "dialog: Export (whole notebook)",
+   "keys": "open; Tab x10; Escape",
+   "expected": "focus moves in on open, stays in while open, Escape closes, focus returns to the opener",
+   "observed": "dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'Export your notebook' inDialog=dialog; Tab x10 stayed inside=True; after Escape button 'Export'; dialogs left []",
+   "verdict": "PASS",
+   "t": "13:45:45",
+   "sc": "2.4.3"
+  },
+  {
+   "id": "S4-06",
+   "section": "share sheet: its controls by Tab",
+   "keys": "Tab x74 to Share; Enter; Tab x12",
+   "expected": "create / copy / revoke are Tab stops inside the sheet",
+   "observed": "stops: [\"button 'Close'\", \"input 'Share link address'\", \"button 'Copy link'\", \"button 'Revoke link'\", \"input 'Published page address'\", \"button 'Copy page link'\", \"button 'Unpublish'\", \"button 'Close'\", \"input 'Share link address'\", \"button 'Copy link'\", \"button 'Revoke link'\", \"input 'Published page address'\"]",
+   "verdict": "OBSERVED",
+   "t": "13:46:05",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S4-07",
+   "section": "first-run tour (fresh account)",
+   "keys": "load; Tab x6; Escape",
+   "expected": "the tour is reachable by keyboard and Escape dismisses it",
+   "observed": "dialogs on load [{'role': 'dialog', 'modal': 'true', 'label': 'Folders and tags'}]; focus h2 'Folders and tags'; Tab path [\"button 'Skip tour'\", \"button 'Next'\", \"button 'Skip tour'\", \"button 'Next'\", \"button 'Skip tour'\", \"button 'Next'\"]; after Escape dialogs []",
+   "verdict": "PASS",
+   "t": "13:46:12",
+   "sc": "2.1.1/2.1.2"
+  }
+ ],
+ "census": {},
+ "shots": [],
+ "errors": [],
+ "seed": {
+  "reused": true,
+  "notes": 6
+ }
+}
