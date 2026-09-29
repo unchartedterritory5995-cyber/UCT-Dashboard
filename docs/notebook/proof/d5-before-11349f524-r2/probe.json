@@ -1,0 +1,143 @@
+{
+ "tip": "11349f524",
+ "tag": "before",
+ "instrument": "notebook_d5_scroll_probe.py",
+ "scrollbars": "shown",
+ "viewports": [
+  "1200x800",
+  "820x900",
+  "390x844"
+ ],
+ "rows": [
+  {
+   "viewport": "1200x800",
+   "sample": {
+    "found": true,
+    "cue_attr": null,
+    "scrollWidth": 1348,
+    "clientWidth": 776,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 395,
+     "left": 370,
+     "right": 1146,
+     "bottom": 839
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "before-1200x800.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "820x900",
+   "sample": {
+    "found": true,
+    "cue_attr": null,
+    "scrollWidth": 1348,
+    "clientWidth": 456,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 618,
+     "left": 310,
+     "right": 766,
+     "bottom": 1061
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "before-820x900.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "390x844",
+   "sample": {
+    "found": true,
+    "cue_attr": null,
+    "scrollWidth": 1348,
+    "clientWidth": 297,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 675,
+     "left": 44,
+     "right": 341,
+     "bottom": 1119
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "before-390x844.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  }
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T23-54-17.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T23-54-17.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-28 23:54:23",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-28 23:55:26",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-28 23:55:58",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}
