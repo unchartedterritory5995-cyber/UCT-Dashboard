@@ -468,6 +468,10 @@ EDITOR_JS = r"""() => {
 
 # Lane D3P (record-only): the open "More note actions" panel -- its box, and every item's
 # at-rest centre hit (which chrome layer, if any, owns it) and whether it is above the fold.
+# Fix round 1 (review M-3), NOT yet re-run: each item is also intersected with the PANEL's own
+# visible box, because the panel scrolls inside itself -- an item can be on screen and uncovered
+# and still be partly scrolled out of the panel (Delete at 390x667: y 480-524, panel bottom 507).
+# `clippedPx` is how many px of the item the panel hides; `inPanelView` is true when it hides none.
 MORE_JS = r"""() => {
   const p = document.querySelector('[role="group"][aria-label="More note actions"]');
   if (!p) return {panel: false};
@@ -480,6 +484,7 @@ MORE_JS = r"""() => {
     if (hit.closest('[class*="_fab_"]')) return 'feedback';
     return 'other'; };
   const cs = getComputedStyle(p);
+  const pr = p.getBoundingClientRect();
   const items = [];
   for (const el of p.querySelectorAll('button,a[href],select,input,[role=menuitem],[role=button]')) {
     const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) continue;
@@ -487,10 +492,13 @@ MORE_JS = r"""() => {
     const onScreen = cx >= 0 && cy >= 0 && cx <= innerWidth && cy <= innerHeight;
     const hit = onScreen ? document.elementFromPoint(cx, cy) : null;
     const own = !!hit && (hit === el || el.contains(hit) || hit.contains(el));
+    const clippedPx = Math.round(Math.max(0, r.bottom - pr.bottom) + Math.max(0, pr.top - r.top));
     items.push({name: String(el.getAttribute('aria-label') || (el.innerText || '').trim().split(String.fromCharCode(10))[0]).slice(0, 40), box: box(el),
-                onScreen, belowFold: r.bottom > innerHeight, covered: onScreen && !own, by: onScreen && !own ? layer(hit) : null});
+                onScreen, belowFold: r.bottom > innerHeight, covered: onScreen && !own, by: onScreen && !own ? layer(hit) : null,
+                clippedPx, inPanelView: clippedPx === 0});
   }
-  return {panel: true, box: box(p), position: cs.position, bottom: cs.bottom, top: cs.top, vh: innerHeight, items};
+  return {panel: true, box: box(p), position: cs.position, bottom: cs.bottom, top: cs.top, vh: innerHeight,
+          scrollTop: Math.round(p.scrollTop), scrollHeight: Math.round(p.scrollHeight), clientHeight: Math.round(p.clientHeight), items};
 }"""
 
 

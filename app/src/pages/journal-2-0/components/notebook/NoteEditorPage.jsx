@@ -2033,6 +2033,11 @@ export default function NoteEditorPage({
     mq.addEventListener?.('change', onChange)
     return () => mq.removeEventListener?.('change', onChange)
   }, [formatOpen])
+  // Locking the note unmounts the toolbar row. Left open, the disclosure would come back
+  // EXPANDED on unlock with nothing moving focus into it, so the lock closes it.
+  useEffect(() => {
+    if (locked) setFormatOpen(false)
+  }, [locked])
 
   // The lock IS `editable`: every surface that edits the note asks
   // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).

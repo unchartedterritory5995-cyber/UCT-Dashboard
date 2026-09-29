@@ -57,6 +57,16 @@ MUTS = {
     "M11-log-fab-moves-up": (JOURNAL, r"bottom: calc\(70px \+ env\(safe-area-inset-bottom, 0px\)\);",
                              "bottom: calc(130px + env(safe-area-inset-bottom, 0px));"),
     "M12-hub-pad-grows": (HUB, r"export const PAD_PX = 84", "export const PAD_PX = 100"),
+    # ── fix round 1 ──
+    # M-5: locking the note no longer closes the disclosure, so unlock brings it back expanded
+    "M14-no-reset-on-lock": (EDITOR, r"    if \(locked\) setFormatOpen\(false\)<NL>", ""),
+    # M-4a: the close-on-widen effect deleted outright
+    "M15-no-close-on-widen": (EDITOR,
+        r"  useEffect\(\(\) => \{<NL>    if \(!formatOpen \|\| typeof window === 'undefined'[\s\S]*?\}, \[formatOpen\]\)<NL>", ""),
+    # M-4c: a sign flipped. The cap ADDS its offset back; the panel's bottom is subtracted.
+    "M16-cap-sign-flipped": (MORE, r"(?P<head>max-height: calc\(100dvh[^;]*?)- 168px\);", r"\g<head>+ 168px);"),
+    "M17-panel-bottom-sign-flipped": (MORE, r"bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 160px\);",
+                                      "bottom: calc(env(safe-area-inset-bottom, 0px) - 160px);"),
 }
 
 

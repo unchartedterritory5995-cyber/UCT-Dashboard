@@ -1,8 +1,9 @@
-import { render, waitFor, fireEvent, within } from '@testing-library/react'
+import { render, waitFor, fireEvent, within, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { FOCUSABLE_SELECTOR } from '../../../../components/mobile/useFocusTrap'
+import { MQ } from '../../../../styles/breakpoints'
 
 // Wave 10 lane D3P (D-3 PHONE): at 390 px the editor's formatting row wrapped to about eight
 // rows, the note's title sat below the first screen, and the phone's Log FAB covered one of the
@@ -27,8 +28,10 @@ const NOTE = {
   tags: [], heroImageUrl: null, updatedAt: '2026-01-01T00:00:00Z', isFavorite: false,
   bodyJson: { type: 'doc', content: [P('Start.')] },
 }
+// The note the page sees. A cell may swap it (locked / unlocked) and re-render; beforeEach resets it.
+let CURRENT = NOTE
 vi.mock('../../hooks/useJ2Notes', () => ({
-  useJ2Note: () => ({ note: NOTE, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
+  useJ2Note: () => ({ note: CURRENT, isLoading: false, update: vi.fn(), refresh: vi.fn() }),
   recordNoteOpened: vi.fn(),
   setNoteFavorite: vi.fn(),
 }))
@@ -48,18 +51,19 @@ Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
 
 beforeEach(() => {
+  CURRENT = NOTE
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }))
 })
 afterEach(() => { vi.clearAllMocks(); document.body.innerHTML = '' })
 
+let rerenderPage = null
 async function mountToolbar() {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   const div = document.createElement('div')
   document.body.appendChild(div)
-  render(
-    <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>,
-    { container: div },
-  )
+  const page = () => <MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} showBack /></MemoryRouter>
+  const { rerender } = render(page(), { container: div })
+  rerenderPage = () => rerender(page())
   await waitFor(() => {
     if (!div.querySelector('.ProseMirror')?.editor) throw new Error('editor not mounted')
   })
@@ -189,6 +193,57 @@ describe('D3P: the disclosure keeps the editor keyboard contract (lib/useDisclos
     fireEvent.mouseDown(h1)
     fireEvent.click(h1)
     await waitFor(() => expect(document.querySelector('.ProseMirror h1')?.textContent).toBe('Start.'))
+  }, 60000)
+})
+
+describe('D3P fix round 1: the disclosure never outlives what it was opened on', () => {
+  // M-5. Locking the note unmounts the toolbar row. Before the fix `formatOpen` survived that, so
+  // on unlock the row came back EXPANDED with nothing having moved focus into it.
+  it('open -> lock -> unlock: the row comes back COLLAPSED (aria-expanded false)', async () => {
+    const toolbar = await mountToolbar()
+    fireEvent.click(toggleOf(toolbar))
+    expect(toggleOf(toolbar)).toHaveAttribute('aria-expanded', 'true')
+
+    CURRENT = { ...NOTE, locked: true }
+    rerenderPage()
+    // non-vacuity: the lock really took the row away, so the reset below is a reset, not a no-op
+    await waitFor(() => expect(document.querySelector('[data-format-toggle]')).toBeNull())
+
+    CURRENT = { ...NOTE, locked: false }
+    rerenderPage()
+    const back = await waitFor(() => {
+      const t = document.querySelector('[data-format-toggle]')
+      if (!t) throw new Error('toolbar not back')
+      return t
+    })
+    expect(back).toHaveAttribute('aria-expanded', 'false')
+    expect(back.closest('[role="toolbar"]')).not.toHaveAttribute('data-format-open')
+  }, 60000)
+
+  // M-4a. Widening past 640 px with it open closes it (the toggle does not exist up there).
+  it('a matchMedia change that leaves the phone tier closes an open disclosure', async () => {
+    // listeners per query, so only the PHONE query's change is fired (other media hooks untouched)
+    const listeners = new Map()
+    const setFor = (q) => { if (!listeners.has(q)) listeners.set(q, new Set()); return listeners.get(q) }
+    const original = window.matchMedia
+    window.matchMedia = vi.fn((query) => ({
+      matches: true, media: query, onchange: null,
+      addEventListener: (type, fn) => { if (type === 'change') setFor(query).add(fn) },
+      removeEventListener: (type, fn) => { if (type === 'change') setFor(query).delete(fn) },
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    }))
+    try {
+      const toolbar = await mountToolbar()
+      fireEvent.click(toggleOf(toolbar))
+      expect(toggleOf(toolbar)).toHaveAttribute('aria-expanded', 'true')
+      const phone = setFor(MQ.phone)
+      expect(phone.size, 'non-vacuity: the open disclosure listens on the canonical phone query').toBeGreaterThan(0)
+      act(() => { for (const fn of [...phone]) fn({ matches: false, media: MQ.phone }) })
+      expect(toggleOf(toolbar)).toHaveAttribute('aria-expanded', 'false')
+      expect(toolbar).not.toHaveAttribute('data-format-open')
+    } finally {
+      window.matchMedia = original
+    }
   }, 60000)
 })
 

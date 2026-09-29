@@ -20,6 +20,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stripComments } from './cssAudit'
+import { MQ } from '../../../styles/breakpoints'
 
 const J2 = join(process.cwd(), 'src', 'pages', 'journal-2-0')
 const NB = join(J2, 'components', 'notebook')
@@ -146,7 +147,9 @@ describe('the editor formatting row (NoteEditorPage.module.css, D-6)', () => {
 // components/notebook/NoteEditorPage.phoneFormat.test.jsx; THIS is where the collapse lives: it
 // must be inside the canonical PHONE query and nowhere else, so desktop and tablet are the row
 // they were. Structural; the measured before/after is docs/notebook/proof/d3p-*.
-const PHONE = '(max-width: 640px)'
+// The canonical phone query, imported rather than restated (review M-4b): a copy here would be a
+// second authority over the one number the whole collapse hangs on.
+const PHONE = MQ.phone
 const COLLAPSE = '.toolbarRow:not([data-format-open]) .formatRun'
 
 describe('D3P: the phone formatting disclosure lives ONLY inside the 640 query (NoteEditorPage.module.css)', () => {
@@ -186,8 +189,32 @@ describe('D3P: the phone formatting disclosure lives ONLY inside the 640 query (
 describe('D3P N-3: on a phone the open More panel sits above the bottom band (NoteMoreMenu.module.css)', () => {
   const rules = rulesWithMedia(read(join(NB, 'NoteMoreMenu.module.css')))
   const SRC = join(process.cwd(), 'src')
-  /** The px terms of a length or a calc(), summed (`env(x, 0px)` contributes its 0). */
-  const pxSum = (v) => [...String(v || '').matchAll(/(-?\d+(?:\.\d+)?)px/g)].reduce((a, m) => a + Number(m[1]), 0)
+  /** A length or a calc() split into its TOP-LEVEL terms, each with the sign in front of it and
+   *  the px it carries (`env(x, 0px)` carries 0; `var(--y, 48px)` carries its fallback). Signed
+   *  (review M-4c): an unsigned sum reads `- 168px` and `+ 168px` as the same cap. CSS calc() puts
+   *  whitespace round a binary + or -, which is what tells an operator from a negative number. */
+  const signedTerms = (v) => {
+    let s = String(v || '').trim()
+    const inner = /^calc\((.*)\)$/s.exec(s)
+    if (inner) s = inner[1]
+    const terms = []
+    let depth = 0; let sign = 1; let cur = ''
+    for (let i = 0; i < s.length; i += 1) {
+      const c = s[i]
+      if (c === '(') depth += 1
+      else if (c === ')') depth -= 1
+      if (depth === 0 && (c === '+' || c === '-') && /\s/.test(s[i - 1] || '') && /\s/.test(s[i + 1] || '')) {
+        if (cur.trim()) terms.push({ sign, text: cur.trim() })
+        sign = c === '-' ? -1 : 1
+        cur = ''
+        continue
+      }
+      cur += c
+    }
+    if (cur.trim()) terms.push({ sign, text: cur.trim() })
+    return terms.map((t) => ({ ...t, px: [...t.text.matchAll(/(\d+(?:\.\d+)?)px/g)].reduce((a, m) => a + Number(m[1]), 0) }))
+  }
+  const pxSum = (v) => signedTerms(v).reduce((a, t) => a + t.sign * t.px, 0)
   const tapMin = px(/--tap-min:\s*([^;]+);/.exec(read(join(SRC, 'styles', 'tokens.css')))[1])
   const hubConst = (name) => Number(new RegExp(`export const ${name} = (\\d+)`).exec(read(join(SRC, 'hub', 'constants.js')))[1])
   const journal = rulesWithMedia(read(join(J2, 'JournalLayout.module.css')))
@@ -216,8 +243,21 @@ describe('D3P N-3: on a phone the open More panel sits above the bottom band (No
     expect(lastDecl(rules, '.panel', 'overflow-y', PHONE)).toBe('auto')
     const cap = lastDecl(rules, '.panel', 'max-height', PHONE)
     expect(cap).toMatch(/var\(--mobile-topbar-h/)
-    // the cap takes away the panel's own bottom offset (plus a gap), so top + height stays on screen
-    expect(pxSum(cap)).toBeGreaterThanOrEqual(pxSum(lastDecl(rules, '.panel', 'bottom', PHONE)))
+    // the cap takes AWAY the top bar and the panel's own bottom offset (plus a gap), so top +
+    // height stays on screen. Read by sign: a term that is added back is not taken away.
+    const terms = signedTerms(cap)
+    const isTopbar = (t) => /--mobile-topbar-h/.test(t.text)
+    expect(terms.some((t) => t.sign < 0 && isTopbar(t)), `the top bar is subtracted: ${cap}`).toBe(true)
+    expect(terms.filter((t) => t.sign > 0).reduce((a, t) => a + t.px, 0), `no px is added back: ${cap}`).toBe(0)
+    const takenAway = terms.filter((t) => t.sign < 0 && !isTopbar(t)).reduce((a, t) => a + t.px, 0)
+    expect(takenAway).toBeGreaterThanOrEqual(pxSum(lastDecl(rules, '.panel', 'bottom', PHONE)))
+  })
+
+  it('CONTROL (M-4c): the sign is read -- a cap that ADDS its offset back, or a bottom subtracted, fails', () => {
+    const flipped = signedTerms('calc(100dvh - var(--mobile-topbar-h, 48px) + 168px)')
+    expect(flipped.filter((t) => t.sign > 0).reduce((a, t) => a + t.px, 0)).toBe(168)
+    expect(pxSum('calc(env(safe-area-inset-bottom, 0px) - 160px)')).toBe(-160)
+    expect(pxSum('calc(env(safe-area-inset-bottom, 0px) + 160px)')).toBe(160)
   })
 
   it('above 640 px nothing changed: the panel still hangs from its door', () => {
