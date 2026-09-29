@@ -48,7 +48,7 @@ byte capture afterwards):
 | `k-clustering` | lines 9/0; cells 8/5; cell text | C11 UDT/array (`n_clust.get`, 120 trees) | — |
 | `linear-regression-channel-…-existing-trend-lines` | lines 5/0 | C10 `request.security` (create:line ×5) | — |
 | `liquidation-levels` | no drawing program (10 held) | C8 `time_close` (40 trees) | C15 `str.format` (20) |
-| `liquidity-heatmap-nephew-sam` | labels 27/0; label text | C17 a function definition read in a guard (`pine:function-def`) | C5 |
+| `liquidity-heatmap-nephew-sam` | labels 27/0; label text | C10 `request.security` — every pivot the labels sit on is a `request.security(…, getPivotData(…))` tuple; the `pine:function-def` refusal the census records is `getPivotData` reached THROUGH that call (corrected after reading the source; first filed as C17) | C5 |
 | `liquidity-pools` | lines 182/0; labels 91/0; label text | **C2 the object lane never receives `newestBarIsForming`, so `barstate.isconfirmed` is `na` in every object tree and `swing_h` never fires** | **C3 `linefill.new` on the same two lines REPLACES (vendor 91 fills = 182 lines / 2; ours evicts through 500)**, C9 |
 | `makuchaku039s-trade-tools-fair-value-gaps` | boxes 51/50 | C7 GC slack (vendor holds ids 139..189 = newest 51 of 189 at default 50) | — |
 | `market-structure-by-leviathan` | lines 6/133; labels 22/133; label text | C12 `var` state reassigned inside `if` blocks (`prevHigh` "nothing updates") → guards dropped, remaining creates over-fire | — |
@@ -89,7 +89,7 @@ byte capture afterwards):
 | C14 | object getters in a coordinate or guard | (secondary) rsi-swing, ultimate, trend-duration | medium |
 | C15 | text builtins / constants in value position (`str.format`, `size.*`, `position.*`) | (secondary) | small each |
 | C16 | `table.merge_cells` | momentum-volatility-scanner | small |
-| C17 | a function definition read inside a guard | liquidity-heatmap | medium |
+| C17 | ~~a function definition read inside a guard~~ — no script's primary cause once `liquidity-heatmap` was traced to C10 | — | — |
 | **C19** | `for i = a to b by s` — the reader refused any stepped loop whole (the loop op had no step); found while re-grading after C4, as what still held `heat-map-seasons`' gauge cells (`loopBlocked: table.cell`) | heat-map-seasons | yes, reader + runtime |
 
 ## Fix order (scripts fixed per change) and results
@@ -103,15 +103,61 @@ without it; each row below is a full re-grade of the 47 captures.
 | 1 | C1 metainfo HTML decode (harness) | `925bc50e0` | 11 / 47 | 161 / 252 | none on objects (by construction); `extrapolated-pivot-connector`'s two plots go UNMAPPED → mapped and compared (630/632 bars agree) |
 | 2 | C4 table replaces the table at its position | `f1b86c777` | 12 / 47 | 165 / 252 | `ict-ipda-look-back` 4/7 → **7/7 MATCH** (lines 3, boxes 6, tables 1 — the run no longer stops at bar 8); `heat-map-seasons` 4/7 → 5/7 (tables 1/1; cells still short — C5 + a loop-blocked `table.cell`) |
 | 3 | C5 `\n` escape is a newline | `4ba2ee1ec` | 12 / 47 | 165 / 252 | no family flips yet, and the reason is measured: the text family compares MULTISETS, so a right text in a wrong count still disagrees. The divergent strings are gone — `heat-map-seasons` cells `onlyOurs` ['☀︎ - Summern❆ - Wintern…'] → [] ; `position-size-calculator` labels `onlyOurs` 8 × 'n Account Balance…' → [] (its count, 4/50, is C6) |
-
 | 4 | C6 comma-joined statements split for the object reader | `a2697d89c` | 13 / 47 | 167 / 252 | `position-size-calculator` 5/7 → **7/7 MATCH** (labels 4/4 and texts, with C5); `extrapolated-pivot-connector` still has no program — its top-level `label.delete(a[1]),…` now reads, but every create sits behind C9 |
-
 | 5 | C2 the object lane receives `newestBarIsForming` | `f20c2d6c3` | 14 / 47 | 171 / 252 | `liquidity-pools` 4/7 → **7/7 MATCH** (lines 182, labels 91 and their texts); `trend-duration-forecast-chartprime` 2/7 → 3/7 (lines 1/1; its labels/cells sit behind C11) |
-
 | 6 | C3 one linefill per pair of lines, none without them | `82c0e2029` | 14 / 47 | 171 / 252 | linefills are not a graded family, so the score cannot move; measured directly instead: `liquidity-pools` fills 500 → **91 = vendor 91**, `price-action-…` 19 = vendor 19 (unchanged), `linear-regression-…` 2 → 0 against vendor 2 — its two fills had been attached to lines we never draw (C10), so the old 2 was a coincidence of counts, not a drawing |
-
 | 7 | C19 `for … by <step>` carried as the loop's step | `7564906d3` | 15 / 47 | 173 / 252 | `heat-map-seasons` 5/7 → **7/7 MATCH** (cells 31/31 and their texts, with C4 + C5). Side effect, measured and kept: `sonarlab-order-blocks` (committed corpus, not in this batch) has `for … by 1` delete loops; they are READ now and their array-size bounds are not, so its loss moved from a reader-level block (no drop counted) to a counted `loop:bounds` drop — still refused at the member door, now as "a loop that deletes", and no longer (falsely) clean in the host lane. Three rails that pinned the old accounting were re-pointed, and the "lost before conversion" class kept a synthetic `while` fixture because no committed script shows it any more |
+| 8 | C16 `table.merge_cells` carried (reader → runtime → render state → DOM `colSpan`) | `554f78d85` | 16 / 47 | 175 / 252 | `momentum-volatility-scanner` 5/7 → **7/7 MATCH** (cells 12/12 — the covered (1,0) cell is held, empty, as the vendor holds it); `average-day-range-adr-pivots` cells 2 → 3 of 4 (its merged cell reads now; the missing cell is the one `cell:text` drop the census records — not traced further) |
 
-| 8 | C16 `table.merge_cells` carried (reader → runtime → render state → DOM `colSpan`) | _this commit_ | 16 / 47 | 175 / 252 | `momentum-volatility-scanner` 5/7 → **7/7 MATCH** (cells 12/12 — the covered (1,0) cell is held, empty, as the vendor holds it); `average-day-range-adr-pivots` cells 2 → 3 of 4 (its merged cell reads now; the missing cell is the one `cell:text` drop the census records — not traced further) |
+### Where the lane stands
 
-(rows are appended as each class lands)
+**Objects MATCH 11 → 16 of 47; object families agreeing 161 → 175 of 252.** Five
+scripts flipped to MATCH (`ict-ipda-look-back`, `position-size-calculator`,
+`liquidity-pools`, `heat-map-seasons`, `momentum-volatility-scanner`); two more
+moved without flipping (`trend-duration-forecast-chartprime` 2 → 3 of 7,
+`average-day-range-adr-pivots` cells 2 → 3 of 4), and `high-low-open-mid-ranges`
+now holds 13 of its 45 cells (was 1). Every step is one commit with a focused
+test and a mutation proof; the 31 scripts still diverging are listed below by
+what would move them.
+
+## C7 — the vendor's garbage collection, measured and NOT implemented
+
+TradingView documents `max_*_count` as approximate ("the count is approximate;
+more drawings than the specified count may be displayed"). Object ids are one
+monotonic counter on both sides, and where our creation sequence is the
+vendor's the ids agree exactly, so "which objects does TradingView hold" was
+read per id against an uncapped run of ours:
+
+| script | family | cap | created (ours, uncapped) | created on the last bar | vendor holds | = the newest… |
+|---|---|---|---|---|---|---|
+| `contraction-box-doji-lines` | boxes | 50 (default) | 632, one per bar | 1 | **50** | 50 |
+| `makuchaku039s-trade-tools-fair-value-gaps` | boxes | 50 (default) | 189, sporadic | 1 | **51** | 51 |
+| `ultimate-pivot-points` | lines, labels | 50 (default) | 5661 each, nine per bar | 9 | **51**, **51** | 51 |
+| `multi-timeframe-supply-demand-zones` | boxes | 500 | 504, all on bar 0 | 0 | **504** | 504 |
+| `sector-rotation` | lines / boxes | 50 / 500 | (boxes not reachable) | — | **50** / **504** | — |
+| `smt-divergence-…` | lines, labels | 500 | (not reachable) | — | **500**, **500** | — |
+
+Every vendor-held set is the NEWEST n by id (FIFO holds). What no rule tried
+reproduces is n itself: "strictly ≤ cap" fits `contraction-box` and fails
+`makuchaku`; "trim before add, so cap+1 after a create" fits `makuchaku` and
+`ultimate-pivot-points` and fails `contraction-box` (same one-box-per-bar
+pattern, same default cap, same last-bar create); "trim at the end of each bar,
+sparing that bar's creates" fails `makuchaku`; and `multi-timeframe-…` keeps all
+504 of a 500 cap that were created on bar 0, which no per-create trim allows. The
+rule is left as ours (strict FIFO at the cap) rather than fitted to three of six
+rows. What would settle it: a capture of a probe script that creates k objects per
+bar at a known cap for several k, read at two different last bars.
+
+## What is left, ranked by scripts it would move
+
+| rank | class | scripts (primary) | what it needs |
+|---|---|---|---|
+| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix |
+| 2 | C12 values or `var` state computed across a multi-statement block (`pine:block`, `pine:state`, `pine:reassign`) | atr-sr, market-structure, rsi-swing, position-size-calc, smc (secondary) (4–5) | per-bar state for block-assigned names; `market-structure` and `smc` also OVER-draw because a reset (`x := na` after a draw) is lost, so this is the class that removes wrong objects, not just missing ones |
+| 3 | C10 `request.security` in object text/coordinates | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the MTF data seam reaching the object lane |
+| 4 | C8 clock builtins: `time_close`, `timeframe.change` | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | a declared clock column each, measured against the vendor — `time_close` on a daily bar is the session close, not the next open, so a guessed `time + 1 day` would misplace every label drawn at it |
+| 5 | C9 a history offset that is an expression (`x[bar_index - k]`) | artemis, extrapolated, smt-divergence (3) | deliberately refused by the columnar lane (`pine:offset-literal`); needs the runtime lane or a bounded dynamic-offset node |
+| 6 | C7 vendor GC slack | makuchaku, ultimate-pivot-points, multi-timeframe-supply-demand-zones (3) | the probe capture above, then a one-place change in `objectRuntime`'s eviction |
+| 7 | C13 drawing functions the inliner refuses (`in-expression`, `conditional-history`, `loop`) | OHLM, TSR (+ adr secondary) (2) | per-refusal work in `objectFnInline.js` |
+| 8 | C8 `chart.left_visible_bar_time` | sector-rotation (1) | not answerable on a bar series (it is viewport state) — a named refusal is the correct end state |
+
