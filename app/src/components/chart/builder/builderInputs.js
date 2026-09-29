@@ -677,7 +677,9 @@ function annotate(translation, windowBound, displacementBound = new Set()) {
 function carryHandoffs(from, to) {
   // `_treeShift` (2026-09-28): a rightward `offset = N` the tree already holds as
   // `x[N]`, handed to readers that must tell the two apart (the vendor harness).
-  for (const k of ['_displaceFrom', '_displaceParams', '_treeShift']) {
+  // `_colourInputs` (2026-09-28): the inputs only the row's COLOUR read — see
+  // `colourOnlyInputs` below.
+  for (const k of ['_displaceFrom', '_displaceParams', '_treeShift', '_colourInputs']) {
     if (Object.prototype.hasOwnProperty.call(from, k)) {
       Object.defineProperty(to, k, { value: from[k], enumerable: false })
     }
@@ -686,6 +688,13 @@ function carryHandoffs(from, to) {
 }
 
 export function memberInputTranslation(translate, source, opts = {}) {
+  // ⭐ 2026-09-28 — `colourInputs: true` is THIS function's option, never the
+  // translator's: see `withColourInputs`. Only the member door asks for it.
+  const wantColour = !!(opts && opts.colourInputs === true)
+  if (opts && Object.prototype.hasOwnProperty.call(opts, 'colourInputs')) {
+    const { colourInputs: _drop, ...rest } = opts
+    opts = rest
+  }
   const usable = (t) => (t.outputs || []).filter((o) => !o.refusal && o.formula)
 
   const first = translate(source, { ...opts, declareInputs: 'all' })
@@ -757,9 +766,9 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // round (an offender is only ever removed), so it cannot cycle; the cap is a
   // belt on top of that, and the fallback — declaring NOTHING — is the shipped
   // behaviour from before member inputs existed and is closed by construction.
-  const withDeclarations = (names) => {
+  const withDeclarations = (names, extra = null) => {
     const t = names.length
-      ? translate(source, { ...opts, declareInputs: names })
+      ? translate(source, { ...opts, ...(extra || {}), declareInputs: names })
       : translate(source, opts)
     return { ...t, outputs: annotate(t, windowBound, displacementBound), declaredNames: names }
   }
@@ -773,7 +782,152 @@ export function memberInputTranslation(translate, source, opts = {}) {
   }
   const final = attempt
 
+  if (wantColour) {
+    const coloured = withColourInputs(first, final, withDeclarations, { windowBound, displacementBound })
+    if (coloured) return coloured
+  }
   return { ...final, outputs: final.outputs, declared: final.declaredNames }
+}
+
+/** Every `series` name anywhere in a subtree — objects and arrays alike (an
+ *  object program's trees are not `args`-shaped throughout). */
+function namesAnywhere(root, out = new Set()) {
+  const stack = [root]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (Array.isArray(n)) { for (const x of n) stack.push(x); continue }
+    if (n.type === 'series' && typeof n.name === 'string') out.add(n.name)
+    for (const k of Object.keys(n)) if (k !== 'tok') stack.push(n[k])
+  }
+  return out
+}
+
+/** The colour rules a translation carries — each `{formula, ast}` a condition
+ *  column can be minted from — for its outputs and its fills. */
+function colourRulesOf(t) {
+  const rules = []
+  const take = (p) => {
+    if (!p) return
+    for (const k of ['colorCondition', 'colorIndex']) {
+      const r = p[k]
+      if (r && typeof r.formula === 'string' && r.ast) rules.push(r)
+    }
+  }
+  for (const o of (t.outputs || [])) if (o && !o.refusal) take(o.presentation)
+  for (const f of (((t.presentation || {}).fills) || [])) take(f)
+  return rules
+}
+
+/**
+ * ⭐⭐ 2026-09-28 — AN INPUT ONLY A COLOUR READS IS STILL THE MEMBER'S CONTROL.
+ *
+ * The standing principle is that our chart draws exactly what TradingView draws
+ * for the same script, and that a member switching over keeps the settings they
+ * can change there. TradingView lists every `input.*` in the indicator's
+ * settings, including one whose only reader is a `color =` expression, and
+ * turning it changes the colour drawn. Artemis Oscillator Pro's `useAdapt`
+ * ("Adaptive Color") is exactly that: `lineCol = … : useAdapt ? … : …`.
+ *
+ * ⚰️ This door declared only the inputs an output's VALUE reads (`inputsFolded`,
+ * snapshotted before the presentation resolves), so such an input was folded to
+ * its default inside the colour rule — the colour right at the default, and no
+ * control to move it.
+ *
+ * ⭐ HOW: pass 1 (`declareInputs: 'all'`) records, per row, the inputs only its
+ * colour reached (`_colourInputs`, and the fills' on `presentation.fills`). The
+ * ones no value and no object tree reads are ADDED to the final declarations,
+ * and the colour rule then carries the identifier, which the chart evaluates
+ * against the member's value (`Resolver.knobReads` already keeps such a selector
+ * a live rule rather than folding it).
+ *
+ * ⛔⛔ ADD, NEVER RENUMBER — by construction, then verified:
+ *   - an input the final pass MINTED (a Track F `__uct_param_N`: the legacy colour
+ *     lane mints `show` in `plot(x, color = show ? a : b)`, the commonest shape)
+ *     is declared through `mintDeclared`, which still mints its entry at the same
+ *     point of the walk — a plain declaration does not mint, so its id would
+ *     vanish and every later id would move down one;
+ *   - the added pass must reproduce the final pass's parameter ids, every
+ *     output's formula and refusal, and the object program EXACTLY; any
+ *     difference returns `null` and the caller keeps the final pass untouched.
+ * ⛔ A NAME THE COLOUR READS BUT NO SPEC BACKS (a key this door refuses, e.g. one
+ * that shadows a table name) is taken back out, as `unbackedDeclaredInputs` does
+ * for a value, so no condition column ever names an undeclared symbol.
+ *
+ * @returns the translation with `colourInputs` (spec rows, `BUILDER_INPUTS`
+ *   shape) and the added names in `declared`, or `null` when nothing is added.
+ */
+function withColourInputs(first, final, withDeclarations, { windowBound, displacementBound }) {
+  const valueNames = new Set()
+  for (const o of (first.outputs || [])) for (const e of (o.inputsFolded || [])) if (e && e.name) valueNames.add(e.name)
+  const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
+  const entryByName = new Map()
+  const windowed = new Set()
+  const note = (list) => {
+    for (const e of (list || [])) {
+      if (!e || !e.name) continue
+      if (e.windowBound) windowed.add(e.name)
+      if (!entryByName.has(e.name)) entryByName.set(e.name, e)
+    }
+  }
+  for (const o of (first.outputs || [])) if (o) note(o._colourInputs)
+  note(((first.presentation || {}).fills || {})._colourInputs)
+  const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
+  const already = new Set(final.declaredNames || [])
+  // ⛔ A name the colour reads in a WINDOW (`ta.rising(hma, len)`) is not added:
+  // a window takes a literal only, so declaring it would decline the colour rule.
+  let names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
+    && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
+    && !windowed.has(n) && !already.has(n))
+  const sameIds = (a, b) => JSON.stringify((a.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
+    === JSON.stringify((b.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
+  const sameValues = (a, b) => (a.outputs || []).length === (b.outputs || []).length
+    && (a.outputs || []).every((o, i) => {
+      const q = b.outputs[i]
+      return o.formula === q.formula && !o.refusal === !q.refusal
+    })
+  const sameObjects = (a, b) => JSON.stringify(a.objects || null) === JSON.stringify(b.objects || null)
+  // ⛔ THE COLOURS THEMSELVES MUST NOT MOVE: every palette, colour, opacity and
+  // which rules are carried stays byte-identical; only a rule's FORMULA may change
+  // (the literal default becomes the identifier). A rule the declaration made the
+  // lane decline would draw a different colour at the default — refused.
+  const shapeOf = (p) => JSON.stringify(p || null, (k, v) => ((k === 'formula' || k === 'ast') ? undefined : v))
+  const samePresentation = (a, b) => (a.outputs || []).every((o, i) => shapeOf(o.presentation) === shapeOf((b.outputs[i] || {}).presentation))
+    && shapeOf((a.presentation || {}).fills) === shapeOf((b.presentation || {}).fills)
+  for (let round = 0; round < 4 && names.length; round += 1) {
+    // A name the final pass MINTED is declared AND keeps minting its id
+    // (`mintDeclared`, `pine.js::resolveInput`), so no later id moves.
+    const keepMint = names.filter((n) => minted.has(n))
+    const t = withDeclarations([...(final.declaredNames || []), ...names],
+      keepMint.length ? { mintDeclared: keepMint } : null)
+    if (!sameIds(final, t) || !sameValues(final, t) || !sameObjects(final, t)
+      || !samePresentation(final, t)) return null
+    const added = new Set(names)
+    const specs = new Map()
+    const readAdded = new Set()
+    for (const rule of colourRulesOf(t)) {
+      const read = [...seriesNamesOf(rule.ast)].filter((n) => added.has(n))
+      if (!read.length) continue
+      read.forEach((n) => readAdded.add(n))
+      const { inputs } = inputsFromFolded(read.map((n) => entryByName.get(n)), rule.formula)
+      for (const row of inputs) if (!specs.has(row.key)) specs.set(row.key, row)
+    }
+    // Declared but read by no carried rule: a knob that would move nothing.
+    // Read but unbacked: a column naming an undeclared symbol. Both come out.
+    const keep = names.filter((n) => readAdded.has(n) && specs.has(n))
+    if (keep.length === names.length) {
+      return {
+        ...t,
+        outputs: t.outputs,
+        declared: t.declaredNames,
+        colourInputs: names.map((n) => specs.get(n)),
+      }
+    }
+    names = keep
+  }
+  return null
 }
 
 /** The single-output convenience over `memberInputTranslation`. */

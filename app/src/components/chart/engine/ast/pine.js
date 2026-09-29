@@ -5349,6 +5349,11 @@ export class Resolver {
      *  `inputValues`) — so it is never folded to its default: the colour rule
      *  carries it and the chart evaluates it against the knob's current value. */
     this.knobReads = null
+    /** ⭐ 2026-09-28 — a Set of bound names that are DECLARED and still MINT their
+     *  parameter id (`opts.mintDeclared`), or null. Only the member door passes
+     *  it, for an input only a colour reads that the legacy colour lane minted:
+     *  see `resolveInput`'s declared branch and `builderInputs.withColourInputs`. */
+    this.mintDeclared = null
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -9692,58 +9697,16 @@ export class Resolver {
       line: node.tok.line,
       column: node.tok.column,
     })
-    if (declared) {
-      const v = constantValueOf(resolved)
-      if (v !== null) {
-        // ⛔⛔ THE METADATA IS NON-ENUMERABLE, AND THAT IS LOAD-BEARING RATHER
-        // THAN TIDY. `astHash` walks a node's OWN ENUMERABLE KEYS and
-        // `assertCanonical` refuses any node whose key set is not byte-equal to
-        // `CANONICAL_KEYS.series` (`{name, type}`) — so a plain
-        // `{type, name, inputName, inputDefault}` is not a legal tree, and
-        // `verifyRoundTrip` caught exactly that: "the translator wrote formula
-        // text it could not read back". Defining the two extras as
-        // non-enumerable keeps them readable HERE (`constantValueOf`,
-        // `declaredInputNames`) while `Object.keys`, `JSON.stringify`,
-        // `stableStringify` and every persisted copy see an ordinary `series`.
-        // ⭐ So the canonical grammar is not widened by one byte to add this
-        // feature — no node type, no key, no `astHash` movement, nothing to
-        // migrate.
-        const leaf = { type: 'series', name: boundName }
-        Object.defineProperty(leaf, 'inputName', { value: boundName, enumerable: false })
-        Object.defineProperty(leaf, 'inputDefault', { value: v, enumerable: false })
-        return leaf
-      }
-      // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
-      // `input.source(hl2)` folds to `(high + low) / 2` — a column, not a number
-      // — and a member input resolves to one finite value. Falling through to the
-      // folded expression is the honest answer, and `inputsFromFolded` already
-      // refuses that entry by name ("the fold printed an EXPRESSION").
-    }
-    // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID, THEN TAG
-    // THE LITERAL THAT SURVIVES INTO THE TREE. Opt-in (`this.paramMint`,
-    // threaded from `translatePine({ paramManifest: true })`), off by
-    // default, so every existing caller and every committed corpus digest is
-    // untouched — this runs AFTER the `declared` branch above and never for
-    // it (that branch already returned a `series` leaf, not `resolved`).
-    //
-    // ⛔ THIS RUNS REGARDLESS OF WINDOW-BOUNDEDNESS, unlike `declareInputs`
-    // above. That is the whole point: `declareInputs` puts an IDENTIFIER into
-    // the tree, which `windowLiteral` correctly refuses in a window/length
-    // slot (`builderInputs.js::windowRefusal`) — this mechanism never does
-    // that. `resolved` here is ALWAYS the plain literal fold, exactly as the
-    // non-`declareInputs` path has always produced, so a length argument
-    // stays a literal at every step, satisfying `_no_offset`/`windowLiteral`
-    // continuously. "Adjustable" means a LATER save writes a DIFFERENT
-    // literal at the same spot, never that this AST holds an identifier
-    // there — see `this.paramMint`'s own comment, and `param_manifest.py`'s
-    // module docstring, for the rest of this design.
-    if (this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
-        && resolved && resolved.type === 'num' && Number.isFinite(resolved.value)) {
-      // ⛔⛔ KEYED ON THE ORIGINAL CALL NODE'S IDENTITY, NEVER ON `boundName`.
-      // See `this.paramMint`'s own comment on the Resolver field for why —
-      // the short version: `translatePine` builds one fresh `Resolver` per
-      // output, so only object identity (shared via `env`, never recreated
-      // per output) survives across "the same input feeds two plots."
+    // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID (the entry
+    // only; the tagging of the literal is below). ⛔⛔ KEYED ON THE ORIGINAL CALL
+    // NODE'S IDENTITY, NEVER ON `boundName`. See `this.paramMint`'s own comment
+    // on the Resolver field for why — the short version: `translatePine` builds
+    // one fresh `Resolver` per output, so only object identity (shared via
+    // `env`, never recreated per output) survives across "the same input feeds
+    // two plots."
+    const mintable = !!(this.paramMint && boundName && PARAM_MANIFEST_ELIGIBLE_KINDS.has(kind)
+      && resolved && resolved.type === 'num' && Number.isFinite(resolved.value))
+    const mintEntry = () => {
       let entry = this.paramMint.byNode.get(node)
       if (!entry) {
         this.paramMint.counter += 1
@@ -9772,6 +9735,66 @@ export class Resolver {
         this.paramMint.byNode.set(node, entry)
         this.paramMint.metadata.push(entry)
       }
+      return entry
+    }
+    if (declared) {
+      const v = constantValueOf(resolved)
+      if (v !== null) {
+        // ⛔⛔ THE METADATA IS NON-ENUMERABLE, AND THAT IS LOAD-BEARING RATHER
+        // THAN TIDY. `astHash` walks a node's OWN ENUMERABLE KEYS and
+        // `assertCanonical` refuses any node whose key set is not byte-equal to
+        // `CANONICAL_KEYS.series` (`{name, type}`) — so a plain
+        // `{type, name, inputName, inputDefault}` is not a legal tree, and
+        // `verifyRoundTrip` caught exactly that: "the translator wrote formula
+        // text it could not read back". Defining the two extras as
+        // non-enumerable keeps them readable HERE (`constantValueOf`,
+        // `declaredInputNames`) while `Object.keys`, `JSON.stringify`,
+        // `stableStringify` and every persisted copy see an ordinary `series`.
+        // ⭐ So the canonical grammar is not widened by one byte to add this
+        // feature — no node type, no key, no `astHash` movement, nothing to
+        // migrate.
+        const leaf = { type: 'series', name: boundName }
+        Object.defineProperty(leaf, 'inputName', { value: boundName, enumerable: false })
+        Object.defineProperty(leaf, 'inputDefault', { value: v, enumerable: false })
+        // ⭐⭐ 2026-09-28 — DECLARED, AND ITS PARAMETER ID STILL MINTED, for the
+        // names the caller lists in `mintDeclared`. An input only a COLOUR reads
+        // was minted by the legacy colour lane (`plot(x, color = show ? a : b)`
+        // mints `show`); the member door now declares it so the member can turn
+        // it, and a declared input does not otherwise mint — its id would vanish
+        // and every later `__uct_param_N` would move down one. Minting the entry
+        // here, at the same point in the same walk, keeps every id where it was
+        // (`builderInputs.withColourInputs` verifies it). The leaf carries no
+        // `__uctParamId`: the identifier is the knob now, not a literal to edit.
+        if (mintable && this.mintDeclared && this.mintDeclared.has(boundName)) mintEntry()
+        return leaf
+      }
+      // ⛔ AN INPUT WHOSE DEFAULT IS NOT A CONSTANT CANNOT BE A KNOB.
+      // `input.source(hl2)` folds to `(high + low) / 2` — a column, not a number
+      // — and a member input resolves to one finite value. Falling through to the
+      // folded expression is the honest answer, and `inputsFromFolded` already
+      // refuses that entry by name ("the fold printed an EXPRESSION").
+    }
+    // ⭐⭐ TRACK F (DEC-006) — MINT OR REUSE A LOGICAL PARAMETER ID, THEN TAG
+    // THE LITERAL THAT SURVIVES INTO THE TREE. Opt-in (`this.paramMint`,
+    // threaded from `translatePine({ paramManifest: true })`), off by
+    // default, so every existing caller and every committed corpus digest is
+    // untouched — this runs AFTER the `declared` branch above and never for
+    // it (that branch already returned a `series` leaf, not `resolved`).
+    //
+    // ⛔ THIS RUNS REGARDLESS OF WINDOW-BOUNDEDNESS, unlike `declareInputs`
+    // above. That is the whole point: `declareInputs` puts an IDENTIFIER into
+    // the tree, which `windowLiteral` correctly refuses in a window/length
+    // slot (`builderInputs.js::windowRefusal`) — this mechanism never does
+    // that. `resolved` here is ALWAYS the plain literal fold, exactly as the
+    // non-`declareInputs` path has always produced, so a length argument
+    // stays a literal at every step, satisfying `_no_offset`/`windowLiteral`
+    // continuously. "Adjustable" means a LATER save writes a DIFFERENT
+    // literal at the same spot, never that this AST holds an identifier
+    // there — see `this.paramMint`'s own comment, and `param_manifest.py`'s
+    // module docstring, for the rest of this design.
+    if (mintable) {
+      // The entry — minted or reused — comes from `mintEntry` above.
+      const entry = mintEntry()
       // ⛔ NON-ENUMERABLE, EXACTLY THE `declared`-LEAF IDIOM ABOVE (this
       // file's own words, a few lines up): `astHash` walks a node's OWN
       // ENUMERABLE KEYS, so a plain key here would widen the canonical
@@ -14824,6 +14847,9 @@ function translatePineResult(source, opts = {}) {
       r.declareInputs = opts.declareInputs === 'all'
         ? 'all' : new Set(opts.declareInputs)
     }
+    if (Array.isArray(opts.mintDeclared) && opts.mintDeclared.length) {
+      r.mintDeclared = new Set(opts.mintDeclared)
+    }
     return r
   }
 
@@ -14958,6 +14984,9 @@ function translatePineResult(source, opts = {}) {
       // of a `plot` IS its payload, and a member who plots the close meant to.
       // Scoped to the multi-output roles for exactly that reason.
       const bareRole = !!out.role && isBareSource(ast)
+      // ⭐ 2026-09-28 — which inputs the VALUE read, snapshotted before the
+      // presentation below resolves the colour: see `_colourInputs`.
+      const valueInputKeys = new Set(resolver.usedInputs.keys())
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -15042,6 +15071,19 @@ function translatePineResult(source, opts = {}) {
         Object.defineProperty(row, '_displaceParams', { value: displaceParams, enumerable: false })
       }
       Object.defineProperty(row, '_stmt', { value: out.toks, enumerable: false })
+      // ⭐⭐ 2026-09-28 — THE INPUTS ONLY THE COLOUR READ. `inputsFolded` is the
+      // value's list, taken before the presentation resolved; an input the colour
+      // rule reached and the value did not is recorded here, in the same entry
+      // shape, so the member door can offer it as a control (on TradingView it is
+      // one: Artemis' `useAdapt` changes the drawn colour). Non-enumerable, like
+      // `_treeShift`: a hand-off to one reader, so no digest and no persisted copy
+      // sees it, and every caller that does not ask is byte-identical.
+      // ⛔ An input the colour read in a WINDOW (`ta.rising(x, len)`) is stamped,
+      // as `inputsFolded`'s entries are: it cannot be an identifier there.
+      const colourInputs = [...resolver.usedInputs.entries()]
+        .filter(([k]) => !valueInputKeys.has(k))
+        .map(([, e]) => (e.name && resolver.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
+      if (colourInputs.length) Object.defineProperty(row, '_colourInputs', { value: colourInputs, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,
@@ -16797,6 +16839,16 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
       ...((!pair && !pres.colorIndex && (pres.colorDynamic || (pres.colorUp && pres.colorDown)))
         ? { colorDynamic: true } : {}),
     })
+  }
+  // ⭐ 2026-09-28 — the inputs the fills' colours read, in `inputsFolded`'s entry
+  // shape (see `_colourInputs` on an output row). The resolver is the fills' own
+  // (`makeResolver()` at the call site), so everything it recorded came from a
+  // fill colour. Non-enumerable: the array's shape and every digest are unchanged.
+  const r = ctx && ctx.resolver
+  if (r && r.usedInputs && r.usedInputs.size) {
+    const stamped = [...r.usedInputs.values()]
+      .map((e) => (e.name && r.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
+    Object.defineProperty(out, '_colourInputs', { value: stamped, enumerable: false })
   }
   return out
 }
