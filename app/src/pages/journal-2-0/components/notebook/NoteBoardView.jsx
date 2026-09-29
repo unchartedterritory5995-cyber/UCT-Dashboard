@@ -137,10 +137,10 @@ export default function NoteBoardView({
   // view -- driven by real scroll position, not a static width guess, so it
   // is honest at 1200, 820 AND 390 with no @media needed (the same scroll
   // arithmetic is correct at every width; see NoteBoardView.module.css
-  // `.columnsFadeRight`, which is the idiom `VideosSection.module.css`
-  // `.chipsFadeR` already uses for exactly this reason: a mask reads
-  // correctly against any theme background, where a colour-matched overlay
-  // would have to know it).
+  // `.columns[data-board-scroll-more="true"]`, which is the idiom
+  // `VideosSection.module.css` `.chipsFadeR` already uses for exactly this
+  // reason: a mask reads correctly against any theme background, where a
+  // colour-matched overlay would have to know it).
   //
   // The element is obtained via a CALLBACK ref -> state, not a ref object,
   // for the same reason `Shelf.jsx`'s `useScrollEdges` does: if a parent ever
@@ -256,13 +256,17 @@ export default function NoteBoardView({
 
       <div
         ref={setColumnsEl}
-        // ⛔ Ground truth for the D-5 cue, read by both the rail and the R-RAW
-        // probe (tools/notebook_d5_scroll_probe.py) -- a `data-*` attribute
-        // rather than the CSS module class because a class name is hashed
-        // per-build and this needs to be findable in a real production
-        // bundle, not only under vitest's dev transform.
+        // ⛔ Ground truth for the D-5 cue, read by the rail, the R-RAW probe
+        // (tools/notebook_d5_scroll_probe.py) AND the CSS below (an attribute
+        // selector, `.columns[data-board-scroll-more="true"]` in
+        // NoteBoardView.module.css) -- a `data-*` attribute rather than a
+        // second CSS module class because a class name is hashed per-build
+        // and this needs to be findable in a real production bundle, not
+        // only under vitest's dev transform. It also keeps `className`
+        // itself unchanged, which NoteBoardView.scrollsAlone.test.js reads
+        // by exact substring.
         data-board-scroll-more={moreRight ? 'true' : 'false'}
-        className={`${styles.columns} ${moreRight ? styles.columnsFadeRight : ''}`}
+        className={styles.columns}
       >
         {columns.map((col) => {
           const cards = byColumn[col.id] || []

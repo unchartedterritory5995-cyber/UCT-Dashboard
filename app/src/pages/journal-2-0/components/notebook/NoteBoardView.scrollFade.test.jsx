@@ -155,17 +155,18 @@ describe('the board scroll cue -- rendered (jsdom scroll metrics driven by hand)
   })
 })
 
-describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css .columnsFadeRight)', () => {
+describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data-board-scroll-more])', () => {
   const DIR = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook')
   const css = readFileSync(join(DIR, 'NoteBoardView.module.css'), 'utf8')
   const jsx = readFileSync(join(DIR, 'NoteBoardView.jsx'), 'utf8')
+  const FADE_SELECTOR = '.columns[data-board-scroll-more="true"]'
 
   const rule = (text, selector) => {
     const r = parseRules(text).find((x) => x.selector === selector)
     if (!r) throw new Error(`${selector} not found`)
     return Object.fromEntries(declarations(r).map((d) => [d.prop, d.value]))
   }
-  const fade = rule(css, '.columnsFadeRight')
+  const fade = rule(css, FADE_SELECTOR)
 
   it('is a MASK, cross-browser (prefixed + unprefixed), not a background overlay', () => {
     expect(fade['mask-image']).toBeTruthy()
@@ -189,15 +190,20 @@ describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css .colu
     expect(fade.transition).toBeUndefined()
   })
 
-  it('non-vacuity: the div carrying the class is the SAME node carrying the ground-truth attribute', () => {
+  it('non-vacuity: the attribute is on the SAME node the mask selector targets (.columns)', () => {
     const code = stripComments(jsx)
     const openTagStart = code.indexOf('ref={setColumnsEl}')
     expect(openTagStart, 'the scroller ref is rendered').toBeGreaterThan(-1)
     const openTagEnd = code.indexOf('>', openTagStart)
     const openTag = code.slice(openTagStart, openTagEnd)
     expect(openTag).toContain('data-board-scroll-more')
-    expect(openTag).toContain('styles.columns')
-    expect(openTag).toContain('columnsFadeRight')
+    // ⛔ `className={styles.columns}` -- UNCHANGED, byte-for-byte, from before this
+    // lane. NoteBoardView.scrollsAlone.test.js finds the row by this EXACT substring
+    // (`code.indexOf('className={styles.columns}')`); a template string or a second
+    // class here would silently break that rail's own non-vacuity check without
+    // reducing anything the mask needs -- the attribute selector above is what lets
+    // the fade live WITHOUT touching this string at all.
+    expect(openTag).toContain('className={styles.columns}')
   })
 
   it('control: an overlay-div idiom would need a background colour and is NOT what this rule does', () => {

@@ -95,8 +95,12 @@
    No transition: mask-image cannot be relied on to interpolate across
    engines, and an instant swap introduces no motion, so there is nothing to
    gate behind prefers-reduced-motion in the first place.
+   An ATTRIBUTE selector, not a second class: `.columns`'s own `className`
+   stays byte-identical to what NoteBoardView.scrollsAlone.test.js already
+   reads by exact substring, so this cue costs that rail nothing to keep
+   passing.
    Rail: NoteBoardView.scrollFade.test.jsx. */
-.columnsFadeRight {
+.columns[data-board-scroll-more="true"] {
   mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
 }
