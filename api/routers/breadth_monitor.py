@@ -1162,6 +1162,17 @@ def reconcile_breadth_live(date: str, request: Request,
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/api/breadth-monitor/eod-source")
+def breadth_eod_source_status(limit: int = Query(default=60, ge=1, le=400),
+                              _: None = Depends(require_push_secret)):
+    """TERM-042: the configured EOD source (`BREADTH_EOD_SOURCE`), the job's last
+    tick, and the parallel run's per-metric parity report (graded with the live
+    reconciliation's own tiers; failures by session date). Reads the shadow store
+    only — it computes nothing on the request path."""
+    from api.services import breadth_eod_source as eod
+    return {**eod.status(), "parity": eod.parity_report(limit)}
+
+
 @router.get("/api/breadth-monitor/live/dividends")
 def breadth_dividends_status(_user: dict = Depends(require_paid)):
     """What the dividend store holds, and whether the last sweep truncated.
@@ -1273,7 +1284,14 @@ async def push_breadth_snapshot(request: Request):
                     "A degraded run is not stored; the day is healed from bars instead. "
                     "Re-push with ?force=1 to override."))
 
-    ok = svc.store_snapshot(date_str, metrics)
+    # TERM-042: identity (same dict, source `collector`) unless
+    # BREADTH_EOD_SOURCE=server already wrote this date — then the collector's
+    # push is merged UNDER the server-owned keys instead of replacing them.
+    from api.services import breadth_eod_source as _eod
+    metrics, _source = _eod.on_push(date_str, metrics)
+    # The collector call keeps today's exact shape (two positional arguments).
+    ok = (svc.store_snapshot(date_str, metrics) if _source == "collector"
+          else svc.store_snapshot(date_str, metrics, source=_source))
     if not ok:
         raise HTTPException(status_code=500, detail="Failed to store snapshot")
 

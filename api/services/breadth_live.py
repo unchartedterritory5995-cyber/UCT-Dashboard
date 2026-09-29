@@ -388,6 +388,24 @@ def _tolerance_for(key: str) -> dict:
     return ACCURACY_TIERS[accuracy_of(key)]
 
 
+def grade(value, stored, key: str) -> Optional[dict]:
+    """One metric against the authoritative stored value, under its measured tier.
+
+    ⭐ THE ONE GRADER. `reconcile` (the live row vs the collector) and TERM-042's
+    EOD parity run (`breadth_eod_source`, a server-computed row vs the collector)
+    both call this, so "passes" means the same envelope in both places. None when
+    either side is missing — a missing value is not graded, never scored as a miss.
+    """
+    if value is None or stored is None:
+        return None
+    delta = float(value) - float(stored)
+    rel = abs(delta) / abs(float(stored)) if stored else (0.0 if not delta else float("inf"))
+    tol = _tolerance_for(key)
+    ok = abs(delta) <= tol.get("abs", 0) or ("rel" in tol and rel <= tol["rel"])
+    return {"value": value, "delta": round(delta, 3),
+            "rel_pct": round(rel * 100, 2), "pass": ok}
+
+
 # ── Session clock ─────────────────────────────────────────────────────────────
 
 def _now_et() -> datetime:
@@ -1034,6 +1052,14 @@ def universe(snapshot_date: Optional[str] = None) -> tuple[list[str], Optional[s
         hist = []
     newest_date = hist[0].get("date") if hist else None
     for row in hist:
+        # TERM-042: a server-computed row's `universe_list` is the names bars.db
+        # PRICED (the mask behind its `universe_count`), a subset of the list it
+        # was measured over. Reading it back as the next session's universe would
+        # shrink the population by every unpriced name, one session at a time. The
+        # universe DEFINITION stays the collector's, so its rows are the source.
+        # No row carries this marker unless BREADTH_EOD_SOURCE=server wrote it.
+        if row.get("_source") == "server":
+            continue
         d = row.get("date")
         tickers = _tk(bm.get_drill_list(d, "universe_list"))
         if len(tickers) > 100:
@@ -1332,11 +1358,20 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
 
 
 def _metrics_at_close(conn, tickers: list[str], target_ts: int,
-                      dividend_basis: Optional[bool] = None) -> Optional[dict]:
+                      dividend_basis: Optional[bool] = None,
+                      members: Optional[dict] = None,
+                      capture: Optional[dict] = None) -> Optional[dict]:
     """Run the live method against a COMPLETED session's closes.
 
     Same code path, known inputs — this is what makes the basis shift
     measurable instead of assumed.
+
+    `members` is passed straight to `compute_metrics`, so a caller that needs
+    the names behind a count (TERM-042's server-computed row) gets them from
+    the SAME masks that produced the counts — never a second pass. `capture`,
+    when given, receives the `levels` / `prices` / `vols` of this read so the
+    caller can enrich those names the way `live_drill` does. Both default to
+    None, which is exactly the prior behaviour.
     """
     row = conn.execute(
         "SELECT MAX(ts) FROM ohlcv WHERE tf='D' AND ticker='SPY' AND ts < ?",
@@ -1365,8 +1400,10 @@ def _metrics_at_close(conn, tickers: list[str], target_ts: int,
     idx_c, _ = _load_frame(conn, list(_INDEX_SYMS), [target_ts])
     idx_px = {s: float(idx_c[i, 0]) for i, s in enumerate(_INDEX_SYMS)
               if not math.isnan(idx_c[i, 0]) and idx_c[i, 0] > 0}
-    out = compute_metrics(levels, prices, vols)
+    out = compute_metrics(levels, prices, vols, members=members)
     out.update(compute_index_metrics(index_levels, idx_px))
+    if capture is not None:
+        capture.update({"levels": levels, "prices": prices, "vols": vols})
     return out
 
 
@@ -1734,10 +1771,18 @@ def live_drill(metric_key: str) -> dict:
                     key, f"{key} is not computed on the live path"),
                 "as_of": payload.get("as_of")}
 
-    names = members.get(key) or []
-    levels = cached.get("levels") or {}
-    prices = cached.get("prices") or {}
-    vols = cached.get("vols") or {}
+    items = drill_items(members.get(key) or [], cached.get("levels") or {},
+                        cached.get("prices") or {}, cached.get("vols") or {})
+    return {"ok": True, "items": items, "reason": None, "as_of": payload.get("as_of")}
+
+
+def drill_items(names: list, levels: dict, prices: dict, vols: dict) -> list:
+    """The recorded drill's item shape (`t`, `c`, `pct`, `vr`, `n`) for `names`.
+
+    ⭐ ONE SHAPE. The live drill and TERM-042's server-computed EOD row both
+    build their lists here, so a server-written `*_list` reads exactly like a
+    live one in the same modal. `names` must already be the mask's own names.
+    """
     idx = {t: i for i, t in enumerate(levels.get("tickers") or [])}
     prev = levels.get("prev_close")
     avg20 = levels.get("vol_avg20")
@@ -1772,7 +1817,7 @@ def live_drill(metric_key: str) -> dict:
     # rather than leading the list from a null.
     items.sort(key=lambda x: x.get("pct") if x.get("pct") is not None else -1e9,
                reverse=True)
-    return {"ok": True, "items": items, "reason": None, "as_of": payload.get("as_of")}
+    return items
 
 
 # ── The gate ──────────────────────────────────────────────────────────────────
@@ -1817,23 +1862,13 @@ def reconcile(target_iso: str, dividend_basis: Optional[bool] = None) -> dict:
     basis = anchor_basis(prior_ts, tickers, force=True)
     anchored = apply_anchor(live, basis)
 
-    def _grade(value, sv, key):
-        if value is None or sv is None:
-            return None
-        delta = float(value) - float(sv)
-        rel = abs(delta) / abs(float(sv)) if sv else (0.0 if not delta else float("inf"))
-        tol = _tolerance_for(key)
-        ok = abs(delta) <= tol.get("abs", 0) or ("rel" in tol and rel <= tol["rel"])
-        return {"value": value, "delta": round(delta, 3),
-                "rel_pct": round(rel * 100, 2), "pass": ok}
-
     fields, failures, raw_failures = [], 0, 0
     for key in sorted(live):
         if key.startswith("_"):        # diagnostics, not a published metric
             continue
         sv = stored.get(key)
-        raw = _grade(live[key], sv, key)
-        anc = _grade(anchored.get(key), sv, key)
+        raw = grade(live[key], sv, key)
+        anc = grade(anchored.get(key), sv, key)
         if raw is None or anc is None:
             fields.append({"metric": key, "stored": sv, "raw": live.get(key),
                            "status": "skipped"})
