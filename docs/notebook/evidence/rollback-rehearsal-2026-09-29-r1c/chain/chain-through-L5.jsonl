@@ -1,0 +1,2 @@
+{"op": "revert", "squash": "0812b5ec3", "conflicts": [], "product_conflicts": [], "schema_change_undone": [], "tree": "edccdb85a008ceec98adc972395135ea67c1f54d", "schema_identical_to_tip": true, "key": "L5", "what": "wave 10 L5 #252", "commit": "c2fc50c35b6aaedf36932604b88ed4d626ab5eb1"}
+{"result": "c2fc50c35b6aaedf36932604b88ed4d626ab5eb1", "tree": "edccdb85a008ceec98adc972395135ea67c1f54d", "through": "L5", "from": "0812b5ec3617ece9432b79b29a33498669b2b117", "next": "git switch -c rollback/notebook-through-L5 c2fc50c35b6aaedf36932604b88ed4d626ab5eb1"}
