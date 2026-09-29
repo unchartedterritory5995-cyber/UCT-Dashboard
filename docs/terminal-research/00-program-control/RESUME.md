@@ -46,6 +46,16 @@ folded in) and STORE_BACKUP_ENABLED with one real `--rehearse` PASS on workspace
 Pre-existing master red NOT ours: `usePreferences.additionsOnly` (Watchlists A12 9/25, Notebook wave 8 9/26).
 New owner question: TERM-055 — CARD 7's sentence needs `vendor`/`dividends` the adjustment-basis endpoint does not return.
 
+**⭐ OWNER RULINGS, 2026-09-29 ~07:30 ET (asked one by one; these SUPERSEDE the outstanding list below):**
+062 drop the pre-save fire COUNT, ship the rest · 053 OPEN_READS_GATE → **enforce now** (read the would-deny log first),
+`/api/stream/prices` stays OPEN, `/api/r/*` token left as is · 045 ARM `EDGAR_OWNERSHIP_ENABLED`, keep FMP/Finnhub for
+compare · 048 ARM `WATCHLIST_ALERTS_S7_ENABLED` · 042 start `BREADTH_EOD_SOURCE=shadow` + dividend basis on, ~10 clean
+sessions then server mode · 021/051 build the read-new phase, then arm after a backup rehearsal · 055 SKIP the adjustment
+label · 091 show the text lessons (arm `EDU_CURRICULUM_ENABLED`) and **credit NO third party at all** (remove all 47) ·
+044 accept the transcript-derivative risk, build citations · 046 short interest from **Finviz** · 049 room history = COUNTS
+ONLY · 060 resolver first-caller approval lines are **DELEGATED to the integrating agent** (test + written reason, logged
+here) · 018 advisory one week, then promotion gate with a rollback override.
+
 **OWNER DECISIONS OUTSTANDING:** TERM-062 held off the branch (fire-frequency count reveals whether anyone watched a
 ticker — options: ship / drop the count / rebuild from SEC history); TERM-053 four open families (OPEN_READS_GATE
 enforce flip; `/api/stream/prices` + Discord Activity; `/api/r/*` token in the bundle → rotate + remove VITE var);
