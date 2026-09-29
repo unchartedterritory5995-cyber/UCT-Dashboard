@@ -136,7 +136,12 @@ def test_theme_warm_is_throttled_and_capped(monkeypatch):
     monkeypatch.setattr("api.routers.bars.warm_bars_async",
                         lambda tickers, tf="D", bars=8000: warm_calls.append(list(tickers)))
     big = [{"ticker": "XLK", "holdings": [{"sym": f"T{i}"} for i in range(200)]}]
-    monkeypatch.setattr(tp.svc, "get_theme_performance", lambda: big)
+    # TERM-082: the route reads through a serve-stale slot whose build seam is
+    # `build_theme_performance` -> (payload, complete); a cached overlay from
+    # another test must not answer instead of the fake.
+    from api.services.cache import cache
+    cache.invalidate(tp.svc._OVERLAID_KEY)
+    monkeypatch.setattr(tp.svc, "build_theme_performance", lambda: (big, True))
     monkeypatch.setattr(tp.svc, "looks_like_ticker", lambda s: True)
     monkeypatch.setattr(tp, "_COLD_TAIL_CAP", 30, raising=False)
     tp._last_theme_warm = 0.0  # force first call to warm

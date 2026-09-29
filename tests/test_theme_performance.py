@@ -268,7 +268,12 @@ def test_theme_performance_endpoint_returns_200():
     # `/api/theme-performance` is `require_paid` since the 2026-08-09 auth
     # sweep; this is a shape test, so it gets the caller it always implied. The
     # gate is owned by tests/test_exposed_routes_gated.py, asserted once, there.
-    with patch("api.services.theme_performance.get_theme_performance", return_value=MOCK_RESULT), \
+    # TERM-082: the route reads through a serve-stale slot whose build seam is
+    # `build_theme_performance` -> (payload, complete), so that is what is
+    # faked; a cached overlay from another test must not answer instead.
+    _real_cache.invalidate("theme_performance_overlaid")
+    with patch("api.services.theme_performance.build_theme_performance",
+               return_value=(MOCK_RESULT, True)), \
             signed_in_as(PAID_MEMBER):
         client = TestClient(app)
         resp = client.get("/api/theme-performance")
@@ -277,6 +282,9 @@ def test_theme_performance_endpoint_returns_200():
     data = resp.json()
     assert "themes" in data
     assert "generated_at" in data
+    # The fake answered, not the cold "computing" stub (which also has both keys).
+    assert data["themes"][0]["ticker"] == "UFO"
+    assert 'desc="fetch"' in resp.headers.get("server-timing", "")
 
 
 # ── Task 4 tests ──────────────────────────────────────────────────────────────

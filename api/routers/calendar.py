@@ -18,14 +18,18 @@ import logging
 import os
 import re
 import threading
+import time
 from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
-from api.services.serve_stale import ServeStale
+from api.services.serve_stale import (
+    TIER_BUILD, TIER_FRESH, TIER_STALE, TIER_WAIT,
+    ServeStale, serve_with_tier, server_timing,
+)
 from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
@@ -2991,16 +2995,35 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
     mc_b also sourced from the calendar chip data (wire-computed, most accurate).
 
     TTL: 2 min — these fields don't need to update frequently.
+
+    Called directly by the week poster, the earnings preview warm, the
+    provider-coverage monitor and this module's own week flattening: a cache
+    hit, else a synchronous build. Never a served-stale answer — the TERM-082
+    slot sits on the batch ROUTE only (`get_day_metrics_batch`).
     """
     import re as _re
     if date_str and not _re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return {}
 
     target = date_str or _today_et().isoformat()
-    cache_key = f"calendar_metrics_{target}"
-    cached = cache.get(cache_key)
+    cached = cache.get(f"calendar_metrics_{target}")
     if cached is not None:
         return cached
+    return build_day_metrics(target)[0]
+
+
+def build_day_metrics(target: str) -> tuple[dict, bool]:
+    """`get_day_metrics` below the cache read: `(payload, complete)`.
+
+    Complete (TERM-082, rank 6): price and avg_vol each filled for at least one
+    name (the rule this function always cached by) AND the Finviz leg did not
+    fail. A Finviz leg that RAN and failed (no token is not a failure) is a
+    partial even when the Massive fallback filled the gaps: `avg_vol` is then
+    the previous day's volume standing in for a 30-day average, and a past date
+    would otherwise pin that proxy for 24 h and hand it to the batch route's
+    last-good slot. An unresolvable date is not complete; a day with no
+    entries is (its answer really is empty)."""
+    cache_key = f"calendar_metrics_{target}"
 
     # Tiered TTLs: a past date's price/vol/cap are effectively immutable —
     # re-firing the Finviz bulk call every 2 min for history is pure waste.
@@ -3018,12 +3041,12 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
         # Cache the empty briefly so a bad/paged-out date doesn't re-resolve the
         # week (and possibly rebuild it) on every 2-min poll.
         cache.set(cache_key, {}, ttl=300)
-        return {}
+        return {}, False
 
     all_entries = _day_entries(day)
     if not all_entries:
         cache.set(cache_key, {}, ttl=ttl)
-        return {}
+        return {}, True
 
     # Seed mc_b from chip data (wire-computed, already in billions)
     result: dict[str, dict] = {}
@@ -3136,17 +3159,79 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
     # from the wire's chip data before either provider runs, so it stays filled
     # through a total miss and would mask exactly the failure being detected.
     have_data = _filled("price") > 0 and _filled("avg_vol") > 0
+    # TERM-082: a Finviz leg that RAN and failed (a raise, a non-ok response or
+    # an empty body) makes the day partial even when Massive filled the gaps.
+    # Its short TTL is capped at the day's own TTL, so today (120 s) is
+    # unchanged and only a past/future date stops pinning the proxy for 24 h/1 h.
+    # A total miss keeps its original 300 s retry.
+    fv_failed = bool(fv_token and syms) and not fv_ok
+    complete = have_data and not fv_failed
     set_by_completeness(
         cache_key, result,
-        complete=have_data,
+        complete=complete,
         ttl_ok=ttl,
-        ttl_partial=_METRICS_FAIL_TTL,
+        ttl_partial=_METRICS_FAIL_TTL if not have_data else min(ttl, _METRICS_FAIL_TTL),
     )
-    return result
+    return result, complete
+
+
+# TERM-082 (census rank 6): `/calendar`'s week view polls this every 2 minutes
+# (`useCalendarData.js::useWeekMetrics`) against today's 120 s TTL, and a miss
+# walks the dates SERIALLY, one Finviz Elite export (15 s timeout) per date plus
+# a Massive fallback. Nothing warms it, so the member whose poll lands just after
+# expiry pays the rebuild. Each date's last COMPLETE payload is now served while
+# one refresh per date runs behind the caller, and concurrent cold requests for
+# a date collapse onto one build.
+#
+# Bound: 600 s = 5x today's TTL. The slot's age counts from the build, so today's
+# key is ~120 s old when its TTL lapses; 600 s covers a refresh that keeps
+# raising for several polls, then falls back to the old synchronous build. A
+# past date (24 h TTL) or a future one (1 h) is older than the bound by the time
+# its TTL lapses, so those keys behave exactly as before (a synchronous build,
+# now single-flighted). A refresh that returns a PARTIAL is served from the cache
+# on its short TTL and never remembered.
+#
+# Keys vary by the requested dates, so the slot is bounded: 16 keys covers the
+# current week, the chart widget's selected day and a couple of paged weeks. An
+# evicted date just builds synchronously, as before.
+#
+# Router-level on purpose, like movers: `get_day_metrics` has non-route callers
+# (see its docstring). They keep their behaviour and never see a stale answer.
+DAY_METRICS_STALE_MAX_AGE = 600
+DAY_METRICS_STALE_MAX_KEYS = 16
+_METRICS_STALE = ServeStale("calendar_day_metrics",
+                            max_age_seconds=DAY_METRICS_STALE_MAX_AGE,
+                            max_keys=DAY_METRICS_STALE_MAX_KEYS)
+
+# Tier precedence for one batch response, stalest first: the header names the
+# worst tier any date was served from, so a single stale date is never hidden
+# behind six fresh ones.
+_BATCH_TIER_ORDER = (TIER_STALE, TIER_BUILD, TIER_WAIT, TIER_FRESH)
+
+
+def _metrics_good(result) -> bool:
+    # Only a COMPLETE day becomes the fallback (cache_policy's rule).
+    return bool(result) and result[1] is True
+
+
+def serve_day_metrics(d: str):
+    """One date through the slot: `(payload, tier, stale_age_s)`."""
+    cache_key = f"calendar_metrics_{d}"
+
+    def _fresh():
+        hit = cache.get(cache_key)
+        # (payload, complete): a fresh cache hit is never judged.
+        return None if hit is None else (hit, True)
+
+    served, tier, age = serve_with_tier(
+        _METRICS_STALE, cache_key,
+        fresh=_fresh, build=lambda: build_day_metrics(d), good=_metrics_good,
+    )
+    return served[0], tier, age
 
 
 @router.get("/api/calendar/day-metrics-batch")
-def get_day_metrics_batch(dates: str | None = None):
+def get_day_metrics_batch(response: Response = None, dates: str | None = None):
     """Whole-week metrics in ONE request: {date: {SYM: {price, avg_vol, mc_b}}}.
     Each date reuses get_day_metrics' per-date cache — the client needs the
     caps BEFORE tiering (the importance hierarchy ranks on mc_b/dollar-volume;
@@ -3155,19 +3240,34 @@ def get_day_metrics_batch(dates: str | None = None):
 
     HARD CAP at 7 dates: a cold date can fire a Finviz bulk call on the request
     path; the endpoint is unauthenticated, so an unbounded `dates` list would be
-    a serial-fetch DoS vector. A week is 5 days — 7 covers any real caller."""
+    a serial-fetch DoS vector. A week is 5 days — 7 covers any real caller.
+
+    TERM-082: each date is read through the serve-stale slot above, and the
+    response's `Server-Timing` carries the stalest tier any date came from
+    (with the oldest stale age), in /api/bars' shape."""
     import re as _re
     if not dates:
         return {}
+    t0 = time.perf_counter()
     out: dict = {}
+    tiers: list[str] = []
+    stale_ages: list[float] = []
     seen = 0
     for d in dates.split(","):
         d = d.strip()
         if d and _re.match(r"^\d{4}-\d{2}-\d{2}$", d):
-            out[d] = get_day_metrics(date_str=d)
+            out[d], tier, age = serve_day_metrics(d)
+            tiers.append(tier)
+            if tier == TIER_STALE and age is not None:
+                stale_ages.append(age)
             seen += 1
             if seen >= 7:
                 break
+    if response is not None and tiers:
+        worst = next(t for t in _BATCH_TIER_ORDER if t in tiers)
+        response.headers["Server-Timing"] = server_timing(
+            "day-metrics", worst, (time.perf_counter() - t0) * 1000.0,
+            max(stale_ages) if stale_ages else None)
     return out
 
 

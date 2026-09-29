@@ -328,6 +328,31 @@ def _reset_earnings_serve_stale():
     _clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_theme_day_metrics_serve_stale():
+    """Clear `/api/theme-performance`'s and `/api/calendar/day-metrics-batch`'s
+    serve-stale slots (TERM-082, census ranks 4 and 6).
+
+    Same hazard as the earnings fixture above: each route keeps its last
+    COMPLETE payload in a module-level slot, so one test's faked overlay or
+    faked day of metrics would answer the next test's request as a stale-swr
+    hit instead of letting it drive its own build. Looked up via sys.modules so
+    the fixture never imports either router into an unrelated test."""
+    import sys
+
+    def _clear():
+        for mod_name, slot_name in (("api.routers.theme_performance", "_THEME_STALE"),
+                                    ("api.routers.calendar", "_METRICS_STALE")):
+            mod = sys.modules.get(mod_name)
+            slot = getattr(mod, slot_name, None) if mod is not None else None
+            if slot is not None:
+                slot._slots.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _setup_j2_database():
     """Initialize the J2 schema in the test auth.db.
