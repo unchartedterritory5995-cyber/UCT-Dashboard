@@ -1,7 +1,7 @@
 {
   "measured_at": "2026-09-29",
   "scripts": 266,
-  "host_ok": 52,
+  "host_ok": 53,
   "screener_ok": 56,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -1216,11 +1216,9 @@
     },
     {
       "file": "linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
