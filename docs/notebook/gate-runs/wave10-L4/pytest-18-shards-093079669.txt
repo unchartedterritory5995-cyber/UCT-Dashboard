@@ -1,0 +1,165 @@
+dir-api: files 26 rc 0 299 passed, 32844 warnings in 51.29s (68 s)
+dir-discord_render: files 4 rc 0 46 passed, 8510 warnings in 27.29s (43 s)
+dir-fundamentals_pit: files 13 rc 0 120 passed, 7920 warnings in 15.84s (31 s)
+dir-pattern_engine: files 136 rc 0 2619 passed, 9 xfailed, 228553 warnings in 102.65s (0:01:42) (120 s)
+dir-theme_curation: files 13 rc 0 57 passed, 3657 warnings in 8.01s (23 s)
+dir-theme_engine: files 7 rc 0 64 passed, 54915 warnings in 12.09s (28 s)
+tests-01: files 137 rc 1 2 failed, 3371 passed, 1 skipped, 723598 warnings in 963.78s (0:16:03) (1005 s)
+tests-02: files 137 rc 1 6 failed, 2089 passed, 10 skipped, 1 xfailed, 394071 warnings in 448.81s (0:07:28) (467 s)
+tests-03: files 137 rc 1 3 failed, 2232 passed, 30 skipped, 1 xfailed, 521361 warnings in 589.51s (0:09:49) (608 s)
+tests-04: files 137 rc 1 9 failed, 2250 passed, 570853 warnings in 503.19s (0:08:23) (522 s)
+tests-05: files 137 rc 1 4 failed, 2857 passed, 1 skipped, 715531 warnings in 618.32s (0:10:18) (636 s)
+tests-06: files 137 rc 1 36 failed, 3273 passed, 8 skipped, 623707 warnings in 423.04s (0:07:03) (439 s)
+tests-07: files 137 rc 1 18 failed, 2244 passed, 654290 warnings in 727.94s (0:12:07) (756 s)
+tests-08: files 137 rc 1 4 failed, 2310 passed, 507756 warnings, 2 errors in 1424.25s (0:23:44) (1439 s)
+tests-09: files 137 rc 1 12 failed, 2546 passed, 4 skipped, 635136 warnings in 377.17s (0:06:17) (400 s)
+tests-10: files 137 rc 1 Message: '[ticker-names-prewarm] done in %.1fs — warmed=%d skipped=%d failed=%d backed_off=%d' (2198 s)
+tests-11: files 137 rc 1 18 failed, 2257 passed, 1 xfailed, 524054 warnings in 674.13s (0:11:14) (688 s)
+tests-12: files 133 rc 1 10 failed, 2125 passed, 7 skipped, 464325 warnings in 565.05s (0:09:25) (592 s)
+
+# FAILED / ERROR
+tests-01 | FAILED tests/test_alert_taxonomy_indicator_condition_schema.py::test_the_callers_of_the_type_module_are_exactly_the_declared_four
+tests-01 | FAILED tests/test_alert_taxonomy_position_risk_schema.py::test_aggregate_heat_has_NO_scheduled_or_delivering_legacy_path
+tests-02 | FAILED tests/test_audit_sandbox_env.py::test_NO_variable_points_at_the_shared_data_root
+tests-02 | FAILED tests/test_audit_sandbox_env.py::test_the_BARE_ROOT_pins_are_redirected_too
+tests-02 | FAILED tests/test_audit_sandbox_env.py::test_it_REDIRECTS_EVERY_pin_the_census_derives
+tests-02 | FAILED tests/test_audit_sandbox_env.py::test_the_quiet_flags_blank_a_webhook_rather_than_removing_it
+tests-02 | FAILED tests/test_bars_ordinal_census.py::test_bars_ordinal_census_matches_a_fresh_derivation
+tests-02 | FAILED tests/test_bars_server_include_today.py::test_todays_daily_bar_stamps_today_and_caches
+tests-03 | FAILED tests/test_cadence_heartbeat.py::test_the_flag_is_declared_in_the_ledger_as_dark
+tests-03 | FAILED tests/test_calendar_actuals_patch.py::test_no_key_is_noop - assert 2.2...
+tests-03 | FAILED tests/test_calendar_paging.py::test_week_param_builds_range_week_with_tbd_state
+tests-04 | FAILED tests/test_closed_table_citations.py::test_every_closed_table_citation_in_source_resolves_to_a_real_key
+tests-04 | FAILED tests/test_cold_fetch_pool_protection.py::test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_EVERY_concept_RESOLVES_and_the_grounding_is_LOOKED_UP_not_claimed
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_NO_NUMBER_IN_A_CONCEPTS_TREE_IS_THE_AUTHORS
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_a_concept_that_screens_on_an_UNCITED_column_is_refused
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_the_vocabularys_own_KEYS_are_NORMALISED_so_two_spellings_cannot_drift
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES
+tests-04 | FAILED tests/test_concept_vocabulary.py::test_grounding_report_is_TOTAL_over_the_vocabulary_and_names_the_unresolved
+tests-04 | FAILED tests/test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW
+tests-05 | FAILED tests/test_desk_session_recap.py::test_post_recap_posts_chunks - Asser...
+tests-05 | FAILED tests/test_discord_render_observe.py::test_no_module_in_the_v2_package_calls_log_exception
+tests-05 | FAILED tests/test_e2e_sandbox_guard.py::test_build_environment_produces_a_usable_env_for_a_real_sandbox_root
+tests-05 | FAILED tests/test_earnings_analysis.py::TestGenerateEarningsPreview::test_preview_graceful_finnhub_failure
+tests-06 | FAILED tests/test_flow_classification.py::test_cream_meta_key - AssertionErro...
+tests-06 | FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_stale_serves_old_and_schedules_refresh
+tests-06 | FAILED tests/test_fundamentals_snapshot_store.py::test_earnings_table_too_old_rebuilds_synchronously
+tests-06 | FAILED tests/test_gate_shards.py::test_a_run_that_does_not_reconcile_exits_non_zero_even_with_a_clean_baseline
+tests-06 | FAILED tests/test_gate_shards.py::test_the_same_manifest_that_reconciles_exits_zero
+tests-06 | FAILED tests/test_gate_shards.py::test_the_short_run_message_names_the_counts_and_the_shards
+tests-06 | FAILED tests/test_gate_shards.py::test_the_read_set_names_the_config_and_the_lockfile_not_just_app_src
+tests-06 | FAILED tests/test_gate_shards.py::test_identical_trees_permit_re_derivation
+tests-06 | FAILED tests/test_gate_shards.py::test_one_differing_path_refuses_and_NAMES_it
+tests-06 | FAILED tests/test_gate_shards.py::test_a_path_missing_on_one_side_is_DIFFERING_not_equal
+tests-06 | FAILED tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads
+tests-06 | FAILED tests/test_gate_shards.py::test_the_coverage_predicate_can_say_NO - Mo...
+tests-06 | FAILED tests/test_gate_shards.py::test_every_path_in_the_read_set_EXISTS_in_git
+tests-06 | FAILED tests/test_gate_shards.py::test_the_read_set_names_the_corpora_the_generators_and_the_cross_lane_sources
+tests-06 | FAILED tests/test_gitattributes_eol.py::test_every_derived_path_is_declared_text_unset
+tests-06 | FAILED tests/test_gitattributes_eol.py::test_the_declared_list_is_still_the_derived_list
+tests-06 | FAILED tests/test_graph_wire_size.py::test_stored_response_and_compact_response_bytes
+tests-06 | FAILED tests/test_graph_wire_size.py::test_a_caller_that_does_not_ask_still_gets_the_forest
+tests-06 | FAILED tests/test_graph_wire_size.py::test_compacting_is_lossless_the_program_survives
+tests-06 | FAILED tests/test_graph_wire_size.py::test_a_malformed_stored_graph_is_readable_but_never_expandable
+tests-06 | FAILED tests/test_graph_wire_size.py::test_serialisation_and_parse_cost_of_each_read_shape
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_off_calendar_filer_gets_the_right_quarter
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_september_filer_gets_the_right_quarter
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_future_announcements_are_excluded
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_one_quarter_is_never_claimed_twice
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_distinct_quarters_all_survive
+tests-06 | FAILED tests/test_implied_backfill.py::TestFiscalJoin::test_a_far_away_period_is_refused_not_least_wrong
+tests-06 | FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[None-a shrug \u2014 the provider never answered]
+tests-06 | FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result1-answered, but with no history]
+tests-06 | FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_falls_back_to_finnhub_rather_than_dropping_the_symbol[fmp_result2-answered, but the income statement carried no fiscal identity]
+tests-06 | FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_an_exception_from_fmp_falls_back_instead_of_escaping
+tests-06 | FAILED tests/test_implied_backfill.py::TestFmpIsThePrimaryFiscalSource::test_the_real_fmp_leg_is_wired_up_end_to_end
+tests-06 | FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_an_empty_finnhub_response_is_retried_not_accepted
+tests-06 | FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_gives_up_after_the_attempt_budget
+tests-06 | FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_no_finnhub_call_at_all_when_fmp_has_nothing
+tests-06 | FAILED tests/test_implied_backfill.py::TestFinnhubPacing::test_every_finnhub_call_is_actually_paced
+tests-07 | FAILED tests/test_mutation_check.py::TestOutputCaptureSurvivesNonAsciiFailures::test_a_mis_attribution_shows_what_did_fail
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_contract.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_flipgate.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_load_model.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_push_guard.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_render_gate.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_renderer.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_stall_record.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_every_mutation_anchor_still_matches_exactly_once[mutation_harness_symbols.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_contract.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_flipgate.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_load_model.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_push_guard.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_render_gate.py]
+tests-07 | FAILED tests/test_mutation_harness_anchors.py::test_a_not_applied_mutation_fails_the_harness_rather_than_printing[mutation_harness_stall_record.py]
+tests-07 | FAILED tests/test_mutation_harness_hygiene.py::test_every_mutation_harness_imports_the_shared_guard_and_calls_it_before_any_write
+tests-07 | FAILED tests/test_mutation_harness_hygiene.py::test_every_instrument_that_can_leave_a_mutation_imports_the_shared_guard
+tests-07 | FAILED tests/test_no_cr_in_tracked_text_blobs.py::test_no_tracked_text_file_is_staged_with_cr_line_endings
+tests-08 | ERROR tests/test_notes_unbuildable_body_refused.py::test_POST_refuses_a_body_the_editor_cannot_build_with_ONE_sentence[marks that are not a list]
+tests-08 | ERROR tests/test_notes_unbuildable_body_refused.py::test_POST_refuses_a_body_the_editor_cannot_build_with_ONE_sentence[text node whose text is not a string]
+tests-08 | FAILED tests/test_notebook_bench_uct.py::test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']
+tests-08 | FAILED tests/test_pattern_join_canonical_shadow_benchmark.py::test_benchmark_scoped_query_vs_table_size
+tests-08 | FAILED tests/test_pattern_vision_active_set_hygiene.py::test_an_untruncated_run_reports_zero_not_null
+tests-08 | FAILED tests/test_program_doc_shas_resolve.py::test_every_sha_cited_in_every_program_doc_resolves_against_git
+tests-09 | FAILED tests/test_render_token_never_logged.py::test_scrub_removes_a_token_from_a_real_playwright_error
+tests-09 | FAILED tests/test_requirement_tags.py::test_every_SERIES_LOOKBACK_entry_is_TAGGED_so_none_can_ship_uncontained
+tests-09 | FAILED tests/test_requirement_tags.py::test_a_series_declared_entry_really_is_REFUSED_by_the_comparability_consumers
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_the_route_counts_are_what_the_router_SOURCE_declares
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_a_PAID_member_still_gets_200_on_EVERY_route
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_an_ADMIN_gets_200_everywhere_including_the_refresh_route
+tests-09 | FAILED tests/test_scan_screener_auth.py::test_a_TRIAL_member_is_treated_as_paid
+tests-09 | FAILED tests/test_screener_filters.py::test_every_filter_FAMILY_is_VISIBLE_in_at_least_one_view
+tests-09 | FAILED tests/test_screener_filters.py::test_no_filter_family_is_entirely_invisible
+tests-10 | FAILED tests/test_screener_saved.py::test_every_valid_op_declares_its_operands
+tests-10 | FAILED tests/test_screener_wave1_columndefs.py::test_every_filterable_and_viewed_column_has_a_def
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_all_four_legs_answer
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_pt_target_falls_back_to_median
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_a_raising_leg_nulls_only_its_slice
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_zero_total_consensus_refused_but_other_legs_survive
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_negative_base_growth_is_refused
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_growth_needs_two_distinct_fiscal_years
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_growth_pairs_current_and_next_fy_not_the_payload_edges
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_30day_window_is_boundary_inclusive
+tests-10 | FAILED tests/test_screener_wave2_analyst_store.py::test_fetch_one_30day_window_only_counts_upgrade_downgrade_actions
+tests-10 | FAILED tests/test_screener_wave2_earnings_dates.py::test_run_pull_earliest_future_date_wins_and_receipt_rows_is_deduped_union
+tests-10 | FAILED tests/test_screener_wave2_earnings_dates.py::test_run_pull_malformed_rows_are_skipped_not_fatal
+tests-10 | FAILED tests/test_screener_wave2_earnings_dates.py::test_run_pull_flags_a_chunk_at_the_fmp_row_cap_but_keeps_its_rows
+tests-10 | FAILED tests/test_screener_wave2_earnings_dates.py::test_run_pull_et_evening_does_not_discard_a_report_dated_todays_et_date
+tests-10 | FAILED tests/test_shared_data_root_guard.py::test_the_literals_no_env_var_can_move_are_named_not_forgotten
+tests-10 | FAILED tests/test_shared_data_root_guard.py::test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var
+tests-10 | FAILED tests/test_shared_state_landmines.py::test_no_test_module_binds_into_sys_modules_at_import_time
+tests-10 | FAILED tests/test_starter_library.py::test_every_DECLARED_starter_ACTUALLY_RESOLVES
+tests-10 | FAILED tests/test_starter_library.py::test_a_RETUNED_THRESHOLD_goes_red_NAMING_THE_NUMBER
+tests-10 | FAILED tests/test_starter_library.py::test_installing_a_starter_TWICE_is_ONE_definition_and_editing_it_FORKS_the_hash
+tests-11 | FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_list_of_one_shape
+tests-11 | FAILED tests/test_ticker_logos.py::test_fmp_profile_row_parses_bare_dict_shape
+tests-11 | FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_uses_fmp_image_when_present_and_skips_finnhub
+tests-11 | FAILED tests/test_ticker_logos.py::test_finnhub_logo_bytes_fmp_5xx_marks_transient_then_finnhub_still_tried
+tests-11 | FAILED tests/test_ticker_meta.py::test_fmp_is_tried_before_finnhub_and_finnhub_skipped_on_fmp_hit
+tests-11 | FAILED tests/test_ticker_meta.py::test_fmp_field_mapping_happy_path - Asserti...
+tests-11 | FAILED tests/test_ticker_meta.py::test_fmp_market_cap_unit_conversion_asserts_magnitude
+tests-11 | FAILED tests/test_ticker_meta.py::test_fmp_missing_marketcap_key_entirely_yields_none
+tests-11 | FAILED tests/test_ticker_meta.py::test_fmp_partial_then_finnhub_fills_remainder
+tests-11 | FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_refuses_duplicate_position
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_refuses_when_portfolio_heat_exceeds_cap
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_refuses_inverted_stop
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_refuses_sector_concentration
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_allows_diversified_trade
+tests-11 | FAILED tests/test_voice_position_sizing.py::test_validate_reports_account_state
+tests-11 | FAILED tests/test_voice_prompt_registry.py::test_select_variant_exploitation_picks_best_with_volume
+tests-11 | FAILED tests/test_voice_prompt_registry.py::test_select_variant_under_min_volume_uses_random
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_web_passage_page_carries_selected_passage_only
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_web_reference_carries_metadata_only
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_PDF_page_still_carries_document_complete
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_a_row_with_NO_capture_type_is_treated_as_a_pre_wave_L_pdf
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCoverageInTheEnvelope::test_selected_passage_only_can_NEVER_map_to_document_complete
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestAdversarialCoverage::test_a_reference_only_capture_offers_NO_body_text_to_answer_from
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCitationTruthfulness::test_a_web_capture_is_labelled_a_CAPTURED_PASSAGE_not_a_page
+tests-12 | FAILED tests/test_web_capture_coverage.py::TestCitationTruthfulness::test_a_PDF_page_STILL_says_p_N
+tests-12 | FAILED tests/test_workspace_doc_store.py::test_the_200_count_floor_holds_with_the_default_policy
+tests-12 | FAILED tests/test_workspace_doc_store.py::test_a_version_survives_if_EITHER_rule_keeps_it
