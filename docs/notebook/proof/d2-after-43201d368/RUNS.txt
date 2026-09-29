@@ -1,0 +1,4 @@
+Final D-1 confirmation on the branch tip 43201d368 (after the tapFloor relocation of two min-height declarations).
+The sandbox member now has 5 notes (the gallery run created one), so the folder panel Recents are taller than
+in the BEFORE run (4 notes): the 390 list first-row y (1112) is not like-for-like with BEFORE (1090); the
+Journal chrome (257 -> 149) and the deep-link rows are.

@@ -108,6 +108,7 @@ export default function MemberTemplates({ onPick, busy = false }) {
                 <button
                   type="button"
                   className={styles.card}
+                  data-template-card=""
                   onClick={() => onPick(t)}
                   disabled={busy || working}
                 >

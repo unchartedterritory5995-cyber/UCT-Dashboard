@@ -10,6 +10,14 @@
  * Keyboard: ↑/↓ (and Home/End) move between entries, Enter or Space jumps,
  * Escape closes the panel and returns focus to the toolbar button.
  *
+ * ⛔ Wave 10 lane K2 (walk row S2-23): on desktop the panel is one of the editor's
+ * contained disclosures (`lib/useDisclosureFocus.js`): opening it moves focus in
+ * (the first heading, or Close when there is none), Tab stays inside while focus
+ * is inside, and Escape from ANYWHERE in it closes it and hands focus back to the
+ * toolbar button. The walk found Tab leaving it for PNG/Print/Export and Escape --
+ * handled only on the heading list, which a note without headings does not have --
+ * doing nothing. A member who clicks back into the note keeps the note's own Tab.
+ *
  * ⛔ Off the keystroke path: the list is re-read 200 ms after ANY document
  * change (lib/onDocChange.js — a restored or synced note swaps its content
  * without an `update`), a caret move reuses that list, and a click re-reads it
@@ -28,6 +36,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { currentHeadingIndex, outlineBaseLevel, outlineOf } from '../../lib/noteOutline'
 import { onDocChange } from '../../lib/onDocChange'
 import { jumpToHeading } from '../../lib/tableOfContentsNode'
+import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import styles from './NoteOutline.module.css'
 
 export const OUTLINE_DEBOUNCE_MS = 200
@@ -43,6 +52,13 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
   // The list the panel last drew: a caret move reads it rather than walking
   // the document again (N3 — the walk belongs to the debounced read).
   const outlineRef = useRef(outline)
+  const panelRef = useRef(null)
+  // Desktop only: the touch tier's Sheet traps, focuses and closes on Escape itself.
+  const { disclosureProps } = useDisclosureFocus({
+    open: true, containerRef: panelRef, onClose: () => onClose(), openerRef: toggleRef, enabled: !isTouch,
+    // the first heading, not Close: what the member opened the outline for
+    initialFocus: () => panelRef.current?.querySelector('button[data-outline-item]'),
+  })
 
   useEffect(() => {
     if (!editor) return undefined
@@ -97,11 +113,8 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
     else if (e.key === 'ArrowUp') focusAt(i - 1)
     else if (e.key === 'Home') focusAt(0)
     else if (e.key === 'End') focusAt(items.length - 1)
-    else if (e.key === 'Escape' && !isTouch) {
-      e.preventDefault()
-      e.stopPropagation()
-      close(true)
-    }
+    // Escape: the panel's own container handles it (useDisclosureFocus), so it works from
+    // Close and from a note with no headings too; the touch Sheet handles its own.
   }
 
   const base = outlineBaseLevel(outline)
@@ -138,7 +151,7 @@ export default function NoteOutline({ editor, onClose, toggleRef }) {
     )
   }
   return (
-    <nav className={styles.panel} aria-label={OUTLINE_LABEL} data-export-exclude>
+    <nav ref={panelRef} className={styles.panel} aria-label={OUTLINE_LABEL} data-export-exclude {...disclosureProps}>
       <div className={styles.head}>
         <span className={styles.title}>{OUTLINE_LABEL}</span>
         <button type="button" className={styles.closeBtn} onClick={() => close(true)} aria-label="Close outline" title="Close (Esc)">

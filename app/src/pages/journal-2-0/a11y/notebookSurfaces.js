@@ -56,6 +56,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },
   'components/notebook/NoteMenuActions.jsx': { coveredBy: 'editor' },
+  // Wave 10 lane K2 (D-3): the editor surface opens it, so axe reads the panel's contents.
+  'components/notebook/NoteMoreMenu.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteStats.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteTagsField.jsx': { coveredBy: 'editor' },
   'components/notebook/UnsentTrashDialog.jsx': { recipe: 'unsent-trash' },

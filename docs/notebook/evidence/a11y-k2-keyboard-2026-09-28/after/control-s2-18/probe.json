@@ -1,0 +1,40 @@
+SANDBOX IDENTITY: http://127.0.0.1:8227 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10s1\docs\plans\joystick\sandbox-runs\2026-09-28T13-16-29.md (identity 0654d31ca70d..., data dir C:\data-w10k2)
+{
+ "nonce": "0654d31ca70d8907d6bdc64cb5742953",
+ "notes": {
+  "Alpha thesis NVDA": {
+   "before": [
+    "H2:Thesis",
+    "P:Data centre demand keeps compounding.",
+    "H2:Checklist"
+   ],
+   "after_alt_shift_down": [
+    "P:Data centre demand keeps compounding.",
+    "H2:Thesis",
+    "H2:Checklist"
+   ],
+   "after_alt_shift_up": [
+    "H2:Thesis",
+    "P:Data centre demand keeps compounding.",
+    "H2:Checklist"
+   ]
+  },
+  "Delta plain": {
+   "before": [
+    "P:",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:"
+   ],
+   "after_alt_shift_down": [
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "P:",
+    "DIV:"
+   ],
+   "after_alt_shift_up": [
+    "P:",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:"
+   ]
+  }
+ }
+}

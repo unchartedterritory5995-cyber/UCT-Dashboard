@@ -1,0 +1,10 @@
+M1 RED rc=1 [the note-open marker is not on the box the phone rule targets] app/src/pages/journal-2-0/tabs/NotebookTab.jsx :: Test Files  1 failed (1) | Tests  1 failed | 13 passed (14) :: restored sha fe277839e9e1 == capture == HEAD: True
+M2 RED rc=1 [the phone rule no longer hides the folder panel] app/src/pages/journal-2-0/tabs/NotebookTab.module.css :: Test Files  1 failed (1) | Tests  1 failed | 13 passed (14) :: restored sha 2899830a19d2 == capture == HEAD: True
+M4 RED rc=1 [the back control shows at every width] app/src/pages/journal-2-0/tabs/NotebookTab.module.css :: Test Files  1 failed (1) | Tests  1 failed | 13 passed (14) :: restored sha 2899830a19d2 == capture == HEAD: True
+M5 INVALID: pattern matched 0 times in app/src/pages/journal-2-0/lib/compactHeaderRoute.js
+M6 RED rc=1 [the disclosure names an element that does not exist] app/src/pages/journal-2-0/JournalLayout.jsx :: Test Files  1 failed (1) | Tests  2 failed | 19 passed (21) :: restored sha 1973eae32ec8 == capture == HEAD: True
+M7 RED rc=1 [the phone fold hides nothing] app/src/pages/journal-2-0/JournalLayout.module.css :: Test Files  1 failed (1) | Tests  1 failed | 20 passed (21) :: restored sha 67517ee364a3 == capture == HEAD: True
+M8 RED rc=1 [the disclosure shows at every width] app/src/pages/journal-2-0/JournalLayout.module.css :: Test Files  1 failed (1) | Tests  1 failed | 20 passed (21) :: restored sha 67517ee364a3 == capture == HEAD: True
+M9 RED rc=1 [the six tabs stop sharing the phone row] app/src/pages/journal-2-0/JournalMobileNav.module.css :: Test Files  1 failed (1) | Tests  1 failed | 20 passed (21) :: restored sha 23623b767fe7 == capture == HEAD: True
+M10 RED rc=1 [the disclosure never opens] app/src/pages/journal-2-0/JournalLayout.jsx :: Test Files  1 failed (1) | Tests  3 failed | 18 passed (21) :: restored sha 1973eae32ec8 == capture == HEAD: True
+CONTROL unmutated tree rc=0 :: Test Files  2 passed (2) | Tests  35 passed (35)

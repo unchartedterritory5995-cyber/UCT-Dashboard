@@ -1,0 +1,159 @@
+{
+ "meta": {
+  "tool": "keyboard_walk",
+  "started": "2026-09-28T13:17:57-0500",
+  "base": "http://127.0.0.1:8227",
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s1\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T13-16-29.md",
+  "only": [],
+  "browser": "chromium (playwright)",
+  "viewport": "1280x800 unless a step says otherwise",
+  "tip": "75c7ef596",
+  "nonce": "0654d31ca70d8907d6bdc64cb5742953",
+  "browser_version": "145.0.7632.6",
+  "account_paid": true
+ },
+ "steps": [
+  {
+   "id": "C0",
+   "section": "control",
+   "keys": "Tab x12; Tab x8 inside a trap",
+   "expected": "unreachable button NOT found; trap detected",
+   "observed": "unreachable found=False after 12; trap detected=True; trail=[\"button 'Alpha'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\"]",
+   "verdict": "PASS",
+   "t": "13:17:58"
+  },
+  {
+   "id": "S2-20",
+   "section": "editor door: Ask",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:20:55"
+  },
+  {
+   "id": "S2-21",
+   "section": "editor door: Writing help",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:21:21"
+  },
+  {
+   "id": "S2-22",
+   "section": "editor door: Version history",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:21:46"
+  },
+  {
+   "id": "S2-23",
+   "section": "editor door: Outline",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:22:10"
+  },
+  {
+   "id": "S2-24",
+   "section": "editor door: Text colour",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:22:35"
+  },
+  {
+   "id": "S2-25",
+   "section": "editor door: Share",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:23:00"
+  },
+  {
+   "id": "S2-26",
+   "section": "editor door: Export menu",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:23:25"
+  },
+  {
+   "id": "S2-27",
+   "section": "editor door: Open beside",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:23:49"
+  },
+  {
+   "id": "S2-28",
+   "section": "editor door: Delete confirmation",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:24:14"
+  },
+  {
+   "id": "S2-29",
+   "section": "editor door: Add property",
+   "keys": "open 'Gamma earnings'",
+   "expected": "note opens",
+   "observed": "did not open",
+   "verdict": "NOT RUN",
+   "t": "13:24:39"
+  },
+  {
+   "id": "S2-30",
+   "section": "editor: lock",
+   "keys": "Tab",
+   "expected": "reachable",
+   "observed": "not reached; tail [\"input 'Select Delta plain'\", \"button 'Delta plain 50m'\", \"input 'Select Alpha thesis NVDA'\", \"button 'Alpha thesis NVDA 51m #macro/rates #semis'\", \"input 'Select Gamma earnings'\", \"(no 'More note actions' either)\"]",
+   "verdict": "FAIL",
+   "t": "13:25:18",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-31",
+   "section": "editor: archive",
+   "keys": "Tab",
+   "expected": "reachable",
+   "observed": "not reached; tail [\"input 'Select Delta plain'\", \"button 'Delta plain 51m'\", \"input 'Select Alpha thesis NVDA'\", \"button 'Alpha thesis NVDA 51m #macro/rates #semis'\", \"input 'Select Gamma earnings'\", \"(no 'More note actions' either)\"]",
+   "verdict": "FAIL",
+   "t": "13:25:57",
+   "sc": "2.1.1"
+  }
+ ],
+ "census": {},
+ "shots": [],
+ "errors": [
+  {
+   "section": "S1",
+   "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+   "trace": "^^^^^^^^^\n            url=url, timeout=timeout, waitUntil=wait_until, referer=referer\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        )\n        ^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_page.py\", line 552, in goto\n    return await self._main_frame.goto(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 153, in goto\n    await self._channel.send(\n        \"goto\", self._navigation_timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n\n"
+  },
+  {
+   "section": "S2",
+   "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+   "trace": "^^^^^^^^^\n            url=url, timeout=timeout, waitUntil=wait_until, referer=referer\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        )\n        ^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_page.py\", line 552, in goto\n    return await self._main_frame.goto(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 153, in goto\n    await self._channel.send(\n        \"goto\", self._navigation_timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n\n"
+  },
+  {
+   "section": "S2b",
+   "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+   "trace": "^^^^^^^^^\n            url=url, timeout=timeout, waitUntil=wait_until, referer=referer\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n        )\n        ^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_page.py\", line 552, in goto\n    return await self._main_frame.goto(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 153, in goto\n    await self._channel.send(\n        \"goto\", self._navigation_timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8227/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n\n"
+  }
+ ],
+ "seed": {
+  "reused": true,
+  "notes": 4
+ }
+}

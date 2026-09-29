@@ -1,0 +1,212 @@
+[
+ {
+  "id": "M1",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "the trap is never installed",
+  "exit": 1,
+  "totals": "Tests  7 failed | 74 passed (81)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Tab and Shift+Tab stay in the search while focus is in it 214ms",
+   "\u00d7 Tab and Shift+Tab stay inside the open menu (K2): they wrap at the ends and it stays open 38ms",
+   "\u00d7 opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door 567ms",
+   "\u00d7 NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer 1100ms",
+   "\u00d7 Tab and Shift+Tab wrap inside the panel while focus is inside it 77ms",
+   "\u00d7 2. Tab and Shift+Tab wrap at the ends while focus is inside 49ms",
+   "\u00d7 NESTING: inside an inner disclosure only the INNER one wraps, and one Escape closes one layer 27ms",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > 2. Tab and Shift+Tab wrap at the ends while focus is inside",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > NESTING: inside an inner disclosure only the INNER one wraps, and one Escape closes one layer",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > Tab and Shift+Tab stay inside the open menu (K2): they wrap at the ends and it stays open"
+  ]
+ },
+ {
+  "id": "M2",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "focus does not move in on open",
+  "exit": 1,
+  "totals": "Tests  4 failed | 31 passed (35)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 opening moves focus in: the first heading 47ms",
+   "\u00d7 a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle 19ms",
+   "\u00d7 1. opening moves focus to the first control inside 117ms",
+   "\u00d7 opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door 529ms",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > 1. opening moves focus to the first control inside",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> keyboard containment (K2) > opening moves focus in: the first heading",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> keyboard containment (K2) > a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle"
+  ]
+ },
+ {
+  "id": "M3",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "Escape closes but does not hand focus back",
+  "exit": 1,
+  "totals": "Tests  6 failed | 53 passed (59)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Escape closes the menu and hands focus back to the button 53ms",
+   "\u00d7 \u2193/\u2191/Home/End move between entries; Escape closes and returns focus to the toolbar button 70ms",
+   "\u00d7 a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle 19ms",
+   "\u00d7 3. Escape from anywhere inside closes it and hands focus to the opener 37ms",
+   "\u00d7 opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door 789ms",
+   "\u00d7 NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer 1333ms",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > 3. Escape from anywhere inside closes it and hands focus to the opener",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > opening moves focus in; Tab and Shift+Tab wrap inside; Escape closes and returns to the door",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > Escape closes the menu and hands focus back to the button",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> (desktop panel) > \u2193/\u2191/Home/End move between entries; Escape closes and returns focus to the toolbar button",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> keyboard containment (K2) > a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle"
+  ]
+ },
+ {
+  "id": "M4",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "nesting ignored: every enclosing disclosure traps",
+  "exit": 1,
+  "totals": "Tests  1 failed | 12 passed (13)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 focusOwnedBy answers for the INNERMOST disclosure only 22ms",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > focusOwnedBy answers for the INNERMOST disclosure only"
+  ]
+ },
+ {
+  "id": "M5",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "Escape is not stopped: one press closes every layer",
+  "exit": 0,
+  "totals": "Tests  13 passed (13)",
+  "red": false,
+  "restored_equals_committed_blob": true,
+  "failing": []
+ },
+ {
+  "id": "M6",
+  "file": "src/pages/journal-2-0/components/notebook/NoteExportControls.jsx",
+  "what": "the roving tabindex is back on the Export items",
+  "exit": 1,
+  "totals": "Tests  1 failed | 23 passed (24)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Tab and Shift+Tab stay inside the open menu (K2): they wrap at the ends and it stays open 35ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteExportControls.test.jsx > the Export menu button > Tab and Shift+Tab stay inside the open menu (K2): they wrap at the ends and it stays open"
+  ]
+ },
+ {
+  "id": "M7",
+  "file": "src/pages/journal-2-0/components/notebook/NoteOutline.jsx",
+  "what": "the Outline panel is not a contained disclosure",
+  "exit": 1,
+  "totals": "Tests  3 failed | 19 passed (22)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 \u2193/\u2191/Home/End move between entries; Escape closes and returns focus to the toolbar button 65ms",
+   "\u00d7 Tab and Shift+Tab wrap inside the panel while focus is inside it 61ms",
+   "\u00d7 a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle 19ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> (desktop panel) > \u2193/\u2191/Home/End move between entries; Escape closes and returns focus to the toolbar button",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> keyboard containment (K2) > Tab and Shift+Tab wrap inside the panel while focus is inside it",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteOutline.test.jsx > <NoteOutline> keyboard containment (K2) > a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle"
+  ]
+ },
+ {
+  "id": "M8",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMenuActions.jsx",
+  "what": "the Open-beside door does not say it is expanded",
+  "exit": 1,
+  "totals": "Tests  2 failed | 20 passed (22)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 the door is a disclosure button: it stays, and says whether its search is open 20ms",
+   "\u00d7 Escape from a RESULT (not only the field) closes the search and hands focus to the door 235ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx > the Open-beside search keeps the keyboard inside it (K2) > the door is a disclosure button: it stays, and says whether its search is open",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx > the Open-beside search keeps the keyboard inside it (K2) > Escape from a RESULT (not only the field) closes the search and hands focus to the door"
+  ]
+ },
+ {
+  "id": "M9",
+  "file": "src/pages/journal-2-0/components/notebook/NoteSearchPicker.jsx",
+  "what": "the find-a-note search is not a contained disclosure",
+  "exit": 1,
+  "totals": "Tests  4 failed | 25 passed (29)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer 981ms",
+   "\u00d7 closing the template form (Cancel) or the Open-beside search (Escape) hands focus back to its door 4270ms",
+   "\u00d7 Tab and Shift+Tab stay in the search while focus is in it 270ms",
+   "\u00d7 Escape from a RESULT (not only the field) closes the search and hands focus to the door 251ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx > Lock and Archive keep focus (F4, A2R-07) > closing the template form (Cancel) or the Open-beside search (Escape) hands focus back to its door",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx > the Open-beside search keeps the keyboard inside it (K2) > Tab and Shift+Tab stay in the search while focus is in it",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMenuActions.test.jsx > the Open-beside search keeps the keyboard inside it (K2) > Escape from a RESULT (not only the field) closes the search and hands focus to the door"
+  ]
+ },
+ {
+  "id": "M10",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "a press inside Delete's question closes the panel",
+  "exit": 1,
+  "totals": "Tests  1 failed | 6 passed (7)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Delete asks first; Escape on the question puts focus back on Delete, and the panel is still open 807ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > Delete asks first; Escape on the question puts focus back on Delete, and the panel is still open"
+  ]
+ },
+ {
+  "id": "M11",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "the panel is never hidden (Delete back on the page)",
+  "exit": 1,
+  "totals": "Tests  1 failed | 6 passed (7)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 closed: no Delete, Duplicate, Lock or Archive on the page -- one door, collapsed 2043ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > D-3: the page-level actions sit behind \"More note actions\" > closed: no Delete, Duplicate, Lock or Archive on the page -- one door, collapsed"
+  ]
+ },
+ {
+  "id": "M12",
+  "file": "src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+  "what": "Delete is not set apart from the rest",
+  "exit": 1,
+  "totals": "Tests  1 failed | 6 passed (7)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 open: every action is there by name, Delete LAST after a separator, and not a red button 614ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > D-3: the page-level actions sit behind \"More note actions\" > open: every action is there by name, Delete LAST after a separator, and not a red button"
+  ]
+ },
+ {
+  "id": "M13",
+  "file": "src/pages/journal-2-0/components/notebook/FolderSidebar.module.css",
+  "what": "the folder name loses its 44 px floor on the touch tier",
+  "exit": 1,
+  "totals": "Tests  1 failed | 16 passed (17)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 the name button has a 44 px width floor on the touch tier (it was `min-width: 0`) 3ms",
+   "FAIL  src/pages/journal-2-0/a11y/targetFloors.test.js > a folder row keeps its name tappable on the touch tier (S6-02) > the name button has a 44 px width floor on the touch tier (it was `min-width: 0`)"
+  ]
+ },
+ {
+  "id": "CONTROL",
+  "what": "every file restored: the same suites, unmutated",
+  "exit": 0,
+  "totals": "Tests  98 passed (98)"
+ }
+]

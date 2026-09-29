@@ -20,6 +20,7 @@
 import { NavLink } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
+import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import styles from './JournalMobileNav.module.css'
 
 // Same 6 surfaces + icons as JournalLayout's PRIMARY_NAV. Kept as its own list
@@ -29,7 +30,7 @@ const MOBILE_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
   { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
-  { to: '/journal/notebook', label: 'Notebook', icon: 'journal' },
+  { to: NOTEBOOK_PATH, label: 'Notebook', icon: 'journal' },
   { to: '/journal/insights', label: 'Insights', icon: 'chart' },
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]

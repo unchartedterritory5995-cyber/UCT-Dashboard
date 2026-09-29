@@ -91,3 +91,26 @@
   top: 4px;
   right: 8px;
 }
+
+/* D2 (design finding D-1): every Journal tab ON SCREEN on a phone -- one tap,
+   no swipe. Measured at 390 px on fa6710394 (docs/notebook/proof/
+   d2-before-fa6710394): the strip was a sideways scroller whose Insights
+   (x 324-394) and Compass (x 398-477) sat past the 390 px edge, behind a swipe
+   nothing hinted at. The items now share the row (`flex: 1 0 auto`, tighter
+   side padding, no gap) and the strip bleeds 8 px into the page gutter; the
+   scroller stays as the fallback for a phone too narrow to hold six labels.
+   Height is unchanged, so switching tabs never moves the page.
+   Rail: JournalLayout.compactHeader.test.jsx. */
+@media (max-width: 640px) {
+  .mobileNav {
+    gap: 0;
+    margin-left: -8px;
+    margin-right: -8px;
+  }
+  .item {
+    flex: 1 0 auto;
+    min-width: var(--tap-min);
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+}

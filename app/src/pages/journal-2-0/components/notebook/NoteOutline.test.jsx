@@ -262,3 +262,77 @@ describe('one jump for both surfaces (M5)', () => {
     expect(outline).not.toMatch(/setTextSelection\(/)
   })
 })
+
+// Wave 10 lane K2 (clause 9d, walk row S2-23): the desktop panel is one of the editor's
+// contained disclosures (lib/useDisclosureFocus.js). Lane 10E-2's walk opened it, pressed Tab six
+// times and landed on PNG / Print / Export, and its Escape -- handled only on the heading list,
+// which a note without headings does not render -- did nothing.
+describe('<NoteOutline> keyboard containment (K2)', () => {
+  const withToggle = () => {
+    const toggle = document.createElement('button')
+    toggle.textContent = 'Outline'
+    document.body.appendChild(toggle)
+    const toggleRef = createRef()
+    toggleRef.current = toggle
+    return { toggle, toggleRef }
+  }
+  const tab = (shift = false) => fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: shift })
+
+  it('opening moves focus in: the first heading', () => {
+    const ed = mount(DOC)
+    const { toggle, toggleRef } = withToggle()
+    toggle.focus()
+    render(<NoteOutline editor={ed} onClose={() => {}} toggleRef={toggleRef} />)
+    expect(document.activeElement).toBe(items()[0])
+  })
+
+  it('Tab and Shift+Tab wrap inside the panel while focus is inside it', () => {
+    const ed = mount(DOC)
+    const { toggleRef } = withToggle()
+    render(<NoteOutline editor={ed} onClose={() => {}} toggleRef={toggleRef} />)
+    const close = screen.getByRole('button', { name: 'Close outline' })
+    const last = items()[items().length - 1]
+    last.focus()
+    tab()
+    expect(document.activeElement).toBe(close)
+    tab(true)
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('a note with NO headings: focus lands on Close, Tab stays there, Escape closes and returns to the toggle', () => {
+    const ed = mount([P('No headings here.')])
+    const { toggle, toggleRef } = withToggle()
+    toggle.focus()
+    const onClose = vi.fn()
+    render(<NoteOutline editor={ed} onClose={onClose} toggleRef={toggleRef} />)
+    const close = screen.getByRole('button', { name: 'Close outline' })
+    expect(document.activeElement).toBe(close)
+    tab()
+    expect(document.activeElement).toBe(close)
+    fireEvent.keyDown(close, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(document.activeElement).toBe(toggle)
+  })
+
+  it('CONTROL: once the member clicks back into the note, Tab is the note\'s own (nothing is pulled into the panel)', () => {
+    const ed = mount(DOC)
+    const { toggleRef } = withToggle()
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    render(<NoteOutline editor={ed} onClose={() => {}} toggleRef={toggleRef} />)
+    outside.focus()
+    const ev = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })
+    outside.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(false)
+    expect(document.activeElement).toBe(outside)
+  })
+
+  it('on the touch tier none of this is installed: the Sheet does its own', () => {
+    touch = true
+    const ed = mount(DOC)
+    const { toggle, toggleRef } = withToggle()
+    toggle.focus()
+    render(<NoteOutline editor={ed} onClose={() => {}} toggleRef={toggleRef} />)
+    expect(document.querySelector('[data-contained-disclosure]')).toBeNull()
+  })
+})
