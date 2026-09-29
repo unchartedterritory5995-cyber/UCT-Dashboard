@@ -26,8 +26,8 @@ import sys
 
 import numpy as np
 
-PINNED_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools", "breadth_v2", "pinned")
-PINNED_DIR = os.path.normpath(PINNED_DIR)
+PINNED_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "tools",
+                                          "breadth_v2", "pinned"))
 BASE_METHODOLOGY = "rth-1m-composites-v2c2-div"
 EMA_RULE = "ema-tie-exact-v1"
 LIVE_METHODOLOGY = BASE_METHODOLOGY + "+" + EMA_RULE
