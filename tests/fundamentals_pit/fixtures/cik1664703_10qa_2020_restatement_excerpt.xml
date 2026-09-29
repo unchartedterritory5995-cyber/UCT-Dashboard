@@ -1,0 +1,90 @@
+<xbrli:xbrl>
+<xbrli:context id="i15e7834d0ba248edb5bfe64f254c8255_I20181231">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001664703</identifier>
+        </entity>
+        <period>
+            <instant>2018-12-31</instant>
+        </period>
+    </xbrli:context>
+<xbrli:context id="i1740706698b7483288233671ddab4c0d_I20190630">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001664703</identifier>
+        </entity>
+        <period>
+            <instant>2019-06-30</instant>
+        </period>
+    </xbrli:context>
+<xbrli:context id="iea18c36d684b4705b331f7a3bfab1c6f_I20190630">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001664703</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <instant>2019-06-30</instant>
+        </period>
+    </xbrli:context>
+<xbrli:context id="if682b15bedbb4a84b902c22c893756ff_I20181231">
+        <entity>
+            <identifier scheme="http://www.sec.gov/CIK">0001664703</identifier>
+            <segment>
+                <xbrldi:explicitMember dimension="srt:RestatementAxis">srt:ScenarioPreviouslyReportedMember</xbrldi:explicitMember>
+            </segment>
+        </entity>
+        <period>
+            <instant>2018-12-31</instant>
+        </period>
+    </xbrli:context>
+<us-gaap:CashAndCashEquivalentsAtCarryingValue
+      contextRef="iea18c36d684b4705b331f7a3bfab1c6f_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfNS0yLTEtMS0w_3cb3c3f3-aefb-47df-ac9e-e64a9c1734e1"
+      unitRef="usd">308009000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+<us-gaap:CashAndCashEquivalentsAtCarryingValue
+      contextRef="i1740706698b7483288233671ddab4c0d_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfNS0xMC0xLTEtMA_212b6c48-a8b0-4039-ad5b-e545469fcfd8"
+      unitRef="usd">308009000</us-gaap:CashAndCashEquivalentsAtCarryingValue>
+<us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+      contextRef="if682b15bedbb4a84b902c22c893756ff_I20181231"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmY2ODc3ZTdmNjE0OTRmNzA4NWNjOGYyM2M4OGQ0MTUxL3RhYmxlcmFuZ2U6ZjY4NzdlN2Y2MTQ5NGY3MDg1Y2M4ZjIzYzg4ZDQxNTFfNTktMi0xLTEtMA_f92b6f06-2dd1-4c12-8eff-420594c3af6b"
+      unitRef="usd">280485000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+<us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+      contextRef="i15e7834d0ba248edb5bfe64f254c8255_I20181231"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmY2ODc3ZTdmNjE0OTRmNzA4NWNjOGYyM2M4OGQ0MTUxL3RhYmxlcmFuZ2U6ZjY4NzdlN2Y2MTQ5NGY3MDg1Y2M4ZjIzYzg4ZDQxNTFfNTktMTAtMS0xLTA_3fec5f4e-96b6-431c-8ffd-cce8d05f608e"
+      unitRef="usd">280485000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+<us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+      contextRef="iea18c36d684b4705b331f7a3bfab1c6f_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmY2ODc3ZTdmNjE0OTRmNzA4NWNjOGYyM2M4OGQ0MTUxL3RhYmxlcmFuZ2U6ZjY4NzdlN2Y2MTQ5NGY3MDg1Y2M4ZjIzYzg4ZDQxNTFfNjAtMi0xLTEtMA_94bc576a-f552-42e6-b401-3a87237bae78"
+      unitRef="usd">371066000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+<us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents
+      contextRef="i1740706698b7483288233671ddab4c0d_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmY2ODc3ZTdmNjE0OTRmNzA4NWNjOGYyM2M4OGQ0MTUxL3RhYmxlcmFuZ2U6ZjY4NzdlN2Y2MTQ5NGY3MDg1Y2M4ZjIzYzg4ZDQxNTFfNjAtMTAtMS0xLTA_6d45f5ee-b8a4-4a14-a970-a774f52bfc01"
+      unitRef="usd">371066000</us-gaap:CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents>
+<us-gaap:Assets
+      contextRef="iea18c36d684b4705b331f7a3bfab1c6f_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfMTktMi0xLTEtMA_3f3f9f59-f9dd-40f9-9f65-2cc961cc5107"
+      unitRef="usd">1222579000</us-gaap:Assets>
+<us-gaap:Assets
+      contextRef="i1740706698b7483288233671ddab4c0d_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfMTktMTAtMS0xLTA_de95deee-4c0c-48b7-9dda-5873f7cfcd21"
+      unitRef="usd">1412687000</us-gaap:Assets>
+<us-gaap:Liabilities
+      contextRef="iea18c36d684b4705b331f7a3bfab1c6f_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfNDMtMi0xLTEtMA_190a722d-8307-4932-abed-e3c8f7cdfdb5"
+      unitRef="usd">1233787000</us-gaap:Liabilities>
+<us-gaap:Liabilities
+      contextRef="i1740706698b7483288233671ddab4c0d_I20190630"
+      decimals="-3"
+      id="id3VybDovL2RvY3MudjEvZG9jOmNhMzFjYWU5MGJhNjRmNzY5MTU0NDZhODFlZTk1NzkyL3NlYzpjYTMxY2FlOTBiYTY0Zjc2OTE1NDQ2YTgxZWU5NTc5Ml80Ni9mcmFnOmU0ZTMxZjVkYTU2MzRlODNhNzY1YTMzNGU4ZjdhZGZiL3RhYmxlOmMxMGM5NGY5ZjhlZjQ2OGY5MjkxYzg2MjkzZDE1MjEzL3RhYmxlcmFuZ2U6YzEwYzk0ZjlmOGVmNDY4ZjkyOTFjODYyOTNkMTUyMTNfNDMtMTAtMS0xLTA_840395e9-f22b-4482-a249-4ac18888dfa8"
+      unitRef="usd">1533014000</us-gaap:Liabilities>
+</xbrli:xbrl>
