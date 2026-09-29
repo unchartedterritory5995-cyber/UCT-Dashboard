@@ -812,6 +812,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/econ/catalog",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/econ/series/{symbol}",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/education/by-youtube/{youtube_id}",
       "rate_limit_family": "community-content",
       "tier": "paid"
