@@ -13,7 +13,7 @@
 // ⛔ Each rule here is the one its capture DECIDES, and each case carries the
 // reading that capture rules out, so the case cannot pass for a reason other
 // than the rule.
-import { describe, it, expect, afterAll } from 'vitest'
+import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -42,6 +42,7 @@ function ourRun(capture, source = capture.source.text) {
     })
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+      readUnknown: reader.readUnknown,
     })
     expect(run.status).toBe(OBJECT_STATUS.OK)
     return run
@@ -77,6 +78,57 @@ describe('C12 — `x = if cond` with no `else` (atr-support-and-resistance)', ()
     expect(zeroed).not.toBe(capture.source.text)
     const run = ourRun(capture, zeroed)
     expect(idsOf(run, 'box').length).toBeGreaterThan(vendorIds(capture, 'box').length)
+  })
+})
+
+describe('C12 — a `var` before its warm-up is unknown, not `na` (market-structure-by-leviathan)', () => {
+  const capture = load('market-structure-by-leviathan')
+  // it draws objects and no plot, so the member door takes it only through the
+  // objects-only pane (`objectsOnlyPaneGate.js`), as the harness grades it
+  beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
+  afterAll(() => { vi.unstubAllEnvs() })
+  // one sequence over both families, in creation order: a label by its word and
+  // level, a line by its level — the vendor's by id, ours by id
+  const seqOfVendor = () => [
+    ...capture.objects.records.lines.map((r) => ({ id: r.id, k: `line@${r.y1}` })),
+    ...capture.objects.records.labels.map((r) => ({ id: r.id, k: `${r.t}@${r.y}` })),
+  ].sort((a, b) => a.id - b.id).map((o) => o.k)
+  const seqOfOurs = (run) => [...run.live].sort((a, b) => a.id - b.id)
+    .map((o) => (o.family === 'line' ? `line@${o.props.y1}` : `${o.props.text}@${o.props.y}`))
+
+  it('⭐ every object we draw is TradingView\'s, in order, word and level — its last 23 of 28', () => {
+    const run = ourRun(capture)
+    const vendor = seqOfVendor()
+    const ours = seqOfOurs(run)
+    expect(vendor.length).toBe(28)
+    expect(ours.length).toBe(23)
+    expect(ours).toEqual(vendor.slice(vendor.length - ours.length))
+    expect(run.stats.withheldUnknown).toBeGreaterThan(0)
+  })
+
+  it('⭐ the five we withhold are all read off `prevHigh`/`prevLow` before bar 250 — the first vendor BOS sits at bar 2 of the sequence', () => {
+    const vendor = seqOfVendor()
+    // LH, LL, the 78.08 break (line + BOS), HH — TradingView's first five, whose
+    // word or level is decided by a `var` the object lane cannot compute there
+    expect(vendor.slice(0, 5)).toEqual(['LH@78.08', 'LL@49.13', 'line@78.08', 'BOS@78.08', 'HH@230.41'])
+  })
+
+  it('⛔ CONTROL — read as Pine\'s `na`, the warm-up draws a WRONG word: "LH" where TradingView says "HH"', () => {
+    const door = enterMemberDoor(capture.source.text)
+    try {
+      const bars = toProductBars(capture)
+      const reader = objectReaderFor(door.def, bars, {
+        inputs: undefined, tf: tfCodeOf(capture.timeframe), newestBarIsForming: capture.newestBarIsForming ?? null,
+      })
+      const run = evaluateObjects(reader.program, {
+        barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+      })
+      const ours = seqOfOurs(run)
+      expect(ours).toContain('LH@230.41')
+      expect(seqOfVendor()).not.toContain('LH@230.41')
+    } finally {
+      registry.uninstallUserDefinition(HARNESS_DEF_ID)
+    }
   })
 })
 
