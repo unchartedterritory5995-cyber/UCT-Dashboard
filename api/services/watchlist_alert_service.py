@@ -224,6 +224,9 @@ def check_alerts_against_prices(price_data: dict,
 
     now_sec = time.time()
     triggered = []
+    # TERM-048: read ONCE per cycle so every fire in one cycle takes the same
+    # route. Off (the default) never imports the S7 bridge at all.
+    via_s7 = _s7_route_enabled()
     for row in active:
         alert = dict(row)
         sym = alert["sym"]
@@ -243,12 +246,74 @@ def check_alerts_against_prices(price_data: dict,
         if fire:
             triggered_alert = _trigger_alert(alert["id"])
             if triggered_alert:
-                triggered.append(triggered_alert)
-                report = _deliver_alert(triggered_alert, current_price)
+                if via_s7:
+                    report = _deliver_via_s7(triggered_alert, current_price,
+                                             target, now_sec)
+                    if report is None:
+                        # S7 says this crossing is already owned (a second
+                        # checker saw the row armed before either deactivated
+                        # it). Deliver nothing, report nothing.
+                        continue
+                    triggered.append(triggered_alert)
+                else:
+                    triggered.append(triggered_alert)
+                    report = _deliver_alert(triggered_alert, current_price)
                 if reports is not None:
                     reports.append(report)
 
     return triggered
+
+
+def _s7_route_enabled() -> bool:
+    """TERM-048's flag, read through the bridge that owns it (one authority).
+
+    ⛔ Fails to the CURRENT behaviour: if the bridge cannot even be imported,
+    the answer is "off" and members are told exactly as before."""
+    try:
+        from api.services.alert_taxonomy import watchlist_price_alerts as _wpa
+        return _wpa.enabled()
+    except Exception as e:
+        _logger.warning("TERM-048 flag unreadable (%s: %s) -- legacy delivery",
+                        type(e).__name__, e)
+        return False
+
+
+def _deliver_via_s7(alert: dict, current_price: float, level: float,
+                    now_sec: float) -> dict | None:
+    """TERM-048 (dark): the same fire, routed through S7's receipt and lease.
+
+    Record the fire in `alert_fires` and claim its lease BEFORE any channel
+    runs; tell the member with the UNCHANGED `_deliver_alert` (same bell entry,
+    same email); stamp the channel outcome on the receipt.
+
+    Returns None when S7 reports the crossing is already recorded or claimed --
+    a duplicate, so NOTHING is delivered.
+
+    ⛔ If the receipt store itself fails, the member is STILL told, once, on the
+    legacy path: the row is already deactivated and this lane has no retry, so
+    refusing to deliver would turn a store outage into a silently missed alert.
+    Only a positive "somebody else owns it" answer suppresses delivery.
+    """
+    from api.services.alert_taxonomy import watchlist_price_alerts as _wpa
+    try:
+        fire_id = _wpa.open_fire(alert, current_price, level, now_sec)
+    except Exception as e:
+        _logger.warning(
+            "S7 receipt unavailable for price alert %s (%s: %s) -- delivered on "
+            "the legacy path with NO alert_fires receipt",
+            alert.get("id"), type(e).__name__, e)
+        return _deliver_alert(alert, current_price)
+    if fire_id is None:
+        _logger.info("price alert %s: S7 fire already recorded/claimed -- "
+                     "not delivered again", alert.get("id"))
+        return None
+    report = _deliver_alert(alert, current_price)
+    try:
+        _wpa.close_fire(fire_id, report)
+    except Exception as e:
+        _logger.warning("S7 receipt %s: could not record delivery channels (%s: %s)",
+                        fire_id, type(e).__name__, e)
+    return report
 
 
 def _deliver_alert(alert: dict, current_price: float) -> dict:

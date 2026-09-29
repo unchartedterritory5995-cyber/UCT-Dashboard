@@ -73,7 +73,7 @@ QUARANTINE: dict[str, str] = {
     "api/services/screener/fundamentals_bulk.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/ticker_logos.py": "10-file addendum — not part of this build's originally-scoped 6 call sites",
     "api/services/engine.py": "2 remaining inline FMP news calls (/stable/news/*) — out of this build's originally-scoped 2 call sites in this file",
-    "api/services/earnings_estimates.py": "_fmp_get itself: kept byte-for-byte, load-bearing for 9 external consumers outside this build's authorized migration scope (see Section 1 addendum)",
+    "api/services/earnings_estimates.py": "_fmp_get itself: still load-bearing for the consumers tools/fmp_helper_census.py REMAINING names, each with its reason (TERM-072 migrated the rest onto fmp_client, 2026-09-29)",
     # ⛔⛔ D1 GAP G5 — QUARANTINED BY RULING (owner, 2026-09-12), NOT AS DEBT.
     # Every other entry above is "not yet migrated". This one is "must not be",
     # and the distinction is the point: `news/adapters/fmp_news.py`'s contract is

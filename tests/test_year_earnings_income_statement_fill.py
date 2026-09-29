@@ -20,6 +20,7 @@ cases where FMP's whole record stops, not one endpoint, and those still need the
 provider escalation.
 """
 import importlib
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _mod(monkeypatch):
@@ -41,7 +42,7 @@ def _is_row(date, revenue=6.0e9, eps=2.5, **extra):
 
 
 def _wire_income(monkeypatch, ee, rows):
-    monkeypatch.setattr(ee, "_fmp_get",
+    route_fmp(monkeypatch,
                         lambda path, params, timeout=10:
                         list(rows) if "income-statement" in path else None)
 

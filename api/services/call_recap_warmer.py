@@ -131,6 +131,25 @@ def _tradeable(sym: str) -> bool:
     return sym in uni if uni else bool(_US_TICKER_RE.match(sym))
 
 
+_CALENDAR_PATH = "/stable/earnings-calendar"
+
+
+def _calendar_day_rows(path: str, params: dict, timeout: float = 20):
+    """The default `fmp_get` for `recent_reporters`: ONE endpoint, through the
+    D1 adapter (TERM-072) -- it used to be `earnings_estimates._fmp_get`.
+
+    Keeps the `(path, params, timeout)` shape so a test can still inject a
+    recorder and pin the one-day query shape. ⛔ It is not a generic FMP
+    client: any other path is refused rather than quietly served, so this
+    seam cannot grow into the helper it replaced. `body_or_none` hands the
+    caller exactly what `_fmp_get` did -- the row list, `[]`, or None."""
+    if path != _CALENDAR_PATH:
+        raise ValueError(f"_calendar_day_rows serves {_CALENDAR_PATH} only, not {path}")
+    from api.services import fmp_client
+    return fmp_client.body_or_none(fmp_client.get_earnings_calendar,
+                                   params["from"], params["to"], timeout=timeout)
+
+
 def recent_reporters(days: Optional[int] = None, today=None,
                      fmp_get: Callable = None) -> list[str]:
     """Symbols whose results are ALREADY OUT, most recent day first.
@@ -154,7 +173,7 @@ def recent_reporters(days: Optional[int] = None, today=None,
     if days is None:
         days = LOOKBACK_DAYS
     if fmp_get is None:
-        from api.services.earnings_estimates import _fmp_get as fmp_get
+        fmp_get = _calendar_day_rows
     if today is None:
         # ET, not the server's UTC date — a UTC "today" runs a day ahead all
         # evening and would sweep a day that has not happened.
@@ -165,7 +184,7 @@ def recent_reporters(days: Optional[int] = None, today=None,
     for back in range(days + 1):
         day = (today - timedelta(days=back)).isoformat()
         try:
-            rows = fmp_get("/stable/earnings-calendar",
+            rows = fmp_get(_CALENDAR_PATH,
                            {"from": day, "to": day}, timeout=20)
         except Exception as exc:
             _log.warning("[recap_warm] calendar fetch failed for %s: %s", day, exc)

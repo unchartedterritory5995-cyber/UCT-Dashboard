@@ -92,11 +92,12 @@ from __future__ import annotations
 
 import logging
 
-# Resolved through the MODULE at call time, never `from ... import _fmp_get`.
-# A bound copy severs this module from the owner's guards AND from every test
-# stub -- that exact mistake sent a live request through an active provider
-# cooldown on 2026-08-06. See earnings_history_fmp for the full note.
-from api.services import earnings_estimates as _ee
+# TERM-072: FMP through the D1 adapter, resolved through the MODULE at call
+# time (`fmp_client.get_...`), never a name bound at import. A bound copy severs
+# this module from every test stub -- that exact mistake, on the legacy
+# `_fmp_get`, sent a live request through an active provider cooldown on
+# 2026-08-06 (see earnings_history_fmp for the full note).
+from api.services import fmp_client
 from api.services.cache import cache
 
 _log = logging.getLogger(__name__)
@@ -140,7 +141,7 @@ def _profile(sym: str):
         return None if hit == _SENTINEL else hit
 
     try:
-        rows = _ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=10)
+        rows = fmp_client.body_or_none(fmp_client.get_company_profile, sym, timeout=10)
     except Exception as exc:                           # noqa: BLE001
         _log.warning("FMP profile failed for %s: %s", sym, exc)
         rows = None
@@ -238,8 +239,8 @@ def earnings_growth_pct(ticker: str) -> float | None:
         return None
 
     try:
-        rows = _ee._fmp_get("/stable/income-statement",
-                            {"symbol": sym, "period": "quarter", "limit": _QUARTERS}, timeout=10)
+        rows = fmp_client.body_or_none(fmp_client.get_income_statement, sym,
+                                       period="quarter", limit=_QUARTERS, timeout=10)
     except Exception as exc:                       # noqa: BLE001 - never raise
         _log.warning("FMP income statement failed for %s: %s", sym, exc)
         rows = None

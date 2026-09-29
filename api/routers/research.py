@@ -14,6 +14,7 @@ from api.services.research.estimates import get_estimates
 from api.services.research.analyst_ratings import get_analyst_ratings
 from api.services.research.news import get_company_news
 from api.services.research.ownership import get_ownership
+from api.services import edgar_ownership
 from api.services.ticker_explain import explain_recent_activity
 from api.services.research.ratings import get_ratings
 from api.services.research.snapshot import get_snapshot
@@ -258,7 +259,14 @@ def research_analyst_ratings(sym: str):
 @router.get("/api/research/ownership/{sym}")
 def research_ownership(sym: str):
     try:
-        return get_ownership(sym)
+        result = get_ownership(sym)
+        # TERM-045, DARK: armed, the insider section is read from SEC EDGAR
+        # Form 4 (cache-only here; the SEC reads run on edgar_ownership's own
+        # worker). Unset, this branch is never entered and the response is
+        # exactly what get_ownership returned.
+        if edgar_ownership.is_enabled() and isinstance(result, dict) and result:
+            return edgar_ownership.overlay_insider(result, sym)
+        return result
     except Exception as exc:
         _logger.warning("research ownership failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "institutional": {"pct_held": None, "holders": []}, "short": {}, "insider": []}

@@ -349,6 +349,14 @@ def _fmp_get(path: str, params: dict, timeout: int = 10):
     """Fire a Financial Modeling Prep GET. Returns parsed JSON or None on
     failure.
 
+    ⛔ TERM-072 (2026-09-29): LEGACY, AND ITS CONSUMERS ARE RATCHETED. New code
+    calls a typed function in `fmp_client` (with `fmp_client.body_or_none` where
+    a caller depends on this function's "body, [] or None" contract). Every
+    remaining reach to this name is counted, per file and with its reason, in
+    `tools/fmp_helper_census.py` REMAINING; `tests/test_fmp_helper_census.py`
+    goes red BY NAME on a new one. The consumer list in the note below is
+    history -- the census is the authority, not this docstring.
+
     ⚠️ D1 NOTE (found while migrating this module's own 6 originally-scoped
     call sites onto `fmp_client`): this function is NOT private to
     earnings_estimates.py. A `financialmodelingprep.com` string grep would
@@ -719,11 +727,14 @@ def _year_earnings_from_fmp_income(ticker: str, year: int) -> list:
     under the wrong Q, duplicating a quarter and dropping another during exactly
     the gap-fill this function exists to perform.
     """
+    # TERM-072: through the D1 adapter. `body_or_none`, NOT `_fmp_rows`: the memo
+    # above stores `[]` ("FMP answered: nothing") but retries None, and
+    # `_fmp_rows` turns the empty answer into None -- a second request per year.
     rows = _raw_history(
         "fmp_is", ticker,
-        lambda n: _fmp_get("/stable/income-statement",
-                           {"symbol": ticker, "period": "quarter",
-                            "limit": min(int(n), 60)}, timeout=10))
+        lambda n: fmp_client.body_or_none(fmp_client.get_income_statement, ticker,
+                                          period="quarter", limit=min(int(n), 60),
+                                          timeout=10))
     if not isinstance(rows, list):
         return []
     out = []
