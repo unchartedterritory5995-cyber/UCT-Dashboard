@@ -76,6 +76,16 @@ export const DROP_KEYS = Object.freeze({
     'a setter whose target cannot be read — the object is drawn where/how it was, never kept past its deletion'),
   'update:props': C(LOSS.PARTIAL,
     'a setter whose value cannot be read — a stale position or style, not an extra object'),
+  // ⭐ 2026-09-28 (C8) — an object whose TEXT a lost setter wrote is withheld,
+  // never drawn with the text it was created with (an empty label where
+  // TradingView shows `####`). The create is `content:lost`; every step that
+  // would then act on the withheld object is `content:withheld`. Both are a
+  // MISSING object, never an extra one — a delete of an object that was never
+  // drawn leaves nothing on screen.
+  'content:lost': C(LOSS.PARTIAL,
+    'an object whose text a lost setter writes — withheld, never drawn with its creation text'),
+  'content:withheld': C(LOSS.PARTIAL,
+    'a step on an object withheld because its text was lost — it acts on nothing drawn'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
   'cell:address': C(LOSS.PARTIAL, 'a table cell write whose row/column cannot be read — a missing cell'),
   'cell:text': C(LOSS.PARTIAL,

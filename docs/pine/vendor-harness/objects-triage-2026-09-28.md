@@ -109,6 +109,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 7 | C19 `for … by <step>` carried as the loop's step | `7564906d3` | 15 / 47 | 173 / 252 | `heat-map-seasons` 5/7 → **7/7 MATCH** (cells 31/31 and their texts, with C4 + C5). Side effect, measured and kept: `sonarlab-order-blocks` (committed corpus, not in this batch) has `for … by 1` delete loops; they are READ now and their array-size bounds are not, so its loss moved from a reader-level block (no drop counted) to a counted `loop:bounds` drop — still refused at the member door, now as "a loop that deletes", and no longer (falsely) clean in the host lane. Three rails that pinned the old accounting were re-pointed, and the "lost before conversion" class kept a synthetic `while` fixture because no committed script shows it any more |
 | 8 | C16 `table.merge_cells` carried (reader → runtime → render state → DOM `colSpan`) | `554f78d85` | 16 / 47 | 175 / 252 | `momentum-volatility-scanner` 5/7 → **7/7 MATCH** (cells 12/12 — the covered (1,0) cell is held, empty, as the vendor holds it); `average-day-range-adr-pivots` cells 2 → 3 of 4 (its merged cell reads now; the missing cell is the one `cell:text` drop the census records — not traced further) |
 | 9 | C7 the object collector is batched (`cap + 5` → `cap`, sparing the bar and `var`-held objects) | `c5e63beea` | 19 / 47 | 180 / 252 | `makuchaku039s-…` 6/7 → **7/7 MATCH** (boxes 51/51), `ultimate-pivot-points` 4/7 → **7/7 MATCH** (lines 51/51, labels 51/51), `multi-timeframe-supply-demand-zones` 6/7 → **7/7 MATCH** (boxes 504/504) — all three id for id; `contraction-box` stays MATCH at 50; no other family moved. The 8 probe captures: 0/8 → 6/8 objects MATCH, 19/42 → 42/42 families (D is refused at the door) |
+| 10 | C8 `time_close`, `time_close("D")`, `timeframe.change("D"/"W"/"M")` as clock columns (`timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`; measured on the `vw-clock-close-tfchange` probe) | `dff023f59`, `445900da7`, `3fb5093f8` | 16 / 47 | 175 / 252 | `poor-man039s-volume-profile`'s 40 labels converted at `dff023f59` and were drawn with EMPTY text (their text is built in a `for` this chart cannot fold, C12; TradingView shows `####…`) — briefly 176/252 on a count that was drawn wrong. `3fb5093f8` withholds any object whose text a lost setter writes and refuses a block local the reassignment overrule condemned, so the labels are counted, not drawn: its sentence reads 240 of 246 (was 199). The same fix stops `artemis-oscillator-pro` drawing an empty cell (25 → 26 of 38) and `sonarlab-order-blocks` placing boxes at `bar_index[0]` (still refused, now `pine:no-output`). No C8 refusal remains in any of the five scripts' object programs; each now stops on another class: `liquidation-levels` C15 `str.format` (40 trees), `reverse-stochastic-momentum-index-on-chart` a text feature (14), `average-day-range-adr-pivots` C11/C13, `htf-candle-footprint-cartel-console` C12 (`startBar`, 48). Attach status unchanged for all 266 corpus scripts, both flag states |
 
 ### Where the lane stands
 
@@ -121,6 +122,46 @@ moved without flipping (`trend-duration-forecast-chartprime` 2 → 3 of 7,
 now holds 13 of its 45 cells (was 1). Every step is one commit with a focused
 test and a mutation proof; the 31 scripts still diverging are listed below by
 what would move them.
+
+## C8 — `time_close` and `timeframe.change`, read off the vendor
+
+Probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`, captured on
+AMEX:SPY at full history: 1D (8,473 bars) and 1W (1,758) in
+`tests/fixtures/vendor/harness/`, 60m RTH (20,616) outside git for size, with four
+windows committed as `tests/fixtures/vendor/clock-close-tfchange-spy-60-excerpt-2026-09-28.json`.
+
+| reading | rule | exceptions, counted |
+|---|---|---|
+| `time_close`, 1D | 16:00 New York on the bar's date — the session close, never the next open (`time_close - time` = 23400 s) | 13 of 8,473 read 13:00: the real early closes, every one from 2019-07-03 on. Not 2020-11-27, not 2020-12-24, none before 2019 — the vendor's own calendar is irregular |
+| `time_close`, 60m | the next 09:30-grid boundary, **clipped at 16:00** (the 15:30 bar reads 16:00, span 1800 s); the last bar likewise | 13 of 20,616: each early close's 12:30 bar reads 13:00 |
+| `time_close`, W | Friday 16:00 of the bar's week, the forming last week included | 52 of 1,758: 45 holiday weeks ending Thursday 16:00, 6 ending Friday 13:00, 1 ending Thursday 13:00 |
+| `time_close("D")` | 16:00 on the date the bar OPENED — on 1D, on every RTH bar of a 60m day, and on a weekly bar (the week's FIRST session) | early closes: 13 (1D), 52 (60m, every bar of those 13 days), 1 (W) |
+| `timeframe.change` "D"/"W"/"M" | this bar's New York day / ISO week / month differs from the previous bar's; false on bar 0 | none — 0 mismatches on all three charts, and equal on every bar to its control `ta.change(time(tf)) != 0`; "1W" reads as "W" |
+| forming last bar (K17) | the same template: the W capture's forming week read Friday 16:00 | — |
+
+**The early-close decision.** The clock lane holds no trading calendar, by design
+(*"a date set in this lane would be a second calendar authority in a second
+language"*), and the repo's calendar (`nyse_calendar.py`) covers 2025–2027, i.e. 3
+of the 13 days. So the lane answers the **regular-session template** and the
+mismatch is counted, not hidden, in `indicators.js::CLOCK_TIME_DERIVED` and in
+`clockCloseTfChange.vendor.test.js`, which asserts that every disagreeing bar is an
+early-close or holiday-week bar and every such bar disagrees. Refusing those bars
+was not available: nothing in the lane can tell which they are.
+
+**Translation.** `timeframe.change(tf)` → `isfirst ? 0 : <weekfirst|monthfirst|sessionfirst>`,
+not `col != 0`: the member pane translates before it knows the chart's timeframe,
+and the pane's weekly/monthly bars carry no clock (Q-T1), where `!= 0` read false on
+every bar (1,757 of 1,757 new-day bars). The `isfirst` form reads blank there and
+false on bar 0, which is the vendor's reading. ⚠️ The existing control idiom
+`ta.change(time("D")) != 0` still launders the same way on a weekly pane (K07 reads
+0 on all 1,757) — not changed here.
+
+**What the probe cannot grade through the member door.** K09–K11
+(`hour/minute/dayofweek(time_close)`: a computed timestamp as an argument) and
+K14/K15 (`time("W"/"M")`) refuse by their own named rules, which refuses the whole
+probe at the member door. They are checked off the columns in the focused test,
+and the harness was re-run on a scratch copy of the three captures with those five
+rows removed from the source.
 
 ## C7 — the vendor's garbage collection: measured by id, and IMPLEMENTED (2026-09-28)
 
@@ -244,7 +285,7 @@ red), the collect call dropped (9 red).
 | 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix |
 | 2 | C12 values or `var` state computed across a multi-statement block (`pine:block`, `pine:state`, `pine:reassign`) | atr-sr, market-structure, rsi-swing, position-size-calc, smc (secondary) (4–5) | per-bar state for block-assigned names; `market-structure` and `smc` also OVER-draw because a reset (`x := na` after a draw) is lost, so this is the class that removes wrong objects, not just missing ones |
 | 3 | C10 `request.security` in object text/coordinates | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the MTF data seam reaching the object lane |
-| 4 | C8 clock builtins: `time_close`, `timeframe.change` | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | a declared clock column each, measured against the vendor — `time_close` on a daily bar is the session close, not the next open, so a guessed `time + 1 day` would misplace every label drawn at it |
+| 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
 | 5 | C9 a history offset that is an expression (`x[bar_index - k]`) | artemis, extrapolated, smt-divergence (3) | deliberately refused by the columnar lane (`pine:offset-literal`); needs the runtime lane or a bounded dynamic-offset node |
 | ~~6~~ | ~~C7 vendor GC slack~~ | — | **done** (`c5e63beea`): all three MATCH id for id; see § C7 |
 | 7 | C13 drawing functions the inliner refuses (`in-expression`, `conditional-history`, `loop`) | OHLM, TSR (+ adr secondary) (2) | per-refusal work in `objectFnInline.js` |

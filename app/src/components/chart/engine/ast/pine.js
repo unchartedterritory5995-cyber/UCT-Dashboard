@@ -1409,20 +1409,21 @@ export const BUILTIN_TIMEFRAME_CALL = Object.freeze({
  *  a generic *"the engine grammar does not hold this"* about the name beside them
  *  teaches a reader to distrust every refusal in the file.
  *
- *  ⛔ `timeframe.change` IS NOT "NOT BUILT YET" — it is a PER-BAR EVENT. It is
- *  true on the first bar of each new period of the timeframe it is handed, so it
- *  is a column decided bar by bar rather than a value one binding settles. The
- *  three names that now resolve are all constant for a binding; this one is not,
- *  and folding it to either constant would be a confident wrong answer on every
- *  bar. */
+ *  ⭐⭐ (2026-09-28, C8) `timeframe.change` IS NOW SERVED FOR "D", "W" AND "M" —
+ *  a per-bar event decided by a CLOCK COLUMN (`sessionfirst`, `weekfirst`,
+ *  `monthfirst`), measured against the vendor with 0 mismatches on 1D, 60m and
+ *  W (`Resolver.clockCloseCallOf`). This entry is the sentence for every form
+ *  that is NOT: another period, a timeframe that does not fold to a literal, and
+ *  the screen door. Folding it to a constant would still answer the same thing
+ *  on every bar, which is the one answer it is never allowed to give. */
 export const BUILTIN_TIMEFRAME_RULED = Object.freeze({
   'timeframe.change': 'it is true on the FIRST BAR OF EACH NEW PERIOD, so it is decided '
-    + 'bar by bar rather than settled once for a binding — unlike its siblings '
-    + '`timeframe.period`, `timeframe.multiplier` and `timeframe.in_seconds`, which '
-    + 'this engine does hold. Serving it needs a CLOCK COLUMN for "is this the first '
-    + 'bar of a new <tf>", which the manifest does not declare; folding it to a '
-    + 'constant would answer the same thing on every bar, which is the one answer it '
-    + 'is never allowed to give.',
+    + 'bar by bar by a CLOCK COLUMN — and this engine holds one for "D", "W" and "M" '
+    + '(and their spellings "1D", "1W", "1M"), measured against TradingView, on a '
+    + 'CHART PANE. Any other period, a timeframe that does not fold to one of those, '
+    + 'and a screen (whose stored daily bars carry no clock) are not served; folding '
+    + 'it to a constant would answer the same thing on every bar, which is the one '
+    + 'answer it is never allowed to give.',
 })
 
 /** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
@@ -7895,6 +7896,14 @@ export class Resolver {
       const folded = this.timeframeCallOf(name, node)
       if (folded) return folded
     }
+    // ⭐⭐ `timeframe.change(<tf>)` AND `time_close(<tf>)` (2026-09-28, C8) — served
+    // for the forms the vendor was measured on, and REFUSED BY NAME for every
+    // other one, inside `clockCloseCallOf`. It yields to a user definition of
+    // the same name, like every carve-out in this file.
+    if ((name === 'timeframe.change' || name === 'time_close')
+        && !this.shadowedByDefinition(name)) {
+      return this.clockCloseCallOf(name, node)
+    }
     // ⛔ A RULED `timeframe.*` CALL GETS ITS RULING, not the namespace shrug —
     // `timeframe.change(tf)` reaches the door as a CALL, so the check in
     // `resolveName` above cannot see it.
@@ -8077,6 +8086,88 @@ export class Resolver {
     return secs === null ? null : cNum(secs)
   }
 
+  /** ⭐⭐ `timeframe.change(<tf>)` AND `time_close(<tf>)` — THE C8 CLOCK CALLS,
+   *  AS THE VENDOR WAS MEASURED ANSWERING THEM (2026-09-28). Returns a node, or
+   *  throws a refusal that names the form it could not take.
+   *
+   *  The readings: probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`
+   *  on AMEX:SPY at full history — `tests/fixtures/vendor/harness/vw-clock-close-
+   *  tfchange-spy-{1d,1w}-2026-09-28.json` (8,473 and 1,758 bars) and a 20,616-bar
+   *  60m capture kept outside git for size. The column meanings, and the counted
+   *  early-close / holiday mismatch of `time_close`, are
+   *  `indicators.js::CLOCK_TIME_DERIVED`'s.
+   *
+   *   `timeframe.change("D"|"W"|"M")` — equal, bar for bar on all three charts,
+   *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). It is
+   *     translated as `isfirst ? 0 : <first-of-period column>`: false on the
+   *     oldest bar exactly as the vendor reads it, and BLANK wherever the clock is
+   *     blank (the pane's date-keyed weekly/monthly bars, Q-T1) rather than a
+   *     confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
+   *     the same spellings (`PINE_TF_SPELLING`).
+   *     ⛔ CHART PANE ONLY. A screen evaluates stored daily bars whose `t` is a
+   *     `YYYYMMDD` int, so the clock is blank there, and the window-dependent
+   *     `isfirst` is refused by every screen consumer anyway; the refusal here
+   *     says so at the door instead of at save time.
+   *   `time_close("D")` — 16:00 New York on the date the bar opened (`dayclosetime`),
+   *     in milliseconds for a script that declares a `//@version`, exactly as
+   *     `time("D")` is; SECONDS for a versionless one, as `time("D")` is too.
+   *
+   *  ⛔ REFUSED BY NAME, because nothing measured them: any other period ("60",
+   *  "240", "3M", the chart's own `timeframe.period`, "" …), a timeframe that
+   *  does not fold to a literal, any second argument (`session`, `timezone`,
+   *  `bars_back`), and a named argument other than `timeframe`. */
+  clockCloseCallOf(name, node) {
+    const at = locate(node.tok)
+    const isChange = name === 'timeframe.change'
+    const guard = isChange ? 'pine:builtin' : 'pine:function'
+    const no = (why) => new PineRefusal(guard, isChange
+      ? `\`${name}\` is a Pine built-in this engine holds only in part: ${why}. `
+        + BUILTIN_TIMEFRAME_RULED[name]
+      : `${REFUSALS['pine:function']} — \`time_close(<timeframe>)\`: ${why}`, at)
+    const args = (node.args || []).filter(Boolean)
+    if (args.some((a) => a.name && a.name !== 'timeframe')) {
+      throw no(`the only argument read here is \`timeframe\`, and this call names \``
+        + `${args.find((a) => a.name && a.name !== 'timeframe').name}\``)
+    }
+    if (args.length !== 1) {
+      throw no(`it is measured with exactly one argument, the timeframe, and this call `
+        + `has ${args.length}`)
+    }
+    const raw = args[0].value !== undefined ? args[0].value : args[0]
+    const lit = this.timeframeLiteralOf(raw)
+    const code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+    if (isChange) {
+      const col = code === 'D' ? 'sessionfirst' : code === 'W' ? 'weekfirst'
+        : code === 'M' ? 'monthfirst' : null
+      if (col === null) {
+        throw no(lit === null
+          ? 'its timeframe does not fold to a literal this translation can read'
+          : `the period ${JSON.stringify(lit)} is not one of the three measured`)
+      }
+      if (!this.strict) throw no('this is a screen, not a chart pane')
+      // ⭐ FALSE ON THE OLDEST BAR, THE COLUMN EVERYWHERE ELSE — the vendor's
+      // reading, written so a BLANK clock stays blank. The member pane translates
+      // once, before it knows the chart's timeframe (`basePeriod` is `BASE_TF`
+      // there), so the translation cannot refuse a weekly chart; and on the
+      // pane's weekly/monthly bars — date-keyed and unread, Q-T1 — every clock
+      // column is blank. `col != 0` read that blank as false on every bar
+      // (measured: the W capture's 1,757 new-day bars all read 0 through the
+      // product's bar shape), a confident wrong answer; this reads blank there.
+      // ⚠️ `isfirst` makes the tree WINDOW-DEPENDENT (`_requirement_tags`), and
+      // that is TRUE of the vendor's own answer: bar 0 reads false because it is
+      // the first bar LOADED, whether or not it opened a period. A pane accepts it.
+      return cOp('?:', [clockLeaf('isfirst'), cNum(0), clockLeaf(col)])
+    }
+    if (code !== 'D') {
+      throw no(lit === null
+        ? 'its timeframe does not fold to a literal this translation can read'
+        : `only "D" (or "1D") is measured, and this asks for ${JSON.stringify(lit)}. `
+          + 'The bare `time_close` — this bar’s own close — does translate')
+    }
+    const leaf = clockLeaf('dayclosetime')
+    return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+  }
+
   /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR
    *  WAS MEASURED ANSWERING IT (2026-09-27/28). Returns a node, or throws a
    *  `pine:function` refusal that names the form it could not take.
@@ -8101,6 +8192,15 @@ export class Resolver {
    *      the default; a FIXED `"GMT-4"` is not (in on 215 EDT days, `na` on 85
    *      EST days of 300 — S11), and neither is `"GMT-5"` (S12, the mirror).
    *   4. `:1234567` / `:23456` filter by the day of week in the window's zone.
+   *
+   *  ⚰️ (Q-T1, 2026-09-28) "MATCHED ON 1D" WAS TRUE ONLY ON THE VENDOR'S OWN BARS.
+   *  `pineVocabularyWave.test.js` fed the capture's unix-second session opens;
+   *  the product serves a daily bar keyed by an ISO DATE, and every clock column
+   *  blanked on it, so at the member door this answered `na` on EVERY daily bar
+   *  (B08: 5,308 of 8,473 SPY bars wrong). Nothing here changed: the date is now
+   *  read as its session's opening instant where the clock is computed
+   *  (`indicators.js::barOpenInstant`), and `sessionClockDailyBars.test.js`
+   *  holds this door on the PRODUCT'S bar shape.
    *
    *  ⛔ WHAT STAYS REFUSED, each because no capture answers it: another
    *  timeframe than the chart's own; a weekly/monthly chart; an overnight or
@@ -10122,6 +10222,13 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
   // names "our clock does not declare... so this map could never be
   // consulted" for it. It can be now.
   timenow: 'lastbartime',
+  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END on the regular-
+  // session template (`indicators.js::CLOCK_TIME_DERIVED`, the `timeclose` note),
+  // measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
+  // it is also in `PINE_CLOCK_MISMATCH` and `PINE_CLOCK_TRANSFORM`, exactly as
+  // `time` is: milliseconds for a script that declares a `//@version`, refused by
+  // its unit for one that does not.
+  time_close: 'timeclose',
 })
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
@@ -10173,6 +10280,12 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
   time: 'in Pine a bar timestamp in MILLISECONDS since 1970, where this engine’s '
     + '`time` is SECONDS — a thousand-fold difference that would compare true '
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
+  // ⭐ (2026-09-28) `time_close` reaches `timeclose` under a different spelling
+  // AND a different unit — the unit is what this map is for.
+  time_close: 'in Pine the instant a bar closes in MILLISECONDS since 1970, where '
+    + 'this engine’s `timeclose` is SECONDS — a thousand-fold difference that would '
+    + 'compare true against no literal a member wrote, on every bar, without ever '
+    + 'looking wrong',
 })
 
 /** ⭐⭐ A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A SCRIPT SPEAKING PINE.
@@ -10202,6 +10315,8 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
  *  the refusal. */
 const PINE_CLOCK_TRANSFORM = Object.freeze({
   time: () => cOp('*', [cSeries('time'), cNum(1000)]),
+  // ⭐ (2026-09-28) exact for the same reason: `timeclose` is whole seconds.
+  time_close: () => cOp('*', [cSeries('timeclose'), cNum(1000)]),
 })
 
 /** The reconciliation decision, in ONE place because there are TWO doors.
@@ -13629,6 +13744,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
+      // ⛔⛔ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED STAYS CONDEMNED HERE.
+      // After the walk, every name with a `:=` the fold never consumed is forced
+      // opaque on `env` ("the binding the walk DID produce would be a lie about
+      // that name"). The per-statement record was taken BEFORE that overrule, so
+      // reading it here resurrected the lie: measured 2026-09-28 on
+      // `poor-man039s-volume-profile`, `row0_text = ""` then
+      // `for … row0_text := row0_text + "#"` drew its label with the text "" —
+      // TradingView draws `####…`. The overrule's verdict wins.
+      const top = env.get(b.name)
+      if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
+        scoped.set(b.name, top)
+        continue
+      }
       if (bound) { scoped.set(b.name, bound); continue }
       // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
       // widened what the collector records (typed declarations, `:=` targets),
@@ -13648,6 +13776,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 
   let ops = []
+  // ⭐⭐ OBJECTS WHOSE CONTENT WAS WRITTEN BY A STEP THIS CHART LOST (2026-09-28,
+  // owner rule: our chart draws exactly what TradingView draws and never draws
+  // something wrong). A `label.set_text` / `box.set_text` that could not be
+  // carried leaves the object showing whatever text it was created with — an
+  // empty label where TradingView shows `####` — so the OBJECT is withheld and
+  // counted, never drawn blank. This is the create-time rule one step later:
+  // a create whose content cannot be read is already dropped (`CONTENT`).
+  const contentLost = []
+  const contentLostBy = (op, target) => {
+    if (op.k !== 'update' || !target) return
+    const content = CONTENT[op.family]
+    if (content && (op.props || []).some((name) => content.has(name))) contentLost.push(target)
+  }
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
   // Clearing them first, every bar, is exactly what Pine does.
@@ -13664,6 +13805,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      if (op.k === 'update') contentLostBy(op, targetRef(op.target))
       dropped(`guard:${op.k}`)
       continue
     }
@@ -13763,7 +13905,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         if (!v) bad = true
         else props[name] = v
       })
-      if (bad || !Object.keys(props).length) { dropped('update:props'); continue }
+      if (bad || !Object.keys(props).length) {
+        contentLostBy(op, target)
+        dropped('update:props')
+        continue
+      }
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
@@ -13905,6 +14051,72 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   }
   convertList(collected.ops)
+
+  // ⭐⭐ WITHHOLD EVERY OBJECT WHOSE CONTENT A LOST STEP WROTE — see `contentLost`.
+  // The lost step names a handle (a register, a create site, a collection slot);
+  // the handle is followed through every register copy and collection write in
+  // BOTH directions to the creates that can put an object there, and those
+  // creates are removed and COUNTED (`content:lost`), so the member's sentence
+  // counts them among what this chart cannot draw. Every step that would then
+  // act on a withheld object is removed and counted too (`content:withheld`):
+  // it draws nothing, and leaving it in would count it as drawn.
+  // ⚠️ Deliberately handle-wide: `l.set_text` lost on a register withholds every
+  // object that register can hold, because nothing here can say which of them
+  // the lost step would have reached.
+  if (contentLost.length) {
+    const regs = new Set()
+    const sites = new Set()
+    const colls = new Set()
+    const mark = (r) => {
+      if (!r) return false
+      const set = r.r === 'reg' ? regs : r.r === 'site' ? sites : r.r === 'coll' ? colls : null
+      if (!set || set.has(r.id)) return false
+      set.add(r.id)
+      return true
+    }
+    const hit = (r) => !!r && ((r.r === 'reg' && regs.has(r.id))
+      || (r.r === 'site' && sites.has(r.id)) || (r.r === 'coll' && colls.has(r.id)))
+    for (const r of contentLost) mark(r)
+    const each = (list, fn) => {
+      for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
+    }
+    for (let changed = true; changed;) {
+      changed = false
+      each(ops, (o) => {
+        if (o.k === 'setreg' && o.value) {
+          if (regs.has(o.reg) && mark(o.value)) changed = true
+          if (hit(o.value) && mark({ r: 'reg', id: o.reg })) changed = true
+        }
+        if ((o.k === 'push' || o.k === 'collset') && o.value) {
+          if (colls.has(o.coll) && mark(o.value)) changed = true
+          if (hit(o.value) && mark({ r: 'coll', id: o.coll })) changed = true
+        }
+      })
+    }
+    const withheld = (o) => (o.k === 'create'
+      ? (o.into && regs.has(o.into)) || sites.has(o.site)
+      : ['update', 'delete'].includes(o.k) ? hit(o.target)
+        : (o.k === 'push' || o.k === 'collset') ? hit(o.value) : false)
+    const prune = (list) => {
+      const out = []
+      for (const o of list) {
+        if (o.k === 'loop') {
+          const body = prune(o.body)
+          if (!body.length) { dropped('loop:empty'); continue }
+          out.push({ ...o, body })
+          continue
+        }
+        if (withheld(o) && o.k === 'create') { dropped('content:lost'); continue }
+        if (withheld(o)) { dropped('content:withheld'); continue }
+        // A copy of a withheld handle is `na` — the object it names is not drawn.
+        if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
+        out.push(o)
+      }
+      return out
+    }
+    ops = prune(ops)
+    diagnostics.contentWithheld = { regs: regs.size, sites: sites.size, colls: colls.size }
+  }
 
   // ⭐ WHICH LOST REMOVALS COULD HAVE REMOVED SOMETHING DRAWN — read off the
   // families the conversion actually CARRIED a create for, loop bodies included.

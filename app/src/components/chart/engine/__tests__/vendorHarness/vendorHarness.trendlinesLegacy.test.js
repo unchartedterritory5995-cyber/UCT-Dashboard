@@ -71,18 +71,18 @@ describe('trendlines (v4) — the member door against the TradingView capture', 
     expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   }, 60000)
 
-  it('⚠️ KNOWN: the four displaced pivot plots diverge on colour only — ours null, vendor coloured', () => {
+  // ⚰️ WAS "⚠️ KNOWN: the four displaced pivot plots diverge on colour only —
+  // ours null, vendor coloured". Closed at integration (2026-09-28): the colour
+  // rulings (#250) resolve the pivot plots' colour the way the vendor does, so
+  // all four now MATCH with their colours compared, not skipped.
+  it('⭐ the four displaced pivot plots MATCH too, colour compared on every bar', () => {
     const v = grade()
     const pivots = v.plots.filter((p) => !MATCHING.includes(p.title))
     expect(pivots.length).toBe(4)
     for (const p of pivots) {
-      expect(p.verdict, p.title).toBe('DIVERGE')
-      // colour is the ONLY disagreement, and every compared colour disagrees
+      expect(p.verdict, `${p.title}: ${p.reason}`).toBe('MATCH')
       expect(p.stats.colorCompared, p.title).toBeGreaterThan(0)
-      expect(p.stats.colorMismatches, p.title).toBe(p.stats.colorCompared)
-      expect(p.stats.steady.first.kind, p.title).toBe('color')
-      expect(p.stats.steady.first.ourColor, p.title).toBe(null)
-      expect(typeof p.stats.steady.first.vendorColor, p.title).toBe('string')
+      expect(p.stats.colorMismatches, p.title).toBe(0)
     }
   }, 60000)
 })

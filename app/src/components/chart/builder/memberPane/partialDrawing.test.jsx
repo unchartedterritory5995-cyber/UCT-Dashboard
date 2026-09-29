@@ -50,8 +50,19 @@ const CASES = [
   { cls: 'plot-only', script: 'donchian-channels__5df15aaa23',
     objectsOnly: false, kind: 'clean', noObjects: true },
   // ── partial, nothing removed: drawn, disclosed ───────────────────────────
+  // ⚰️ 199 → 240 of 246, 2026-09-28 (C8). `time_close` became readable, so
+  // its 40 `var label.new(time_close, …, "")` creates and their `set_x`/`set_y`
+  // started converting — and every one of those labels would have been drawn
+  // BLANK: their text is written by `label.set_text(rowN_label, rowN_text)`,
+  // and `rowN_text` is built by `rowN_text := rowN_text + "#"` inside a `for`
+  // this chart cannot fold (TradingView shows `####…`). Owner rule: never draw
+  // something wrong. So an object whose text a lost setter writes is WITHHELD
+  // and counted (`content:lost` 40, `content:withheld` 40), and `row0_text` —
+  // which the object pass had been reading as its initial `""` past the
+  // reassignment overrule — is refused like the other 39. What is drawn is the
+  // two block lines; everything else is counted, never shown blank.
   { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
-    objectsOnly: true, kind: 'partial', text: partial(199, 246), also: '`line.set_xloc`' },
+    objectsOnly: true, kind: 'partial', text: partial(240, 246), also: '`line.set_xloc`' },
   // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost
@@ -70,7 +81,27 @@ const CASES = [
   // loss is now a counted `loop:bounds` drop whose body deletes. Same verdict
   // (refused), a truer phrase. The before-conversion class keeps its own
   // fixture below, because no committed script exhibits it any more.
-  { cls: 'removal lost: a loop that deletes, its bound unreadable', script: 'sonarlab-order-blocks__0df0d45ee6',
+  // ⚰️ 2026-09-28 (C8) — and sonarlab is no longer this row either. Its boxes
+  // are placed at `bar_index[last_green]`, where `last_green = 0` is reassigned
+  // inside a `for` the fold cannot read; the object pass used to read the
+  // initial `0` past the reassignment overrule and put every box on the wrong
+  // bar. The overrule now holds there too, no create converts, and the script
+  // is refused as drawing nothing this chart can place (`pine:no-output`). The
+  // class keeps a fixture shaped on sonarlab's own delete loop.
+  { cls: 'removal lost: a loop that deletes, its bound unreadable', script: '(fixture: sonarlab\'s delete loop)',
+    source: [
+      '//@version=5',
+      'indicator("loop deletes", overlay = true, max_boxes_count = 500)',
+      'var shortBoxes = array.new_box()',
+      'if close > open',
+      '    b = box.new(left=bar_index, top=high, bottom=low, right=bar_index + 1)',
+      '    array.push(shortBoxes, b)',
+      'for i = array.size(shortBoxes) - 1 to 0 by 1',
+      '    sbox = array.get(shortBoxes, i)',
+      '    if close > box.get_top(sbox)',
+      '        array.remove(shortBoxes, i)',
+      '        box.delete(sbox)',
+    ].join(String.fromCharCode(10)),
     objectsOnly: true, kind: 'refused', what: 'a loop that deletes' },
   { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: '(fixture: a `while` that deletes)',
     source: [
@@ -89,8 +120,12 @@ const CASES = [
   // array that `array.push` grows inside an `if` at line 471, and the host walk
   // folded it to its CREATION size, 0 — so the element built from it drew with a
   // number the script never has. It now refuses, and is counted, not drawn.
+  // ⚰️ 25 → 26, 2026-09-28 (C8). `bar_str = ""` is built by
+  // `bar_str := bar_str + …` in a loop the fold cannot read; the object pass
+  // read its initial `""` past the reassignment overrule and drew that cell
+  // EMPTY. It is now refused and counted (`cell:text`), never written blank.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(25, 38) },
+    objectsOnly: false, kind: 'partial', text: partial(26, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the

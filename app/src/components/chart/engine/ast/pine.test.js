@@ -726,10 +726,10 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // millisecond literal and answered false on every bar, forever, under a name
     // we had just claimed to support — and a thousand-fold error does not look
     // wrong on a chart. Spelling alone is not agreement.
-    // ⚠️ ONE NAME, because one name is all that can reach this arm. `timenow`,
-    // `time_close` and friends are not in our clock AT ALL, so they get the
-    // generic sentence — which is true — and a case for them here would have been
-    // asserting a message the code cannot produce.
+    // ⚠️ ONE NAME HERE, because one name was all that could reach this arm when
+    // it was written. (2026-09-28, C8) `time_close` now reaches it too — it binds
+    // to `timeclose` and has the same unit difference — and its twin of this
+    // pair of cases lives in `clockCloseTfChange.vendor.test.js`.
     // ⭐⭐ AND `time` HAS NOW MADE THE SAME JOURNEY THE LOOP ABOVE DID — from a
     // case asserting a refusal to a case asserting a resolution. The difference
     // is that this one is not a binding, it is a CONVERSION: our `clock.time`

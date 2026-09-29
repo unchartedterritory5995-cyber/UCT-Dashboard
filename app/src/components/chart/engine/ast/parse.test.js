@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 27 clock, 15 operators, 77 functions and 137 scalars — 261 names, one grammar', () => {
+  it('declares 5 series, 31 clock, 15 operators, 77 functions and 137 scalars — 265 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -478,7 +478,12 @@ describe('the manifest', () => {
     // ⭐ 26 -> 27 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
     // key turned into a value, the anchor for Pine's `time(<timeframe>)`
     // one-argument form when the timeframe folds to "D". Same `series` node.
-    expect(Object.keys(TABLE.clock)).toHaveLength(27)
+    // ⭐⭐ 27 -> 31 (2026-09-28, C8): `timeclose` (Pine's `time_close`),
+    // `dayclosetime` (`time_close("D")`), `weekfirst` and `monthfirst`
+    // (`timeframe.change("W"/"M")`; "D" is `sessionfirst`). Measured against the
+    // vendor on 1D / 60m / W. Same `series` node, no new `interpret` argument,
+    // so `tableVersion` is unmoved at 2.
+    expect(Object.keys(TABLE.clock)).toHaveLength(31)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -692,10 +697,13 @@ describe('the manifest', () => {
     // ⭐ 122 -> 123 IS `atrPine` (2026-09-27) -- see the functions-count note
     // above. Scalar half untouched at 137, which is what makes the total
     // 260, not 259.
-    // ⭐ 123 -> 124 IS `mfiPine` (2026-09-28) -- see the functions-count note above.
-    expect(bar.size).toBe(124)
+    // ⭐ 123 -> 128 IS `mfiPine` plus `timeclose`, `dayclosetime`, `weekfirst` and `monthfirst`
+    // (2026-09-28, C8) -- see the clock-count note above. Scalar half untouched
+    // at 137, which is what makes the total 265.
+    expect(bar.size).toBe(128)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(261)
+    expect(declared.size).toBe(265)
+    // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree
