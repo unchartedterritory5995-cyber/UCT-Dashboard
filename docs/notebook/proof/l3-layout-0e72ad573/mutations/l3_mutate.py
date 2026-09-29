@@ -23,13 +23,8 @@ MUTS = {
     # fix round 1
     "M5-calendar-touch-floor-removed": (NB / "NoteCalendarView.module.css",
                                         r"  \.chip \{<NL>    min-height: var\(--tap-min\);<NL>  \}<NL>", ""),
-    "M6-fab-clearance-removed": (NB / "NoteEditorPage.module.css",
-                                 r"  \.toolbarRow \{ padding-left: 60px; \}<NL>", ""),
-    "M7-fab-clearance-all-widths": (NB / "NoteEditorPage.module.css",
-                                    r"  \.toolbarRow \{ padding-left: 60px; \}<NL>(?P<rest>[\s\S]*)\Z",
-                                    r"\g<rest>.toolbarRow { padding-left: 60px; }<NL>"),
-    "M8-fab-moved": (APP / "src/pages/journal-2-0/JournalLayout.module.css",
-                     r"position: fixed;<NL>    left: 14px;", "position: fixed;<NL>    left: 20px;"),
+    # M6-M8 (the phone toolbar Log FAB clearance) were retired with that fix in fix round 2;
+    # their results stand in l3-r1-mutations.log.
 }
 
 
