@@ -44,7 +44,7 @@ import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
-import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+import { noDefaultAverages } from '../../__fixtures__/adoptedAverages'
 const legendAlways = (cs) => legendAlwaysBase(noDefaultAverages(cs))
 
 // `__tests__` → engine → chart → components → src → app → the repo root.

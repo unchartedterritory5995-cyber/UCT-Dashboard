@@ -242,8 +242,6 @@ describe('the row is a CONTROL DOOR — one reader, one writer', () => {
 })
 
 describe('patchFor — the hand-written path kinds, unchanged', () => {
-  const settings = mergeChartSettings(null)
-
   it('overlay and section rows still write through the patch shape they always did', () => {
     // ⚠️ AN UNADOPTED BLOB — the overlay path is what this pins, and a merged blob's
     // slots are all adopted (`maAdoption.js`), so it has no overlay row at all.

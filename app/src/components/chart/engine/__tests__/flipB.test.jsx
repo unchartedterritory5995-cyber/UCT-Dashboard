@@ -7,7 +7,7 @@ import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 import { stripComments } from './sourceScan'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
-import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+import { noDefaultAverages } from '../../__fixtures__/adoptedAverages'
 
 /** `StockChart.jsx`, resolved from the vitest root (`app/`). */
 const STOCK_CHART_PATH = resolve(process.cwd(), 'src/components/StockChart.jsx')

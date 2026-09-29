@@ -26,21 +26,12 @@ import crypto from 'node:crypto'
 import { normalizeInstances, validateInstance } from '../instances'
 import * as engineRegistry from '../nativeRegistry'
 import { planBindings, bindingKey } from '../pool'
-import { CHART_DEFAULTS, PRESETS, mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
+import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../../chartDefaults'
 import {
   findInstance, setInstanceHidden, setInstanceInput, removeInstance, addInstance,
   setIndicatorEnabled, setIndicatorInput, isIndicatorEnabled,
 } from '../instanceControls'
 import { newInstanceId } from '../instances'
-// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
-// This suite measures other things, so its blobs delete them unless they name `overlays`.
-import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
-// (No chart is rendered here, so the adopted averages are simply left out of the
-// instance list this suite enumerates.)
-const mergeChartSettings = (x) => {
-  const m = mergeChartSettingsReal(x)
-  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
-}
 
 describe('the premise: storage and binding are already per-INSTANCE', () => {
   const TWO_RSI = [
@@ -217,7 +208,7 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
   // walked through every registered definition with both per-definition doors.
   const corpus = () => {
     const bases = [CHART_DEFAULTS, ...Object.values(PRESETS).map(p => p.settings)]
-      .map(b => mergeChartSettingsReal(JSON.stringify(b)))
+      .map(b => mergeChartSettings(JSON.stringify(b)))
     const out = []
     for (const base of bases) {
       for (const def of engineRegistry.listDefinitions()) {

@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest'
 import { mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 // ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
 // This suite measures other things, so its blobs delete them unless they name `overlays`.
-import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+import { withoutAdopted } from '../../__fixtures__/adoptedAverages'
 // (No chart is rendered here, so the adopted averages are simply left out of the
 // instance list this suite enumerates.)
 const mergeChartSettings = (x) => {

@@ -190,7 +190,7 @@ const btn = {
 }
 
 function Harness() {
-  const [TF, setTF] = useState(TF0)
+  const [TF, setTFState] = useState(TF0)
   const [bars, setBars] = useState(null)
   const [barsErr, setBarsErr] = useState(null)
   const [cs, setCs] = useState(() => mergeChartSettings({}))
@@ -207,12 +207,15 @@ function Harness() {
     setLog((l) => [`${new Date().toISOString().slice(11, 23)}  ${s}`, ...l].slice(0, 220))
   }, [])
 
+  // A timeframe switch forgets the old bars first, so the chart never draws
+  // one timeframe's bars under another's label.
+  const setTF = useCallback((t) => { setBars(null); setBarsErr(null); setTFState(t) }, [])
+
   // Real bars off the running backend. No auth on /api/bars, and a failure here
   // is reported rather than silently substituted — a harness drawing fixture
   // data while claiming to be live is the failure mode this whole phase is about.
   useEffect(() => {
     let dead = false
-    setBars(null); setBarsErr(null)
     realFetch(`/api/bars/${SYM}?tf=${TF}&bars=${barsNFor(TF)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((j) => { if (!dead) setBars(Array.isArray(j.bars) ? j.bars : []) })
@@ -296,14 +299,14 @@ function Harness() {
     const [res] = securityResults([{ ticker, name, type, exchange: 'X', entity_id: 1 }],
       { tf: TF, bars: 400 })
     addCatalogue(res, ticker)
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   const addBreadth = useCallback((symbol, name) => {
     // The literal row shape `/api/breadth-symbols` returns.
     const [res] = breadthResults([{ symbol, name, group: 'ma', group_label: 'Moving averages' }],
       { tf: TF, bars: 400 })
     addCatalogue(res, symbol)
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   /**
    * A NAMESPACED Breadth Library row — universe × metric, signed, histogram.
@@ -327,7 +330,7 @@ function Harness() {
       domain: 'signed', presentation: 'histogram', legacy: false,
     }], { tf: TF, bars: 400 })
     addCatalogue(res, 'US:NETHL')
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   // ─── VOLUME-PANE RESIDENCY (2026-09-18) ───────────────────────────────────
   //
