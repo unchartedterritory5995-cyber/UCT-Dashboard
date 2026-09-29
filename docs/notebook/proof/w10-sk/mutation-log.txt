@@ -1,0 +1,35 @@
+# lane SK mutation log -- 2026-09-29T02:26:52-0500
+# HEAD e96c0e2d225f38f4ad00c63b4786d95dac0f5e5c
+# suite: tests/test_hub_sandbox_model_keys.py
+
+CONTROL (unmutated): rc=0 | 11 passed in 10.24s | failed=[]
+M1 blanking loop removed [rail a]: RED (killed) rc=1 | 3 failed, 8 passed in 12.35s
+    failed: ['test_a_blank_beats_a_setdefault_dotenv_loader', 'test_a_no_opt_in_blanks_every_model_key', 'test_a_the_derived_model_keys_are_all_blanked']
+    restored == HEAD blob: True
+M2 pop instead of blank [rail a]: RED (killed) rc=1 | 3 failed, 8 passed in 10.89s
+    failed: ['test_a_blank_beats_a_setdefault_dotenv_loader', 'test_a_no_opt_in_blanks_every_model_key', 'test_a_the_derived_model_keys_are_all_blanked']
+    restored == HEAD blob: True
+M3 policy not called by apply_sandbox_env [rail a]: RED (killed) rc=1 | 2 failed, 9 passed in 9.34s
+    failed: ['test_a_no_opt_in_blanks_every_model_key', 'test_a_policy_runs_before_the_app_is_imported']
+    restored == HEAD blob: True
+M4 opt-in ignored (always blanks) [rail b]: RED (killed) rc=1 | 3 failed, 8 passed in 9.77s
+    failed: ['test_a_the_boot_line_names_keys_never_values', 'test_b_env_var_opt_in_reaches_the_env', 'test_b_flag_opt_in_passes_values_through']
+    restored == HEAD blob: True
+M5 env opt-in accepts any non-empty value [rail b]: RED (killed) rc=1 | 1 failed, 10 passed in 9.30s
+    failed: ['test_b_env_var_opt_in_is_exact']
+    restored == HEAD blob: True
+M6 PERPLEXITY_API_KEY dropped from the model list [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.05s
+    failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_classification_equals_the_derived_read_set']
+    restored == HEAD blob: True
+M7 OPENAI_API_KEY reclassified NON-model [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.50s
+    failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_no_provider_key_is_classified_non_model']
+    restored == HEAD blob: True
+M8 a new provider key read in api/ (XAI_API_KEY) [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.72s
+    failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_classification_equals_the_derived_read_set']
+    restored == HEAD blob: True
+M9 phantom classified name with no read site [rail c]: RED (killed) rc=1 | 1 failed, 10 passed in 8.99s
+    failed: ['test_c_classification_equals_the_derived_read_set']
+    restored == HEAD blob: True
+CONTROL (after restore): rc=0 | 11 passed in 11.57s | failed=[]
+
+VERDICT: 9/9 mutations killed; controls green; PASS
