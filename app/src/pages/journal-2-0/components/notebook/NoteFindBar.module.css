@@ -105,8 +105,15 @@
   .navBtn, .closeBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
   .textBtn { min-height: var(--tap-min, 44px); min-width: var(--tap-min, 44px); }
   .rowIndent { width: var(--tap-min, 44px); }
-  /* 16px so iOS does not zoom the page when a field takes focus. */
-  .input { font-size: 16px; }
+  /* 16px so iOS does not zoom the page when a field takes focus. Wave 10 lane
+     WK (proof walk wk-7bd834b9f, clause 6c): every OTHER control in this bar
+     (.navBtn/.closeBtn/.textBtn) already floors to --tap-min at this tier --
+     the find input itself was the one left out, measured 248x18 / 195x18 at
+     390/820 (geometry sweep, tag INPUT, aria-label "Find in note"). min-height
+     alone (never a fixed height) keeps the type-to-search caret vertically
+     centered without constraining its width, which the phone query below
+     still owns (`.input { width: 100% }`). */
+  .input { font-size: 16px; min-height: var(--tap-min, 44px); }
 }
 @media (max-width: 640px) {
   .bar { width: 100%; margin-left: 0; }
