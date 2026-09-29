@@ -56,6 +56,11 @@ export const OBJECT_STATUS = Object.freeze({
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+/** Pine's own ceiling on an array's length (the reference: "the maximum size of
+ *  an array is 100,000"). A collection that would pass it stops the run, as
+ *  Pine's runtime error stops the script. */
+export const PINE_ARRAY_MAX = 100000
+
 /** The most addresses one `table.merge_cells` may span — Pine's own table is at
  *  most 100 × 100 and anything larger is an argument that was never a size. */
 const MAX_MERGE_AREA = 10000
@@ -257,10 +262,12 @@ export function beginObjects(program, ctx) {
    *   · it leaves `live`, so nothing renders it
    *   · its table cells go with it
    *   · its family's slot is returned
-   *   · ⛔ AND IT LEAVES EVERY CONTAINER THAT NAMED IT. A register or collection
-   *     still holding the id is a handle to nothing, and the next write against
-   *     it lands nowhere without a word — the "why did my update stop working"
-   *     bug. That rule predates eviction; eviction now owes it too.
+   *   · ⛔ AND IT LEAVES EVERY REGISTER THAT NAMED IT. A register still holding
+   *     the id is a handle to nothing, and the next write against it lands
+   *     nowhere without a word — the "why did my update stop working" bug.
+   *     That rule predates eviction; eviction now owes it too.
+   *   · ⭐ A COLLECTION IS THE EXCEPTION, BY PINE'S RULE (C16): an `array<box>`
+   *     keeps a deleted box's slot — see the note in the body.
    *
    * ⚠️ A SECOND COPY OF THIS IS THE DEFECT IT PREVENTS. Two teardown paths drift
    * the first time either is touched, and the half that forgets a container
@@ -338,10 +345,16 @@ export function beginObjects(program, ctx) {
     cells.delete(inst.id)
     counts[inst.family] -= 1
     for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
-    for (const [cid, arr] of colls) {
-      const at = arr.indexOf(inst.id)
-      if (at >= 0) arr.splice(at, 1)
-    }
+    // ⭐⭐ C16 (2026-09-29) — A COLLECTION KEEPS THE HANDLE. Pine's
+    // `box.delete(b)` (and its collector) ends the OBJECT and leaves every
+    // `array<box>` exactly as it was: `array.size` is unchanged and the slot
+    // still holds the — now dead — handle, which is why the corpus writes
+    // `box.delete(array.shift(boxes))` and `box.delete(b)` + `array.remove(bs, i)`
+    // as PAIRS. ⚰️ This used to splice the id out of every collection, so a
+    // delete followed by the script's own `array.remove(bs, i)` removed TWO
+    // elements, and `array.size` read one short of TradingView's for every
+    // object deleted but not yet removed. A write through a dead slot is the
+    // counted no-op every op already makes of a dead id (`writesToDeleted`).
     // ⭐ A fill leaves the index and takes nothing with it; a LINE takes every
     // fill that named it. The recursion is one level deep by construction — the
     // branch above returns before it can nest.
@@ -1081,9 +1094,25 @@ export function beginObjects(program, ctx) {
         case 'push': {
           const arr = colls.get(op.coll)
           const inst = resolveRef(op.value)
-          if (!arr || inst === null) break
-          if (arr.length >= collCap.get(op.coll)) {
+          if (!arr) break
+          // ⭐⭐ C16 — `array.push(bs, b)` with `b` `na` STILL PUSHES, in Pine: the
+          // array grows by one `na` slot. ⚰️ This used to skip it, so every later
+          // `array.size` and index read disagreed with TradingView by one per
+          // `na` ever pushed. The slot is `null` here; a write through it is the
+          // counted no-op any dead handle is.
+          // ⛔ THE CAP COUNTS LIVE OBJECTS, and only once the array is that long:
+          // a dead or `na` slot holds no object (C16 keeps deleted handles in
+          // their arrays, above), and counting them would refuse a script whose
+          // drawing never holds more than a handful of boxes at a time.
+          if (arr.length >= collCap.get(op.coll)
+            && arr.filter((id) => id !== null && live.has(id)).length >= collCap.get(op.coll)) {
             fail(`collection ${op.coll} exceeded its cap of ${collCap.get(op.coll)} (bar ${bar})`)
+            break
+          }
+          // ⛔ PINE'S OWN CEILING ON AN ARRAY'S LENGTH — past it Pine stops the
+          // script with a runtime error, so this stops too rather than growing.
+          if (arr.length >= PINE_ARRAY_MAX) {
+            fail(`collection ${op.coll} exceeded Pine's array size of ${PINE_ARRAY_MAX} (bar ${bar})`)
             break
           }
           arr.push(inst)
@@ -1093,7 +1122,8 @@ export function beginObjects(program, ctx) {
           const arr = colls.get(op.coll)
           const i = Number(value(op.index))
           const inst = resolveRef(op.value)
-          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length && inst !== null) arr[i] = inst
+          // ⭐ C16 — `array.set(bs, i, na)` stores `na`, exactly as `push` above.
+          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) arr[i] = inst
           break
         }
         case 'collremove': {
