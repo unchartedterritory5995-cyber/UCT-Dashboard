@@ -15875,6 +15875,13 @@ function translatePineResult(source, opts = {}) {
           env.set(nameTok.value, stateBinding(
             parseWholeExpression(toks.slice(eq + 1)),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
+          // ⭐⭐ C11b — THE DECLARATION IS RECORDED, so a drawing that reads the
+          // `var` BEFORE this bar reassigns it reads the value it carried in —
+          // not the bar's FINAL value, which is what `env` holds once the walk
+          // ends. Measured before this: `var float prev = 0.0` / `if c` /
+          // `label.new(bar_index, prev, …)` / `prev := close` drew each label at
+          // THIS bar's close, where Pine draws the previous one.
+          recordTop(stmt, nameTok.value)
           continue
         } catch (err) {
           const r = fromError(err)

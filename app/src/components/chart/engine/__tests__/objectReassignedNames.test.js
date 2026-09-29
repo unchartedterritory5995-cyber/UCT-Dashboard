@@ -114,6 +114,61 @@ describe('⭐⭐ C11b — a reassignment is what a drawing after it reads', () =
     for (const l of labels) expect(l.props.y, `bar ${l.createdBar}`).toBe(BARS[l.createdBar].h)
   })
 
+  it('⛔⛔ an `if` condition is read where its `if` stands, not after the block reassigns it', () => {
+    // camarilla's shape: `if hh <= high` then `hh := high` inside it. Pine
+    // evaluates the condition once, with hh as it was; reading it after the
+    // block's own reassignment made it `high <= high` — true on every bar.
+    // Pine by hand: hh = the previous bar's high (the value BEFORE the block).
+    const pine = BARS.map((b, i) => (i > 0 && BARS[i - 1].h <= b.h ? i : -1)).filter((i) => i >= 0)
+    expect(pine.length).toBeGreaterThan(0)
+    expect(pine.length, 'a condition that is always true proves nothing').toBeLessThan(N - 1)
+    const { diag, labels } = run(['hh = high[1]', 'if hh <= high', '    hh := high',
+      '    label.new(bar_index, hh, "H")'].join('\n') + '\n')
+    expect(diag.dropReasons || {}).toEqual({})
+    expect(labels.map((l) => l.createdBar)).toEqual(pine)
+    for (const l of labels) expect(l.props.y, `bar ${l.createdBar}`).toBe(BARS[l.createdBar].h)
+  })
+
+  it('⛔ an `else` arm reads the value from BEFORE the chain, not the `if` arm\'s', () => {
+    // Pine: on an up bar the `if` arm runs; otherwise the `else` arm runs with
+    // x as declared (1) — its own `x := 3.0` comes AFTER the label — so the
+    // down-bar labels read "1", never "2" (the `if` arm's) or "3" (the chain's
+    // value once the `else` has finished).
+    const { labels } = run(['x = 1.0', 'if close > open', '    x := 2.0', 'else',
+      '    label.new(bar_index, high, str.tostring(x))', '    x := 3.0'].join('\n') + '\n')
+    const downBars = BARS.map((b, i) => (b.c > b.o ? -1 : i)).filter((i) => i >= 0)
+    expect(labels.map((l) => l.createdBar)).toEqual(downBars)
+    expect(new Set(labels.map((l) => l.props.text))).toEqual(new Set(['1']))
+  })
+
+  it('⛔⛔ a `var` read BEFORE this bar reassigns it is the value it carried in, not the bar\'s final one', () => {
+    // Pine: `prev` on an up bar is the close of the PREVIOUS up bar; the label
+    // is drawn before `prev := close` runs. Past the state warm-up (250 bars,
+    // PINE_STATE_WARMUP) every label must sit at that previous close — before
+    // this change each sat at its OWN bar's close. Needs a long series.
+    const M = 400
+    const bars = Array.from({ length: M }, (_, i) => {
+      const base = 100 + 12 * Math.sin(i / 7) + 5 * Math.sin(i / 2.3)
+      const o = base + 2 * Math.sin(i * 1.7)
+      const c = base + 2 * Math.cos(i * 1.3)
+      return { t: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), o, h: Math.max(o, c) + 1, l: Math.min(o, c) - 1, c, v: 1e6 }
+    })
+    const d = memberPaneDefinition({
+      source: HEAD + ['var float prev = 0.0', 'if close > open', '    label.new(bar_index, prev, "p")',
+        '    prev := close'].join('\n') + '\n',
+      id: 'u_c11b_varprev', name: 'c11b',
+    })
+    expect(d.ok, d.reason).toBe(true)
+    const reader = objectReaderFor(d.definition, bars, { tf: 'D', symbol: 'TEST' })
+    const r = evaluateObjects(reader.program, { barCount: M, readNode: reader.readNode, readTime: (i) => bars[i].t })
+    const pine = new Map()
+    let prev = 0
+    bars.forEach((b, i) => { if (b.c > b.o) { pine.set(i, prev); prev = b.c } })
+    const drawn = r.live.filter((l) => l.family === 'label' && Number.isFinite(l.props.y))
+    expect(drawn.length, 'past the warm-up the labels must be drawn at all').toBeGreaterThan(20)
+    for (const l of drawn) expect(l.props.y, `bar ${l.createdBar}`).toBe(pine.get(l.createdBar))
+  })
+
   it('⭐ a read BEFORE the reassignment still sees the value before it', () => {
     // Pine: the first label is captioned with x as declared, the second after `:=`.
     const { labels } = run(['x = 1.0', 'if close > open',
