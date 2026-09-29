@@ -351,6 +351,10 @@ GATE_READ_PATHS = (
     "tools/vendor_harness/schema.mjs",
     "tools/vendor_harness/tv_capture.js",
     "tools/vendor_harness/verify_capture.mjs",
+    # ⛔ READ BY app/src/lib/persistence/persistenceManifest.test.js, which IMPORTS the census
+    # functions from this file and pins the persistence manifest to them -- a change here CAN
+    # change a suite result. Found missing by the read-set rail on master 2026-09-29.
+    "tools/persistence_census.mjs",
     # ⛔ READ BY app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js (wave 10,
     # lane 10C): the write-door census classifies every note door as loss / fork / none and
     # CITES its evidence -- it statSync()s each cited file and readFileSync()s the Python
