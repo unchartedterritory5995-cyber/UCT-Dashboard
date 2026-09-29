@@ -138,10 +138,13 @@ def room_lane(sym: str, since: date) -> list[dict]:
 
     start = int(datetime.combine(since, datetime.min.time(), tzinfo=ET).timestamp())
     per_day: dict[str, int] = {}
-    with contextlib.closing(buzz_store.connect()) as c:
-        for (ts,) in c.execute("SELECT ts FROM mentions WHERE ticker = ? AND ts >= ?", (sym, start)):
-            d = datetime.fromtimestamp(int(ts), ET).date().isoformat()
-            per_day[d] = per_day.get(d, 0) + 1
+    # buzz_store.connect() is the PROCESS-WIDE shared connection (the ingest poller, /buzz
+    # and the scheduled boards all use it). Never close it: closing it here took every
+    # buzz read and write on the pod down after the first History request (2026-09-29).
+    c = buzz_store.connect()
+    for (ts,) in c.execute("SELECT ts FROM mentions WHERE ticker = ? AND ts >= ?", (sym, start)):
+        d = datetime.fromtimestamp(int(ts), ET).date().isoformat()
+        per_day[d] = per_day.get(d, 0) + 1
     return [{"date": d, "lane": "room", "mentions": n,
              "text": f"Mentioned {n} time{'s' if n != 1 else ''} in the community room",
              "source": "buzz_mentions", "as_of": d, "ref": f"buzz_mentions#{sym}@{d}"}

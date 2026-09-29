@@ -124,3 +124,15 @@ def test_the_auth_payload_carries_the_flag(monkeypatch):
     assert auth._ticker_history_enabled() is False
     monkeypatch.setenv(th.ENABLED_ENV, "1")
     assert auth._ticker_history_enabled() is True
+
+
+def test_history_never_closes_the_shared_buzz_connection(stores):
+    """buzz_store.connect() is the pod's ONE shared connection: the ingest poller, /buzz
+    and the scheduled boards all read and write through it. 2026-09-29 the room lane
+    closed it, so after the first History request every buzz call on the pod raised."""
+    from api.services import buzz_store
+
+    th.history("NVDA", days=30)
+    th.history("NVDA", days=90)                      # the second call is what failed live
+    assert th.history("NVDA", days=30)["lanes"]["room"]["status"] == "ok"
+    buzz_store.connect().execute("SELECT 1").fetchone()   # raises on a closed connection
