@@ -38,7 +38,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from api.services.cache import cache
 from api.bars_auth import require_bars_access
-from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
 
@@ -1075,7 +1075,22 @@ def get_breadth_live(force: bool = False,
     put/call print, UCT exposure), taken verbatim from the newest stored row
     and stamped with that row's date. Keeping them in a separate bag is the
     point — a carried-forward number must never read as a live one.
+
+    ⛔ READ-ONLY. A member request never writes Breadth state (owner ruling 2026-09-29): the
+    intraday path and the V1 daily-OHLC accumulation are written ONLY by the per-minute
+    scheduler tick (`sample_live_for_scheduler`), which is their one owner.
     """
+    return _live_payload(force=force, persist=False)
+
+
+def sample_live_for_scheduler() -> dict:
+    """The ONE writer of the intraday session path + V1 live OHLC (scheduler-owned, web pod).
+    Non-canonical by construction: under BREADTH_AUTHORITY=v2 nothing it writes is served as a
+    V2 value (the authority seam owns every session from 2026-03-23)."""
+    return _live_payload(force=False, persist=True)
+
+
+def _live_payload(force: bool, persist: bool) -> dict:
     from api.services import breadth_live as live
 
     try:
@@ -1115,7 +1130,7 @@ def get_breadth_live(force: bool = False,
     # basis, so the line cannot step when coverage drifts mid-session.
     try:
         from api.services import breadth_intraday
-        if (payload.get("session_live") and payload.get("anchored")
+        if (persist and payload.get("session_live") and payload.get("anchored")
                 and not payload.get("degraded") and not payload["superseded"]):
             breadth_intraday.record(payload["session_date"], payload["row"])
             # Roll today's permanent per-metric OHLC (open/high/low/close) from this
@@ -1210,6 +1225,16 @@ def breadth_eod_source_status(limit: int = Query(default=60, ge=1, le=400),
     return {**eod.status(), "parity": eod.parity_report(limit)}
 
 
+@router.get("/api/admin/breadth-eod-source")
+def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400),
+                                    _user: dict = Depends(require_admin)):
+    """TERM-042: the same read as `/api/breadth-monitor/eod-source`, for a signed-in
+    ADMIN session instead of the worker's PUSH_SECRET bearer, so the parity report
+    can be read without handing the worker credential to a person. Read-only."""
+    from api.services import breadth_eod_source as eod
+    return {**eod.status(), "parity": eod.parity_report(limit)}
+
+
 @router.get("/api/breadth-monitor/live/dividends")
 def breadth_dividends_status(_user: dict = Depends(require_paid)):
     """What the dividend store holds, and whether the last sweep truncated.
@@ -1240,6 +1265,21 @@ def breadth_dividends_refresh(request: Request, background: bool = True):
     threading.Thread(target=bdiv.refresh, name="breadth-dividends-refresh",
                      daemon=True).start()
     return {"started": True, **bdiv.health()}
+
+
+@router.get("/api/breadth-monitor/pit-export")
+def breadth_pit_export(since: str = "2026-01-01", _auth: None = Depends(require_push_secret)):
+    """The collector's stored UCT lists, read-only, for the V2 producer's PIT provenance gate.
+    PUSH_SECRET-gated (a service credential, never a member) — a named Depends, so the auth
+    census can see it."""
+    return {"ok": True, "since": since, "sessions": svc.pit_export(since)}
+
+
+@router.get("/api/breadth-monitor/authority")
+def breadth_authority_status(_auth: None = Depends(require_push_secret)):
+    """Which methodology owns which UCT session right now (read-only). PUSH_SECRET-gated."""
+    from api.services import breadth_authority as ba
+    return ba.status()
 
 
 @router.get("/api/breadth-monitor/live/store")

@@ -4847,6 +4847,17 @@ async def lifespan(app: FastAPI):
         print("[startup] breadth-ohlc R2 puller started (gap-fill, "
               f"{int(os.environ.get('BREADTH_OHLC_PULL_SECS', '600')) // 60}-min cadence)")
 
+    # ⭐ BREADTH V2 AUTHORITY replicas (breadth_authority): install the frozen V2c2 artifact as a
+    # verified 0444 read-only replica from the R2 freeze archive, then poll the dedicated
+    # producer's manifest for VALIDATED live sessions. A CACHE of authoritative data, never a
+    # writer of it; serving only consults it when BREADTH_AUTHORITY=v2. Default OFF.
+    if os.environ.get("BREADTH_V2_SYNC_ENABLED") == "1":
+        from api.services import breadth_authority as _breadth_authority
+        threading.Thread(target=_breadth_authority.sync_loop,
+                         kwargs={"interval": int(os.environ.get("BREADTH_V2_SYNC_SECS", "600"))},
+                         daemon=True, name="breadth_v2_sync").start()
+        print("[startup] breadth V2 authority replica sync started")
+
     # Historical breadth-sentiment seed: load the versioned public-archive CSV
     # (AAII/put-call/CNN F&G/NAAIM back to 1987) into breadth_sentiment_history so
     # the Monitor's reconstructed pre-2026 rows carry the sentiment block. Cheap,
@@ -6062,8 +6073,8 @@ async def lifespan(app: FastAPI):
         try:
             def _breadth_live_sample():
                 try:
-                    from api.routers.breadth_monitor import get_breadth_live
-                    get_breadth_live()
+                    from api.routers.breadth_monitor import sample_live_for_scheduler
+                    sample_live_for_scheduler()
                 except Exception as _e:
                     logging.getLogger(__name__).debug(
                         "[breadth-live] sample tick skipped: %s", _e)
@@ -9001,6 +9012,8 @@ app.include_router(research_router.router, dependencies=_OPEN_READS)
 # TERM-049: the per-ticker history join (Research > History), dark behind TICKER_HISTORY_ENABLED.
 from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
+from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
+app.include_router(address_space_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)

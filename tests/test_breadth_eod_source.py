@@ -412,3 +412,31 @@ def test_the_status_route_needs_the_push_secret(env, monkeypatch):
     r = c.get("/api/breadth-monitor/eod-source", headers={"Authorization": "Bearer s3cret"})
     assert r.status_code == 200 and r.json()["mode"] == "collector"
     assert r.json()["parity"]["sessions_graded"] == 0
+
+
+def test_the_admin_status_route_serves_admins_only(env, monkeypatch):
+    """The admin twin of the status route: an admin SESSION reads the parity report;
+    a member, or nobody, is refused. It never accepts the worker bearer instead."""
+    from fastapi import FastAPI, HTTPException
+    from fastapi.testclient import TestClient
+    from api.routers import breadth_monitor as router
+    from api.middleware import auth_middleware
+
+    app = FastAPI()
+    app.include_router(router.router)
+    who = {"user": None}
+
+    def fake_user():
+        if who["user"] is None:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        return who["user"]
+
+    app.dependency_overrides[auth_middleware.get_current_user] = fake_user
+    c = TestClient(app)
+    assert c.get("/api/admin/breadth-eod-source").status_code == 401
+    who["user"] = {"id": "m", "role": "member"}
+    assert c.get("/api/admin/breadth-eod-source").status_code == 403
+    who["user"] = {"id": "a", "role": "admin"}
+    r = c.get("/api/admin/breadth-eod-source")
+    assert r.status_code == 200 and r.json()["mode"] == "collector"
+    assert "parity" in r.json()
