@@ -31,7 +31,10 @@ const LIST_LIMIT = 50
 
 /** Member-facing names for the board's stored keys (`WORKSPACE_PREF_KEYS`).
  *  A key missing here is shown by its raw name rather than hidden. */
-const KEY_LABELS = {
+// Member-facing names for the board's persisted keys. The WORDS are written here; the
+// KEY SET is not ours to choose -- `VersionHistory.keyLabels.test.js` holds it equal to
+// `WORKSPACE_PREF_KEYS` in api/services/workspace_doc_store.py, both directions.
+export const KEY_LABELS = {
   charts_workspace_layout: 'Board layout',
   charts_workspace_groups: 'Linked symbols',
   chart_settings: 'Chart settings',
