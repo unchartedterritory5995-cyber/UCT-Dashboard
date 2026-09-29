@@ -344,6 +344,13 @@ function assertTextNode(v, where, depth = 0) {
         throw new Error(`${where}: a text value must reference a tree or a graph node`)
       }
       return
+    // ⭐ A SYMBOL'S TEXT (`syminfo.ticker` …), settled per BINDING by
+    // `bindObjectProgram`'s `symbolText` — see there. Unsettled, it is withheld.
+    case 'sym':
+      if (typeof v.name !== 'string' || !/^syminfo\.[a-z]+$/.test(v.name)) {
+        throw new Error(`${where}: a symbol text must name a syminfo field`)
+      }
+      return
     case 'cat':
       if (!Array.isArray(v.args) || !v.args.length) throw new Error(`${where}: a concatenation needs parts`)
       v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1))
@@ -910,9 +917,17 @@ export function paramsReferenced(program) {
  * @param {object} program                the unbound program
  * @param {(treeIndex:number)=>number} nodeOf  tree index → graph node index
  */
-export function bindObjectProgram(program, nodeOf) {
+export function bindObjectProgram(program, nodeOf, symbolText = null) {
   const bindText = (t) => {
     if (!isObj(t)) return t
+    // ⭐⭐ C15 — `{t:'sym'}` SETTLES HERE, per binding, when the caller hands the
+    // binding's text constants (`objectReaderFor`: the same map the bind-time
+    // fold reads). ⛔ A field the map does not hold as TEXT stays a `sym` node,
+    // which the runtime withholds — never a guessed spelling.
+    if (t.t === 'sym') {
+      const s = symbolText && Object.prototype.hasOwnProperty.call(symbolText, t.name) ? symbolText[t.name] : undefined
+      return typeof s === 'string' ? { t: 'lit', s } : t
+    }
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }

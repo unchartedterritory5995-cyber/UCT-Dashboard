@@ -557,6 +557,12 @@ export function beginObjects(program, ctx) {
           const v = readNode(t.node, bar, loopVars)
           return typeof v === 'string' ? v : ''
         }
+        // ⭐ A SYMBOL'S TEXT the binding could not settle (`bindObjectProgram`
+        // replaces a settled one with a literal before it gets here) — withheld,
+        // because the only honest spellings are the ones the binding holds.
+        case 'sym':
+          textsWithheld += 1
+          return null
         // ⛔ ONE WITHHELD PART WITHHOLDS THE WHOLE TEXT — "+5x: " with its number
         // missing is a different text from the vendor's, not a shorter one.
         case 'cat': {

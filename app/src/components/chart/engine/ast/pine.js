@@ -13126,6 +13126,132 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return parts.length === 1 ? parts[0] : { t: 'cat', args: parts }
   }
 
+  /**
+   * ⛔⛔ C15 — A TEXT WHOSE BRANCH HANGS ON HOW `timeframe.period` IS SPELLED, in a
+   * `//@version=6` script, is WITHHELD rather than drawn.
+   *
+   * MEASURED on `ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28` (v6, 1D):
+   * `f_mtfMark("D")` is `timeframe.period == "D" ? "► " : "   "` and TradingView
+   * drew `"   1D"` — so on a v6 daily chart the period is NOT `"D"` — and
+   * `f_tfLabel()`'s default arm (`=> timeframe.period`) drew `"1D"`. This engine
+   * answers `"D"` for every version (`basePeriodOf`), so it drew `"► 1D"`: a
+   * text the vendor does not show. The spelling is one value read by the columnar
+   * resolver, the runtime lane and the request router alike, so changing it is not
+   * an object-text change and is not made here (objects-triage step 13 names it).
+   * What IS made here: a text whose choice FLIPS between the two spellings
+   * (`== "D"`, `!= "1W"`, …) is refused, so the wrong branch is never drawn. A
+   * comparison both spellings answer alike (`== "15"`) is untouched.
+   */
+  const V6_PERIOD_SPELLINGS = new Set(['D', '1D', 'W', '1W', 'M', '1M'])
+  const periodSpellingDecides = (test, inline, env) => {
+    if (!test) return false
+    let version = null
+    try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+    if (!(version >= 6)) return false
+    const framed = inline ? substituteFrame(test, inline) : test
+    const textOf = (n) => {
+      for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+        const opened = openName(n, env || scopeEnv, 0)
+        if (!opened) return null
+        n = opened.node
+      }
+      return n && n.type === 'string' ? String(n.value) : null
+    }
+    const isPeriod = (n) => n && n.type === 'name' && OWN_TF_NAMES.has(n.name)
+      && !(env && typeof env.get === 'function' && env.get(n.name))
+    const walk = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 24) return false
+      if (n.type === 'binary' && (n.op === '==' || n.op === '!=')) {
+        if (isPeriod(n.left) && V6_PERIOD_SPELLINGS.has(textOf(n.right))) return true
+        if (isPeriod(n.right) && V6_PERIOD_SPELLINGS.has(textOf(n.left))) return true
+      }
+      for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+        if (walk(n[k], d + 1)) return true
+      }
+      if (Array.isArray(n.args)) {
+        for (const a of n.args) if (walk(a && a.value !== undefined ? a.value : a, d + 1)) return true
+      }
+      return false
+    }
+    if (!walk(framed, 0)) return false
+    diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+    diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] =
+      (diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] || 0) + 1
+    return true
+  }
+
+  /** The string options an `input.string(…, options = [...])` offers, when the
+   *  subject opens to one — else null. */
+  const inputOptionsOf = (subject, env) => {
+    let n = subject
+    for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      if (!b || b.kind !== 'expr') return null
+      env = b.env || env
+      n = b.node
+    }
+    if (!n || n.type !== 'call' || !(n.name === 'input' || n.name === 'input.string')) return null
+    const opt = (n.args || []).find((a) => a && a.name === 'options')
+    const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
+    if (!Array.isArray(els) || !els.length || !els.every((e) => e && e.type === 'string')) return null
+    return els.map((e) => String(e.value))
+  }
+
+  /**
+   * ⭐⭐ C15 — A `switch` IN A TEXT OR ENUM POSITION, as the `if` chain it is.
+   *
+   * `string tblSize = switch tblSizeIn "Small" => size.small …` (ema-ribbon)
+   * and `posOf(string p) => switch p "Top Right" => position.top_right …`
+   * (artemis) are how the corpus computes an enum VALUE from a member's menu.
+   * Each arm becomes `{t:'if', cond: subject == label, then: arm, else: rest}`
+   * — the SAME shape a ternary chain over the same input already produces
+   * (artemis' `scSz`), so the condition stays a tree that follows the member's
+   * input rather than a default frozen at translate time.
+   *
+   * ⛔ WITHOUT A DEFAULT ARM A `switch` IS `na` WHEN NOTHING MATCHES, and no
+   * capture shows what a `na` size or position draws. So a default-less switch
+   * is read only when its subject is an `input.string` whose `options` every arm
+   * covers — then "nothing matches" cannot happen and the last arm is the else.
+   * Anything else is refused (null), which drops the prop by name upstream.
+   */
+  const switchTextOf = (sw, depth, inline) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms)) return null
+    const env = sw.env || scopeEnv
+    const armText = (b) => {
+      if (!b || b.kind !== 'expr' || !b.node) return null
+      return inline
+        ? textNodeOf(b.node, inline.callerEnv || env, depth + 1, inline)
+        : textNodeOf(b.node, b.env || env, depth + 1, null, b.env || env)
+    }
+    const labels = []
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      if (!m || m.type !== 'string') return null
+      labels.push(m)
+    }
+    let arms = sw.arms.map((a, k) => ({ label: labels[k], binding: a.binding }))
+    let tail = null
+    if (sw.fallback) {
+      tail = armText(sw.fallback)
+    } else {
+      const opts = inline ? null : inputOptionsOf(sw.subject, env)
+      const covered = opts && opts.every((o) => arms.some((a) => String(a.label.value) === o))
+      if (!covered || !arms.length) return null
+      tail = armText(arms[arms.length - 1].binding)
+      arms = arms.slice(0, -1)
+    }
+    for (let k = arms.length - 1; k >= 0 && tail; k -= 1) {
+      const test = { type: 'binary', op: '==', left: sw.subject, right: arms[k].label, tok: sw.subject.tok }
+      if (periodSpellingDecides(test, inline, env)) return null
+      const cond = inline ? resolveTree(test, inline) : resolveTree(test, null, env)
+      const then = armText(arms[k].binding)
+      if (!cond || !then) return null
+      tail = { t: 'if', cond, then, else: tail }
+    }
+    return tail
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -13158,6 +13284,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
     if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) }, undefined, true)
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
+      // ⭐ `str.tostring` of a string is that string — so of `syminfo.ticker`, the
+      // symbol's text (see the `{t:'sym'}` note in the name branch below).
+      const arg0 = node.args && node.args[0] && node.args[0].value
+      if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
+        && !(node.args[1])) return { t: 'sym', name: arg0.name }
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
@@ -13187,6 +13318,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
+      if (periodSpellingDecides(node.test, inline, scope)) return null
       const cond = resolveTree(node.test, inline, envAt)
       const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
       const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
@@ -13202,6 +13334,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const enumLit = objectEnumValue(node.name)
         if (enumLit !== undefined) return { t: 'lit', s: String(enumLit) }
       }
+      // ⭐⭐ C15 — `syminfo.ticker` IN A TEXT SLOT IS THE SYMBOL'S TEXT. It used to
+      // fall to the numeric last resort below, mint a `symtext` tree nothing can
+      // evaluate, and print "NaN" — measured on ema-ribbon's footer cell, where
+      // TradingView prints "RDDT". It is a `{t:'sym'}` node now, settled by the
+      // binding (`objectReaderFor`) from the SAME constants the bind-time fold
+      // uses; a field the binding cannot settle is withheld, never printed.
+      if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
       // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
       // The Resolver reads one out of `this.frames`; this reader has the same
@@ -13233,6 +13372,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           })
           if (asText) return asText
         }
+      }
+      // ⭐⭐ C15 — A NAME BOUND TO A `switch` (`string tblSize = switch tblSizeIn
+      // "Small" => size.small …`). See `switchTextOf`.
+      if (bound && bound.kind === 'switch' && !inline) {
+        const sw = switchTextOf(bound, depth, null)
+        if (sw) return sw
       }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
@@ -13286,6 +13431,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           bound, args: node.args, callerEnv: scope,
         })
         if (inlined) return inlined
+      }
+      // ⭐⭐ C15 — A USER FUNCTION WHOSE BODY IS A `switch` (`posOf(string p) =>
+      // switch p …`), inlined through the same frame as the branch above.
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.kind === 'switch'
+        && Array.isArray(bound.params)
+        && bound.params.length === (node.args || []).length
+        && !(node.args || []).some((a) => a && a.name)) {
+        const sw = switchTextOf(bound.value, depth, { bound, args: node.args, callerEnv: scope })
+        if (sw) return sw
       }
     }
     const opened = openName(node, scope, depth)

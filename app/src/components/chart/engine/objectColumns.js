@@ -164,8 +164,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
  *        nothing to read. `readTime` is the runtime's reader for a bare `time`.
  */
 export function objectReaderFor(definition, bars, opts = {}) {
-  const program = definition && definition.objects
-  if (!program || !Array.isArray(program.ops) || !program.ops.length) return null
+  const stored = definition && definition.objects
+  if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
   const inputs = resolveInputs(definition, opts.inputs)
@@ -192,6 +192,16 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // chose over half-resolving a bare string.
   const bindConsts = bindConstsFor({ tf: opts.tf, inputs, symbol: opts.symbol })
   const fold = (tree) => foldBound(tree, bindConsts)
+  // ⭐⭐ C15 — A SYMBOL'S TEXT IN AN OBJECT (`table.cell(t, 3, 11, syminfo.ticker)`)
+  // is settled from the SAME map, so a cell and the fold beside it cannot read two
+  // different symbols. Only TEXT entries: the map also holds numbers.
+  const symbolText = Object.fromEntries(Object.entries(bindConsts)
+    .filter(([k, v]) => k.startsWith('syminfo.') && typeof v === 'string'))
+  // ⛔ The V2 (graph) form is already bound, so binding again only settles the
+  // symbol text; the V1 form is bound below, where its trees become nodes.
+  const isGraphForm = !!(definition.compute && definition.compute.graph
+    && Array.isArray(definition.compute.graph.nodes))
+  const program = isGraphForm ? bindObjectProgram(stored, (i) => i, symbolText) : stored
   const evalOpts = {
     inputs,
     budget: definition.compute && definition.compute.budget,
@@ -222,7 +232,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // ⭐ IDENTITY BINDING. The program's own `trees` array IS the node table, so
   // tree index i becomes node index i and the runtime's single `{v:'graph'}`
   // vocabulary serves both forms without a second evaluator.
-  const bound = bindObjectProgram(program, (i) => i)
+  const bound = bindObjectProgram(program, (i) => i, symbolText)
   const columns = new Map()
   const failed = []
   const refusals = []
