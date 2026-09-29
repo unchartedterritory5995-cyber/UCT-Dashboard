@@ -390,10 +390,17 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
  *    `kinds` counts reader op kinds (`delete`, `clear`, `coll_<method>`);
  *    `families` has one entry per removal, `null` when no family is named;
  *    `creates` has one entry per drawing constructor the body names. */
+/** ⭐ C16 — the array methods that CHANGE an array (Pine reference). */
+const ARRAY_MUTATORS = new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
+  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat'])
+
 export function bodyEffects(def, defs, objColls) {
   const kinds = {}
   const families = []
   const creates = []
+  // ⭐ C16 — the drawing collections the body CHANGES, by name: a refused call
+  // leaves each one diverged from TradingView's (`divergedColls` in pine.js).
+  const colls = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -420,11 +427,18 @@ export function bodyEffects(def, defs, objColls) {
       }
       if (ns === 'array') {
         const a = toks[i + 2]
-        if (a && a.kind === 'ident' && objColls.has(String(a.value))) add(`coll_${m}`)
+        if (a && a.kind === 'ident' && objColls.has(String(a.value))) {
+          add(`coll_${m}`)
+          if (ARRAY_MUTATORS.has(m)) colls.push(String(a.value))
+        }
         continue
       }
       if (KNOWN_NAMESPACES.has(ns)) continue
-      if (objColls.has(ns)) { add(`coll_${m}`); continue }
+      if (objColls.has(ns)) {
+        add(`coll_${m}`)
+        if (ARRAY_MUTATORS.has(m)) colls.push(ns)
+        continue
+      }
       // the method form on a handle, or a user METHOD whose body is read too
       if (m === 'delete') { add('delete'); families.push(null) } else if (m === 'clear') {
         add('clear'); families.push(null)
@@ -434,7 +448,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families, creates }
+  return { kinds, families, creates, colls }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */

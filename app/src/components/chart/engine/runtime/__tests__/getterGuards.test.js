@@ -141,8 +141,29 @@ describe('⛔ a getter this lane cannot lift keeps the guard unreadable — drop
     expect(dg.dropReasons['create:label']).toBe(1)
   })
 
-  it('a getter guard inside a counted LOOP body — refused as that op\'s guard, the rest of the drawing kept', () => {
-    const dg = diag(`var b = box(na)\n${MAKE}for i = 0 to 2\n    if close > b.get_top()\n        ${LABEL}\n`
+  // ⚰️ C16 (2026-09-29) — this was "a getter guard inside a counted loop body is
+  // refused". Only a CROSSING has no single answer there (observed once per bar);
+  // a comparison is read per iteration, so it is served now — and the crossing
+  // case below keeps the refusal.
+  it('⭐ C16 — a getter COMPARISON inside a counted loop body is read per iteration, as Pine runs it', () => {
+    const body = `var b = box(na)\n${MAKE}for i = 0 to 2\n    if close > b.get_top()\n        ${LABEL}\n`
+      + `label.new(bar_index, low, ${Q}y${Q})\n`
+    const dg = diag(body)
+    expect(dg.dropReasons && dg.dropReasons['guard:create']).toBeUndefined()
+    // Pine, bar by bar: the box is (re)made first; then three iterations each
+    // label the bar when close is above the held box's top; then one `y` label.
+    let top = null
+    const want = []
+    BARS.forEach((b, i) => {
+      if (b.c > b.o) top = MID(b)
+      for (let k = 0; k <= 2; k += 1) if (top !== null && b.c > top) want.push(i)
+      want.push(i)
+    })
+    expect(labelBars(body)).toEqual(want)
+  })
+
+  it('⛔ a getter CROSSING inside a counted loop body — refused as that op\'s guard, the rest of the drawing kept', () => {
+    const dg = diag(`var b = box(na)\n${MAKE}for i = 0 to 2\n    if ta.crossover(close, b.get_top())\n        ${LABEL}\n`
       + `label.new(bar_index, low, ${Q}y${Q})\n`)
     expect(dg.dropReasons['guard:create']).toBe(1)
     expect(dg.failed, 'the whole program was lost instead of one op').toBeUndefined()

@@ -12931,9 +12931,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     for (const b of body || []) {
       if (!b || !b.k) continue
       diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
-      if (b.k === 'create') lostCreate(b.family)
+      if (b.k === 'create') { lostCreate(b.family); lostInto(b) }
       if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
       if (b.k === 'loop') unconverted(b.body, via)
+      // ⭐ C16 — a collection change lost with its loop diverges the collection;
+      // a handle copied out of one leaves its name unknown.
+      if (b.k.startsWith('coll_')) lostColl(b.coll)
+      if (b.k === 'copy' && b.fromColl && regId.has(b.into)) taintedRegs.add(regId.get(b.into))
     }
   }
   const dropped = (why) => {
@@ -14156,6 +14160,27 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
   }
 
+  // ⭐⭐ C16 — A COLLECTION THAT LOST A CHANGE HAS DIVERGED FROM TRADINGVIEW'S.
+  // An `array.push`/`remove`/`shift`/… this door could not carry (dropped by
+  // its guard, inside a loop it could not read, or in a helper it refused)
+  // leaves our array a different length, holding different handles, from that
+  // bar on — so every read of it (`array.size`, a slot, a handle copied out of
+  // a slot) would act on the WRONG box. Those reads are withheld and counted
+  // (`coll:diverged`) after conversion, never run against a guess. A register
+  // filled from such a read is unknown too (`taintedRegs`).
+  const divergedColls = new Set()
+  const taintedRegs = new Set()
+  const lostColl = (name) => { if (collId.has(name)) divergedColls.add(collId.get(name)) }
+  /** ⭐ C16 — registers a create that this door lost would have filled. The
+   *  register itself keeps today's handling; only a PUSH of it (the object
+   *  TradingView holds, never made here) diverges the collection it lands in. */
+  const lostCreateRegs = new Set()
+  const lostInto = (op) => { if (op && op.into && regId.has(op.into)) lostCreateRegs.add(regId.get(op.into)) }
+  for (const name of (collected.diagnostics && collected.diagnostics.lostColls) || []) lostColl(name)
+  for (const rc of (collected.diagnostics && collected.diagnostics.refusedCalls) || []) {
+    for (const name of (rc.effects && rc.effects.colls) || []) lostColl(name)
+  }
+
   /** ⭐⭐ SITES THE CONVERSION ACTUALLY EMITTED — not the ones the reader named.
    *
    *  ⛔ A `{r:'site'}` reference to a create that was DROPPED is a build error:
@@ -14206,7 +14231,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (v.type === 'call' && v.name === 'array.get' && v.args && v.args.length === 2) {
       const cn = v.args[0] && v.args[0].value
       if (cn && cn.type === 'name' && collId.has(cn.name)) {
-        const idx = valueRef(v.args[1] && v.args[1].value)
+        // ⭐ C16 — the slot may read the collection's own length (`array.pop`).
+        const idx = liveOrValueRef(v.args[1] && v.args[1].value)
         if (idx) return { r: 'coll', id: collId.get(cn.name), index: idx }
       }
     }
@@ -14258,28 +14284,53 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // spelling (`b.get_top()` / `box.get_top(b)`), standing as a WHOLE operand of
   // `ta.crossover`/`ta.crossunder` or of `<`, `<=`, `>`, `>=`, under any mix of
   // `and`/`or`/`not`. A getter anywhere else (inside arithmetic, on a list
-  // element, in a coordinate, in a loop body) keeps the guard unreadable —
-  // dropped and counted, never guessed.
+  // element, in a coordinate) keeps the guard unreadable — dropped and counted,
+  // never guessed.
+  // ⭐ C16 (2026-09-29): a drawing collection's `array.size` lifts the same way,
+  // `==`/`!=` join the comparisons, `+ - *` over live operands is an address
+  // (`array.size(bs) - 1`), and a guard in a COUNTED LOOP BODY lifts too unless
+  // it observes a crossing (once per bar — a body runs several times a bar).
   const OBJECT_NS = new Set(OBJECT_NAMESPACES)
   const GETTER_NAME_RE = /\.get_[a-z0-9_]+$/
   const regFamily = (name) => {
     const d = collected.decls.get(name)
     return d && d.kind !== 'coll' ? d.family : null
   }
-  /** Is an object getter written anywhere in this parse subtree? */
-  const hasObjectGetter = (node, depth = 0) => {
+  /** ⭐⭐ C16 — `array.size(bs)` / `bs.size()` on a declared DRAWING
+   *  collection → `{v:'size', coll}`, else null. Object state for the reason a
+   *  getter is (see `LIVE_GUARD_KINDS`): the collection is the runtime's. ⛔ The
+   *  method form yields to a script's own `size` method. */
+  const sizeRef = (node) => {
+    if (!node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    let collName = null
+    if (name === 'array.size') {
+      const a = args.length === 1 ? args[0].value : null
+      if (a && a.type === 'name') collName = a.name
+    } else if (name.endsWith('.size') && !args.length
+        && !(collected.definedNames && collected.definedNames.has('size'))) {
+      collName = name.slice(0, -'.size'.length)
+    }
+    return collName && collId.has(collName) ? { v: 'size', coll: collId.get(collName) } : null
+  }
+  /** Is an object getter written anywhere in this parse subtree? ⭐ C16: or a
+   *  drawing collection's `array.size` — the other read of object state. */
+  const hasObjectGetter = (node, depth = 0, sizes = true) => {
     if (!node || typeof node !== 'object' || depth > 32) return false
+    if (sizes && sizeRef(node)) return true
     if (node.type === 'method' && /^get_/.test(String(node.name || ''))) return true
     if (node.type === 'call' && GETTER_NAME_RE.test(String(node.name || ''))) {
       const head = String(node.name).slice(0, String(node.name).lastIndexOf('.'))
       if (OBJECT_NS.has(head) || collected.decls.has(head)) return true
     }
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
-      if (hasObjectGetter(node[k], depth + 1)) return true
+      if (hasObjectGetter(node[k], depth + 1, sizes)) return true
     }
     if (Array.isArray(node.args)) {
       for (const a of node.args) {
-        if (hasObjectGetter(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+        if (hasObjectGetter(a && a.value !== undefined ? a.value : a, depth + 1, sizes)) return true
       }
     }
     return false
@@ -14307,14 +14358,53 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const prop = fam && regId.has(regName) ? (OBJECT_GETTER_PROPS[fam] || {})[method] : null
     return prop ? { v: 'get', target: { r: 'reg', id: regId.get(regName) }, prop } : null
   }
-  /** A getter-free node → its interned tree; a bare getter → its `get` ref. */
+  /** A getter-free node → its interned tree; a bare getter → its `get` ref.
+   *  ⭐ C16: a bare `array.size(bs)` → its `size` ref, and `+ - *` over live
+   *  operands (`array.size(bs) - 1`, a loop's first index) → a `{v:'op'}` — the
+   *  address arithmetic the program already carries, never more. */
   const liveOperand = (node) => {
-    const g = getterRef(node)
+    const g = getterRef(node) || sizeRef(node)
     if (g) return g
-    if (hasObjectGetter(node)) return null
+    if (hasObjectGetter(node)) {
+      // ⛔ ARITHMETIC OVER A LENGTH ONLY — an address. A getter inside
+      // arithmetic stays unreadable, as it always was (`getterGuards.test.js`).
+      if (node && node.type === 'binary' && ['+', '-', '*'].includes(node.op)
+          && !hasObjectGetter(node, 0, false)) {
+        const a = liveOperand(node.left)
+        const b = liveOperand(node.right)
+        return a && b ? { v: 'op', op: node.op, args: [a, b] } : null
+      }
+      return null
+    }
     const ast = canonicalOf(node)
     return ast ? internTree(ast) : null
   }
+  /** Does a live reference observe a crossing anywhere beneath it? */
+  const liveHasCross = (v, depth = 0) => {
+    if (!v || typeof v !== 'object' || depth > 32) return false
+    if (v.v === 'cross') return true
+    return Array.isArray(v.args) && v.args.some((a) => liveHasCross(a, depth + 1))
+  }
+  /** ⭐ C16 — a loop bound or a collection index that reads object state
+   *  (`array.size(bs) - 1`) → its live reference; anything else → `valueRef`. */
+  const liveOrValueRef = (node) => (node && hasObjectGetter(node) ? liveOperand(node) : valueRef(node))
+  /** The collection ids whose `size` these live references read. */
+  const liveReadsCollsOf = (...refs) => {
+    const out = new Set()
+    const walk = (v, depth = 0) => {
+      if (!v || typeof v !== 'object' || depth > 32) return
+      if (v.v === 'size') out.add(v.coll)
+      if (Array.isArray(v.args)) v.args.forEach((a) => walk(a, depth + 1))
+    }
+    refs.forEach((r) => walk(r))
+    return [...out]
+  }
+  /** Does this READER body (nested loops included) change collection `id`'s
+   *  length — a push, remove, shift, pop or clear on it? */
+  const LENGTH_CHANGING = new Set(['coll_push', 'coll_remove', 'coll_shift', 'coll_pop', 'coll_clear'])
+  const bodyChangesLength = (body, id) => (body || []).some((b) => !!b
+    && ((LENGTH_CHANGING.has(b.k) && collId.get(b.coll) === id)
+      || (b.k === 'loop' && bodyChangesLength(b.body, id))))
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** A guard expression that reads a getter → its live reference, or null. */
   const liftLive = (node) => {
@@ -14329,7 +14419,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const b = liftLive(node.right)
       return a && b ? { v: 'bool', op: node.op === 'and' || node.op === '&&' ? 'and' : 'or', args: [a, b] } : null
     }
-    if (node.type === 'binary' && ['<', '<=', '>', '>='].includes(node.op)) {
+    if (node.type === 'binary' && ['<', '<=', '>', '>=', '==', '!='].includes(node.op)) {
       const a = liveOperand(node.left)
       const b = liveOperand(node.right)
       return a && b ? { v: 'cmp', op: node.op, args: [a, b] } : null
@@ -14397,9 +14487,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ Not inside a counted loop: a body op runs several times a bar, and a
       // crossing observed "once per bar" has no single answer there.
       if (hasObjectGetter(node)) {
-        if (loopIds.length) return undefined
         const live = liftLive(node)
         if (!live) return undefined
+        // ⭐⭐ C16 — INSIDE A COUNTED LOOP a `get`/`size` comparison has one
+        // answer per ITERATION, and the runtime evaluates the body op per
+        // iteration (`low < box.get_bottom(b)` for each zone in institutional-
+        // smc). ⛔ Only a crossing still refuses there: it is observed once per
+        // bar, and a body runs several times a bar.
+        if (loopIds.length && liveHasCross(live)) return undefined
         liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [live] } : live)
         continue
       }
@@ -14653,8 +14748,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
-      if (op.k === 'create') lostCreate(op.family)
+      if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
       if (op.k === 'update') contentLostBy(op, targetRef(op.target))
+      if (op.k.startsWith('coll_')) lostColl(op.coll)
+      if (op.k === 'copy' && op.fromColl && regId.has(op.into)) taintedRegs.add(regId.get(op.into))
       dropped(`guard:${op.k}`)
       continue
     }
@@ -14664,8 +14761,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // reader stamps this op with the counters open around it, not its own), and
     // its BODY converts into a sink of its own so the ops nest.
     if (op.k === 'loop') {
-      const from = valueRef(op.from && op.from.value)
-      const to = valueRef(op.to && op.to.value)
+      // ⭐ C16 — a bound may read a drawing collection's length
+      // (`for i = array.size(bs) - 1 to 0`), evaluated when the loop starts.
+      const from = liveOrValueRef(op.from && op.from.value)
+      const to = liveOrValueRef(op.to && op.to.value)
       // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
@@ -14675,8 +14774,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ AND THE RUNTIME LANE STILL REFUSES A STEPPED LOOP: it lowers loops
       // from the raw `fromNode`/`toNode` and has no step to lower, so carrying
       // one there would iterate a range the drawing does not.
-      const step = op.step ? valueRef(op.step.value) : null
+      const step = op.step ? liveOrValueRef(op.step.value) : null
       if (op.step && (!step || iterTrees)) {
+        unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
+      }
+      // ⛔⛔ C16 — AN END BOUND THAT READS A LENGTH THE BODY CHANGES IS NOT
+      // CARRIED. The runtime evaluates both bounds once, when the loop starts;
+      // Pine v6 re-evaluates `to` before every iteration (v5 did not). The two
+      // agree exactly when nothing in the body changes what `to` reads — the
+      // start is evaluated once in both, which is why institutional-smc's
+      // `for i = array.size(bs) - 1 to 0` with an `array.remove` in its body is
+      // carried and `for i = 0 to array.size(bs) - 1` with one would not be.
+      if (liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
       const outer = ops
@@ -14729,7 +14838,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); dropped(`create:${op.family}`); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
@@ -14770,10 +14879,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `setreg` whose value is the body's register, or this bar's create at a
       // site, which the program format already carries (`{r:'site'}`).
       const reg = regId.get(op.into)
-      const value = op.fromSite
-        ? (emittedSites.has(op.fromSite) ? { r: 'site', id: op.fromSite } : null)
-        : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
-      if (!reg || !value) { dropped('copy:source'); continue }
+      // ⭐⭐ C16 — `b = array.get(bs, i)`: the handle the slot holds NOW, copied
+      // into `b` (a `{r:'coll'}` read, resolved when the `setreg` runs).
+      const slotIdx = op.fromColl && collId.has(op.fromColl) ? liveOrValueRef(op.index) : null
+      const value = op.fromColl
+        ? (slotIdx ? { r: 'coll', id: collId.get(op.fromColl), index: slotIdx } : null)
+        : op.fromSite
+          ? (emittedSites.has(op.fromSite) ? { r: 'site', id: op.fromSite } : null)
+          : (regId.has(op.from) ? { r: 'reg', id: regId.get(op.from) } : null)
+      if (!reg || !value) {
+        // ⛔ C16 — a handle read out of a collection that could not be carried
+        // leaves `b` unknown, so what acts through `b` is withheld below.
+        if (op.fromColl && reg) taintedRegs.add(reg)
+        dropped('copy:source'); continue
+      }
       ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
     } else if (op.k === 'reset') {
       // ⭐ `b := box(na)` — the register forgets its object; the object stays on
@@ -14875,24 +14994,32 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }
       const method = op.k.slice('coll_'.length)
+      // ⛔ C16 — EVERY collection change this door cannot carry leaves the
+      // collection DIVERGED from TradingView's: its length and every slot after
+      // the change are unknown from then on (`lostColl`, pruned below).
       if (method === 'push') {
         const value = targetRef(op.args[0])
-        if (!value) { dropped('coll:push'); continue }
+        if (!value) { lostColl(op.coll); dropped('coll:push'); continue }
         ops.push({ k: 'push', coll: id, value, when, ...lastBarOnly })
       } else if (method === 'set') {
-        const index = op.args[0] ? valueRef(op.args[0].value) : null
+        const index = op.args[0] ? liveOrValueRef(op.args[0].value) : null
         const value = targetRef(op.args[1])
-        if (!index || !value) { dropped('coll:set'); continue }
+        if (!index || !value) { lostColl(op.coll); dropped('coll:set'); continue }
         ops.push({ k: 'collset', coll: id, index, value, when, ...lastBarOnly })
       } else if (method === 'remove') {
-        const index = op.args[0] ? valueRef(op.args[0].value) : null
-        if (!index) { dropped('coll:remove'); continue }
+        const index = op.args[0] ? liveOrValueRef(op.args[0].value) : null
+        if (!index) { lostColl(op.coll); dropped('coll:remove'); continue }
         ops.push({ k: 'collremove', coll: id, index, when, ...lastBarOnly })
       } else if (method === 'shift') {
         ops.push({ k: 'collremove', coll: id, index: { v: 'const', value: 0 }, when, ...lastBarOnly })
+      } else if (method === 'pop') {
+        // ⭐ C16 — `array.pop(bs)` removes the LAST slot: `array.size(bs) - 1`.
+        const index = { v: 'op', op: '-', args: [{ v: 'size', coll: id }, { v: 'const', value: 1 }] }
+        ops.push({ k: 'collremove', coll: id, index, when, ...lastBarOnly })
       } else if (method === 'clear') {
         ops.push({ k: 'collclear', coll: id, when, ...lastBarOnly })
       } else {
+        lostColl(op.coll)
         diagnostics.unsupported.push(`array.${method}`)
         dropped(`coll:${method}`)
       }
@@ -14900,6 +15027,80 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   }
   convertList(collected.ops)
+
+  // ⭐⭐ C16 — WITHHOLD EVERY READ OF A DIVERGED COLLECTION (see `divergedColls`).
+  // Propagated to a fixed point first: a handle copied out of a diverged
+  // collection makes its register unknown, a push of an unknown handle (or one
+  // made under an unknown guard) diverges the collection it lands in. Then
+  // every op that reads one — a slot target, an `array.size` in a guard, a loop
+  // bound or an index, a getter through an unknown register — is removed and
+  // counted (`coll:diverged`), with what it would have drawn or removed carried
+  // into the same ledgers a dropped op feeds (`lostCreate`, `lostRemovals`,
+  // `contentLost`), so the member door's partial-drawing rule sees it.
+  if (divergedColls.size || taintedRegs.size || lostCreateRegs.size) {
+    const readsUnknown = (v, depth = 0) => {
+      if (!v || typeof v !== 'object' || depth > 32) return false
+      if (v.v === 'size') return divergedColls.has(v.coll)
+      if (v.v === 'get') return !!(v.target && v.target.r === 'reg' && taintedRegs.has(v.target.id))
+      return Array.isArray(v.args) && v.args.some((a) => readsUnknown(a, depth + 1))
+    }
+    const refUnknown = (r) => !!r && ((r.r === 'coll' && (divergedColls.has(r.id) || readsUnknown(r.index)))
+      || (r.r === 'reg' && taintedRegs.has(r.id)))
+    const valueFields = (o) => [o.when, o.index, o.from, o.to, o.step, o.col, o.row, o.col2, o.row2]
+    const guardUnknown = (o) => valueFields(o).some((v) => readsUnknown(v))
+    const taintWrites = (o, all) => {
+      let changed = false
+      const mark = (set, id) => { if (id != null && !set.has(id)) { set.add(id); changed = true } }
+      if (o.k === 'setreg' && (all || guardUnknown(o) || (o.value && refUnknown(o.value)))) mark(taintedRegs, o.reg)
+      if (o.k === 'create' && o.into && (all || guardUnknown(o))) mark(taintedRegs, o.into)
+      if (['push', 'collset', 'collremove', 'collclear'].includes(o.k)
+        && (all || guardUnknown(o) || (o.value && refUnknown(o.value))
+          || (o.value && o.value.r === 'reg' && lostCreateRegs.has(o.value.id)))) mark(divergedColls, o.coll)
+      if (o.k === 'loop') {
+        const whole = all || guardUnknown(o)
+        for (const b of o.body || []) if (taintWrites(b, whole)) changed = true
+      }
+      return changed
+    }
+    for (let changed = true; changed;) {
+      changed = false
+      for (const o of ops) if (taintWrites(o, false)) changed = true
+    }
+    const regFam = new Map(regs.map((r) => [r.id, r.family]))
+    const collFam = new Map(colls.map((c) => [c.id, c.family]))
+    const siteFam = new Map()
+    const scanSites = (list) => { for (const o of list) { if (o.k === 'create') siteFam.set(o.site, o.family); if (o.k === 'loop') scanSites(o.body) } }
+    scanSites(ops)
+    const famOf = (r) => (!r ? null : r.r === 'reg' ? regFam.get(r.id) : r.r === 'coll' ? collFam.get(r.id) : siteFam.get(r.id)) || null
+    const lose = (o) => {
+      if (o.k === 'create') lostCreate(o.family)
+      if (o.k === 'delete') lostRemoval('coll:diverged', { k: 'delete', family: famOf(o.target) })
+      if (o.k === 'clearcells' || o.k === 'clear') lostRemoval('coll:diverged', { k: 'clear' })
+      if (o.k === 'update' && CONTENT[famOf(o.target)]
+        && Object.keys(o.props || {}).some((k) => CONTENT[famOf(o.target)].has(k))) contentLost.push(o.target)
+      dropped('coll:diverged')
+    }
+    const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); lose(o) } }
+    const opUnknown = (o) => guardUnknown(o) || (o.target && refUnknown(o.target))
+      || ((o.k === 'setreg' || o.k === 'push' || o.k === 'collset') && o.value && refUnknown(o.value))
+    const pruneDiverged = (list) => {
+      const out = []
+      for (const o of list) {
+        if (o.k === 'loop') {
+          if (opUnknown(o)) { loseAll(o.body); lose(o); continue }
+          const body = pruneDiverged(o.body)
+          if (!body.length) { dropped('loop:empty'); continue }
+          out.push({ ...o, body })
+          continue
+        }
+        if (opUnknown(o)) { lose(o); continue }
+        out.push(o)
+      }
+      return out
+    }
+    ops = pruneDiverged(ops)
+    diagnostics.collsDiverged = divergedColls.size
+  }
 
   // ⭐⭐ WITHHOLD EVERY OBJECT WHOSE CONTENT A LOST STEP WROTE — see `contentLost`.
   // The lost step names a handle (a register, a create site, a collection slot);

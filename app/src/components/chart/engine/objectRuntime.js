@@ -37,7 +37,7 @@ import {
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
-// ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'}`, see
+// ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
@@ -679,6 +679,12 @@ export function beginObjects(program, ctx) {
           const inst = id === null ? null : live.get(id)
           const x = inst && inst.props ? inst.props[ref.prop] : undefined
           return typeof x === 'number' ? x : NaN
+        }
+        // ⭐ C16 — `array.size(bs)`: the collection's length as it stands NOW,
+        // dead and `na` slots included (Pine's count — see `reap`).
+        case 'size': {
+          const arr = colls.get(ref.coll)
+          return arr ? arr.length : undefined
         }
         // ⛔ EVERY argument is evaluated — no short-circuit — so which operands
         // were read never depends on the values, exactly as the columnar lane.
