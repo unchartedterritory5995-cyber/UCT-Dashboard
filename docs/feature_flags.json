@@ -61,6 +61,18 @@
     "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
+    "BREADTH_V2_PRODUCER_ENABLED": {
+      "status": "dark",
+      "where": ["breadth-v2-runner"],
+      "owner": "breadth-v2-cutover",
+      "note": "Breadth V2 cutover (2026-09-29). railway.json start dispatch for the dedicated daily V2 producer (api.breadth_v2_producer_main) — the ONE scheduler owner and ONE writer of canonical live V2 sessions. Set only on the breadth-v2-runner service. Rollback: unset (the service parks)."
+    },
+    "BREADTH_V2_SYNC_ENABLED": {
+      "status": "dark",
+      "where": ["web"],
+      "owner": "breadth-v2-cutover",
+      "note": "Breadth V2 cutover (2026-09-29). Starts the web background thread that installs the frozen V2c2 artifact as a sha-verified 0444 read-only replica (from the R2 freeze archive) and adopts the dedicated producer's VALIDATED live publications into a local replica. Writes no authoritative Breadth; serving consults the replicas only when BREADTH_AUTHORITY=v2. Rollback: unset."
+    },
     "A8_PRIMARY_MENTION_ENABLED": {
       "status": "pending",
       "where": [],

@@ -59,3 +59,61 @@ Evidence `/data/_audit/cutover/shadow_v1_v2_overlap_20260929.json` (V1 = web ext
 ## What remains (shortest path)
 
 Owner decisions 1–4 → then: port correction modules to master behind the authority seam; `_body`/`_1m` provenance + tests over all 14,536 body rows through store/API/chart; daily V2 producer with currentness states and PIT/geometry/guard gates; shadow 09-25+ against V1; `BREADTH_AUTHORITY` flip + proven rollback; read-only acceptance.
+
+---
+
+# Part 2 — implementation under the owner rulings of 2026-09-29
+
+## Authority model (implemented: `api/services/breadth_authority.py`, switch `BREADTH_AUTHORITY=v1|v2`)
+
+| `uct` session | authority | served |
+|---|---|---|
+| ≤ 2026-03-22 | `v1_legacy` | existing V1 readers, untouched (not relabelled as V2) |
+| 2026-03-23 … 2026-09-24 | `v2_frozen` | frozen V2c2 rows (sha `5670fdc0…`, 0444 replica, `immutable=1`) |
+| 2026-03-24, 2026-08-31, 2026-09-23 | `v2_gap` | 35 metrics None / no chart bar — no V1 substitution, no interpolation |
+| 2026-09-25 … (validated) | `v2_live` | producer publication (immutable per session) |
+| newest ≤2 collector sessions after the last canonical | `provisional_collector` | collector value, `_authority`/`_provenance` flagged, never written to a V2 store |
+| older unvalidated | `v2_pending` | withheld (fail closed) |
+
+Rollback = `BREADTH_AUTHORITY=v1` (or unset) on web. Nothing is rebuilt or deleted; V1 stores keep being written by their V1 owners. Cache keys carry the authority token under v2 and are byte-identical under v1.
+
+## Derived-field dependency trace (Monitor `_derive_ascending`, collector fields, chart symbols)
+
+| Field | Class | Under v2 |
+|---|---|---|
+| the 35 V2 metrics | DIRECT V2 | V2 value |
+| ratio_5day, ratio_10day, hi_ratio, lo_ratio, net_new_high_low | DIRECT V2 (V2 stores them) | V2 stored value; the V1 row-window recomputation is suppressed for V2 rows (it would splice V1 rows and paper over PIT gaps) |
+| breadth_score | DERIVED FROM V2 | recomputed from V2 breadth inputs + unaffected sentiment inputs (cboe_putcall, aaii_spread, vix) — the score's existing definition; a PIT-gap row renormalises below 60 weight → None |
+| is_ftd, qqq/spy_day_pct, avg_10d_cpc | LEGACY / UNAFFECTED | QQQ/SPY/put-call inputs only |
+| vix*, vxn, vxmt, aaii_*, naaim, cnn_fear_greed, cboe_putcall, spy/qqq/rsp/sp500 fields, iwm_qqq_ratio, rsp_spy_ratio, uct_exposure, atr_ext_7 | LEGACY / UNAFFECTED | collector |
+| up_vol_ratio, up/down_on_volume, up/down_from_open, hvc_52w, new_ath | LEGACY / UNAFFECTED (collector-owned Breadth metrics outside V2's 35; same UCT list) | collector |
+| **mcclellan_osc** | **REQUIRES PRODUCT DECISION** | withheld. It is an EMA(19)−EMA(39) of net advances; recomputing it from V2 needs (a) a seed/warm-up at 2026-03-23 (V1 EMA state? V2-only burn-in? `uct_backtest` is ruled out) and (b) a rule for the three PIT gaps (skip vs decay). The collector's value is a V1-derived number — pairing it with V2 direct metrics is forbidden. Consumers: Monitor, UCTMC chart, analogues (weight 1.5). |
+| **adv_decline_cum** | **REQUIRES PRODUCT DECISION** | withheld. A running total from the first stored session: it necessarily spans V1 (≤03-22) and V2 (≥03-23) inputs and would silently drop the three gap sessions' contribution. Needs an owner rule (splice + gap treatment, or re-base). |
+
+⛔ Because two member-facing derived fields cannot be recomputed from V2 without a methodology decision, **the member-facing switch is blocked** (owner rule: STOP before cutover).
+
+## Shadow V1 vs V2 (member-facing UCT, 2026-03-23 … 2026-09-24, 129 sessions)
+
+Evidence `/data/_audit/cutover/shadow_classified_20260929.json` (runner). Member V1 value = collector close where stored, else the OHLC store (the serving rule).
+
+| Class | cells |
+|---|---|
+| EXPECTED_METHODOLOGY_DIFFERENCE (pct ≤1.0 pt, ratios ≤0.10, counts ≤max(15, 1.5% of universe)) | 2,767 |
+| EXPECTED_V2_CORRECTION (V1 hole or metric V1 never stored) | 499 |
+| LIVE_STORE_INCIDENT (27 subset-recompute sessions derived objectively: stored universe_count/list < 0.9 — exactly the documented 26 + 2026-09-24 itself; healed rows; Aug 12–20; 09-02) | 1,107 |
+| PIT_GAP | 3 |
+| material, attributed below | 7 |
+
+The 7: 2026-06-16 (collector priced 2,543/2,748 names → counts over 205 fewer names) and 2026-07-27 (2,538/2,637) — SOURCE DIFFERENCE, the partial-coverage rows the accepted PIT gate documents; 2026-08-25 hi_ratio — comparison artifact (the collector row stores no hi_ratio; the Monitor derives 108/2,635 = 4.10 = V2). **Unexplained material differences: 0.**
+
+## Daily producer (implemented; dedicated service `breadth-v2-runner`, `BREADTH_V2_PRODUCER_ENABLED=1`)
+
+ONE scheduler owner (its own loop) and ONE writer (`v2_live.db` + immutable R2 publications + manifest). Web only adopts VALIDATED publications into a rebuildable replica; an accepted session is never replaced (a disagreeing rerun is a recorded conflict).
+
+D+1 lifecycle, readiness-driven (measured): minute file for D lands ~04:30–04:37Z D+1; the PIT hindsight gate needs the collector row of D+1 (~20:15Z D+1). Then: PIT ledger refresh (gate STOP → REVIEW_REQUIRED) → one-window acquisition → guard/dividend tables → preflight → the batch computed TWICE (determinism) → validation (checkpoint, calendar geometry incl. early close, bucket coverage, PIT presence, metric completeness with ratio absence only by rule, OHLC coherence, 0–100 bounds, ±20% population guard, membership size, sources) → publish. So canonical D ≈ 20:30–21:30Z on D+1; until then D is provisional collector.
+
+Membership identity per session: every universe's member list + sha256, PIT-ledger sha, reference sha, vintage tag, input-manifest sha, pinned-module digests, methodology `rth-1m-composites-v2c2-div+ema-tie-exact-v1`, producer commit.
+
+EMA: live V2 = pinned + one declared rule (`ema-tie-exact-v1`): an observation equal to the current EMA leaves it exact (pandas' behaviour). Installed only in the producer process; master's V1 `breadth_live` and chart indicators untouched. Handoff effect: only exact-tie names (flat SPACs) can differ from the frozen rule — ±1 name, documented.
+
+Port proof: the ported code on current master, run on the FROZEN vintage's own inputs with the pinned EMA, reproduces frozen sessions bit-for-bit (2026-09-22..24 incl. the 09-23 PIT gap: 488/488 rows; early close 2025-11-28 + 12-01: 280/280).
