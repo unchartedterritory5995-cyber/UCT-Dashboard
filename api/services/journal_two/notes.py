@@ -2464,7 +2464,7 @@ def get_symbol_backlinks(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        # Wave 0 trash: `n.deleted_at IS NULL` on BOTH queries below — this
+        # Wave 0 trash: `n.deleted_at IS NULL` on the query below — this
         # function's own docstring says it must agree with the
         # `embed_symbol` list filter (_notes_filter_sql), which already
         # excludes soft-deleted notes via its base WHERE clause. Without
@@ -2474,14 +2474,25 @@ def get_symbol_backlinks(
         # driven from the set: CROSS JOIN pins it as the outer loop. Left to
         # itself the planner walked every live note and probed the set per note
         # (~160 ms at 50k, acf1eb51e); from the set it is one PK lookup per hit.
+        # ⛔ Wave 10 (lane PC): ONE pass over the set. This used to be a COUNT pass
+        # and then a page pass over the SAME set, so every hit was looked up in
+        # `idx_j2_notes_id_live` twice, and the page pass also grouped EVERY embed
+        # of the symbol to decorate the five rows it kept. The total is now the
+        # window count over the rows the page is ordered from (it counts before
+        # the LIMIT), and the embed detail is read for the page's ids alone.
+        # Same answer, measured A/B on the benchmark's seed at every curve tier:
+        # about half the time (docs/notebook/perf-budgets.md §9).
         ids_sql, ids_params = _symbol_note_ids_sql(user_id, [sym])
-        row = conn.execute(
-            f"SELECT COUNT(*) AS c FROM ({ids_sql}) x"
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.updated_at, COUNT(*) OVER () AS total"
+            f" FROM ({ids_sql}) x"
             " CROSS JOIN j2_notes n ON n.id = x.note_id"
-            " WHERE n.user_id = ? AND n.deleted_at IS NULL",
-            (*ids_params, user_id),
-        ).fetchone()
-        out["count"] = int(row["c"] or 0) if row else 0
+            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
+            " ORDER BY n.updated_at DESC, n.id"
+            " LIMIT ?",
+            (*ids_params, user_id, max(1, min(limit, 25))),
+        ).fetchall()
+        out["count"] = int(rows[0]["total"]) if rows else 0
         if not out["count"]:
             return out
         # `refs`/`widgetIds` stay embed-only (unchanged meaning: "how many
@@ -2490,30 +2501,26 @@ def get_symbol_backlinks(
         # (JournalBacklinks.jsx) already renders as blank, not as a bug (its
         # own `n.refs > 1 ? ... : ''` only ever shows a badge above 1). The
         # membership question (does this note match at all) is answered by
-        # the UNION in the outer join; this LEFT JOIN only adds embed detail
-        # where it exists.
-        rows = conn.execute(
-            "SELECT n.id, n.title, n.updated_at,"
-            "       COALESCE(e.refs, 0) AS refs,"
-            "       e.widgets AS widgets"
-            f" FROM ({ids_sql}) x"
-            " CROSS JOIN j2_notes n ON n.id = x.note_id"
-            " LEFT JOIN ("
-            "  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets"
-            "  FROM j2_note_embeds WHERE user_id = ? AND symbol = ? GROUP BY note_id"
-            " ) e ON e.note_id = n.id"
-            " WHERE n.user_id = ? AND n.deleted_at IS NULL"
-            " ORDER BY n.updated_at DESC"
-            " LIMIT ?",
-            (*ids_params, user_id, sym, user_id, max(1, min(limit, 25))),
-        ).fetchall()
-        out["notes"] = [{
-            "id": r["id"],
-            "title": r["title"] or "Untitled",
-            "updatedAt": r["updated_at"],
-            "refs": int(r["refs"] or 0),
-            "widgetIds": sorted((r["widgets"] or "").split(",")) if r["widgets"] else [],
-        } for r in rows]
+        # the UNION above; this only adds embed detail where it exists.
+        page_ids = [r["id"] for r in rows]
+        marks = ",".join("?" * len(page_ids))
+        detail = {d["note_id"]: d for d in conn.execute(
+            "SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets"
+            f" FROM j2_note_embeds WHERE user_id = ? AND symbol = ? AND note_id IN ({marks})"
+            " GROUP BY note_id",
+            (user_id, sym, *page_ids),
+        ).fetchall()}
+        out["notes"] = []
+        for r in rows:
+            d = detail.get(r["id"])
+            widgets = d["widgets"] if d is not None else None
+            out["notes"].append({
+                "id": r["id"],
+                "title": r["title"] or "Untitled",
+                "updatedAt": r["updated_at"],
+                "refs": int(d["refs"] or 0) if d is not None else 0,
+                "widgetIds": sorted(widgets.split(",")) if widgets else [],
+            })
         # P0-3 sector/industry/theme join — read-time only, off the ONE
         # existing 24h ticker-metadata cache (never a fresh call per NOTE;
         # at most one call per distinct SYMBOL LOOKED UP, already the exact

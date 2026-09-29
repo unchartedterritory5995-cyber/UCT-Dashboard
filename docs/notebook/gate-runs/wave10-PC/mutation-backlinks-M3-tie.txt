@@ -1,0 +1,9 @@
+CONTROL (0, ['52 passed, 215 warnings in 8.38s'], [])
+M3 no id tiebreak (0, ['52 passed, 215 warnings in 7.39s'], [])
+AFTER (0, ['52 passed, 215 warnings in 7.59s'], [])
+restored sha 9417798d8af85764 clean vs HEAD: True
+--- after adding the SQL-level rail in test_journal_two_notes_read_plans.py ---
+CONTROL (0, ['83 passed, 1443 warnings in 53.52s'], [])
+M3 no id tiebreak (1, ['1 failed, 82 passed, 1443 warnings in 46.06s'], ['FAILED tests/test_journal_two_notes_read_plans.py::test_symbol_backlinks_look_up_each_hit_ONCE'])
+AFTER (0, ['83 passed, 1443 warnings in 40.81s'], [])
+restored sha 9417798d8af85764 clean vs HEAD: True

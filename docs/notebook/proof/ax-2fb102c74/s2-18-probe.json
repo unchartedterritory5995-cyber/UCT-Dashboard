@@ -1,0 +1,117 @@
+{
+ "nonce": "461673940a3709dfa802bfb39b2ab301",
+ "walker": "ax-kbd-walker2@local.dev",
+ "routes": {
+  "A_tab_route": {
+   "reach": {
+    "found": true,
+    "presses": 101,
+    "landed": "div 'Note body' (editable)"
+   },
+   "caret_after_ctrl_home": {
+    "block_index": 0,
+    "block": "P:A plain note with no folder.",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "before": [
+    "P:A plain note with no folder.",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:",
+    "P:"
+   ],
+   "after_alt_shift_down": [
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "P:A plain note with no folder.",
+    "DIV:",
+    "P:"
+   ],
+   "caret_after_down": {
+    "block_index": 1,
+    "block": "P:A plain note with no folder.",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "after_alt_shift_up": [
+    "P:A plain note with no folder.",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:",
+    "P:"
+   ]
+  },
+  "B_focus_route": {
+   "reach": {
+    "found": true,
+    "presses": 0,
+    "landed": "page.focus"
+   },
+   "caret_after_ctrl_home": {
+    "block_index": 0,
+    "block": "P:A plain note with no folder.",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "before": [
+    "P:A plain note with no folder.",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:",
+    "P:"
+   ],
+   "after_alt_shift_down": [
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "P:A plain note with no folder.",
+    "DIV:",
+    "P:"
+   ],
+   "caret_after_down": {
+    "block_index": 1,
+    "block": "P:A plain note with no folder.",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "after_alt_shift_up": [
+    "P:A plain note with no folder.",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:",
+    "P:"
+   ]
+  },
+  "C_walk_replay": {
+   "reach": {
+    "found": true,
+    "presses": 101,
+    "landed": "div 'Note body' (editable)",
+    "tail": [
+     "button 'Add evidence'",
+     "button 'Review thesis'",
+     "button 'CHANGELOG'",
+     "div 'Note body' (editable)"
+    ]
+   },
+   "caret_after_ctrl_home": {
+    "block_index": 0,
+    "block": "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "before": [
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "P:A plain note with no folder.",
+    "DIV:",
+    "P:"
+   ],
+   "after_alt_shift_down": [
+    "P:A plain note with no folder.",
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "DIV:",
+    "P:"
+   ],
+   "caret_after_down": {
+    "block_index": 1,
+    "block": "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "active": "tiptap ProseMirror _proseEditor_txeqr_37"
+   },
+   "after_alt_shift_up": [
+    "P:Beta rates note Alpha thesis NVDA Tomorr",
+    "P:A plain note with no folder.",
+    "DIV:",
+    "P:"
+   ]
+  }
+ }
+}

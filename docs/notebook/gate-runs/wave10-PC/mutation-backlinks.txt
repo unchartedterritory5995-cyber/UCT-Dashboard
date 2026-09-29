@@ -1,0 +1,10 @@
+CONTROL (no mutation): (0, '173 passed, 15175 warnings in 177.85s (0:02:57)', [])
+M1 total counted AFTER the limit (len of the page): rc=1 42 failed, 131 passed, 15175 warnings in 175.67s (0:02:55) red=['test_symbol_backlinks_look_up_each_hit_ONCE', 'test_symbol_backlinks_read_no_note_row', 'test_the_one_pass_answer_equals_the_independent_truth']
+M2 trashed notes admitted: rc=1 41 failed, 132 passed, 15175 warnings in 157.59s (0:02:37) red=['test_a_trashed_note_s_mention_drops_out_of_the_reverse_index_and_restore_brings_it_back', 'test_the_one_pass_answer_equals_the_independent_truth']
+M3 no id tiebreak: rc=0 173 passed, 15175 warnings in 140.87s (0:02:20) red=[]
+M4 embed detail not scoped to the member: rc=1 2 failed, 171 passed, 15175 warnings in 137.48s (0:02:17) red=['test_the_one_pass_answer_equals_the_independent_truth']
+M5 second COUNT pass restored: rc=1 1 failed, 172 passed, 15175 warnings in 92.41s (0:01:32) red=['test_symbol_backlinks_look_up_each_hit_ONCE']
+M6 embed detail grouped over every embed of the symbol: rc=0 173 passed, 15175 warnings in 94.97s (0:01:34) red=[]
+AFTER (restored): (0, '173 passed, 15175 warnings in 102.21s (0:01:42)', [])
+restored, sha 9417798d8af85764 git status clean
+EXIT: 0

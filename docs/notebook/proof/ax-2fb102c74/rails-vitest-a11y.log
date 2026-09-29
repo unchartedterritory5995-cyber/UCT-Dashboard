@@ -1,0 +1,897 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w10-ax/app[39m
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor (wave-8 flags ON)[2m > [22m[2msurface "editor": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor (wave-8 flags ON)[2m > [22m[2msurface "editor": axe finds 0 violations
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor (wave-8 flags ON)[2m > [22m[2msurface "editor": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor (wave-8 flags OFF)[2m > [22m[2msurface "editor:flags-off": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor (wave-8 flags OFF)[2m > [22m[2msurface "editor:flags-off": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-slash": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-slash": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-find": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-find": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-outline": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-outline": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-color": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-color": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-table": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags OFF)[2m > [22m[2msurface "tab-note-open:flags-off": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags OFF)[2m > [22m[2msurface "tab-note-open:flags-off": axe finds 0 violations
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-table": axe finds 0 violations
+[22m[39mAn update to NoteStats inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-table": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-emoji": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags OFF)[2m > [22m[2msurface "tab-note-open:flags-off": axe finds 0 violations
+[22m[39mAn update to NoteStats inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags OFF)[2m > [22m[2msurface "tab-note-open:flags-off": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-emoji": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-note-link": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-note-link": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-link-paste": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-link-paste": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-writing-help": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-writing-help": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-history": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags ON)[2m > [22m[2msurface "tab-note-open": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags ON)[2m > [22m[2msurface "tab-note-open": axe finds 0 violations
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-history": axe finds 0 violations
+[22m[39mRender methods should be a pure function of props and state; triggering nested component updates from render is not allowed. If necessary, trigger nested updates in componentDidUpdate.
+
+Check the render method of NoteVersionPreview.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags ON)[2m > [22m[2msurface "tab-note-open": axe finds 0 violations
+[22m[39mAn update to NoteStats inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx[2m > [22m[2mNotebookTab view modes (wave-8 flags ON)[2m > [22m[2msurface "tab-note-open": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/a11y/notebookTab.a11y.test.jsx [2m([22m[2m20 tests[22m[2m)[22m[33m 25024[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-home:flags-off": axe finds 0 violations [33m 1248[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-list:flags-off": axe finds 0 violations [33m 1140[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-table:flags-off": axe finds 0 violations [33m 1835[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-board:flags-off": axe finds 0 violations [33m 1722[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-calendar:flags-off": axe finds 0 violations [33m 1637[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-timeline:flags-off": axe finds 0 violations [33m 2214[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-graph:flags-off": axe finds 0 violations [33m 1645[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-tasks:flags-off": axe finds 0 violations [33m 1300[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-trash:flags-off": axe finds 0 violations [33m 842[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-note-open:flags-off": axe finds 0 violations [33m 2192[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-home": axe finds 0 violations [33m 834[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-list": axe finds 0 violations [33m 819[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-table": axe finds 0 violations [33m 1077[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-board": axe finds 0 violations [33m 969[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-calendar": axe finds 0 violations [33m 999[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-timeline": axe finds 0 violations [33m 1263[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-graph": axe finds 0 violations [33m 901[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-tasks": axe finds 0 violations [33m 769[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-trash": axe finds 0 violations [33m 548[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "tab-note-open": axe finds 0 violations [33m 1067[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-history": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-palette": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-palette": axe finds 0 violations
+[22m[39mAn update to NoteStats inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx[2m > [22m[2mnote editor popups[2m > [22m[2msurface "editor-palette": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/a11y/noteEditor.a11y.test.jsx [2m([22m[2m13 tests[22m[2m)[22m[33m 26624[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor": axe finds 0 violations [33m 2651[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor:flags-off": axe finds 0 violations [33m 1920[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-slash": axe finds 0 violations [33m 2989[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-find": axe finds 0 violations [33m 2186[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-outline": axe finds 0 violations [33m 1878[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-color": axe finds 0 violations [33m 1981[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-table": axe finds 0 violations [33m 1740[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-emoji": axe finds 0 violations [33m 2425[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-note-link": axe finds 0 violations [33m 2477[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-link-paste": axe finds 0 violations [33m 2081[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-writing-help": axe finds 0 violations [33m 1590[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-history": axe finds 0 violations [33m 1440[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-palette": axe finds 0 violations [33m 1265[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed WRITE is said, and stays said[2m > [22m[2mfavorite: the star goes back AND a sentence says the note was not added
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed WRITE is said, and stays said[2m > [22m[2mfavorite: the star goes back AND a sentence says the note was not added
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mopening an existing note from the list focuses its heading, never a field
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mopening an existing note from the list focuses its heading, never a field
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mopening an existing note from the list focuses its heading, never a field
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mmaking a NEW note puts focus in its title (typing it is the next act)
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mmaking a NEW note puts focus in its title (typing it is the next act)
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mmaking a NEW note puts focus in its title (typing it is the next act)
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mgoing back to the list puts focus on the row that opened the note
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mgoing back to the list puts focus on the row that opened the note
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2ma member who clicked into the sidebar keeps focus there when the note closes
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2ma member who clicked into the sidebar keeps focus there when the note closes
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting a note through ConfirmModal puts focus on the NEXT row
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting a note through ConfirmModal puts focus on the NEXT row
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed WRITE is said, and stays said[2m > [22m[2mfavorite: the star goes back AND a sentence says the note was not added
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed WRITE is said, and stays said[2m > [22m[2madd-tag: a sentence says the tag was not added, and the typed tag is given back
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting a note through ConfirmModal puts focus on the NEXT row
+[22m[39mAn update to MemoryRouter inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting the LAST row puts focus on the pane heading, which then shows
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting the LAST row puts focus on the pane heading, which then shows
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mdeleting the LAST row puts focus on the pane heading, which then shows
+[22m[39mAn update to RelationPropertyValue inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to MemoryRouter inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to NotebookTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mthe skip link is the first focusable thing in the tab, and it moves focus
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mthe skip link is the first focusable thing in the tab, and it moves focus
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the Notebook tab[2m > [22m[2mthe skip link is the first focusable thing in the tab, and it moves focus
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed WRITE is said, and stays said[2m > [22m[2madd-tag: a sentence says the tag was not added, and the typed tag is given back
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed READ is said where its data would have shown[2m > [22m[2ma note side read (attachments) -> one sentence in the note, with Try again
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing Ask gives focus back to the Ask toggle
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2ma failed READ is said where its data would have shown[2m > [22m[2ma note side read (attachments) -> one sentence in the note, with Try again
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing Ask gives focus back to the Ask toggle
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2ma failed tag add, then a SUCCESSFUL favorite toggle: the tag sentence and the typed tag stay
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2ma failed tag add, then a SUCCESSFUL favorite toggle: the tag sentence and the typed tag stay
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing Ask gives focus back to the Ask toggle
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the find bar gives focus back to the note
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2ma failed tag add, then a SUCCESSFUL favorite toggle: the tag sentence and the typed tag stay
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2mthe reverse: a failed favorite, then a SUCCESSFUL tag add: the favorite sentence stays
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the find bar gives focus back to the note
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mEscape in the slash menu leaves focus in the note, caret unmoved
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2mthe reverse: a failed favorite, then a SUCCESSFUL tag add: the favorite sentence stays
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2mboth can show at once, each with its own Dismiss
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/silentFailures.test.jsx[2m > [22m[2mone write's success never erases the other write's failure[2m > [22m[2mboth can show at once, each with its own Dismiss
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mEscape in the slash menu leaves focus in the note, caret unmoved
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mEscape in the emoji menu leaves focus in the note, caret unmoved
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+ [32m✓[39m src/pages/journal-2-0/a11y/silentFailures.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 10353[2mms[22m[39m
+     [33m[2m✓[22m[39m favorite: the star goes back AND a sentence says the note was not added [33m 3784[2mms[22m[39m
+     [33m[2m✓[22m[39m add-tag: a sentence says the tag was not added, and the typed tag is given back [33m 3259[2mms[22m[39m
+     [33m[2m✓[22m[39m a failed tag add, then a SUCCESSFUL favorite toggle: the tag sentence and the typed tag stay [33m 1037[2mms[22m[39m
+     [33m[2m✓[22m[39m the reverse: a failed favorite, then a SUCCESSFUL tag add: the favorite sentence stays [33m 736[2mms[22m[39m
+     [33m[2m✓[22m[39m both can show at once, each with its own Dismiss [33m 770[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mEscape in the emoji menu leaves focus in the note, caret unmoved
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the colour menu gives focus back to its toolbar button
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the colour menu gives focus back to its toolbar button
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the outline gives focus back to its toolbar button
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/focusFlows.test.jsx[2m > [22m[2mfocus in the note editor[2m > [22m[2mclosing the outline gives focus back to its toolbar button
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/a11y/focusFlows.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 11374[2mms[22m[39m
+     [33m[2m✓[22m[39m opening an existing note from the list focuses its heading, never a field [33m 566[2mms[22m[39m
+     [33m[2m✓[22m[39m making a NEW note puts focus in its title (typing it is the next act) [33m 522[2mms[22m[39m
+     [33m[2m✓[22m[39m going back to the list puts focus on the row that opened the note [33m 305[2mms[22m[39m
+     [33m[2m✓[22m[39m a member who clicked into the sidebar keeps focus there when the note closes [33m 634[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting a note through ConfirmModal puts focus on the NEXT row [33m 1513[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting the LAST row puts focus on the pane heading, which then shows [33m 1566[2mms[22m[39m
+     [33m[2m✓[22m[39m the skip link is the first focusable thing in the tab, and it moves focus [33m 460[2mms[22m[39m
+     [33m[2m✓[22m[39m a Notebook Sheet (Save view) gives focus back to the button that opened it [33m 337[2mms[22m[39m
+     [33m[2m✓[22m[39m closing Ask gives focus back to the Ask toggle [33m 1107[2mms[22m[39m
+     [33m[2m✓[22m[39m closing the find bar gives focus back to the note [33m 575[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape in the slash menu leaves focus in the note, caret unmoved [33m 1376[2mms[22m[39m
+     [33m[2m✓[22m[39m Escape in the emoji menu leaves focus in the note, caret unmoved [33m 1403[2mms[22m[39m
+     [33m[2m✓[22m[39m closing the colour menu gives focus back to its toolbar button [33m 510[2mms[22m[39m
+     [33m[2m✓[22m[39m closing the outline gives focus back to its toolbar button [33m 499[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2mcustom node views inside a note[2m > [22m[2msurface "editor-nodes": axe finds 0 violations
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2mcustom node views inside a note[2m > [22m[2msurface "editor-nodes": axe finds 0 violations
+[22m[39mAn update to NoteStats inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2mjournal embed renderers[2m > [22m[2msurface "embed-ai-search": axe finds 0 violations
+[22m[39mEach child in a list should have a unique "key" prop.
+
+Check the render method of `div`. It was passed a child from AiSearchWidget. See https://react.dev/link/warning-keys for more information.
+
+ [32m✓[39m src/pages/journal-2-0/a11y/deleteFocusFallback.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 3944[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting the first folder lands on the NEXT folder row, not <body> [33m 915[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting the LAST folder lands on the one before it [33m 714[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting a view lands on the NEXT view row, not <body> [33m 1180[2mms[22m[39m
+     [33m[2m✓[22m[39m deleting the only view lands on the pane heading [33m 1133[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2meditor side sections[2m > [22m[2msurface "editor-thesis": axe finds 0 violations
+[22m[39mflushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+flushSync was called from inside a lifecycle method. React cannot flush when React is already rendering. Consider moving this call to a scheduler task or micro task.
+
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2meditor side sections[2m > [22m[2msurface "editor-thesis": axe finds 0 violations
+[22m[39mlinkifyjs: already initialized - will not register custom scheme "https" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.
+
+ [32m✓[39m src/pages/journal-2-0/a11y/panels.a11y.test.jsx [2m([22m[2m8 tests[22m[2m)[22m[33m 3335[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "folder-sidebar-edit": axe finds 0 violations [33m 731[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "folder-sidebar-tags": axe finds 0 violations [33m 470[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "folder-sidebar-search": axe finds 0 violations [33m 783[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "ask-insert-picker": axe finds 0 violations [33m 623[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/a11y/parts.a11y.test.jsx[2m > [22m[2meditor side sections[2m > [22m[2msurface "editor-thesis": axe finds 0 violations
+[22m[39mAn update to Root inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/pages/journal-2-0/a11y/parts.a11y.test.jsx [2m([22m[2m20 tests[22m[2m)[22m[33m 9867[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-nodes": axe finds 0 violations [33m 2189[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "embed-breadth": axe finds 0 violations [33m 794[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "editor-thesis": axe finds 0 violations [33m 4452[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/dialogs.a11y.test.jsx [2m([22m[2m15 tests[22m[2m)[22m[33m 3681[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "document-preview-pdf": axe finds 0 violations [33m 497[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "capture-connect": axe finds 0 violations [33m 361[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "import-wizard": axe finds 0 violations [33m 531[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "template-picker": axe finds 0 violations [33m 521[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/dialogNames.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[33m 2585[2mms[22m[39m
+     [33m[2m✓[22m[39m Templates opens a dialog named "New note", by its visible title [33m 931[2mms[22m[39m
+     [33m[2m✓[22m[39m Import opens a dialog named "Import notes", by its visible title [33m 848[2mms[22m[39m
+     [33m[2m✓[22m[39m Export opens a dialog named "Export your notebook", by its visible title [33m 805[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/publishFolder.a11y.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 1031[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "publish-folder-sheet": axe finds 0 violations [33m 351[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "bulk-export-formats": axe finds 0 violations [33m 371[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/sharing.a11y.test.jsx [2m([22m[2m5 tests[22m[2m)[22m[33m 921[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "share-popover": axe finds 0 violations [33m 445[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/settingsCards.a11y.test.jsx [2m([22m[2m4 tests[22m[2m)[22m[33m 863[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "settings-personal-api": axe finds 0 violations [33m 361[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/axeHarness.contract.test.js [2m([22m[2m22 tests[22m[2m)[22m[33m 841[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/graph.a11y.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 683[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "graph-canvas": axe finds 0 violations [33m 375[2mms[22m[39m
+     [33m[2m✓[22m[39m surface "graph-list": axe finds 0 violations [33m 306[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/surfaceCoverage.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 672[2mms[22m[39m
+     [33m[2m✓[22m[39m every recipe and coveredBy id is registered by an axe rail in a11y/ [33m 636[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/focusSuppression.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 227[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/loadFailedConsumers.test.js [2m([22m[2m33 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/notebookContrast.test.js [2m([22m[2m10 tests[22m[2m | [22m[33m1 skipped[39m[2m)[22m[32m 131[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/fontSelectFocus.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/targetFloors.test.js [2m([22m[2m34 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/paneHeadingLayout.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/ariaCoverage.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/a11y/skipLinkUntappable.test.js [2m([22m[2m4 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m23 passed[39m[22m[90m (23)[39m
+[2m      Tests [22m [1m[32m261 passed[39m[22m[2m | [22m[33m1 skipped[39m[90m (262)[39m
+[2m   Start at [22m 07:14:24
+[2m   Duration [22m 73.18s[2m (transform 8.49s, setup 4.42s, import 17.71s, tests 102.26s, environment 16.80s)[22m
+

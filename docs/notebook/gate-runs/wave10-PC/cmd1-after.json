@@ -1,0 +1,305 @@
+{
+  "meta": {
+    "tool": "tools/notebook_scale_benchmark.py",
+    "argv": [
+      "--tiers",
+      "50000",
+      "--attachments",
+      "10000",
+      "--budget",
+      "search",
+      "--budget",
+      "reads",
+      "--budget",
+      "tasks",
+      "--budget",
+      "attachments",
+      "--thresholds",
+      "docs/notebook/perf-budgets.json",
+      "--json",
+      "docs/notebook/gate-runs/wave10-PC/cmd1-after.json",
+      "--work-dir",
+      "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/pc"
+    ],
+    "git_head": "96b07aa3855525d3375079d09aaad155dcd72b24",
+    "git_dirty_paths": [],
+    "python": "3.14.0",
+    "sqlite": "3.50.4",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "reps": 20,
+    "warmup": 2,
+    "paragraphs": 5,
+    "started_at": "2026-09-29T08:27:26-0500",
+    "remeasure_budgets": [
+      "search",
+      "reads",
+      "tasks",
+      "attachments"
+    ],
+    "timed_ops": [
+      "list_notes (page 1, default sort)",
+      "count_notes (whole library)",
+      "GET /notes default (list+count)",
+      "list_notes (FTS, common term ~30%)",
+      "count_notes (FTS, common term ~30%)",
+      "GET /notes q=common (list+count)",
+      "list_notes (FTS, rare term, 1 note)",
+      "GET /notes q=rare (list+count)",
+      "GET /notes q=common, relevance (search box)",
+      "GET /notes q=rare, relevance (search box)",
+      "GET /notes tag=setups (list+count)",
+      "GET /notes embed_symbol (list+count)",
+      "tag_counts (whole library)",
+      "tag_tree (whole library)",
+      "GET /notes/tags (tags+tree)",
+      "folder_note_counts (whole library)",
+      "notes_for_folders (heavy + 2 others)",
+      "get_symbol_backlinks",
+      "switcher_search (word start)",
+      "switcher_search (fuzzy, in order)",
+      "list_tasks (open, ?view=tasks)",
+      "switcher_search (body fallback, common term)",
+      "switcher_search (body fallback, rare term)",
+      "GET /notes/documents/search q=common (search box)",
+      "GET /notes/documents/search q=rare (search box)",
+      "GET /notes/{id}/documents (note with 50 documents)"
+    ],
+    "attachments": 10000,
+    "curve": false,
+    "ratio_budget": null,
+    "members": 1,
+    "slow_ops": {},
+    "shared_root_writes": []
+  },
+  "tiers": [
+    {
+      "n": 50000,
+      "members": 1,
+      "notes_all_members": 50000,
+      "active": 47590,
+      "trashed": 979,
+      "archived": 1431,
+      "seed_ms": 27488.6,
+      "task_digest_backfill_ms": 236.9,
+      "attachments": 10000,
+      "attachment_pages": 30000,
+      "attachment_seed_ms": 4644.9,
+      "db_bytes": 487497728,
+      "ops": {
+        "list_notes (page 1, default sort)": {
+          "p50_ms": 0.938,
+          "p95_ms": 1.147,
+          "max_ms": 1.172,
+          "min_ms": 0.895,
+          "reps": 20
+        },
+        "count_notes (whole library)": {
+          "p50_ms": 7.097,
+          "p95_ms": 7.552,
+          "max_ms": 7.938,
+          "min_ms": 6.544,
+          "reps": 20
+        },
+        "GET /notes default (list+count)": {
+          "p50_ms": 8.737,
+          "p95_ms": 14.594,
+          "max_ms": 15.747,
+          "min_ms": 7.993,
+          "reps": 20
+        },
+        "list_notes (FTS, common term ~30%)": {
+          "p50_ms": 33.077,
+          "p95_ms": 43.238,
+          "max_ms": 68.199,
+          "min_ms": 21.499,
+          "reps": 20
+        },
+        "count_notes (FTS, common term ~30%)": {
+          "p50_ms": 24.814,
+          "p95_ms": 27.507,
+          "max_ms": 37.357,
+          "min_ms": 23.612,
+          "reps": 20
+        },
+        "GET /notes q=common (list+count)": {
+          "p50_ms": 52.468,
+          "p95_ms": 62.534,
+          "max_ms": 63.809,
+          "min_ms": 45.2,
+          "reps": 20
+        },
+        "list_notes (FTS, rare term, 1 note)": {
+          "p50_ms": 21.154,
+          "p95_ms": 27.127,
+          "max_ms": 27.498,
+          "min_ms": 14.271,
+          "reps": 20
+        },
+        "GET /notes q=rare (list+count)": {
+          "p50_ms": 26.91,
+          "p95_ms": 35.126,
+          "max_ms": 36.549,
+          "min_ms": 21.687,
+          "reps": 20
+        },
+        "GET /notes q=common, relevance (search box)": {
+          "p50_ms": 126.287,
+          "p95_ms": 142.537,
+          "max_ms": 142.579,
+          "min_ms": 95.186,
+          "reps": 20,
+          "remeasure": {
+            "p50_ms": 130.327,
+            "p95_ms": 144.405,
+            "max_ms": 146.207,
+            "min_ms": 84.268,
+            "reps": 20,
+            "line_ms": 100.0
+          }
+        },
+        "GET /notes q=rare, relevance (search box)": {
+          "p50_ms": 28.278,
+          "p95_ms": 35.838,
+          "max_ms": 36.705,
+          "min_ms": 21.559,
+          "reps": 20
+        },
+        "GET /notes tag=setups (list+count)": {
+          "p50_ms": 39.031,
+          "p95_ms": 40.853,
+          "max_ms": 41.819,
+          "min_ms": 35.831,
+          "reps": 20
+        },
+        "GET /notes embed_symbol (list+count)": {
+          "p50_ms": 58.507,
+          "p95_ms": 61.824,
+          "max_ms": 64.481,
+          "min_ms": 51.164,
+          "reps": 20
+        },
+        "tag_counts (whole library)": {
+          "p50_ms": 68.753,
+          "p95_ms": 74.263,
+          "max_ms": 77.133,
+          "min_ms": 66.053,
+          "reps": 20
+        },
+        "tag_tree (whole library)": {
+          "p50_ms": 72.663,
+          "p95_ms": 81.094,
+          "max_ms": 84.184,
+          "min_ms": 69.774,
+          "reps": 20
+        },
+        "GET /notes/tags (tags+tree)": {
+          "p50_ms": 72.258,
+          "p95_ms": 80.164,
+          "max_ms": 85.721,
+          "min_ms": 69.279,
+          "reps": 20
+        },
+        "folder_note_counts (whole library)": {
+          "p50_ms": 9.831,
+          "p95_ms": 11.809,
+          "max_ms": 29.563,
+          "min_ms": 6.134,
+          "reps": 20
+        },
+        "notes_for_folders (heavy + 2 others)": {
+          "p50_ms": 9.063,
+          "p95_ms": 10.005,
+          "max_ms": 10.789,
+          "min_ms": 8.624,
+          "reps": 20
+        },
+        "get_symbol_backlinks": {
+          "p50_ms": 22.727,
+          "p95_ms": 26.461,
+          "max_ms": 28.667,
+          "min_ms": 21.786,
+          "reps": 20
+        },
+        "switcher_search (word start)": {
+          "p50_ms": 55.347,
+          "p95_ms": 61.062,
+          "max_ms": 61.538,
+          "min_ms": 49.823,
+          "reps": 20
+        },
+        "switcher_search (fuzzy, in order)": {
+          "p50_ms": 70.121,
+          "p95_ms": 80.836,
+          "max_ms": 88.804,
+          "min_ms": 65.977,
+          "reps": 20
+        },
+        "list_tasks (open, ?view=tasks)": {
+          "p50_ms": 74.772,
+          "p95_ms": 84.26,
+          "max_ms": 93.585,
+          "min_ms": 71.911,
+          "reps": 20
+        },
+        "switcher_search (body fallback, common term)": {
+          "p50_ms": 181.183,
+          "p95_ms": 198.667,
+          "max_ms": 208.47,
+          "min_ms": 156.773,
+          "reps": 20
+        },
+        "switcher_search (body fallback, rare term)": {
+          "p50_ms": 94.661,
+          "p95_ms": 110.253,
+          "max_ms": 129.264,
+          "min_ms": 81.178,
+          "reps": 20
+        },
+        "GET /notes/documents/search q=common (search box)": {
+          "p50_ms": 53.11,
+          "p95_ms": 56.81,
+          "max_ms": 57.568,
+          "min_ms": 33.522,
+          "reps": 20
+        },
+        "GET /notes/documents/search q=rare (search box)": {
+          "p50_ms": 3.017,
+          "p95_ms": 3.451,
+          "max_ms": 4.394,
+          "min_ms": 2.868,
+          "reps": 20
+        },
+        "GET /notes/{id}/documents (note with 50 documents)": {
+          "p50_ms": 13.547,
+          "p95_ms": 14.766,
+          "max_ms": 18.35,
+          "min_ms": 7.507,
+          "reps": 20
+        }
+      },
+      "ratio": null,
+      "peak_tracemalloc_bytes": 12077863,
+      "correctness": {
+        "count_notes matches the seeded active total": true,
+        "folder counts sum to the active total": true,
+        "heavy folder count matches the seeded active share": true,
+        "notes_for_folders returns the heavy folder honestly (not capped at the old 100)": true,
+        "FTS common-term count matches the seeded share": true,
+        "FTS rare-term finds exactly the one seeded note": true,
+        "tag_counts equals the recomputed truth for every tag (flat and nested)": true,
+        "tag_tree totals equal the recomputed subtree truth": true,
+        "tag=setups returns the whole subtree": true,
+        "backlinks count matches embeds UNION mentions for that symbol": true,
+        "list_tasks returns every open task on an active note": true,
+        "switcher finds titles": true,
+        "switcher fills a page from bodies no title names": true,
+        "switcher body fallback finds exactly the one rare note": true,
+        "document search finds exactly the one rare page": true,
+        "document search returns a full page of common hits": true,
+        "document search hides a trashed note's documents": true,
+        "the heavy note lists every one of its documents, each with its whole text": true
+      },
+      "db_path": null
+    }
+  ]
+}

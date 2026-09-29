@@ -1,0 +1,6 @@
+CONTROL (0, ['3 passed, 25 deselected, 1487 warnings in 3.13s'])
+M1 per-call reads the SHARED connection (1, ['1 failed, 2 passed, 25 deselected, 1487 warnings in 3.31s'])
+M2 default model flipped to per-call (1, ['1 failed, 2 passed, 25 deselected, 1487 warnings in 3.90s'])
+M3 unknown model accepted (1, ['1 failed, 2 passed, 25 deselected, 1487 warnings in 4.66s'])
+AFTER (0, ['3 passed, 25 deselected, 1487 warnings in 3.43s'])
+restored sha 55e9e1cd9a06c67d git status of benchmark: M tools/notebook_scale_benchmark.py

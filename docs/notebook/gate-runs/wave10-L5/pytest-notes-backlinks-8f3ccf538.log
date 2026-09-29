@@ -1,0 +1,48 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 15%]
+........................................................................ [ 30%]
+........................................................................ [ 45%]
+........................................................................ [ 60%]
+........................................................................ [ 76%]
+........................................................................ [ 80%]
+.........................................                                [ 80%]
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 31403 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 473 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+api/services/journal_two/test_notes.py::test_extract_plain_text_walks_nested_nodes
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+api/services/journal_two/test_notes.py: 7525 warnings
+tests/test_journal_two_notes_archive_router.py: 3225 warnings
+tests/test_journal_two_notes_batch_router.py: 13762 warnings
+tests/test_journal_two_notes_favorites_recents_router.py: 2150 warnings
+tests/test_journal_two_notes_lock_router.py: 1720 warnings
+tests/test_journal_two_notes_search_router.py: 1075 warnings
+tests/test_journal_two_notes_switcher_router.py: 6880 warnings
+tests/test_journal_two_notes_versions_router.py: 2580 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+api/services/journal_two/test_notes.py: 7743 warnings
+tests/test_journal_two_notes_archive_router.py: 3319 warnings
+tests/test_journal_two_notes_batch_router.py: 14169 warnings
+tests/test_journal_two_notes_favorites_recents_router.py: 2212 warnings
+tests/test_journal_two_notes_lock_router.py: 1774 warnings
+tests/test_journal_two_notes_search_router.py: 1107 warnings
+tests/test_journal_two_notes_switcher_router.py: 7073 warnings
+tests/test_journal_two_notes_versions_router.py: 2658 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+473 passed, 110849 warnings in 158.29s (0:02:38)

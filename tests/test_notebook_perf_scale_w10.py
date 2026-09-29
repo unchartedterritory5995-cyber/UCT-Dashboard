@@ -72,6 +72,57 @@ def test_the_route_connection_points_at_the_tier_only_for_the_call(tmp_path):
     assert auth_db._DB_PATH == before
 
 
+# ── 1b. the connection model (clause 14d ruling, 2026-09-29) ─────────────────
+
+def _count_production_opens(monkeypatch):
+    from api.services import auth_db
+    real = auth_db.get_connection
+    opened = []
+
+    def spy():
+        c = real()
+        # Record every statement this connection runs: a connection that is opened and then
+        # never read from is the per-call model in name only (mutation M1).
+        rec = {"path": auth_db._DB_PATH, "statements": 0}
+
+        def traced(_sql):
+            rec["statements"] += 1
+        c.set_trace_callback(traced)
+        opened.append(rec)
+        return c
+    monkeypatch.setattr(auth_db, "get_connection", spy)
+    return opened
+
+
+def test_per_call_opens_every_read_through_production_and_every_check_passes(tmp_path, monkeypatch):
+    """The per-call model is only production's model if production's own opener runs, once per
+    timed call, against the TIER's database -- and the answers must be the ones the shared
+    model gives (every correctness check is computed from the per-call results)."""
+    opened = _count_production_opens(monkeypatch)
+    r = bench.run_tier(200, reps=2, warmup=1, paragraphs=1, work_dir=str(tmp_path),
+                       connection="per-call")
+    assert r["connection"] == "per-call"
+    assert [k for k, ok in r["correctness"].items() if not ok] == []
+    tier_opens = [o for o in opened if o["path"] and o["path"].endswith("bench.db")]
+    # warmup 1 + reps 2 timed, plus the one traced pass: 4 opens per op, at least
+    assert len(tier_opens) >= 4 * len(bench.TIMED_OPS)
+    # ...and every one of them is where the read actually ran
+    assert all(o["statements"] > 0 for o in tier_opens), "a per-call connection carried no read"
+
+
+def test_the_shared_model_is_the_default_and_never_opens_a_connection_per_read(tmp_path, monkeypatch):
+    opened = _count_production_opens(monkeypatch)
+    r = bench.run_tier(200, reps=1, warmup=0, paragraphs=1, work_dir=str(tmp_path))
+    assert r["connection"] == "shared"
+    assert [o for o in opened if o["path"] and o["path"].endswith("bench.db")] == []
+
+
+def test_an_unknown_connection_model_is_refused(tmp_path):
+    with pytest.raises(ValueError):
+        bench.run_tier(50, reps=1, warmup=0, paragraphs=1, work_dir=str(tmp_path),
+                       connection="pooled")
+
+
 def test_an_attachment_budget_holds_only_on_a_tier_that_carried_the_attachments():
     spec = {"tier": 1000, "attachments": 10000, "p95_ms_max": 100, "ops": ["x"]}
     ran_without = {"tiers": [{"n": 1000, "attachments": 0, "ops": {"x": {"p95_ms": 1.0}}}]}

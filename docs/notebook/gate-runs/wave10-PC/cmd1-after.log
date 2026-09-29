@@ -1,0 +1,47 @@
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_mj94n5sh\auth.db
+
+=== Seeding + measuring 50,000 notes + 10,000 attachments (20 reps after 2 warmup) ===
+  seed 27.5s  db 487.5 MB  active 47,590 trashed 979 archived 1,431  attachments 10,000 (30,000 pages, 4.6s)
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        0.94ms     1.15ms     1.17ms
+  count_notes (whole library)                              7.10ms     7.55ms     7.94ms
+  GET /notes default (list+count)                          8.74ms    14.59ms    15.75ms
+  list_notes (FTS, common term ~30%)                      33.08ms    43.24ms    68.20ms
+  count_notes (FTS, common term ~30%)                     24.81ms    27.51ms    37.36ms
+  GET /notes q=common (list+count)                        52.47ms    62.53ms    63.81ms
+  list_notes (FTS, rare term, 1 note)                     21.15ms    27.13ms    27.50ms
+  GET /notes q=rare (list+count)                          26.91ms    35.13ms    36.55ms
+  GET /notes q=common, relevance (search box)            126.29ms   142.54ms   142.58ms
+  GET /notes q=rare, relevance (search box)               28.28ms    35.84ms    36.70ms
+  GET /notes tag=setups (list+count)                      39.03ms    40.85ms    41.82ms
+  GET /notes embed_symbol (list+count)                    58.51ms    61.82ms    64.48ms
+  tag_counts (whole library)                              68.75ms    74.26ms    77.13ms
+  tag_tree (whole library)                                72.66ms    81.09ms    84.18ms
+  GET /notes/tags (tags+tree)                             72.26ms    80.16ms    85.72ms
+  folder_note_counts (whole library)                       9.83ms    11.81ms    29.56ms
+  notes_for_folders (heavy + 2 others)                     9.06ms    10.01ms    10.79ms
+  get_symbol_backlinks                                    22.73ms    26.46ms    28.67ms
+  switcher_search (word start)                            55.35ms    61.06ms    61.54ms
+  switcher_search (fuzzy, in order)                       70.12ms    80.84ms    88.80ms
+  list_tasks (open, ?view=tasks)                          74.77ms    84.26ms    93.58ms
+  switcher_search (body fallback, common term)           181.18ms   198.67ms   208.47ms
+  switcher_search (body fallback, rare term)              94.66ms   110.25ms   129.26ms
+  GET /notes/documents/search q=common (search box)       53.11ms    56.81ms    57.57ms
+  GET /notes/documents/search q=rare (search box)          3.02ms     3.45ms     4.39ms
+  GET /notes/{id}/documents (note with 50 documents)      13.55ms    14.77ms    18.35ms
+  re-measured GET /notes q=common, relevance (search box): p95 142.54 ms -> 144.41 ms (line 100 ms)
+  OK all correctness checks passed
+
+report: docs/notebook/gate-runs/wave10-PC/cmd1-after.json
+VERDICT: BUDGET BREACH
+  BREACH [search] 'GET /notes q=common, relevance (search box)' at 50,000 notes: p95 142.5 ms >= budget 100 ms; re-measured 144.4 ms
+EXIT: 2

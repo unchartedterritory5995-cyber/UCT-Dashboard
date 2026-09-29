@@ -1,0 +1,81 @@
+SANDBOX IDENTITY: http://127.0.0.1:8235 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10-ax\docs\plans\joystick\sandbox-runs\2026-09-29T07-13-54.md (identity 461673940a37..., data dir C:\data-w10ax)
+[      PASS] C0 control: unreachable found=False after 12; trap detected=True; trail=["button 'Alpha'", "button 'Trap one'", "button 'Trap two'", "button 'Trap one'"
+[      PASS] S1-01 list: skip link first: first stop: a 'Skip to main content'; 'Skip to notes list' reached after 2 presses (found=True); first 6 stops: ["a 'Skip to notes list'"]
+[      PASS] S1-02 list: skip link works: after Enter focus is h2 'All notes' at [370, 229, 73, 26]
+[  OBSERVED] S1-03 list: after the skip: next stop select 'Sort notes'
+[      PASS] S1-10 sidebar: folder 'Research': reached=True in 56 Tab; focus visible=True indicator=True
+[      PASS] S1-10e sidebar: folder 'Research' activates: list heading 'All notes' -> 'Notes in this folder'; focus now button 'Research'
+[      PASS] S1-11 sidebar: nested folder 'Semis': Tab x55 to 'expand research' + Enter (expanded -> true); reached=True in 7 Tab; focus visible=True indicator=True
+[      PASS] S1-11e sidebar: nested folder 'Semis' activates: list heading 'All notes' -> 'Notes in this folder'; focus now button 'Semis'
+[      PASS] S1-12 sidebar: tag 'macro': reached=True in 63 Tab; focus visible=True indicator=True
+[      PASS] S1-12e sidebar: tag 'macro' activates: list heading 'All notes' -> 'Notes tagged macro'; focus now button 'Tag macro, 2 notes including the tags below it'
+[      PASS] S1-13 sidebar: nested tag 'macro/rates': Tab x62 to 'expand tag macro' + Enter (expanded -> true); reached=True in 3 Tab; focus visible=True indicator=True
+[      PASS] S1-13e sidebar: nested tag 'macro/rates' activates: list heading 'All notes' -> 'Notes tagged macro/rates'; focus now button 'Tag macro/rates, 1 note'
+[      PASS] S1-14 sidebar: saved view 'Active theses': reached=True in 48 Tab; focus visible=True indicator=True
+[      PASS] S1-14e sidebar: saved view 'Active theses' activates: list heading 'All notes' -> 'Saved view: Active theses'; focus now button 'Active theses'
+[      PASS] S1-15 sidebar: Trash: reached=True in 54 Tab; focus visible=True indicator=True
+[      PASS] S1-15e sidebar: Trash activates: list heading 'All notes' -> 'Trash'; focus now button 'Trash 0'
+[      PASS] S1-16 sidebar: Archived: reached=True in 53 Tab; focus visible=True indicator=True
+[      PASS] S1-16e sidebar: Archived activates: list heading 'All notes' -> 'Archived notes'; focus now button 'Archived 0'
+[      PASS] S1-17 sidebar: folder disclosure: found=True; button 'Expand Research' expanded=false
+[      PASS] S1-20 view mode: List view: after Enter focus button 'List view' pressed=true url=/notebook?view=all
+[      PASS] S1-21 view mode: Table view: after Enter focus button 'Table view' pressed=true url=/notebook?view=all
+[      PASS] S1-31 table: open a row's note: url /notebook?note=443ed50a5a9b4f9c95669786b9b57334; editor present=True
+[      PASS] S1-22 view mode: Board view: after Enter focus button 'Board view' pressed=true url=/notebook?view=all
+[      PASS] S1-30 board: move a card with its <select>: select value '__unset__' -> 'watching'; focus now select 'Move Alpha thesis NVDA toWatchingActiveInvalidat'
+[      PASS] S1-23 view mode: Calendar view: after Enter focus button 'Calendar view' pressed=true url=/notebook?view=all
+[      PASS] S1-32 calendar: open a note: url /notebook?note=940562ad8c0e449f8cc00df96dfbd443; editor present=True
+[      PASS] S1-24 view mode: Graph view: after Enter focus button 'Graph view' pressed=true url=/notebook?view=all
+[      PASS] S1-25 view mode: Timeline view: after Enter focus button 'Timeline view' pressed=true url=/notebook?view=all
+[      PASS] S1-33 timeline: open a note: url /notebook?note=443ed50a5a9b4f9c95669786b9b57334; editor present=True
+[      PASS] S1-26 view mode: Tasks view: after Enter focus button 'Tasks view' pressed=true url=/notebook?view=all
+[      PASS] S1-34 tasks: open a note: url /notebook?note=443ed50a5a9b4f9c95669786b9b57334&task=0; editor present=True
+[      PASS] S1-40 bulk: select two, Export, Escape: selected=2; dialogs on open=[]; focus on open button 'Export selected' (inDialog=None); after Escape focus button 'Export selected'; dialogs
+[      PASS] S2-01 editor: open from the list with Enter: opened=True; url /notebook?note=443ed50a5a9b4f9c95669786b9b57334
+[      PASS] S2-02 editor: every Tab stop shows focus: 119 stops; without an indicator: []; focused while off screen: []
+[      PASS] S2-10 editor: reach the body: div 'Note body' (editable) found=True
+[      PASS] S2-11 editor: slash menu: open: [{'role': 'listbox', 'label': 'Insert block'}]; after Escape: []; focus div 'Note body' (editable)
+[      PASS] S2-12 editor: emoji menu: open: [{'role': 'listbox', 'label': 'Insert emoji'}]; after Escape []
+[      PASS] S2-13 editor: [[ note link: picker options ['Beta rates note']; links 1 -> 2 (new: ['Beta rates note']); picker after Enter None; focus div 'Note body' (editable)
+[      PASS] S2-13b editor: [[ keyboard selection: options ['Delta plain', 'Alpha thesis NVDA']; selected after ArrowDown ['Alpha thesis NVDA']; inserted ['Alpha thesis NVDA']; focus div 'Not
+[      PASS] S2-13c editor: [[ picker Escape: picker before Escape ['Gamma earnings']; after Escape None; links 3 -> 3; focus div 'Note body' (editable); '[[Gamx' in the body=True
+[      PASS] S2-14 editor: @ date: date chips 1 -> 2 (new: ['2026-09-30'], tomorrow ET 2026-09-30); '@tomorrow' left as text=False; menus []; focus div 'Note body' (editable)
+[      PASS] S2-14c editor: @ date CONTROL: date chips 2 -> 2; '@notaday' left as text=True
+[      PASS] S2-15 editor: find and replace: after Ctrl+F input [searchbox] 'Find in note'; after Ctrl+H input [searchbox] 'Find in note'; after Escape div 'Note body' (editable)
+[      PASS] S2-16 editor: table created and walked: in table after insert=True; rows 3 -> 6
+[      FAIL] S2-17 editor: leave a table by keyboard (2.1.2): after the tries: {'Escape': {'inTable': True, 'inEditor': True, 'text': '', 'rows': 6}, 'Control+Enter': {'inTable': True, 'inEditor': True,
+[      FAIL] S2-18 editor: move a block with the keys: first block '' -> ''
+[      PASS] S2-20 editor door: Ask: on open focus input 'Your question about This note' (inDialog=Ask This note); dialogs [{'role': 'dialog', 'modal': None, 'label': 'Ask This 
+[      PASS] S2-21 editor door: Writing help: on open focus div [dialog] 'Writing help' (inDialog=dialog); dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}] menus [{'role': 'dia
+[      PASS] S2-22 editor door: Version history: on open focus div [dialog] 'Version history' (inDialog=Version history); dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Version hist
+[      PASS] S2-23 editor door: Outline: on open focus button 'Close outline' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Close outline'", "button 'Close outline
+[      PASS] S2-24 editor door: Text colour: on open focus button 'Default text color' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Gray text'", "button 'Red text'", 
+[      PASS] S2-25 editor door: Share: on open focus div [dialog] 'Share this note' (inDialog=Share this note); dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Share this n
+[      PASS] S2-26 editor door: Export menu: on open focus button [menuitem] 'Markdown' (inDialog=None); dialogs [] menus [{'role': 'menu', 'label': 'Export this note as'}]; Tab path in
+[      PASS] S2-27 editor door: Open beside: on open focus input 'Find a note to open beside' (inDialog=None); dialogs [] menus []; Tab path inside ["input 'Find a note to open bes", "i
+[      PASS] S2-28 editor door: Delete confirmation: on open focus button 'Cancel' (inDialog=Delete this note?); dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Delete this note?'}] menu
+[      PASS] S2-29 editor door: Add property: on open focus button 'Add property' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Suggest values with Co", "button 'Thesis
+[  OBSERVED] S2-30 editor: lock: after Enter focus button 'Unlock'; toolbar now ["button 'Unlock'"]
+[  OBSERVED] S2-31 editor: archive: after Enter focus button 'Unarchive'; toolbar now ["button 'Unarchive'"]
+[      PASS] S3-01 graph: reach the canvas: canvas [application] 'Note graph: 6 notes, 5 links' found=True
+[      PASS] S3-02 graph: arrows, Home, End announce a note: live region: {'ArrowRight': 'Alpha thesis NVDA, 3 links', 'Home': 'Alpha thesis NVDA, 3 links', 'End': 'Gamma earnings, 0 links', 'ArrowLeft
+[  OBSERVED] S3-03 graph: keys do not reset the layout: canvas hash before a8464b11964c0259 after 675ff3f33781fb3f
+[      PASS] S3-04 graph: Enter opens the selected note: editor present=True; url /notebook?note=443ed50a5a9b4f9c95669786b9b57334
+[      PASS] S3-05 graph: 'Show as list': tables on page=1; focus button 'Show as list'
+[      PASS] S4-01 dialog: command palette (Ctrl+K): dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Command palette'}]; focus on open input [combobox] 'Search a security, company, or no
+[      PASS] S4-02 dialog: Save view: dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Save view'}]; focus on open input 'Name' inDialog=Save view; Tab x10 stayed inside=Tr
+[      PASS] S4-03 dialog: Templates: dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'New note' inDialog=dialog; Tab x10 stayed inside=Tru
+[      PASS] S4-04 dialog: Import: dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'Import notes' inDialog=dialog; Tab x10 stayed inside
+[      PASS] S4-05 dialog: Export (whole notebook): dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}]; focus on open div [dialog] 'Export your notebook' inDialog=dialog; Tab x10 staye
+[  OBSERVED] S4-06 share sheet: its controls by Tab: stops: ["button 'Close'", "input 'Share link address'", "button 'Copy link'", "button 'Revoke link'", "input 'Published page address'", "but
+[      PASS] S4-07 first-run tour (fresh account): dialogs on load [{'role': 'dialog', 'modal': 'true', 'label': 'Folders and tags'}]; focus h2 'Folders and tags'; Tab path ["button 'Skip tou
+[      PASS] S5-01 public: share link (signed out): title 'Delta plain — UCT Intelligence'; headings ['H1 Delta plain']; 2 stops; without indicator []
+[      PASS] S5-02 public: published page (signed out): title 'Delta plain — UCT Intelligence'; headings ['H1 Delta plain']; 2 stops; without indicator []
+[      PASS] S6-01-list 390 touch: list: doc scrollW 390 vs clientW 390; targets < 24 px: 0 []; targets < 44 px (touch tier): 1
+[      PASS] S6-01-editor 390 touch: editor: doc scrollW 390 vs clientW 390; targets < 24 px: 0 []; targets < 44 px (touch tier): 5
+[      PASS] S6-02-list 820 touch: list: doc scrollW 820 vs clientW 820; targets < 24 px: 0 []; targets < 44 px (touch tier): 7
+[      PASS] S6-02-editor 820 touch: editor: doc scrollW 820 vs clientW 820; targets < 24 px: 0 []; targets < 44 px (touch tier): 3
+[      PASS] S6-03-list 200% zoom of 1280x800: list: doc scrollW 640 vs clientW 640; targets < 24 px: 0 []
+[      PASS] S6-03-editor 200% zoom of 1280x800: editor: doc scrollW 640 vs clientW 640; targets < 24 px: 0 []
+[      PASS] S6-04-list 320 CSS px (reflow): list: doc scrollW 320 vs clientW 320; targets < 24 px: 0 []
+[      PASS] S6-04-editor 320 CSS px (reflow): editor: doc scrollW 320 vs clientW 320; targets < 24 px: 0 []

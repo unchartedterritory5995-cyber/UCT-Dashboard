@@ -1,0 +1,2 @@
+2026-09-29T08:27:14 tag=start cpu=13 free_mb=16052 foreign_procs=0
+2026-09-29T08:28:34 tag=end cpu=20 free_mb=16087 foreign_procs=0
