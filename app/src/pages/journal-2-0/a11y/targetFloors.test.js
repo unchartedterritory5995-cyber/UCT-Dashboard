@@ -384,3 +384,33 @@ describe('L3 R1: a calendar note chip is a 44 px finger target on the touch tier
     expect(lastDecl(old, '.chip', 'min-height', TOUCH)).toBeUndefined()
   })
 })
+
+// Wave 10 lane WK (proof walk wk-7bd834b9f, clause 6c). The find bar's OWN sibling
+// controls (`.navBtn`/`.closeBtn`/`.textBtn`) already floor to --tap-min at the touch
+// tier; the find input itself was the one left out -- measured 248x18 at 390 and
+// 195x18 at 820 (geometry sweep, `tag: INPUT`, `control: "Find in note"`, surface
+// ed-find). Below the product's own 24 px WCAG floor this file otherwise holds
+// everything to, not merely the stricter 44 px instrument reading.
+describe('WK: the Find-in-note input gets the same touch floor as its row-mates (NoteFindBar.module.css)', () => {
+  const find = rulesWithMedia(read(join(NB, 'NoteFindBar.module.css')))
+
+  it('the input floors to --tap-min at the touch tier, same as .navBtn/.closeBtn/.textBtn', () => {
+    expect(lastDecl(find, '.input', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+    expect(lastDecl(find, '.navBtn', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+    expect(lastDecl(find, '.closeBtn', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+  })
+
+  it('the floor is TOUCH-ONLY: no min-height on `.input` outside the touch query', () => {
+    const leaks = find.filter((r) => r.selector === '.input' && r.media !== TOUCH && r.decls.has('min-height'))
+    expect(leaks.map((r) => r.media || 'base')).toEqual([])
+  })
+
+  it("the phone query's `.input { width: 100% }` is untouched by the floor", () => {
+    expect(lastDecl(find, '.input', 'width', '(max-width: 640px)')).toBe('100%')
+  })
+
+  it('CONTROL: the measured declaration (font-size only, no min-height) fails the floor check', () => {
+    const old = rulesWithMedia(`@media (max-width: 1024px) { .input { font-size: 16px; } }`)
+    expect(lastDecl(old, '.input', 'min-height', TOUCH)).toBeUndefined()
+  })
+})
