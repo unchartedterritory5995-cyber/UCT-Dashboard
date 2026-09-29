@@ -815,3 +815,52 @@ def get_news_stock_multi(tickers: Sequence[str], *,
     return _fetch("/stable/news/stock", params,
                    source_activity="fmp_client.get_news_stock_multi", data_class="news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout if timeout is not None else 12)
+
+
+# ── TERM-072 (FB-A3-01): the retired `_fmp_get` contract, over a typed call ──
+# `earnings_estimates._fmp_get` handed its callers "the parsed JSON body, or
+# None on ANY failure", and a parser downstream of every one of its call sites
+# was written against exactly that. Migrating such a site onto a typed function
+# changes the TRANSPORT (this adapter: one session, the token bucket, the 24h
+# cached-forbidden state, typed errors, a licensing stamp) and must not change
+# what the parser receives. This is the one place that mapping is written down,
+# instead of a try/except ladder copied into every migrated module
+# (`lesson_a_guard_repeated_is_a_guard_unproved`).
+#
+# ⛔ It is NOT a way back to "never raises" for NEW code. The adapter's
+# fail-fast contract stands (owner ruling, 2026-09-12): a new call site catches
+# the typed error itself and degrades honestly (`provider_degraded.envelope`).
+# This exists for sites whose callers already depend on the legacy shape, so
+# the migration is a transport swap with nothing else moving.
+
+def body_or_none(fn: Callable[..., _pe.ProviderResult], *args: Any,
+                 timeout: float, **kwargs: Any) -> Any:
+    """Call typed function `fn` and return what `_fmp_get` would have returned
+    for the same HTTP outcome:
+
+      200 with a body     -> the parsed body, untouched (`result.value`)
+      200 with `[]`       -> `[]` -- the typed function classified the empty
+                             body as FMPNotFound; `_fmp_get` handed the `[]`
+                             back, and "FMP answered: nothing" vs "FMP did not
+                             answer" (None) is load-bearing for some callers
+                             (a memo that stores `[]` but retries `None`).
+      cached-forbidden    -> None   (`_fmp_get` re-fired and got the 403 again)
+      any other failure   -> None, logged at WARNING -- not configured, 401/403,
+                             429 or a local budget denial, 5xx, timeout,
+                             network error, non-JSON body.
+
+    `timeout` is REQUIRED and keyword-only: an unnamed timeout would inherit
+    the typed function's own default (25 s for most of them) where the legacy
+    helper defaulted to 10 s, and a timeout change fails as slowness, never
+    as an error (`tests/test_fmp_timeout_pinning.py`)."""
+    try:
+        result = fn(*args, timeout=timeout, **kwargs)
+    except FMPNotFound:
+        return []
+    except Exception as exc:  # noqa: BLE001 -- the legacy contract, see above
+        _logger.warning("FMP %s failed for %s: %s",
+                        getattr(fn, "__name__", fn), args[0] if args else "?", exc)
+        return None
+    if result.degraded is not None:
+        return None
+    return result.value

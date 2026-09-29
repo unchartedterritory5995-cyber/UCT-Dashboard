@@ -2,10 +2,13 @@
 -consensus, grades-historical vs grades-news) that shipped 2026-07-11: the
 old bug had the price target avg populate while low/high/firm stayed null.
 Unlike test_analyst_intel.py (which mocks _fmp_price_target/_fmp_recent_actions
-themselves), these tests mock only ee._fmp_get with REAL captured response
+themselves), these tests mock only the FMP transport with REAL captured response
 shapes and exercise the actual parsing functions — the level that would have
-caught a wrong endpoint path or field-name rename."""
+caught a wrong endpoint path or field-name rename. (TERM-072: the transport is
+now the D1 adapter's `fmp_client._get_raw`, answered by
+`tests/_fmp_legacy_stub.route_fmp`; it was `ee._fmp_get`.)"""
 import importlib
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _mod():
@@ -71,7 +74,7 @@ def test_fmp_price_target_uses_consensus_endpoint_and_parses_range(monkeypatch):
             return PRICE_TARGET_CONSENSUS_FIXTURE
         raise AssertionError(f"unexpected FMP path: {path}")
 
-    monkeypatch.setattr(ai.ee, "_fmp_get", fake_fmp_get)
+    route_fmp(monkeypatch, fake_fmp_get)
     pt = ai._fmp_price_target("AAPL")
     assert calls == ["/stable/price-target-consensus"]
     assert pt == {"low": 253.0, "avg": 327.0, "high": 400.0, "count": None, "updated": None}
@@ -83,7 +86,7 @@ def test_fmp_price_target_wrong_endpoint_shape_would_leave_range_null(monkeypatc
     # produces a null range. If this ever passes with a non-null range,
     # something reintroduced summary-shaped field names into the parser.
     ai = _mod()
-    monkeypatch.setattr(ai.ee, "_fmp_get", lambda path, params, timeout=10: PRICE_TARGET_SUMMARY_FIXTURE)
+    route_fmp(monkeypatch, lambda path, params, timeout=10: PRICE_TARGET_SUMMARY_FIXTURE)
     row = PRICE_TARGET_SUMMARY_FIXTURE[0]
     assert row.get("targetLow") is None and row.get("targetHigh") is None
 
@@ -98,7 +101,7 @@ def test_fmp_recent_actions_uses_grades_news_endpoint_and_parses_firm(monkeypatc
             return GRADES_NEWS_FIXTURE
         raise AssertionError(f"unexpected FMP path: {path}")
 
-    monkeypatch.setattr(ai.ee, "_fmp_get", fake_fmp_get)
+    route_fmp(monkeypatch, fake_fmp_get)
     actions = ai._fmp_recent_actions("AAPL")
     assert calls == ["/stable/grades-news"]
     assert len(actions) == 2
@@ -117,7 +120,7 @@ def test_fmp_recent_actions_has_no_price_target_key(monkeypatch):
     None — the key is dropped entirely rather than kept around always-null,
     which would wrongly imply the data sometimes has one."""
     ai = _mod()
-    monkeypatch.setattr(ai.ee, "_fmp_get", lambda path, params, timeout=10: GRADES_NEWS_FIXTURE)
+    route_fmp(monkeypatch, lambda path, params, timeout=10: GRADES_NEWS_FIXTURE)
     actions = ai._fmp_recent_actions("AAPL")
     assert "price_target" not in actions[0]
 

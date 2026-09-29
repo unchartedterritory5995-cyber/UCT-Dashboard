@@ -142,11 +142,15 @@ def _fmp_ownership(ticker):
     /stable/institutional-ownership/extract-analytics/holder, which requires
     year+quarter (see _recent_13f_quarters). Field is `ownership`, NOT
     `ownershipPercent`. Returns [] on any failure."""
-    from api.services import earnings_estimates as ee
+    # TERM-072: through the D1 adapter; `body_or_none` keeps the retired
+    # `_fmp_get`'s "body, [] or None" contract. The typed function also sends
+    # `page=0`, FMP's own default page, so the answer is the same first page.
+    from api.services import fmp_client
     for year, quarter in _recent_13f_quarters():
         try:
-            data = ee._fmp_get("/stable/institutional-ownership/extract-analytics/holder",
-                               {"symbol": ticker, "year": year, "quarter": quarter, "limit": 20}, timeout=10)
+            data = fmp_client.body_or_none(fmp_client.get_institutional_ownership_holders,
+                                           ticker, year=year, quarter=quarter, limit=20,
+                                           timeout=10)
         except Exception:
             continue
         rows = data if isinstance(data, list) else []

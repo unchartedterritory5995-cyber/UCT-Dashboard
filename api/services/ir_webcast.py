@@ -80,8 +80,9 @@ def _alive(url: str) -> bool:
 
 def _website_for(sym: str) -> Optional[str]:
     try:
-        from api.services.earnings_estimates import _fmp_get
-        rows = _fmp_get("/stable/profile", {"symbol": sym}, timeout=10)
+        # TERM-072: the D1 adapter; `body_or_none` keeps `_fmp_get`'s contract.
+        from api.services import fmp_client
+        rows = fmp_client.body_or_none(fmp_client.get_company_profile, sym, timeout=10)
     except Exception as exc:
         _log.debug("[ir] profile failed for %s: %s", sym, exc)
         return None

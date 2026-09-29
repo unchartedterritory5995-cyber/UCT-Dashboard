@@ -11,6 +11,7 @@ import pytest
 from api.services import earnings_estimates as ee
 from api.services import earnings_growth_fmp as eg
 from api.services.cache import cache
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _rows(*net_incomes):
@@ -94,7 +95,7 @@ class TestTheFetchLayer:
             seen.update(path=path, params=params)
             return _rows(200, 150, 120, 110, 100)
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         assert eg.earnings_growth_pct("test") == 100.0
         assert seen["path"] == "/stable/income-statement"
         assert seen["params"]["period"] == "quarter"
@@ -104,7 +105,7 @@ class TestTheFetchLayer:
         def boom(path, params, timeout=10):
             raise RuntimeError("provider exploded")
 
-        monkeypatch.setattr(ee, "_fmp_get", boom)
+        route_fmp(monkeypatch, boom)
         assert eg.earnings_growth_pct("TEST") is None
 
     def test_a_miss_is_not_cached_as_a_durable_value(self, monkeypatch):
@@ -120,7 +121,7 @@ class TestTheFetchLayer:
 
         real_set = cache.set
         monkeypatch.setattr(cache, "set", lambda k, v, ttl=None, **kw: (ttls.append(ttl), real_set(k, v, ttl, **kw))[1])
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         assert eg.earnings_growth_pct("MISS") is None
         assert ttls and ttls[-1] == eg._MISS_TTL
         assert eg._MISS_TTL < eg._CACHE_TTL
@@ -134,7 +135,7 @@ class TestTheFetchLayer:
             calls["n"] += 1
             return None
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         assert eg.earnings_growth_pct("MISS") is None
         assert eg.earnings_growth_pct("MISS") is None
         assert calls["n"] == 1, "a cached blank was refetched"
@@ -143,13 +144,20 @@ class TestTheFetchLayer:
         def fail(*a, **k):
             raise AssertionError("provider called for an empty ticker")
 
-        monkeypatch.setattr(ee, "_fmp_get", fail)
+        route_fmp(monkeypatch, fail)
         assert eg.earnings_growth_pct("") is None
 
     def test_no_module_level_binding_of_the_provider_call(self):
-        """Same rail as earnings_history_fmp: a bound `_fmp_get` copy escapes
-        the owning module's cooldown/rate guards AND every test stub."""
+        """Same rail as earnings_history_fmp: a bound copy of the provider call
+        escapes every test stub. TERM-072 moved the call onto the D1 adapter, so
+        the rail now also refuses a bound typed function: the module must reach
+        FMP through the `fmp_client` MODULE, resolved at call time."""
+        from api.services import fmp_client
         assert not hasattr(eg, "_fmp_get")
+        assert eg.fmp_client is fmp_client
+        bound = sorted(n for n in vars(eg)
+                       if n.startswith("get_") or n == "body_or_none")
+        assert bound == [], f"earnings_growth_fmp binds adapter functions by name: {bound}"
 
 
 class TestTheBackfillIsWiredIntoFundamentals:
@@ -246,7 +254,7 @@ class TestARetiredSymbolIsRefused:
                 return [{"isActivelyTrading": active, "isEtf": False, "isFund": False}]
             return rows
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         return calls
 
     def test_a_retired_symbol_gets_no_figure(self, monkeypatch):
@@ -289,7 +297,7 @@ class TestARetiredSymbolIsRefused:
                 return [{"isActivelyTrading": ""}]
             return _rows(200, 150, 120, 110, 100)
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         assert eg.is_actively_trading("UNK") is None
         assert eg.earnings_growth_pct("UNK") == 100.0
 
@@ -299,7 +307,7 @@ class TestARetiredSymbolIsRefused:
                 raise RuntimeError("profile down")
             return _rows(200, 150, 120, 110, 100)
 
-        monkeypatch.setattr(ee, "_fmp_get", boom)
+        route_fmp(monkeypatch, boom)
         assert eg.earnings_growth_pct("UNK") == 100.0    # fails open
 
 
@@ -330,7 +338,7 @@ class TestAFundIsNotAnOperatingCompany:
                 return [profile] if profile is not None else []
             return _rows(200, 150, 120, 110, 100)
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
 
     def test_an_etf_gets_no_earnings_growth(self, monkeypatch):
         self._provider(monkeypatch, {"isActivelyTrading": True, "isEtf": True, "isFund": False})
@@ -367,6 +375,6 @@ class TestAFundIsNotAnOperatingCompany:
                 return [{"isActivelyTrading": True, "isEtf": False, "isFund": False}]
             return _rows(200, 150, 120, 110, 100)
 
-        monkeypatch.setattr(ee, "_fmp_get", stub)
+        route_fmp(monkeypatch, stub)
         eg.earnings_growth_pct("OPCO")
         assert sum(1 for c in calls if "profile" in c) == 1, calls

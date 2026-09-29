@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _mod(monkeypatch, tmp_path):
@@ -289,7 +290,7 @@ def test_forward_estimates_fmp_parses_caps_and_filters(monkeypatch, tmp_path):
             {"date": "2030-09-30", "epsAvg": 11.0, "revenueAvg": 540e9},   # 5th future → capped
         ]
 
-    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     out = af._forward_estimates_fmp("ZZF", now=1_782_000_000.0)  # now ≈ mid-2026
     assert len(out) == af._FWD_YEARS == 4          # capped
     # Earliest future first, carrying its authoritative fiscal year (period-end year).
@@ -322,7 +323,7 @@ def test_annual_fmp_keeps_ended_but_unreported_fiscal_year(monkeypatch, tmp_path
             {"date": "2029-12-31", "epsAvg": 3.90, "revenueAvg": 10.2e9},
         ]
 
-    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     import calendar, time
     now = float(calendar.timegm(time.strptime("2027-01-15", "%Y-%m-%d")))
     rows = af.get_annual_financials("ZZJAN", years_back=6, now=now)
@@ -335,7 +336,7 @@ def test_forward_estimates_gated_off_by_default(monkeypatch, tmp_path):
     # Flag unset → FMP analyst-estimates path skipped (no HTTP), yfinance backstop.
     af, _ = _mod(monkeypatch, tmp_path)
     called = {"n": 0}
-    monkeypatch.setattr(af.ee, "_fmp_get", lambda *a, **k: called.__setitem__("n", called["n"] + 1) or [])
+    route_fmp(monkeypatch, lambda *a, **k: called.__setitem__("n", called["n"] + 1) or [])
     assert af._forward_estimates_fmp("ZZG", now=1_782_000_000.0) == []
     assert called["n"] == 0
 
@@ -361,7 +362,7 @@ def test_annual_table_four_forward_years_from_fmp(monkeypatch, tmp_path):
             {"date": "2030-12-31", "epsAvg": 4.20, "revenueAvg": 11.0e9},  # capped out
         ]
 
-    monkeypatch.setattr(af.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     rows = af.get_annual_financials("ZZF", years_back=6, now=1_782_000_000.0)
     est = [(r["year"], r["eps"]) for r in rows if r["estimate"]]
     assert est == [(2026, 3.00), (2027, 3.30), (2028, 3.60), (2029, 3.90)]
