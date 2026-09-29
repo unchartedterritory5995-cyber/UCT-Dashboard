@@ -66,3 +66,31 @@
 @media (max-width: 1024px) {
   .panel { min-width: 260px; }
 }
+
+/* Wave 10 lane D3P (design re-check N-3): on a PHONE the open panel is pinned to the
+   viewport, ABOVE the bottom band of floating controls, and scrolls inside itself.
+   Hanging from the "..." door it ran ~13 rows down the page: at 390 px the Log FAB sat over
+   "Print", the orb cluster over the lower rows, and Delete (last) fell below the fold (K2's
+   shots-more-after/more-390-unlocked-open.png).
+   ⛔ THE BAND. The tallest thing on a phone's bottom edge is the joystick's pad: 68 px above
+   the safe area plus its own 84 (hub/constants.js BOTTOM_OFFSET_PX + PAD_PX = 152). The Log
+   FAB reaches 70 + 44 = 114 (JournalLayout.module.css), the orb cluster 16 + 64 = 80
+   (FloatingOrb.module.css). The panel's bottom edge sits 8 px above the highest of them, and
+   the rail (a11y/targetFloors.test.js, "D3P N-3") DERIVES that from those three files, so
+   moving any of them up reds it. Only the phone rule changes; K2's onScreenShift still owns
+   the horizontal half (with `right: 16px` it has nothing left to shift). */
+@media (max-width: 640px) {
+  .panel {
+    position: fixed;
+    top: auto;
+    left: auto;
+    right: 16px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
+    width: min(320px, calc(100vw - 32px));
+    min-width: 0;
+    max-height: calc(100vh - var(--mobile-topbar-h, 48px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 168px);
+    max-height: calc(100dvh - var(--mobile-topbar-h, 48px) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 168px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

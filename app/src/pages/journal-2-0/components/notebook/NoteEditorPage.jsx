@@ -98,6 +98,9 @@ import {
 } from '../../lib/notebookSchema'
 import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
 import styles from './NoteEditorPage.module.css'
+import useDisclosureFocus from '../../lib/useDisclosureFocus'
+import { focusableWithin } from '../../../../components/mobile/useFocusTrap'
+import { MQ } from '../../../../styles/breakpoints'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
 import {
@@ -1981,6 +1984,56 @@ export default function NoteEditorPage({
     }
   }, [historySentinelEl])
 
+  // Wave 10 lane D3P (D-3 PHONE): at 390 px the formatting row wrapped to about eight rows,
+  // so a note opened to a screen of controls with the title below them, and the phone's Log
+  // FAB sat over one of them at rest (L3's measurement). On a PHONE (<= 640 px) the row keeps
+  // Undo / Redo, Bold, Italic, the bullet list and the mic, and every other formatting control sits
+  // behind ONE "Aa Format" disclosure. The collapse is CSS, inside the 640 query
+  // (`.formatToggle`, `.formatRun`): the DOM is the same at every width, so desktop and
+  // tablet keep their order, their Tab order and their layout (`.formatRun` is
+  // `display: contents` there, and the toggle is `display: none`).
+  // ⛔ The disclosure is the TOOLBAR ROW, expanded in place. The moved controls are four runs
+  // in the row's own order (font + size; colour + H1 + H2; numbered list .. Attach; rule +
+  // Insert), and the toggle's `aria-controls` names all four. The row is the container the keyboard contract
+  // (lib/useDisclosureFocus.js) acts on: focus moves to the first moved control, Tab stays in
+  // the toolbar, Escape closes it and hands focus back to the toggle. It could not be one
+  // container of moved controls alone without reordering the desktop row, whose kept and moved
+  // controls are interleaved (Undo, Redo, [font, size], B, I, [colour, H1, H2], List, [...], mic, [...]).
+  // The runs stay MOUNTED while closed (only hidden by CSS), so a half-open colour picker keeps
+  // its state. The mic is kept visible on phones by controller ruling, outside every run.
+  const [formatOpen, setFormatOpen] = useState(false)
+  const formatToggleRef = useRef(null)
+  const toolbarRowRef = useRef(null)
+  const formatRunId = useId()
+  const closeFormat = useCallback(() => setFormatOpen(false), [])
+  const firstFormatControl = useCallback(
+    () => focusableWithin(toolbarRowRef.current?.querySelector('[data-format-run]'))[0] || null,
+    [],
+  )
+  const { disclosureProps: formatDisclosureProps } = useDisclosureFocus({
+    open: formatOpen && Boolean(editor) && !locked,
+    containerRef: toolbarRowRef,
+    onClose: closeFormat,
+    openerRef: formatToggleRef,
+    // ⛔ The toggle is INSIDE the row it opens, so the hook's own "focus moves in" sees focus
+    // already inside and (by design: "unless a child already took it") does nothing. Focus
+    // is moved to the first moved control here instead, once the runs are displayed.
+    focusOnOpen: false,
+  })
+  useEffect(() => {
+    if (formatOpen) firstFormatControl()?.focus?.()
+  }, [formatOpen, firstFormatControl])
+  // Widening past 640 px with it open (a rotated phone, a resized window): the toggle is gone
+  // there, so a disclosure left open would keep Tab inside the toolbar with nothing on screen
+  // saying why. It closes on the media change.
+  useEffect(() => {
+    if (!formatOpen || typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia(MQ.phone)
+    const onChange = (e) => { if (!e.matches) setFormatOpen(false) }
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
+  }, [formatOpen])
+
   // The lock IS `editable`: every surface that edits the note asks
   // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
   // `false`: turning it on or off is not an edit, so no autosave.
@@ -3493,7 +3546,15 @@ export default function NoteEditorPage({
           this row is an editing control, so on a locked note the ROW is not rendered at all
           (review M-4: it rendered as an empty, named toolbar). */}
       {editor && !locked && (
-        <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
+        <div
+          ref={toolbarRowRef}
+          className={styles.toolbarRow}
+          role="toolbar"
+          aria-label="Editor toolbar"
+          data-export-exclude
+          data-format-open={formatOpen ? 'true' : undefined}
+          {...(formatOpen ? formatDisclosureProps : {})}
+        >
           <>
             {/* Wave 10 (G-144): Undo / Redo on the touch tier. A phone has no
                 Ctrl+Z, so without these a mistaken tap on a phone had no way
@@ -3530,6 +3591,24 @@ export default function NoteEditorPage({
                 Redo
               </button>
             </span>
+            {/* Wave 10 lane D3P: the phone's ONE formatting disclosure (display: none above
+                640 px, so a desktop or tablet row is unchanged). It opens the four runs below
+                in place; see `formatOpen` for the keyboard contract and why the row is the
+                container. The name is "Format" (the "Aa" glyph is decoration). */}
+            <button
+              ref={formatToggleRef}
+              type="button"
+              className={`${styles.toolBtn} ${styles.formatToggle}${formatOpen ? ` ${styles.toolBtnActive}` : ''}`}
+              onClick={() => setFormatOpen((o) => !o)}
+              aria-expanded={formatOpen}
+              aria-controls={`${formatRunId}-a ${formatRunId}-b ${formatRunId}-c ${formatRunId}-d`}
+              title="More formatting: font, size, colour, headings, numbered list, quote, code, links, images, files, rule and widgets"
+              data-format-toggle=""
+            >
+              <span aria-hidden="true" className={styles.formatGlyph}>Aa</span>
+              Format
+            </button>
+            <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}
@@ -3561,6 +3640,7 @@ export default function NoteEditorPage({
               <option value="">Size</option>
               {FONT_SIZES.map((s) => <option key={s} value={`${s}px`}>{s}</option>)}
             </select>
+            </span>
             <ToolButton
               active={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}
@@ -3574,6 +3654,7 @@ export default function NoteEditorPage({
             {/* Wave 5: text colour + highlight. The glyph's underline shows the
                 colour at the caret; the picker is a popover on desktop and a
                 bottom sheet on touch (TextColorMenu). */}
+            <span className={styles.formatRun} id={`${formatRunId}-b`} data-format-run="">
             <span className={styles.colorAnchor}>
               <button
                 ref={colorToggleRef}
@@ -3605,11 +3686,13 @@ export default function NoteEditorPage({
               onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
               label="H2"
             />
+            </span>
             <ToolButton
               active={editor.isActive('bulletList')}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               label="• List"
             />
+            <span className={styles.formatRun} id={`${formatRunId}-c`} data-format-run="">
             <ToolButton
               active={editor.isActive('orderedList')}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -3658,6 +3741,7 @@ export default function NoteEditorPage({
               label={<UIcon name="paperclip" size={14} />}
               title="Attach a file"
             />
+            </span>
             {/* Wave 7 lane H1: dictation into THIS editor (the slash menu's
                 "Dictate" starts the same mic). Paid members only — the mic
                 renders nothing for anyone else, and is not even loaded.
@@ -3674,6 +3758,10 @@ export default function NoteEditorPage({
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
                 reaches the note only on Accept. Since wave 10 lane K2 (D-3) its button
                 sits in the header row, beside Outline. */}
+            {/* D3P (controller ruling): the mic stays OUT of the runs, so it stays visible
+                on phones beside Undo/Redo, B, I and the bullet list. The last run
+                resumes here for the rule and the widget door. */}
+            <span className={styles.formatRun} id={`${formatRunId}-d`} data-format-run="">
             <ToolButton
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
@@ -3690,6 +3778,7 @@ export default function NoteEditorPage({
           >
             ⊞ Insert
           </button>
+          </span>
           </>
           {/* Wave 10 lane K2 (D-3): Outline moved to the header row; PNG, Print, Export and the
               word count moved into "More note actions". The row is the formatting controls. */}

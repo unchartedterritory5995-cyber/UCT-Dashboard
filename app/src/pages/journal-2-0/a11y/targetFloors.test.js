@@ -139,6 +139,99 @@ describe('the editor formatting row (NoteEditorPage.module.css, D-6)', () => {
   })
 })
 
+// Wave 10 lane D3P (D-3 PHONE). At 390 px the formatting row wrapped to ~8 rows and the note's
+// title fell below the first screen (lane L3, measured); a phone now keeps Undo / Redo, B, I and
+// the bullet list and puts the rest behind "Aa Format". The rendered half (which controls sit
+// behind the toggle, the keyboard contract, the desktop order) is
+// components/notebook/NoteEditorPage.phoneFormat.test.jsx; THIS is where the collapse lives: it
+// must be inside the canonical PHONE query and nowhere else, so desktop and tablet are the row
+// they were. Structural; the measured before/after is docs/notebook/proof/d3p-*.
+const PHONE = '(max-width: 640px)'
+const COLLAPSE = '.toolbarRow:not([data-format-open]) .formatRun'
+
+describe('D3P: the phone formatting disclosure lives ONLY inside the 640 query (NoteEditorPage.module.css)', () => {
+  const rules = rulesWithMedia(read(join(NB, 'NoteEditorPage.module.css')))
+
+  it('base (every width): the toggle is not displayed and a run lays out as if it were not there', () => {
+    expect(lastDecl(rules, '.formatToggle', 'display')).toBe('none')
+    expect(lastDecl(rules, '.formatRun', 'display')).toBe('contents')
+  })
+
+  it('phone: the toggle shows and the runs collapse while the row is not open', () => {
+    expect(lastDecl(rules, '.formatToggle', 'display', PHONE)).toBe('inline-flex')
+    expect(lastDecl(rules, COLLAPSE, 'display', PHONE)).toBe('none')
+  })
+
+  it('NOTHING outside the phone query shows the toggle or collapses a run', () => {
+    const leaks = rules.filter((r) => r.media !== PHONE && r.decls.has('display') && (
+      (r.selector.includes('.formatToggle') && r.decls.get('display') !== 'none')
+      || (r.selector.includes('.formatRun') && r.decls.get('display') !== 'contents')))
+    expect(leaks.map((r) => `${r.media || 'base'} ${r.selector}`)).toEqual([])
+  })
+
+  it('CONTROL: the collapse moved out to every width is caught', () => {
+    const bad = rulesWithMedia(`.formatToggle { display: none; } .formatRun { display: contents; }
+      ${COLLAPSE} { display: none; }`)
+    const leaks = bad.filter((r) => r.media !== PHONE && r.selector.includes('.formatRun') && r.decls.get('display') !== 'contents')
+    expect(leaks).toHaveLength(1)
+    expect(lastDecl(bad, COLLAPSE, 'display', PHONE)).toBeUndefined()
+  })
+})
+
+// Wave 10 lane D3P (design re-check N-3): at 390 px the open "More note actions" panel hung
+// ~13 rows down from its door, under the Log FAB ("Print"), the orb cluster and below the fold
+// (Delete). On a phone it is pinned to the viewport ABOVE the bottom band and scrolls inside
+// itself. The band is DERIVED from the three things that make it, never retyped: move any of
+// them up and this reds.
+describe('D3P N-3: on a phone the open More panel sits above the bottom band (NoteMoreMenu.module.css)', () => {
+  const rules = rulesWithMedia(read(join(NB, 'NoteMoreMenu.module.css')))
+  const SRC = join(process.cwd(), 'src')
+  /** The px terms of a length or a calc(), summed (`env(x, 0px)` contributes its 0). */
+  const pxSum = (v) => [...String(v || '').matchAll(/(-?\d+(?:\.\d+)?)px/g)].reduce((a, m) => a + Number(m[1]), 0)
+  const tapMin = px(/--tap-min:\s*([^;]+);/.exec(read(join(SRC, 'styles', 'tokens.css')))[1])
+  const hubConst = (name) => Number(new RegExp(`export const ${name} = (\\d+)`).exec(read(join(SRC, 'hub', 'constants.js')))[1])
+  const journal = rulesWithMedia(read(join(J2, 'JournalLayout.module.css')))
+  const orb = rulesWithMedia(read(join(SRC, 'components', 'voice', 'FloatingOrb.module.css')))
+  const band = () => ({
+    hubPad: hubConst('BOTTOM_OFFSET_PX') + hubConst('PAD_PX'),
+    logFab: pxSum(lastDecl(journal, '.logFab', 'bottom', PHONE)) + tapMin,
+    orb: pxSum(lastDecl(orb, '.orbCluster', 'bottom', TOUCH)) + px(lastDecl(orb, '.orb', 'height')),
+  })
+
+  it('non-vacuity: every part of the band was read, and each is a real height', () => {
+    const b = band()
+    expect(b.hubPad).toBeGreaterThan(100)
+    expect(b.logFab).toBeGreaterThan(tapMin)
+    expect(b.orb).toBeGreaterThan(40)
+  })
+
+  it('phone: pinned to the viewport, its bottom edge above the highest thing in the band', () => {
+    expect(lastDecl(rules, '.panel', 'position', PHONE)).toBe('fixed')
+    const bottom = pxSum(lastDecl(rules, '.panel', 'bottom', PHONE))
+    const highest = Math.max(...Object.values(band()))
+    expect(bottom, JSON.stringify(band())).toBeGreaterThan(highest)
+  })
+
+  it('phone: it cannot run under the top bar or off the screen -- capped, and it scrolls inside', () => {
+    expect(lastDecl(rules, '.panel', 'overflow-y', PHONE)).toBe('auto')
+    const cap = lastDecl(rules, '.panel', 'max-height', PHONE)
+    expect(cap).toMatch(/var\(--mobile-topbar-h/)
+    // the cap takes away the panel's own bottom offset (plus a gap), so top + height stays on screen
+    expect(pxSum(cap)).toBeGreaterThanOrEqual(pxSum(lastDecl(rules, '.panel', 'bottom', PHONE)))
+  })
+
+  it('above 640 px nothing changed: the panel still hangs from its door', () => {
+    expect(lastDecl(rules, '.panel', 'position')).toBe('absolute')
+    const leaks = rules.filter((r) => r.selector === '.panel' && r.media !== PHONE && r.decls.get('position') === 'fixed')
+    expect(leaks).toEqual([])
+  })
+
+  it('CONTROL: a panel whose bottom sits inside the band fails the check', () => {
+    const low = rulesWithMedia('@media (max-width: 640px) { .panel { position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 120px); } }')
+    expect(pxSum(lastDecl(low, '.panel', 'bottom', PHONE))).toBeLessThanOrEqual(Math.max(...Object.values(band())))
+  })
+})
+
 describe('the sidebar row actions and the tag rename pencil (FolderSidebar.module.css, D-6)', () => {
   const rules = rulesWithMedia(read(join(NB, 'FolderSidebar.module.css')))
 
