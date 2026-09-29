@@ -114,7 +114,7 @@ function periodAgeDays(refSec, pe) {
  *   (FHFA prints ~60 d after the month, so a period-end clock blanked most of it).
  * @returns {Int32Array}
  */
-export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodAgeDays = MAX_PERIOD_AGE_DAYS, strict = false, ageFrom = 'period' } = {}) {
+export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodAgeDays = MAX_PERIOD_AGE_DAYS, strict = false, ageFrom = 'period', periodMonotone = false } = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
   const out = new Int32Array(n).fill(-1)
   const pts = Array.isArray(points) ? points : []
@@ -122,19 +122,33 @@ export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodA
   const intradayStrict = strict === true && !DAILY_TFS.has(tf)
   // Bars are ascending, so one forward pointer walks the points once: O(n + m).
   let j = -1
+  // periodMonotone (economic series): the value known at a bar is the NEWEST
+  // PERIOD available by then, not the most recently PLACED point. A late point
+  // for an OLDER period (the cancelled Oct-2025 CPI, published as a gap after
+  // Dec-2025 was already out) must not end the newer period's carry. Points for
+  // the same period (revisions) still replace in availability order.
+  let best = -1
   for (let i = 0; i < n; i++) {
     const b = bars[i]
     const t = b && typeof b === 'object' ? b.t : undefined
     if (t === undefined || t === null) continue
     const ref = referenceTime(t, tf, nowSec)
+    const from = j
     if (intradayStrict) { while (j + 1 < pts.length && pts[j + 1].t < ref) j++ }
     else { while (j + 1 < pts.length && pts[j + 1].t <= ref) j++ }
     if (j < 0) continue
-    const p = pts[j]
+    if (periodMonotone) {
+      for (let k = from + 1; k <= j; k++) {
+        const pk = pts[k].pe
+        const pb = best >= 0 ? pts[best].pe : null
+        if (best < 0 || typeof pk !== 'string' || typeof pb !== 'string' || pk >= pb) best = k
+      }
+    } else best = j
+    const p = pts[best]
     if (ageFrom === 'available') {
       if (Number.isFinite(p.t) && Math.floor((ref - p.t) / DAY) > maxPeriodAgeDays) continue
     } else if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
-    out[i] = j
+    out[i] = best
   }
   return out
 }

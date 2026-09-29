@@ -515,3 +515,53 @@ describe('⭐⭐ primary economic chart: series-native timeline', () => {
     expect(valued.at(-1)).toBe('2026-09-11')                          // placed 09-01 (not pe 08-31) + 10 days
   })
 })
+
+// ─── period-monotone as-of (a late point for an OLDER period never ends a newer carry) ───
+describe('economic as-of is period-monotone', () => {
+  const et = (d, hh = 12) => Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), hh) / 1000
+  const days = (a, b) => {
+    const out = []
+    for (let t = Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10)); ; t += 86400000) {
+      const s = new Date(t).toISOString().slice(0, 10)
+      const wd = new Date(t).getUTCDay()
+      if (wd !== 0 && wd !== 6) out.push({ t: s })
+      if (s >= b) break
+    }
+    return out
+  }
+  // Monthly CPI-shaped: Nov-2025 out 2025-12-18, Dec-2025 out 2026-01-13, then the
+  // cancelled Oct-2025 is published as a null at the lapse catch-up 2026-01-30.
+  const pts = [
+    { t: et('2025-12-18'), v: 324.1, ps: '2025-11-01', pe: '2025-11-30', pit: 'L' },
+    { t: et('2026-01-13'), v: 325.0, ps: '2025-12-01', pe: '2025-12-31', pit: 'L' },
+    { t: et('2026-01-30'), v: null, ps: '2025-10-01', pe: '2025-10-31', pit: 'L' },
+    { t: et('2026-02-11'), v: 325.9, ps: '2026-01-01', pe: '2026-01-31', pit: 'L' },
+  ]
+  const meta = { frequency: 'M', max_age_days: 45 }
+  const bars = days('2026-01-26', '2026-02-06')
+  const at = (col, d) => col[bars.findIndex((b) => b.t === d)]
+
+  it('keeps Dec-2025 on every bar after the older-period null lands', () => {
+    const col = projectEconomic(pts, bars, 'D', { meta })
+    expect(at(col, '2026-01-29')).toBe(325.0)
+    expect(at(col, '2026-02-02')).toBe(325.0)   // after the Oct null's placement
+    expect(bars.every((b, i) => col[i] === 325.0)).toBe(true)
+  })
+
+  it('NEGATIVE CONTROL: plain placement order would blank the carry', () => {
+    const idx = projectAsOfIndices(pts, bars, 'D', { strict: true, ageFrom: 'available', maxPeriodAgeDays: 45 })
+    const i = bars.findIndex((b) => b.t === '2026-02-02')
+    expect(pts[idx[i]].v).toBeNull()
+  })
+
+  it('a same-period revision still replaces, and a null for the NEWEST period still ends the carry', () => {
+    const rev = [...pts.slice(0, 2), { t: et('2026-01-28'), v: 325.4, ps: '2025-12-01', pe: '2025-12-31', pit: 'V' }]
+    const col = projectEconomic(rev, bars, 'D', { meta })
+    expect(at(col, '2026-01-27')).toBe(325.0)
+    expect(at(col, '2026-01-28')).toBe(325.4)
+    const gap = [...pts.slice(0, 2), { t: et('2026-01-28'), v: null, ps: '2026-01-01', pe: '2026-01-31', pit: 'L' }]
+    const col2 = projectEconomic(gap, bars, 'D', { meta })
+    expect(at(col2, '2026-01-27')).toBe(325.0)
+    expect(Number.isNaN(at(col2, '2026-01-29'))).toBe(true)
+  })
+})

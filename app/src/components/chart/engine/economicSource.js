@@ -148,7 +148,7 @@ function _idOf(obj) {
  */
 export function projectEconomic(points, bars, tf, { meta = null, placement = PLACEMENTS.AVAILABLE, nowSec = null } = {}) {
   const pts = placePoints(points, placement)
-  const indices = projectAsOfIndices(pts, bars, tf, { nowSec, maxPeriodAgeDays: maxAgeDaysOf(meta), strict: true, ageFrom: 'available' })
+  const indices = projectAsOfIndices(pts, bars, tf, { nowSec, maxPeriodAgeDays: maxAgeDaysOf(meta), strict: true, ageFrom: 'available', periodMonotone: true })
   const out = new Array(indices.length).fill(NaN)
   for (let i = 0; i < indices.length; i++) {
     const j = indices[i]
