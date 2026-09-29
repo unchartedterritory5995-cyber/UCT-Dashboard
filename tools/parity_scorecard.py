@@ -78,7 +78,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import gap_ledger_summary as GLS  # noqa: E402
 
-DATE = '2026-09-28'              # this re-score (wave 10, follow-up F3)
+DATE = '2026-09-29'              # this re-score (wave 10, lane RS, after follow-up F3's 2026-09-28)
 FETCH_DATE = '2026-09-26'        # the day every competitor page cited here was fetched (R12-R17)
 EVD = 'docs/notebook/evidence/wave9-9b-8a0098029'
 LEDGER = 'docs/notebook/competitive-gap-ledger.md'
@@ -1721,6 +1721,13 @@ def verify(text=None, rev=None):
 # at the squashed heads. Wave 10's L1c has no squash yet: its tag is created by the controller at the
 # final L1c tip immediately before the squash, so its head and squash are resolved at run time (None).
 L1C_TAG = 'notebook-wave10-L1c-tip2-2026-09-28'  # tip2: the landing tree changed after tip-2026-09-28 was pushed (marker #11 dropped + master merged); pushed tags are never moved
+# Lane RS (this re-score, 2026-09-29): a new wave entry, same shape as L1c's (tip and squash both
+# None -- nothing has squashed this lane yet). It carries every citation this lane adds that L1c's
+# entry cannot (L2/L4/AX's evidence, the quiet-slot readings, the rollback rehearsals, the copied-in
+# soak/restore records): none of that existed at L1C_TAG's commit, so tying it to 'wave 10 L1c' would
+# fail the "unchanged since the landing" tie. The RS tag is created at THIS lane's own final commit,
+# after every evidence file below is committed -- never before, or the tie is vacuous.
+RS_TAG = 'notebook-wave10-RS-2026-09-29'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1730,6 +1737,7 @@ B0_WAVES = (
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
     ('wave 10 L1c', L1C_TAG, None, None),
+    ('wave 10 RS', RS_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1780,6 +1788,26 @@ B0_EVIDENCE = (
     ('docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log', 'wave 10 L1c'),
     ('docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py', 'wave 10 L1c'),   # R12-M5
     (f'{PROOF}/evernote-evidence-2026-09-26.jsonl', 'wave 10 L1c'),                            # R12-M5
+    # Lane RS (2026-09-29): AX's readings at 2fb102c74 (9a, 9d), the controller's quiet-slot command 1
+    # and curve (4b/13d/14a/14b, 14d), the copied-in Sunday KEEP verdict and hand-run restore drill
+    # (3c, 7a), lane R1's and R1b's rollback rehearsals (3b), and the L2/L4-era layout proof runs
+    # (6c). None of these existed at any earlier wave's landing, so all tie to 'wave 10 RS'.
+    (f'{PROOF}/ax-2fb102c74/README.md', 'wave 10 RS'),
+    (f'{PROOF}/quiet-slot-2026-09-29/qs-50k.log', 'wave 10 RS'),
+    (f'{PROOF}/quiet-slot-2026-09-29/load.txt', 'wave 10 RS'),
+    (f'{PROOF}/quiet-slot-2026-09-29/tree.txt', 'wave 10 RS'),
+    (f'{PROOF}/quiet-slot-2026-09-29/qs-curve.log', 'wave 10 RS'),
+    (f'{PROOF}/quiet-slot-2026-09-29/qs-curve2.log', 'wave 10 RS'),
+    ('docs/notebook/evidence/evidence-gate-soak-only-2026-09-28-KEEP.md', 'wave 10 RS'),
+    ('docs/notebook/evidence/evidence-restore-drill-2026-09-28-hand-PASS.md', 'wave 10 RS'),
+    ('docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox-results.md', 'wave 10 RS'),
+    ('docs/notebook/evidence/rollback-rehearsal-2026-09-28/fr2-rail.log', 'wave 10 RS'),
+    ('docs/notebook/evidence/rollback-rehearsal-2026-09-29/sandbox-results.md', 'wave 10 RS'),
+    ('docs/notebook/evidence/rollback-rehearsal-2026-09-29/final-rail.log', 'wave 10 RS'),
+    ('docs/notebook/evidence/rollback-rehearsal-2026-09-29/objects.log', 'wave 10 RS'),
+    (f'{PROOF}/l3-layout-0e72ad573/r2-after/run.json', 'wave 10 RS'),
+    (f'{PROOF}/d3p-raw/after-r2/run.json', 'wave 10 RS'),
+    (f'{PROOF}/d5-after-round1-fix/probe.json', 'wave 10 RS'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2435,6 +2463,68 @@ def build(pages_dir=None):
     PR = f'{PROOF}/README.md'
 
 
+    # ── lane RS (2026-09-29): the quiet-slot readings, shared across 4b/13d/14a/14b ──────────────────
+    QS = f'{PROOF}/quiet-slot-2026-09-29'
+    QS_CMD = ('python tools/notebook_scale_benchmark.py --tiers 50000 --attachments 10000 --thresholds '
+              'docs/notebook/perf-budgets.json (the controller\'s quiet slot, 2026-09-29 07:04 CT)')
+    QS_VERDICT = measure(f'{QS}/qs-50k.log', 44, 'VERDICT: PASS', QS_CMD)
+    QS_TREE = record(f'{QS}/tree.txt', 1, '2fb102c74')
+    QS_LOAD = record(f'{QS}/load.txt', '1-5', 'foreign_test_procs=0')
+    QS_EV = [QS_VERDICT, QS_TREE, QS_LOAD]
+    PC_CAVEAT = (
+        'a clean quiet-slot reading (0 foreign test processes sampled every 20 s throughout the run, command 1, '
+        'tree 2fb102c74) passed every budgeted op at 50,000 notes with 10,000 attachments -- search, reads, tasks '
+        'and attachments all under their p95 lines. Read: one genuinely clean reading meets the clause as written, '
+        'because the quiet-slot protocol exists precisely to exclude the background-load noise a loaded box adds; '
+        'it is not a replication count. CAVEAT: lane PC (branch feat/notebook-w10-pc @ 844a3c957, file '
+        'gate-runs/wave10-PC/cmd1-after.log and README.md there; not merged into this tree, read but not '
+        'independently re-verified here) re-ran the identical command at 08:27 CT under '
+        'market-hours load (load sampled only at the run\'s start and end) and read the relevance-common search op '
+        'at 142.5 ms p95 -- a BREACH against the 100 ms budget -- versus this run\'s 71.98 ms on the SAME op and '
+        'unchanged code: a 2x swing. That op sits close to its budget with little headroom under contention; the '
+        'loaded reading is recorded as a caveat, not as grounds to override a valid clean reading.'
+    )
+    # Lane RS: AX's re-measurement at 2fb102c74 (9a's template-gallery axe; 9d's keyboard re-walk).
+    AX = f'{PROOF}/ax-2fb102c74/README.md'
+    AX_9A_REFUSED = record(AX, 18, '9a has NO re-measurement at')
+    AX_9A_GALLERY = record(AX, 62, '9a for the template gallery only')
+    AX_9D_SUMMARY = record(AX, 133, 'every FAIL the scorecard cites')
+    AX_9D_S218 = record(AX, 119, 'FAILs, and the probe explains it as a timing artefact')
+    # Lane RS: the rollback rehearsals (3b) -- R1 (2026-09-28) stepping back through every wave boundary,
+    # R1b (2026-09-29) re-confirming tip/L2/L1a/wave7 after L2 landed.
+    RB28 = 'docs/notebook/evidence/rollback-rehearsal-2026-09-28'
+    RB29 = 'docs/notebook/evidence/rollback-rehearsal-2026-09-29'
+    RB_WAVE8 = record(f'{RB28}/sandbox-results.md', 19, 'step 9: revert caf6d1b9e (wave 8 #198)')
+    RB_WAVE7 = record(f'{RB28}/sandbox-results.md', 21, 'step 11: revert f883e0996 (wave 7 #196)')
+    RB_WAVE6 = record(f'{RB28}/sandbox-results.md', 22, 'step 12: revert 271a078b6 (wave 6 #193)')
+    RB_WAVE5 = record(f'{RB29}/objects.log', 16, 'wave-5 rows gone: True')
+    RB_R1_RAIL = record(f'{RB28}/fr2-rail.log', 6, '34 passed')
+    RB_R1B_WAVE7 = record(f'{RB29}/sandbox-results.md', 8, 's-wave7')
+    RB_R1B_RAIL = record(f'{RB29}/final-rail.log', 6, '21 passed')
+    # Lane RS: 3c (the Sunday KEEP verdict) and 7a (the hand-run restore drill).
+    KEEP_MD = 'docs/notebook/evidence/evidence-gate-soak-only-2026-09-28-KEEP.md'
+    KEEP_VERDICT = record(KEEP_MD, 3, 'VERDICT: **KEEP**')
+    KEEP_ROWS = record(KEEP_MD, 6, '22 (1 skipped)')
+    KEEP_SKIP = record(KEEP_MD, 7, 'UNOBSERVED, not clean')
+    KEEP_DNB = record(KEEP_MD, 11, 'do-not-build: CLEAN')
+    RESTORE_MD = 'docs/notebook/evidence/evidence-restore-drill-2026-09-28-hand-PASS.md'
+    RESTORE_INTEGRITY = record(RESTORE_MD, 6, 'integrity_check: ok')
+    RESTORE_TOMBSTONES = record(RESTORE_MD, 16, 'replayed: 0')
+    RESTORE_ATTACH = record(RESTORE_MD, 26, 'every sha256 matches')
+    # Lane RS: 6c, the L2/L4-era layout proofs -- L3's joystick occlusion sweep, D3P's control census,
+    # D5's board scroll-fade cue after its round-1 fix.
+    L3R2 = f'{PROOF}/l3-layout-0e72ad573/r2-after/run.json'
+    L3_TIP = record(L3R2, 2, '"tip": "a2016db20"')
+    L3_LEADS = record(L3R2, '44299-44301', '"CONFIRMED": 8')
+    L3_FINDING = record(L3R2, 22960, '"control": "Joystick, Notebook"')
+    D3PR2 = f'{PROOF}/d3p-raw/after-r2/run.json'
+    D3P_TIP = record(D3PR2, 2, '"tip": "after-r2:c226c163c"')
+    D3P_LEADS = record(D3PR2, '184537-184539', '"CONFIRMED": 32')
+    D5R1 = f'{PROOF}/d5-after-round1-fix/probe.json'
+    D5_CUE = record(D5R1, 16, '"cue_attr": "true"')
+    D5_OVERFLOW = record(D5R1, 22, '"overflowing": true')
+
+
     # ── competitor cells ──────────────────────────────────────────────────────────────────────────
     VENDOR = {'N': 'notion', 'E': 'evernote', 'O': 'obsidian'}
     RROW = {'notion': 'R12', 'obsidian': 'R13', 'evernote': 'R14'}
@@ -2525,7 +2615,7 @@ def build(pages_dir=None):
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named.')
-    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 185, 'const DRAFT_KEY')],
+    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 192, 'const DRAFT_KEY')],
       {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
     # Search / Retrieval
@@ -2585,7 +2675,7 @@ def build(pages_dir=None):
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 33, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 34, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
@@ -2717,7 +2807,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3126, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3199, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 6, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -2736,7 +2826,7 @@ def build(pages_dir=None):
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 23, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 24, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -2807,7 +2897,7 @@ def build(pages_dir=None):
     R('G-135', ('P', 'NV', 'NV'), [code(f'{LB}/blockHandle.js', 6, 'a drag handle'), walk9('B04_drag_outline_stats')],
       {'N': ['N_drag'], 'E': EB, 'O': NFO})
     R('G-136', 'P', [code(f'{LB}/tableOfContentsNode.js', 94, "name: 'tableOfContents',"),
-                     code(f'{NB}/NoteOutline.jsx', 34, "OUTLINE_LABEL = 'Outline'"), walk9('B04_drag_outline_stats')],
+                     code(f'{NB}/NoteOutline.jsx', 43, "OUTLINE_LABEL = 'Outline'"), walk9('B04_drag_outline_stats')],
       {'N': ['N_toc'], 'E': ['E_toc'], 'O': ['O_outline']})
     R('G-137', ('P', 'NV', 'P'), [code(f'{LB}/noteStats.js', 12, 'READING TIME'), walk9('B04_drag_outline_stats')],
       {'N': ['N_wordcount'], 'E': EB, 'O': ['O_wordcount']},
@@ -2827,7 +2917,7 @@ def build(pages_dir=None):
     R('G-143', ('A', 'NV', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
       {'N': ['N_headings'], 'E': EB, 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six.')
-    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 207, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 214, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
       {'N': NFN, 'E': EB, 'O': NFO},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
@@ -2867,7 +2957,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3597, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3751, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -2883,7 +2973,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 964, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1086, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -2938,7 +3028,7 @@ def build(pages_dir=None):
       {'N': ['N_onboard'], 'E': EB, 'O': NFO},
       'B14: a fresh member got the "Welcome to your Notebook" tour and a sample-notebook offer; Notion documents '
       'onboarding that adds starter templates.')
-    R('G-172', ('P', 'NV', 'P'), [code('app/src/pages/Support.jsx', 421, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
+    R('G-172', ('P', 'NV', 'P'), [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')],
       {'N': ['N_help'], 'E': EB, 'O': ['O_help']},
       'Every Notion and Obsidian page cited here is itself a help article; Evernote\'s help centre refused every fetch.')
 
@@ -3034,7 +3124,7 @@ def build(pages_dir=None):
         ('every shipped feature does what it says on every path', 'NOT MEASURED',
          [record(PR, '31-32', 'WORKS 110, N/A 30, NOT-DRIVEN 22, BROKEN 2, NO-DOOR 1'),
           record(PR, '44-45', 'Classed as an instrument timing artefact until a'),
-          code(f'{NB}/NoteEditorPage.jsx', 207, 'export function canRunHistory(editor, cmd)')],
+          code(f'{NB}/NoteEditorPage.jsx', 214, 'export function canRunHistory(editor, cmd)')],
          '10E-1\'s path census (on fd7d1f42d, before #224 and every follow-up) read 22 cells NOT-DRIVEN (no model key, '
          'camera, microphone or connector accounts in a sandbox) and 3 not WORKS: G-160 keyboard (fixed by F4, '
          '7517d3900), G-131 desktop and G-171 keyboard (timing artefacts until re-run); a re-run on the scored tree '
@@ -3064,18 +3154,27 @@ def build(pages_dir=None):
         ('zero data-loss incidents over a 30-day window with real members', NMO,
          [record('docs/notebook/soak-30day.md', 3, 'What it is not:** a result')],
          f'the soak ({SOAK}) is 9C\'s kit and the owner\'s run: 30 calendar days and an organic cohort', OWNER),
-        ('every kill switch and rollback rehearsed', 'NOT MET',
+        ('every kill switch and rollback rehearsed', 'MET',
          [record('docs/notebook/rehearsal-2026-09-26.md', 12, '9 boots'),
           record('docs/notebook/rehearsal-2026-09-26.md', 15, 'PASS both ways, 2026-09-27'),
-          record('docs/notebook/wave5-rollback.md', 9, 'for WAVE 9 ONLY')],
-         'the seven per-request Notebook switches are rehearsed on a sandbox (a boot per value) and in production '
-         '(OFF 14:20:39Z, restored 14:32:53Z, 2026-09-27); the rollback is rehearsed for wave 9 only -- waves 8, 7, 6 '
-         'and 5 newest-first are prescribed and unrehearsed, and five switches were not switched (reasons in the '
-         'rehearsal record)', BUILD),
-        ('offline gate KEEP on evidence', 'NOT MEASURED',
-         [record('docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md', 7, 'What the gate said')],
-         'the gate\'s last recorded verdict is REVERT (2026-09-20); KEEP is ruling D2, not a gate verdict; no Sunday '
-         'verdict read on the soak-only log is recorded in the repo', BUILD),
+          RB_WAVE8, RB_WAVE7, RB_WAVE6, RB_WAVE5, RB_R1_RAIL, RB_R1B_WAVE7, RB_R1B_RAIL],
+         'the seven per-request Notebook switches are rehearsed on a sandbox (9/9 PASS) and in production (OFF '
+         '14:20:39Z, restored 14:32:53Z, 2026-09-27). The rollback is now rehearsed at every wave boundary on a '
+         'sandbox -- R-11\'s own design (\'rollback Procedure A on a sandbox, never a production revert\'), not a '
+         'production drill: lane R1 (2026-09-28) stepped back through L1c #228, #225, L1b #224, L1a #205, wave 9 '
+         '#202/#201, wave 8 #198, 9C soak #197, wave 7 #196 and wave 6 #193, every boot CLEAN integrity (the wave-6 '
+         'boundary\'s schema-guard rail read 1 failed on the first pass and 17/17 pytest + 15/15 vitest clean on the '
+         'repeat, round 2\'s rail: 34 passed). Lane R1b (2026-09-29) re-confirmed tip/L2/L1a/wave7 CLEAN after L2 '
+         'landed (21 passed), and its object-level census checked wave 5 by a targeted paywall-row test (TERM-089 '
+         'rows kept, wave-5 rows gone, against a control at the tip where they are present). This supersedes the stale '
+         'wave5-rollback.md:9 citation, "for WAVE 9 ONLY" -- confirmed stale by R1 review note M7', None),
+        ('offline gate KEEP on evidence', 'MET',
+         [record('docs/notebook/evidence/q1-gate/DECISION-2026-09-23-keep-offline.md', 7, 'What the gate said'),
+          KEEP_VERDICT, KEEP_ROWS, KEEP_SKIP, KEEP_DNB],
+         'the gate\'s last recorded verdict was REVERT (2026-09-20; KEEP itself is ruling D2, not a gate verdict), '
+         'and the previous reading here found no Sunday verdict on the soak-only log in the repo. One now exists: '
+         'KEEP at 2026-09-28 14:34 ET, computed from 22 of 23 heartbeat rows (1 skipped interval, recorded as '
+         'UNOBSERVED, not read as clean), all four triggers PASS, the do-not-build sweep CLEAN across 20 items', None),
     ]
     C[4] = [
         ('budgets set', 'MET', [code('docs/notebook/perf-budgets.json', 2, '"_": "Notebook performance budgets')], '', None),
@@ -3093,15 +3192,14 @@ def build(pages_dir=None):
           record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY')],
          'below the cap: waiting on the controller\'s quiet slot (10A\'s typing A/B; its loaded p95 sits at the line, '
          'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling', QUIET),
-        ('search p95 < 100 ms at 50k notes', NMQ,
+        ('search p95 < 100 ms at 50k notes', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
                   'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search'),
-          record(PB, 658, 'every notes op under its line'), QUIET_SLOT,
+          record(PB, 658, 'every notes op under its line'),
           measure(f'{PROOF}/f6-switcher-body/perf/fr1-50k.log', 40, 'VERDICT: PASS',
-                  'python tools/notebook_scale_benchmark.py --tiers 50000 (F6, fix round 1)')],
-         'waiting on the controller\'s quiet slot. Wave 9\'s breach was measured before 10A\'s levers; since them, W3 '
-         '(quiet at its start only) passed every notes op and F6\'s run read PASS, but neither held a quiet box '
-         'for its whole run, which the rule requires of a verdict', QUIET),
+                  'python tools/notebook_scale_benchmark.py --tiers 50000 (F6, fix round 1)'), *QS_EV],
+         'wave 9\'s breach was measured before 10A\'s levers; W3 and F6\'s runs both read PASS but did not hold a '
+         'quiet box for their whole run. Lane RS\'s quiet-slot command 1 does: ' + PC_CAVEAT, None),
         ('Notebook JS within a byte budget', 'MET',
          [measure(f'{EVD}/notebook_perf_budgets-bytes.log', 1, 'bytes.notebook_first_open',
                   'python tools/notebook_perf_budgets.py --dist app/dist (run by 9B)'),
@@ -3126,23 +3224,41 @@ def build(pages_dir=None):
         ('a design review against the three competitors signs off each surface', 'NOT MET',
          [record('docs/notebook/design-review.md', '6-7', 'reviewed, not signed off')],
          'the independent review ran (10E-2) and does NOT sign off: behind on the first phone screen (D-1), on editor '
-         'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Then the owner\'s '
-         'countersign (S-2)', BUILD),
+         'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Owner state, partial: the '
+         'owner countersigned ONE surface\'s placement -- D-3\'s "..." menu ("yes keep them in the menu", '
+         '2026-09-28) -- and the SDD re-check (wave10-design-recheck.md, not in this tree) recommends the owner can '
+         'now also sign off list/sidebar at 1200/820, the editor at 1200, views, share/publish, search and templates '
+         '(conditional on the owner ruling 9 curated templates is the intended breadth, not a marketplace). It '
+         'explicitly holds phone (390) and the editor at 820/390 until D3P lands and D-5\'s scroll cue is shown '
+         'visibly. No per-surface countersign beyond D-3\'s menu decision is recorded in this repo, so the clause -- '
+         '"signs off EACH surface" -- stays NOT MET', OWNER),
         ('consistent tokens', 'MET', [test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js'),
                                      code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], '', None),
-        ('no layout regressions at 390/820/1200', 'NOT MEASURED',
+        ('no layout regressions at 390/820/1200', 'NOT MET',
          [record(PR, '80-81', 'control VALID'), record(PR, '109-110', 'Leads that need a screenshot before they count'),
-          measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '9-12', '"findings": 2358', PR_CMD)],
+          measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '9-12', '"findings": 2358', PR_CMD),
+          L3_TIP, L3_LEADS, L3_FINDING, D3P_TIP, D3P_LEADS, D5_CUE, D5_OVERFLOW],
          '10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every CONFIRMED finding and F4 moved '
-         'the skip link off the tab strip, but the sweep\'s leads (controls under the fixed top bar and the Journal '
-         'header, rows under the phone Log button) were never confirmed or cleared, and no sweep ran on the scored tree', BUILD),
+         'the skip link off the tab strip. Two later, driven sweeps now report CONFIRMED (not merely leaded) '
+         'occlusions at 390: L3 (tip a2016db20) finds 8 CONFIRMED -- the editor\'s own "Joystick, Notebook" control '
+         'occluded by the hub across scroll states, stable between L3\'s own before/after fix; D3P (after-r2, tip '
+         'c226c163c) finds 32 CONFIRMED leads at 390, an unchanged count across its own before/after/after-r2 runs, '
+         'so not something D3P\'s change introduced, but not cleared by it either. D5\'s board scroll-fade cue is a '
+         'genuine improvement: its round-1-fix capture shows the CSS mask-image cue present and the column overflow '
+         'correctly detected at 1200/820/390 with 0 page errors, though the browser-rendered scrollbar itself was '
+         'not scanned there ("box off-screen or zero-sized"). A confirmed, reproduced occlusion at 390 is what the '
+         'clause asks about; the standard is achievable (D5 shows it closing cleanly) but is not met today', BUILD),
     ]
     C[7] = [
-        ('restore rehearsed end-to-end on a schedule', 'NOT MEASURED',
-         [code('tools/authdb_restore_drill.py', 547, 'SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"'), D(15, 'restore-drill tool')],
-         'the drill now checks attachments and replays tombstones, and its weekly task is staged; no full PASS of it '
-         'is recorded (its first scheduled run was INCONCLUSIVE by design: the tarball predated the manifest). Owed: '
-         'the controller\'s hand re-run to a PASS', BUILD),
+        ('restore rehearsed end-to-end on a schedule', 'NOT MET',
+         [code('tools/authdb_restore_drill.py', 547, 'SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"'), D(15, 'restore-drill tool'),
+          RESTORE_INTEGRITY, RESTORE_TOMBSTONES, RESTORE_ATTACH],
+         'the drill now checks attachments and replays tombstones, and its weekly task is staged. The hand re-run '
+         'this cell used to owe now reads a full PASS: integrity_check ok, 0 tombstones outstanding after replay, '
+         '25 of 337 attachments sampled with every sha256 matching. That closes the earlier INCONCLUSIVE-by-design '
+         'first run (the tarball predated the manifest) and proves the mechanism works end-to-end -- but a PASS run '
+         'by hand is not a PASS triggered BY the schedule, and the clause reads literally "on a schedule". The '
+         'staged weekly task has not yet produced an unattended PASS. Owed: observe its next scheduled fire', BUILD),
         ('account deletion purges backups', 'NOT MET',
          [record('docs/account-deletion-manifest.md', 183, 'The deletion writes a TOMBSTONE, as its FIRST write'),
           record('docs/account-deletion-manifest.md', 213, 'one known exception to "snapshots expire"'),
@@ -3181,25 +3297,33 @@ def build(pages_dir=None):
           code('.github/workflows/notebook-a11y.yml', 8, 'actions/runs/36294512061')],
          'seen red once and green once (ruling D-A2), then promoted: a red refuses production promotion', None),
         ('zero violations on Notebook surfaces', 'NOT MEASURED',
-         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings')],
-         'the only zero-violation reading is F5\'s real-browser axe (123 of 123 runs PASS over 43 surfaces x three themes) '
-         'on F5\'s tip aa2417c2c, and 43 non-test Notebook files changed after it (F7\'s LoadFailed / SaveFailed, F4\'s '
-         'skip link and focus rings, F6\'s switcher rows). The jsdom axe harness ran on the scored tree in the L1c '
-         'six-shard gate (docs/notebook/gate-runs/wave10-L1c/2026-09-28T08-46-04.md, on origin/feat/notebook-w10-l1c at '
-         'debf96fc2; 2088 files, 3 NEW rows classified, none a11y), but it has no contrast rule: contrast on the post-F5 '
-         'surfaces is unmeasured. Lever: re-run F5\'s axe instrument (python tools/notebook_proof_walk.py --boot, the axe '
-         'sweep) on the landed tree', BUILD),
+         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings'), AX_9A_REFUSED, AX_9A_GALLERY],
+         'the only zero-violation reading over F5\'s full 43 surfaces is still F5\'s own real-browser axe (123 of 123 '
+         'PASS x three themes) on tip aa2417c2c, and 43 non-test Notebook files changed after it. Lane AX was briefed '
+         'to re-run F5\'s instrument at 2fb102c74 and could not: F5\'s instrument IS tools/notebook_proof_walk.py, and '
+         'the lane brief forbade reading or running that file (owner permission not yet granted) -- no substitute '
+         're-implementation was written, since its numbers would not be comparable with F5\'s anyway. The only piece '
+         're-measured at 2fb102c74 is the template gallery, by a DIFFERENT instrument (lane D2\'s, composed with a '
+         'control): 0 violations at 1200/820/390, one theme (the default). Owed: the owner\'s permission to run '
+         'tools/notebook_proof_walk.py on the landed tree, or a named substitute instrument', OWNER),
         ('a full screen-reader pass (VoiceOver + NVDA)', NMO,
          [record('docs/notebook/screen-reader-pass.md', 4, 'nothing here has been run on a real screen reader yet')],
          'owner; scripts in a11y-second-review-brief.md', OWNER),
-        ('keyboard-complete (incl. graph)', 'NOT MET',
+        ('keyboard-complete (incl. graph)', 'MET',
          [kbd('S2-23', 'FAIL'), kbd('S2-26', 'FAIL'), kbd('S2-27', 'FAIL'), kbd('S2-13', 'FAIL'), kbd('S1-31', 'PASS'),
-          kbd('S2-28', 'PASS')],
-         'the independent keyboard walk (10E-2) found three MAJORs; F4 fixed them and eight FAIL rows now PASS (a '
-         'table row opens on Enter, the Delete confirmation traps focus, the skip link comes first). Still FAIL on '
-         'F4\'s re-walk: focus escapes the Outline, Export and Open-beside disclosures (S2-23/26/27), the [[ link and '
-         '@date keyboard inserts (S2-13/14; the probe is unverified), and 16 px targets at 820 (S6-02, fixed '
-         'since by F5, not re-walked)', BUILD),
+          kbd('S2-28', 'PASS'), AX_9D_SUMMARY, AX_9D_S218],
+         'F4\'s re-walk (cited above, at 0555889ef) still FAILed S2-23/26/27, S2-13/14 and S6-02 x2. Lane AX re-ran '
+         'the walk at 2fb102c74 with two instruments (10E-2\'s unmodified copy, and K2\'s route through "More note '
+         'actions"): every one of those FAILs now PASSes -- the Outline/Export/Open-beside disclosures take focus '
+         'and trap Tab correctly, the [[ link and @date keyboard inserts both PASS with their controls, and the '
+         '820px targets read 0 under 24px. The graph rows (S3-01/02/04/05) PASS in both instruments; S3-03 stays '
+         'OBSERVED (no pass/fail line). Residual: S2-18 (move a block by Alt+Shift+Arrow) FAILs on the K2 route, and '
+         'a probe (routes A-E) explains it as a timing artefact, not a Notebook defect -- pressing Ctrl+Home then '
+         'Alt+Shift+ArrowDown back-to-back (route D, as the walk does) moves the wrong block because '
+         'prosemirror-view learns of the native caret move only via an async selectionchange; the same two keys with '
+         'a 50ms gap (route E) moves the right one. A person cannot press two keys within one browser task; a script '
+         'can. It is library behaviour, not Notebook code, and it does not recur in the unmodified walk on the same '
+         'tree', None),
     ]
     C[10] = [
         ('iOS + Android capture parity', NMO,
@@ -3257,27 +3381,44 @@ def build(pages_dir=None):
          'a labelled set (100 notes, 43 queries): the search box 0.8837 recall@10; the switcher 0.4147 before F6 and '
          '0.9302 after (its body half); the rail holds both at their baseline and plants a ranker regression that '
          'must fall below it', None),
-        ('p95 < 100 ms at 50k', NMQ,
+        ('p95 < 100 ms at 50k', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k', 'python tools/notebook_scale_benchmark.py --tiers 50000 --budget search'),
-          QUIET_SLOT],
-         'the same reading as standard #4\'s search clause: the controller\'s quiet slot', QUIET),
+          *QS_EV],
+         'the same reading as standard #4\'s search clause. ' + PC_CAVEAT, None),
     ]
     C[14] = [
-        ('50k notes: all budgets from #4 hold', NMQ,
+        ('50k notes: all budgets from #4 hold', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k', 'python tools/notebook_scale_benchmark.py --tiers 50000'),
-          QUIET_SLOT], 'the controller\'s quiet slot (10A\'s 50k command)', QUIET),
-        ('10k attachments', NMQ,
-         [code('docs/notebook/perf-budgets.json', 113, '"attachments": 10000'), QUIET_SLOT],
-         'the 10k-attachment tier and its budget are built (10A); the verdict is the quiet slot\'s 50k run with '
-         '--attachments 10000', QUIET),
+          *QS_EV],
+         'lane RS\'s quiet-slot command 1 (2026-09-29 07:04 CT, tree 2fb102c74) read PASS on every budgeted op at '
+         '50,000 notes, with 0 foreign test processes sampled every 20 s throughout. ' + PC_CAVEAT, None),
+        ('10k attachments', 'MET',
+         [code('docs/notebook/perf-budgets.json', 113, '"attachments": 10000'), *QS_EV],
+         'the same quiet-slot run seeded 10,000 attachments (30,000 pages) alongside the 50,000 notes and read every '
+         'attachment op under its p95 line in the same PASS. ' + PC_CAVEAT, None),
         ('size-cap notes', 'NOT MET', [L('G-035', 'OPEN, DELIBERATELY')], 'G-035, owner ruling', OWNER),
-        ('no super-linear curve', NMQ,
+        ('no super-linear curve', 'NOT MET',
          [record(PB, 675, "W7's curve BREACHED 9 ops"),
           measure(f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 177, 'VERDICT: BUDGET BREACH',
-                  'python tools/notebook_scale_benchmark.py --curve (F6, fix round 1)'), QUIET_SLOT],
-         'the curve and its bounds are built (10A); both readings taken so far BREACH (count_notes, folder counts, '
-         'backlinks, list_tasks bending between 10k and 25k) but ran on a loaded box, so neither is a verdict: the '
-         'controller\'s quiet slot', QUIET),
+                  'python tools/notebook_scale_benchmark.py --curve (F6, fix round 1)'),
+          measure(f'{QS}/qs-curve.log', 178, 'VERDICT: BUDGET BREACH',
+                  'python tools/notebook_scale_benchmark.py --curve (quiet slot, 2026-09-29 07:06 CT)'),
+          measure(f'{QS}/qs-curve2.log', 178, 'VERDICT: BUDGET BREACH',
+                  'python tools/notebook_scale_benchmark.py --curve (repeat, 2026-09-29 07:09 CT)')],
+         'the curve and its bounds are built (10A); every reading taken so far BREACHes (count_notes, folder '
+         'counts, backlinks, list_tasks bending between 10k and 25k), including lane RS\'s two quiet-slot repeats. '
+         'Lane PC diagnosed the cause (branch feat/notebook-w10-pc @ 844a3c957, not merged here, read but not '
+         're-verified against this tree): the benchmark holds one long-lived SQLite connection with SQLite\'s '
+         'default 2 MB page cache against a ~490 MB database at 50k notes, and the super-linear shape is that cache '
+         'spilling, not an algorithm -- with a page cache sized for the database or with mmap, every op is linear '
+         'or better. Production does not use the benchmark\'s connection model: api/services/auth_db.get_connection '
+         'opens a fresh connection per call (no pool, no cache_size), which PC measured sub-linear (fit 0.32-0.65) '
+         'on the same ops. PC\'s own verdict: "NOT MET, and a ruling is needed" -- whether the curve should run in '
+         'the per-call model production uses (with the bench model kept as a diagnostic), or production should set '
+         'its own cache_size/mmap_size, is an owner ruling not yet taken. The bounds in perf-budgets.json are '
+         'unchanged. Marked NOT MET, not NOT MEASURED — QUIET SLOT: two quiet-slot readings and PC\'s diagnosis are '
+         'enough to say the bench-model curve breaches; what is missing is the ruling on which model the clause '
+         'should measure, never another quiet run', OWNER),
     ]
     try:
         TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
@@ -3331,7 +3472,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8220, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8246, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
@@ -3339,7 +3480,7 @@ def build(pages_dir=None):
     C[16] = [
         ('a new member reaches a first useful note in < 2 minutes unaided', NMO,
          [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
-        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 421, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], '', None),
+        ('help centre articles', 'MET', [code('app/src/pages/Support.jsx', 422, "id: 'notebook-getting-started',"), walk9('B14_onboarding_help')], '', None),
         ('sample notebook', 'MET', [flag('NOTEBOOK_ONBOARDING_ENABLED', 'armed'), walk9('B14_onboarding_help')], '', None),
         ('member templates', 'MET', [walk9('B11_organise')], '', None),
     ]
@@ -3365,7 +3506,8 @@ def build(pages_dir=None):
     w = out.append
     w('# Notebook parity scorecard — every ledger row, the 16 standards, the honest misses')
     w('')
-    w(f'**Date:** {DATE} (the wave-10 re-score, follow-up F3; the tool and method are wave 9 lane 9B\'s). **Product '
+    w(f'**Date:** {DATE} (the wave-10 re-score, follow-up F3 on 2026-09-28, re-scored again by lane RS on the controller\'s '
+      f'quiet-slot and the accumulated evidence; the tool and method are wave 9 lane 9B\'s). **Product '
       f'scored:** this tree — app tree `{app_tree[:9]}`, api tree `{api_tree[:9]}` — which is the wave-10 L1c landing '
       f'tree `{L1C}` (master `4bba30b73` + #225 + 10E-1 + 10E-2 + the follow-up lanes F2, F4, F5, F6 and F7) plus this '
       f're-score\'s own documents and tool: `git diff --name-only {L1C} HEAD -- app api` lists '

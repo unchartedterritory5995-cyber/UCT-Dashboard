@@ -1,0 +1,7 @@
+07:09:32 cpu=31 foreign_test_procs=0
+07:09:44 cpu=25 foreign_test_procs=1
+07:09:55 cpu=3 foreign_test_procs=0
+07:10:06 cpu=7 foreign_test_procs=0
+07:10:18 cpu=17 foreign_test_procs=0
+07:10:29 cpu=28 foreign_test_procs=2
+07:10:40 cpu=37 foreign_test_procs=3
