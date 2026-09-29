@@ -19073,7 +19073,7 @@
         "kind": "period_end_plus_days",
         "days": 1,
         "time_et": "17:00",
-        "basis": "Monday survey released Monday ~17:00 (Tuesday on holidays)"
+        "basis": "Monday survey released Tuesday ~10:00 ET (Wednesday on holidays, EIA schedule page); period_end+1d 17:00 is the conservative late side"
       }
     },
     "revision": {
@@ -19162,7 +19162,7 @@
         "kind": "period_end_plus_days",
         "days": 1,
         "time_et": "17:00",
-        "basis": "Monday survey released Monday ~17:00 (Tuesday on holidays)"
+        "basis": "Monday survey released Tuesday ~10:00 ET (Wednesday on holidays, EIA schedule page); period_end+1d 17:00 is the conservative late side"
       }
     },
     "revision": {

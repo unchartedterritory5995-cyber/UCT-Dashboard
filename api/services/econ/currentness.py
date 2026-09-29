@@ -47,6 +47,7 @@ whole ET day plus the family grace.
 """
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from datetime import timedelta
@@ -55,6 +56,8 @@ from typing import Iterable, Optional
 from . import calendar as cal
 from . import licensing, timeutil
 from .model import Currentness as C
+
+log = logging.getLogger(__name__)
 
 SOURCE_FAIL_THRESHOLD = 3
 GRACE_DEFAULT_S = 3600
@@ -384,6 +387,11 @@ def refresh_state(store, spec, now: int, *, events=None, lookup=None) -> Verdict
         events = cal.load_events(store, key, now) if key else []
     facts = gather_facts(store, spec, now, lookup=lookup)
     v = evaluate(spec, facts, events, now, coverage_end=cal.coverage_end(store, key) if key else None)
+    before = (store.get_state(sym) or {}).get("state")
+    if v.state.value != before:
+        # one line per currentness TRANSITION, wherever it happens (service tick or ingest);
+        # dates/states/labels only, never a value
+        log.info("econ.currentness: %s %s -> %s (%s)", sym, before, v.state.value, v.reason[:300])
     store.put_state(sym, state=v.state.value, latest_period=facts.latest_period,
                     latest_available_at=facts.latest_available_at,
                     expected_period=v.expected.period_start if v.expected else None,

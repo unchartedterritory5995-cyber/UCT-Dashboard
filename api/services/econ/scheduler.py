@@ -300,6 +300,13 @@ class Scheduler:
         la = facts.last_attempt_at
         if facts.latest_period is None:
             due = now if la is None else la + BACKFILL_RETRY_S
+            if daily_limit(adapter) is not None:
+                # a daily-quota provider (BLS keyless: 25 queries/day, 10 years/query) must not spend
+                # its budget on deep history automatically: the first fetch is ONE recent window;
+                # older history is an operator backfill (`--backfill`), planned against the quota
+                start = date(timeutil.et_date(now).year - RECONCILE_YEARS + 1, 1, 1)
+                return SeriesPlan(sym, adapter, due, "history", "backfill", "no data yet (recent window)",
+                                  start=start)
             return SeriesPlan(sym, adapter, due, "history", "backfill", "no data yet")
         key = (spec.release or {}).get("calendar_key") or ""
         if events_cache is not None and key in events_cache:
@@ -432,9 +439,12 @@ class Scheduler:
             if outcome.ok:
                 cur.update_provider_ops(self.store, job.adapter, now, backoff_until=None)
             else:
-                n = int(cur.provider_ops(self.store, job.adapter).get("consecutive_failures") or 1)
+                po = cur.provider_ops(self.store, job.adapter)
+                n = int(po.get("consecutive_failures") or 1)
+                until = now + min(BACKOFF_CAP_S, BACKOFF_BASE_S * 2 ** (n - 1))
+                # never SHORTEN a longer block the pipeline set (a provider quota refusal)
                 cur.update_provider_ops(self.store, job.adapter, now,
-                                        backoff_until=now + min(BACKOFF_CAP_S, BACKOFF_BASE_S * 2 ** (n - 1)))
+                                        backoff_until=max(until, int(po.get("backoff_until") or 0)))
             return JobResult(job, "ran", outcome, used)
         finally:
             self.store.release_lease(job.lease_name, self.owner)

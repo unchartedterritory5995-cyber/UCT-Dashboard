@@ -276,3 +276,52 @@ def test_a_failed_target_write_raises_so_ingest_keeps_it_pending(store, monkeypa
     P.clear_memo()
     with pytest.raises(P.PublishFailed):
         P.publish_series(store, "USCPI", local_root="", r2=True, now=NOW)
+
+
+# ── next_release: first FUTURE event, series_state pointer preferred ───────
+
+def test_next_release_prefers_state_pointer_and_skips_passed_events(tmp_path):
+    from api.services.econ.timeutil import et_to_utc
+    s = S.connect(str(tmp_path / "nr.db"))
+    try:
+        entry = {"symbol": "USEFFR", "release": {"calendar_key": "nyfed:effr"}}
+        # a daily event at 09:00 ET TODAY that has already passed, then tomorrow's
+        passed = s.put_event("nyfed:effr", "2026-09-28", "2026-09-29", sched_time="09:00", precision="rule",
+                             source="rule")
+        tomorrow = s.put_event("nyfed:effr", "2026-09-29", "2026-09-30", sched_time="09:00", precision="rule",
+                               source="rule")
+        now = et_to_utc("2026-09-29", "15:00")
+        # the old date-granular lookup returned the passed event
+        assert s.next_event("nyfed:effr", "2026-09-29")["event_id"] == passed
+        # no state row: calendar fallback, but only a FUTURE event
+        assert P.next_release(s, entry, now) == {"date": "2026-09-30", "time": "09:00",
+                                                  "tz": "America/New_York", "precision": "rule"}
+        # the state pointer wins (currentness filtered the grid; e.g. a later event)
+        later = s.put_event("nyfed:effr", "2026-09-30", "2026-10-01", sched_time="09:00", precision="rule",
+                            source="rule")
+        s.put_state("USEFFR", state="CURRENT", next_event_id=later)
+        assert P.next_release(s, entry, now)["date"] == "2026-10-01"
+        # a stale pointer (event already passed) falls back to the first future event
+        s.put_state("USEFFR", next_event_id=passed)
+        assert P.next_release(s, entry, now)["date"] == "2026-09-30"
+        # a superseded pointer is ignored
+        s.put_state("USEFFR", next_event_id=tomorrow)
+        s.delete_event(tomorrow, at=int(now))
+        assert P.next_release(s, entry, now)["date"] == "2026-10-01"
+        # nothing in the future -> null
+        assert P.next_release(s, entry, et_to_utc("2026-10-02", "12:00")) is None
+    finally:
+        s.close()
+
+
+def test_next_release_hole_is_unknown_with_no_date(tmp_path):
+    s = S.connect(str(tmp_path / "hole.db"))
+    try:
+        entry = {"symbol": "USMTSDEF", "release": {"calendar_key": "fiscal:mts"}}
+        hole = s.put_event("fiscal:mts", "2026-10", "2026-11-10", precision="unknown", source="authoritative_feed")
+        s.put_state("USMTSDEF", state="NO_EXPECTATION", next_event_id=hole)
+        from api.services.econ.timeutil import et_to_utc
+        nr = P.next_release(s, entry, et_to_utc("2026-10-20", "12:00"))
+        assert nr == {"date": None, "time": None, "tz": "America/New_York", "precision": "unknown"}
+    finally:
+        s.close()

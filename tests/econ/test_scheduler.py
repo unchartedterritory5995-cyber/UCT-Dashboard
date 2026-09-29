@@ -195,3 +195,45 @@ def test_next_wake_tracks_the_probe(tmp_path, keyed):
     sc = sch.Scheduler(s, entries=E, adapter_for=lambda n: None)
     assert sc.next_wake(CPI_OCT - 150, max_sleep=60) == CPI_OCT - 120
     assert sc.next_wake(NOW0 + 60, max_sleep=60) == NOW0 + 120
+
+
+def test_provider_quota_refusal_blocks_for_a_probe_interval_not_forever(tmp_path, monkeypatch):
+    """Real 2026-09-29 00:11 ET: BLS v1 answered 'daily threshold reached' AFTER the ET day
+    rolled over. A provider-side quota refusal must block the provider (no retry storm at the
+    15-min source backoff), but only for QUOTA_PROBE_S -- the reset time is unknown."""
+    from api.services.econ import ingest
+    from api.services.econ.adapters.bls import BlsQuotaExhausted
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
+    E = ents("USCPI")
+    s = seeded(tmp_path, E)
+    now = CPI_OCT
+    nb = T("2026-10-15", "00:05")
+    fa = FakeAdapter([BlsQuotaExhausted("quota: BLS v1 daily query threshold reached", not_before=nb),
+                      {"observations": HIST[-2:] + [SEP]}], name="bls")
+    sc = sch.Scheduler(s, entries=E, adapter_for=lambda n: fa, publish=False)
+    assert [r.status for r in sc.tick(now)] == ["ran"]
+    until = now + ingest.QUOTA_PROBE_S
+    ops = cur.series_ops(s, "USCPI")
+    assert ops["last_failure_kind"] == "quota" and ops["blocked_until"] == until
+    assert cur.provider_ops(s, "bls")["backoff_until"] == until              # not shortened by the 15-min backoff
+    assert s.get_state("USCPI")["state"] == "SOURCE_UNAVAILABLE"
+    assert sc.due(now + 3600) == [] and len(fa.calls) == 1                     # no retry storm
+    assert [r.status for r in sc.tick(until + 5)] == ["ran"] and len(fa.calls) == 2
+    assert s.get_state("USCPI")["state"] == "CURRENT"
+    assert ingest.quota_block_until(BlsQuotaExhausted("q", not_before=now + 60), now) == now + 60
+
+
+def test_quota_provider_first_fetch_is_one_recent_window(tmp_path, monkeypatch):
+    """An uninitialized BLS series (keyless, 25 queries/day) is first fetched with ONE 10-year
+    window, never a 12-query 1913.. history that a quota refusal would throw away."""
+    monkeypatch.delenv("BLS_API_KEY", raising=False)
+    from datetime import date
+    from tests.econ.test_ingest import open_store
+    E = ents("USCPI")
+    s = open_store(tmp_path)
+    cal.refresh(s, NOW0, feeds=False)
+    sc = sch.Scheduler(s, entries=E, adapter_for=lambda n: None, publish=False)
+    [job] = sc.due(NOW0)
+    assert job.purpose == "backfill" and job.mode == "history" and job.start == date(2017, 1, 1)
+    from api.services.econ.adapters.bls import estimate_queries
+    assert estimate_queries(E, start=job.start) == 1

@@ -222,6 +222,8 @@ class FetchOutcome:
     derived: dict = field(default_factory=dict)
     published: list = field(default_factory=list)
     validators_committed: int = 0
+    elapsed_s: Optional[float] = None       # wall time of the call (backfill fills it)
+    requests: Optional[int] = None          # HTTP attempts during the call (backfill fills it)
 
     @property
     def written(self) -> int:
@@ -437,10 +439,25 @@ def republish_pending(store, now: int, publisher=None) -> list:
 
 # ─────────────────────────────── the pipeline ────────────────────────────────
 
+# A provider that says its quota is spent (BLS keyless: REQUEST_NOT_PROCESSED "daily threshold") is
+# blocked for QUOTA_PROBE_S, capped at the adapter's `not_before`. Not "until the next ET midnight":
+# observed 2026-09-29 00:11 ET, BLS v1 still refused after the ET day rolled over (4 queries in), so
+# the provider's reset time is unknown; a 3 h probe costs at most ~8 refused queries a day.
+QUOTA_PROBE_S = 3 * 3600
+
+
 def _classify_error(e: BaseException) -> str:
     if isinstance(e, (MalformedPayload, ValidationFailed)):
         return "validation"
+    if getattr(e, "reason", None) == "quota":
+        return "quota"
     return "source"
+
+
+def quota_block_until(e: BaseException, now: int) -> int:
+    nb = getattr(e, "not_before", None)
+    until = now + QUOTA_PROBE_S
+    return min(int(nb), until) if isinstance(nb, (int, float)) and nb > now else until
 
 
 def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Optional[date] = None,
@@ -477,10 +494,12 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
             if kind == "validation":
                 store.add_validation_event(s, "reject", [f"schema: provider payload refused ({type(e).__name__})"],
                                            acq_id=call_acq, at=now)
-            cur.note_failure(store, s, now, kind, msg)
+            cur.note_failure(store, s, now, kind, msg,
+                             blocked_until=quota_block_until(e, now) if kind == "quota" else None)
         cur.update_provider_ops(store, out.adapter, now, consecutive_failures=int(
             cur.provider_ops(store, out.adapter).get("consecutive_failures") or 0) + 1,
-            last_error=msg[:500], last_error_at=now)
+            last_error=msg[:500], last_error_at=now,
+            **({"backoff_until": quota_block_until(e, now)} if kind == "quota" else {}))
         if dh:
             dh.drop()
         _refresh_states(store, specs, now, entries, lookup, events_for)
@@ -537,7 +556,9 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
         per_result_acq.append(acq)
 
     if dh is not None:
-        if rejected_any:
+        # a rejected payload OR a requested series the payload did not carry must
+        # not arm a conditional GET: the next poll would be a 304 and never recover
+        if rejected_any or (set(syms) - seen_sym):
             dh.drop()
         else:
             out.validators_committed = dh.commit()
@@ -617,21 +638,86 @@ def _refresh_states(store, specs, now, entries, lookup, events_for) -> None:
             log.warning("econ.ingest: state refresh %s failed: %s", _g(sp, "symbol"), secrets.safe_exc(e))
 
 
+def _http_total(http, host: Optional[str] = None) -> int:
+    stats = getattr(http, "stats", None)
+    if not callable(stats):
+        return 0
+    st_ = stats()
+    if host:
+        return sum((st_.get("by_host") or {}).get(host, {}).values())
+    return int(st_.get("total") or 0)
+
+
+def backfill_refusal(spec) -> Optional[str]:
+    """Why a backfill must NOT ingest this entry (None = allowed). Only enabled,
+    production-eligible series are ever written as production data: an
+    unverified / disabled / excluded / RED / FRED entry is refused here even when
+    named explicitly on the command line."""
+    raw = spec.raw if hasattr(spec, "raw") else spec
+    status = raw.get("status")
+    if status != "enabled":
+        return f"status {status or 'missing'} (only enabled series are ingested)"
+    from .licensing import production_eligible
+    ok, why = production_eligible(raw)
+    return None if ok else why
+
+
 def backfill(store, specs, start: Optional[date] = None, *, http, now: int, adapter_for=None,
-             run_id: Optional[str] = None, entries=None, publisher=None, publish: bool = True) -> list[FetchOutcome]:
+             end: Optional[date] = None,
+             run_id: Optional[str] = None, entries=None, publisher=None, publish: bool = True,
+             lease_wait_s: float = 120, sleep: Callable[[float], None] = time.sleep,
+             clock: Callable[[], float] = time.time) -> list[FetchOutcome]:
     """Full history for `specs` (derived specs are recomputed from their inputs).
-    One 'backfill:<series>:<run_id>' release per series; re-running writes nothing new."""
+    One 'backfill:<series>:<run_id>' release per series; re-running writes nothing new.
+    Non-production entries are refused (see `backfill_refusal`); BLS requests are
+    charged to `provider_quota` so a running service sees the day's true usage."""
     from .adapters import get_adapter
     adapter_for = adapter_for or get_adapter
     run_id = run_id or f"run{int(now)}"
     groups: dict[str, list] = {}
     for s in as_specs(specs):
+        why = backfill_refusal(s)
+        if why:
+            log.warning("econ.backfill: refusing %s: %s", s.symbol, why)
+            continue
         if s.derivation:
             continue
         groups.setdefault(s.adapter, []).append(s)
     outs = []
+    from .scheduler import default_owner
+    owner = f"backfill:{default_owner()}"
     for name, group in sorted(groups.items()):
-        outs.append(run_fetch(store, group, "history", now, http, adapter_for(name), start=start,
-                              purpose="backfill", run_id=run_id, entries=entries, publisher=publisher,
-                              publish=publish))
+        # a provider that refused for quota (or is backing off) is not asked again by a backfill
+        bo = cur.provider_ops(store, name).get("backoff_until")
+        if bo and int(bo) > clock():
+            outs.append(FetchOutcome(adapter=name, mode="history", now=now, ok=False, error_kind="backoff",
+                                     error=f"provider {name} backing off until {int(bo)}; not sent"))
+            continue
+        # the same lease the service's scheduler takes, so a backfill never races a live job
+        lease = f"ingest:{name}"
+        deadline = clock() + lease_wait_s
+        while not store.acquire_lease(lease, owner, 1800, now=int(clock())):
+            if clock() >= deadline:
+                break
+            sleep(2)
+        if store.lease_holder(lease, now=int(clock())) != owner:
+            outs.append(FetchOutcome(adapter=name, mode="history", now=now, ok=False, error_kind="lease",
+                                     error=f"lease {lease} held by another process; not sent"))
+            continue
+        host = "api.bls.gov" if name == "bls" else None
+        t0, n0, b0 = time.perf_counter(), _http_total(http), _http_total(http, host)
+        try:
+            o = run_fetch(store, group, "history", now, http, adapter_for(name), start=start, end=end,
+                          purpose="backfill", run_id=run_id, entries=entries, publisher=publisher,
+                          publish=publish)
+        finally:
+            store.release_lease(lease, owner)
+        o.elapsed_s = round(time.perf_counter() - t0, 3)
+        o.requests = _http_total(http) - n0
+        if host and http is not None:
+            used = _http_total(http, host) - b0
+            if used:
+                from .scheduler import quota_add
+                quota_add(store, name, now, used)
+        outs.append(o)
     return outs

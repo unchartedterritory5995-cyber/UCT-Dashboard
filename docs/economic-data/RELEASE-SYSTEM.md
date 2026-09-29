@@ -49,7 +49,7 @@ The side table `calendar_coverage(calendar_key, provider, source, coverage_start
 - **Census page.** Covers `census:marts|resconst|m3adv|m3|ft900|ressales|vip|mtis|mwts`. A page with fewer than 100 rows is **refused**; the phase-0 copy had only 22.
 - **fiscaldata feed.** Covers `fiscal:mts`. Times are read as UTC; that offset is inferred from the 1 h shift at DST end and is not documented by Treasury. A month inside the feed window that has no MTS row becomes a hole. The 8th-business-day rule is used **only** for months before the feed window, never to fill a hole or forecast.
 - **Configured files.** Rows are `[date, label(, time)]`, with a coverage block and citations.
-- **Rules.** H.15: observation d → next business day 16:15. H.4.1: Thursday 16:30 for the Wednesday level, moved to the next business day on a holiday. H.6: fourth Tuesday at 13:00, moved to the next business day on a holiday, carrying the previous month. EFFR/OBFR: next business day 09:00. SOFR: next business day 08:00. RRP: same day 13:15. DTS: next business day 16:00. Debt to the Penny: next business day 16:15. WPSR: Wednesday 10:30 for the week ending the previous Friday; exceptions come from the holiday table, and an unlisted holiday week is `unknown`. Gasoline: Monday 17:00, or Tuesday when Monday is a holiday. DOL claims: Thursday 08:30; a week with a holiday Mon–Wed is `date_only`, and a Thursday holiday is `unknown`.
+- **Rules.** H.15: observation d → next business day 16:15. H.4.1: Thursday 16:30 for the Wednesday level, moved to the next business day on a holiday. H.6: fourth Tuesday at 13:00, moved to the next business day on a holiday, carrying the previous month. EFFR/OBFR: next business day 09:00. SOFR: next business day 08:00. RRP: same day 13:15. DTS: next business day 16:00. Debt to the Penny: next business day 16:15. WPSR: Wednesday 10:30 for the week ending the previous Friday; exceptions come from the holiday table, and an unlisted holiday week is `unknown`. Gasoline/diesel: the Monday survey is released Tuesday 10:00 (EIA schedule page: "published around 10:00 a.m. Tuesday eastern time, except on government holidays, when the data are released on Wednesday"); a holiday Monday or Tuesday moves it to Wednesday 10:00 (corrected 2026-09-29 — the first cut said Monday 17:00, which made USGASPRICE falsely DELAYED on real data). DOL claims: Thursday 08:30; a week with a holiday Mon–Wed is `date_only`, and a Thursday holiday is `unknown`.
 - **Failure handling.** A feed that fails to fetch or parse keeps its stored events, and the refresh summary records a redacted error. A future event that has disappeared from its source is withdrawn (superseded). Past events are never withdrawn.
 
 ## 2. Currentness (`currentness.evaluate`, pure)
@@ -129,6 +129,8 @@ Every decision is recomputed each tick from `calendar_event`, `observation`, `se
 - **Batching.** All due series of one adapter form ONE job and ONE `adapter.fetch`, and the adapter chunks them. All BLS series due in the same window share one query.
 - **Leases.** A job runs under the lease `ingest:<adapter>`. The owner is `host:pid:uuid` and the TTL is 600 s. After taking the lease, the job **re-checks** which of its series are still due, so a second instance that computed the same job does nothing. When the service boots, `reclaim_stale_leases` frees leases left by a dead process on the **same host**, meaning a pid equal to ours (pid reuse, as in container pid 1) or a pid that is provably dead on POSIX. Leases held by other hosts expire by TTL.
 - **Quota.** `provider_quota(provider, ET day, used)`. BLS allows 500/day with a key and 25/day without one; `ECON_BLS_DAILY_LIMIT` overrides this. Usage is the maximum of the HttpClient host-count delta and the estimate. A job that would go over the limit is not sent. Its series get `last_failure_kind='quota'` and `blocked_until` = the next ET midnight, which makes them SOURCE_UNAVAILABLE, and the provider backs off until then.
+- **Provider quota refusal** (2026-09-29, real). BLS v1 keyless answered `daily threshold reached` at 00:11 ET — after the ET day rolled over — and again at 03:11 ET, each time after 3 successful windows (4th query refused), so the provider's reset is NOT ET midnight and its accounting is unknown. An adapter error with `reason == "quota"` is classified `quota`: the series get `blocked_until` and the provider `backoff_until` = `now + ingest.QUOTA_PROBE_S` (3 h, capped at the adapter's `not_before`); the scheduler's own 15-min source backoff never shortens it, and `ingest.backfill` refuses to send while a provider is backing off.
+- **First fetch of a daily-quota provider** (BLS keyless): an uninitialized series is fetched with ONE recent 10-year window (1 query), never the 12-query 1913.. history — a refused window throws the whole call away. Older history is an operator backfill, sent window by window (`ingest.backfill(start=, end=)`), which takes the same `ingest:<adapter>` lease as the scheduler so it never races a live job.
 - **Backoff.** After a failed call, the provider waits `min(900 s, 30 s·2^(n−1))`. The wait is cleared on the next success.
 - **Reconcile.** A bounded history re-pull, once a week per series: 10 years, or 2 years for daily series. It never runs while a live window is open for that adapter, within 30 min of a probe, within 6 h of any attempt on the series, or, for BLS, when more than half the daily quota is used. One series is reconciled per adapter per tick. Changed values become new `detected` vintages.
 
@@ -166,7 +168,7 @@ Every decision is recomputed each tick from `calendar_event`, `observation`, `se
   - `adapter_import_errors`
 
   The serialized body passes through `secrets.redact` again before it is sent.
-- **Logging**: `configure_logging()` writes one JSON object per line, with message and exception text redacted.
+- **Logging**: `configure_logging()` writes one JSON object per line, with message and exception text redacted. One line per currentness transition (`econ.currentness: SYM OLD -> NEW (reason)`, logged by `refresh_state` wherever it runs) and one per scheduler job that ran or was refused (`econ.service: job <adapter> <purpose> <symbols> -> <status> written=N requests=N`). Never a value.
 - **Environment variables**:
   - `ECON_SERVICE_ENABLED`: the start branch
   - `ECON_DB_PATH`
@@ -179,7 +181,7 @@ Every decision is recomputed each tick from `calendar_event`, `observation`, `se
 
 ## 6. Side tables (created idempotently with `CREATE TABLE IF NOT EXISTS`)
 
-`store.py`'s numbered migrations do not include these tables. They are created by the modules that own them, so the store owner can adopt them into a later migration without a conflict.
+Adopted into `store.py` **migration 2** (also `CREATE TABLE IF NOT EXISTS`, column-identical to the owners' DDL, pinned by `tests/econ/test_store.py`), so a DB created before the adoption migrates in place with its rows. The owners' `ensure_*` calls remain and are no-ops.
 
 | table | owner | purpose |
 |---|---|---|

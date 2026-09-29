@@ -435,3 +435,141 @@ def test_store_validators_roundtrip(tmp_path):
     assert v.get("k") is None
     v.put("k", '"e"', "Tue, 29 Sep 2026 12:00:00 GMT")
     assert v.get("k") == ('"e"', "Tue, 29 Sep 2026 12:00:00 GMT")
+
+
+# ─────────────────────── fed_ddp: validation failure never leaves a 304 trap ──
+
+def test_fed_validation_failed_payload_stores_no_validator_and_next_poll_is_full(tmp_path, monkeypatch):
+    """fed_ddp commits its own validators after its identity checks. The payload
+    below PASSES those checks but FAILS the pipeline's validation (a held period's
+    value changed on a revision.type=none series). The release system's
+    DeferringHttp must drop the adapter's commit, so the next poll is a full GET
+    (no If-None-Match) -- a stored ETag would make every later poll a 304 and
+    the series could never recover."""
+    from api.services.econ.adapters import fed_ddp
+    from api.services.econ.http import HttpClient
+    from tests.econ.test_adapter_fed_ddp import Router, zresp
+    monkeypatch.delenv("ECON_ARCHIVE", raising=False)
+    E = ents("UST10Y")
+    s = open_store(tmp_path)
+    now = T("2026-09-28", "16:30")
+    # seed: the fixture's latest periods, one of them with a DIFFERENT held value
+    hist = fed_ddp.FedDdpAdapter().fetch(
+        [ingest.SeriesSpec(E[0])], mode="history", start=None, end=None,
+        http=HttpClient(transport=Router({"/releases/h15/": zresp("h15")}), sleep=lambda x: None,
+                        host_intervals={}, default_interval=0, max_retries=0))[0].observations
+    rel = s.upsert_release("backfill:UST10Y:seed", "fed:h15", "backfill", None)
+    rows = [(o.period_start, o.period_end, (9.99 if o.period_start == "2026-09-23" else o.value), "",
+             now - 86400, "rule", "U", None, None) for o in hist]
+    s.write_observations("UST10Y", rel, rows)
+
+    seen = []
+
+    def serve(req):
+        seen.append(req.headers.get("If-None-Match"))
+        if req.headers.get("If-None-Match") == '"h151"':
+            return __import__("tests.econ.test_adapter_fed_ddp", fromlist=["Resp"]).Resp(304, b"")
+        return zresp("h15")
+    http = HttpClient(transport=Router({"/releases/h15/": serve}), sleep=lambda x: None, host_intervals={},
+                      default_interval=0, max_retries=0, validator_store=ingest.StoreValidators(s))
+    fa = fed_ddp.FedDdpAdapter()
+    out = ingest.run_fetch(s, E, "latest", now, http, fa, entries=E, publish=False)
+    assert out.series["UST10Y"].status == "rejected", out.series["UST10Y"].reasons
+    assert out.validators_committed == 0
+    assert s.conn.execute("SELECT COUNT(*) FROM http_validator").fetchone()[0] == 0
+    assert s.get_state("UST10Y")["state"] == "VALIDATION_FAILED"
+    # the next poll is a FULL request, not a conditional one -> never 304-stuck
+    out2 = ingest.run_fetch(s, E, "latest", now + 300, http, fa, entries=E, publish=False)
+    assert seen == [None, None]
+    assert out2.series["UST10Y"].status == "rejected"          # still refused (the store disagrees), not "not_modified"
+    assert s.latest_point("UST10Y").value is not None                  # last good data kept
+
+
+def test_empty_series_in_a_conditional_payload_holds_validators(tmp_path, keyed):
+    """A 200 that validated but did not carry a requested series is not a success
+    for that series, so its ETag must not turn the next poll into a 304."""
+    E = ents("USCPI", "USCPINSA")
+    s = seeded(tmp_path, E, hist=HIST + [(("USCPINSA",) + h[1:]) for h in HIST])
+    http = RecHttp()
+    fa = FakeAdapter([_adapter_with_validators(HIST[-2:] + [SEP])], name="bls")   # USCPINSA missing
+    out = ingest.run_fetch(s, E, "latest", CPI_OCT + 5, http, fa, entries=E, publish=False)
+    assert out.series["USCPINSA"].status == "empty"
+    assert http.committed == [] and out.validators_committed == 0
+
+
+def test_negative_control_without_deferral_fed_would_store_validator(tmp_path):
+    """Proves the fed regression test above can fail: the adapter DOES commit its
+    own validators when handed a plain HttpClient."""
+    from api.services.econ.adapters import fed_ddp
+    from api.services.econ.http import HttpClient
+    from tests.econ.test_adapter_fed_ddp import Router, zresp
+    s = open_store(tmp_path)
+    h = HttpClient(transport=Router({"/releases/h15/": zresp("h15")}), sleep=lambda x: None, host_intervals={},
+                   default_interval=0, max_retries=0, validator_store=ingest.StoreValidators(s))
+    fed_ddp.FedDdpAdapter().fetch([ingest.SeriesSpec(ents("UST10Y")[0])], mode="latest", start=None, end=None,
+                                  http=h)
+    assert s.conn.execute("SELECT COUNT(*) FROM http_validator").fetchone()[0] == 1
+
+
+def test_backfill_refuses_non_production_entries(tmp_path, keyed):
+    """USRETAIL is `unverified`: even named explicitly it must never be written."""
+    s = open_store(tmp_path)
+    E = ents("USRETAIL")
+    assert E[0]["status"] == "unverified"
+    assert ingest.backfill_refusal(E[0]).startswith("status unverified")
+    called = []
+    fa = FakeAdapter([{"observations": [("USRETAIL", "2026-07-01", "2026-07-31", 1.0)]}], name="census")
+    outs = ingest.backfill(s, E, http=None, now=NOW0, adapter_for=lambda n: called.append(n) or fa, entries=E,
+                           publish=False)
+    assert outs == [] and called == [] and n_rows(s) == 0
+    disabled = ents("USCPI", **{"USCPI": {"status": "disabled"}})
+    assert ingest.backfill_refusal(disabled[0])
+    red = ents("USCPI", **{"USCPI": {"licensing.class": "RED"}})
+    assert "RED" in ingest.backfill_refusal(red[0])
+    assert ingest.backfill_refusal(ents("USCPI")[0]) is None
+
+
+def test_backfill_charges_bls_quota_and_reports_cost(tmp_path, keyed):
+    from api.services.econ import scheduler as sch
+
+    class CountingHttp:
+        def __init__(self):
+            self.n = 0
+
+        def stats(self):
+            return {"by_host": {"api.bls.gov": {"200": self.n}}, "total": self.n}
+
+    h = CountingHttp()
+
+    def step(specs, mode, start, end, http):
+        h.n += 3
+        return [FetchResult("bls", "fake", [RawObs(*o) for o in HIST], http_status=200)]
+    s = open_store(tmp_path)
+    E = ents("USCPI")
+    outs = ingest.backfill(s, E, http=h, now=NOW0, adapter_for=lambda n: FakeAdapter([step], name="bls"),
+                           entries=E, publish=False)
+    assert outs[0].requests == 3 and outs[0].elapsed_s is not None
+    assert sch.quota_used(s, "bls", NOW0) == 3
+
+
+def test_backfill_takes_the_ingest_lease_and_respects_provider_backoff(tmp_path, keyed):
+    s = open_store(tmp_path)
+    E = ents("USCPI")
+    fa = FakeAdapter([{"observations": HIST}], name="bls")
+    clock = Clock(NOW0)
+    # the running service holds ingest:bls -> the backfill waits, then gives up without sending
+    assert s.acquire_lease("ingest:bls", "svc", 600, now=int(clock()))
+    outs = ingest.backfill(s, E, http=None, now=NOW0, adapter_for=lambda n: fa, entries=E, publish=False,
+                           lease_wait_s=10, sleep=clock.sleep, clock=clock)
+    assert outs[0].ok is False and outs[0].error_kind == "lease" and fa.calls == [] and n_rows(s) == 0
+    s.release_lease("ingest:bls", "svc")
+    # a provider backing off (quota refusal) is not asked
+    cur.update_provider_ops(s, "bls", NOW0, backoff_until=int(clock()) + 3600)
+    outs = ingest.backfill(s, E, http=None, now=NOW0, adapter_for=lambda n: fa, entries=E, publish=False,
+                           clock=clock)
+    assert outs[0].error_kind == "backoff" and fa.calls == []
+    cur.update_provider_ops(s, "bls", NOW0, backoff_until=None)
+    outs = ingest.backfill(s, E, http=None, now=NOW0, adapter_for=lambda n: fa, entries=E, publish=False,
+                           clock=clock)
+    assert outs[0].ok and n_rows(s) == len(HIST)
+    assert s.lease_holder("ingest:bls", now=int(clock())) is None              # released

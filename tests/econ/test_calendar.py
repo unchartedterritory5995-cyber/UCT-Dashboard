@@ -179,8 +179,12 @@ def test_rule_eia_wpsr_holiday_table_and_unknown_weeks(rules):
         ("2026-10-15", "12:00", "exact")                                         # Columbus Day week
     assert (w["2026-11-06"].sched_date, w["2026-11-06"].sched_time) == ("2026-11-12", "12:00")   # Veterans Day
     gas = ev_map(rules, "eia:gasdiesel")
-    assert (gas["2026-10-05"].sched_date, gas["2026-10-05"].sched_time) == ("2026-10-05", "17:00")
-    assert gas["2026-10-12"].sched_date == "2026-10-13"                          # holiday Monday -> Tuesday
+    # EIA schedule page: "published around 10:00 a.m. Tuesday ... on government holidays ... Wednesday"
+    assert (gas["2026-09-28"].sched_date, gas["2026-09-28"].sched_time) == ("2026-09-29", "10:00")
+    assert (gas["2026-10-05"].sched_date, gas["2026-10-05"].sched_time) == ("2026-10-06", "10:00")
+    assert (gas["2026-10-12"].sched_date, gas["2026-10-12"].sched_time) == ("2026-10-14", "10:00")  # Columbus Day
+    hol = ev_map(cal.rule_events("2026-09-01", back_days=5, fwd_days=20), "eia:gasdiesel")
+    assert hol["2026-09-07"].sched_date == "2026-09-09"                           # Labor Day (EIA holiday table)
     later = cal.rule_events("2027-01-10", back_days=5, fwd_days=20)
     assert ev_map(later, "eia:wpsr")["2027-01-15"].precision == P.UNKNOWN.value   # MLK week, not in the table
 

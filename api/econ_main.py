@@ -75,11 +75,15 @@ def main(argv=None) -> int:
 
     if args.backfill:
         entries = _select(args.backfill)
+        refused = [(e["symbol"], ingest.backfill_refusal(e)) for e in entries if ingest.backfill_refusal(e)]
+        for sym, why in refused:
+            log.error("econ backfill: REFUSED %s: %s", sym, why)
         outs = ingest.backfill(db, entries, http=svc.http, now=int(time.time()))
         for o in outs:
-            log.info("econ backfill %s: ok=%s written=%d derived=%s error=%s", o.adapter, o.ok, o.written,
-                     o.derived, o.error)
-        return 0 if all(o.ok for o in outs) else 1
+            log.info("econ backfill %s: ok=%s written=%d elapsed_s=%s requests=%s derived=%s error=%s", o.adapter,
+                     o.ok, o.written, o.elapsed_s, o.requests, o.derived, o.error)
+        log.info("econ backfill http stats: %s", json.dumps(svc.http.stats().get("by_host", {}), sort_keys=True))
+        return 0 if all(o.ok for o in outs) and not refused else 1
 
     if args.once:
         svc.tick()

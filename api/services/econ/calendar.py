@@ -104,8 +104,10 @@ CITE = {
                   "the fiscaldata feed window; a month missing INSIDE the feed window is a hole, never filled)",
     "eia:wpsr": "rule: EIA WPSR schedule page 'Tables 1-14 ... released ... after 10:30 a.m. eastern time on "
                 "Wednesday' for the week ending the previous Friday; holiday weeks from the EIA holiday table",
-    "eia:gasdiesel": "rule: EIA Gasoline and Diesel Fuel Update, Monday survey released Monday ~17:00 ET "
-                     "(next business day when Monday is a federal holiday)",
+    "eia:gasdiesel": "rule: EIA Gasoline and Diesel Fuel Update schedule page "
+                     "(https://www.eia.gov/petroleum/gasdiesel/schedule.php, read 2026-09-29): 'The prices are "
+                     "published around 10:00 a.m. Tuesday eastern time, except on government holidays, when the data "
+                     "are released on Wednesday (but still represent Monday's price)'. Label = the Monday survey date",
     "dol:claims": "rule: DOL weekly claims news release Thursday 08:30 ET for the week ending the previous "
                   "Saturday; NO holiday-shift rule is published on any fetchable DOL page",
 }
@@ -509,10 +511,17 @@ def rule_events(today, *, back_days: int = 70, fwd_days: int = 120, daily_back: 
                         "holiday week NOT in the EIA holiday table -> release day unknown (earliest = Wednesday)")
             elif lo <= wed <= hi:
                 add("eia:wpsr", d.isoformat(), wed, "10:30")
-        elif wd == 0:                                        # Monday survey -> gasoline
-            rel = timeutil.on_or_after_business_day(d)
-            if lo <= rel <= hi:
-                add("eia:gasdiesel", d.isoformat(), rel, "17:00")
+        elif wd == 0:                                        # Monday survey -> gasoline, released TUESDAY
+            tue, wed = d + timedelta(days=1), d + timedelta(days=2)
+            if timeutil.is_federal_holiday(d) or timeutil.is_federal_holiday(tue):
+                if timeutil.is_federal_holiday(wed):
+                    if lo <= wed <= hi:
+                        add("eia:gasdiesel", d.isoformat(), wed, None, P.UNKNOWN.value, RS,
+                            "holiday Monday/Tuesday AND Wednesday: no published rule -> release day unknown")
+                elif lo <= wed <= hi:
+                    add("eia:gasdiesel", d.isoformat(), wed, "10:00", note="government holiday -> Wednesday")
+            elif lo <= tue <= hi:
+                add("eia:gasdiesel", d.isoformat(), tue, "10:00")
         elif wd == 5:                                        # week ending Saturday -> claims Thursday
             thu = d + timedelta(days=5)
             if timeutil.is_federal_holiday(thu):

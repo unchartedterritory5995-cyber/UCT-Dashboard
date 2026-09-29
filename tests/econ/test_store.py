@@ -55,6 +55,51 @@ def test_reopen_is_noop(tmp_path):
     b.close()
 
 
+SIDE_TABLES = ("series_ops", "provider_ops", "provider_quota", "calendar_coverage")
+
+
+def _cols(conn, table):
+    return [(r[1], r[2], r[3], r[5]) for r in conn.execute(f"PRAGMA table_info({table})")]
+
+
+def test_migration2_adopts_release_side_tables(tmp_path):
+    """Fresh DB: the four side tables come from the numbered migration, not ad hoc."""
+    s2 = st.connect(str(tmp_path / "m.db"))
+    names = {r[0] for r in s2.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert set(SIDE_TABLES) <= names
+    assert st.SCHEMA_VERSION >= 2
+    # column-identical to the owners' IF NOT EXISTS DDL (a drift would make the
+    # ensure_* path and the migration path build different tables)
+    from api.services.econ import calendar as cal, currentness as cur
+    ref = sqlite3.connect(":memory:")
+    for ddl in cur._OPS_DDL:
+        ref.execute(ddl)
+    ref.execute(cal._COVERAGE_DDL)
+    for t in SIDE_TABLES:
+        assert _cols(s2.conn, t) == _cols(ref, t), t
+    cur.ensure_ops_schema(s2)   # still a harmless no-op
+    s2.close()
+
+
+def test_migration2_on_v1_db_that_already_has_side_tables(tmp_path):
+    """A DB created before the adoption (v1 + ad-hoc side tables holding rows) migrates in place, keeping rows."""
+    p = str(tmp_path / "v1.db")
+    c = sqlite3.connect(p, isolation_level=None)
+    c.executescript("BEGIN;\n" + st.MIGRATIONS[0] + "\nPRAGMA user_version = 1;\nCOMMIT;")
+    from api.services.econ import calendar as cal, currentness as cur
+    for ddl in cur._OPS_DDL:
+        c.execute(ddl)
+    c.execute(cal._COVERAGE_DDL)
+    c.execute("INSERT INTO provider_quota(provider, day, used) VALUES ('bls', '2026-09-28', 13)")
+    c.close()
+    s2 = st.connect(p)
+    assert s2.conn.execute("PRAGMA user_version").fetchone()[0] == st.SCHEMA_VERSION
+    assert s2.conn.execute("SELECT used FROM provider_quota WHERE provider='bls'").fetchone()[0] == 13
+    s2.close()
+    # read-only open accepts the migrated DB
+    st.connect(p, readonly=True).close()
+
+
 # ── releases ────────────────────────────────────────────────────────────────
 
 def test_upsert_release_idempotent(s):

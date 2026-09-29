@@ -205,18 +205,49 @@ def _today_et(now: Optional[float]) -> str:
     return et_date(time.time() if now is None else now).isoformat()
 
 
-def next_release(store, entry: dict, now: Optional[float] = None) -> Optional[dict]:
+def _release_view(ev: dict) -> dict:
+    """A hole (precision 'unknown') has no real date -- its sched_date is only the
+    earliest day it could appear -- so it is published with date/time null."""
+    prec = ev.get("precision")
+    if prec == "unknown":
+        return {"date": None, "time": None, "tz": ev.get("tz"), "precision": "unknown"}
+    return {"date": ev["sched_date"], "time": ev.get("sched_time"), "tz": ev.get("tz"), "precision": prec}
+
+
+def _is_future(ev: dict, now: float) -> bool:
+    from .calendar import Event
+    try:
+        return Event.from_row(ev).scheduled_at > now
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def next_release(store, entry: dict, now: Optional[float] = None, state: Optional[dict] = None) -> Optional[dict]:
+    """The first FUTURE event of the series' calendar.
+
+    Prefers `series_state.next_event_id` (currentness.py's first event with
+    scheduled_at > now on the series' frequency grid). Falls back to the calendar
+    only when that pointer is missing or stale, and then skips events that have
+    already passed: `store.next_event(key, today)` is date-granular and would hand
+    back a daily 09:00 event at 15:00 ET."""
     key = ((entry.get("release") or {}).get("calendar_key"))
     if not key:
         return None
+    now = time.time() if now is None else now
     try:
-        ev = store.next_event(key, _today_et(now))
+        if state is None:
+            state = store.get_state(entry["symbol"])
+        eid = (state or {}).get("next_event_id")
+        if eid is not None:
+            ev = store.get_event(int(eid))
+            if ev and ev.get("superseded_at") is None and ev.get("calendar_key") == key and _is_future(ev, now):
+                return _release_view(ev)
+        for ev in store.events(key, start=_today_et(now)):
+            if _is_future(ev, now):
+                return _release_view(ev)
     except Exception:  # noqa: BLE001 -- a calendar read must never break a payload
         return None
-    if not ev:
-        return None
-    return {"date": ev["sched_date"], "time": ev.get("sched_time"), "tz": ev.get("tz"),
-            "precision": ev.get("precision")}
+    return None
 
 
 def currentness(store, entry: dict, now: Optional[float] = None) -> dict:
@@ -240,7 +271,7 @@ def currentness(store, entry: dict, now: Optional[float] = None) -> dict:
     if state not in {c.value for c in Currentness}:
         state = Currentness.NO_EXPECTATION.value
     return {"state": state, "latest_period": latest_period, "expected_period": expected_period,
-            "next_release": next_release(store, entry, now)}
+            "next_release": next_release(store, entry, now, state=st or {})}
 
 
 # ─────────────────────────────────────────────────────────────── points

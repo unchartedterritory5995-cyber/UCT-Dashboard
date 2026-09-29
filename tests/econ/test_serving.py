@@ -172,3 +172,28 @@ def test_ttl_cache_serves_repeat_reads_without_io(db_path, monkeypatch):
     assert serving.series("USCPI")[0] == 200
     monkeypatch.setattr(serving, "_open_db", lambda: (_ for _ in ()).throw(AssertionError("re-read")))
     assert serving.series("USCPI")[0] == 200
+
+
+def test_artifact_currentness_comes_from_the_status_heartbeat(tmp_path, monkeypatch):
+    """The series artifact is only rewritten when data changes; its baked-in
+    currentness must not outlive the next status heartbeat."""
+    from api.services.econ import store as S
+    db = seed_store(str(tmp_path / "econ.db"))
+    root = str(tmp_path / "art")
+    serving.clear_cache(); P.clear_memo()
+    monkeypatch.setenv("ECON_SERVING_SOURCE", "local")
+    monkeypatch.setenv("ECON_ARTIFACT_DIR", root)
+    s = S.connect(db)
+    try:
+        P.publish_all(s, local_root=root, r2=False, now=NOW)
+        assert serving.series("USCPI")[1]["currentness"]["state"] == "CURRENT"
+        # the next release window opens: state changes, data does not -> only status is re-published
+        s.put_state("USCPI", state="CHECKING")
+        P.publish_status(s, local_root=root, r2=False, now=NOW + 60)
+    finally:
+        s.close()
+    serving.clear_cache()
+    st, body, _ = serving.series("USCPI")
+    assert st == 200 and body["currentness"]["state"] == "CHECKING"
+    assert set(body["currentness"]) == {"state", "latest_period", "expected_period", "next_release"}
+    serving.clear_cache()

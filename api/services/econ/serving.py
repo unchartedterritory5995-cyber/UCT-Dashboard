@@ -166,6 +166,10 @@ def series(symbol: str, asof: Optional[int] = None, start: Optional[str] = None,
     # ⛔ belt and braces: meta always from the web build's registry (the whitelist),
     # never whatever dict the artifact happened to carry
     body = dict(body)
+    if mode() != "db":
+        cur = _status_currentness(sym)
+        if cur is not None:
+            body["currentness"] = cur
     body["meta"] = P.meta_for(entry)
     body["id"], body["symbol"], body["columns"] = P.canonical_id(sym), sym, list(P.COLUMNS)
     if asof is None and not body.get("points"):
@@ -192,6 +196,25 @@ def _sanitize_status(doc: dict) -> dict:
     svc = doc.get("service") if isinstance(doc.get("service"), dict) else {}
     svc = {k: v for k, v in svc.items() if isinstance(v, (int, float, str, bool)) or v is None}
     return {"service": svc, "series": rows}
+
+
+def _status_currentness(sym: str) -> Optional[dict]:
+    """The series artifact is re-written only when its DATA changes, so the
+    currentness baked into it goes stale between releases (CURRENT long after a
+    release window opened, a next_release that has passed). The status artifact
+    is the service heartbeat (re-published every tick), so artifact-mode serving
+    takes currentness from it. None (keep the artifact's) when it is unavailable."""
+    try:
+        code, doc, _ = status()
+    except Exception:  # noqa: BLE001 -- currentness overlay must never break a payload
+        return None
+    if code != 200:
+        return None
+    for r in doc.get("series") or []:
+        if r.get("symbol") == sym:
+            return {"state": r.get("state"), "latest_period": r.get("latest_period"),
+                    "expected_period": r.get("expected_period"), "next_release": r.get("next_release")}
+    return None
 
 
 def status() -> tuple[int, dict, Optional[str]]:

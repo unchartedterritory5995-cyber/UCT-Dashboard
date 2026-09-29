@@ -52,6 +52,11 @@ Contract source: `PHASE1-DESIGN.md` "Member API"; frontend reader: `app/src/comp
 - **currentness** is read from `series_state` (owned by `currentness.py`) + the next active `calendar_event` for the
   series' `release.calendar_key` (on/after today ET). No state row → `NO_EXPECTATION` if data exists, else
   `UNINITIALIZED`: the serving layer never infers, and never claims `CURRENT` by itself.
+- **Artifact-mode currentness** (`serving._status_currentness`, 2026-09-29): a series artifact is rewritten only when its
+  data changes, so the currentness baked into it goes stale between releases. In `local`/`r2` mode the served
+  `currentness` is taken from the status artifact (the heartbeat, rewritten every tick); the artifact's own copy is the
+  fallback when the status snapshot is missing. `next_release` = the first FUTURE event (`series_state.next_event_id`
+  preferred); a hole is `{date:null,time:null,precision:"unknown"}`.
 - `attributions` (catalog) carries `{agency,text,notice_required,access_date_required,derived_rule,source_url}` per key.
 
 ## Artifacts (`publish.py`)

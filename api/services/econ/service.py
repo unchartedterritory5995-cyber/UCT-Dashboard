@@ -228,6 +228,10 @@ class EconService:
             self.recent_jobs.append({"at": now, "adapter": r.job.adapter, "purpose": r.job.purpose,
                                      "symbols": len(r.job.symbols), "status": r.status, "written": written,
                                      "error": secrets.redact(err) if err else None})
+            if r.status != "not_due":
+                log.info("econ.service: job %s %s %s -> %s written=%d requests=%s%s", r.job.adapter, r.job.purpose,
+                         ",".join(r.job.symbols)[:200], r.status, written, getattr(r, "requests", None),
+                         f" error={secrets.redact(err)[:300]}" if err else "")
         if results or self._last_state is None or now - self._last_state >= STATE_EVERY_S:
             self._refresh_states(now)
         if results or self._last_status is None or now - self._last_status >= STATUS_EVERY_S:

@@ -150,6 +150,54 @@ MIGRATIONS: tuple[str, ...] = (
     );
     CREATE INDEX validation_event_series ON validation_event(series_id, at);
     """,
+    # 2 -- adopt the release system's side tables (RELEASE-SYSTEM.md "Side tables").
+    # They were first created ad hoc by currentness.py / calendar.py with
+    # CREATE TABLE IF NOT EXISTS, so a v1 database may already hold them: IF NOT
+    # EXISTS keeps this migration a no-op there and the owners' ensure_* stay
+    # harmless. The DDL must stay column-identical to currentness._OPS_DDL and
+    # calendar._COVERAGE_DDL (tests/econ/test_store.py pins it).
+    """
+    CREATE TABLE IF NOT EXISTS series_ops (
+        series_id                  TEXT PRIMARY KEY,
+        last_attempt_at            INTEGER,
+        last_success_at            INTEGER,
+        last_published_at          INTEGER,
+        consecutive_failures       INTEGER NOT NULL DEFAULT 0,
+        last_failure_kind          TEXT,
+        last_failure_at            INTEGER,
+        last_error                 TEXT,
+        last_validation_failure_at INTEGER,
+        blocked_until              INTEGER,
+        last_reconcile_at          INTEGER,
+        last_backfill_at           INTEGER,
+        publish_pending_at         INTEGER,
+        updated_at                 INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS provider_ops (
+        provider             TEXT PRIMARY KEY,
+        consecutive_failures INTEGER NOT NULL DEFAULT 0,
+        last_error           TEXT,
+        last_error_at        INTEGER,
+        last_success_at      INTEGER,
+        backoff_until        INTEGER,
+        updated_at           INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS provider_quota (
+        provider TEXT NOT NULL,
+        day      TEXT NOT NULL,
+        used     INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (provider, day)
+    );
+    CREATE TABLE IF NOT EXISTS calendar_coverage (
+        calendar_key   TEXT PRIMARY KEY,
+        provider       TEXT NOT NULL,
+        source         TEXT NOT NULL,
+        coverage_start TEXT,
+        coverage_end   TEXT,
+        refreshed_at   INTEGER NOT NULL,
+        detail         TEXT
+    );
+    """,
 )
 SCHEMA_VERSION = len(MIGRATIONS)
 RELEASE_KINDS = ("live", "backfill", "derived")

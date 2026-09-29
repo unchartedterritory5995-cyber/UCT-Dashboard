@@ -211,3 +211,19 @@ def test_railway_start_branch_is_inert_and_before_the_web_fallback():
     branch = 'elif [ "${ECON_SERVICE_ENABLED:-0}" = "1" ]; then exec python -m api.econ_main;'
     assert branch in cmd
     assert cmd.index(branch) < cmd.index("else exec uvicorn") and cmd.index("WORKER_ENABLED") < cmd.index(branch)
+
+
+def test_jobs_and_currentness_transitions_are_logged_without_values(tmp_path, keyed, caplog):
+    E = ents("USCPI")
+    clock = Clock(CPI_OCT - 600)
+    fa = FakeAdapter([{"observations": HIST[-2:] + [SEP]}], name="bls")
+    s, svc = make(tmp_path, E, fa, clock)
+    svc.boot()
+    caplog.set_level(logging.INFO, logger="api.services.econ")
+    clock.set(CPI_OCT + 5)
+    svc.tick()
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any(m.startswith("econ.service: job bls live USCPI -> ran written=1") for m in msgs), msgs
+    assert any(m.startswith("econ.currentness: USCPI ") and m.split(" (")[0].endswith("-> CURRENT")
+               for m in msgs), msgs
+    assert not any("322" in m for m in msgs)                      # never a value in the log
