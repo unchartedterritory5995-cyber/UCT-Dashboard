@@ -102,16 +102,60 @@ def test_the_census_can_see_a_landing_and_can_refuse_a_neighbour(chain):
     assert full("a8a91025d") not in found    # fix(voice): ... -- its body mentions the Notebook
 
 
-def test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT_and_both_criteria_agree(chain):
+def test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT(chain):
+    """The SUBJECT criterion selects exactly CHAIN over the measured range, and the PATH criterion
+    selects every CHAIN landing (it is derived from them). The path criterion also selects other
+    workstreams' commits there -- the broad, fail-closed trade the runbook states."""
     rows = chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")
     named = [full(s) for _k, s, _w in chain.CHAIN]
-    assert [c["sha"] for c in rows] == named, (
+    by_subject = [c["sha"] for c in rows if c["by_subject"]]
+    assert by_subject == named, (
         "tools/notebook_rollback_chain.py CHAIN must list every Notebook landing, newest first.\n"
-        f"  landings git finds : {[c['sha'][:9] for c in rows]}\n"
+        f"  landings git finds : {[s[:9] for s in by_subject]}\n"
         f"  CHAIN names        : {[n[:9] for n in named]}")
-    split = [(c["sha"][:9], c["by_subject"], c["by_path"]) for c in rows
-             if not (c["by_subject"] and c["by_path"])]
-    assert not split, f"the subject and path criteria disagree on: {split}"
+    in_chain = {c["sha"]: c for c in rows if c["sha"] in named}
+    assert len(in_chain) == len(named) and all(c["by_path"] for c in in_chain.values())
+
+
+# The files the round-1 re-review found the hand-typed path regex missed (every one a Notebook
+# file), plus public_note_payload.py, which the tool's own RULES and PINS already name.
+REVIEWER_MISSED = (
+    "app/src/pages/journal-2-0/hooks/useJ2Notes.js",
+    "app/src/pages/journal-2-0/lib/importer/commit.js",
+    "api/services/journal_two/public_note_payload.py",
+    "api/services/journal_two/notes_export.py",
+    "api/services/journal_two/notes_export_formats.py",
+    "api/services/journal_two/document_extraction.py",
+)
+
+
+def test_the_derived_notebook_file_set_covers_what_the_regex_missed(chain):
+    files = chain.notebook_files()
+    assert len(files) > 100                   # non-vacuity: a derivation, not a stub
+    missing = [f for f in REVIEWER_MISSED if f not in files]
+    assert not missing, f"the derived Notebook file set lacks: {missing}"
+    kept = [f for f in files if any(f == k or f.startswith(k + "/") for k in chain.KEEP_PATHS)]
+    assert not kept, f"kept (never reverted) paths leaked into the census: {kept[:5]}"
+
+
+def test_every_path_the_rules_and_pins_name_is_in_the_derived_set(chain):
+    """Internal consistency: a file the tool resolves a conflict in is, by the tool's own say-so,
+    Notebook-owned -- so the census must see a later commit that touches it."""
+    files = chain.notebook_files()
+    named = {p for rules in (chain.RULES, chain.PINS) for per in rules.values() for p in per}
+    assert len(named) >= 8
+    outside = sorted(named - files)
+    assert not outside, f"RULES/PINS name files the census cannot see: {outside}"
+
+
+def test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool(chain):
+    """Review round 2's scenario: a fix whose subject never says 'notebook', touching only a
+    Notebook file the hand-typed regex missed. The derived set catches it by path."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "fix(j2): correct the schema stamp on forwarding",
+                           "app/src/pages/journal-2-0/hooks/useJ2Notes.js",
+                           lambda b: b + b"\n// synthetic\n")
+    with pytest.raises(chain.ChainStopped, match=sha[:9] + r".*selected by path.*useJ2Notes\.js"):
+        chain.run(sha, "L1c", emit=lambda _l: None)
 
 
 def test_no_notebook_landing_after_MEASURED_AT_is_left_out(chain):
@@ -157,7 +201,7 @@ def test_a_non_notebook_commit_on_top_runs_and_warns(chain):
     assert final["from"] == sha
 
 
-def test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain(chain):
+def test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain(chain, monkeypatch):
     """I1: a later master commit mounts a new (non-Notebook) router beside the journal_two mount.
     The wave-8 revert's recorded rule was measured on a hunk without that line, so the chain must
     STOP rather than resolve it; before the pins it exited 0 and dropped the new mount."""
@@ -168,7 +212,12 @@ def test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain(chain):
         return b.replace(mount, mount + b"app.include_router(terminal_synthetic_router.router)\n")
     sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): mount a synthetic router",
                            "api/main.py", add_router)
-    assert chain.check_base(sha) is None      # not a Notebook landing: the census lets it through
+    # api/main.py is in the derived Notebook file set, so the census flags this commit first
+    # (the stated fail-closed trade) ...
+    assert "api/main.py" in (chain.check_base(sha) or "")
+    # ... and once a person rules it is not a Notebook landing, the PIN is what stops the chain.
+    monkeypatch.setattr(chain, "REVIEWED_NOT_LANDINGS", {sha: "synthetic terminal router, test"})
+    assert chain.check_base(sha) is None
     with pytest.raises(chain.ChainStopped, match=r"api/main\.py is not the one"):
         chain.run(sha, "wave7", emit=lambda _l: None)
 

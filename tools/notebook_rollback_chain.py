@@ -17,7 +17,8 @@ last step; the range `<from>..<result>` is what a revert would have to cover.
 
 ⛔ FAIL CLOSED on anything not measured (review round 1, 2026-09-28). The tool refuses to run when
 `MEASURED_AT` is not an ancestor of `--from`, and when `MEASURED_AT..--from` holds a commit the
-landing census (subject OR path) marks as Notebook work that `CHAIN` does not name. Every recorded
+landing census (subject, OR a path in the derived Notebook file set) marks as Notebook work
+that neither `CHAIN` nor `REVIEWED_NOT_LANDINGS` names. Every recorded
 conflict resolution is PINNED to the conflict content it was measured on (`PINS`): a later commit
 that changes the lines of a recorded conflict stops the chain instead of being resolved by a rule
 written for different lines.
@@ -93,18 +94,23 @@ KEPT = {"2ab637644", "c6a8a9d3a"}
 # After wave 5's revert, in this order.
 GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 
-# The landing census (what counts as a Notebook landing): two independent criteria. A Notebook
-# landing is a one-parent commit that changes shipped code (`app/`, `api/`) and whose SUBJECT
-# names the Notebook (or wave 9C, its soak instrument) -- or whose PATHS are the Notebook's own.
-# Over wave5^..MEASURED_AT both criteria select exactly CHAIN (measured 2026-09-28: 13, 13, 13 in
-# common). Past MEASURED_AT, a commit EITHER criterion selects stops the tool.
+# The landing census (what counts as a Notebook landing past MEASURED_AT): two criteria, and a
+# one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
+#   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject names the Notebook (or
+#     wave 9C, its soak instrument). Over wave5^..MEASURED_AT this selects exactly CHAIN.
+#   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
+#     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
+#     later change there cannot make a revert wrong). Review round 2 (2026-09-28): a hand-typed
+#     path regex missed real Notebook files (useJ2Notes.js, importer/commit.js,
+#     public_note_payload.py). ⚠️ The union is BROAD on purpose: shared files such as `app/src/
+#     App.jsx` and `api/main.py` are in it, so another workstream's commit that touches them is
+#     flagged too. Each such commit needs a REVIEWED_NOT_LANDINGS entry with a reason; that is the
+#     intended fail-closed behaviour, not noise to tune away.
 NOTEBOOK_SUBJECT = re.compile(r"(?i)\bnotebook\b|^wave 9c\b")
-NOTEBOOK_PATHS = re.compile(
-    r"^(app/src/pages/journal-2-0/(components/notebook/|lib/offline/|lib/notebook|tabs/NotebookTab)"
-    r"|api/services/journal_two/(notebook|note_|notes\.py)|api/routers/notebook_)")
 # Commits a person reviewed and ruled NOT a Notebook landing although a criterion selects them:
-# {full sha: why}. Empty at MEASURED_AT (the two criteria agree there).
+# {full sha: why}. Empty at MEASURED_AT.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {}
+_NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
 # the hunk -- the tip's `_OPEN_READS` dependency on the journal_two mount (94926db1e, not a
 # Notebook commit) included -- stays.
@@ -371,6 +377,19 @@ def plan(through: str, revert_hotfixes: bool = False) -> list[tuple[str, str, st
     return steps
 
 
+def notebook_files() -> frozenset:
+    """The Notebook's file set, derived from git: every path any CHAIN landing's own squash
+    changed (its diff against its one parent), minus KEEP_PATHS. Cached per process."""
+    key = ",".join(s for _k, s, _w in CHAIN)
+    if key not in _NOTEBOOK_FILES:
+        files = set()
+        for _k, squash, _w in CHAIN:
+            files.update(_out("diff-tree", "--no-commit-id", "--name-only", "-r", squash).splitlines())
+        _NOTEBOOK_FILES[key] = frozenset(
+            f for f in files if f and not any(f == k or f.startswith(k + "/") for k in KEEP_PATHS))
+    return _NOTEBOOK_FILES[key]
+
+
 def notebook_landings(rng: str) -> list[dict]:
     """Every one-parent commit in `rng` (newest first) that EITHER census criterion selects:
     [{"sha", "subject", "by_subject", "by_path", "paths"}]. Merges are skipped: a Notebook landing
@@ -384,7 +403,8 @@ def notebook_landings(rng: str) -> list[dict]:
         files = _out("diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines()
         ships = any(f.startswith(("app/", "api/")) for f in files)
         by_subject = bool(ships and NOTEBOOK_SUBJECT.search(subject))
-        paths = [f for f in files if NOTEBOOK_PATHS.match(f)]
+        nb = notebook_files()
+        paths = [f for f in files if f in nb]
         if by_subject or paths:
             out.append({"sha": sha, "subject": subject, "by_subject": by_subject,
                         "by_path": bool(paths), "paths": paths[:5]})

@@ -75,8 +75,10 @@ python tools/notebook_rollback_chain.py --from origin/master --through wave7
 - **Exit 2 with `{"stopped": ...}`** means the tool refused, and the message says why and what to
   re-measure. It refuses, failing closed on anything it did not measure, when:
   - `--from` does not contain `MEASURED_AT` (the tree the chain and its rules were measured on);
-  - a commit after `MEASURED_AT` looks like a Notebook landing that `CHAIN` does not name. Its
-    subject names the Notebook, OR it changes the Notebook's own paths;
+  - a commit after `MEASURED_AT` looks like a Notebook landing that neither `CHAIN` nor
+    `REVIEWED_NOT_LANDINGS` names. Either of two things is enough: its subject names the
+    Notebook, OR it touches a file in the Notebook file set. That set is DERIVED from git: the
+    union of the files every `CHAIN` landing's squash changed, minus the kept paths;
   - a conflict is not the one its rule was measured on. Every rule is pinned to the conflict's
     content (`PINS`), so a later commit that changed those lines stops the chain;
   - a conflict has no rule at all;
@@ -180,9 +182,23 @@ the `8167f7aa0` pick too.
   `82c56dd63` rides along*).
 
 ⛔ A **new Notebook landing** makes the procedure stale: the chain cannot revert what it does not
-list. The tool refuses to run on a base that holds one, and names it. Its subject or its paths are
-enough for the refusal. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out` goes red
-on it by name too. The fix has four steps:
+list. The tool refuses to run on a base that holds one, and names it. Its subject or one of its
+files is enough for the refusal. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out`
+goes red on it by name too.
+
+⚠️ **The file criterion is broad on purpose, and that is its cost.** The Notebook file set is 815
+files at `MEASURED_AT`. It includes shared files every workstream edits, such as `app/src/App.jsx`
+and `api/main.py`. Measured: between wave 5 and `MEASURED_AT`, 23 commits that were not Notebook
+landings touched a file in the set. So another workstream's commit on master will stop the tool.
+A person then reads it and does one of two things:
+- adds it to `REVIEWED_NOT_LANDINGS` with the reason it is not a Notebook landing, then re-runs;
+- or treats it as a landing, following the four steps below.
+
+That is the intended fail-closed behaviour. A hand-typed path list was tried first, in fix round
+1, and it missed real Notebook files: `hooks/useJ2Notes.js`, `lib/importer/commit.js`, and the
+`public_note_payload.py` the tool's own rules name. It was replaced by the derivation.
+
+A landing that has to be added goes through four steps:
 1. add the landing to `CHAIN`, newest first;
 2. run the tool from the new tip and record a rule for each conflict;
 3. rehearse the new step;
@@ -370,10 +386,24 @@ The vitest rail goes red, because it imports `editorSchema`.
    - It is also not needed there: *Why `82c56dd63` rides along* shows that a bundle declaring 0
      is safe without it. At the wave-5 rollback the declaration of 0 was **measured on one door**,
      the editor's autosave: every body PUT the probe saw declared 0 (*Measured*). The other
-     client body-PUT doors were **established by reading the code**, not measured. In that tree
-     each calls `notebookSchemaHeaders()` with no argument, so it sends the same derived value:
-     `hooks/useJ2Notes.js`, `lib/importer/commit.js`, `lib/importer/enrichment.js`,
-     `lib/offline/useOutboxDrain.js`, and the Model Book `UpbEntryPage.jsx`.
+     client body-PUT doors were **established by reading the code**, not measured. Every door
+     goes through `notebookSchemaHeaders(forwarded)` (`lib/notebookSchema.js:186-191`, kept at
+     the tip). With no argument it returns the derived level. With one, it returns
+     `min(writtenSchemaOf(stamp), derived)`. So no door can declare more than the derived level,
+     and a wave-5 rollback derives 0.
+     - In the wave-5 rollback tree (`832bd5b759`), all five call it with no argument:
+       - `hooks/useJ2Notes.js:164`;
+       - `lib/importer/commit.js:437`;
+       - `lib/importer/enrichment.js:84`;
+       - `lib/offline/useOutboxDrain.js:111`;
+       - the Model Book `UpbEntryPage.jsx:158`.
+     - ⚠️ At the tip, and in every rollback above wave 5, two doors DO pass an argument:
+       - `hooks/useJ2Notes.js:226-227`, the `forwarded` stamp;
+       - `lib/offline/useOutboxDrain.js:118`, `{ writtenSchema: entry.writtenSchema }`.
+
+       That is `82c56dd63`'s plumbing. The value is still capped at the derived level.
+     - ⚰️ Fix round 1 said all five call it "with no argument" without naming the tree. That is
+       true of the wave-5 rollback tree and false at the tip.
    - ⚰️ The earlier text of this runbook said to cherry-pick all three commits "in that order" and
      called the third "reasoned, not yet re-simulated". Measured now, that pick cannot be applied
      to the rolled-back tree.
