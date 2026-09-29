@@ -3280,6 +3280,70 @@ function containsFreeSelfSeries(node, table) {
   return walk(node)
 }
 
+/** Where, if anywhere, this update reads its own running value somewhere the
+ *  step loop cannot follow it — or null.
+ *
+ *  ⭐ THE TRANSLATOR ASKS THE QUESTION `interpret` WOULD ANSWER AT EVALUATION.
+ *  `accum` runs its body once per bar holding ONE value (and `self[k]` history),
+ *  so a free `self` may sit only under operators and pointwise calls: inside a
+ *  window call (`crossOver`, `sma`) it would need a window over its own past, and
+ *  under a bar offset of an expression it would need a past value of a formula
+ *  the loop never computed (`interpret.js`'s `interpret:recurrence`).
+ *
+ *  ⚰️ MEASURED 2026-09-28 on `institutional-smc-order-flow-matrix-pro`:
+ *  `if … ta.crossover(close, last_ph_s)` guards `last_ph_s := na`, so the read
+ *  sits inside `last_ph_s`'s own update, under `crossOver`. Folded, the tree
+ *  translated and then refused at EVALUATION — so the drawing op it gated
+ *  silently drew nothing (0 lines where TradingView holds 18), with no
+ *  disclosure, because nothing at translation time knew the op was dead.
+ *  Asked here, the op is dropped by name and disclosed.
+ *
+ *  A nested recurrence's own BODY is not walked (its `self` is its own); its
+ *  seed and window are, and an outer `self` there is refused. */
+function selfOutsideTheStepLoop(node, table) {
+  const spec = table && table.functions && table.functions.accum
+  if (!spec || !spec.recurrence) return null
+  const bind = spec.recurrence.binds
+  const isSelf = (n) => !!n && typeof n === 'object' && n.type === 'series' && n.name === bind
+  // ⭐ ONE PASS, MEMOISED BY NODE: trees here share subtrees heavily (a partial
+  // read inlines the same accumulator many times), so asking
+  // `containsFreeSelfSeries` afresh at every node would be quadratic.
+  const memo = new Map()
+  const reads = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (memo.has(n)) return memo.get(n)
+    let r = false
+    if (isSelf(n)) r = true
+    else {
+      const args = Array.isArray(n.args) ? n.args : []
+      const inner = n.type === 'call' && table.functions[n.name]
+        && table.functions[n.name].recurrence
+      r = inner ? args.some((a, i) => i !== inner.body && reads(a)) : args.some(reads)
+    }
+    memo.set(n, r)
+    return r
+  }
+  let hit = null
+  const seen = new Set()
+  const walk = (n) => {
+    if (hit || !n || typeof n !== 'object' || seen.has(n)) return
+    seen.add(n)
+    if (!reads(n)) return
+    if (n.type === 'offset') {
+      if (!isSelf(n.args && n.args[0])) hit = 'a bar offset of an expression'
+      return
+    }
+    if (n.type === 'call') {
+      const fs = table.functions[n.name]
+      if (fs && fs.recurrence) { hit = `${n.name}(…)`; return }
+      if (fs && !isPointwise(fs)) { hit = `${n.name}(…)`; return }
+    }
+    for (const a of (Array.isArray(n.args) ? n.args : [])) walk(a)
+  }
+  walk(node)
+  return hit
+}
+
 /** `tree` with its FREE `self` read as the previous bar of `column`.
  *
  *  `self` → `column[1]` and `self[k]` → `column[k + 1]`. A nested recurrence's
@@ -5775,6 +5839,20 @@ export class Resolver {
           this.stack = prevStack
           this.stateBuilds.pop()
           this.selfReads = prevReads
+        }
+        // ⛔ A BODY THE STEP LOOP CANNOT RUN IS REFUSED HERE, NOT AT EVALUATION
+        // (`selfOutsideTheStepLoop`). Structural to this lane — the per-bar
+        // runtime lane runs the statements and keeps any window it needs — so the
+        // refusal names that lane, like the coupled-latch one.
+        const outside = selfOutsideTheStepLoop(update, this.table)
+        if (outside) {
+          const unsteppable = new PineRefusal('pine:state',
+            `${REFUSALS['pine:state']} — \`${name}\` reads its own running value inside `
+            + `${outside} within its own update, and the bar-by-bar accumulator keeps that `
+            + 'value, not a window over its past',
+            bound.at || locate(tok))
+          unsteppable.route = 'runtime'
+          throw unsteppable
         }
         // 🔴🔴 THE CONVERGENCE GATE, ON THE DOOR THAT DID NOT HAVE ONE. `x = 0.0`
         // + `x := x + volume` has refused since the gate landed; `var x = 0.0` +
@@ -15023,6 +15101,7 @@ function translatePineResult(source, opts = {}) {
    */
   // ⭐ ONE `var`-read memo for the whole translation — see `Resolver.partialReadCache`.
   const partialReadCache = new Map()
+  const objectPartialReadCache = new Map()
   const makeResolver = (scopeEnv = env) => {
     const r = new Resolver(scopeEnv, table, declaredTypes,
       { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint,
@@ -15600,6 +15679,13 @@ function translatePineResult(source, opts = {}) {
       // call site outside the text reader passes today.
       const r = new Resolver(scope || env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap, paramMint: null,
+          // ⭐ THE OBJECT PASS'S OWN `var`-read memo, shared by every Resolver it
+          // builds (one per node) — see `Resolver.partialReadCache`. ⛔ NOT the
+          // output loop's: that one mints parameters (`paramMint`) and this one
+          // does not, so a tree memoised there could carry an identifier this
+          // pass must not. Measured: without it `rsi-swing-indicator` rebuilt one
+          // accumulator per object op (42 ms -> 426 ms to translate).
+          partialReadCache: objectPartialReadCache,
           strict: opts.strict === true, pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,

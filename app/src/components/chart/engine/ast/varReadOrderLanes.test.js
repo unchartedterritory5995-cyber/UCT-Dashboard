@@ -164,6 +164,21 @@ if na(firstA) and not na(close)
 plot(firstA)
 `
 
+// `institutional-smc-order-flow-matrix-pro`'s structure break, reduced: the level
+// is read inside `ta.crossover` in the very `if` that resets it, so the read sits
+// inside the level's OWN update, under a window call the step loop cannot run.
+const UNSTEPPABLE = `//@version=5
+indicator("a level read under crossover inside its own update")
+var float lvl = na
+ph = ta.pivothigh(high, 3, 3)
+if not na(ph)
+    lvl := ph
+brk = not na(lvl) and ta.crossover(close, lvl)
+if brk
+    lvl := na
+plotshape(brk)
+`
+
 describe('⭐⭐ a `var` read by position — columnar lane vs runtime lane, RDDT 1D', () => {
   it('⭐ multicator\'s divergence marks agree bar for bar, and are not a quiet chart', () => {
     const { t, cols } = columnar(MULTICATOR)
@@ -202,6 +217,20 @@ describe('⭐⭐ a `var` read by position — columnar lane vs runtime lane, RDD
     }
     // …and the lane it is routed to builds it.
     expect(runtime(COUPLED).length).toBe(2)
+  })
+
+  it('⛔ a read under a window call inside its own update refuses at TRANSLATION, routed', () => {
+    // ⚰️ It used to translate and then refuse at EVALUATION (`interpret:recurrence`),
+    // which silently dropped whatever it gated — 0 structure lines on the
+    // institutional-smc capture where TradingView holds 18, with no disclosure.
+    const { t } = columnar(UNSTEPPABLE)
+    const r = t.outputs[0].refusal
+    expect(r && r.guard).toBe('pine:state')
+    expect(r.route).toBe('runtime')
+    expect(r.message).toMatch(/crossOver/)
+    // …and the lane it names runs it, with marks to draw.
+    const ref = runtime(UNSTEPPABLE)
+    expect(ref[0].filter((v) => mark(v) === 1).length).toBeGreaterThan(0)
   })
 
   it('⛔ a latch that fires only while unset refuses — the window would draw bar_index - 249', () => {
