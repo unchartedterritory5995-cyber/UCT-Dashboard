@@ -163,3 +163,12 @@ test('member with no visible courses sees the coming-soon note, admin sees the c
   renderSection()
   expect(screen.getByText(/Courses are being produced/)).toBeTruthy()
 })
+
+test('TERM-091 dark: with the lessons route answering nothing, the section shows nothing new', () => {
+  // the swr mock returns null for /api/education/lessons — what the 404 of a
+  // disarmed EDU_CURRICULUM_ENABLED looks like to the fetcher
+  renderSection()
+  expect(screen.getByRole('heading', { name: 'Courses' })).toBeTruthy()
+  expect(screen.queryByText(/Lesson notes/)).toBeNull()
+  expect(screen.queryByTestId('curriculum-census')).toBeNull()
+})

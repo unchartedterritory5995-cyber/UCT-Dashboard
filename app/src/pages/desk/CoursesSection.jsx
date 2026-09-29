@@ -16,6 +16,7 @@ import VideoDockSlot from '../../components/video/VideoDockSlot'
 import { play as playVideo } from '../../components/video/videoStore'
 import { subscribe, getSnapshot } from './videoProgress'
 import PathView, { PathViewSkeleton } from './PathView'
+import CurriculumLessons from './CurriculumLessons'
 import UIcon from '../../components/ui/UIcon'
 import {
   computeCourseStats,
@@ -207,6 +208,10 @@ export default function CoursesSection() {
               </button>
             ))}
           </div>
+
+          {/* TERM-091: curriculum text lessons — renders nothing unless
+              EDU_CURRICULUM_ENABLED is armed (the route 404s while dark). */}
+          <CurriculumLessons />
         </>
       )}
 

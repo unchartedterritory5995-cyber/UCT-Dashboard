@@ -743,6 +743,12 @@
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
     },
+    "EDU_CURRICULUM_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-091 (item 15 ACC-13), ENABLEMENT GATE, default OFF, read per call in api/services/education_curriculum.py::is_enabled(). SERVICE: web. What it arms: (1) GET /api/education/lessons and GET /api/education/lessons/{key} (api/routers/education.py, require_paid like every education read) - The UCT Method's text lessons and printable toolkit from docs/curriculum/, each with its spec_verdict census and a derived third-party attribution; (2) a lazy one-shot load of those rows into the EXISTING /data/education.db, table edu_lessons, behind the flag file .edu_lessons_migrate_v1; (3) the Lesson notes block on the Desk's Courses section. Unset: both routes are the FastAPI 404 to every caller including admins, the table is never created or read, and the Courses section renders nothing new (tests/test_education_curriculum.py, CoursesSection tests). NOT ARMABLE WITHOUT AN OWNER RULING: CLM-15 records the Qullamaggie transcript material and the Minervini/O'Neil/Brandt/Wyckoff frameworks as an unresolved licensing question, and arming this makes third-party framework material member-visible at a new scale; the attribution is derived by rules, not read from the source (no curriculum JSON carries an attribution field). REVERSAL: unset it (redeploy web if the unset does not restart it), then python scripts/load_edu_curriculum.py --unload, which deletes only source='curriculum' rows of edu_lessons and removes the flag file - firm content, never member data; edu_videos, edu_paths and edu_path_steps are untouched."
+    },
     "ENTITY_MASTER_MEMBER_ENABLED": {
       "status": "pending",
       "since": "2026-09-28",
