@@ -449,6 +449,7 @@ def get_history(days: int = 90, end: Optional[str] = None, anchor: str = "le") -
     # common read and everything keyed to it are unchanged; a teleported window
     # gets a distinct key under the SAME prefix every write already invalidates.
     ck = f"breadth_history_{days}" if not end else f"breadth_history_{days}_{end}_{anchor}"
+    ck += _authority_suffix()
     hit = cache.get(ck)
     if hit is not None:
         # ⛔ THIS LABEL WAS MISSING AND THE INSTRUMENT LIED BECAUSE OF IT. A window
@@ -574,6 +575,7 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
 
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
+    _apply_authority(result_asc)
     _derive_ascending(result_asc, adv_decline_seed)
 
     # Return newest-first, dropping the warm-up rows off the OLD end. They were
@@ -618,6 +620,39 @@ def _net_new_high_low(row: dict) -> Optional[float]:
     return v if math.isfinite(v) else None
 
 
+_V2_DIRECT_DERIVED = ("ratio_5day", "ratio_10day", "hi_ratio", "lo_ratio", "net_new_high_low")
+
+
+def _authority_suffix() -> str:
+    """'' under V1 (every cache key byte-identical to before); the authority token under V2."""
+    try:
+        from api.services import breadth_authority as ba
+        return "" if not ba.in_force() else "_" + ba.token()
+    except Exception:
+        return ""
+
+
+def _collector_tail(n: int = 5) -> tuple:
+    """The GLOBAL newest collector session dates — the provisional window is judged against
+    these, never against whatever window a reader happened to load."""
+    try:
+        with _conn() as c:
+            return tuple(r[0] for r in c.execute(
+                "SELECT date FROM breadth_snapshots ORDER BY date DESC LIMIT ?", (n,)).fetchall())
+    except Exception:
+        return ()
+
+
+def _apply_authority(result_asc: list) -> None:
+    """The ONE place the Monitor consults breadth_authority. A no-op under V1."""
+    try:
+        from api.services import breadth_authority as ba
+        if ba.in_force():
+            ba.overlay_monitor_rows(result_asc, _collector_tail())
+    except Exception as e:
+        print(f"[breadth_monitor] authority overlay skipped: {type(e).__name__}: {e}")
+
+
 def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
     """Add the derived block to an OLDEST-FIRST list of raw-metric rows, in place.
 
@@ -634,6 +669,11 @@ def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
     for i, row in enumerate(result_asc):
         w5  = result_asc[max(0, i - 4):  i + 1]
         w10 = result_asc[max(0, i - 9):  i + 1]
+        # ⭐ BREADTH AUTHORITY (breadth_authority): a V2 row already carries its canonical
+        # ratio/hi-lo/net fields — computed by the V2 methodology over ITS OWN session calendar,
+        # honestly None across a PIT gap or the canonical start. Recomputing them here from a
+        # row window would splice V1 rows into a V2 value. Snapshot, derive, restore.
+        _keep = ({k: row.get(k) for k in _V2_DIRECT_DERIVED} if row.get("_v2_direct") else None)
 
         # Existing rolling metrics
         row["ratio_5day"]  = _ratio(w5,  "up_4pct_today", "down_4pct_today")
@@ -668,9 +708,14 @@ def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
             row["qqq_day_pct"] = None
             row["spy_day_pct"] = None
 
+        if _keep is not None:
+            row.update(_keep)
+
         # Cumulative A/D line
         ad = row.get("adv_decline")
-        if ad is not None:
+        if row.get("_decision_pending") and "adv_decline_cum" in row["_decision_pending"]:
+            row["adv_decline_cum"] = None     # withheld under V2 until the owner rules
+        elif ad is not None:
             adv_decline_cum += ad
             row["adv_decline_cum"] = adv_decline_cum
         else:
@@ -726,7 +771,7 @@ def merged_dates() -> list:
     teleport, and it only changes when the worker ships a new history chunk. Under
     the `breadth_history_` prefix, so a collector write clears it too."""
     from api.services.cache import cache
-    ck = "breadth_history_merged_dates"
+    ck = "breadth_history_merged_dates" + _authority_suffix()
     hit = cache.get(ck)
     if hit is not None:
         return hit
@@ -753,7 +798,14 @@ def merged_dates() -> list:
     coll_min = min(coll) if coll else None
     if coll_min:
         recon = [d for d in recon if d < coll_min]
-    out = sorted(set(coll) | set(recon))
+    v2 = []
+    try:
+        from api.services import breadth_authority as ba
+        if ba.in_force() and ba.available()[0]:
+            v2 = [d for d in ba.v2_dates() if coll_min is None or d >= coll_min]
+    except Exception:
+        v2 = []
+    out = sorted(set(coll) | set(recon) | set(v2))
     cache.set(ck, out, ttl=300)
     return out
 
@@ -823,7 +875,7 @@ def get_history_deep(days: int = 90, end: Optional[str] = None, anchor: str = "l
     from api.services.cache import cache
     from api.services import single_flight
     from api.services import breadth_timing
-    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}"
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}" + _authority_suffix()
     hit = cache.get(ck)
     if hit is not None:
         breadth_timing.note(cache="hit", cache_tier="deep")
@@ -930,6 +982,7 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
 
     with _bt.phase('adv_seed'):
         _seed = _adv_decline_seed_before(window[0])
+    _apply_authority(result_asc)
     with _bt.phase('derive'):
         _derive_ascending(result_asc, _seed)
 
@@ -1309,3 +1362,29 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     except Exception as e:
         print(f"[breadth_monitor] get_drill_list error: {e}")
         return None
+
+
+def pit_export(since: str = "2026-01-01") -> dict:
+    """READ-ONLY export of the collector's stored UCT lists for the V2 producer's PIT gate.
+
+    {date: {created_at, n, sha256, tickers, items, pct_populated, keys, healed, universe_count}}
+    — the exact shape `tools/breadth_v2cc/pit_provenance.classify` consumes, and the exact hash
+    the frozen PIT ledger recorded (`sha256("\n".join(sorted tickers))`, reproduced 2026-09-29
+    on 2026-09-24 → b55f7509…). Writes nothing.
+    """
+    import hashlib
+    out: dict = {}
+    with _conn() as c:
+        for d, created, mj in c.execute(
+                "SELECT date, created_at, metrics FROM breadth_snapshots WHERE date >= ? ORDER BY date",
+                (since,)).fetchall():
+            m = json.loads(mj) if mj else {}
+            ul = m.get("universe_list") or []
+            tk = sorted({x.get("t") for x in ul if isinstance(x, dict) and x.get("t")})
+            out[d] = {"created_at": created, "n": len(tk),
+                      "sha256": hashlib.sha256("\n".join(tk).encode()).hexdigest(), "tickers": tk,
+                      "items": len(ul),
+                      "pct_populated": sum(1 for x in ul if isinstance(x, dict) and x.get("pct") is not None),
+                      "keys": len(m), "healed": bool(m.get("_healed")),
+                      "universe_count": m.get("universe_count")}
+    return out

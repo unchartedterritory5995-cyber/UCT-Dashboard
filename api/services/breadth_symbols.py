@@ -695,6 +695,16 @@ _bg_inflight: set[str] = set()
 _bg_lock = threading.Lock()
 
 
+def _daily_key(sym: str) -> str:
+    """The sealed-series cache key. Unchanged under V1; carries the authority token under V2 so
+    a switch or a rollback can never serve a series built under the other authority."""
+    try:
+        from api.services import breadth_authority as ba
+        return f"breadthdaily_{sym}" if not ba.in_force() else f"breadthdaily_{sym}_{ba.token()}"
+    except Exception:
+        return f"breadthdaily_{sym}"
+
+
 def _build_breadth_series(sym: str, metric: str,
                           universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Compute the SEALED close-to-close DAILY candle series for `metric` — the expensive
@@ -738,6 +748,27 @@ def _build_breadth_series(sym: str, metric: str,
         cv = _finite(row.get(metric))
         if d and cv is not None:
             closes_by_date[d] = cv
+
+    # ⭐ BREADTH AUTHORITY (breadth_authority) — the ONE place the chart asks who owns a
+    # session. Under V2 every `uct` session from V2_START is V2's: its own OHLC, gaps absent,
+    # the provisional tail as a collector body. Under V1 (or V2 unavailable) `auth` is None and
+    # nothing below changes.
+    if universe == DEFAULT_UNIVERSE:
+        try:
+            from api.services import breadth_authority as ba
+            auth = ba.chart_bars(metric, {r.get("date"): _finite(r.get(metric)) for r in history
+                                          if r.get("date") and r.get("date") > ba.FROZEN_END})
+        except Exception:
+            auth = None
+        if auth is not None:
+            closes_by_date = {d: v for d, v in closes_by_date.items() if d < ba.V2_START}
+            ohlc_map = {d: r for d, r in ohlc_map.items() if d < ba.V2_START}
+            for d, (ao, ah, al, ac, _cls) in auth.items():
+                if ac is None:
+                    continue
+                closes_by_date[d] = ac
+                if ao is not None:
+                    ohlc_map[d] = {"o": ao, "h": ah, "l": al, "c": ac}
 
     seq: list[tuple[str, float]] = sorted(closes_by_date.items())  # oldest-first
 
@@ -816,7 +847,7 @@ def _refresh_series(sym: str, metric: str,
     # ⚠️ The dedicated instance is still the right call; the eviction was never a
     # design, it was luck. So the fix is to stop relying on it: a real series keeps the
     # long TTL, an empty one is retried in five minutes.
-    cache.set(f"breadthdaily_{sym}", {"saved_at": time.time(), "series": series},
+    cache.set(_daily_key(sym), {"saved_at": time.time(), "series": series},
               ttl=(_SEALED_TTL if series else _EMPTY_SERIES_TTL))
     return series
 
@@ -870,7 +901,7 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
 
     cache = _breadth_cache
     now = time.time()
-    hit = cache.get(f"breadthdaily_{sym}")   # `sym` already carries the universe
+    hit = cache.get(_daily_key(sym))   # `sym` already carries the universe
     tier = "breadth-build"
     if hit and hit.get("series") is not None:
         daily = hit["series"]
@@ -937,7 +968,7 @@ def warm_breadth() -> dict:
     stats = {"refreshed": 0, "fresh": 0}
     now = time.time()
     for sym, metric in _METRIC_OF.items():
-        hit = cache.get(f"breadthdaily_{sym}")
+        hit = cache.get(_daily_key(sym))
         fresh = bool(hit and hit.get("series") is not None
                      and now - hit.get("saved_at", 0) <= _SEALED_TTL)
         up_to_date = True
@@ -1027,7 +1058,7 @@ def _warm_published_pit(cache, stats: dict) -> dict:
     now = time.time()
     for sym, metric, uni in want:
         try:
-            hit = cache.get(f"breadthdaily_{sym}")
+            hit = cache.get(_daily_key(sym))
             if hit and hit.get("series") is not None \
                     and now - hit.get("saved_at", 0) <= _SEALED_TTL:
                 out["fresh"] += 1

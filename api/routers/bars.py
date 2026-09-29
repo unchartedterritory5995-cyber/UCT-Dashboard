@@ -403,6 +403,14 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
     return resp
 
 
+def _is_breadth_symbol(ticker: str) -> bool:
+    try:
+        from api.services import breadth_symbols as _bsym
+        return bool(_bsym.is_breadth_symbol(ticker))
+    except Exception:
+        return False
+
+
 def _is_market_indicator(ticker: str) -> bool:
     """Is this canonical symbol served by the Market Indicators library?
 
@@ -1218,7 +1226,10 @@ async def get_bars_history(
     # depends on WHICH POD serves it has to be excluded at every routing decision, not
     # just the ones that look like routing.
     if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
-            and not _is_market_indicator(ticker):
+            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker):
+        # ⛔ BREADTH TOO, for the same reason: a breadth pseudo-ticker's sealed history is
+        # composed on the web pod (collector rows + the OHLC store + the breadth authority
+        # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
             return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
         except Exception:
