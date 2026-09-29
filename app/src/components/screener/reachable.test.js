@@ -675,6 +675,13 @@ const AWAITING_A_DECISION = {
     + '(<script type="module" src="/src/floor2/main.jsx">). This rail walks from '
     + 'App.jsx only, so a second HTML entry can never appear reachable to it. '
     + 'Recorded so nobody deletes a live page because a test said so.',
+  'app/src/econHarness/econHarness.js':
+    'NOT AN ORPHAN, NOT A PRODUCT — the dev-only Vite entry for app/econ-harness.html '
+    + '(Economic Data Phase 1 acceptance). Never built (vite build takes index.html '
+    + 'only; railed by econHarnessAbsent.test.js) and never reachable from App.jsx by design.',
+  'app/src/econHarness/captureScenarios.mjs':
+    'NOT AN ORPHAN, NOT A PRODUCT — the node/CDP driver for app/econ-harness.html '
+    + '(`node src/econHarness/captureScenarios.mjs`). Tooling, run by hand.',
   'app/src/pages/optionsFlow/flowBootstrap.js':
     'NOT AN ORPHAN — imported by flowFactsEntry.js (partsFrom) and covered by '
     + 'its own flowBootstrap.test.js. It is reached through a build-side entry '

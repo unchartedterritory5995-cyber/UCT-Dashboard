@@ -24,6 +24,18 @@ describe('the econ harness is dev-only', () => {
     expect(appJsx).not.toContain('econHarness')
   })
 
+  it('the ?src=api dev config proxies ONLY /api/econ, to 127.0.0.1, with an env-supplied throwaway bearer', () => {
+    const cfg = readFileSync(resolve(appDir, 'vite.econ-harness.config.mjs'), 'utf8')
+    const proxied = [...cfg.matchAll(/^\s*'(\/api[^']*)'\s*:/gm)].map((m) => m[1])
+    expect(proxied).toEqual(['/api/econ'])
+    expect(cfg).toContain('http://127.0.0.1:')
+    expect(cfg).toContain('process.env.ECON_HARNESS_PUSH_SECRET')
+    expect(cfg).not.toMatch(/Bearer [A-Za-z0-9]{8,}/)           // no literal secret
+    expect(cfg).not.toContain('uctintelligence.com')
+    // and the production config never learns about it
+    expect(readFileSync(resolve(appDir, 'vite.config.js'), 'utf8')).not.toContain('ECON_HARNESS')
+  })
+
   it('the harness never names /api/bars or production', () => {
     const src = readFileSync(resolve(appDir, 'src/econHarness/econHarness.js'), 'utf8')
     expect(src).not.toMatch(/['"`]\/api\/bars/)

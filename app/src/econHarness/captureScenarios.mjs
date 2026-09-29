@@ -1,12 +1,16 @@
 // Dev-only driver: headless Chrome over CDP -> every econ harness scenario ->
 // PNG + audit JSON into docs/economic-data/harness/.
 //
-//   node src/econHarness/captureScenarios.mjs [baseUrl] [src]
+//   node src/econHarness/captureScenarios.mjs [baseUrl] [src] [outSubdir]
 //   baseUrl default http://127.0.0.1:5187 ; src = fixtures | api
+//   outSubdir (optional, e.g. `real`) -> docs/economic-data/harness/<outSubdir>/,
+//   which also switches to the REAL-DATA scenario set (incl. as-of views).
+//   ECON_AUDIT_DB=<path to econ.db> records its mtime/size/sha256 in the audit.
 //
 // ⛔ LOCAL ONLY: refuses any base URL whose host is not 127.0.0.1 / localhost.
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, writeFileSync, mkdtempSync, statSync, readFileSync, existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,11 +19,31 @@ const BASE = process.argv[2] || 'http://127.0.0.1:5187'
 const SRC = process.argv[3] || 'fixtures'
 const host = new URL(BASE).hostname
 if (!['127.0.0.1', 'localhost'].includes(host)) throw new Error(`refusing non-local base ${BASE}`)
-const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs/economic-data/harness')
+const SUB = process.argv[4] || ''
+if (SUB && !/^[a-z0-9-]+$/.test(SUB)) throw new Error(`bad outSubdir ${SUB}`)
+const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../docs/economic-data/harness', SUB)
 mkdirSync(OUT, { recursive: true })
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe'
 const PORT = 9333 + Math.floor(Math.random() * 400)
-const SCENARIOS = ['cpi', 'fedfunds', 'crude', 'claims', 'gdp', 'overlay-d', 'overlay-w', 'overlay-5']
+const BASE_SCENARIOS = ['cpi', 'fedfunds', 'crude', 'claims', 'gdp', 'overlay-d', 'overlay-w', 'overlay-5']
+// FHFA July + JOLTS August were both released 2026-09-29 (13:00Z / 14:00Z); one
+// second before each release vs. after it shows the revision each one carried.
+const FHFA_REL = Date.UTC(2026, 8, 29, 13, 0, 0) / 1000
+const JOLTS_REL = Date.UTC(2026, 8, 29, 14, 0, 0) / 1000
+const REAL_SCENARIOS = [...BASE_SCENARIOS, 'nfp', 'tradebal', 'cpiyoy', 't10y2y', 'fhfa', 'jolts',
+  'overlay-fhfa-d', 'overlay-jolts-5',
+  { name: 'fhfa-asof-before', q: `scenario=fhfa&asof=${FHFA_REL - 1}` },
+  { name: 'fhfa-asof-after', q: `scenario=fhfa&asof=${FHFA_REL}` },
+  { name: 'jolts-asof-before', q: `scenario=jolts&asof=${JOLTS_REL - 1}` },
+  { name: 'jolts-asof-after', q: `scenario=jolts&asof=${JOLTS_REL}` }]
+const SCENARIOS = (SUB ? REAL_SCENARIOS : BASE_SCENARIOS).map((x) => (typeof x === 'string' ? { name: x, q: `scenario=${x}` } : x))
+function dbFacts(path) {
+  if (!path || !existsSync(path)) return null
+  const facts = (p) => { const st = statSync(p); return { path: p, bytes: st.size, mtime: st.mtime.toISOString() } }
+  const main = { ...facts(path), sha256: createHash('sha256').update(readFileSync(path)).digest('hex') }
+  const wal = existsSync(`${path}-wal`) ? facts(`${path}-wal`) : null
+  return { db: main, wal, note: wal ? 'WAL present: committed pages may live in -wal; sha256 is of the main file only' : null }
+}
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const profile = mkdtempSync(join(tmpdir(), 'econ-cdp-'))
@@ -56,9 +80,9 @@ const evaluate = async (expr) => {
 await send('Page.enable')
 await send('Runtime.enable')
 await send('Emulation.setDeviceMetricsOverride', { width: 1320, height: 780, deviceScaleFactor: 1, mobile: false })
-const summary = {}
-for (const sc of SCENARIOS) {
-  const url = `${BASE}/econ-harness.html?scenario=${sc}&src=${SRC}`
+const summary = { _run: { at: new Date().toISOString(), base: BASE, src: SRC, dbBefore: dbFacts(process.env.ECON_AUDIT_DB) } }
+for (const { name: sc, q } of SCENARIOS) {
+  const url = `${BASE}/econ-harness.html?${q}&src=${SRC}`
   await send('Page.navigate', { url })
   let ready = false
   for (let i = 0; i < 150 && !ready; i++) {
@@ -70,10 +94,12 @@ for (const sc of SCENARIOS) {
   const nav = await evaluate('window.__econ.navTest()')
   await sleep(150)
   const shot = await send('Page.captureScreenshot', { format: 'png' })
-  writeFileSync(join(OUT, `${sc}${SRC === 'api' ? '.api' : ''}.png`), Buffer.from(shot.result.data, 'base64'))
+  writeFileSync(join(OUT, `${sc}${SRC === 'api' && !SUB ? '.api' : ''}.png`), Buffer.from(shot.result.data, 'base64'))
   summary[sc] = { audit, nav }
-  process.stdout.write(`${sc}: bindings=${audit.bindings.length} drawnThroughGaps=${audit.drawnThroughGapsTotal} nav.ok=${nav.ok}\n`)
+  const al = Array.isArray(audit.alignment) ? audit.alignment.map((a) => a.ok).join(',') : (audit.alignment ? 'y' : '-')
+  process.stdout.write(`${sc}: bindings=${audit.bindings.length} drawnThroughGaps=${audit.drawnThroughGapsTotal} nav.ok=${nav.ok} align=${al} errors=${(audit.errors || []).length}\n`)
 }
-writeFileSync(join(OUT, `audit${SRC === 'api' ? '.api' : ''}.json`), JSON.stringify(summary, null, 2))
+summary._run.dbAfter = dbFacts(process.env.ECON_AUDIT_DB)
+writeFileSync(join(OUT, `audit${SRC === 'api' && !SUB ? '.api' : ''}.json`), JSON.stringify(summary, null, 2))
 ws.close()
 chrome.kill()

@@ -28,6 +28,7 @@
 //              points:[[t_available_unix, v|null, 'YYYY-MM-DD', 'YYYY-MM-DD', pit], ...] }
 import { SOURCE_STATUS } from './secondaryBars'
 import { economicSymbolOf } from './economicGrammar'
+import { CURRENTNESS } from '../../../utils/marketSession'
 
 export { SOURCE_STATUS }
 
@@ -168,6 +169,124 @@ export function _econPoints(raw, columns = null) {
   return Object.freeze(out)
 }
 
+// ─── currentness: the backend's state machine -> the chart's ONE vocabulary ──
+//
+// ⛔⛔ HTTP 200 NEVER IMPLIES CURRENT. The backend (`model.Currentness`) has ten
+// states; the chart speaks `marketSession.CURRENTNESS` (current / updating /
+// delayed / unavailable / no_expectation). ONLY the backend's `CURRENT` maps to
+// `current`. Everything unknown -- a state this build has never heard of, a
+// missing block, a non-string -- fails CLOSED to `no_expectation` ("data may be
+// shown, currentness is not claimed"), never to `current`.
+//
+//   CURRENT                          -> current
+//   CHECKING                         -> updating   (inside the release window)
+//   UNCONFIRMED                      -> updating   (a REVISION-only release past its
+//                                                   window with no positive provider
+//                                                   signal: the newest the provider
+//                                                   serves, NOT proven to include it)
+//   DELAYED                          -> delayed
+//   SOURCE_UNAVAILABLE               -> unavailable
+//   VALIDATION_FAILED                -> unavailable (last good value is kept on screen)
+//   NO_EXPECTATION / UNINITIALIZED /
+//   NOT_PRODUCTION / anything else   -> no_expectation
+//
+// ⚠️ Do NOT gate an econ "current" badge on `isCurrentnessSettled` -- that treats
+// `no_expectation` as settled (right for a shut market, wrong for a series whose
+// release UCT cannot establish). Read `claimsCurrent`.
+export const ECON_CURRENTNESS_MAP = Object.freeze({
+  CURRENT: CURRENTNESS.CURRENT,
+  CHECKING: CURRENTNESS.UPDATING,
+  UNCONFIRMED: CURRENTNESS.UPDATING,
+  DELAYED: CURRENTNESS.DELAYED,
+  SOURCE_UNAVAILABLE: CURRENTNESS.UNAVAILABLE,
+  VALIDATION_FAILED: CURRENTNESS.UNAVAILABLE,
+  NO_EXPECTATION: CURRENTNESS.NO_EXPECTATION,
+  UNINITIALIZED: CURRENTNESS.NO_EXPECTATION,
+  NOT_PRODUCTION: CURRENTNESS.NO_EXPECTATION,
+})
+
+/** Backend `currentness.state` (any case) -> a `CURRENTNESS` value. Never `current`
+ *  unless the backend said exactly CURRENT. */
+export function economicCurrentnessState(state) {
+  const k = typeof state === 'string' ? state.trim().toUpperCase() : ''
+  return Object.prototype.hasOwnProperty.call(ECON_CURRENTNESS_MAP, k) ? ECON_CURRENTNESS_MAP[k] : CURRENTNESS.NO_EXPECTATION
+}
+
+const _NR_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const _TZ_ABBR = { 'America/New_York': 'ET', UTC: 'UTC' }
+const _isIso = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+const _isHm = (s) => typeof s === 'string' && /^\d{2}:\d{2}$/.test(s)
+
+/**
+ * `currentness.next_release` -> `{date, time, tz, precision, text}` for display.
+ *
+ * ⛔ NEVER INVENTS A TIME, NEVER INVENTS A DATE:
+ *   • `precision: 'unknown'` (a HOLE -- its stored date is only the earliest
+ *     possible day) or no date -> `{date:null, time:null}`, "not yet scheduled";
+ *   • `date_only` -> the date alone, even if a time field is present;
+ *   • `time_configured` -> the time is agency PRACTICE, not an agency-published
+ *     time, so it says so ("typical");
+ *   • `rule` -> an estimate from a published rule ("est.");
+ *   • `exact` -> date + time as published.
+ * An unrecognised precision is treated as `date_only` (the least it can claim).
+ */
+export function economicNextRelease(nr) {
+  const precision = nr && typeof nr.precision === 'string' ? nr.precision.toLowerCase() : 'unknown'
+  const tzName = nr && typeof nr.tz === 'string' ? nr.tz : 'America/New_York'
+  const tz = _TZ_ABBR[tzName] || tzName
+  if (!nr || precision === 'unknown' || !_isIso(nr.date)) {
+    return Object.freeze({ date: null, time: null, tz: null, precision: 'unknown', text: 'Next release: not yet scheduled' })
+  }
+  const [y, m, d] = nr.date.split('-').map(Number)
+  const day = `${_NR_MONTHS[m - 1]} ${d}, ${y}`
+  const known = ['exact', 'time_configured', 'rule', 'date_only'].includes(precision) ? precision : 'date_only'
+  const time = known !== 'date_only' && _isHm(nr.time) ? nr.time : null
+  let text
+  if (known === 'exact') text = time ? `${day} ${time} ${tz}` : day
+  else if (known === 'time_configured') text = time ? `${day} ${time} ${tz} (typical)` : day
+  else if (known === 'rule') text = time ? `${day} ~${time} ${tz} (est.)` : `${day} (est.)`
+  else text = day
+  return Object.freeze({ date: nr.date, time, tz: time ? tzName : null, precision: known, text: `Next release: ${text}` })
+}
+
+/**
+ * The served `currentness` block -> what the chart may say about it.
+ *
+ * ⛔ AN AS-OF VIEW IS HISTORY. `?asof=T` answers the values known at T, but the
+ * `currentness` block the server attaches describes NOW (measured 2026-09-29: the
+ * FHFA view one second before the July release still said CURRENT with
+ * latest_period 2026-07). So `{asof}` pins the reading to `no_expectation`,
+ * `claimsCurrent:false`, `historical:true`, and drops the next release (it is
+ * relative to now, not to T). The backend state is kept for inspection only.
+ */
+export function economicCurrentness(block, { asof = null } = {}) {
+  const b = block && typeof block === 'object' ? block : {}
+  const historical = Number.isFinite(asof)
+  const state = historical ? CURRENTNESS.NO_EXPECTATION : economicCurrentnessState(b.state)
+  if (historical) {
+    return Object.freeze({
+      state,
+      backendState: typeof b.state === 'string' ? b.state.toUpperCase() : null,
+      claimsCurrent: false,
+      historical: true,
+      asof,
+      latestPeriod: null,
+      expectedPeriod: null,
+      nextRelease: Object.freeze({ date: null, time: null, tz: null, precision: 'unknown',
+        text: `As of ${new Date(asof * 1000).toISOString().replace('.000Z', 'Z')} (historical view)` }),
+    })
+  }
+  return Object.freeze({
+    state,
+    backendState: typeof b.state === 'string' ? b.state.toUpperCase() : null,
+    claimsCurrent: state === CURRENTNESS.CURRENT,
+    historical: false,
+    latestPeriod: typeof b.latest_period === 'string' ? b.latest_period : null,
+    expectedPeriod: typeof b.expected_period === 'string' ? b.expected_period : null,
+    nextRelease: economicNextRelease(b.next_release || null),
+  })
+}
+
 /** A series payload -> the frozen cache entry the binder reads. */
 export function readEconomicSeries(body) {
   const points = _econPoints(body && body.points, body && body.columns)
@@ -180,10 +299,13 @@ export function readEconomicSeries(body) {
     points,
     meta,
     currentness: (body && body.currentness && typeof body.currentness === 'object') ? Object.freeze({ ...body.currentness }) : null,
+    // The chart's reading of it (never `current` unless the backend said CURRENT).
+    currentnessView: economicCurrentness(body && body.currentness,
+      { asof: (body && body.view === 'asof' && Number.isFinite(body.asof)) ? body.asof : null }),
   })
 }
 
-const _final = (status) => Object.freeze({ status, symbol: null, points: Object.freeze([]), meta: Object.freeze({}), currentness: null })
+const _final = (status) => Object.freeze({ status, symbol: null, points: Object.freeze([]), meta: Object.freeze({}), currentness: null, currentnessView: economicCurrentness(null) })
 const LOADING = _final(SOURCE_STATUS.LOADING)
 const ERROR = _final(SOURCE_STATUS.ERROR)
 
