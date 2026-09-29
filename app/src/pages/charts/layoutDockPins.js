@@ -104,3 +104,29 @@ export function arrangementSig(layout) {
     .sort()
   return `${layout?.cols ?? ''}|${parts.join('|')}`
 }
+
+/**
+ * Does the layout that is OPEN auto-save the board into itself as you work?
+ *
+ * ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. A prebuilt (global) row is what
+ * every member sees, so nudging a widget on one must never rewrite it; the frozen
+ * UCT Default is not a row at all. Those two stay exactly as they always were —
+ * deliberate saves only.
+ *
+ * `active` is the parsed `charts_active_template` pref: `{ id, name, scope }`
+ * (scope `'global'` | `'user'`; a missing scope is the user's own, which is how
+ * the workspace has always read it).
+ *
+ * ⛔ TERM-052: this is the ONE place the rule lives. `ChartsWorkspace.jsx` gates
+ * its auto-save on it, and the Settings card "What Syncs Across Your Devices"
+ * publishes which layouts save themselves by CALLING it
+ * (`lib/persistence/personalization.js`) — so changing the rule here changes the
+ * behaviour and the published list together, and a copy of it anywhere else is
+ * the drift this repo keeps paying for.
+ */
+export function layoutAutoSaves(active) {
+  const id = active?.id ?? null
+  return !!id
+    && id !== UCT_DEFAULT_ID
+    && (active?.scope || 'user') !== 'global'
+}

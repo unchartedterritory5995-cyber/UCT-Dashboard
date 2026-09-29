@@ -31,13 +31,14 @@ import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
+// TERM-052: the template cap is published in Settings from this same constant.
+import { MAX_CHART_TEMPLATES } from './chartCeilings'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
 // available from every chart/tab/grid cell. Applying a template routes through
 // the modal's onChange (→ the active surface's own settings), never the global
 // pref, so it lands on exactly the tab/widget you opened settings from.
 const CHART_TEMPLATES_KEY = 'chart_templates'
-const MAX_TEMPLATES = 40
 
 /**
  * Chart Settings — the new, centered, OLED-black settings modal for the Charts
@@ -436,7 +437,7 @@ export default function ChartSettingsModal({
     setFieldMenuPos({ left, top })
   }, [fieldMenuOpen, pos])
 
-  const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
+  const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
     const name = tplName.trim().slice(0, 40)
     if (!name) { setSavingTpl(false); setTplName(''); return }

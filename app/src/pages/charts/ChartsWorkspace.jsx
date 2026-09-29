@@ -13,7 +13,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
+import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -2338,14 +2338,10 @@ export default function ChartsWorkspace() {
   }, [dockActiveId, globalLayouts, myLayouts, layout])
   const dockDirty = !!dockCompare?.dirty
 
-  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
-  //
-  // A prebuilt (global) row is what every member sees, so nudging a widget on
-  // one must never rewrite it; the frozen UCT Default is not a row at all.
-  // Those two stay exactly as they always were — deliberate saves only.
-  const dockAutoSaves = !!dockActiveId
-    && dockActiveId !== UCT_DEFAULT_ID
-    && (dockActiveTpl?.scope || 'user') !== 'global'
+  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. The rule is
+  // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
+  // which layouts save themselves by calling the same function (TERM-052).
+  const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
