@@ -30,7 +30,7 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced,
 } from './ast/objectProgram'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
@@ -130,6 +130,37 @@ export function beginObjects(program, ctx) {
   const readNode = ctx.readNode || (() => NaN)
   const readParam = ctx.readParam || (() => undefined)
   const readTime = ctx.readTime || ((i) => i)
+  /** ⭐⭐ C12 — A VALUE THE LANE CANNOT COMPUTE YET IS NOT A VALUE THAT IS `na`.
+   *
+   *  A `var` folds to `accum(seed, body, W)`, which is `NaN` on every bar before
+   *  its warm-up (`interpret.js::runRecurrence`) — and Pine's `var` is a real
+   *  number there. The two are the same `NaN` in a column, so a guard written
+   *  `if pivHi >= prevHigh … else lh := true` takes its `else` on bar 222 and a
+   *  label says "LH" where TradingView's says "HH" (measured,
+   *  `market-structure-by-leviathan`, NYSE:RDDT 1D 2026-09-28). A missing
+   *  object is a gap; a wrong one is a lie.
+   *
+   *  ⛔ SO AN OP THAT READS ANY SUCH NODE ON SUCH A BAR DOES NOT RUN — its guard,
+   *  its coordinates and its text are all unknowable there, and the count of
+   *  what was withheld is reported (`stats.withheldUnknown`), never hidden.
+   *  `objectColumns.objectReaderFor` answers `readUnknown`; a caller with no
+   *  bounded state (the runtime lane runs its `var`s from bar 0) passes none. */
+  const readUnknown = typeof ctx.readUnknown === 'function' ? ctx.readUnknown : null
+  const opNodes = new Map()
+  const nodesOfOp = (op) => {
+    let found = opNodes.get(op)
+    if (found) return found
+    // a loop's own bounds only — each body op is asked on its own when it runs
+    found = graphNodesReferenced({ ops: [op.k === 'loop' ? { ...op, body: [] } : op] })
+    opNodes.set(op, found)
+    return found
+  }
+  const unknownAt = (op, bar) => {
+    if (!readUnknown) return false
+    for (const n of nodesOfOp(op)) if (readUnknown(n, bar)) return true
+    return false
+  }
+  let withheldUnknown = 0
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -726,6 +757,7 @@ export function beginObjects(program, ctx) {
       // than values so that object state can never leak into the pure graph.
       if (op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
+      if (unknownAt(op, bar)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
       opsThisBar += 1
       opsExecuted += 1
@@ -1157,6 +1189,7 @@ export function beginObjects(program, ctx) {
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
+      ...(withheldUnknown ? { withheldUnknown } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

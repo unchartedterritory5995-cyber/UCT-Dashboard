@@ -24,7 +24,8 @@
 // is a fact.
 import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
-import { interpret } from './ast/interpret'
+import { interpret, maxLookback } from './ast/interpret'
+import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
@@ -61,6 +62,98 @@ import { barOpenInstant } from '../indicators.js'
 // caller's `tf`, so without it an object placed by a timeframe test silently
 // reads the wrong branch.
 
+/** ⭐⭐ C12 — THE BARS ON WHICH A TREE'S BOUNDED STATE IS NOT COMPUTABLE.
+ *
+ *  A translated `var` is `accum(seed, body, W)`, and its column is `NaN` on every
+ *  bar before `W` (`interpret.js::runRecurrence`, "THE PREFIX IS NaN, NEVER A
+ *  SHORT RUN"). Pine's `var` holds a real value there. Downstream the two `NaN`s
+ *  are indistinguishable from Pine's own `na`, so a comparison against one is
+ *  FALSE and an `else` runs that TradingView's script never ran — see
+ *  `objectRuntime.js::readUnknown` for the label this drew wrong.
+ *
+ *  ⭐ SO THE QUESTION IS ASKED OF THE DATA, BAR BY BAR: does this bar's result
+ *  DEPEND on the prefix? The tree is evaluated twice more with the prefix filled
+ *  by `+PREFIX_PROBE` and by `-PREFIX_PROBE` (`interpret`'s `prefixProbe`); a bar
+ *  whose value is the same all three ways did not read the prefix, and one whose
+ *  value moves did. A comparison against the state flips between the two probes,
+ *  `na(state)` flips between `NaN` and either probe, and arithmetic carries the
+ *  probe through — so each way Pine's hidden value could have changed the answer
+ *  shows as a difference here.
+ *
+ *  ⛔ A STATIC HORIZON WAS MEASURED FIRST AND REJECTED. Withholding every bar
+ *  below the tree's `maxLookback` sums a nested `var` to `2W` and more: on the
+ *  same capture it withheld all five BOS lines TradingView draws (bars 310–504,
+ *  each correct), and it dropped one correct line from `price-action-in-book`,
+ *  a MATCH. A recurrence that FORGETS (a flag set by a pivot, a level reset
+ *  after a break) is known again at its first reset, and only the data says when.
+ *
+ *  ⚠️ A PROBE, NOT A PROOF: a function mapping `NaN`, `+P` and `-P` to one value
+ *  while answering something else for Pine's real value would slip through. No
+ *  such tree is known; the alternative is a taint pass through `interpret`'s
+ *  every operator, which this lane does not have.
+ *  A tree that reads no recurrence answers `null` — its warm-up `NaN` is Pine's
+ *  own `na` (`ta.sma` warming is `na` in Pine too), and withholding there would
+ *  drop objects TradingView draws. A probe that refuses answers `null` too: the
+ *  real run succeeded, and a probe is not allowed to take a drawing away on a
+ *  refusal of its own. */
+export const PREFIX_PROBE = 1e12
+
+export function readsBoundedState(tree) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'call' && Object.prototype.hasOwnProperty.call(RECURRENCES, n.name)) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+const sameValue = (a, b) => a === b || (a !== a && b !== b)
+
+/** The bars on which `col` (the tree's real column) depends on a recurrence
+ *  prefix, as a `Uint8Array`, or `null` when there are none.
+ *
+ *  ⭐ ONLY THE BARS BELOW THE TREE'S `maxLookback` CAN DEPEND ON A PREFIX — the
+ *  tree sum counts every `W` and every window along the path — and the lane is
+ *  causal (no read reaches forward), so the probes run over that many bars plus
+ *  one, not the whole chart. Measured on `market-structure-by-leviathan` (632
+ *  bars) the probes cost about twice the real pass; truncated, a 5,000-bar chart
+ *  pays for ~250–550 bars of probing instead of 5,000. The extra bar keeps the
+ *  last compared bar from being the series' newest (`barstate.*` answers there).
+ *  ⚠️ `ta.barssince`-style reads declare lookback 0 (`SERIES_LOOKBACK`), so a
+ *  dependence carried through one past the bound is not seen — it reads as
+ *  today's behaviour, never as a new withheld object.
+ *
+ *  `memos` is keyed by the probed length, one pair of maps per length, because a
+ *  memoised column is only valid for the series it was computed over. */
+export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new Map()) {
+  if (!col || !readsBoundedState(tree)) return null
+  let reach
+  try { reach = maxLookback(tree) } catch { reach = col.length }
+  const n = Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
+  if (n <= 0) return null
+  const probeBars = n < bars.length ? bars.slice(0, n + 1) : bars
+  if (!memos.has(probeBars.length)) memos.set(probeBars.length, [new Map(), new Map()])
+  const [memoHi, memoLo] = memos.get(probeBars.length)
+  let hi
+  let lo
+  try {
+    hi = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoHi, prefixProbe: PREFIX_PROBE })
+    lo = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoLo, prefixProbe: -PREFIX_PROBE })
+  } catch {
+    return null
+  }
+  let mask = null
+  for (let i = 0; i < n; i++) {
+    if (!sameValue(col[i], hi[i]) || !sameValue(col[i], lo[i])) {
+      if (!mask) mask = new Uint8Array(col.length)
+      mask[i] = 1
+    }
+  }
+  return mask
+}
+
 /**
  * @param {object} graph    a V2 graph
  * @param {object} program  a BOUND object program
@@ -89,12 +182,18 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // THESE bars, THESE inputs and THIS fold; a memo that outlived the pass would
   // serve stale numbers with nothing red anywhere.
   const crossMemo = new Map()
+  const unknown = new Map()
+  // ⭐ ONE MEMO PER PROBE SIGN (and probed length) for the whole pass, beside `crossMemo` — a probe
+  // value must never be served to the real column, nor one sign to the other.
+  const probeMemos = new Map()
   for (const node of wanted) {
     try {
       const tree = fold(nodeTree(graph, node))
-      const col = interpret(tree, bars, opts.inputs || {}, opts.budget,
-        undefined, { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, crossMemo })
+      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null }
+      const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
       columns.set(node, col)
+      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
+      if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
       // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
@@ -116,7 +215,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { readNode, columns, failed, refusals, wanted }
+  const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
+  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted }
 }
 
 /**
@@ -224,8 +324,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, readTime, failed, refusals, form: 'graph' }
+    const { readNode, readUnknown, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph' }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -238,10 +338,16 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const refusals = []
   // ⭐ THE SAME ONE-MEMO-PER-PASS ON THE V1 FORM, for the same reason.
   const crossMemo = new Map()
+  const unknown = new Map()
+  const probeMemos = new Map()
   for (const i of graphNodesReferenced(bound)) {
     try {
-      columns.set(i, interpret(fold(trees[i]), bars, evalOpts.inputs, evalOpts.budget,
-        undefined, { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, crossMemo }))
+      const tree = fold(trees[i])
+      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming }
+      const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
+      columns.set(i, col)
+      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)
+      if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
@@ -259,5 +365,6 @@ export function objectReaderFor(definition, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { program: bound, readNode, readTime, failed, refusals, form: 'trees' }
+  const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
+  return { program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees' }
 }

@@ -5634,6 +5634,76 @@ export class Resolver {
    *
    *  ⛔ NULL WHEN NO LAST WORD IS A `state` BINDING OF THIS CHAIN — a name the
    *  closing pass forced opaque, for one. Those keep the behaviour they had. */
+  /** ⭐⭐ C12 (2026-09-29) — `ta.crossover` / `ta.crossunder` OF A `var` INSIDE
+   *  THAT `var`'S OWN UPDATE, or null when the call is not that shape.
+   *
+   *  The reset-after-break idiom every structure script writes:
+   *
+   *      if not na(last_ph_s) and ta.crossover(close, last_ph_s)
+   *          line.new(…)
+   *          last_ph_s := na
+   *
+   *  The read of `last_ph_s` sits inside its own update, so `crossOver` would need
+   *  a window over the accumulator's past and `selfOutsideTheStepLoop` refuses it.
+   *  But the one past value `crossover` reads IS in the loop: Pine's
+   *  `crossover(x, y)` is `x > y and x[1] <= y[1]`, and for `y` a VARIABLE, `y[1]`
+   *  is its value at the END of the previous bar — the accumulator's `self`. The
+   *  current `y` is the partial read at this line (`partialStateRead`, which
+   *  inlines the update so far). So the call is exact as
+   *
+   *      x > <partial y>  &&  x[1] <= self            (crossunder: <, >=)
+   *
+   *  with `cmp`'s NaN rule — a comparison with `na` is false, which is Pine's
+   *  answer and what keeps a false guard from poisoning the state (the table's
+   *  `crossOver` is NaN there, and a NaN test would blank the accumulator).
+   *
+   *  ⚰️ MEASURED on the vendor harness, `institutional-smc-order-flow-matrix-pro`
+   *  (NYSE:RDDT 1D, 2026-09-28): TradingView holds 18 BOS/CHoCH lines; replaying
+   *  the script from bar 0 with this reading gives the same 18 levels, and the 13
+   *  of them past the accumulator's warm-up are drawn here
+   *  (`c12BlockState.vendor.test.js`). The inequalities are `CROSS_OVER_FIRED` /
+   *  `CROSS_UNDER_FIRED` (interpret.js) and a rail holds this form equal to the
+   *  table's on every bar both answer.
+   *
+   *  ⛔ ONLY WHEN THE OTHER ARGUMENT DOES NOT READ THE STATE, and only for a BARE
+   *  name: `y[1]` of an EXPRESSION is its value at the previous call, which the
+   *  loop never held. ⚠️ Pine v6's lazy `and` can skip the call on some bars, and
+   *  a built-in's history then comes from its last call. On the smc capture the
+   *  two readings give the same 18 events, so the capture does not separate them;
+   *  this is the variable-history reading, the one the rest of this engine's
+   *  `crossOver` already makes (it evaluates on every bar). */
+  crossOfOwnState(base, args, tok) {
+    const shape = PINE_CALL_SHAPES[normaliseName(base)]
+    const which = shape && shape.table
+    if (which !== 'crossOver' && which !== 'crossUnder') return null
+    if (!this.stateBuilds.length || !Array.isArray(args) || args.length !== 2) return null
+    if (args.some((a) => !a || a.name)) return null
+    const top = this.stateBuilds[this.stateBuilds.length - 1]
+    const ownAt = args.findIndex((a) => {
+      const n = a.value
+      if (!n || n.type !== 'name') return false
+      const b = this.env.get(n.name)
+      return !!b && b.kind === 'state' && b.seed === top
+    })
+    if (ownAt < 0) return null
+    const spec = this.table.functions.accum
+    if (!spec) return null
+    const ownNow = this.resolve(args[ownAt].value)
+    const other = this.resolve(args[1 - ownAt].value)
+    if (containsFreeSelfSeries(other, this.table)) return null
+    // `y[1]` of the variable: a HISTORY read of it, which is `na` on bar 0 —
+    // counted as one, so `varSeedOf` seeds exactly as for a written `y[1]`.
+    if (this.selfReads) this.selfReads.history += 1
+    const prevOwn = cSeries(spec.recurrence.binds)
+    const prevOther = { type: 'offset', value: 1, args: [other] }
+    const [xNow, yNow, xPrev, yPrev] = ownAt === 1
+      ? [other, ownNow, prevOther, prevOwn]
+      : [ownNow, other, prevOwn, prevOther]
+    return which === 'crossOver'
+      ? cOp('&&', [cOp('>', [xNow, yNow]), cOp('<=', [xPrev, yPrev])])
+      : cOp('&&', [cOp('<', [xNow, yNow]), cOp('>=', [xPrev, yPrev])])
+  }
+
   finalStateOf(bound, name) {
     if (!bound || bound.kind !== 'state') return null
     if (this.finalLocals.has(bound)) return null
@@ -7312,6 +7382,33 @@ export class Resolver {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
         // one cast covers `c ? a : b`, `if c`, and `else if c`.
         const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
+        // ⭐⭐ C12 — THE FALLTHROUGH OF AN `if` WITH NO `else` (`foldIfChain` marks
+        // it `noElse`). Its `na` is Pine's answer only for a NUMBER: v6 returns
+        // `false` for a bool, v5 `na`, and no capture separates them. So the branch
+        // it falls back from must resolve to a proven number — resolved even when a
+        // constant test would skip it, because its KIND is what decides what the
+        // skipped side means — and anything else keeps the `pine:block` refusal,
+        // naming why.
+        if (node.noElse) {
+          let yes
+          try {
+            yes = this.resolve(node.yes)
+          } catch (err) {
+            if (test.type === 'num' && test.value !== 0) throw err
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and its branch here could not be read to '
+              + 'say which', locate(node.tok))
+          }
+          if (conditionKindOf(yes, this.table) !== 'num') {
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and this branch is not a proven number',
+              locate(node.tok))
+          }
+          if (test.type === 'num') return test.value !== 0 ? yes : this.resolve(node.no)
+          return cOp('?:', [test, yes, this.resolve(node.no)])
+        }
         // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
         // the same rule as "a statement no output reaches is a note": refusing a
         // script over an arm its own folded input makes unreachable would be
@@ -7436,6 +7533,16 @@ export class Resolver {
     // removing it changed no behaviour, because a `state`/`fn`/`opaque` binding
     // carries no `.node` to be a selfref in the first place. Said here so nobody
     // later mistakes it for the thing keeping this correct.
+    // ⭐⭐ C12 (2026-09-29) — `v[k]` OF A `var` INSIDE ITS OWN UPDATE, READ AFTER
+    // AN EARLIER REASSIGNMENT OF IT IN THE SAME BAR. The binding in scope is then
+    // the chain's partial `state` (same seed object as the accumulator being
+    // built — `partialStateRead`), not the `selfref` a first read sees, and this
+    // answered null: the read fell through to "the whole accumulator, offset",
+    // which re-entered the very build it sat in until `pine:timeout`. History is
+    // committed at the END of a bar, so `v[k]` is the value k bars back whatever
+    // this bar has done to `v` so far — `self[k - 1]`, exactly as for a first read.
+    if (bound && bound.kind === 'state' && this.stateBuilds.length
+        && bound.seed === this.stateBuilds[this.stateBuilds.length - 1]) return node.n - 1
     if (!bound || bound.kind !== 'expr') return null
     return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
   }
@@ -9369,6 +9476,8 @@ export class Resolver {
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
     const bare = normaliseName(base)
+    const ownCross = this.crossOfOwnState(base, args, tok)
+    if (ownCross) return ownCross
     // ⛔⛔ `ta.valuewhen`'S NAMESPACED SPELLING MEANS A DIFFERENT FUNCTION THAN
     // THIS TABLE'S OWN BARE `valuewhen`, AND THE REDIRECT BELOW MUST FIRE ONLY
     // WHEN A NAMESPACE WAS ACTUALLY WRITTEN (2026-09-20). Pine's
@@ -11240,6 +11349,38 @@ function foldIfChain(stmts, i, ctx, env) {
 
   if (hasElse ? arms.every((a) => a.value) : false) {
     value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
+    for (let k = arms.length - 2; k >= 0; k -= 1) {
+      value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
+    }
+    value = exprBinding(value, before, locate(arm0.tok))
+  } else if (!hasElse && arms.every((a) => a.value && a.value.kind !== 'tuple')) {
+    // ⭐⭐ C12 (2026-09-29) — AN `if` WITH NO `else` IS A VALUE, AND ITS MISSING
+    // BRANCH IS `na`. Pine's manual: when an `if` used as an expression runs no
+    // branch, it returns `na`. This refused the whole chain as "a branch with no
+    // value", which is true of the TEXT and false of the language.
+    //
+    // ⚰️ MEASURED on the vendor harness, `atr-support-and-resistance` (v6, NYSE:RDDT
+    // 1D, 2026-09-28): `impUpWick = if impUp` / `open - low` feeds the only guard in
+    // front of every box and mid line the script draws, so the refusal cost all 20
+    // lines and 20 boxes TradingView holds. The capture also DECIDES the fallthrough:
+    // with `na` the wick test `impUpWick / ta.tr <= 0.25` is false on a non-impulse
+    // bar and the count is the vendor's; with `0` it would be true there and push a
+    // box on nearly every bar (`c12BlockState.vendor.test.js` runs both).
+    //
+    // ⛔ ONLY A PROVEN NUMBER. Pine v6 made `bool` non-`na`, so an `if` with no
+    // `else` over a bool returns `false` there and `na` in v5 — two answers no
+    // capture on disk separates. The innermost ternary carries `noElse`, and the
+    // Resolver refuses by name unless the branch it would fall back from resolves
+    // to a proven number (`conditionKindOf`), which is exactly where the two
+    // versions agree.
+    value = {
+      type: 'ternary',
+      test: arms[arms.length - 1].cond,
+      yes: boundNode(arms[arms.length - 1].value, null, arms[arms.length - 1].tok),
+      no: { type: 'name', name: 'na', tok: arms[arms.length - 1].tok },
+      noElse: true,
+      tok: arms[arms.length - 1].tok,
+    }
     for (let k = arms.length - 2; k >= 0; k -= 1) {
       value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
     }
