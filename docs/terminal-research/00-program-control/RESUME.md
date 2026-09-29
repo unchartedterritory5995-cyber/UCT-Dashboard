@@ -31,6 +31,11 @@ there is no history shortcut. How many is enough is the owner's call.
 Next: read `rss_breakdown_mb` once `fb2ef0188` is live — RssFile ⇒ page cache through per-thread 256 MB bars.db mmaps
 (evictable); RssAnon ⇒ a real hold in the news path.
 
+**Owner rulings 2026-09-29 evening:** TERM-042 — keep shadow grading nightly in the background, bring it back at 3
+clean sessions (a history backtest already exists: the August parity fixture). TERM-007 — **quiet window 2026-09-30
+09:30–10:30 ET, no master pushes**; sample memory (`/api/health/memory` incl. `rss_breakdown_mb`) and loop lag
+(`/api/watchdog/status`) across the open. TERM-010 — UCT Default (built).
+
 **Backlog status column is STALE:** most "BUILDABLE" rows (027 029 030 031 036 063 065 066 067 069 073 …) were built
 and merged by other sessions — check `git log --grep term-0NN` before building. Rows with NO commits: 001 002 003 005
 007 008 009 010 017 043 056 (014/017 held on 007, a person's act; 056 needs an owner ruling on Floor addresses).

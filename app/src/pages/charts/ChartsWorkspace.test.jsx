@@ -261,6 +261,27 @@ test('first visit (no saved layout) applies the frozen UCT Default arrangement o
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
 })
 
+test('TERM-010: a brand-new member (no board, no chart settings) starts on the WHOLE UCT Default, look included', () => {
+  mockPrefs = {}
+  renderWS()
+  expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  // The frozen look is persisted, through the same apply the Open Layout menu runs.
+  const look = setPref.mock.calls.find(
+    ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
+  )
+  expect(look, 'a first-run member gets the UCT Default chart look, not generic defaults').toBeTruthy()
+  expect(setPref.mock.calls.some(([k]) => k === 'charts_workspace_layout')).toBe(true)
+})
+
+test('TERM-010: a member who already has chart settings keeps them when their board is empty', () => {
+  mockPrefs = { chart_settings: JSON.stringify({ chartType: 'line' }) }
+  renderWS()
+  expect(screen.getByTestId('body-chart')).toBeInTheDocument()   // the arrangement still seeds
+  expect(setPref.mock.calls.some(([k]) => k === 'chart_settings'),
+    'their own chart settings must never be overwritten by a first-run default').toBe(false)
+})
+
 test('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', () => {
   // Start from a corrupted/empty board, then open the locked default.
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }

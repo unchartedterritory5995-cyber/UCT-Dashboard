@@ -327,7 +327,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-007 | `FB-OBS-07` | Declare a quiet measurement window | S | d0·b3 | **TIER-NONE** | — | ⛔ ACT scheduling |
 | TERM-008 | `FB-OBS-08` | Read the Cloudflare rule and cache key | S | d0·b0 | tier 0–2 | No | HELD credential |
 | TERM-009 | `FB-X1-01` | Mark the community's shared calls, losses included | M | d1·b0 | **TIER-NONE** | No | HELD member-safety |
-| TERM-010 | `FB-X3-02` | First-run is a fork of an expert's board | S–M | d0·b0 | tier 4 pref / 3 | Yes | HELD curation |
+| TERM-010 | `FB-X3-02` | First-run is a fork of an expert's board | S–M | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT 2026-09-29 — owner ruling: **the UCT Default layout**. Re-measured first: first run ALREADY seeded UCT Default's arrangement (`resolveDefaultLayout`, since `9971df214`), but not its look — a new member kept generic chart defaults. Now a member with no board AND no `chart_settings` gets the WHOLE UCT Default through the same `applyUctDefault` the Open Layout menu runs (quiet: no menu close, no "Saved" flash), so the two cannot drift; a member who already has chart settings keeps them; a DB "chart" template still wins. Rails in `ChartsWorkspace.test.jsx` (2, rendered widgets + the persisted look); mutation-proved both ways. |
 
 ### 2.3 Band 1 — THE MEASUREMENT FLOOR (8). Packages at §4.1.
 
