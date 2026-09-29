@@ -15,12 +15,14 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 
 
 import { renderTokenOk } from '../lib/renderToken'
-const TAG_STYLE = {
+import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
+// Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
+const TAG_STYLE = keyedBy(CATALYST_TAGS, {
   Catalyst: { background: 'rgba(56,132,255,0.14)', color: '#60a5fa' },
   Earnings: { background: 'rgba(74,222,128,0.14)', color: '#4ade80' },
   Gapper: { background: 'rgba(251,191,36,0.14)', color: '#fbbf24' },
   News: { background: 'rgba(180,180,180,0.14)', color: '#cbd5e1' },
-}
+})
 
 const fmtPrice = (v) => (Number.isFinite(v) && v > 0 ? `$${v.toFixed(2)}` : '—')
 const fmtPct = (v) => (Number.isFinite(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '')
@@ -32,7 +34,7 @@ const fmtVolX = (v) => {
 
 function CatalystCard({ row }) {
   const sym = (row.ticker || '').toUpperCase()
-  const tag = row.catalyst_type && row.catalyst_type !== 'None' ? row.catalyst_type : (row.tag || 'Catalyst')
+  const tag = row.catalyst_type && row.catalyst_type !== 'None' ? row.catalyst_type : (row.tag || CATALYST_TAG.CATALYST)
   const tagStyle = TAG_STYLE[row.tag] || TAG_STYLE.Catalyst
   const chg = Number(row.gap_pct)
   return (

@@ -5,9 +5,9 @@ Seeded from themes_taxonomy.json on startup.
 
 import hashlib
 import json
-import os
 import logging
 import sqlite3
+from api.services import a8_taxonomy
 from api.services.auth_db import get_connection
 
 _logger = logging.getLogger(__name__)
@@ -33,20 +33,10 @@ SELECT em.theme_id, em.sym, em.tier, em.sub_theme_id, em.rationale, 'engine' AS 
                    WHERE t2.theme_id = em.theme_id AND t2.sym = em.sym)
 """
 
-# Look for taxonomy JSON in multiple locations
-_TAXONOMY_PATHS = [
-    os.path.join(os.path.dirname(__file__), "..", "..", "themes_taxonomy.json"),  # repo root
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "morning-wire", "themes_taxonomy.json"),
-    "/app/themes_taxonomy.json",  # Railway
-]
-
-
+# Where the owner's taxonomy file lives is declared ONCE, in A8's authority
+# (TERM-075): repo root, then a sibling morning-wire checkout, then Railway's /app.
 def _find_taxonomy_file():
-    for p in _TAXONOMY_PATHS:
-        resolved = os.path.abspath(p)
-        if os.path.exists(resolved):
-            return resolved
-    return None
+    return a8_taxonomy.themes_taxonomy_path()
 
 
 def init_theme_tables():

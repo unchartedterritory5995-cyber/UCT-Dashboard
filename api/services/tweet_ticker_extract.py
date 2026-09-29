@@ -1,17 +1,12 @@
 """Cashtag-based ticker extraction. v1: regex only, no universe validation.
 Source accounts are professional and rarely post fake cashtags; false
-positives surface nothing (no join target in UI), so cost of a miss is zero."""
-import re
+positives surface nothing (no join target in UI), so cost of a miss is zero.
 
-_CASHTAG_RE = re.compile(r"\$([A-Z]{1,5})\b")
-
-# Forex pairs traders post as cashtags but we don't trade
-_FOREX_EXCLUDE = {"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF",
-                  "CNY", "HKD", "NZD"}
+The grammar and the forex exclusions are M5's cashtag vocabulary, declared ONCE
+in A8's authority (TERM-075, api/services/a8_taxonomy.py); this module only
+names the ingest's entry point."""
+from api.services.a8_taxonomy import cashtags
 
 
 def extract_tickers(text: str) -> set[str]:
-    if not text:
-        return set()
-    raw = set(_CASHTAG_RE.findall(text.upper()))
-    return {t for t in raw if t not in _FOREX_EXCLUDE}
+    return cashtags(text)

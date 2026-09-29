@@ -591,6 +591,22 @@ def init_db():
             conn.commit()
             print("[auth] Migrated: added full_name column to users")
 
+        # ⛔ Migration (TERM-081 / FB-S9-04): `users.toolkit` — THE COLUMN
+        # `entitlements.toolkit_for` READS. Before this, no DDL defined it, so the
+        # lookup could only ever answer the default.
+        #
+        # ⭐ NULL IS THE DEFAULT AND IT MEANS "NO TOOLKIT ASSIGNED", which
+        # `toolkit_for` resolves to `entitlements.DEFAULT_TOOLKIT` — exactly what
+        # every existing row resolved to before the column existed. The default
+        # toolkit's NAME is deliberately NOT stored here: spelling `'all'` in this
+        # DDL would be a second authority over it, and every row would pin a name
+        # the entitlements table may one day rename. Additive only; no row is
+        # rewritten. `auth_service.validate_session` projects it only when set.
+        if "toolkit" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN toolkit TEXT DEFAULT NULL")
+            conn.commit()
+            print("[auth] Migrated: added toolkit column to users")
+
         # Migration: enrich sessions rows with device info so the /settings
         # → Account → Active sessions list can label each entry meaningfully.
         sess_cols = [row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()]

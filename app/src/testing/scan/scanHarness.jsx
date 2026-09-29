@@ -84,11 +84,19 @@ const SYMS = (params.get('syms') || '').split(',').filter(Boolean)
 // legend surface — Bar Info, the study stack, the volume strip and the pane
 // readouts — is on screen at once. Added through the product's own writer.
 const STUDIES = params.get('studies') === '1'
+// `?compare=SYM` — one enabled comparison overlay on this widget's own settings (page
+// state, never a preference). Used by tools/daily_history_trace.py: an overlay turns
+// StockChart's `_overlayActive` on, which skips the deep-history dwell-warm, so the
+// deep leg depends on the first-paint edge path alone.
+const COMPARE = (params.get('compare') || '').trim().toUpperCase()
 const seedSettings = () => {
-  if (!STUDIES) return undefined
+  if (!STUDIES && !COMPARE) return undefined
   let cs = mergeChartSettings(null)
-  cs = addInstance(cs, 'rsi', registry)
-  cs = addInstance(cs, 'macd', registry)
+  if (STUDIES) {
+    cs = addInstance(cs, 'rsi', registry)
+    cs = addInstance(cs, 'macd', registry)
+  }
+  if (COMPARE) cs = { ...cs, comparisonSymbols: [{ sym: COMPARE, color: '#f59e0b', enabled: true }] }
   return cs
 }
 

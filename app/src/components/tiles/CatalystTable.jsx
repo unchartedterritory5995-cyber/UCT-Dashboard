@@ -15,6 +15,8 @@ import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import UIcon from '../ui/UIcon'
+import EpFlag, { isEpSetup } from './EpBaseRate'
+import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -28,7 +30,16 @@ const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 const EMPTY_ROWS = Object.freeze([])
 const EMPTY_SECTORS = Object.freeze([])
 
-const ALL_TAGS = ['Catalyst', 'Earnings', 'Gapper', 'News']
+// The tag vocabulary and its chip order are A8's (TERM-075) — never restated here.
+const ALL_TAGS = CATALYST_TAG_DISPLAY_ORDER
+
+// This tile's own styling, keyed by the vocabulary and checked against it at load.
+const TAG_CLASS = keyedBy(CATALYST_TAGS, {
+  Catalyst: styles.tagCatalyst,
+  Earnings: styles.tagEarnings,
+  Gapper:   styles.tagGapper,
+  News:     styles.tagNews,
+})
 
 // ET "today" as YYYY-MM-DD, and a UTC-safe day shifter for prev/next nav.
 function etTodayYmd() {
@@ -44,12 +55,7 @@ function shiftYmd(ymd, delta) {
 }
 
 function TagChip({ tag, active, onClick, count }) {
-  const cls = {
-    Catalyst: styles.tagCatalyst,
-    Earnings: styles.tagEarnings,
-    Gapper:   styles.tagGapper,
-    News:     styles.tagNews,
-  }[tag] || styles.tagDefault
+  const cls = TAG_CLASS[tag] || styles.tagDefault
   const dim = !active ? styles.chipDim : ''
   return (
     <button
@@ -189,8 +195,14 @@ function FlowChip({ flow }) {
 // Firm edge — the desk's historical win-rate/expectancy for this candidate's
 // setup, from the Brain. Display-only. `edge` = {setup, win_rate_pct, expectancy,
 // sample} or null.
-function EdgeChip({ edge }) {
-  if (!edge || edge.win_rate_pct == null) return null
+//
+// TERM-090: an Episodic Pivot grade renders as the EP flag plus its DERIVED base
+// rate (n + window, or "not enough history") from `EpBaseRate.jsx` -- never the
+// `setup_performance` % below, and never on an earnings gapper.
+function EdgeChip({ edge, row, rs }) {
+  if (!edge) return null
+  if (isEpSetup(edge.setup)) return <EpFlag row={row} rs={rs} />
+  if (edge.win_rate_pct == null) return null
   const wr = Math.round(Number(edge.win_rate_pct))
   const exp = edge.expectancy != null ? `${Number(edge.expectancy).toFixed(2)} expectancy` : ''
   const title = `Firm edge: ${edge.setup} — ${wr}% win${exp ? `, ${exp}` : ''}${edge.sample ? ` over ${edge.sample} logged trades` : ''}`
@@ -885,7 +897,7 @@ export default function CatalystTable({
                                 <PreMoveChip preMove={r.pre_move} />
                                 <RatingChangeChip rc={r.rating_change} />
                                 <FlowChip flow={rs.options_flow} />
-                                <EdgeChip edge={rs.brain_grade} />
+                                <EdgeChip edge={rs.brain_grade} row={r} rs={rs} />
                                 <HighlightThesis text={r.thesis_text} />
                               </span>
                               <UIcon

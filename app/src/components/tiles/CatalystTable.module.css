@@ -614,6 +614,16 @@
   border: 1px solid rgba(220, 187, 94, 0.42);
 }
 
+/* TERM-090: the EP flag's base rate, beside the chip. Plain muted text, not a
+   second chip — it is the chip's evidence, not another badge. */
+.epBase {
+  margin-right: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 /* Lead chip — the row's ONE badge: catalyst type (or tag bucket) + grade
    fused into a single unit leading the thesis text. */
 .leadChip {

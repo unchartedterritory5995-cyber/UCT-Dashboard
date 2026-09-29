@@ -73,6 +73,7 @@ from api.routers import auth as auth_router
 from api.routers import support_status as support_status_router
 from api.routers import avatar as avatar_router
 from api.routers import webhooks as webhooks_router
+from api.routers import inbound_alerts as inbound_alerts_router
 from api.routers import alerts as alerts_router
 from api.routers import journal_two as journal_two_router
 # Wave 6 (controller wiring). notebook_insights MUST be mounted BEFORE
@@ -134,6 +135,7 @@ from api.routers import provenance_bar as provenance_bar_router
 from api.routers import alert_taxonomy as alert_taxonomy_router
 from api.routers import entity_master_admin as entity_master_admin_router
 from api.routers import entity_resolve as entity_resolve_router
+from api.routers import decision_record as decision_record_router
 from api.routers import yf_guard as yf_guard_router
 from api.routers import catalysts as catalysts_router
 from api.routers import wire_feedback as wire_feedback_router
@@ -8430,6 +8432,16 @@ app.add_middleware(CompassPaywallMiddleware)
 # GZip → CORS → AdminGuard → CompassPaywall → Maintenance → router.
 from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
 app.add_middleware(_AdminGuard)
+# ⭐ TERM-080 — RATE_LIMIT_POLICY (api/rate_limit_policy.py): one declared
+# per-route-family limit table over the WHOLE route table, through the shared
+# limiter, staged off/shadow/enforce. Unset = returns after one env read, so
+# deploying it changes nothing. Added here so it runs INSIDE CORS (a 429 still
+# carries CORS headers) and OUTSIDE the admin guard. The partner routers are
+# covered at their prefixes; neither file is edited. Rail:
+# tests/test_rate_limit_policy.py (behaviour + the route census).
+from api import rate_limit_policy as _rate_limit_policy
+app.add_middleware(_rate_limit_policy.RateLimitPolicyMiddleware)
+app.include_router(_rate_limit_policy.router)   # GET /api/admin/rate-limit-policy (require_admin)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
@@ -8821,6 +8833,10 @@ app.include_router(landing_analytics_router.router)
 app.include_router(support_status_router.router)
 app.include_router(avatar_router.router, dependencies=_OPEN_READS)
 app.include_router(webhooks_router.router)
+# TERM-086: the TradingView alert receiver. DARK behind INBOUND_ALERTS_ENABLED --
+# its routes do not MATCH while the flag is off, so mount order cannot shadow
+# anything; its own path space (/api/inbound-alerts) touches no other router.
+app.include_router(inbound_alerts_router.router)
 app.include_router(alerts_router.router)
 # Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
 # journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"
@@ -8932,6 +8948,7 @@ app.include_router(provenance_bar_router.router, dependencies=_OPEN_READS)  # /a
 app.include_router(alert_taxonomy_router.router)  # /api/alerts/taxonomy/* — S7 document-arrival first slice
 app.include_router(entity_master_admin_router.router)  # /api/admin/entity-master/* — S3 admin status/ops (admin-only)
 app.include_router(entity_resolve_router.router)  # /api/entity/resolve — TERM-023 member door, paid, DARK (ENTITY_MASTER_MEMBER_ENABLED)
+app.include_router(decision_record_router.router)  # /api/decision-record/ticker/{t} — TERM-088 member door, paid, read-only, DARK (DECISION_RECORD_MEMBER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
 app.include_router(wire_feedback_router.router)

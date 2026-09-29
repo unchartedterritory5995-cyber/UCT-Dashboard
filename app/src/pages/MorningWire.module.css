@@ -420,6 +420,24 @@
   padding: 0 4px;
 }
 
+/* TERM-085 (morning-wire WIRE_SURFACE_LINE_ENABLED): one sentence under the
+   monologue naming the page that explains today's lead. It arrives inside
+   rundown_html, so it can only be styled here. */
+.rundownWrap :global(.rd-surface) {
+  margin: 14px 0 6px !important;
+  padding: 10px 14px !important;
+  border-left: 2px solid var(--accent) !important;
+  background: var(--bg-surface) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+.rundownWrap :global(.rd-surface-link) {
+  color: var(--accent) !important;
+  font-weight: 600 !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
 /* Hide the duplicate MARKET TONE label inside the AI narrative */
 .rundownWrap :global(.rd-section.rd-tone .rd-section-header) {
   display: none !important;

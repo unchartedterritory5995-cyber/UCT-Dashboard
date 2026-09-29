@@ -3,6 +3,7 @@ import Provenance from '../../../components/provenance/Provenance'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
 import styles from '../ResearchPage.module.css'
+import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
 
 // Packet G CP1 -- the "what has UCT's own catalyst engine ever flagged about
 // this ticker" tab. Signed by the owner 2026-09-22 (fingerprint 5331c90c2).
@@ -29,7 +30,8 @@ function whenLabel(marketDate) {
   return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-const TAG_CLASS = { Earnings: styles.gold, Catalyst: styles.up, Gapper: styles.up, News: styles.muted }
+// Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
+const TAG_CLASS = keyedBy(CATALYST_TAGS, { Earnings: styles.gold, Catalyst: styles.up, Gapper: styles.up, News: styles.muted })
 
 function EntryProvenance({ entry }) {
   const availability = mapAvailability({ value: true, degraded: false })
@@ -62,7 +64,7 @@ export default function CatalystsTab({ sym }) {
               <li key={`${e.market_date}-${i}`} className={styles.newsItem}>
                 <div style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || 'Catalyst'}</span>
+                    <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
                     <span className={styles.muted}>{whenLabel(e.market_date)}</span>
                   </div>
                   {e.thesis_text ? <p className={styles.fnote} style={{ padding: '4px 0 0' }}>{e.thesis_text}</p> : null}

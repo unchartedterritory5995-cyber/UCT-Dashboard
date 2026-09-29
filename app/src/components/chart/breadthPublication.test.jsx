@@ -179,13 +179,13 @@ describe('the published identity travels the CANONICAL path, with no US branch',
     expect(signColorsForPlot(plot)).toEqual({ up: '#2faf68', down: '#df4646' })
   })
 
-  it('…and US:A50 is a plain line, from the same chain', () => {
+  it('…and US:A50 is a plain area (family default), from the same chain', () => {
     const res = pick('US:A50')
     expect(res.create.presentation).toBeUndefined()
     const cs = createFromResult({ indicatorInstances: [] }, res, registry)
     const plot = presentedPlot({ key: 'value', style: 'line', color: '#4f9cf9' },
                                cs.indicatorInstances[0])
-    expect(plot.style).toBe('line')
+    expect(plot.style).toBe('area')
     expect(signColorsForPlot(plot)).toBeNull()
   })
 

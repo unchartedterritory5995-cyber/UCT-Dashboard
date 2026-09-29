@@ -352,7 +352,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-022 | `FB-D1-01` | The Massive adapter + the retirement queue | L | d0·b4 | **TIER-NONE** | Partial | BUILDABLE |
 | TERM-023 | `FB-S3-01` | Entity master — **a member path, not a build** | ~~L~~ → **M** | d0·b3 | **TIER-NONE** | Partial | ⚰️ RECUT — ADMIN-MOUNTED |
 | TERM-024 | `FB-S4-02` | A panel declares a need, never a transport | S now / L later | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
+| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | ⚰️ BUILT — 8/8 types registered, every CP3 merged (verified 2026-09-28 against origin/master `38bb9a421`); next is a per-type owner CP4/FLIP ruling, not a build |
 | TERM-026 | `FB-S9-01` | Auditor sees a GET; publish its denominator | S | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.5 Band 3 — CHEAP AND CLEAR (10). Packages at §4.3.
@@ -438,7 +438,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-088 | item 15 `ACC-02` | ⭐⭐ The decision record gets a member surface | M | d1 behind 023 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-089 | item 15 `ACC-10` | A replay surface for the Morning Wire payload archive | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-090 | item 15 `ACC-06` | The episodic-pivot base rate, beside the flag | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ⚰️ RECUT — surface ships |
+| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ✅ BUILT `ffe8a3f40`, DARK (`EDU_CURRICULUM_ENABLED`) |
 | TERM-092 | CARD 27 | Re-time the wire missed-run watchdog past 09:30, + a rail | **XS** | d0 | tier 4 pref / 3 | Yes | ⛔ owner deploy |
 | TERM-093 | item 14 `WF-C13`/`WF-C09` | The "what else was open, named" capture | S | d0 | **TIER-NONE** | Yes | ⛔ owner subject |
 
@@ -1718,6 +1718,19 @@ them and deleted a ninth (§8).
 - **ROLLBACK TIER.** `tier 4 pref / 3`.
 
 #### TERM-091 · item 15 `ACC-13` — Load `docs/curriculum/` into the shipped education store ⚰️ RECUT
+- ✅ **BUILT `ffe8a3f40` (2026-09-28), DARK behind `EDU_CURRICULUM_ENABLED`, unmerged.** New table
+  `edu_lessons` in the existing `education.db` (kind `lesson` | `artifact`, keyed by a source-derived
+  `lesson_key`, `source='curriculum'`), loader `scripts/load_edu_curriculum.py` (`--unload` is the
+  scoped reversal), paid `GET /api/education/lessons[/{key}]`, a Lesson notes block on the existing
+  Courses section. Loaded count is printed: **79 lessons + 7 toolkit artifacts**, census
+  **181** (corrected 138 · verified 29 · replaced 9 · no_data_needed 5), read from
+  `uct_method_scripts.json`. ⚠️ **Two findings the ticket did not have:** (1) no curriculum JSON
+  carries an attribution field, so attribution is **derived by rules** (47 of 86 rows) and the
+  79 lessons never name a third party in their own text; (2) `docs/curriculum/HANDOFF.md` records
+  both courses — The UCT Method's 79 lessons with their scripts included — as **already applied to
+  production as admin-only DRAFT `edu_paths` courses** (`kind='course'`, planned steps). "In no
+  product DB" is therefore half-stale: the lessons are in the store as unrecorded video slots, and
+  what this adds is their member-readable TEXT. Unverified against production (no Railway access).
 - **User outcome.** The 79 lessons the firm has already written become reachable where members already
   go for teaching material.
 - **Context.** ⚰️⚰️ **This ticket started as "give the curriculum a surface" and a grep deleted the

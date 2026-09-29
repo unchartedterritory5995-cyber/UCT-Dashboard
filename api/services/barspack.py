@@ -130,8 +130,8 @@ def _theme_holding_syms() -> set:
     covered too. Best-effort: returns empty on any error (→ pack is just the cap
     universe). Only ~58 of these are net-new beyond cap_universe."""
     try:
-        root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        with open(os.path.join(root, "themes_taxonomy.json"), encoding="utf-8") as f:
+        from api.services import a8_taxonomy  # TERM-075: the one locator of the taxonomy file
+        with open(a8_taxonomy.themes_taxonomy_path(), encoding="utf-8") as f:
             tax = json.load(f)
         out: set = set()
         for th in tax.get("themes", []) or []:

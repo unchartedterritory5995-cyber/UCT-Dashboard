@@ -316,6 +316,38 @@ def get_rate_limit_info(*, user_id: str, account_id: str, conn=None) -> dict:
             _conn.close()
 
 
+def _admission_error(*, user_id: str, account_id: str, conn) -> dict | None:
+    """The ONE admission check for every chat door that spends a model call
+    (a typed turn, a confirm, a cancel's acknowledgement, the onboarding
+    opener and its redo): the member's daily chat cap, then the global cost
+    circuit-breaker. Returns the error event to yield, or None to admit."""
+    from api.services.journal_two import compass_cost_guard
+
+    rl = get_rate_limit_info(user_id=user_id, account_id=account_id, conn=conn)
+    if rl["remaining"] <= 0:
+        return {"type": "error", "code": "rate_limited",
+                "message": "Daily chat limit reached.", "reset_at_utc": "midnight UTC"}
+    # Global daily cost circuit-breaker (O(1) in-memory — NOT a per-request DB
+    # read). Disabled unless COMPASS_COST_CAP_DAILY is set to a positive USD cap.
+    if compass_cost_guard.over_budget():
+        return {"type": "error", "code": "cost_capped",
+                "message": "Compass has reached its daily cost limit. It'll be back tomorrow."}
+    return None
+
+
+def _record_stream_cost(stream) -> None:
+    """Accrue one finished stream's token cost into the daily circuit-breaker
+    (best-effort; a fake test client / missing usage is a no-op). Call it only
+    for a stream that ran to its end: get_final_message() would block on one
+    we bailed out of."""
+    from api.services.journal_two import compass_cost_guard
+    try:
+        compass_cost_guard.record_from_usage(
+            getattr(stream.get_final_message(), "usage", None))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def get_chat_status(*, user_id: str, account_id: str, conn=None) -> dict:
     enabled = os.environ.get("COMPASS_CHAT_ENABLED", "true").lower() != "false"
     rate = get_rate_limit_info(user_id=user_id, account_id=account_id, conn=conn)
@@ -614,7 +646,6 @@ def handle_user_turn(
     """
     from api.services.journal_two import coach_chat_tools as cct
     from api.services.journal_two import coach_prompts
-    from api.services.journal_two import compass_cost_guard
 
     if os.environ.get("COMPASS_CHAT_ENABLED", "true").lower() == "false":
         yield {"type": "error", "code": "disabled", "message": "Compass chat is disabled."}
@@ -623,17 +654,22 @@ def handle_user_turn(
     deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
-        rl = get_rate_limit_info(user_id=user_id, account_id=account_id, conn=_conn)
-        if rl["remaining"] <= 0:
-            yield {"type": "error", "code": "rate_limited",
-                   "message": "Daily chat limit reached.", "reset_at_utc": "midnight UTC"}
+        refused = _admission_error(user_id=user_id, account_id=account_id, conn=_conn)
+        if refused is not None:
+            yield refused
             return
 
-        # Global daily cost circuit-breaker (O(1) in-memory — NOT a per-request DB
-        # read). Disabled unless COMPASS_COST_CAP_DAILY is set to a positive USD cap.
-        if compass_cost_guard.over_budget():
-            yield {"type": "error", "code": "cost_capped",
-                   "message": "Compass has reached its daily cost limit. It'll be back tomorrow."}
+        # TERM-078: the population-wide daily cap over member AI requests (R-18
+        # records Compass chat with no population cap at all). AFTER the member's
+        # own daily limit above, so a member already over it never spends the
+        # membership's. Off unless AI_POPULATION_CAP_MODE is set; shadow never
+        # blocks. Nothing has been stored yet, so a refusal costs the member no
+        # message; its text NAMES the shared cap.
+        from api.services import ai_population_cap
+        _pop_refusal = ai_population_cap.admit("compass_chat")
+        if _pop_refusal:
+            yield {"type": "error", "code": ai_population_cap.REFUSAL_CODE,
+                   "message": _pop_refusal}
             return
 
         try:
@@ -693,15 +729,10 @@ def handle_user_turn(
                     if tu is not None:
                         tool_uses.append(tu)
                 if not out_of_time:
-                    # Accrue this call's token cost into the daily circuit-breaker
-                    # (best-effort; a fake test client / missing usage is a no-op).
+                    # Accrue this call's token cost into the daily circuit-breaker.
                     # Skipped when we bailed: get_final_message() would block on
                     # the very stream we just gave up on.
-                    try:
-                        compass_cost_guard.record_from_usage(
-                            getattr(stream.get_final_message(), "usage", None))
-                    except Exception:  # noqa: BLE001
-                        pass
+                    _record_stream_cost(stream)
 
             if out_of_time:
                 # Persist what the member already saw so the thread stays
@@ -845,6 +876,43 @@ def _find_pending_tool_call(conn, *, message_id: str, tool_call_id: str) -> dict
     return None
 
 
+def _claim_pending_tool_call(conn, *, message_id: str, tool_call_id: str,
+                             to_status: str) -> dict | None:
+    """ATOMICALLY move one tool call from 'pending_confirm' to `to_status`.
+
+    The status lives inside the row's tool_calls JSON, so the transition is a
+    compare-and-set on that text: the UPDATE applies only WHERE the column
+    still holds exactly what was read. Of two requests racing to confirm (or
+    to confirm and cancel) one action, exactly one sees rowcount == 1; the
+    other re-reads, finds it no longer pending, and gets None. A miss caused
+    by a DIFFERENT call in the same message changing is retried.
+    Returns the claimed tool call, or None when it is not pending."""
+    for _attempt in range(5):
+        row = conn.execute(
+            "SELECT tool_calls FROM j2_chat_messages WHERE id = ?", (message_id,),
+        ).fetchone()
+        if row is None or not row["tool_calls"]:
+            return None
+        raw = row["tool_calls"]
+        try:
+            calls = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            return None
+        target = next((tc for tc in calls if isinstance(tc, dict)
+                       and tc.get("id") == tool_call_id), None)
+        if target is None or target.get("status") != "pending_confirm":
+            return None
+        target["status"] = to_status
+        cur = conn.execute(
+            "UPDATE j2_chat_messages SET tool_calls = ? WHERE id = ? AND tool_calls = ?",
+            (json.dumps(calls), message_id, raw),
+        )
+        conn.commit()
+        if cur.rowcount == 1:
+            return target
+    return None
+
+
 def confirm_pending_action(
     *,
     user_id: str,
@@ -873,6 +941,22 @@ def confirm_pending_action(
                    "message": f"Tool {tc['name']} is not a confirmable action."}
             return
 
+        # Admitted BEFORE the claim: a refused confirm leaves the action
+        # pending, so the member can still confirm it tomorrow or cancel it.
+        refused = _admission_error(user_id=user_id, account_id=account_id, conn=_conn)
+        if refused is not None:
+            yield refused
+            return
+
+        # The atomic pending -> confirmed transition: of two concurrent
+        # confirms of one action, only the one that wins this runs the tool.
+        if _claim_pending_tool_call(_conn, message_id=message_id,
+                                    tool_call_id=tool_call_id,
+                                    to_status="confirmed") is None:
+            yield {"type": "error", "code": "no_pending_action",
+                   "message": "Tool call not found or no longer pending."}
+            return
+
         try:
             result = spec["executor"](
                 user_id=user_id, account_id=account_id,
@@ -881,7 +965,6 @@ def confirm_pending_action(
         except Exception as e:  # noqa: BLE001
             result = {"ok": False, "error": str(e)}
 
-        _mark_tool_call_status(_conn, message_id, tool_call_id, "confirmed")
         append_message(
             user_id=user_id, account_id=account_id,
             role="tool",
@@ -902,6 +985,7 @@ def confirm_pending_action(
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
+        out_of_time = False
         # The confirmed tool already ran on this budget; the acknowledgement
         # gets whatever is left of it.
         with active_client.start_stream(
@@ -912,11 +996,14 @@ def confirm_pending_action(
         ) as stream:
             for ev in stream:
                 if deadline.expired():
+                    out_of_time = True
                     break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
                     yield {"type": "token", "text": text}
+            if not out_of_time:
+                _record_stream_cost(stream)
         ack_id = append_message(
             user_id=user_id, account_id=account_id,
             role="assistant", content=ack_text or None, conn=_conn,
@@ -1131,19 +1218,26 @@ def cancel_pending_action(
     client=None,
     conn=None,
 ):
-    """User clicked Cancel. Mark cancelled; model acknowledges briefly."""
+    """User clicked Cancel. Mark cancelled; model acknowledges briefly.
+
+    Withdrawing consent is NEVER refused: the action is cancelled whatever
+    the caps say. Only the model's acknowledgement is admitted like any other
+    model call -- over the daily chat cap or the cost breaker it is skipped
+    (and so not charged), and the stream just completes."""
     from api.services.journal_two import coach_prompts
 
     deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
-        tc = _find_pending_tool_call(_conn, message_id=message_id, tool_call_id=tool_call_id)
-        if tc is None or tc.get("status") != "pending_confirm":
+        # The same atomic transition confirm uses, so a cancel racing a
+        # confirm can never overwrite an action that already ran.
+        if _claim_pending_tool_call(_conn, message_id=message_id,
+                                    tool_call_id=tool_call_id,
+                                    to_status="cancelled") is None:
             yield {"type": "error", "code": "no_pending_action",
                    "message": "Tool call not found or no longer pending."}
             return
 
-        _mark_tool_call_status(_conn, message_id, tool_call_id, "cancelled")
         append_message(
             user_id=user_id, account_id=account_id,
             role="tool",
@@ -1152,6 +1246,10 @@ def cancel_pending_action(
                                       "reason": "user_cancelled"}}],
             parent_id=message_id, conn=_conn,
         )
+
+        if _admission_error(user_id=user_id, account_id=account_id, conn=_conn) is not None:
+            yield {"type": "complete", "message_id": None, "acknowledged": False}
+            return
 
         _ob = _read_onboarding_state(_conn, user_id, account_id)
         onboarding = bool(_ob and _ob["onboarding_mode"])
@@ -1163,6 +1261,7 @@ def cancel_pending_action(
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
+        out_of_time = False
         with active_client.start_stream(
             system_prompt=system_prompt, system_suffix=regime_suffix,
             messages=messages, tools=tools_param,
@@ -1171,11 +1270,14 @@ def cancel_pending_action(
         ) as stream:
             for ev in stream:
                 if deadline.expired():
+                    out_of_time = True
                     break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
                     yield {"type": "token", "text": text}
+            if not out_of_time:
+                _record_stream_cost(stream)
         ack_id = append_message(
             user_id=user_id, account_id=account_id,
             role="assistant", content=ack_text or None, conn=_conn,
@@ -1218,6 +1320,13 @@ def start_onboarding(
                    "message": "Already onboarded. Use redo_onboarding to start fresh."}
             return
 
+        # The opener is a model call like any turn: admitted before any state
+        # changes. Its sentinel user row below is what the daily cap counts.
+        refused = _admission_error(user_id=user_id, account_id=account_id, conn=_conn)
+        if refused is not None:
+            yield refused
+            return
+
         # If already mid-onboarding, reuse session. Otherwise begin a new one.
         if int(row["onboarding_mode"] or 0) and row["onboarding_session_id"]:
             pass  # resume
@@ -1249,6 +1358,7 @@ def start_onboarding(
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         assistant_text = ""
         tool_uses: list[dict] = []
+        out_of_time = False
         with active_client.start_stream(
             system_prompt=system_prompt, messages=messages, tools=tools_param,
             user_id=user_id, system_suffix=regime_suffix,
@@ -1256,6 +1366,7 @@ def start_onboarding(
         ) as stream:
             for ev in stream:
                 if deadline.expired():
+                    out_of_time = True
                     break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
@@ -1265,6 +1376,8 @@ def start_onboarding(
                 tu = _extract_tool_use_from_event(ev)
                 if tu is not None:
                     tool_uses.append(tu)
+            if not out_of_time:
+                _record_stream_cost(stream)
 
         tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"], "status": "pending"} for tu in tool_uses] or None
         asst_id = append_message(
@@ -1336,6 +1449,12 @@ def redo_onboarding(
         row = _read_onboarding_state(_conn, user_id, account_id)
         if row is None:
             yield {"type": "error", "code": "no_account", "message": "Account not found."}
+            return
+        # Admitted BEFORE the reset below: a refused redo must leave the
+        # member's onboarding state exactly as it was.
+        refused = _admission_error(user_id=user_id, account_id=account_id, conn=_conn)
+        if refused is not None:
+            yield refused
             return
         new_sid = str(_uuid.uuid4())
         _set_onboarding_state(

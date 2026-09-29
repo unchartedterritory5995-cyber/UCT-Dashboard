@@ -161,6 +161,12 @@ AUDITED_PREFIXES = (
     # ⚠️ MEASURED BEFORE ADDING: the real audit run over the live app with this
     # prefix reports ZERO ungated mutating routes, so it cannot page on boot.
     "/api/screener",
+    # TERM-086 (2026-09-28): the TradingView receiver is an UNAUTHENTICATED POST
+    # by nature, so it is audited here -- deliberately and visibly -- rather than
+    # left outside the audit. Its one open route is in ALLOWED_OPEN below with
+    # the paired handler assertion in tests/test_term086_inbound_alerts.py; every
+    # other mutating route under this prefix is Depends-gated.
+    "/api/inbound-alerts",
 )
 
 # Routes with no Depends() gate that are nonetheless protected, each with its
@@ -201,6 +207,17 @@ ALLOWED_OPEN: dict[tuple[str, str], str] = {
         "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
     ("POST", "/api/admin/refresh-bars/{ticker}"):
         "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+
+    # ── TERM-086, 2026-09-28 ─────────────────────────────────────────────────
+    # TradingView posts to a URL and can carry no other credential, so the
+    # per-member secret IS the path segment. The handler's first act is
+    # inbound_alerts.verify(token) (sha-256 lookup of an active, stored-hashed
+    # token of an existing member); anything else is refused before the body is
+    # read. Paired assertion:
+    # test_term086_inbound_alerts.py::test_the_ALLOWED_OPEN_hook_still_calls_verify.
+    ("POST", "/api/inbound-alerts/hook/{token}"):
+        "Authenticated INLINE by the per-member secret in the path "
+        "(inbound_alerts.verify); DARK behind INBOUND_ALERTS_ENABLED.",
 }
 
 

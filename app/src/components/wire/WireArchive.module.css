@@ -1,0 +1,57 @@
+/* TERM-089 — the Past issues tile on /morning-wire. The replayed letter itself
+   is styled by MorningWire.module.css `.rundownWrap`; nothing here touches it. */
+.note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.gaps {
+  color: var(--text-muted);
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-bright);
+}
+
+.picker input {
+  min-height: 36px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  border-radius: 6px;
+}
+
+@media (max-width: 1024px) {
+  .picker input {
+    min-height: var(--tap-min, 44px);
+  }
+}
+
+.absent {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--text-bright);
+}
+
+.replay {
+  margin-top: 16px;
+}
+
+.replayLabel {
+  margin-bottom: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #dcbb5e);
+}

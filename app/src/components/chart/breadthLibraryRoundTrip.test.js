@@ -64,7 +64,7 @@ describe('save → reopen keeps the identity', () => {
 })
 
 describe('save → reopen keeps the presentation', () => {
-  it('⭐ NETHL is still a signed histogram after the round-trip; A50 is still a line', () => {
+  it('⭐ NETHL is still a signed histogram after the round-trip; A50 is still an area', () => {
     const cs = reopen(build('US:NETHL', 'NASDAQ:A50'))
     const plotOf = (inst) =>
       presentedPlot({ key: 'value', style: 'line', color: '#4f9cf9' }, inst)
@@ -76,7 +76,7 @@ describe('save → reopen keeps the presentation', () => {
     expect(signColorsForPlot(nethl)).toEqual({ up: '#2faf68', down: '#df4646' })
 
     const a50 = plotOf(cs.indicatorInstances[1])
-    expect(a50.style).toBe('line')
+    expect(a50.style).toBe('area')     // the family default, stamped at creation
     expect(a50.colorMode).toBeUndefined()
     expect(signColorsForPlot(a50)).toBeNull()
   })

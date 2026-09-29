@@ -5,7 +5,10 @@ Two halves, one file (Task 6 = store + client, Task 7 = the cadenced job):
   * STORE  — SQLite at ``SCREENER_ANALYST_DB_PATH`` (default
     ``/data/screener_analyst.db``), table ``analyst_rows`` (one row per
     ticker, upserted) + ``analyst_runs`` (the receipt table, one row per
-    ``run_pass`` call). ``contextlib.closing`` on every connection (the
+    ``run_pass`` call) + ``analyst_timeline`` (TERM-073: every nightly
+    observation, dated and append-only — see the TIMELINE section; backed up
+    off-box by ``api/services/store_backup.py``). ``contextlib.closing`` on
+    every connection (the
     ssetf lesson — a connection left to the garbage collector can hold a WAL
     sidecar open on Windows).
   * CLIENT — ``fetch_one(ticker)``, four independent ``earnings_estimates
@@ -120,6 +123,19 @@ CREATE TABLE IF NOT EXISTS analyst_runs (
   errors        INTEGER,
   budget_stop   INTEGER
 );
+CREATE TABLE IF NOT EXISTS analyst_timeline (
+  ticker             TEXT    NOT NULL,
+  pass_date          TEXT    NOT NULL,
+  fetched_at         INTEGER NOT NULL,
+  consensus          TEXT,
+  pt_target          REAL,
+  upgrades_30d       INTEGER,
+  downgrades_30d     INTEGER,
+  eps_next_y_growth  REAL,
+  PRIMARY KEY (ticker, fetched_at)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_analyst_timeline_pass_date
+  ON analyst_timeline (pass_date);
 """
 
 
@@ -163,6 +179,107 @@ def upsert(ticker: str, row: dict, now: float) -> None:
              row.get("upgrades_30d"), row.get("downgrades_30d"),
              row.get("eps_next_y_growth"), int(now)))
         conn.commit()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# TIMELINE (TERM-073 / FB-A4-01) — the nightly snapshot, RETAINED
+# ─────────────────────────────────────────────────────────────────────────
+# ``analyst_rows`` holds ONE row per ticker and ``upsert`` replaces it, so each
+# night's consensus / price target / grade counts / EPS-growth overwrote the
+# previous night's and the history was lost. A revision series cannot be
+# backfilled from the vendor after the fact, so every night not retained was
+# lost for good. ``analyst_timeline`` keeps every observation instead:
+#
+#   * APPEND-ONLY. One row per (ticker, fetched_at). Nothing in this module
+#     updates, replaces or deletes a timeline row, and
+#     tests/test_screener_analyst_timeline.py reads this file's SQL to prove it.
+#   * DATED. ``pass_date`` is the ET calendar date of the run's anchor (the
+#     night the pass belongs to); ``fetched_at`` is the per-ticker clock read.
+#   * EVERY observation, not only changes. An unchanged night is still a row:
+#     "observed and the same" and "not observed" are different facts, and a
+#     change-only log cannot tell them apart.
+#   * ISOLATED from the member path. The append runs AFTER ``upsert`` has
+#     committed, in its own transaction; a timeline failure is counted in the
+#     run receipt and can never stop or roll back the screener's own row.
+#
+# SIZE, MEASURED 2026-09-28 on a scratch db through ``append_timeline`` itself
+# (WITHOUT ROWID table + the pass_date index, five nights of 1,000 tickers):
+# 82-90 bytes per row, 82-90 KB per night. A real night is ~1,000 fetched
+# tickers (actives + one seventh of the ~3,640-ticker cap universe; an
+# ESTIMATE, not a production count), so ~86 KB a night, ~22 MB a 252-night
+# trading year.
+
+#: RETENTION FLOOR. A timeline row younger than this is never deleted, by any
+#: path. Today NO path deletes timeline rows at all (the table is append-only),
+#: so the floor is met trivially; it is stated so that any future prune has a
+#: number it may not cross. Five years of rows is ~110 MB at the measured rate.
+RETENTION_FLOOR_DAYS = 5 * 365
+
+_TIMELINE_FIELDS = ("consensus", "pt_target", "upgrades_30d",
+                    "downgrades_30d", "eps_next_y_growth")
+
+
+def pass_date_for(anchor: datetime.datetime) -> str:
+    """The ET calendar date (``YYYY-MM-DD``) a run anchored at ``anchor``
+    belongs to. A naive datetime is taken as already ET, like
+    ``_deadline_et``."""
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=_ET)
+    return anchor.astimezone(_ET).date().isoformat()
+
+
+def append_timeline(ticker: str, row: dict, *, fetched_at: float,
+                    pass_date: str) -> None:
+    """Append ONE observation to ``analyst_timeline``. Never updates, replaces
+    or deletes: a plain INSERT in its own transaction, so a crash before the
+    commit leaves every earlier row exactly as it was and no partial row.
+    Raises on failure; ``run_pass`` catches and counts it."""
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return
+    with contextlib.closing(connect()) as conn:
+        conn.execute(
+            "INSERT INTO analyst_timeline "
+            "(ticker, pass_date, fetched_at, consensus, pt_target, upgrades_30d,"
+            " downgrades_30d, eps_next_y_growth) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (ticker, pass_date, int(fetched_at), row.get("consensus"),
+             row.get("pt_target"), row.get("upgrades_30d"),
+             row.get("downgrades_30d"), row.get("eps_next_y_growth")))
+        conn.commit()
+
+
+def read_timeline(ticker: str) -> list:
+    """Every retained observation for ``ticker``, oldest first. A missing
+    table (a store that predates the timeline) reads as empty."""
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return []
+    try:
+        with contextlib.closing(connect()) as conn:
+            rows = conn.execute(
+                "SELECT * FROM analyst_timeline WHERE ticker = ? "
+                "ORDER BY fetched_at ASC", (ticker,)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(r) for r in rows]
+
+
+def revisions(timeline: list) -> list:
+    """What changed between consecutive observations of one ticker.
+
+    ``[{"from_date", "to_date", "changes": {field: (old, new)}}]``, one entry
+    per consecutive pair that differs in at least one retained field. Two
+    snapshots with identical values produce NO entry: an unchanged night is
+    not a revision."""
+    out = []
+    ordered = sorted(timeline, key=lambda r: r["fetched_at"])
+    for prev, cur in zip(ordered, ordered[1:]):
+        changes = {f: (prev.get(f), cur.get(f)) for f in _TIMELINE_FIELDS
+                   if prev.get(f) != cur.get(f)}
+        if changes:
+            out.append({"from_date": prev["pass_date"],
+                        "to_date": cur["pass_date"], "changes": changes})
+    return out
 
 
 def stalest(tickers, n: int | None = None) -> list:
@@ -569,7 +686,9 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
     # whenever this function actually runs, gated or not).
     gap = float(os.environ.get("SCREENER_ANALYST_GAP_SECONDS", "0.25"))
 
+    pass_date = pass_date_for(started)
     fetched = errors = budget_stop = 0
+    timeline_appended = timeline_errors = 0
     for i, ticker in enumerate(ordered):
         # ONE clock read per considered ticker, reused for both the deadline
         # check and (on success) the upsert timestamp — never a second call
@@ -590,6 +709,17 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
         else:
             upsert(ticker, row, now=current.timestamp())
             fetched += 1
+            # TERM-073: retain tonight's observation. AFTER the upsert has
+            # committed and in its own transaction, so a timeline failure is
+            # counted here and never touches the screener's own row.
+            try:
+                append_timeline(ticker, row, fetched_at=current.timestamp(),
+                                pass_date=pass_date)
+                timeline_appended += 1
+            except Exception as exc:  # noqa: BLE001
+                timeline_errors += 1
+                log.warning("[analyst_pass] timeline append failed for %s: %s",
+                            ticker, exc)
         if gap > 0 and i < len(ordered) - 1:
             time.sleep(gap)
 
@@ -602,6 +732,11 @@ def run_pass(now: datetime.datetime | None = None) -> dict:
         "fetched": fetched,
         "errors": errors,
         "budget_stop": budget_stop,
+        # TERM-073. Not columns of analyst_runs (that table is unchanged); the
+        # durable form is the timeline itself: COUNT(*) of tonight's pass_date
+        # against this run's `fetched` gives the same gap.
+        "timeline_appended": timeline_appended,
+        "timeline_errors": timeline_errors,
     }
     _record_run(receipt)
     log.info("[analyst_pass] run_pass receipt: %s", receipt)

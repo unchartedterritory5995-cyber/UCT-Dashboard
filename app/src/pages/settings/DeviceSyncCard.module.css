@@ -1,0 +1,22 @@
+.card { padding: 4px 0; }
+.intro { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin: 0 0 12px; }
+.block { padding: 10px 0; border-top: 1px solid var(--border); }
+.heading {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  margin: 0 0 4px;
+}
+.lede { font-size: 11.5px; color: var(--text-muted); line-height: 1.5; margin: 0 0 10px; }
+.surface { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 5px 0; }
+.surfaceName { font-size: 12px; color: var(--ut-gold); font-weight: 500; }
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.item { font-size: 12px; color: var(--text-bright); line-height: 1.5; }
+.tabOnly { color: var(--text-muted); font-size: 11px; }
+.background { font-size: 11.5px; color: var(--text-muted); line-height: 1.6; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); }
+
+@media (max-width: 640px) {
+  .surface { grid-template-columns: 1fr; gap: 2px; }
+}

@@ -812,12 +812,23 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  *
  * `editRow` is a STORE row to open for editing — it runs this sheet's own
  * `openForEdit`, so a second opener cannot invent a second restore path.
+ *
+ * ⭐ `initialDraft` (TERM-087) — `{source, importId?, dialect?}`, a formula a
+ * GENERATED ANSWER handed back (AI Search's `scan_object`). It is written into
+ * the SAME `source` the concierge's `onAccept` writes, by the SAME open-reset
+ * that empties the form, so it meets the same parse, budget, linter, read-back
+ * and Save button a typed formula does — there is no second restore path and
+ * no second write door. `importId` rides into `import_accepted` on Save so the
+ * door that produced the draft can count "opened, edited, saved".
+ * ⚠️ Like `editRow`, it MUST be held in the caller's state (stable identity):
+ * it is a dependency of the reset, so a literal rebuilt per render would empty
+ * the member's edits on every parent render.
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
-  initialMode = null, editRow = null,
+  initialMode = null, editRow = null, initialDraft = null,
 }) {
   /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
    *  definition carries; these are the ones that make an indicator TUNABLE —
@@ -1180,13 +1191,22 @@ export default function BuilderSheet({
     // plot still in it would offer a Save whose document names a tree the box no
     // longer shows — the same reason `source` and `name` are cleared here.
     resetPlots()
+    // ⭐ TERM-087: a generated answer's draft lands in the ONE source field, AFTER
+    // the reset emptied it (same effect, later line — one writer of the opening
+    // state). An `editRow` still wins: `openForEdit` runs after this effect.
+    if (initialDraft && typeof initialDraft.source === 'string' && initialDraft.source.trim()) {
+      setSource(initialDraft.source)
+      importTelemetryRef.current = initialDraft.importId
+        ? { importId: initialDraft.importId, dialect: initialDraft.dialect || 'ai-search' }
+        : null
+    }
     // ⚠️ BOTH OPENING PROPS ARE DEPENDENCIES, which means changing either
     // re-runs the whole reset. That is correct — a sheet re-aimed at a different
     // door, or at a different row, is a new formula — and `editRow` is why the
     // warning on that prop matters: a string compares by value, an object
     // compares by identity, so a row rebuilt inline per render would empty this
     // form on every parent render.
-  }, [open, editRow, initialMode, resetPlots])
+  }, [open, editRow, initialMode, initialDraft, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *

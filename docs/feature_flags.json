@@ -53,6 +53,23 @@
     "the ledger says WHY a value is what it is and not merely what it is."
   ],
   "flags": {
+    "A8_PRIMARY_MENTION_ENABLED": {
+      "status": "pending",
+      "where": [],
+      "since": "2026-09-28",
+      "note": "TERM-075 (FB-A8-01), ENABLEMENT GATE, default OFF, read per call in api/services/a8_taxonomy.py::primary_mention_enabled(). SERVICE: web (tweet_store reads run in-process on web; the catalyst engine's tweet signal reads the same store). What it arms: the primary-vs-mentioned bit on the tweet story-to-ticker join. tweets.db tweet_tickers gains is_primary INTEGER NOT NULL DEFAULT 1 at _init_db (ADDITIVE: every existing row reads 1 = today's behaviour; nothing is rewritten), and the poller writes a8_taxonomy.resolve_primary's answer (rule lead_cashtag_v1: the first-named cashtag is the story's subject, the rest are mentions) on NEW rows whatever the flag says. Only while this flag is set do the three subject-count reads in tweet_store (tweets_for_ticker, tape, batch_counts) add AND tt.is_primary = 1, so a mention-only ticker stops counting as a subject on every surface that reads them: /api/tweets/ticker|tape|has-tweets-batch, the Movers tweet icons, the catalyst engine's tweet_mention_count, AI Search, voice tools, news adapters. feed() still lists every ticker a tweet names. Unset: every query text is byte-identical to before the column existed (tests/test_a8_primary_mention.py). Not armed: the owner decides, after reading how the lead-cashtag rule treats peer lists ($AAPL $MSFT $GOOGL: only AAPL stays a subject). REVERSAL: unset it; the column and its values are left in place and are inert."
+    },
+    "AI_POPULATION_CAP_MODE": {
+      "status": "dark",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "shadow",
+        "enforce"
+      ],
+      "note": "TERM-078 (FB-I1-04), 2026-09-28. A MODE, not a gate: the population-wide daily cap over member AI requests (api/services/ai_population_cap.py, declared in its AI_POPULATION_MODE_FLAGS table). Read PER CALL, so changing it needs no rebuild. UNSET/off = exactly today's behaviour: admit() returns before touching the database. shadow = every member AI request at a wired door (AI Search's request reservation, Ask Notebook, writing help, property autofill, Compass chat) is counted in daily_counters (auth.db, scope ai_population_requests, subject '*', per ET day) AFTER the member's own reservation succeeds, and a request the cap would refuse is logged once per (door, ET day) as '[ai-population-cap] would-cap mode=shadow door=... day=... cap=N' and ADMITTED - shadow never blocks. enforce = past the cap the door gives back the member's own reservation and answers 429 with ai_population_cap.REFUSAL_SENTENCE, which names the shared cap and says it is not the member's own allowance; Settings -> Plan & Billing -> AI Allowances then shows the shared limit's percent used. An unrecognised value is treated as shadow (never blocks, never silent). FAILS OPEN: a counter-store error admits (daily_counters' rule) and the meter says the count is unavailable. The cap is AI_POPULATION_DAILY_CAP (default 5000 requests per ET day), read per call. Dark on purpose: the cap number has no measured baseline yet (OI-10, spend undetermined). OWNER STEPS: set shadow on web, read the would-cap lines and the day's counter for a trading week, pick the cap from that, then set enforce. ROLLBACK: set it back to off (railway variable --set restarts web; a delete does not - verify the running process, never --kv)."
+    },
     "AI_SEARCH_DOSSIER_ENABLED": {
       "status": "armed",
       "where": [
@@ -73,6 +90,12 @@
         "web"
       ],
       "note": ""
+    },
+    "AI_SEARCH_SCAN_OBJECT_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-087 (item 14 WF-C12), ENABLEMENT GATE, default OFF, read per request in api/services/ai_search_scan_object.py::enabled(). SERVICE: web. What it arms: an AI Search answer (POST /api/ai-search and /api/ai-search/stream) to a screen-shaped ask carries scan_object BESIDE the prose -- the scan formula produced by the builder's own concierge pipeline (definition_concierge.propose, kind=scan, its one validator) or an honest refusal {ok:false, gate, reason} with no tree; the widget re-checks it with the builder's evaluateFormula and offers Open in builder, which opens the existing BuilderSheet on the Conditions tab. MEMBER-VISIBLE when on, and it SPENDS: each screen-shaped ask adds one concierge model call (up to two), bounded by the concierge's per-member dollar cap and the member-lane global gate. Unset: wanted() is False, no model call, no key added to any response (tests/test_ai_search_scan_object.py). REVERSAL: unset it; nothing is stored server-side (a scan only persists if the member saves it through the builder's own Save)."
     },
     "ALERT_ROUTING_ENABLED": {
       "status": "dark",
@@ -581,6 +604,12 @@
       ],
       "note": ""
     },
+    "DECISION_RECORD_MEMBER_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-088 (item 15 ACC-02), ENABLEMENT GATE, default OFF, read per request in api/services/decision_record.py::is_enabled() - the ONE reader: api/routers/auth.py::_access_payload serves it as decision_record_enabled through the same function. SERVICE: web. What it arms: (1) GET /api/decision-record/ticker/{ticker} (api/routers/decision_record.py, require_paid) - every Morning Wire issue that considered a ticker (wire_universe x wire_issues, read ?mode=ro from the installed Brain Pack copy of uct_intelligence.db), the stage each rejection happened at beside the issues it passed, and the record's own derived coverage; (2) the Research page's 'Decision Record' tab. Unset: the route is the FastAPI 404 to every caller including admins, the engine DB is never opened, and the tab is absent (tests/test_decision_record_member.py, ResearchPage.test.jsx). NOT ARMABLE YET, and the blocker is not engineering: backlog TERM-088 names an ACT: - an owner decision that the firm's rejection record may be shown to members at all. Also unmeasured from the repo: whether the nightly Brain Pack carries wire_universe/wire_issues (the surface answers status=unavailable with a reason if it does not, never 'not considered'). REVERSAL: unset it and redeploy web if the unset does not restart it (verify the boot). No row anywhere is written by this surface; nothing to delete."
+    },
     "DEEP_CACHE_ENABLED": {
       "status": "dark",
       "note": "Off 2026-09-02, and superseded in direction. It builds a bars_cache_deep directory on the pod at boot; the architecture has since moved deep history OFF the web pod to a worker origin plus Cloudflare (BARS_HISTORY_ORIGIN_ENABLED / BARS_HISTORY_PROXY_ENABLED, both armed) precisely so the web pod never holds that volume of data. Arming this would push back toward the failure it was moved away from.",
@@ -713,6 +742,12 @@
       "status": "dark",
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
+    },
+    "EDU_CURRICULUM_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-091 (item 15 ACC-13), ENABLEMENT GATE, default OFF, read per call in api/services/education_curriculum.py::is_enabled(). SERVICE: web. What it arms: (1) GET /api/education/lessons and GET /api/education/lessons/{key} (api/routers/education.py, require_paid like every education read) - The UCT Method's text lessons and printable toolkit from docs/curriculum/, each with its spec_verdict census and a derived third-party attribution; (2) a lazy one-shot load of those rows into the EXISTING /data/education.db, table edu_lessons, behind the flag file .edu_lessons_migrate_v1; (3) the Lesson notes block on the Desk's Courses section. Unset: both routes are the FastAPI 404 to every caller including admins, the table is never created or read, and the Courses section renders nothing new (tests/test_education_curriculum.py, CoursesSection tests). NOT ARMABLE WITHOUT AN OWNER RULING: CLM-15 records the Qullamaggie transcript material and the Minervini/O'Neil/Brandt/Wyckoff frameworks as an unresolved licensing question, and arming this makes third-party framework material member-visible at a new scale; the attribution is derived by rules, not read from the source (no curriculum JSON carries an attribution field). REVERSAL: unset it (redeploy web if the unset does not restart it), then python scripts/load_edu_curriculum.py --unload, which deletes only source='curriculum' rows of edu_lessons and removes the flag file - firm content, never member data; edu_videos, edu_paths and edu_path_steps are untouched."
     },
     "ENTITY_MASTER_MEMBER_ENABLED": {
       "status": "pending",
@@ -859,6 +894,18 @@
         "web"
       ],
       "note": ""
+    },
+    "ICS_TOKEN_V2_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-084 (FB-X2-02), ENABLEMENT GATE, default OFF, read per request in api/services/ics_export_token.py::is_enabled(). SERVICE: web. What it arms: GET /api/calendar/export-token mints an EXPIRING v2 subscribe link (signed exp, default 90 days via ICS_TOKEN_TTL_DAYS; the feed shows a one-event 'link expires' notice inside the member's own calendar in the last 14 days) and POST /api/calendar/export-token/rotate resets a member's link (per-member generation bump, also revokes that member's legacy HMAC link; PUSH_SECRET untouched). MIGRATION PATH for links members already subscribed: legacy HMAC links keep working while the flag is on, every fetch is COUNTED per member in auth.db ics_export_token_state, and the feed carries one 're-subscribe' notice event; the owner closes the grace by setting ICS_LEGACY_TOKEN_GRACE_UNTIL=YYYY-MM-DD after reading GET /api/calendar/export-token/legacy-usage (admin). Unset = grace open indefinitely. Flag OFF: export-token, export.ics and every legacy link answer byte-identically to before; v2 links already minted keep verifying (expiry + rotation still enforced) so a rollback does not break calendars subscribed while it was on. Rollback = unset this variable; nothing is deleted."
+    },
+    "INBOUND_ALERTS_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-28",
+      "where": [],
+      "note": "TERM-086 (item 14 WF-B06), ENABLEMENT GATE, default OFF, read per request in api/services/inbound_alerts.py::is_enabled(). SERVICE: web. What it arms: POST /api/inbound-alerts/hook/{token} (the TradingView webhook door; the per-member secret in the path is the credential, stored only as its sha-256, rotatable and revocable, never logged) plus the member's own GET|POST|DELETE /api/inbound-alerts/receiver and POST .../receiver/rotate, and the admin read GET /api/admin/inbound-alerts. A received alert goes ONLY to the token owner's bell and email through watchlist_alert_service.deliver_alert_payload (TERM-011: never the admin Discord). Strict JSON schema (ticker required, unknown fields ignored), 4 KiB body cap, per-token rate limit INBOUND_ALERTS_RATE (default 30/minute), replay dedup per member. INBOUND ONLY: no order path, no brokerage call. OFF: every route of the feature does not match at routing, so the app answers exactly as if the router were not mounted. Rollback = unset this variable; nothing is deleted (tokens and receipts stay in auth.db, so a re-enable finds every member's URL still working). The member-facing Settings panel is not built yet; the API is the whole surface today."
     },
     "INDICATOR_VISION_ENABLED": {
       "status": "armed",
@@ -1143,6 +1190,17 @@
       ],
       "note": ""
     },
+    "RATE_LIMIT_POLICY": {
+      "status": "dark",
+      "where": [],
+      "default": "off",
+      "values": [
+        "off",
+        "shadow",
+        "enforce"
+      ],
+      "note": "A MODE, not a gate: TERM-080 (FB-S9-03) per-route-family HTTP rate limits (api/rate_limit_policy.py). ONE table, FAMILIES, maps route-template prefixes to a family and each family to one limit (tiers: bulk market data 1200/min, standard 600/min, stream connects 120/min, model-backed 120/min, anonymous intake 60/min), plus EXEMPT with a reason (health/ready, the Stripe/Zoom/Discord senders, the app/dist static shell). Applied by one pure-ASGI middleware installed inside CORS in api/main.py, through the SHARED api/limiter.py Limiter (scope route-policy:<family>), so the partner routers are covered at their prefixes without being edited. tests/test_rate_limit_policy.py censuses every route of api.main:app: a route under an undeclared prefix fails BY NAME. KEY: member:<user id> for a valid uct_session (the session lookup is cached 60 s per token, never a read per request), else ip:<salted sha256> of request_ip.client_ip (the raw IP is never logged). Authorization: Bearer <PUSH_SECRET> is exempt (open_reads_gate's constant-time compare). Read PER REQUEST on web, so changing it needs no rebuild. UNSET/off = exactly today's behaviour (the middleware returns after one env read) - which is why it ships dark. shadow = never blocks; every request is counted and a would-limit is logged ONCE PER (family, key, minute) as '[rate-limit-policy] would-limit mode=shadow family=... prefix=... method=... key=member:<id>|ip:<hash> limit=... retry_after=N family_count=N'; GET /api/admin/rate-limit-policy (admin) serves the counts. enforce = 429 with Retry-After (seconds to the window reset), X-RateLimit-Limit/-Remaining/-Reset and a JSON body naming the family. An unrecognised value is shadow (never blocks, never silent). FAILS OPEN: a limiter error logs and lets the request through. PER-PROCESS: the counters are in-memory, so a second web process doubles every budget. The limits are starting ceilings, not measurements. OWNER STEPS: set shadow on web, read the would-limit lines for a trading week (an ip: key with a huge family_count is usually ONE internal caller without the bearer - the chart-renderer on the render family, a script - give it PUSH_SECRET or raise that family's tier before enforcing), tune the tiers, then set enforce. ROLLBACK: set it back to off (or shadow); `railway variable --set` restarts web and a DELETE does not - verify the running process, never --kv."
+    },
     "RATINGS_PERCENTILE_ENABLED": {
       "status": "armed",
       "where": [
@@ -1316,6 +1374,11 @@
         "web"
       ],
       "note": ""
+    },
+    "WATCHLIST_COPY_OR_LINK_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "TERM-077 / FB-A12-03, 2026-09-28. Enablement gate for saving another watchlist (community, prebuilt or your own) into My Lists as a COPY (a snapshot, independent thereafter) or a LINK (the source stays authoritative: the list follows it on every full read, is read-only here, and says when the source is unavailable or the list was edited while unguarded). The member must choose; there is no default mode. Unset means OFF and that is the decision until the owner releases it: POST /api/watchlists/{id}/save-as answers 404, no watchlist response carries an `origin` key, the item routes never 409, and the auth payload does not carry watchlist_copy_or_link_enabled. Read per call (api/services/watchlist_origin.enabled), so a flip needs no rebuild. The table watchlist_origins (auth.db) is created lazily on the ON path only. Turning it OFF never deletes a recorded choice: a linked list stops following and becomes editable again, and on re-enable a list edited meanwhile reports 'paused_edited' rather than being overwritten. Rails: tests/test_watchlist_copy_or_link.py, app/src/pages/watchlist/SaveListDialog.test.jsx."
     },
     "WEEKLY_FLOW_ENABLED": {
       "status": "armed",

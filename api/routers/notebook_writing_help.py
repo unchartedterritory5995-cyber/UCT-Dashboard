@@ -47,6 +47,19 @@ logger = logging.getLogger(__name__)
 NOT_FOUND = "Not Found"   # byte-identical to FastAPI's unknown-route body
 
 
+async def _population_gate(door: str, user_id, cost, day) -> None:
+    """TERM-078: the population-wide daily cap, AFTER the member's own
+    reservation (a member over their own 60 never spends the membership's).
+    Off unless AI_POPULATION_CAP_MODE is set. On an enforce refusal the draft is
+    given back -- same `cost`, same `day` -- and the 429 NAMES the shared cap,
+    never the member's own budget sentence."""
+    from api.services import ai_population_cap
+    refusal = await run_in_threadpool(ai_population_cap.admit, door)
+    if refusal:
+        await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost, day=day)
+        raise HTTPException(status_code=429, detail=refusal)
+
+
 def _require_enabled() -> None:
     """Router-level, so it runs BEFORE any route's own dependencies: an off
     gate reads no credential and looks like no route at all."""
@@ -143,6 +156,7 @@ async def writing_help_stream(
         shared = await run_in_threadpool(note_ask.shared_cap_reached, cost=cost)
         raise HTTPException(status_code=429, detail=(
             wh.SHARED_CAP_SENTENCE if shared else wh.BUDGET_SENTENCE))
+    await _population_gate("notebook_writing_help", user_id, cost, day)
     # Claimed AFTER the reservation so the failure path has one thing to undo.
     # ⛔ The SAME slots as Ask (ruling D-H2): one member's open drafts and open
     # answers share the two a member may hold at once.
@@ -255,6 +269,7 @@ async def writing_help_autofill(
         shared = await run_in_threadpool(note_ask.shared_cap_reached, cost=cost)
         raise HTTPException(status_code=429, detail=(
             wh.SHARED_CAP_SENTENCE if shared else wh.BUDGET_SENTENCE))
+    await _population_gate("notebook_property_autofill", user_id, cost, day)
     if not note_ask.begin_stream(user_id):
         await run_in_threadpool(note_ask.refund_writing_help, user_id, cost=cost, day=day)
         raise HTTPException(status_code=429, detail=wh.BUSY_SENTENCE)

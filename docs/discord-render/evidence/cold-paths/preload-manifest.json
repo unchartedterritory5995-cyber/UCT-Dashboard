@@ -263,7 +263,6 @@
     "api.services.news_aggregator",
     "api.services.news_catalysts",
     "api.services.news_search",
-    "api.services.options_chain",
     "api.services.pattern_backtest",
     "api.services.pattern_engine",
     "api.services.pattern_engine.canonical_adapter",
@@ -1809,11 +1808,6 @@
     {
       "module": "api.services.news_search",
       "cold_ms": 596.4,
-      "error": null
-    },
-    {
-      "module": "api.services.options_chain",
-      "cold_ms": 13370.8,
       "error": null
     },
     {

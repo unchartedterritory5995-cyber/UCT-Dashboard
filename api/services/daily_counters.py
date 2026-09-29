@@ -166,20 +166,29 @@ def give_back(day: str, charges: Iterable[Charge]) -> None:
         conn.close()
 
 
-def value(day: str, scope: str, subject: str) -> float:
-    """The counter's value for `day` (0 when there is none, and on an error)."""
+def read(day: str, scope: str, subject: str) -> float | None:
+    """The counter's value for `day` (0 when there is no row), or None when the
+    store could not be READ. A meter needs the difference `value` erases: "0
+    used" and "unknown, so the cap is failing open" are different sentences to a
+    member (TERM-078). Never raises; one log line on an error."""
     try:
         conn = _connect()
     except Exception as e:  # noqa: BLE001
-        _fail_open("value", e)
-        return 0.0
+        _fail_open("read", e)
+        return None
     try:
         return _read(conn, scope, subject, day)
     except Exception as e:  # noqa: BLE001
-        _fail_open("value", e)
-        return 0.0
+        _fail_open("read", e)
+        return None
     finally:
         conn.close()
+
+
+def value(day: str, scope: str, subject: str) -> float:
+    """The counter's value for `day` (0 when there is none, and on an error)."""
+    v = read(day, scope, subject)
+    return 0.0 if v is None else v
 
 
 def clear() -> None:
