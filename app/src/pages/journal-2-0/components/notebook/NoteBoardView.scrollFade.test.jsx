@@ -143,19 +143,19 @@ describe('the board scroll cue -- rendered (jsdom scroll metrics driven by hand)
     })
   })
 
-  // D5 fix round 1 (M1): the ">2" floor is not ">0". At max<=2 the tolerance clause
-  // above (`scrollLeft < max - 2`) needs a NEGATIVE scrollLeft to ever read true --
-  // which a real LTR page never produces (max-2 <= 0 there) -- so a scrollLeft=0 test
-  // alone cannot tell `max > 2` apart from a loosened `max > 0`; both already read
-  // 'false' at rest. The scrollLeft here is therefore synthetic -- not a scenario a
-  // member can produce -- and exists only to pin the GATE's own boundary, independent
-  // of the tolerance clause above it. Mutation-proved: loosening the floor to
-  // `max > 0` turns this red.
-  it('the ">2" overflow floor is not ">0" -- a 1-2px overflow never opens the fan', () => {
+  // D5 fix round 2 (F1, controller ruling): the ">2" floor this test used to pin is GONE
+  // from NoteBoardView.jsx -- M1b's own mutation-proof (loosen `max > 2` to `max > 0`)
+  // needed a synthetic NEGATIVE scrollLeft to distinguish the two, which is exactly the
+  // tell that the floor railed a code token, not a behaviour any real (scrollLeft >= 0)
+  // input could reach: at max<=2 the tolerance clause alone already forces false. This is
+  // the real-input replacement -- a genuine 1-2px overflow, read AT REST (scrollLeft=0,
+  // the only value a member's browser produces here), still reads as not-yet-scrollable,
+  // now through the tolerance clause ALONE: `0 < max - 2` === `0 < 0` === false.
+  it('a 1-2px overflow at rest (scrollLeft=0) still reads as not-yet-scrollable', () => {
     withScrollMetrics(CLIENT_W + 2, CLIENT_W, () => {
       renderBoard()
       const el = scroller()
-      Object.defineProperty(el, 'scrollLeft', { value: -1, configurable: true })
+      Object.defineProperty(el, 'scrollLeft', { value: 0, configurable: true })
       fireEvent.scroll(el)
       expect(cue()).toBe('false')
     })
@@ -233,18 +233,25 @@ describe('the board scroll cue -- rendered (jsdom scroll metrics driven by hand)
         expect(resizeAddCall, 'the effect registers a resize listener on window').toBeTruthy()
         const registeredResizeFn = resizeAddCall[1]
 
+        // D5 fix round 2 (NIT): snapshot BEFORE unmount() and search only the LATER calls
+        // for the removal -- so the assertion can only be satisfied by a call that happened
+        // AS PART OF the unmount, never by an earlier call that merely used the same
+        // reference for some other reason.
+        const elRemoveLenBefore = elRemove.mock.calls.length
+        const winRemoveLenBefore = winRemove.mock.calls.length
+
         unmount()
         expect(scroller()).toBeNull()
 
-        const scrollRemoved = elRemove.mock.calls.some(
-          (args) => args[0] === 'scroll' && args[1] === registeredScrollFn,
-        )
-        expect(scrollRemoved, 'el.removeEventListener(scroll, SAME fn) was called').toBe(true)
+        const scrollRemoved = elRemove.mock.calls
+          .slice(elRemoveLenBefore)
+          .some((args) => args[0] === 'scroll' && args[1] === registeredScrollFn)
+        expect(scrollRemoved, 'el.removeEventListener(scroll, SAME fn) was called ON unmount').toBe(true)
 
-        const resizeRemoved = winRemove.mock.calls.some(
-          (args) => args[0] === 'resize' && args[1] === registeredResizeFn,
-        )
-        expect(resizeRemoved, 'window.removeEventListener(resize, SAME fn) was called').toBe(true)
+        const resizeRemoved = winRemove.mock.calls
+          .slice(winRemoveLenBefore)
+          .some((args) => args[0] === 'resize' && args[1] === registeredResizeFn)
+        expect(resizeRemoved, 'window.removeEventListener(resize, SAME fn) was called ON unmount').toBe(true)
 
         expect(roCalls.disconnect).toBe(1)
       } finally {
@@ -334,13 +341,12 @@ describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data
     expect(overlay.background).toBeTruthy()
   })
 
-  // D5 fix round 1 (M4): a column scrolled into view (keyboard, scrollIntoView) must not
-  // land directly under the fade, dimmed at the exact moment it's the thing being shown.
-  // scroll-padding-inline-end and the mask's own width share ONE custom property so they
-  // can never drift apart -- this checks both the sharing AND that the literal itself is
-  // declared exactly once (a second "40px" anywhere near it would mean something restated
-  // the width instead of deriving from it).
-  it('scroll-padding-inline-end shares the SAME --board-fade-w token as the mask, never a restated literal', () => {
+  // D5 fix round 1 (M4), re-worded round 2 (F4): the token is declared exactly once, and
+  // neither scroll-padding nor the mask restates a literal. A column scrolled into view
+  // (keyboard, scrollIntoView) must not land directly under the fade, dimmed at the exact
+  // moment it's the thing being shown -- scroll-padding-inline-end and the mask's own width
+  // share ONE custom property so they can never drift apart.
+  it('the token is declared exactly once, and neither scroll-padding nor the mask restates a literal', () => {
     const fade = getFade()
     const base = ruleFrom(css, '.columns')
     expect(base['scroll-padding-inline-end']).toBe('var(--board-fade-w)')

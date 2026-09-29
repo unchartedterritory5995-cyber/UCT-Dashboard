@@ -163,7 +163,11 @@ export default function NoteBoardView({
       // LTR-only: this app has no RTL surface, so "a column sits past the visible edge"
       // only ever means the RIGHT edge -- the mask this drives (NoteBoardView.module.css)
       // fades that side alone, on purpose.
-      const next = max > 2 && el.scrollLeft < max - 2
+      // D5 fix round 2 (F1, controller ruling): no `max > 2 &&` floor -- it was implied by
+      // the tolerance clause below for every REAL (scrollLeft >= 0) input (at max<=2,
+      // `scrollLeft < max - 2` already forces false for any non-negative scrollLeft), so the
+      // floor only ever railed a code token, never a behaviour a member could reach. Dropped.
+      const next = el.scrollLeft < max - 2
       setMoreRight((prev) => (prev === next ? prev : next))
     }
     update()
