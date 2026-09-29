@@ -861,3 +861,75 @@ the runs. Its `README.md` maps each file to the code it measured (each JSON stam
   - both are under the 1.1 / 1.3 lines;
   - the run's BREACH verdict names only count_notes, folder_note_counts, get_symbol_backlinks and list_tasks,
     which this lane does not touch.
+
+## 9. Wave 10, lane PC: the scale curve (clause 14d) and the backlinks pass
+
+Raw files: `docs/notebook/gate-runs/wave10-PC/`, committed before this section (765252933,
+3309d7e08, 848144264, 0e933480d, b9bf0fe9a). The lane's own reading is that directory's `README.md`.
+
+### What the curve breach was
+
+The curve (`--curve`, the log-log slope of p50 over 1k / 5k / 10k / 25k / 50k; bounds fit <= 1.1,
+last segment <= 1.3, unchanged) breached on `count_notes`, `folder_note_counts`,
+`get_symbol_backlinks` and `list_tasks`, in both of the controller's 2026-09-29 runs.
+
+The benchmark read every op through ONE long-lived connection with SQLite's default page cache
+(2 MB) against a ~490 MB database at 50k. `diag-before-slopes.txt` runs the same ops under four
+connection settings, and with a cache sized for the database, or with mmap, every op is linear or
+better:
+
+| op | shared (default cache): fit / last | cache 64 MB | mmap 512 MB | per-call |
+|---|---|---|---|---|
+| count_notes (whole library) | 1.26 / 3.02 | 0.93 / 0.69 | 0.83 / 1.03 | 0.32 / 0.51 |
+| folder_note_counts | 1.12 / 2.29 | 1.03 / 0.61 | 0.94 / 1.04 | 0.34 / 0.49 |
+| get_symbol_backlinks | 1.15 / 1.07 | 1.10 / 0.81 | 1.05 / 0.85 | 0.65 / 0.70 |
+
+So the super-linear shape is the page cache spilling, not an algorithm. Production does not read
+the notes store through one long-lived connection: `api/services/auth_db.get_connection` opens a
+fresh one per call (`timeout=3`, WAL, foreign keys; no pool, no `cache_size`).
+
+### Ruling (controller, under the owner's delegation, 2026-09-29)
+
+Clause 14d's curve is read in **production's connection model**: `notebook_scale_benchmark.py
+--curve --connection per-call`, which opens every timed read through `auth_db.get_connection()`
+itself, pointed at the tier's database. The shared model stays the default and stays a diagnostic;
+every budget line, and the promotion-gating latency and bytes checks, read exactly what they did.
+The curve's bounds are not changed.
+
+⚠️ A per-call reading includes the connection open, a roughly constant cost that flattens a
+log-log slope. Production pays the same cost, which is why it is the right model; it is also why
+a per-call PASS says the product does not grow super-linearly as a member experiences it, and does
+NOT say the queries themselves are free of page-cache effects on a large library.
+
+### The per-call reading
+
+`curve-percall-1.*`, 2026-09-29 11:30 CT, tree `b5c26dea7`: **VERDICT PASS**, every op's fit
+<= 1.1; the four former breaches read `count_notes` 0.354, `folder_note_counts` 0.428,
+`get_symbol_backlinks` 0.542, `list_tasks` 0.791.
+
+⛔ **Not a quiet reading.** Every one of its 20 load samples shows another session's test processes
+(20-22) and CPU at 96-100% (`curve-percall-1-load.txt`). Load inflates every op's time, so the
+absolute numbers mean nothing here; the slope reading stands only until a quiet re-read confirms
+it, and that re-read is owed before the scorecard cites 14d as MET.
+
+### The backlinks change (`dfadfcd57`)
+
+`get_symbol_backlinks` used to run a COUNT pass and then a page pass over the symbol's note set,
+looking every hit up in `idx_j2_notes_id_live` twice, and grouped every embed of the symbol to
+decorate the page's rows. It now takes the total as the window count before the LIMIT
+(`COUNT(*) OVER ()`) and reads the embed detail for the page's ids alone.
+
+- **Speed:** measured A/B on the benchmark's seed at every curve tier (`diag-ab.*`), about half
+  the time, with the same answer on every row. For example, at 50k with the default cache,
+  26-38 ms before and 13-16 ms after.
+- **Rails:** `tests/test_journal_two_backlinks_one_pass.py` checks the answer against an
+  independent truth. `test_symbol_backlinks_look_up_each_hit_ONCE` checks that there is one pass,
+  that the detail read is keyed by the page, and that the order names its id tiebreak.
+- **Mutations:** `mutation-backlinks*.txt`.
+- **The tiebreak `, n.id`:** it cannot be seen behaviourally on today's plan, because the note-id
+  set is a UNION, which hands the ids over in id order. Measured: `mutation-backlinks-M3-tie.txt`.
+  It is therefore railed on the SQL, as the trash order's tiebreak is.
+
+**Rejected:** a covering index for the tasks list. It gave the same answers and was **5-7x
+slower** (for example, 64 ms before and 351 ms after at 25k, `diag-ab.*`). It is not in the
+product.

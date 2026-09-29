@@ -49,3 +49,15 @@ Alternative: set a production `cache_size` / `mmap_size` on the notes connection
 - `dfadfcd57` does not touch the relevance path.
 
 The two readings differ by 2x on unchanged code. So this op's p95 at 50k is load-sensitive near its budget, and one quiet PASS should not be read as margin.
+
+## Update, 2026-09-29 (controller): the ruling was taken, and the review items are closed
+
+- **Ruling:** 14d is read in production's per-call connection model. The instrument change is
+  `b5c26dea7` (`--connection per-call`); the full record is `docs/notebook/perf-budgets.md` §9,
+  which also resolves the three `§9` citations the lane left pointing at a section that did not
+  exist yet (review, Important 1).
+- **Per-call curve:** `curve-percall-1.*` reads PASS, but it was taken on a heavily loaded box
+  (CPU 96-100%, 20+ foreign test processes in every sample), so a quiet re-read is owed.
+- **M3:** a deterministic tie test was added, and it still passes with the tiebreak removed. On
+  today's plan the tiebreak is behaviourally invisible (see `mutation-backlinks-M3-tie.txt`), so
+  it is railed on the SQL instead, and that rail goes red (review, Important 2).
