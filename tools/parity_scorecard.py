@@ -2597,10 +2597,10 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 4012, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4019, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3369, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3376, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
@@ -2641,7 +2641,7 @@ def build(pages_dir=None):
       'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
       'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
       '(G-017, G-127).')
-    R('G-016', 'NA', [code(NS, 2941, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 2948, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
@@ -2658,12 +2658,12 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2623, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'NV', 'P'), [code(NS, 2630, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 3082, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3089, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4286, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4293, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
     R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
@@ -3472,7 +3472,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8246, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8252, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
