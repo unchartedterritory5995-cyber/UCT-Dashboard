@@ -14,8 +14,8 @@ opening breadth reading; it is an artifact of who happened to trade overnight.
 
 ⭐ WHY THE BOUNDARY IS DERIVED FROM PARTICIPATION RATHER THAN A TYPED CALENDAR. The
 repo's canonical calendars (`liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`,
-`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) start at **2025-01-01**, and this reconstruction
-runs back to 2008. Hand-typing nineteen years of half-days is exactly the kind of
+`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) started at **2025-01-01** (closures now from 1993,
+half-days from 2015, 2026-09-28), and this reconstruction runs back to 2008. Hand-typing nineteen years of half-days is exactly the kind of
 transcribed constant that rots silently and is wrong in one place nobody checks.
 
 The market itself already says when it closed: during the regular session thousands of
@@ -135,6 +135,8 @@ def calendar_close_minute(iso: str) -> Optional[int]:
     try:
         from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD as EARLY
         from api.services.liveflow_monitor import _full_closures
+        from api.services.nyse_calendar import (
+            NYSE_EARLY_CLOSES_FROM_YYYYMMDD, NYSE_HOLIDAYS_FROM_YYYYMMDD)
     except Exception:                                   # pragma: no cover
         return None
     d = _dt.date.fromisoformat(iso)
@@ -142,7 +144,12 @@ def calendar_close_minute(iso: str) -> Optional[int]:
     known = set(EARLY) | set(_full_closures() or ())
     if not known:
         return None
-    lo = min(known)
+    # ⛔ THE ERA IS THE LATER OF THE TWO SETS' OWN FLOORS, NEVER ``min(set)``. A
+    # close minute needs BOTH sets, and since 2026-09-28 they start in different
+    # years: closures from 1993, half-days from 2015. ``min(known)`` read 1993 and
+    # would have "confirmed" 16:00 on every 2008-2014 half-day the tape shows
+    # closing at 13:00 -- a disagreement manufactured by an unknown read as "none".
+    lo = max(NYSE_EARLY_CLOSES_FROM_YYYYMMDD, NYSE_HOLIDAYS_FROM_YYYYMMDD)
     if ymd < lo:
         return None                                     # outside the calendar's era
     if ymd in (_full_closures() or ()):

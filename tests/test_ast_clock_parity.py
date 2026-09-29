@@ -288,6 +288,31 @@ def test_the_close_cases_are_not_vacuous():
     assert exp["daily_instants"]["weekfirst"][1:] == [0, 1, 1, 1, 0]
     assert exp["daily_instants"]["monthfirst"][1:] == [0, 1, 1, 1, 0]
 
+    # ⭐ THE CALENDAR AS TRADINGVIEW APPLIES IT (2026-09-28): a half-day the
+    # vendor honours closes at 13:00; 2018-12-24 (before 2019) and 2020-11-27
+    # (a 2020 half-day it keeps full) close at 16:00, as the vendor reads them.
+    half = exp["daily_half_days"]
+    assert [c - t for c, t in zip(half["timeclose"], half["time"])] == [
+        23400, 12600, 23400, 23400, 12600, 12600]
+    assert half["dayclosetime"] == half["timeclose"]
+    vend = exp["sixty_vendor_grid_half_days"]
+    assert vend["timeclose"][3] - vend["time"][3] == 3600      # 2020-11-27 12:30
+    assert vend["timeclose"][10] - vend["time"][10] == 1800    # 2025-11-28 12:30
+    assert vend["timeclose"][11] is None and vend["dayclosetime"][11] is None
+    prod = exp["sixty_product_grid_half_day"]
+    assert prod["timeclose"][3] - prod["time"][3] == 3600      # 12:00 -> 13:00
+    assert prod["timeclose"][4] is None                        # 13:00: after the close
+    # a weekly bar closes on the week's LAST vendor session: Friday 16:00 on the
+    # 1999 / 9-11 / Ford / Sandy weeks (the vendor's own readings), Friday 13:00
+    # after Thanksgiving, Thursday 13:00 before July 4, Thursday 16:00 before Good Friday
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    wk = exp["weekly_holiday_weeks"]["timeclose"]
+    assert [datetime.fromtimestamp(v, et).strftime("%a %H:%M") for v in wk] == [
+        "Fri 16:00", "Fri 16:00", "Fri 16:00", "Fri 16:00",
+        "Fri 13:00", "Thu 13:00", "Thu 16:00"]
+
 
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
     """⛔⛔ THE ONE CLOCK VALUE THAT READS A SECOND BAR, AND THE DEFECT IT CARRIED.

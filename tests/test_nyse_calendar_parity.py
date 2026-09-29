@@ -30,6 +30,7 @@ import pytest
 
 from api.services.bars_fetch import _NYSE_HOLIDAYS_YYYYMMDD
 from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD
+from api.services import nyse_calendar as _leaf
 from api.services.nyse_calendar import (
     NYSE_EARLY_CLOSES_YYYYMMDD as _LEAF_EARLY_CLOSES,
     NYSE_HOLIDAYS_YYYYMMDD as _LEAF_HOLIDAYS,
@@ -85,6 +86,24 @@ def _js_covered_years() -> tuple[int, ...]:
 
 
 _FRONTEND_YEARS = _js_covered_years()
+
+
+def _js_string_const(name: str) -> str:
+    m = re.search(rf"export const {re.escape(name)} = '([^']*)'", _js_source())
+    assert m, f"{name} not found in nyseCalendar.js -- has it been renamed?"
+    return m.group(1)
+
+
+def _iso_to_int(iso: str) -> int:
+    return int(iso.replace("-", ""))
+
+
+#: The first year the half-day set is complete from, read from the JS file's own
+#: ``EARLY_CLOSES_FROM`` (2026-09-28). Before it a year declares no
+#: ``NYSE_EARLY_CLOSES_<year>`` export at all: absent means UNKNOWN there, and an
+#: empty export would read as "no half-days that year", which is false for NYSE.
+_EARLY_FROM_YEAR = int(_js_string_const("EARLY_CLOSES_FROM")[:4])
+_EARLY_YEARS = tuple(y for y in _FRONTEND_YEARS if y >= _EARLY_FROM_YEAR)
 
 
 class TestTheParserItselfIsNotVacuous:
@@ -161,7 +180,7 @@ class TestFullHolidayParity:
 
 
 class TestEarlyCloseParity:
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
+    @pytest.mark.parametrize("year", _EARLY_YEARS)
     def test_frontend_and_backend_agree_on_every_early_close(self, year):
         frontend = _js_dates_for_export(f"NYSE_EARLY_CLOSES_{year}")
         backend = {d for d in _BACKEND_EARLY_CLOSES_ISO if d.startswith(str(year))}
@@ -178,7 +197,7 @@ class TestNoFullHolidayIsAlsoAnEarlyClose:
     Saturday; Dec 24 2027 is a full holiday because Dec 25 falls on a
     Saturday -- neither is also listed as an early close)."""
 
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
+    @pytest.mark.parametrize("year", _EARLY_YEARS)
     def test_frontend_holidays_and_early_closes_are_disjoint(self, year):
         holidays = _js_dates_for_export(f"NYSE_HOLIDAYS_{year}")
         early = _js_dates_for_export(f"NYSE_EARLY_CLOSES_{year}")
@@ -186,3 +205,86 @@ class TestNoFullHolidayIsAlsoAnEarlyClose:
             f"{year}: date(s) {sorted(holidays & early)} are listed as BOTH "
             "a full holiday and an early close in nyseCalendar.js"
         )
+
+
+class TestTheTwoSidesCoverTheSameYears:
+    """⚰️ 2025 WAS IN THE PYTHON SET AND MISSING FROM THE JS FILE, AND NOTHING SAW IT.
+
+    Every parity assertion above is parametrised over the years the JS file
+    DECLARES, so a year only the backend held was compared against nothing and
+    the suite stayed green (found 2026-09-28, when both sets were extended back
+    to 1993). The coverage itself is now held equal, in both directions, and the
+    half-day floor is one fact read from both files.
+    """
+
+    def test_every_backend_holiday_year_is_a_frontend_year(self):
+        backend_years = {int(d[:4]) for d in _BACKEND_HOLIDAYS_ISO}
+        assert backend_years == set(_FRONTEND_YEARS), (
+            f"backend-only years {sorted(backend_years - set(_FRONTEND_YEARS))}, "
+            f"frontend-only years {sorted(set(_FRONTEND_YEARS) - backend_years)}"
+        )
+
+    def test_the_half_day_floor_is_the_same_fact_on_both_sides(self):
+        assert _iso_to_int(_js_string_const("EARLY_CLOSES_FROM")) == (
+            _leaf.NYSE_EARLY_CLOSES_FROM_YYYYMMDD)
+        assert min(_LEAF_EARLY_CLOSES) >= _leaf.NYSE_EARLY_CLOSES_FROM_YYYYMMDD
+        assert min(_LEAF_HOLIDAYS) >= _leaf.NYSE_HOLIDAYS_FROM_YYYYMMDD
+
+    def test_no_year_before_the_floor_declares_a_half_day_export(self):
+        src = _js_source()
+        early_years = {int(y) for y in re.findall(r"export const NYSE_EARLY_CLOSES_(\d{4}) =", src)}
+        assert early_years == set(_EARLY_YEARS), sorted(early_years ^ set(_EARLY_YEARS))
+
+
+class TestTheTradingViewViewIsOneFactInTwoFiles:
+    """⭐ WHAT THE VENDOR'S SESSION APPLIES (2026-09-28) -- four facts per side,
+    compared, and the DERIVED sets compared too, so a JS derivation that drifted
+    from the Python one (a ``>`` for a ``>=``) cannot hide behind equal inputs."""
+
+    def test_the_two_floors_agree(self):
+        assert _iso_to_int(_js_string_const("TRADINGVIEW_CLOSURES_FROM")) == (
+            _leaf.TRADINGVIEW_CLOSURES_FROM_YYYYMMDD)
+        assert _iso_to_int(_js_string_const("TRADINGVIEW_EARLY_CLOSES_FROM")) == (
+            _leaf.TRADINGVIEW_EARLY_CLOSES_FROM_YYYYMMDD)
+
+    def test_the_two_exception_lists_agree(self):
+        js_c = {_iso_to_int(d) for d in _js_dates_for_export("TRADINGVIEW_UNAPPLIED_CLOSURES")}
+        js_e = {_iso_to_int(d) for d in _js_dates_for_export("TRADINGVIEW_UNAPPLIED_EARLY_CLOSES")}
+        assert js_c == set(_leaf.TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD)
+        assert js_e == set(_leaf.TRADINGVIEW_UNAPPLIED_EARLY_CLOSES_YYYYMMDD)
+        # an exception must name a date the NYSE set actually holds, or it
+        # subtracts nothing and reads as a rule that was applied
+        assert js_c <= set(_LEAF_HOLIDAYS)
+        assert js_e <= set(_LEAF_EARLY_CLOSES)
+
+    def test_the_js_derivation_of_the_vendor_view_equals_the_python_one(self):
+        import subprocess, json, shutil
+        node = shutil.which("node")
+        if node is None:
+            pytest.skip("node is not on PATH")
+        prog = (
+            "import('./src/lib/marketClock/nyseCalendar.js').then((m) => {"
+            "const out = {closures: [], early: []};"
+            "for (let y = 1993; y <= 2027; y++) for (let mo = 1; mo <= 12; mo++)"
+            " for (let d = 1; d <= 31; d++) {"
+            "  const k = y * 10000 + mo * 100 + d;"
+            "  const dt = new Date(Date.UTC(y, mo - 1, d));"
+            "  if (dt.getUTCMonth() !== mo - 1) continue;"
+            "  const dow = dt.getUTCDay(); if (dow === 0 || dow === 6) continue;"
+            "  const c = m.tradingViewCloseMinute(k);"
+            "  if (c === null) out.closures.push(k); else if (c === 780) out.early.push(k);"
+            " }"
+            "process.stdout.write(JSON.stringify(out)); })"
+        )
+        res = subprocess.run([node, "--input-type=module", "-e", prog],
+                             cwd=str(_JS_PATH.parents[3]), capture_output=True,
+                             text=True, encoding="utf-8", timeout=120)
+        assert res.returncode == 0, res.stderr[-2000:]
+        got = json.loads(res.stdout)
+        # ⛔ non-vacuity: the sweep must have SEEN the vendor view, not an empty one
+        assert len(got["closures"]) > 200 and len(got["early"]) >= 13
+        assert set(got["closures"]) == set(_leaf.TRADINGVIEW_CLOSURES_YYYYMMDD)
+        assert set(got["early"]) == set(_leaf.TRADINGVIEW_EARLY_CLOSES_YYYYMMDD)
+        for k in got["closures"][:40] + got["early"]:
+            py = _leaf.tradingview_close_minute(k)
+            assert py == (None if k in got["closures"] else 780), k

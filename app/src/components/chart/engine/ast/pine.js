@@ -7993,8 +7993,8 @@ export class Resolver {
    *  The readings: probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`
    *  on AMEX:SPY at full history — `tests/fixtures/vendor/harness/vw-clock-close-
    *  tfchange-spy-{1d,1w}-2026-09-28.json` (8,473 and 1,758 bars) and a 20,616-bar
-   *  60m capture kept outside git for size. The column meanings, and the counted
-   *  early-close / holiday mismatch of `time_close`, are
+   *  60m capture kept outside git for size. The column meanings, and how
+   *  `time_close` reads the vendor's early closes and holiday weeks, are
    *  `indicators.js::CLOCK_TIME_DERIVED`'s.
    *
    *   `timeframe.change("D"|"W"|"M")` — equal, bar for bar on all three charts,
@@ -8008,7 +8008,8 @@ export class Resolver {
    *     `YYYYMMDD` int, so the clock is blank there, and the window-dependent
    *     `isfirst` is refused by every screen consumer anyway; the refusal here
    *     says so at the door instead of at save time.
-   *   `time_close("D")` — 16:00 New York on the date the bar opened (`dayclosetime`),
+   *   `time_close("D")` — the session close (16:00 New York, 13:00 on a half-day
+   *     the vendor honours) on the date the bar opened (`dayclosetime`),
    *     in milliseconds for a script that declares a `//@version`, exactly as
    *     `time("D")` is; SECONDS for a versionless one, as `time("D")` is too.
    *
@@ -10101,9 +10102,9 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
   // names "our clock does not declare... so this map could never be
   // consulted" for it. It can be now.
   timenow: 'lastbartime',
-  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END on the regular-
-  // session template (`indicators.js::CLOCK_TIME_DERIVED`, the `timeclose` note),
-  // measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
+  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END, at the session
+  // close as TradingView's calendar applies it (`indicators.js::CLOCK_TIME_DERIVED`,
+  // the `timeclose` note), measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
   // it is also in `PINE_CLOCK_MISMATCH` and `PINE_CLOCK_TRANSFORM`, exactly as
   // `time` is: milliseconds for a script that declares a `//@version`, refused by
   // its unit for one that does not.

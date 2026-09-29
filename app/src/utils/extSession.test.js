@@ -123,9 +123,20 @@ describe('getExtSession — outside nyseCalendar.js coverage (must degrade EXACT
     expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2026-12-31' })
   })
 
-  it('a real 2025 holiday (Christmas) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
-    vi.setSystemTime(new Date('2025-12-25T15:00:00Z')) // Thu 10:00 EST, 2025 has no calendar table
-    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2025-12-25' })
+  // ⚰️ This case used 2025-12-25 until 2026-09-28, when 2025 was a Python-only
+  // year: `nyse_calendar.py` held it and this file's calendar did not, and the
+  // parity test only walked the JS side's years, so nothing saw the gap. Both
+  // sides now cover 1993-2027; 2025 is recognized below and the degrade is
+  // pinned on a year before the coverage instead.
+  it('a real 2025 holiday (Christmas) is recognized now that both calendars carry 2025', () => {
+    vi.setSystemTime(new Date('2025-12-25T15:00:00Z')) // Thu 10:00 EST, Christmas Day
+    // The prior real session is the 12-24 half-day.
+    expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2025-12-24' })
+  })
+
+  it('a real holiday before coverage (Christmas 1992) is NOT recognized -- degrades honestly, exactly as before', () => {
+    vi.setSystemTime(new Date('1992-12-25T15:00:00Z')) // Fri 10:00 EST, 1992 has no calendar table
+    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '1992-12-25' })
   })
 })
 

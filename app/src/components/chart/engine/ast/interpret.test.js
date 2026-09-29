@@ -1227,9 +1227,24 @@ describe('the interpreter is PURE', () => {
     const indicatorsScan = scan(indicatorsTree, WIDENED_BY)
     expect(indicatorsScan.findings,
       'indicators.js reached something outside pure arithmetic').toEqual([])
-    // ⛔ IT IS A LEAF. If it ever imports anything, that import is inside this
-    // closure and unscanned, and this case would keep passing.
-    expect(indicatorsScan.imports).toEqual([])
+    // ⛔ ITS ONE EDGE IS THE CALENDAR, AND THE CALENDAR IS SCANNED TOO. Until
+    // 2026-09-28 this read `toEqual([])` — a leaf. The C8 close columns now read
+    // the session close as TradingView applies it from `nyseCalendar.js` (the one
+    // JS calendar, parity-tested against `nyse_calendar.py`), so that module is
+    // inside this closure, and admitting the edge unscanned would be the hollow
+    // widening the notes above warn against. Any OTHER import is still a failure.
+    expect(indicatorsScan.imports).toEqual(['../../lib/marketClock/nyseCalendar.js'])
+    const CALENDAR = path.join(path.dirname(INDICATORS), '..', '..', 'lib', 'marketClock', 'nyseCalendar.js')
+    const calendarSrc = fs.readFileSync(CALENDAR, 'utf8')
+    expect(calendarSrc.length).toBeGreaterThan(2000)
+    const calendarTree = acorn.parse(calendarSrc, { ecmaVersion: 2023, sourceType: 'module' })
+    // `Date` again as a CONSTRUCTOR over a date the caller names (`Date.UTC`,
+    // `getUTCDay`) — never `Date.now`, which the member check still catches.
+    const calendarScan = scan(calendarTree, ['Date'])
+    expect(calendarScan.findings, 'nyseCalendar.js reached something outside pure arithmetic').toEqual([])
+    // ⛔ AND IT CLOSES: the calendar imports nothing.
+    expect(calendarScan.imports).toEqual([])
+    expect(scan(calendarTree).findings).toEqual(['free identifier: Date'])
     // ⛔ AND THE WIDENING IS EXACTLY WHAT IT CLAIMS. Without the extension the
     // findings must be precisely the two names it spells — no more (or the
     // extension is hiding something) and no fewer (or it is admitting a name

@@ -2,7 +2,7 @@
   "_": "THE CLOCK ORACLE. Twenty-one bars and every column `app/src/components/chart/indicators.js::computeClock` produces for them, RECORDED FROM THAT LANE and asserted by the other one (`tests/test_ast_clock_parity.py`). It is the `self_lag_parity.json` idiom: a lane that drifts fails against the OTHER LANE'S OWN OUTPUT rather than against numbers somebody retyped in a docstring. ⚠️ THIS NOTE ONCE SAID \"the thirteen columns\" and the count went stale the day six more landed — the exact defect this repo keeps paying for. It names no count now; read `expected`.",
   "_bars": "SYNTHETIC AND DELIBERATELY NOT A TRADING SERIES. Three properties are what it is for, and none of them survives in ordinary tape. (1) THE DST FALLBACK: bars 8-12 straddle 2025-11-02, when ET goes 01:59:59 EDT -> 01:00:00 EST, so 01:30 ET occurs TWICE, one UTC hour apart. Both must read hour 1 minute 30; an implementation holding one offset captured at import reads the second as 2:30, and is correct for half the year. (2) A WEEKEND: real US equity bars never print on a Saturday or a Sunday, so `dayofweek` could not cover 7 or 1 from any honest series -- these two days are invented on purpose and the fixture says so rather than implying the tape has them. (3) TWO MIDNIGHTS: bar 5 is 20:00 ET on 2025-10-31, which is 00:00 UTC on the 1st (the trap `VWAP_SESSION_ANCHOR` retired -- it must stay inside the Friday ET day, `sessionfirst` 0), and bar 18 is 00:00 ET, which IS the ET session boundary and must be `sessionfirst` 1.",
   "_barstate_cases": "The six barstate columns under each value of `newest_bar_is_forming`. ⚠️ The `null` case has NO equivalent in any pre-2026-09-09 fixture — the retired seam could not express it — so it is new data rather than a re-recording, and it is covered from the other side by `tests/test_bar_close_state.py` and the null-blanks render test in `app/src/components/chart/engine/ast/barstate.test.js`.",
-  "_close_cases": "⭐⭐ `time_close`, `time_close(\"D\")` AND `timeframe.change` (C8, 2026-09-28). Each `close_cases` entry is a series and the timeframe it is read under; `close_expected` is what both lanes compute for it. The rules were measured on AMEX:SPY at full history (`tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-*`) and are stated in `indicators.js::CLOCK_TIME_DERIVED`: the regular-session TEMPLATE close (the vendor's 13 early closes and holiday weeks are counted there, not reproduced), and the one 60m bar — 09:30 — whose close depends on which grid the series is on.",
+  "_close_cases": "⭐⭐ `time_close`, `time_close(\"D\")` AND `timeframe.change` (C8, 2026-09-28). Each `close_cases` entry is a series and the timeframe it is read under; `close_expected` is what both lanes compute for it. The rules were measured on AMEX:SPY at full history (`tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-*`) and are stated in `indicators.js::CLOCK_TIME_DERIVED`: the session close as TradingView's calendar applies it (13:00 on a half-day it honours, the week's LAST session on a holiday week, read from the one calendar since 2026-09-28; the `*_half_days` and `weekly_holiday_weeks` cases pin it), and the one 60m bar — 09:30 — whose close depends on which grid the series is on.",
   "_expected": "`null` IS NaN, never a value. Every column is aligned to `bars` and exactly as long. Recorded with `tf` = \"5\", which is why the four timeframe booleans read 1/0/0/0 here; `tf_booleans` is what covers the rest. ⛔ `sessionfirst[0]` IS null AND THAT IS THE COLUMN'S WARM-UP, NOT A GAP IN THE FIXTURE. It reads the PREVIOUS bar's ET day, declares `lookback: 1` for it, and the oldest bar has no previous day to differ from. It read 1 until 2026-08-26; that 1 was a value the WINDOW produced rather than the tape -- slicing this same series at bar 1 or bar 4 made its new leading bar claim to open a session too. The `sliced` block below is what holds that fixed. ⭐⭐ THE SIX BARSTATE COLUMNS WERE ADDED 2026-09-09 and are RECORDED WITH newestBarIsForming=false — the default, which is the screener's true state (every delivered bar is closed at scan time) and NOT a guess. A forming-bar fixture is a separate recording; this one pins the closed-series contract both lanes must agree on.",
   "_iso_daily": "⭐⭐ A DAILY SERIES KEYED BY ISO DATES (Q-T1, 2026-09-28) — the shape the chart's `/api/bars` serves. Under tf \"D\" each date reads as its session's opening instant, 09:30 America/New_York (`indicators.js::barOpenInstant` / `indicator_compute.bar_open_instant`), which is the instant TradingView stamps as a daily bar's `time`; the series crosses both DST changes, so a fixed UTC offset would miss half of it. Under tf \"W\" (`iso_weekly_expected`) the same dates stay blank: which day a weekly bar is keyed by is unmeasured, so it is not guessed.",
   "_newest_bar_is_forming": "⭐⭐ THE TRI-STATE, AND IT REPLACED A `now`. `true` / `false` / `null`, handed in per fetch and produced upstream by `indicator_compute.bar_close_state` — the only place the NYSE closure and early-close sets are read. ⛔ `null` MEANS UNKNOWN AND NEVER MEANS FALSE: under it the four CLOCK_REALTIME columns are blank, while the extent pair (`islast`, `isfirst`) still answers because it reads only the fetch's shape. `barstate_cases` pins all three so a future edit cannot collapse unknown onto false and stay green.",
@@ -672,6 +672,59 @@
     }
   },
   "close_cases": {
+    "daily_half_days": {
+      "bars": [
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1545661800,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1562160600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606487400,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606746600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1766586600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1795789800,
+          "v": 1
+        }
+      ],
+      "tf": "D"
+    },
     "daily_instants": {
       "bars": [
         {
@@ -961,6 +1014,51 @@
       ],
       "tf": "60"
     },
+    "sixty_product_grid_half_day": {
+      "bars": [
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764340200,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764342000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764345600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764349200,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764352800,
+          "v": 1
+        }
+      ],
+      "tf": "60"
+    },
     "sixty_vendor_grid": {
       "bars": [
         {
@@ -1046,6 +1144,168 @@
       ],
       "tf": "60"
     },
+    "sixty_vendor_grid_half_days": {
+      "bars": [
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606487400,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606491000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606494600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606498200,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606501800,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606505400,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1606509000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764340200,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764343800,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764347400,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764351000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1764354600,
+          "v": 1
+        }
+      ],
+      "tf": "60"
+    },
+    "weekly_holiday_weeks": {
+      "bars": [
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 919089000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1000128600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1167834600,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1351517400,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1732545000,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1751290200,
+          "v": 1
+        },
+        {
+          "c": 1,
+          "h": 1,
+          "l": 1,
+          "o": 1,
+          "t": 1774877400,
+          "v": 1
+        }
+      ],
+      "tf": "W"
+    },
     "weekly_instants": {
       "bars": [
         {
@@ -1101,6 +1361,56 @@
     }
   },
   "close_expected": {
+    "daily_half_days": {
+      "dayclosetime": [
+        1545685200,
+        1562173200,
+        1606510800,
+        1606770000,
+        1766599200,
+        1795802400
+      ],
+      "monthfirst": [
+        null,
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "sessionfirst": [
+        null,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "time": [
+        1545661800,
+        1562160600,
+        1606487400,
+        1606746600,
+        1766586600,
+        1795789800
+      ],
+      "timeclose": [
+        1545685200,
+        1562173200,
+        1606510800,
+        1606770000,
+        1766599200,
+        1795802400
+      ],
+      "weekfirst": [
+        null,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
     "daily_instants": {
       "dayclosetime": [
         1761854400,
@@ -1369,6 +1679,50 @@
         0
       ]
     },
+    "sixty_product_grid_half_day": {
+      "dayclosetime": [
+        1764352800,
+        1764352800,
+        1764352800,
+        1764352800,
+        null
+      ],
+      "monthfirst": [
+        null,
+        0,
+        0,
+        0,
+        0
+      ],
+      "sessionfirst": [
+        null,
+        0,
+        0,
+        0,
+        0
+      ],
+      "time": [
+        1764340200,
+        1764342000,
+        1764345600,
+        1764349200,
+        1764352800
+      ],
+      "timeclose": [
+        1764342000,
+        1764345600,
+        1764349200,
+        1764352800,
+        null
+      ],
+      "weekfirst": [
+        null,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
     "sixty_vendor_grid": {
       "dayclosetime": [
         1772830800,
@@ -1441,6 +1795,148 @@
         1,
         0,
         0
+      ]
+    },
+    "sixty_vendor_grid_half_days": {
+      "dayclosetime": [
+        1606510800,
+        1606510800,
+        1606510800,
+        1606510800,
+        1606510800,
+        1606510800,
+        1606510800,
+        1764352800,
+        1764352800,
+        1764352800,
+        1764352800,
+        null
+      ],
+      "monthfirst": [
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "sessionfirst": [
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ],
+      "time": [
+        1606487400,
+        1606491000,
+        1606494600,
+        1606498200,
+        1606501800,
+        1606505400,
+        1606509000,
+        1764340200,
+        1764343800,
+        1764347400,
+        1764351000,
+        1764354600
+      ],
+      "timeclose": [
+        1606491000,
+        1606494600,
+        1606498200,
+        1606501800,
+        1606505400,
+        1606509000,
+        1606510800,
+        1764343800,
+        1764347400,
+        1764351000,
+        1764352800,
+        null
+      ],
+      "weekfirst": [
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "weekly_holiday_weeks": {
+      "dayclosetime": [
+        919112400,
+        1000152000,
+        1167858000,
+        1351540800,
+        1732568400,
+        1751313600,
+        1774900800
+      ],
+      "monthfirst": [
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "sessionfirst": [
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "time": [
+        919089000,
+        1000128600,
+        1167834600,
+        1351517400,
+        1732545000,
+        1751290200,
+        1774877400
+      ],
+      "timeclose": [
+        919458000,
+        1000497600,
+        1168030800,
+        1351886400,
+        1732903200,
+        1751562000,
+        1775160000
+      ],
+      "weekfirst": [
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
       ]
     },
     "weekly_instants": {

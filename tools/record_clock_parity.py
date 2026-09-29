@@ -208,10 +208,12 @@ def record(compute_clock, source: dict) -> dict:
         "read under; `close_expected` is what both lanes compute for it. The rules "
         "were measured on AMEX:SPY at full history "
         "(`tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-*`) and are "
-        "stated in `indicators.js::CLOCK_TIME_DERIVED`: the regular-session "
-        "TEMPLATE close (the vendor's 13 early closes and holiday weeks are "
-        "counted there, not reproduced), and the one 60m bar — 09:30 — whose close "
-        "depends on which grid the series is on."
+        "stated in `indicators.js::CLOCK_TIME_DERIVED`: the session close as "
+        "TradingView's calendar applies it (13:00 on a half-day it honours, the "
+        "week's LAST session on a holiday week, read from the one calendar since "
+        "2026-09-28; the `*_half_days` and `weekly_holiday_weeks` cases pin it), "
+        "and the one 60m bar — 09:30 — whose close depends on which grid the "
+        "series is on."
     )
     out["_recorder"] = (
         "⛔ GENERATED — DO NOT HAND-EDIT. Rewrite with "
