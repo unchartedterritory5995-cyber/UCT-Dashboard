@@ -1,0 +1,18 @@
+{"pass": "orb@667", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@667+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@740", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@740+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@844", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@844+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@932", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "orb@932+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 0}
+{"pass": "hub@667", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@667+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@740", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@740+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@844", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@844+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@932", "width": 390, "surface": "editor", "error": null, "findings": 1}
+{"pass": "hub@932+hintseen", "width": 390, "surface": "editor", "error": null, "findings": 1}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\Users\Patrick\uct-worktrees\notebook-w10s2\docs\plans\joystick\sandbox-runs\2026-09-28T20-03-01.md
+{"controls_valid": true, "findings": 8, "named_leads": {"CLEARED": 114, "CONFIRMED": 8}, "errors": 0}
