@@ -135,6 +135,10 @@ import SYMBOL_SCOPE from './symbolScope.json'
 // held in ONE place. Every colour name this file resolves goes through it, with
 // the script's version; see `PALETTE_VERSION` below for how the version travels.
 import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pinePalette.js'
+// ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
+// runtime, both from ONE module so what this door admits and what the runtime
+// draws cannot drift (C15, objects-triage step 13).
+import { compileMessagePattern } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -10862,6 +10866,19 @@ export function boundName(toks, eqIndex) {
  *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
 const TEXT_MAX_DEPTH = 64
 
+/** ⭐⭐ HOW MANY STEPS ONE TEXT READ MAY TAKE — a WORK bound beside the depth one.
+ *
+ *  ⚰️ C15, MEASURED 2026-09-29: letting `openName` open a name at any depth
+ *  (it used to refuse past 8 — a hop guard read as a nesting guard) turned
+ *  `screener-mean-reversion-channel`'s forty-step accumulation
+ *  (`s := c ? s + x : s`, both arms naming `s`) into a 2^40 walk and hung the
+ *  member door. The old cap was bounding that by accident. This bounds it on
+ *  purpose: a text whose reading takes more steps than this is refused and
+ *  named (`objectDiagnostics.textTooLarge`) — a text that big would be a tree
+ *  of that size in the saved document anyway. The deepest SERVED text in the
+ *  corpus (rsmi's info box) takes a few hundred. */
+const TEXT_WORK_BUDGET = 4096
+
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
 /** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
@@ -13017,6 +13034,32 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return walk(node, 0)
   }
 
+  /** ⭐ A call made INSIDE an inlined body, with its arguments rewritten through
+   *  that body's frame — or null when a rewritten argument still names the
+   *  frame's own parameters or locals (they mean nothing at the frame's caller).
+   *  See the nested-helper branch in `textNodeOf`. */
+  const flattenThroughFrame = (call, inline) => {
+    const args = call.args || []
+    if (!inline || !inline.bound || args.some((a) => a && a.name)) return null
+    const params = new Set(inline.bound.params || [])
+    const bodyEnv = inline.bodyEnv
+      || (inline.bound.value && inline.bound.value.env) || null
+    const callerEnv = inline.callerEnv || scopeEnv
+    const out = args.map((a) => ({ value: substituteFrame(a && a.value !== undefined ? a.value : a, inline) }))
+    const leaks = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 32) return false
+      if (Array.isArray(n)) return n.some((x) => leaks(x, d + 1))
+      if (n.type === 'name') {
+        if (params.has(n.name)) return true
+        const local = bodyEnv && typeof bodyEnv.get === 'function' ? bodyEnv.get(n.name) : null
+        const outer = callerEnv && typeof callerEnv.get === 'function' ? callerEnv.get(n.name) : null
+        if (local && local !== outer) return true
+      }
+      return Object.entries(n).some(([k, v]) => k !== 'tok' && k !== 'endTok' && leaks(v, d + 1))
+    }
+    return out.some((a) => !a.value || leaks(a.value, 0)) ? null : out
+  }
+
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
@@ -13074,14 +13117,213 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  ⭐ ONE GUARD, NOT THREE. All three numeric mint sites route through here,
    *  so the rule is stated once and a fourth mint site cannot quietly skip it
    *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
-  const numNode = (ast, fmt) => {
+  const numNode = (ast, fmt, implicit = false) => {
     if (enumLeaves) return null
     const ref = internTree(ast)
-    return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+    if (!ref) return null
+    // ⭐⭐ A NUMBER NOBODY STRINGIFIED, INSIDE A `str.format` ARGUMENT, is
+    // formatted the way `{N}` formats it — not the way `str.tostring` would.
+    // ⛔ ONLY an implicit number: `str.format("{0}", str.tostring(x))` hands the
+    // pattern TEXT, and that text keeps `str.tostring`'s own rules.
+    if (implicit && messageNumber) return { t: 'num', tree: ref.tree, ...messageNumber }
+    return { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) }
+  }
+
+  /** ⭐ Set only while one `str.format` ARGUMENT is read (`strFormatNodeOf`),
+   *  cleared in a `finally` — the same discipline as `enumLeaves`. It is the
+   *  `{form:'message', fmt?}` an implicit number in that argument takes. */
+  let messageNumber = null
+  /** The current top-level text read's step count — see `TEXT_WORK_BUDGET`. */
+  let textWork = { steps: 0, over: false }
+
+  /**
+   * ⭐⭐ `str.format(pattern, arg0, …)` → literal parts and argument slots.
+   *
+   * The pattern must be a string this door can read at translate time; the
+   * grammar it may use is `compileMessagePattern`'s, which admits only what a
+   * vendor capture pins and refuses the rest BY NAME (`textFormatRefusals`).
+   *
+   * ⛔ AN ARGUMENT IS READ AS TEXT FIRST. A text argument (`"x"`, a name bound to
+   * text, `str.tostring(v)`) is inserted as-is, exactly as MessageFormat inserts
+   * a string; only an implicit NUMBER takes the `{N}` number form. A numeric
+   * element (`{0,number,#.##}`) over a text argument is refused — MessageFormat
+   * throws there, and a cell must not show what a throw would have shown.
+   */
+  const strFormatNodeOf = (node, scope, depth, inline, envAt) => {
+    const refuseFmt = (why) => {
+      diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+      diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+      return null
+    }
+    const args = node.args || []
+    if (!args.length || args.some((a) => a && a.name)) return refuseFmt('format:arguments')
+    let patNode = args[0].value
+    // ⭐ A pattern held in a name is still a literal the script fixed.
+    for (let hop = 0; patNode && patNode.type === 'name' && hop < 8; hop += 1) {
+      const opened = openName(patNode, scope, 0)
+      if (!opened) break
+      patNode = opened.node
+    }
+    if (!patNode || patNode.type !== 'string') return refuseFmt('format:pattern-not-literal')
+    const compiled = compileMessagePattern(String(patNode.value), args.length - 1)
+    if (!compiled.ok) return refuseFmt(compiled.why)
+    const parts = []
+    for (const p of compiled.parts) {
+      if (p.lit !== undefined) { parts.push({ t: 'lit', s: p.lit }); continue }
+      const prev = messageNumber
+      messageNumber = { form: 'message', ...(p.fmt ? { fmt: p.fmt } : {}) }
+      let t = null
+      try {
+        t = textNodeOf(args[p.arg + 1].value, scope, depth + 1, inline, envAt)
+      } finally { messageNumber = prev }
+      if (!t) return null
+      if (p.fmt && !(t.t === 'num' && t.form === 'message')) return refuseFmt('format:number-over-text')
+      parts.push(t)
+    }
+    if (!parts.length) return { t: 'lit', s: '' }
+    return parts.length === 1 ? parts[0] : { t: 'cat', args: parts }
+  }
+
+  /**
+   * ⛔⛔ C15 — A TEXT WHOSE BRANCH HANGS ON HOW `timeframe.period` IS SPELLED, in a
+   * `//@version=6` script, is WITHHELD rather than drawn.
+   *
+   * MEASURED on `ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28` (v6, 1D):
+   * `f_mtfMark("D")` is `timeframe.period == "D" ? "► " : "   "` and TradingView
+   * drew `"   1D"` — so on a v6 daily chart the period is NOT `"D"` — and
+   * `f_tfLabel()`'s default arm (`=> timeframe.period`) drew `"1D"`. This engine
+   * answers `"D"` for every version (`basePeriodOf`), so it drew `"► 1D"`: a
+   * text the vendor does not show. The spelling is one value read by the columnar
+   * resolver, the runtime lane and the request router alike, so changing it is not
+   * an object-text change and is not made here (objects-triage step 13 names it).
+   * What IS made here: a text whose choice FLIPS between the two spellings
+   * (`== "D"`, `!= "1W"`, …) is refused, so the wrong branch is never drawn. A
+   * comparison both spellings answer alike (`== "15"`) is untouched.
+   */
+  const V6_PERIOD_SPELLINGS = new Set(['D', '1D', 'W', '1W', 'M', '1M'])
+  const periodSpellingDecides = (test, inline, env) => {
+    if (!test) return false
+    let version = null
+    try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+    if (!(version >= 6)) return false
+    const framed = inline ? substituteFrame(test, inline) : test
+    const textOf = (n) => {
+      for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+        const opened = openName(n, env || scopeEnv, 0)
+        if (!opened) return null
+        n = opened.node
+      }
+      return n && n.type === 'string' ? String(n.value) : null
+    }
+    const isPeriod = (n) => n && n.type === 'name' && OWN_TF_NAMES.has(n.name)
+      && !(env && typeof env.get === 'function' && env.get(n.name))
+    const walk = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 24) return false
+      if (n.type === 'binary' && (n.op === '==' || n.op === '!=')) {
+        if (isPeriod(n.left) && V6_PERIOD_SPELLINGS.has(textOf(n.right))) return true
+        if (isPeriod(n.right) && V6_PERIOD_SPELLINGS.has(textOf(n.left))) return true
+      }
+      for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+        if (walk(n[k], d + 1)) return true
+      }
+      if (Array.isArray(n.args)) {
+        for (const a of n.args) if (walk(a && a.value !== undefined ? a.value : a, d + 1)) return true
+      }
+      return false
+    }
+    if (!walk(framed, 0)) return false
+    diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+    diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] =
+      (diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] || 0) + 1
+    return true
+  }
+
+  /** The string options an `input.string(…, options = [...])` offers, when the
+   *  subject opens to one — else null. */
+  const inputOptionsOf = (subject, env) => {
+    let n = subject
+    for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      if (!b || b.kind !== 'expr') return null
+      env = b.env || env
+      n = b.node
+    }
+    if (!n || n.type !== 'call' || !(n.name === 'input' || n.name === 'input.string')) return null
+    const opt = (n.args || []).find((a) => a && a.name === 'options')
+    const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
+    if (!Array.isArray(els) || !els.length || !els.every((e) => e && e.type === 'string')) return null
+    return els.map((e) => String(e.value))
+  }
+
+  /**
+   * ⭐⭐ C15 — A `switch` IN A TEXT OR ENUM POSITION, as the `if` chain it is.
+   *
+   * `string tblSize = switch tblSizeIn "Small" => size.small …` (ema-ribbon)
+   * and `posOf(string p) => switch p "Top Right" => position.top_right …`
+   * (artemis) are how the corpus computes an enum VALUE from a member's menu.
+   * Each arm becomes `{t:'if', cond: subject == label, then: arm, else: rest}`
+   * — the SAME shape a ternary chain over the same input already produces
+   * (artemis' `scSz`), so the condition stays a tree that follows the member's
+   * input rather than a default frozen at translate time.
+   *
+   * ⛔ WITHOUT A DEFAULT ARM A `switch` IS `na` WHEN NOTHING MATCHES, and no
+   * capture shows what a `na` size or position draws. So a default-less switch
+   * is read only when its subject is an `input.string` whose `options` every arm
+   * covers — then "nothing matches" cannot happen and the last arm is the else.
+   * Anything else is refused (null), which drops the prop by name upstream.
+   */
+  const switchTextOf = (sw, depth, inline) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms)) return null
+    const env = sw.env || scopeEnv
+    const armText = (b) => {
+      if (!b || b.kind !== 'expr' || !b.node) return null
+      return inline
+        ? textNodeOf(b.node, inline.callerEnv || env, depth + 1, inline)
+        : textNodeOf(b.node, b.env || env, depth + 1, null, b.env || env)
+    }
+    const labels = []
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      if (!m || m.type !== 'string') return null
+      labels.push(m)
+    }
+    let arms = sw.arms.map((a, k) => ({ label: labels[k], binding: a.binding }))
+    let tail = null
+    if (sw.fallback) {
+      tail = armText(sw.fallback)
+    } else {
+      const opts = inline ? null : inputOptionsOf(sw.subject, env)
+      const covered = opts && opts.every((o) => arms.some((a) => String(a.label.value) === o))
+      if (!covered || !arms.length) return null
+      tail = armText(arms[arms.length - 1].binding)
+      arms = arms.slice(0, -1)
+    }
+    for (let k = arms.length - 1; k >= 0 && tail; k -= 1) {
+      const test = { type: 'binary', op: '==', left: sw.subject, right: arms[k].label, tok: sw.subject.tok }
+      if (periodSpellingDecides(test, inline, env)) return null
+      const cond = inline ? resolveTree(test, inline) : resolveTree(test, null, env)
+      const then = armText(arms[k].binding)
+      if (!cond || !then) return null
+      tail = { t: 'if', cond, then, else: tail }
+    }
+    return tail
   }
 
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
+    // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
+    if (depth === 0 && !inline) textWork = { steps: 0, over: false }
+    if (textWork.over) return null
+    textWork.steps += 1
+    if (textWork.steps > TEXT_WORK_BUDGET) {
+      textWork.over = true
+      diagnostics.textTooLarge = diagnostics.textTooLarge || []
+      const at = node.tok ? locate(node.tok) : null
+      const entry = `steps>${TEXT_WORK_BUDGET}@${at ? at.line : '?'}`
+      if (!diagnostics.textTooLarge.includes(entry)) diagnostics.textTooLarge.push(entry)
+      return null
+    }
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
     //
     // ⚰️ MEASURED 2026-09-13. The cap was 12, chosen when this reader walked
@@ -13110,13 +13352,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
-    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) })
+    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) }, undefined, true)
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
+      // ⭐ `str.tostring` of a string is that string — so of `syminfo.ticker`, the
+      // symbol's text (see the `{t:'sym'}` note in the name branch below).
+      const arg0 = node.args && node.args[0] && node.args[0].value
+      if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
+        && !(node.args[1])) return { t: 'sym', name: arg0.name }
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
       return numNode(ast, fmt)
+    }
+    if (node.type === 'call' && node.name === 'str.format') {
+      return strFormatNodeOf(node, scope, depth, inline, envAt)
     }
     // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
     // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
@@ -13138,6 +13388,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
+      if (periodSpellingDecides(node.test, inline, scope)) return null
       const cond = resolveTree(node.test, inline, envAt)
       const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
       const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
@@ -13153,6 +13404,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const enumLit = objectEnumValue(node.name)
         if (enumLit !== undefined) return { t: 'lit', s: String(enumLit) }
       }
+      // ⭐⭐ C15 — `syminfo.ticker` IN A TEXT SLOT IS THE SYMBOL'S TEXT. It used to
+      // fall to the numeric last resort below, mint a `symtext` tree nothing can
+      // evaluate, and print "NaN" — measured on ema-ribbon's footer cell, where
+      // TradingView prints "RDDT". It is a `{t:'sym'}` node now, settled by the
+      // binding (`objectReaderFor`) from the SAME constants the bind-time fold
+      // uses; a field the binding cannot settle is withheld, never printed.
+      if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
       // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
       // The Resolver reads one out of `this.frames`; this reader has the same
@@ -13184,6 +13442,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           })
           if (asText) return asText
         }
+      }
+      // ⭐⭐ C15 — A NAME BOUND TO A `switch` (`string tblSize = switch tblSizeIn
+      // "Small" => size.small …`). See `switchTextOf`.
+      if (bound && bound.kind === 'switch' && !inline) {
+        const sw = switchTextOf(bound, depth, null)
+        if (sw) return sw
       }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
@@ -13221,6 +13485,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // MEASUREMENT — a script that hits this is named, so the item's priority
       // is a count rather than a guess.
       if (inline && bound && bound.kind === 'fn') {
+        // ⭐⭐ C15 — ONE LEVEL DEEPER, BY SUBSTITUTION RATHER THAN BY A FRAME CHAIN.
+        // The inner call's arguments are rewritten through the OUTER frame
+        // (`substituteFrame`), which leaves expressions in the outer CALLER's own
+        // names — so the inner helper is inlined with a single frame whose caller
+        // is that caller, exactly the one-level case the branch below already
+        // serves. MEASURED on reverse-stochastic-momentum-index-on-chart:
+        // `f_crossText(P, X, T, D)` reads `f_negVal(X, D)`, and its one info-box
+        // label was dropped for this alone.
+        // ⛔ Only when nothing in the rewritten arguments still names the outer
+        // function's parameters or locals — those mean nothing at the caller —
+        // and the arity is exact; otherwise the refusal below stands, by name.
+        const flat = flattenThroughFrame(node, inline)
+        if (flat && Array.isArray(bound.params) && bound.params.length === flat.length) {
+          const inner = { bound, args: flat, callerEnv: inline.callerEnv || scope }
+          const body = bound.value && bound.value.node
+            ? textNodeOf(bound.value.node, inline.callerEnv || scope, depth + 1, inner)
+            : (bound.value && bound.value.kind === 'switch' ? switchTextOf(bound.value, depth, inner) : null)
+          if (body) return body
+        }
         diagnostics.nestedTextHelpers = diagnostics.nestedTextHelpers || []
         const at = node.tok ? locate(node.tok) : null
         const entry = `${node.name}@${at ? at.line : '?'}`
@@ -13238,8 +13521,26 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         })
         if (inlined) return inlined
       }
+      // ⭐⭐ C15 — A USER FUNCTION WHOSE BODY IS A `switch` (`posOf(string p) =>
+      // switch p …`), inlined through the same frame as the branch above.
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.kind === 'switch'
+        && Array.isArray(bound.params)
+        && bound.params.length === (node.args || []).length
+        && !(node.args || []).some((a) => a && a.name)) {
+        const sw = switchTextOf(bound.value, depth, { bound, args: node.args, callerEnv: scope })
+        if (sw) return sw
+      }
     }
-    const opened = openName(node, scope, depth)
+    // ⛔⛔ C15 — `openName` IS ASKED FOR ONE HOP, NOT HANDED THIS WALK'S DEPTH.
+    // Its `depth > 8` guard is a hop count; passing the TEXT depth made every
+    // name more than eight `+` deep in a concatenation unopenable, so it fell to
+    // the numeric last resort, failed there, and the whole text was dropped as an
+    // unresolved value with no name on it. MEASURED on
+    // reverse-stochastic-momentum-index-on-chart: its info box is one ternary
+    // whose longer arm is nine concatenations, and adding the ninth `+` was
+    // exactly what lost the label. This walk is already bounded by
+    // `TEXT_MAX_DEPTH` (each open costs one level below).
+    const opened = openName(node, scope, 0)
     if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here
@@ -13270,7 +13571,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
-    return numNode(ast)
+    // ⭐ INSIDE A `str.format` ARGUMENT THIS IS NOT A GUESS: a number is exactly
+    // what `{N}` is handed, and `messageNumber` says how it is drawn.
+    return numNode(ast, undefined, true)
   }
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the

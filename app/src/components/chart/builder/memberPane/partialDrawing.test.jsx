@@ -130,8 +130,13 @@ const CASES = [
   // `bar_str := bar_str + …` in a loop the fold cannot read; the object pass
   // read its initial `""` past the reassignment overrule and drew that cell
   // EMPTY. It is now refused and counted (`cell:text`), never written blank.
+  // ⭐ 26 → 22, 2026-09-29 (C15, `8a9ce291f`). `mtfLabel(string tf) => switch
+  // tf … => tf` is read as the `if` chain a ternary already produces, so the
+  // four MTF column-label cells are carried — and they equal the vendor's
+  // records on the RDDT 1D capture ("15m","1h","4h","1D"; tableCells 9 → 13,
+  // nothing drawn the vendor lacks). Fewer unsupported, none drawn wrong.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(26, 38) },
+    objectsOnly: false, kind: 'partial', text: partial(22, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the
