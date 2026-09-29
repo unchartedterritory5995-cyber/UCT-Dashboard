@@ -274,6 +274,14 @@ def test_the_bound_is_retunable_without_a_deploy(client, fake_anthropic,
     client.get(NARRATIVE, headers=_token_headers())
     first = _StandInClient.constructed[-1].deadline
 
+    # TERM-070: a failed build now answers for its key for a short window, so
+    # the second request would be handed the first one's failure without a
+    # client being built at all. Step the route's clock past that window —
+    # the claim here is about the env override, not about the memo.
+    from api.services import market_narrative_swr
+    later = market_narrative_swr._clock() + market_narrative_swr.NEGATIVE_TTL_SECONDS + 1
+    monkeypatch.setattr(market_narrative_swr, "_clock", lambda: later)
+
     monkeypatch.setenv("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", "0.75")
     client.get(NARRATIVE, headers=_token_headers())
     second = _StandInClient.constructed[-1].deadline
