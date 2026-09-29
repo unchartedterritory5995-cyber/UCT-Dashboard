@@ -3,7 +3,8 @@ match exactly once, or the mutation is INVALID and nothing is written), run the 
 captured bytes back, and verify the restore two ways -- by sha256 against the capture AND against
 the committed blob (CR-normalised: the checkout is CRLF, the blob LF). Never `git checkout`.
 
-The rails are the two D3P files: the rendered one and the structural one.
+The rails are the D3P files: the rendered toolbar, the structural one, and (round 2) the
+rendered first-run deferral through the real editor, orb and mic.
 
     python d3p_mutate.py all            # every mutation, then a control run with all restored
     python d3p_mutate.py M1,M4          # a subset
@@ -19,12 +20,14 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 APP = REPO / "app"
 NB = APP / "src/pages/journal-2-0/components/notebook"
 RAILS = ("src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneFormat.test.jsx "
-         "src/pages/journal-2-0/a11y/targetFloors.test.js")
+         "src/pages/journal-2-0/a11y/targetFloors.test.js "
+         "src/pages/journal-2-0/components/notebook/NoteEditorPage.firstRunDefer.test.jsx")
 EDITOR = NB / "NoteEditorPage.jsx"
 CSS = NB / "NoteEditorPage.module.css"
 MORE = NB / "NoteMoreMenu.module.css"
 JOURNAL = APP / "src/pages/journal-2-0/JournalLayout.module.css"
 HUB = APP / "src/hub/constants.js"
+MIC = APP / "src/pages/journal-2-0/components/VoiceInputButton.jsx"
 NL = "<NL>"   # a newline, resolved to the file's own ending
 
 MUTS = {
@@ -67,6 +70,20 @@ MUTS = {
     "M16-cap-sign-flipped": (MORE, r"(?P<head>max-height: calc\(100dvh[^;]*?)- 168px\);", r"\g<head>+ 168px);"),
     "M17-panel-bottom-sign-flipped": (MORE, r"bottom: calc\(env\(safe-area-inset-bottom, 0px\) \+ 160px\);",
                                       "bottom: calc(env(safe-area-inset-bottom, 0px) - 160px);"),
+    # ── round 2: the phone editor defers the first-run card and hint ──
+    # (i) the phone gate removed: the editor never defers
+    "M18-no-phone-gate": (EDITOR, r"const deferFirstRun = useIsPhone\(\)", "const deferFirstRun = false"),
+    # (ii) the gate applied at every width
+    "M19-gate-at-every-width": (EDITOR, r"const deferFirstRun = useIsPhone\(\)", "const deferFirstRun = true"),
+    # (iii) deferral writes "seen": the coach flag on the editor side, the hint flag in the mic
+    "M20-deferral-marks-coach-seen": (EDITOR,
+        r"  useEffect\(\(\) => \(deferFirstRun \? claimFirstRunStage\(\) : undefined\), \[deferFirstRun\]\)",
+        "  useEffect(() => { if (!deferFirstRun) return undefined; try { localStorage.setItem('voice.orb.coachmarkSeen', '1') } catch { /* noop */ } return claimFirstRunStage() }, [deferFirstRun])"),
+    "M21-deferral-marks-hint-seen": (MIC, r"(?P<line>  const hintVisible = showHint && !recording && !uploading && !hintDeferred<NL>)",
+                                     r"  if (hintDeferred && showHint) markHintSeen()<NL>\g<line>"),
+    # the editor stops telling its mic to wait; the mic stops listening to it
+    "M22-hint-prop-not-passed": (EDITOR, r" hintDeferred=\{deferFirstRun\}", ""),
+    "M23-mic-ignores-hintDeferred": (MIC, r" && !hintDeferred<NL>", "<NL>"),
 }
 
 

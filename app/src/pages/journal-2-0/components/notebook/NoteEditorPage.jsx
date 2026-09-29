@@ -101,6 +101,8 @@ import styles from './NoteEditorPage.module.css'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import { focusableWithin } from '../../../../components/mobile/useFocusTrap'
 import { MQ } from '../../../../styles/breakpoints'
+import { useIsPhone } from '../../../../hooks/useBreakpoint'
+import { claimFirstRunStage } from '../../../../components/firstRun/firstRunStage'
 import { FONT_OPTIONS } from '../../../../utils/fontFamilies'
 import { DICTATE_EVENT, insertDictation } from '../../lib/dictationInsert'
 import {
@@ -2038,6 +2040,17 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (locked) setFormatOpen(false)
   }, [locked])
+  // Wave 10 lane D3P round 2 (owner-delegated ruling (a)): on a PHONE, while this editor is
+  // open, the two first-run moments WAIT -- the "Meet Compass" coach card (FloatingOrb) and the
+  // mic's in-flow dictation hint (VoiceInputButton). At 390x844 they pushed the first body line
+  // 78-188 px below the fold on a first visit. Waiting is a RENDER condition only: neither one
+  // is marked seen or dismissed here, so both stay pending and show on the next surface that
+  // is not the editor. The card waits the way it already waits behind the Notebook tour -- the
+  // editor holds the first-run stage (components/firstRun/firstRunStage.js, read by
+  // FloatingOrb's `coachmarkOn`); the hint waits on `hintDeferred`. The mic itself stays.
+  // Above 640 px nothing changes. Rails: NoteEditorPage.firstRunDefer.test.jsx.
+  const deferFirstRun = useIsPhone()
+  useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
   // The lock IS `editable`: every surface that edits the note asks
   // `editor.isEditable` (lib/lockedNote.js says why it is not a filter).
@@ -3757,7 +3770,7 @@ export default function NoteEditorPage({
                 input (1200 px) and the formatting row (820 / 390 px). */}
             {isPaid === true && (
               <Suspense fallback={null}>
-                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow />
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow hintDeferred={deferFirstRun} />
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
