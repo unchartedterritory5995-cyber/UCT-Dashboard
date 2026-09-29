@@ -1,0 +1,5 @@
+CONTROL (no mutation): (0, '82 passed, 1388 warnings in 40.94s', [])
+M6 embed detail grouped over every embed of the symbol: rc=1 1 failed, 81 passed, 1388 warnings in 69.39s (0:01:09) red=['test_symbol_backlinks_look_up_each_hit_ONCE']
+AFTER (restored): (0, '82 passed, 1388 warnings in 67.77s (0:01:07)', [])
+restored, sha 9417798d8af85764 git status clean
+EXIT: 0

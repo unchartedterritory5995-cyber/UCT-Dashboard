@@ -1,0 +1,426 @@
+{
+ "meta": {
+  "argv": [
+   "docs/notebook/gate-runs/wave10-PC/diag_ab.py",
+   "--json",
+   "docs/notebook/gate-runs/wave10-PC/diag-ab.json",
+   "--work-dir",
+   "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/pc"
+  ],
+  "git_head": "3309d7e08de55e635f8182850ea3a381c6ecf51d",
+  "git_dirty": "?? docs/notebook/gate-runs/wave10-PC/diag-ab-load.txt\n?? docs/notebook/gate-runs/wave10-PC/diag-ab.log\n?? docs/notebook/gate-runs/wave10-PC/diag_ab.py",
+  "cover_ddl": "CREATE INDEX IF NOT EXISTS idx_j2_notes_live_tasks_cover ON j2_notes(user_id, deleted_at, archived_at, updated_at DESC, id, title) WHERE instr(body_json, 'taskItem') > 0"
+ },
+ "tiers": [
+  {
+   "n": 1000,
+   "rounds": [
+    {
+     "setting": "bench",
+     "round": 0,
+     "tasks A": 1.454,
+     "tasks B": 18.449,
+     "tasks B same answer": true,
+     "backlinks A": 0.727,
+     "backlinks B": 0.448,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 1,
+     "tasks A": 1.851,
+     "tasks B": 14.577,
+     "tasks B same answer": true,
+     "backlinks A": 0.768,
+     "backlinks B": 0.456,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 2,
+     "tasks A": 1.509,
+     "tasks B": 16.207,
+     "tasks B same answer": true,
+     "backlinks A": 0.797,
+     "backlinks B": 0.502,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 0,
+     "tasks A": 1.675,
+     "tasks B": 8.688,
+     "tasks B same answer": true,
+     "backlinks A": 0.715,
+     "backlinks B": 0.44,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 1,
+     "tasks A": 1.643,
+     "tasks B": 8.789,
+     "tasks B same answer": true,
+     "backlinks A": 0.765,
+     "backlinks B": 0.437,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 2,
+     "tasks A": 1.571,
+     "tasks B": 8.672,
+     "tasks B same answer": true,
+     "backlinks A": 0.732,
+     "backlinks B": 0.41,
+     "backlinks B same answer": true
+    }
+   ],
+   "tasks B plan": [
+    "SEARCH n USING INDEX idx_j2_notes_switcher_live (user_id=? AND deleted_at=? AND archived_at=?)",
+    "SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+   ],
+   "backlinks B plan": [
+    "CO-ROUTINE (subquery-4)",
+    "CO-ROUTINE x",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+    "UNION USING TEMP B-TREE",
+    "SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+    "SCAN x",
+    "SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+    "SCAN (subquery-4)",
+    "USE TEMP B-TREE FOR ORDER BY"
+   ]
+  },
+  {
+   "n": 5000,
+   "rounds": [
+    {
+     "setting": "bench",
+     "round": 0,
+     "tasks A": 11.338,
+     "tasks B": 83.075,
+     "tasks B same answer": true,
+     "backlinks A": 4.251,
+     "backlinks B": 2.32,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 1,
+     "tasks A": 10.964,
+     "tasks B": 82.821,
+     "tasks B same answer": true,
+     "backlinks A": 4.473,
+     "backlinks B": 2.332,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 2,
+     "tasks A": 10.922,
+     "tasks B": 80.81,
+     "tasks B same answer": true,
+     "backlinks A": 3.947,
+     "backlinks B": 2.125,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 0,
+     "tasks A": 10.416,
+     "tasks B": 45.361,
+     "tasks B same answer": true,
+     "backlinks A": 4.63,
+     "backlinks B": 2.153,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 1,
+     "tasks A": 12.181,
+     "tasks B": 49.535,
+     "tasks B same answer": true,
+     "backlinks A": 4.551,
+     "backlinks B": 2.109,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 2,
+     "tasks A": 13.108,
+     "tasks B": 47.234,
+     "tasks B same answer": true,
+     "backlinks A": 4.608,
+     "backlinks B": 2.315,
+     "backlinks B same answer": true
+    }
+   ],
+   "tasks B plan": [
+    "SEARCH n USING INDEX idx_j2_notes_switcher_live (user_id=? AND deleted_at=? AND archived_at=?)",
+    "SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+   ],
+   "backlinks B plan": [
+    "CO-ROUTINE (subquery-4)",
+    "CO-ROUTINE x",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+    "UNION USING TEMP B-TREE",
+    "SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+    "SCAN x",
+    "SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+    "SCAN (subquery-4)",
+    "USE TEMP B-TREE FOR ORDER BY"
+   ]
+  },
+  {
+   "n": 10000,
+   "rounds": [
+    {
+     "setting": "bench",
+     "round": 0,
+     "tasks A": 27.924,
+     "tasks B": 141.994,
+     "tasks B same answer": true,
+     "backlinks A": 8.747,
+     "backlinks B": 4.435,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 1,
+     "tasks A": 29.696,
+     "tasks B": 139.457,
+     "tasks B same answer": true,
+     "backlinks A": 7.505,
+     "backlinks B": 3.716,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 2,
+     "tasks A": 25.066,
+     "tasks B": 120.62,
+     "tasks B same answer": true,
+     "backlinks A": 7.574,
+     "backlinks B": 3.62,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 0,
+     "tasks A": 17.387,
+     "tasks B": 77.587,
+     "tasks B same answer": true,
+     "backlinks A": 7.522,
+     "backlinks B": 3.725,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 1,
+     "tasks A": 19.506,
+     "tasks B": 83.962,
+     "tasks B same answer": true,
+     "backlinks A": 7.373,
+     "backlinks B": 4.547,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 2,
+     "tasks A": 18.608,
+     "tasks B": 76.394,
+     "tasks B same answer": true,
+     "backlinks A": 7.054,
+     "backlinks B": 3.533,
+     "backlinks B same answer": true
+    }
+   ],
+   "tasks B plan": [
+    "SEARCH n USING INDEX idx_j2_notes_switcher_live (user_id=? AND deleted_at=? AND archived_at=?)",
+    "SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+   ],
+   "backlinks B plan": [
+    "CO-ROUTINE (subquery-4)",
+    "CO-ROUTINE x",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+    "UNION USING TEMP B-TREE",
+    "SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+    "SCAN x",
+    "SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+    "SCAN (subquery-4)",
+    "USE TEMP B-TREE FOR ORDER BY"
+   ]
+  },
+  {
+   "n": 25000,
+   "rounds": [
+    {
+     "setting": "bench",
+     "round": 0,
+     "tasks A": 63.935,
+     "tasks B": 350.881,
+     "tasks B same answer": true,
+     "backlinks A": 35.619,
+     "backlinks B": 18.719,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 1,
+     "tasks A": 68.788,
+     "tasks B": 352.332,
+     "tasks B same answer": true,
+     "backlinks A": 35.334,
+     "backlinks B": 17.656,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 2,
+     "tasks A": 63.872,
+     "tasks B": 333.188,
+     "tasks B same answer": true,
+     "backlinks A": 34.663,
+     "backlinks B": 16.261,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 0,
+     "tasks A": 44.1,
+     "tasks B": 335.894,
+     "tasks B same answer": true,
+     "backlinks A": 19.664,
+     "backlinks B": 10.242,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 1,
+     "tasks A": 46.007,
+     "tasks B": 383.097,
+     "tasks B same answer": true,
+     "backlinks A": 22.162,
+     "backlinks B": 10.263,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 2,
+     "tasks A": 50.993,
+     "tasks B": 378.406,
+     "tasks B same answer": true,
+     "backlinks A": 22.654,
+     "backlinks B": 10.796,
+     "backlinks B same answer": true
+    }
+   ],
+   "tasks B plan": [
+    "SEARCH n USING INDEX idx_j2_notes_switcher_live (user_id=? AND deleted_at=? AND archived_at=?)",
+    "SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+   ],
+   "backlinks B plan": [
+    "CO-ROUTINE (subquery-4)",
+    "CO-ROUTINE x",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+    "UNION USING TEMP B-TREE",
+    "SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+    "SCAN x",
+    "SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+    "SCAN (subquery-4)",
+    "USE TEMP B-TREE FOR ORDER BY"
+   ]
+  },
+  {
+   "n": 50000,
+   "rounds": [
+    {
+     "setting": "bench",
+     "round": 0,
+     "tasks A": 89.87,
+     "tasks B": 324.479,
+     "tasks B same answer": true,
+     "backlinks A": 38.106,
+     "backlinks B": 16.481,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 1,
+     "tasks A": 59.565,
+     "tasks B": 286.787,
+     "tasks B same answer": true,
+     "backlinks A": 27.416,
+     "backlinks B": 13.238,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "bench",
+     "round": 2,
+     "tasks A": 48.502,
+     "tasks B": 261.129,
+     "tasks B same answer": true,
+     "backlinks A": 26.061,
+     "backlinks B": 13.638,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 0,
+     "tasks A": 36.912,
+     "tasks B": 288.425,
+     "tasks B same answer": true,
+     "backlinks A": 18.049,
+     "backlinks B": 9.099,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 1,
+     "tasks A": 40.561,
+     "tasks B": 285.312,
+     "tasks B same answer": true,
+     "backlinks A": 19.439,
+     "backlinks B": 8.726,
+     "backlinks B same answer": true
+    },
+    {
+     "setting": "cache64",
+     "round": 2,
+     "tasks A": 39.816,
+     "tasks B": 614.854,
+     "tasks B same answer": true,
+     "backlinks A": 40.885,
+     "backlinks B": 20.975,
+     "backlinks B same answer": true
+    }
+   ],
+   "tasks B plan": [
+    "SEARCH n USING INDEX idx_j2_notes_switcher_live (user_id=? AND deleted_at=? AND archived_at=?)",
+    "SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+   ],
+   "backlinks B plan": [
+    "CO-ROUTINE (subquery-4)",
+    "CO-ROUTINE x",
+    "COMPOUND QUERY",
+    "LEFT-MOST SUBQUERY",
+    "SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+    "UNION USING TEMP B-TREE",
+    "SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+    "SCAN x",
+    "SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+    "SCAN (subquery-4)",
+    "USE TEMP B-TREE FOR ORDER BY"
+   ]
+  }
+ ]
+}

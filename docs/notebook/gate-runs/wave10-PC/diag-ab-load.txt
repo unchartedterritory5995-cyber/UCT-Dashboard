@@ -1,0 +1,81 @@
+2026-09-29T07:28:24 tag=ab-start cpu=100 free_mb=4209 foreign_procs=41
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=21172 node.exe :: C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\driver\node.exe C:\Users\Patrick\AppData\Roaming\Python\Python314
+    pid=26112 chrome-headless-shell.exe :: C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-fi
+    pid=26436 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=gpu
+    pid=44156 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=uti
+    pid=31520 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=ren
+    pid=24068 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=23600 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=19740 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=39200 python.exe :: C:\Python314\python.exe -m pytest tests/test_alert_taxonomy_cooldowns.py tests/test_alert_taxonomy_document_arrival.py tests/test_alert_taxo
+    pid=45864 node.exe :: "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/components/chart/engine/ast
+    pid=45360 cmd.exe :: C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/components/chart/engine/ast
+    pid=37980 node.exe :: "node"   "C:\Users\Patrick\uct-dashboard\.claude\worktrees\pine-c12\app\node_modules\.bin\\..\vitest\vitest.mjs" run src/components/chart/en
+    pid=38380 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=31172 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=26724 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=17604 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/dev/null ||
+    pid=25420 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/
+    pid=8800 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/
+    pid=38444 node.exe :: "C:\Program Files\nodejs\node.exe" node_modules/vitest/vitest.mjs run src/components/chart/engine
+    pid=33700 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=27848 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=31772 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=9844 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=24448 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=39436 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=19732 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=43036 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=11188 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=16036 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=7336 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=35296 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=35456 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=27984 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=28080 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=11652 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=21976 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=2472 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=21284 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=42544 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=33676 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+2026-09-29T07:33:06 tag=ab-end cpu=85 free_mb=8413 foreign_procs=34
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=27836 node.exe :: C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\driver\node.exe C:\Users\Patrick\AppData\Roaming\Python\Python314
+    pid=34024 chrome-headless-shell.exe :: C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-fi
+    pid=26636 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=gpu
+    pid=45852 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=uti
+    pid=39256 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=ren
+    pid=31292 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=31732 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=14932 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=31164 python.exe :: C:\Python314\python.exe -m pytest tests/test_av_transcripts.py tests/test_call_recap.py tests/test_call_recap_bullet_anchors.py tests/test_c
+    pid=42228 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/dev/null ||
+    pid=42168 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/
+    pid=16436 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565824112-7xhnee.sh 2>/
+    pid=41692 node.exe :: "C:\Program Files\nodejs\node.exe" node_modules/vitest/vitest.mjs run src/components/chart/engine/ast/pineStrictCensus.test.js src/component
+    pid=39380 node.exe :: "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/components/chart/engine/__tests_
+    pid=38916 cmd.exe :: C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/components/chart/engine/__tests__ src/components/chart/engine/ast/paramIds.test.js --exc
+    pid=21744 node.exe :: "node"   "C:\Users\Patrick\uct-dashboard\.claude\worktrees\pine-c12\app\node_modules\.bin\\..\vitest\vitest.mjs" run src/components/chart/en
+    pid=18600 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=18876 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=9116 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=16792 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=42148 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=35060 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=21912 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=35912 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=23524 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=19500 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=27324 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=6832 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=44676 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=44444 node.exe :: "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/components/chart/engine/__tests_
+    pid=18812 cmd.exe :: C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/components/chart/engine/__tests__/switchValueForms.vendor.test.js
+    pid=33424 node.exe :: "node"   "C:\Users\Patrick\uct-dashboard\.claude\worktrees\pine-c15\app\node_modules\.bin\\..\vitest\vitest.mjs" run src/components/chart/en
+    pid=25124 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
