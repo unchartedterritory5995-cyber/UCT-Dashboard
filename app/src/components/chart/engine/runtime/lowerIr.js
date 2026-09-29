@@ -200,6 +200,12 @@ export function lowerIrProgram(ir) {
       case EXPR.COLUMN: emit(OP.READ_COLUMN, e.index); return
       case EXPR.READ: {
         const s = slotAddr(e.slot)
+        if (e.global === true) {
+          // ⭐ C11 — a function body reading a MAIN-program slot: the main
+          // frame's address, whatever frame is running.
+          emit(s.kind === SLOT.PERSIST ? OP.LOAD_GLOBAL_PERSIST : OP.LOAD_GLOBAL_LOCAL, s.index)
+          return
+        }
         emit(s.kind === SLOT.PERSIST ? OP.LOAD_PERSIST : OP.LOAD_LOCAL, s.index)
         return
       }

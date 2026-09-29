@@ -117,6 +117,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 15 | C12 an `if` used as an expression with no `else` is a value; its missing branch is `na` (only for a proven number — v5/v6 disagree on bool) | `f7564f5da` | 19 / 47 | 171 / 238 ᵃ | `atr-support-and-resistance` → **MATCH, id for id** (lines 20, boxes 20, one interleaved counter); the capture decides the fallthrough — `else 0` draws more boxes than TradingView. Census 38/59 → 39/60 attach (implied-volatility-suite; cppivot moves `pine:block` → `pine:request`) |
 | 16 | C12 a `var` read through `ta.crossover` / `[k]` inside its own update folds (`y[1]` of a variable is last bar's `self`) | `4ae19a95d` | 19 / 47 | 171 / 238 ᵃ | `institutional-smc-order-flow-matrix-pro` lines 0 → 13, labels 16 → 29 (vendor 18 / 34): the 13 are TradingView's last 13 in order, level and kind; the 5 missing all break before bar 250 (the warm-up curtain) |
 | 17 | C12 an op that reads a `var` on a bar where its value DEPENDS on the not-computable warm-up prefix is withheld, not drawn off a `NaN` read as Pine's `na` — measured per bar by two probe runs (`objectColumns.unknownMask`) | `911348fba` | 19 / 47 | 171 / 238 ᵃ | `market-structure-by-leviathan` labels 21 → 18, lines 5 (vendor 22 / 6): the removed "LH" at 230.41 was WRONG (TradingView: "HH"); every object still drawn is TradingView's last 23 of 28, in order, word and level. A static horizon was measured and rejected (it withheld all 5 correct BOS lines and a line of a MATCH). Harness dir: 1 capture changed, inventory identical; census unchanged |
+| 18 | C11 arrays / UDTs / methods, **runtime front end only** — a script's own `method` binds (`recv.m(a)` → `m(recv, a)`, single-declaration only), the array members the nine scripts write (`first/last/shift/pop/unshift/remove/concat/indexof/includes/max/min/sum/avg`), and a function body READS a main-program variable (`LOAD_GLOBAL_LOCAL/PERSIST`, opcodes 93/94) — see § C11 | `8009fce4e`, `b5924ca44` | 18 / 47 → 18 / 47 (runtime flag on: 19 → 19) | 167 / 238 → 167 / 238 (runtime flag on: 174 / 245 → 174 / 245) | **none, measured.** All nine C11 scripts attach on the HOST lane, so the runtime pane route never engages for them, and the runtime OBJECT lane (`runtime/objectLane.js`) is wired to no product path. The changes are real and railed but move no graded family. Against base `1a11a652b`, both runtime flag states: 47 captures 0 entries changed, committed harness dir (120 captures) 0 changed, member-door census 266 × 2 objects-flag states 0 rows changed (control: the runtime flag itself moves 4 census rows and 1 capture at the same tree, so the diff can see a change). `runtime:function-global-state` is gone from the object-lane peel of max-pain, dual-view and vdubus; each now stops on a host-lane wall |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -369,11 +370,74 @@ creates that never ran.
 | `trend-lines-supports-and-resistances` | all | `for [i, v] in <array<pointPair>>`, `line.all`, UDT fields (C11) | — |
 | `average-day-range-adr-pivots` | lines, boxes | helper result pushed into a drawing array (C11); `request.security` tuple coordinates (C10) | — |
 
+## C11 — arrays, UDTs and methods (2026-09-29, step 18)
+
+**Step 1, measured before any change** (objects pane on, harness only; the same
+numbers with `VITE_PINE_RUNTIME_PANE_ENABLED` off and on — every one of the nine
+attaches on the host lane, so the runtime route never engages):
+
+| script | vendor vs ours (families that disagree) | first wall of the runtime object lane |
+|---|---|---|
+| dual-view-htf-candlestick-patterns | 236 lines / 89 labels / 111 boxes vs no drawing program | `pine:window-dependent` (`barstate.isfirst`) |
+| htf-liquidity-dashboard-tfo | lines 6/0, labels 6/0, cells 30/3 | `pine:input-kind` (`input.symbol`) |
+| ict-killzones-pivots-tfo | cells 3/0 | `runtime:input-state` (`input.color`) |
+| institutional-smc-order-flow-matrix-pro | lines 18/0, labels 34/16, boxes 2/0 | `pine:input-kind` (`input.color`) |
+| k-clustering | lines 9/0, cells 8/5 | `runtime:directive` (`max_bars_back`) |
+| options-max-pain-calculator-backquant | lines 10/0, labels 8/0, boxes 13/0, cells 16/11 | `runtime:function-global-state` (`strikes`) |
+| pro-trading-art-double-top-bottom | lines 7/0, labels 14/0 | `runtime:udt-method` (`maintainPivot`) |
+| trend-duration-forecast-chartprime | labels 28/0, cells 34/0 | `pine:function` (`label(na)`) |
+| vdubus-pattern-gen-v2 | lines 112/0, labels 5/0 | `pine:arity` (`ta.macd`, 4 args) |
+
+**What that table says, and why the lane did not route.** The runtime object
+lane builds **none** of the nine, and it is not wired to any product path
+(`reachable.test.js` lists it unreached). Peeling each script wall by wall
+(replace the refused line, re-run) shows the walls are mostly the HOST lane's
+(`pine:statement` in six scripts: array ops, `box.delete` and `while` bodies
+inside loops the host translator does not read), because the object lane runs the
+host object pass in raw-tree mode for its ops. Routing an unbuilt lane would
+change nothing a member sees, so step 18 closed runtime-front-end gaps the peel
+named instead, each general Pine semantics with a focused test and mutation proof:
+
+- **A script's own `method`** binds when it is declared once and is not also a
+  plain function; `recv.m(args)` lowers to `m(recv, args)` (value and statement
+  position). An overload refuses `runtime:udt-method` by name.
+- **Array members**: `first/last/shift/pop/unshift/remove/concat/indexof/includes/
+  max/min/sum/avg`. An empty array, a non-finite element in a reduction, and an
+  `na` search value refuse with *"has not been measured on a chart"*.
+  `array.slice` stays absent (it is a VIEW, not a copy).
+- **A function reads a main-program variable** at the moment of the call
+  (`LOAD_GLOBAL_LOCAL`/`LOAD_GLOBAL_PERSIST`); a helper can clear and fill a
+  global array (max-pain's `generate_strikes`). Still refused by name: assigning a
+  global, a global's history (`g[1]`), a window over a bare global, and any global
+  read inside a `request.security` value.
+
+**Grades: none moved** (row 14). Every change is on a path no graded script
+reaches today.
+
+**What each C11 script still stops on** (object-lane peel after step 18; refused by
+name, never drawn approximately):
+
+| script | stops on | would settle it |
+|---|---|---|
+| dual-view | `barstate.isfirst` (window-dependent); `while` + `array.shift` in a loop body (C12); `input.*` defaults | none — host-lane grammar, not unknown semantics |
+| htf-liquidity | `input.symbol`; `request.security` (C10) | — |
+| ict-killzones | `input.color` default read by state; `for … in` over a UDT array; `while` over `.size()` | — |
+| smc | `input.color`; `box.delete` / `array.remove` inside a loop (C12) | — |
+| k-clustering | `max_bars_back` directive; `while` convergence loop; dynamic offsets (C9) | — |
+| max-pain | `while` loop building strikes; a block value (C12) | — |
+| pro-trading-art | a drawing helper returning a tuple of handles with a default param; `line.get_y2()` (C14) | — |
+| trend-duration | `label(na)` as a value | — |
+| vdubus | `ta.macd` with 4 args; `ta.pivothigh` right-bars in a statement; drawing helpers with multi-statement branches | — |
+
+No capture is needed for any of these: none is a question about what TradingView
+does. Each is a grammar or lane gap, and the next C11 step is routing object
+programs into the runtime object lane once one of the nine builds end to end.
+
 ## What is left, ranked by scripts it would move
 
 | rank | class | scripts (primary) | what it needs |
 |---|---|---|---|
-| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix |
+| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11 |
 | ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12 |
 | 3 | C10 `request.security` in object text/coordinates | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the MTF data seam reaching the object lane |
 | 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
