@@ -118,23 +118,27 @@ def read_manifest(target, version_id: str, *, verify_sha: str | None = None) -> 
 
 
 # ── writes ──────────────────────────────────────────────────────────────────
-def put_objects(target, bodies: dict[str, bytes], *, verify: bool = True) -> dict:
-    """Write-once content-addressed objects: an existing object is never rewritten (its key IS its content)."""
-    wrote = skipped = 0
-    for s, body in bodies.items():
+def put_objects(target, bodies: dict[str, bytes], *, verify: bool = True, workers: int = 16) -> dict:
+    """Write-once content-addressed objects: an existing object is never rewritten (its key IS its content).
+    Concurrent (the base version is ~7k objects); every object is verified by read-back before the manifest."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    def one(item):
+        s, body = item
         if sha(body) != s:
             raise PublishError(f"object body does not hash to its key {s}")
         k = obj_key(s)
         if target.exists(k):
-            skipped += 1
-            continue
+            return "existing"
         target.put(k, body)
         if verify:
             back = target.get(k)
             if back is None or sha(back) != s:
                 raise PublishError(f"object {s} did not verify after write")
-        wrote += 1
-    return {"objects_written": wrote, "objects_existing": skipped}
+        return "written"
+    with ThreadPoolExecutor(max(1, workers)) as ex:
+        res = list(ex.map(one, bodies.items()))
+    return {"objects_written": res.count("written"), "objects_existing": res.count("existing")}
 
 
 def build_manifest(*, version_id: str, parent: str | None, companies: dict[int, str], tickers: dict[str, int],
