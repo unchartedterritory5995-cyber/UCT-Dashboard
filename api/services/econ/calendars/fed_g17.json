@@ -1,0 +1,20 @@
+{
+  "_doc": "FRB G.17 Industrial Production and Capacity Utilization. Dates AND time transcribed from the Board's own G.17 page, which lists 2026 and 2027: 'The monthly releases are issued at 9:15 a.m. The annual revision is issued at noon.' A monthly release carries the PREVIOUS month; the annual revision is a REVISION release of the latest period (label '<period>/rev1'). Rows: [date_ET, period_label] or [date_ET, period_label, time_ET].",
+  "id": "fed_g17",
+  "coverage": {"start": "2026-07-01", "end": "2027-12-31"},
+  "imported_at": "2026-09-28",
+  "citations": {
+    "g17": "https://www.federalreserve.gov/releases/g17/ (fetched 2026-09-28): 2026 Oct 16, Nov 17, Nov 24 (annual revision), Dec 16; 2027 Jan 15 ... Dec 16; 'monthly releases are issued at 9:15 a.m.; the annual revision is issued at noon'"
+  },
+  "calendars": {
+    "fed:g17": {"source": "configured", "precision": "exact", "time_et": "09:15",
+                "date_cite": "g17", "time_cite": "g17",
+                "events": [["2026-07-17", "2026-06"], ["2026-08-18", "2026-07"], ["2026-09-18", "2026-08"],
+                           ["2026-10-16", "2026-09"], ["2026-11-17", "2026-10"], ["2026-11-24", "2026-10/rev1", "12:00"],
+                           ["2026-12-16", "2026-11"],
+                           ["2027-01-15", "2026-12"], ["2027-02-17", "2027-01"], ["2027-03-15", "2027-02"],
+                           ["2027-04-15", "2027-03"], ["2027-05-17", "2027-04"], ["2027-06-16", "2027-05"],
+                           ["2027-07-16", "2027-06"], ["2027-08-17", "2027-07"], ["2027-09-16", "2027-08"],
+                           ["2027-10-18", "2027-09"], ["2027-11-17", "2027-10"], ["2027-12-16", "2027-11"]]}
+  }
+}

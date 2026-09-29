@@ -149,6 +149,15 @@ class Currentness(str, Enum):
                         may NEVER claim CURRENT.
     UNINITIALIZED       no validated data yet.
     NOT_PRODUCTION      series not enabled.
+    UNCONFIRMED         (added by the release system, currentness.py) a REVISION-only
+                        release (e.g. GDP second/third estimate: no new period) is past
+                        its window; UCT fetched and validated the provider AFTER the
+                        scheduled time, but the provider gave NO positive signal that
+                        the release was applied (no changed value, no publication
+                        timestamp at/after the schedule). The data is the newest the
+                        provider serves; UCT cannot prove it includes the release, so it
+                        may NEVER be shown as CURRENT. A NEW-period release never lands
+                        here -- a missing new period is CHECKING/DELAYED.
     """
     CURRENT = "CURRENT"
     CHECKING = "CHECKING"
@@ -158,6 +167,7 @@ class Currentness(str, Enum):
     NO_EXPECTATION = "NO_EXPECTATION"
     UNINITIALIZED = "UNINITIALIZED"
     NOT_PRODUCTION = "NOT_PRODUCTION"
+    UNCONFIRMED = "UNCONFIRMED"
 
 
 class SchedulePrecision(str, Enum):
@@ -165,6 +175,13 @@ class SchedulePrecision(str, Enum):
     DATE_ONLY = "date_only"    # date known, time not stated -> never invent 08:30
     RULE = "rule"              # derived from a published rule (e.g. "next business day ~08:00")
     UNKNOWN = "unknown"
+    # (added by the release system, calendar.py) the DATE comes from an official
+    # publication (e.g. the OMB PFEI schedule) but that publication states NO time;
+    # the time is CONFIGURED from documented agency practice (cited in provenance,
+    # e.g. BLS 08:30 ET). Windows open at the configured time, but the status
+    # surface must not present the time as agency-published. EXACT is reserved
+    # for date AND time both stated by an authoritative publication.
+    TIME_CONFIGURED = "time_configured"
 
 
 class ScheduleSource(str, Enum):
