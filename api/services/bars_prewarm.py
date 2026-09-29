@@ -585,7 +585,9 @@ def _collect_watchlist_and_tag_tickers() -> set:
         for tbl, col in (("watchlist_items", "sym"), ("ticker_tags", "sym")):
             try:
                 for (sym,) in db.execute(f"SELECT DISTINCT {col} FROM {tbl}"):
-                    if sym:
+                    # ⛔ never an economic series (`ECON:*`, served by /api/econ, no bars
+                    # exist) -- same rule as api.routers.bars.is_econ_symbol
+                    if sym and not sym.strip().upper().startswith("ECON:"):
                         out.add(sym.upper().strip())
             except Exception as exc:                               # noqa: BLE001
                 _log.debug("[prewarm] %s unreadable: %s", tbl, exc)

@@ -158,7 +158,9 @@ def _build_tier2(tier1_set: set[str]) -> list[str]:
         rows = conn.execute("SELECT DISTINCT sym FROM watchlist_items").fetchall()
         conn.close()
         for r in rows:
-            _add(r[0])
+            # ⛔ never seed an economic series (`ECON:*`) -- api.routers.bars.is_econ_symbol
+            if r[0] and not str(r[0]).strip().upper().startswith("ECON:"):
+                _add(r[0])
     except Exception:
         pass
 

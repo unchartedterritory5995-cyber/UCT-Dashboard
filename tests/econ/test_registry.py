@@ -49,15 +49,16 @@ def test_all_237_catalog_rows_imported():
 
 def test_status_and_cohort_counts():
     c = Counter(e["status"] for e in R.all())
-    assert c == {"enabled": 41, "disabled": 139, "unverified": 40, "excluded": 17}
+    # 2026-09-29 rulings: USICSA+USEMPIRE enabled (adapter-verified), USRETAIL failed closed (basis conflict)
+    assert c == {"enabled": 42, "disabled": 138, "unverified": 40, "excluded": 17}
     cohort = {e["symbol"] for e in R.cohort()}
     assert cohort == COHORT_41 | {"USCORECPINSA", "USGDP"}
     enabled = {e["symbol"] for e in R.enabled()}
     assert enabled <= cohort, "only cohort series may be enabled in Phase 1"
-    assert cohort - enabled == {"USICSA", "USEMPIRE"}
-    assert R.get("USICSA")["status"] == "disabled"
-    assert "current-week source unresolved" in " ".join(R.get("USICSA")["notes"])
-    assert R.get("USEMPIRE")["status"] == "unverified"
+    assert cohort - enabled == {"USRETAIL"}
+    assert R.get("USRETAIL")["status"] == "unverified" and R.get("USRETAIL")["source"]["verified"] is False
+    assert "FAIL CLOSED" in " ".join(R.get("USRETAIL")["notes"])
+    assert R.get("USICSA")["status"] == "enabled" and R.get("USEMPIRE")["status"] == "enabled"
 
 
 def test_every_red_row_is_excluded_and_every_excluded_row_is_red():
@@ -95,7 +96,7 @@ def test_derivations_are_structured():
     d = R.get("USDEBTGDP")["derivation"]
     assert d["op"] == "ratio_pct" and d["inputs"] == ["USDEBT", "USGDP"]
     assert d["params"]["transforms"] == {"USDEBT": "eop_q"}
-    assert d["params"]["scale"] == pytest.approx(1e-7)
+    assert d["params"]["scale"] == pytest.approx(1e-4)  # BEA NIPA levels are $M (UNIT_MULT 6)
     assert R.get("UST10Y2Y")["derivation"] == {"op": "spread", "inputs": ["UST10Y", "UST2Y"], "params": {}, "version": 1}
     assert R.get("USCPIYOY")["derivation"]["inputs"] == ["USCPINSA"]   # BLS YoY from NSA
     assert R.get("USCPIMOM")["derivation"]["inputs"] == ["USCPI"]      # BLS MoM from SA
@@ -367,7 +368,7 @@ def test_committed_file_mutations_fire():
     cases = [
         ("USUMCSENT", lambda e: e.update(status="enabled"), "USUMCSENT: RED series must be status excluded"),
         ("USMEDCPI", lambda e: e.update(status="enabled"), "USMEDCPI: enabled but not production-eligible"),
-        ("USEMPIRE", lambda e: e.update(status="enabled"), "USEMPIRE: enabled but source.verified is false"),
+        ("USRETAIL", lambda e: e.update(status="enabled"), "USRETAIL: enabled but source.verified is false"),
         ("USCPIYOY", lambda e: e["derivation"].update(inputs=["USCPINOPE"]), "derivation input 'USCPINOPE' missing"),
         ("USCPI", lambda e: e["aliases"].append("uscpinsa"), "alias 'uscpinsa' already belongs"),
     ]

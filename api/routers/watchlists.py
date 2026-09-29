@@ -28,6 +28,16 @@ router = APIRouter()
 _WARM_MAX = 30
 
 
+def _warmable(tickers):
+    """Symbols a list-open may warm through the BARS lane: never an economic series.
+
+    ⛔ A member list is free text, so `ECON:USCPI` can sit in one; warming it would
+    hand an econ id to `_get_bars_inner` (a provider fetch for a symbol that cannot
+    exist). Economic series are served by /api/econ, which has nothing to warm."""
+    from api.routers.bars import is_econ_symbol
+    return [t for t in tickers if not is_econ_symbol(t)]
+
+
 class WatchlistCreate(BaseModel):
     name: str
     description: Optional[str] = ""
@@ -70,6 +80,7 @@ def get_flagged(user: dict = Depends(get_current_user)):
     try:
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (result.get("items") or []) if isinstance(i, dict) and i.get("sym")]
+        tickers = _warmable(tickers)
         if tickers:
             warm_bars_async(tickers[:_WARM_MAX], tf="D", bars=8000)
     except Exception:
@@ -391,6 +402,7 @@ def get_watchlist(
     try:
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
+        tickers = _warmable(tickers)
         if tickers:
             # ⛔ BOUNDED. See _WARM_MAX — this line used to pass the whole list, and
             # this route is now how a 1,872-symbol index list is opened.
