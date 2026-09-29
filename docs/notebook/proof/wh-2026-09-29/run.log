@@ -1,0 +1,34 @@
+$ python tools/notebook_wh_writing_help_prod_check.py --out docs/notebook/proof/wh-2026-09-29
+  [login] ok=True, http_status=200
+  [account_check] ok=True, http_status=200, email='bench@uctintelligence.internal', domain='uctintelligence.internal', role='member', paid_equiv=True
+  [create_note] ok=True, note_id='b777cc7589554e3fac40cd61ad59cbf0', title='WH provenance check 20260929T211301Z'
+  [note_open] ok=True
+  [panel_open] ok=True
+  [action_requested] ok=True, choice='Rewrite shorter'
+  [draft_result] ok=False, outcome='error', error_text='Something went wrong writing that. Nothing was changed in your note.'
+  [best_effort_cleanup] ok=True, note_id='b777cc7589554e3fac40cd61ad59cbf0'
+exit code: 1
+
+--- independent cleanup read-back (separate short-lived session, no writing-help call) ---
+login 200
+me email bench@uctintelligence.internal
+live http 200 live_ids []
+trash http 200 trash_ids ['b777cc7589554e3fac40cd61ad59cbf0']
+gone_from_live True
+present_in_trash True
+single-note GET status 404
+logout 200
+
+--- root cause, read from production logs (railway logs --service web), read-only, no second
+    writing-help call made to obtain it ---
+2026-09-29 21:13:14,559 ERROR api.routers.notebook_writing_help: [writing-help] synthesis failed action=rewrite
+Traceback (most recent call last):
+  File "/app/api/routers/notebook_writing_help.py", line 185, in gen
+    async for delta in wh.stream_text(kwargs)
+  File "/app/api/services/journal_two/writing_help.py", line 267, in stream_text
+    async with client.messages.stream(**kwargs, timeout=note_ask._SYNTH_TIMEOUT) as stream:
+  ...
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfYRMefWQiVtxUeJhEN7U'}
+
+No credentials appear anywhere in this file or in run.json; BENCH_EMAIL / BENCH_PASSWORD were
+read only from the environment and never printed.
