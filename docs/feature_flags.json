@@ -1536,6 +1536,17 @@
       "last_changed": "2026-09-23T00:00:00Z",
       "note": "May a pane draw a script that has OBJECTS and no screenable column — a fib retracement, an ICT killzone, an HTF footprint. Read in ONE place, app/src/components/chart/engine/objectsOnlyPaneGate.js::objectsOnlyPaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. ⛔ IT IS STILL OFF. Declaring the ARG only makes it POSSIBLE to set; turning it on is a Railway variable plus a rebuild (it is a build constant, so it is a DEPLOY, not a variable change) and an owner decision. ⭐ MEASURED COST OF LEAVING IT OFF: at the member door (memberPaneDefinition, the call MemberPane makes) 29 of 266 committed corpus scripts attach with it off and 52 with it on — 23 scripts, all of them drawing-only indicators, +79%. ⚰️ The reason the rail never caught it: objectsOnlyPaneGate.js late-binds its env source for testability, so the literal `import.meta.env.VITE_...` stopped appearing and tools/vite_flag_index's direct pattern went blind. The index now also reads any VITE_* in a file that mentions import.meta.env."
     },
+    "VITE_PINE_RUNTIME_PANE_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "owner": "pine parity programme",
+      "owner_decision": "not yet taken — built dark on branch pine/var-read-order (2026-09-28), implementing the owner principle recorded on PR #241",
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-09-28, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-09-28T00:00:00Z",
+      "note": "May a member pane draw a script through the per-bar RUNTIME lane when the columnar lane refuses it for a structural reason? Read in ONE place, app/src/components/chart/engine/runtimePaneGate.js::runtimePaneEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. Its two readers are memberPaneDefinition (the router) and nativeRegistry.validateUserDefinitions (the install door, which refuses a compute.kind 'runtime' document while it is off). ⛔ IT IS OFF. What arming it changes for a member: a pasted script whose EVERY host refusal carries route 'runtime' (today: two `var`s that each read the other before setting their own) is PREVIEWED in the member pane instead of refused, with a 'Drawn bar by bar' disclosure and NO 'Add this script to my chart' button — the server store accepts compute.kind 'ast' only, so it cannot be saved, alerted on or screened. Measured reach 2026-09-28 over corpus/committed + tests/fixtures/{pine,pine_oos,member}, both objects-only states: ONE script routes and draws — inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat, whose two plotshape columns then match its TradingView capture on all 632 RDDT 1D bars (runtimePaneRoute.vendor.test.js); three more are refused only for coupled latches but read barstate/another timeframe, so the route is DECLINED (no linter on this lane to state their repaint behaviour) and they keep the host refusal: volatility-coil-edge-bullbyte, 03-rsi-directional-momentum-scanner, high_engagement__23-sweep-reversal-map-plus-herman. Nothing a member has already saved changes. Arming is a Railway variable plus a rebuild (a build constant) and an owner decision."
+    },
     "VITE_REALTIME_BARS": {
       "status": "dark",
       "where": [

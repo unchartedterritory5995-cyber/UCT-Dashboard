@@ -270,10 +270,17 @@ export function runOurSide(capture) {
     if (!colours.ok) notes.push(`colours unresolvable: ${colours.reason}`)
 
     const rowByAst = new Map((built.rows || []).map((r) => [r.ast, r]))
+    // ⭐ A RUNTIME-LANE document (`memberPaneDefinition`'s route for a script the
+    // columnar lane refuses) has no tree per output — each row names the host
+    // output it draws instead, and is matched by that.
+    const rowByOutput = new Map((built.rows || [])
+      .filter((r) => Number.isInteger(r.output)).map((r) => [r.output, r]))
     const plots = []
-    for (const o of (built.translation.outputs || [])) {
+    for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
-      const row = o && o.ast ? rowByAst.get(o.ast) : null
+      const row = built.lane === 'runtime'
+        ? (rowByOutput.get(index) || null)
+        : (o && o.ast ? rowByAst.get(o.ast) : null)
       const col = row ? cols[row.key] : undefined
       let missingReason = null
       if (!row) {
