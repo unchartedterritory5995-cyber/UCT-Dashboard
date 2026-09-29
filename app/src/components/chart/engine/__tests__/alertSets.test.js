@@ -41,8 +41,17 @@ import {
 import { validateInstance, normalizeInstances } from '../instances'
 import { withInstances } from '../instanceControls'
 import * as engineRegistry from '../nativeRegistry'
-import { mergeChartSettings, mergeSettingsOverride } from '../../chartDefaults'
+import { mergeChartSettings as mergeChartSettingsReal, mergeSettingsOverride } from '../../chartDefaults'
 import { BLOB_FIXTURES } from '../__fixtures__'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 const R = engineRegistry
 const base = { indicators: {}, indicatorInstances: [] }
@@ -352,8 +361,18 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // ⛔ THE RULE THIS CASE STATES STILL HOLDS: regenerating the literal instead of
   // investigating is the one thing you may not do. The investigation is above.
   // (Prior value: 7031577edd24fa97e31b76ad0db4a75dfd361f0d73739fa97df21d5b731ac8e4)
+  // 2026-09-28: re-pinned for `maAdoption.js` — the `cs.overlays` averages are
+  // ADOPTED as `movingAverage` instances on every read. ⛔ INVESTIGATED BY
+  // MEASUREMENT, NOT REGENERATED: every fixture's merged blob was dumped (sorted
+  // keys) on this tree and on a clean worktree at 38bb9a421 and diffed. ADDED ONLY:
+  // 23 overlay slots each gained `removed: true` + `adopted: 'ovl:<i>'`, and 23
+  // `ovl:<i>` instances appeared (defId movingAverage, inputs source/period/maType/
+  // colour, hidden false, no presentation — every fixture uses the default stroke).
+  // The one removed line is a fixture's `"indicatorInstances": []`. No existing
+  // value changed. (The previous digest reproduces byte-for-byte on 38bb9a421.)
+  // (Prior value: 8f9ffa0ab1e94e09751359907ded43c613dc340489dcdb1c50c64589e5c52066)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '8f9ffa0ab1e94e09751359907ded43c613dc340489dcdb1c50c64589e5c52066'
+    '206f81e6a93b20ca0c7dc72131ecec0e0a1e91847e1c0b9e43814a807aec8a19'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
@@ -364,7 +383,7 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
     for (const { name, cs } of BLOB_FIXTURES) {
       h.update(name)
       h.update(' ')
-      h.update(JSON.stringify(mergeChartSettings(JSON.stringify(cs))))
+      h.update(JSON.stringify(mergeChartSettingsReal(JSON.stringify(cs))))
       h.update(' ')
     }
     expect(h.digest('hex'),

@@ -3170,3 +3170,66 @@
 /* ⚠️ AN UNAVAILABLE ROW'S MARK DIMS WITH ITS TEXT, so a delisted ticker does not
    advertise itself with the brightest thing in the row. */
 .resRefused .resGlyph { opacity: 0.4; }
+
+/* ─── 2026-09-28: Timeframe note + the Custom visibility editor ──────────────
+   ⭐ BORROWS THE SEGMENT'S VOCABULARY. A timeframe chip is the same object as a
+   segment button (`.insSegBtn`) — dim at rest, the accent hairline when chosen —
+   so the Custom grid reads as more of the same control rather than a new widget.
+   ⛔ IT IS NOT ALWAYS THERE. The grid mounts only while a member is editing a
+   Custom policy; at rest the Visibility section is ONE row. */
+.insNote {
+  margin: 2px 0 4px 104px;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--menu-text-faint, #7d7d85);
+}
+.insTfEditor {
+  margin: 4px 0 2px 104px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.insTfGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.insTfChip {
+  flex: 0 0 auto;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--menu-text-dim, #93939a);
+  cursor: pointer;
+  transition: color 110ms, background 110ms, border-color 110ms;
+}
+.insTfChip:hover:not(.insTfChipOn) { color: var(--menu-text, #ededed); }
+.insTfChipOn,
+.insTfChipOn:hover {
+  color: var(--menu-accent, #e7cf8f);
+  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.10));
+  border-color: var(--menu-accent, #dcbb5e);
+}
+.insTfChip:focus-visible,
+.insTfDone:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e);
+}
+.insTfDone {
+  align-self: flex-start;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  background: none;
+  font-family: inherit;
+  font-size: 10.5px;
+  color: var(--menu-text, #ededed);
+  cursor: pointer;
+}

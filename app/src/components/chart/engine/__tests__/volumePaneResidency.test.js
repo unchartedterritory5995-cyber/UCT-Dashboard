@@ -52,8 +52,17 @@ import { defaultPaneKeys, computePaneLayout } from '../paneLayout'
 import { resolvePlacement } from '../placement'
 import { addInstance, setInstanceInput, setInstanceDisplayTarget } from '../instanceControls'
 import * as registry from '../nativeRegistry'
-import { mergeChartSettings } from '../../chartDefaults'
+import { mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
 import { lastCreatedInstance } from '../../discoveryCatalog'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // The chart the member actually has: Volume in its own pane, an MA of Volume

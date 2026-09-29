@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -196,7 +197,9 @@ function forceNewChartDefaults(settings) {
   if (!settings || typeof settings !== 'object') return settings
   const s = { ...settings }
   // SMA5 off the chart AND its legend (the legend derives from enabled overlays).
-  if (Array.isArray(s.overlays)) s.overlays = s.overlays.filter(o => !(o && o.type === 'SMA' && Number(o.period) === 5))
+  // ⭐ An adopted SMA 5 is an INSTANCE (`maAdoption.js`): `dropAverages` removes the
+  // legacy slot as before AND tombstones the instance, so it leaves the chart too.
+  Object.assign(s, dropAverages(s, (v) => v.type === 'SMA' && Number(v.period) === 5))
   s.watermark = { ...(s.watermark || {}), sizeScale: 1.25, weight: 500 }   // 125% + medium
   s.swingLabels = { ...(s.swingLabels || {}), enabled: false }             // swing prices off
   const h = s.header || {}

@@ -78,6 +78,36 @@ import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
 import { sourceCapabilityOf } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
 import { splitGapRuns, hasFundamentalLineage, isConnectedPool, valueAtFor } from './gapRuns'
+import { resolveInstanceFrames } from './calcTimeframeCapability'
+import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
+import { SOURCE_STATUS } from './secondaryBars'
+
+/** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
+ *  09:30–16:00 ET window `StockChart.sessionBars` applies to the chart's own bars, so
+ *  a 1h RSI on an RTH 5m chart is computed from the same session a 1h RTH chart
+ *  would show. Memoised per frame array. */
+const _rthMemo = new WeakMap()
+const _rthFmt = (() => {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
+  } catch { return null }
+})()
+function rthFrameBars(fbars) {
+  let hit = _rthMemo.get(fbars)
+  if (hit) return hit
+  hit = fbars.filter((b) => {
+    if (!b || typeof b.t !== 'number') return true
+    if (!_rthFmt) return true
+    const [h, m] = _rthFmt.format(new Date(b.t * 1000)).split(':').map(Number)
+    const mins = (h % 24) * 60 + m
+    return mins >= 570 && mins < 960
+  })
+  _rthMemo.set(fbars, hit)
+  return hit
+}
+
+/** Projection memo: frame column set → (chart bars → projected set). */
+const _projMemo = new WeakMap()
 
 /** A fill's colour and opacity — the plot's own `fillColor`/`fillOpacity` when it
  *  declares them, else its series colour at a low default alpha.
@@ -945,6 +975,27 @@ export function createBinder({ chart, LWC }) {
     // ids in it are refused below instead of spun on.
     const { ordered, cyclic } = orderByDependency(instances, (id) => registry.getDefinition(id))
 
+    // ── THE CALCULATION FRAME OF EVERY INSTANCE (2026-09-28) ─────────────────
+    //
+    // ⭐⭐ ONE GENERAL SEAM, NOT AN MTF VARIANT OF ANY INDICATOR. An instance whose
+    // frame is null computes exactly as before, on the chart's bars. One whose
+    // frame is a higher timeframe computes the SAME definition over that frame's
+    // canonical bars (`ctx.frames`, fetched by `useCalcFrames`), and its columns
+    // are then projected onto the chart by `mtfProjection` — COMPLETED periods
+    // only, never interpolated. A dependent inherits its source's frame
+    // (`resolveInstanceFrames`), so `MA(RSI 1h)` averages 1h RSI values over 1h
+    // bars and is projected with it — nothing ever mixes two frames.
+    //
+    // ⛔ A FRAME THAT HAS NOT LANDED MAKES ITS INSTANCE NOT COMPUTABLE, NEVER A
+    // CHART-BARS FALLBACK. Computing a "1D" EMA over 5m bars and labelling it 1D
+    // is the one failure here that looks exactly like success.
+    const instFrames = resolveInstanceFrames(ordered, (id) => registry.getDefinition(id),
+      ctx.tf === undefined || ctx.tf === null ? '' : String(ctx.tf))
+    const frameMap = ctx.frames && typeof ctx.frames.get === 'function' ? ctx.frames : null
+    // bindingKey → the column in its instance's OWN frame, for an inheriting dependent.
+    const frameColumns = new Map()
+    const staleFrames = new Set()
+
     // ── WHO IS READ BY SOMEBODY ELSE ─────────────────────────────────
     //
     // ⛔⛔ VISIBILITY IS INK, NOT EXISTENCE. The hidden-skip below exists because
@@ -999,14 +1050,40 @@ export function createBinder({ chart, LWC }) {
       // CHART'S OWN BARS. Falling back to the bars in hand would answer
       // confidently about the WRONG INSTRUMENT, which is the one failure here
       // that looks exactly like success.
+      // ── WHICH BARS THIS INSTANCE COMPUTES OVER ─────────────────────────────
+      const fr = instFrames.get(inst.instanceId)
+      const frame = fr && fr.frame ? fr.frame : null
+      let calcBars = bars
+      let frameEntry = null
+      if (frame) {
+        frameEntry = frameMap ? frameMap.get(frameKey(frame, ctx.sym)) : null
+        let fb = frameEntry && frameEntry.status === SOURCE_STATUS.AVAILABLE
+          && frameBarsUsable(frameEntry.bars, frame) ? frameEntry.bars : null
+        if (fb && ctx.frameRthOnly === true && !['D', 'W', 'M'].includes(frame)) fb = rthFrameBars(fb)
+        if (!fb || !fb.length) continue
+        calcBars = fb
+      }
+
       let sourceCols = null
       let sourceSig = ''
       for (const [key, value] of sourceInputsOf(def, inst)) {
         const parsed = parseSource(value)
         let series = null
-        if (parsed && parsed.kind === 'bar') series = barFieldSeries(bars, parsed.field)
+        if (parsed && parsed.kind === 'bar') series = barFieldSeries(calcBars, parsed.field)
         else if (parsed && parsed.kind === 'instance') {
-          series = columns.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+          // ⭐ A FRAMED dependent reads its source in the SOURCE'S OWN frame (it
+          // inherited that frame), never the projected chart column.
+          series = (frame
+            ? frameColumns.get(bindingKey(parsed.instanceId, parsed.plotKey))
+            : columns.get(bindingKey(parsed.instanceId, parsed.plotKey))) || null
+        } else if (parsed && parsed.kind === 'symbol' && frame) {
+          // ⭐ ANOTHER SYMBOL AT THIS FRAME — the same exact-t rule, on the frame's
+          // own bars (both sides are that frame's canonical bars).
+          const entry = frameMap ? frameMap.get(frameKey(frame, parsed.symbol)) : null
+          const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
+          series = secBars ? projectionFor(secBars, parsed.field, calcBars) : null
+        } else if (parsed && parsed.kind === 'fundamental' && frame) {
+          series = null   // gated by `calcTimeframeCapability`; never reached
         } else if (parsed && parsed.kind === 'symbol') {
           const entry = secondary ? secondary.get(parsed.symbol) : null
           const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
@@ -1059,7 +1136,7 @@ export function createBinder({ chart, LWC }) {
       const sig = inputsSignature(inst.inputs) + sourceSig
       const memo = computeMemo.get(inst.instanceId)
       let cols
-      if (memo && memo.registry === registry && memo.def === def && memo.bars === bars && memo.sig === sig) {
+      if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
         cols = memo.cols
       } else {
         // ⭐ `{sym, tf}` is the SERVER LANE's only requirement (Phase C Task 13).
@@ -1068,7 +1145,7 @@ export function createBinder({ chart, LWC }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, bars, inst.inputs,
+        const r = attempt(() => registry.computeFor(def, calcBars, inst.inputs,
           // ⭐ MERGED 2026-09-15 AS A UNION: master's `source`/`sources` (the
           // universal-data seam) and this branch's `symbol`/`newestBarIsForming`
           // (the R-K seam) are four independent keys on one ctx. Taking either
@@ -1091,9 +1168,13 @@ export function createBinder({ chart, LWC }) {
           // object — so every `syminfo.*` was NotFoldable on every chart binding
           // and three of Volume v2's four columns refused. The stage was built,
           // wired and dark for want of a shape at one seam.
-          { sym: ctx.sym, symbol: ctx.symbol || null, tf: ctx.tf,
+          // ⭐ A FRAMED instance's `tf` and newest-bar state are its FRAME's — the
+          // tri-state the frame payload carried, never the chart's.
+          { sym: ctx.sym, symbol: ctx.symbol || null, tf: frame || ctx.tf,
             source: primarySource, sources: sourceCols,
-            newestBarIsForming: ctx.newestBarIsForming ?? null }))
+            newestBarIsForming: frame
+              ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
+              : (ctx.newestBarIsForming ?? null) }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -1102,7 +1183,7 @@ export function createBinder({ chart, LWC }) {
         // (def, bars, inputs) key would pin the indicator blank until the bars
         // array changed for some unrelated reason.
         if (Object.keys(cols).length) {
-          computeMemo.set(inst.instanceId, { registry, def, bars, sig, cols })
+          computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
         } else {
           computeMemo.delete(inst.instanceId)
         }
@@ -1132,6 +1213,26 @@ export function createBinder({ chart, LWC }) {
         return clippedBarsFor(entry.bars, bars)
       }
 
+      // ── A FRAMED INSTANCE: keep its own-frame columns, project onto the chart ──
+      if (frame) {
+        for (const plotKey of Object.keys(cols)) frameColumns.set(bindingKey(inst.instanceId, plotKey), cols[plotKey])
+        const newestFinal = !!(frameEntry && frameEntry.newestBarIsForming === false)
+        const tfKey = ctx.tf === undefined || ctx.tf === null ? '' : String(ctx.tf)
+        let proj = _projMemo.get(cols)
+        if (!proj || proj.bars !== bars || proj.frameBars !== calcBars
+            || proj.newestFinal !== newestFinal || proj.tf !== tfKey) {
+          const p = projectFrameColumns(calcBars, cols, frame, bars, tfKey, { newestFinal })
+          proj = { bars, frameBars: calcBars, newestFinal, tf: tfKey, result: p }
+          _projMemo.set(cols, proj)
+        }
+        if (proj.result.stale) staleFrames.add(frame)
+        for (const plotKey of Object.keys(cols)) {
+          columns.set(bindingKey(inst.instanceId, plotKey), proj.result.columns[plotKey])
+        }
+        continue
+      }
+      for (const plotKey of Object.keys(cols)) frameColumns.set(bindingKey(inst.instanceId, plotKey), cols[plotKey])
+
       for (const plotKey of Object.keys(cols)) {
         // ⭐⭐ THE ONE PLACE A BINDING BECOMES COMPOUND. The column above was
         // computed exactly as it always is — this does not replace a CALCULATION,
@@ -1145,6 +1246,12 @@ export function createBinder({ chart, LWC }) {
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
+    // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
+    // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
+    // affected bars read NaN until it lands.
+    if (staleFrames.size && typeof ctx.onFrameStale === 'function') {
+      for (const f of staleFrames) attempt(() => ctx.onFrameStale(f, ctx.sym))
+    }
 
     const hasData = (key) => {
       const col = columns.get(key)
@@ -1737,6 +1844,16 @@ export function createBinder({ chart, LWC }) {
         // the series are both in hand; `readout.js` is pure and gets no other
         // route to the value legacy reads off `indicatorData`.
         lastValue: lastPointValue(points),
+        // ⭐ …AND THE ONE BEFORE IT, for the one live writer that steps a
+        // recurrence: an average's EMA on the developing bar is
+        // `c·k + prev·(1-k)`, and on a same-bucket tick `prev` is THIS value, not
+        // the (stale) last one. `StockChart._extendOverlaysLive` is the reader.
+        prevValue: points.length > 1 && points[points.length - 2] ? points[points.length - 2].value : undefined,
+        // ⭐ The calculation frame this series was computed in, or null for the
+        // chart's own. A live writer stepping the developing bar must leave a
+        // framed series alone: its value is a COMPLETED period's, and a tick
+        // cannot change it.
+        frame: (instFrames.get(b.instanceId) || {}).frame || null,
         // Render-only; never persisted. Empty for every non-gap binding.
         runSeries,
         runData,

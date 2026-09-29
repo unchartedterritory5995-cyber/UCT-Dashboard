@@ -123,7 +123,7 @@ import { prepareArrangement, settleArrangement } from './chart/engine/paneRealiz
 // The canonical writer does all four. See `instanceControls.setInstanceDisplayTarget`.
 import {
   setIndicatorEnabled, isIndicatorEnabled, findInstance,
-  setInstanceHidden, removeInstance, addInstance,
+  setInstanceHidden, removeInstance, duplicateInstance,
   setInstanceDisplayTarget,
 } from './chart/engine/instanceControls'
 // ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
@@ -813,6 +813,7 @@ import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/s
 import { chromePlan, capturedPriceRange, viewLockFractions } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources } from './chart/engine/useSecondarySources'
+import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useServerColumns } from './chart/engine/useServerColumns'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -4972,7 +4973,9 @@ export default function StockChart({
   const handleChipDuplicate = useCallback((instanceId) => {
     const inst = findInstance(cs, instanceId)
     if (!inst) return
-    writeInstance(addInstance(cs, inst.defId, engineRegistry))
+    // ⭐ A COPY OF THIS INSTANCE (2026-09-28) — the Inspector's Duplicate calls
+    // the same writer, so the two doors still mean one thing.
+    writeInstance(duplicateInstance(cs, instanceId, engineRegistry))
   }, [cs, writeInstance])
 
   // ⛔ NO RAW `{...cs, indicatorInstances}` HERE. `withInstances` is the writer's
@@ -7707,15 +7710,68 @@ export default function StockChart({
   // prior render's values (they're mirrored in a later effect). `skipVwap` is set
   // there too: the engine binder hasn't synced yet that early in the pass, so the
   // VWAP re-top would read a stale binding — the live writers own VWAP anyway.
+  /**
+   * The engine bindings that are MOVING AVERAGES ON PRICE, each with its render
+   * instance. `eligibility.averageLook` stamps `renderLook` on exactly those
+   * (a definition declaring `meta.appearance`, resolved onto the price pane), so
+   * that stamp is the test — no definition id is named here.
+   */
+  const averageBindings = useCallback((instances) => {
+    const eng = engineRef.current
+    if (!eng) return []
+    const byId = new Map()
+    for (const inst of (instances || [])) {
+      if (inst && inst.renderLook && typeof inst.instanceId === 'string') byId.set(inst.instanceId, inst)
+    }
+    if (!byId.size) return []
+    const out = []
+    try {
+      for (const b of eng.binder.bindings()) {
+        const inst = b && byId.get(b.instanceId)
+        if (inst && b.series) out.push({ b, inst })
+      }
+    } catch { /* binder disposed */ }
+    return out
+  }, [])
+
+  /** "Overlap candles" for averages — see the call site after `settleArrangement`.
+   *  ⚠️ `TOP` mode is the `candlesOnTop` effect's: the candle has just been moved
+   *  to the top, so an overlapping average moves to the top AFTER it. */
+  const applyAverageZOrder = useCallback((instances, mode) => {
+    const cndl = candleSeriesRef.current
+    if (!cndl || typeof cndl.seriesOrder !== 'function') return
+    try {
+      for (const { b, inst } of averageBindings(instances)) {
+        const s = b.series
+        if (!s || typeof s.seriesOrder !== 'function') continue
+        const onTop = !!(inst.presentation && inst.presentation.overlap === true)
+        if (mode === 'top') {
+          if (onTop) s.setSeriesOrder(Number.MAX_SAFE_INTEGER)
+          continue
+        }
+        const cOrd = cndl.seriesOrder()
+        const sOrd = s.seriesOrder()
+        if (onTop && sOrd < cOrd) s.setSeriesOrder(cOrd + 1)
+        else if (!onTop && sOrd > cOrd) s.setSeriesOrder(cOrd)
+      }
+    } catch { /* z-order is cosmetic — never break the paint */ }
+  }, [averageBindings])
+
   const _extendOverlaysLive = useCallback((tSec, c, opts) => {
     const defs = opts?.defs ?? resolvedOverlaysRef.current
     const ovAll = opts?.ovAll ?? overlayDataRef.current
     const series = opts?.series ?? overlaySeriesRefs.current
     const bars = opts?.bars ?? prevBarsRef.current
-    if (!defs || !defs.length || !ovAll || !series || !series.length || !bars || !bars.length) return
+    if (!bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
-    for (let i = 0; i < series.length && i < defs.length; i++) {
+    // ⚠️ THE LEGACY LOOP IS NOW USUALLY EMPTY — every `cs.overlays` average is an
+    // instance (`maAdoption.js`); only a host passing its own `overlays` prop (the
+    // intraday popup) still has one. It used to be the early-return guard for the
+    // WHOLE function, which would have skipped the engine averages and VWAP below
+    // on every chart the moment adoption emptied it.
+    const legacyLive = !!(defs && defs.length && ovAll && series && series.length)
+    for (let i = 0; legacyLive && i < series.length && i < defs.length; i++) {
       const def = defs[i]
       const period = def ? Number(def.period) : NaN
       if (!series[i] || !(period > 0)) continue
@@ -7741,6 +7797,35 @@ export default function StockChart({
       }
       if (val != null && Number.isFinite(val)) {
         try { series[i].update({ time: tSec, value: val }) } catch { /* time regressed / disposed */ }
+      }
+    }
+    // ⭐⭐ THE AVERAGES THAT ARE INSTANCES NOW get the SAME live step the overlay
+    // block gave them — same maths, same same-bucket rule — so a default EMA 9 still
+    // reaches the developing candle on every tick instead of lagging it until the
+    // next poll. Only an average of the CLOSE on the CHART's own frame: an average
+    // of RSI has no live close to step, and a higher-timeframe average holds the
+    // last COMPLETED period's value, which a tick cannot change.
+    for (const { b, inst } of averageBindings(engineInstancesRef.current)) {
+      const inputs = inst.inputs || {}
+      const src = inputs.source === undefined ? 'close' : inputs.source
+      if (src !== 'close' || b.frame) continue
+      const period = Math.floor(Number(inputs.period))
+      if (!(period > 0)) continue
+      let val = null
+      if (inputs.maType === 'ema') {
+        const prior = sameBucket ? b.prevValue : b.lastValue
+        if (Number.isFinite(prior)) {
+          const k = 2 / (period + 1)
+          val = c * k + prior * (1 - k)
+        }
+      } else {
+        let sum = c, cnt = 1
+        let j = bars.length - (sameBucket ? 2 : 1)
+        while (j >= 0 && cnt < period) { sum += bars[j].c; cnt++; j-- }
+        if (cnt === period) val = sum / period
+      }
+      if (val != null && Number.isFinite(val)) {
+        try { b.series.update({ time: tSec, value: val }) } catch { /* time regressed / disposed */ }
       }
     }
     // VWAP rides the same live-extend (it's a session cumulative, not in overlaySeriesRefs):
@@ -7771,7 +7856,7 @@ export default function StockChart({
         }
       } catch { /* binder disposed mid-tick */ }
     }
-  }, [adjustTime])
+  }, [adjustTime, averageBindings])
 
   // Filter bars to regular session only when extended hours hidden
   const sessionBars = useMemo(() => {
@@ -7941,6 +8026,16 @@ export default function StockChart({
   // current bars without re-publishing the API on every data poll.
   const filteredBarsRef = useRef(null)
   filteredBarsRef.current = filteredBars
+
+  // ⭐⭐ CALCULATION-TIMEFRAME FRAMES (2026-09-28). The canonical bars each higher
+  // calculation timeframe on this chart needs — one `secondaryBars` window per
+  // (symbol, frame), shared by every indicator that calculates there. A DEPENDENCY
+  // of `updateChart` for the same reason `secondarySources` is: frames land
+  // asynchronously and must repaint when they do. See `engine/useCalcFrames.js`.
+  const { frames: calcFrames, refreshFrame: refreshCalcFrame } = useCalcFrames(
+    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, cs)
+  const refreshCalcFrameRef = useRef(refreshCalcFrame)
+  refreshCalcFrameRef.current = refreshCalcFrame
 
   // Capture the last + prior REGULAR-session close for the PNG export. filteredBars is
   // RTH-only (pre/post excluded), so its last close is the current intraday print during
@@ -8427,10 +8522,21 @@ export default function StockChart({
             // A tombstoned slot must not count toward "any enabled" (it would make
             // one press do nothing) and must not be switched back on (the member
             // deleted it).
+            // ⭐ 2026-09-28 — AND THROUGH THE AVERAGES THAT ARE INSTANCES. The
+            // `cs.overlays` averages are `movingAverage` instances now
+            // (`maAdoption.js`), so "every moving average" is every live instance
+            // of a definition declaring the average's appearance, plus any slot a
+            // host has not adopted. Their `hidden` flag is the same show/hide fact
+            // `enabled` was.
             const overlays = Array.isArray(cs.overlays) ? cs.overlays : []
+            const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+            const isAvg = (i) => i && typeof i === 'object' && i.deleted !== true
+              && !!engineRegistry.getDefinition(i.defId)?.meta?.appearance
             const anyEnabled = liveOverlayList(overlays).some(o => o?.enabled)
+              || list.some(i => isAvg(i) && i.hidden !== true)
             const next = overlays.map(o => (isOverlayRemoved(o) ? o : { ...o, enabled: !anyEnabled }))
-            handleUpdateChartSettings({ ...cs, overlays: next, preset: 'custom' })
+            const nextInstances = list.map(i => (isAvg(i) ? { ...i, hidden: anyEnabled } : i))
+            handleUpdateChartSettings({ ...cs, overlays: next, indicatorInstances: nextInstances, preset: 'custom' })
             break
           }
           case 'volume':
@@ -8682,6 +8788,11 @@ export default function StockChart({
       lastBarOffRef.current = off
       setLastBarOff(off)   // drives the candle-tag effect + drops the session tags
       overlaySeriesRefs.current.forEach((s) => { try { s?.applyOptions({ lastValueVisible: off ? false : !!cs.showMaLabels }) } catch { /* */ } })
+      // ⭐ The averages that are instances now obey the same rule; the next
+      // `updateChart` re-derives it from `lastBarOffRef` via `averageLook`.
+      averageBindings(engineInstancesRef.current).forEach(({ b }) => {
+        try { b.series.applyOptions({ lastValueVisible: off ? false : !!cs.showMaLabels }) } catch { /* */ }
+      })
       try { volumeSeriesRef.current?.applyOptions?.({ lastValueVisible: off ? false : defaultVolTag() }) } catch { /* */ }
     }
     visLabelApplyRef.current = apply
@@ -11573,6 +11684,15 @@ export default function StockChart({
             : migrated
           return eligibleInstances(withForced, engineRegistry, {
             tf: resolvedTf, vwapOverride, boldCandles, modelBookLook,
+            // ⭐ 2026-09-28 — THE MOVING AVERAGE'S SURFACE LOOK (`eligibility.averageLook`).
+            // These four are exactly what the retired `cs.overlays` renderer read
+            // off this component's props and settings, so an adopted default
+            // average draws as it always did — and an added one draws the same.
+            fitPriceToCandles: !!fitPriceToCandles,
+            showMaLabels: !!cs.showMaLabels,
+            lastBarOff: !!lastBarOffRef.current,
+            ema9Color: ema9MatchCandle ? mbUpOpaque : null,
+            targetOf: (inst) => resolveDisplayTarget(inst, cs),
           }).kept
         })()
       : EMPTY_INSTANCES
@@ -12383,6 +12503,13 @@ export default function StockChart({
         // instances name, already fetched and cached above. Absent is not an
         // error: it is a chart with no symbol sources, and every lookup misses.
         secondary: secondarySources,
+        // ⭐⭐ CALCULATION-TIMEFRAME FRAMES — the higher-timeframe canonical bars an
+        // instance with `calculationTimeframe` computes over (`useCalcFrames`), the
+        // chart's session rule for an intraday frame, and the door a frame the chart
+        // has outrun is refreshed through (throttled per window).
+        frames: calcFrames,
+        frameRthOnly: _intradayLike && !showExtended,
+        onFrameStale: (frame, s) => { try { refreshCalcFrameRef.current(frame, s) } catch { /* */ } },
         // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
         fundamentals: fundamentalSources,
         // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
@@ -12533,6 +12660,14 @@ export default function StockChart({
     // …and now that every series exists, settle the final order and drop any
     // placeholder the binder did not claim.
     settleArrangement(chart, _paneRealize)
+    // ── Per-average z-order — the "Overlap candles" rule, now for instances ──
+    // The retired overlay block (see "Per-MA z-order" above) put every average
+    // BEHIND the candles unless its `onTop` said otherwise. Averages are
+    // `movingAverage` instances now (`maAdoption.js`), so the same rule runs on
+    // their bindings: `presentation.overlap` lifts one in front, everything else
+    // drops back behind. Same guards — a no-op once each line is on its side, and
+    // never index 0, so the candle stays the lowest price series.
+    applyAverageZOrder(engineInstances)
     // ⚠️ MEASURE PRICE'S CHROME FROM THE **FINAL** POSITION, never the temporary
     // one `prepare` left it in.
     pinPriceChrome()
@@ -13805,8 +13940,11 @@ export default function StockChart({
         const ts = tails[i]
         if (ts && typeof ts.setSeriesOrder === 'function') ts.setSeriesOrder(TOP)
       }
+      // ⭐ …and the averages that are INSTANCES now (`maAdoption.js`) get the same
+      // last word: an overlapping one moves to the top after the candle.
+      applyAverageZOrder(engineInstancesRef.current, 'top')
     } catch { /* older LWC */ }
-  }, [updateChart, candlesOnTop, resolvedOverlays])
+  }, [updateChart, candlesOnTop, resolvedOverlays, applyAverageZOrder])
 
   // Gold/white setup-day candle (Model Book). Runs AFTER updateChart so it
   // overrides the plain candle data. A candle-only setData (range preserved) →

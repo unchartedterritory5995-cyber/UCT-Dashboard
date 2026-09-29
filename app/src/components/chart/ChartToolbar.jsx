@@ -55,8 +55,9 @@ import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 // A moving average the member REMOVED keeps its slot (the merge is positional)
-// and must not be listed. See `chartDefaults`'s tombstone header.
-import { isOverlayRemoved } from './chartDefaults'
+// and must not be listed; `averageSlotView` answers null for it (and for an
+// adopted average whose instance was deleted). See `maAdoption.js`.
+import { averageSlotView, writeAverageSlot } from './maAdoption'
 import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
@@ -264,13 +265,12 @@ function ChartSettingsPanel({
     onUpdateSettings(next)
   }, [cs, onUpdateSettings])
 
+  // ⭐ Through the adopted `movingAverage` instance (`maAdoption.js`) — the
+  // average the chart draws — never onto a slot nothing reads any more.
   const updateOverlay = useCallback((idx, field, value) => {
-    const next = { ...cs }
-    next.overlays = next.overlays.map((o, i) =>
-      i === idx ? { ...o, [field]: field === 'period' ? (parseInt(value) || o.period) : value } : o
-    )
-    next.preset = 'custom'
-    onUpdateSettings(next)
+    const written = writeAverageSlot(cs, idx, field, value)
+    if (written === cs) return
+    onUpdateSettings({ ...written, preset: 'custom' })
   }, [cs, onUpdateSettings])
 
   /** How many indicators are on, THROUGH `isOn`. `catalogRows()` is definitions
@@ -445,7 +445,7 @@ function ChartSettingsPanel({
             in the STORED array, so `i` has to be the real index — filtering the
             array before mapping would renumber every row after a tombstone and
             send an edit to the wrong moving average. */}
-        {cs.overlays.map((ov, i) => [ov, i]).filter(([ov]) => !isOverlayRemoved(ov)).map(([ov, i]) => (
+        {averageSlotView(cs).map((ov, i) => [ov, i]).filter(([ov]) => !!ov).map(([ov, i]) => (
           <div key={i} className={styles.sOverlayRow}>
             <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
             <select className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>

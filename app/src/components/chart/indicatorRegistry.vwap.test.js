@@ -11,6 +11,7 @@ import {
 } from './indicatorRegistry'
 import { CARVED_OUT_ROWS } from './indicatorCatalog'
 import { mergeChartSettings, mergeSettingsOverride, CHART_DEFAULTS, instanceTombstone } from './chartDefaults'
+import { noDefaultAverages } from './__fixtures__/adoptedAverages'
 import * as engineRegistry from './engine/nativeRegistry'
 import { ENGINE_OWNED } from './engine/flipState'
 
@@ -43,9 +44,10 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
     const owned = rows.filter((r) => ENGINE_OWNED.has(r.id) || ENGINE_OWNED.has(r.path?.key))
     expect(owned.map((r) => r.id),
       'a settings-tab row and an engine definition are two sources of truth for one indicator').toEqual([])
-    expect(rows.map((r) => r.group)).toEqual([
-      ...rows.filter((r) => r.id.startsWith('overlay-')).map(() => 'Moving averages'), 'Volume',
-    ])
+    // ⭐ 2026-09-28 — NO OVERLAY ROWS ON A MERGED BLOB: every slot is adopted as a
+    // `movingAverage` instance (`maAdoption.js`) and lists as an ENGINE row. The
+    // volume pane is the hand-written row that remains.
+    expect(rows.map((r) => r.group)).toEqual(['Volume'])
   })
 
   // ⭐ INVERTED AT B4 TASK 6, NOT DELETED. It read *"every id that KEEPS a row is
@@ -56,7 +58,10 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
   // every definition, and it must not exist for anything that has no definition
   // and no carved-out exemption.
   it('every generated row is a definition, and every definition has a generated row', () => {
-    const ids = listEngineIndicators(mergeChartSettings(null), engineRegistry).map((r) => r.id)
+    // ⚠️ ON A CHART WITH NO AVERAGES: a live instance's row is keyed by its instance
+    // id, and since `maAdoption.js` a default blob has four live `ovl:<i>` averages.
+    // This rail is about one row per DEFINITION, so its chart has deleted them.
+    const ids = listEngineIndicators(mergeChartSettings(noDefaultAverages(null)), engineRegistry).map((r) => r.id)
     expect(ids, 'a definition lost its generated row, or a row appeared for a non-definition')
       .toEqual(engineRegistry.listDefinitions().map((d) => d.id))
     expect(ids, 'VWAP is still one of them — it was the FIRST, at B3 Task 12').toContain('vwap')
@@ -67,9 +72,12 @@ describe('the rail — the hand-written registry lists nothing the engine owns',
 
   it('the tab shows Moving averages, Volume, then one section per definition, then the carved-out ones', () => {
     const groups = [...new Set(listAllIndicators(mergeChartSettings(null), engineRegistry).map((r) => r.group))]
+    // ⭐ 2026-09-28 — 'Moving averages' is gone: the averages are engine rows now,
+    // grouped under the definition's own short name ('MA'), and the ADOPTED ones
+    // keep the overlay rows' place at the top (`listAllIndicators`), above Volume.
     expect(groups).toEqual([
-      'Moving averages', 'Volume',
-      ...engineRegistry.listDefinitions().map((d) => d.meta.shortName),
+      'MA', 'Volume',
+      ...engineRegistry.listDefinitions().map((d) => d.meta.shortName).filter((n) => n !== 'MA'),
       ...CARVED_OUT_ROWS.map((r) => r.shortName),
     ])
     // ⛔ AND THE CARVED-OUT ROW IS STILL THERE. A section list derived from
@@ -237,6 +245,9 @@ describe('patchFor — the hand-written path kinds, unchanged', () => {
   const settings = mergeChartSettings(null)
 
   it('overlay and section rows still write through the patch shape they always did', () => {
+    // ⚠️ AN UNADOPTED BLOB — the overlay path is what this pins, and a merged blob's
+    // slots are all adopted (`maAdoption.js`), so it has no overlay row at all.
+    const settings = { ...CHART_DEFAULTS, overlays: CHART_DEFAULTS.overlays.map((o) => ({ ...o })) }
     const rows = listIndicators(settings)
     const ov = rows.find((r) => r.path.kind === 'overlay')
     expect(patchFor(ov, { period: 34 }, settings).overlays[ov.path.index].period).toBe(34)

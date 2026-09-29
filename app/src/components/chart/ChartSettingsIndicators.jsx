@@ -46,7 +46,7 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys,
 } from './indicatorRegistry'
@@ -83,7 +83,17 @@ import { matches, isRowOn, toggledRow } from './IndicatorLibraryDialog'
 import { legacyInstanceId } from './engine/instances'
 import {
   addInstance, removeInstance, setIndicatorEnabled, setInstanceHidden, findInstance,
+  setInstanceAppearance, setInstanceCalculationTimeframe, setInstanceVisibility,
+  duplicateInstance,
 } from './engine/instanceControls'
+import {
+  CALC_TIMEFRAMES, calcTimeframeOf, calcTimeframeLabel, frameRelation, gatedReason,
+  VISIBILITY_PRESETS, visibilityChoices, visibilityOf, visibilitySummary,
+} from './engine/instanceTimeframe'
+import { calcTimeframeCapability, CAPABILITY_WORDS } from './engine/calcTimeframeCapability'
+import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES } from './engine/presentation'
+import { tfLabel } from './timeframes'
+import Switch from '../ui/Switch'
 import { CLEAN } from './engine/repaintVerdict'
 import styles from './ChartSettingsModal.module.css'
 import SourceField from './SourceField'
@@ -236,6 +246,15 @@ function sourceCapabilityFor(def, inst) {
   return { defaultStyle: null, allowedStyles: cap.allowedStyles }
 }
 
+/** `overlay-<i>` → the instance id slot `i` was adopted as, when it was. */
+function aliasRowId(rowId, settings) {
+  if (typeof rowId !== 'string') return rowId
+  const m = /^overlay-(\d+)$/.exec(rowId)
+  if (!m) return rowId
+  const slot = Array.isArray(settings?.overlays) ? settings.overlays[Number(m[1])] : null
+  return slot && typeof slot.adopted === 'string' ? slot.adopted : rowId
+}
+
 export default function ChartSettingsIndicators({
   rows,
   settings,
@@ -264,6 +283,11 @@ export default function ChartSettingsIndicators({
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
   // New Formula action rather than a button that opens nothing.
   onCreateFormula = null,
+  // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
+  // something (a calculation timeframe that cannot draw on this chart, a Custom
+  // visibility seeded from where the member is) — never to decide what is stored.
+  // Absent on the grid, which simply shows no such note.
+  chartTf = null,
 }) {
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
@@ -297,7 +321,11 @@ export default function ChartSettingsIndicators({
   // component is fresh on every open and the initial value IS the deep link. An
   // effect would open the row a frame LATER — a visible jump on a surface the
   // member reached by clicking a gear that promised to land there.
-  const [selected, setSelected] = useState(openRowId)
+  // ⭐ A LEGACY ADDRESS FOR AN ADOPTED AVERAGE LANDS ON ITS INSTANCE. The legend and
+  // older deep links spell a default average `overlay-<i>` (via `ma:<i>`); after
+  // adoption (`maAdoption.js`) that row is the instance `ovl:<i>`, and the slot
+  // itself says which — so the gear still opens the average it was clicked on.
+  const [selected, setSelected] = useState(() => aliasRowId(openRowId, settings))
   // Drag state: the key being dragged, and the pane it would land above.
   // ⚠️ A REF **AND** STATE. The ref is what the drag handlers read (they fire
   // between renders); the state is only what paints the indicator.
@@ -379,7 +407,7 @@ export default function ChartSettingsIndicators({
     const SETTLE_MS = 1500
     const pull = () => {
       try {
-        const el = listRef.current?.querySelector(`[data-row-id="${CSS.escape(openRowId)}"]`)
+        const el = listRef.current?.querySelector(`[data-row-id="${CSS.escape(aliasRowId(openRowId, settings))}"]`)
         el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
       } catch { /* jsdom has neither scrollIntoView nor CSS.escape; nothing depends on it */ }
     }
@@ -1859,19 +1887,19 @@ export default function ChartSettingsIndicators({
   /**
    * Duplicate — the SAME verb the legend's own popover offers, and the same write.
    *
-   * ⛔ `addInstance(defId)` IS WHAT "DUPLICATE" HAS ALWAYS MEANT HERE
-   * (`StockChart.handleChipDuplicate`): a second instance of this indicator with
-   * the definition's defaults, not a byte copy of this one's inputs. Two doors,
-   * one behaviour — inventing a deep-copy variant on this surface would make the
-   * legend's Duplicate and the Inspector's Duplicate two different features
-   * wearing one word.
+   * ⭐⭐ A COPY OF THIS INSTANCE, UNDER A NEW IDENTITY (2026-09-28). It used to be
+   * `addInstance(defId)` — the definition's defaults — which made Duplicate on a
+   * `Weekly SMA 10 · Step · Daily only` produce a daily SMA 5 in the default
+   * colour. `duplicateInstance` copies inputs, source, calculation timeframe,
+   * display target, presentation and visibility, and `StockChart`'s legend
+   * popover calls the same writer: two doors, still one behaviour.
    *
    * ⛔ NULL WHEN IT CANNOT ACT, so the button is ABSENT rather than inert. The
    * volume pane is one pane; there is no second one to make.
    */
   const duplicateWriter = useCallback((row) => {
     if (row?.engineOwned && row.instanceId && row.defId) {
-      return () => addInstance(settings, row.defId, registry)
+      return () => duplicateInstance(settings, row.instanceId, registry)
     }
     if (row?.path?.kind === 'overlay') {
       const lib = BUILT_IN_ROWS.find((r) => r.id === 'ma')
@@ -2091,6 +2119,9 @@ export default function ChartSettingsIndicators({
     const { core, look } = partitionFields(row, def)
     const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
+    const timeframe = timeframeControl(row)
+    const appearance = appearanceControls(row)
+    const visibility = visibilityControl(row)
     const plotStyle = styleControl(row)
     const signColors = signColorControl(row)
     const duplicate = duplicateWriter(row)
@@ -2149,18 +2180,21 @@ export default function ChartSettingsIndicators({
         </div>
 
         {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display || readOnly.length > 0) && (
+        {(core.length > 0 || display || timeframe || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
             {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
             {core.map((f) => renderField(row, f))}
+            {/* ⭐ WHAT IT READS, HOW LONG, WHICH KIND, AT WHAT RESOLUTION, WHERE IT
+                DRAWS — Timeframe sits between the maths and the destination. */}
+            {timeframe}
             {display}
             {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
           </section>
         )}
 
         {/* ─── APPEARANCE ───────────────────────────────────────────────── */}
-        {(look.length > 0 || (plotStyle && plotStyle.length > 0)
+        {(look.length > 0 || (plotStyle && plotStyle.length > 0) || appearance
           || (signColors && signColors.length > 0)) && (
           <section className={styles.insSection} data-section="appearance">
             <div className={styles.insSectionLabel}>Appearance</div>
@@ -2171,9 +2205,16 @@ export default function ChartSettingsIndicators({
                 and the definition does not declare one for `dataSeries`. */}
             {signColors}
             {look.map((f) => renderField(row, f))}
+            {/* ⭐ STROKE BEFORE GEOMETRY: Line style / Line width (how the line is
+                drawn) sit above Plot style (what shape it is). Two properties,
+                never one control — see `presentation.lineLookPatch`. */}
+            {appearance}
             {plotStyle}
           </section>
         )}
+
+        {/* ─── VISIBILITY ─────────────────────────────────────────────────── */}
+        {visibility}
 
         {/* ─── ACTIONS ──────────────────────────────────────────────────────
             ⭐ THE ROWS LOST THEIR ✕ AND THE INSPECTOR GAINED IT. One verb, one
@@ -2431,6 +2472,273 @@ export default function ChartSettingsIndicators({
       )
     })
   }, [settings, registry, onChange])
+
+  /** Write one settings blob through the ONE persist path this tab uses. A refused
+   *  write comes back as `settings` itself and is not persisted. */
+  const commitWrite = useCallback((next) => {
+    if (next && next !== settings) onChange?.({ ...next, preset: 'custom' })
+  }, [settings, onChange])
+
+  /**
+   * TIMEFRAME — which bars CALCULATE this indicator (Core).
+   *
+   * ⭐⭐ "Chart" IS THE DEFAULT AND IT IS THE ABSENT KEY. Every indicator on every
+   * saved chart reads Chart and computes exactly as it always did; picking `1D`
+   * makes it compute from canonical daily bars and project onto whatever the chart
+   * shows (`mtfProjection.js`).
+   *
+   * ⛔ OFFERED ONLY WHERE THE CAPABILITY GATE SAYS YES — `calcTimeframeCapability`
+   * is the one answer, shared with the writer and the binder, so the control can
+   * never offer what the chart would refuse. A refusal renders NOTHING rather than
+   * a disabled control: a member cannot use a Timeframe row on a VWAP, so it is
+   * not there.
+   *
+   * ⭐ A DEPENDENT READS "From source". `MA(RSI)` computes in RSI's frame, so its
+   * own control states that frame read-only instead of offering a choice the
+   * engine would not honour.
+   */
+  const timeframeControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    if (!def || !inst) return null
+    const cap = calcTimeframeCapability(def, inst)
+    if (!cap.ok) return null
+    if (cap.inherits) {
+      // Walk to the ROOT source: `MA(MA(RSI))` computes in RSI's frame too.
+      let up = findInstance(settings, cap.inherits)
+      for (let hop = 0; up && hop < 8; hop++) {
+        const upCap = calcTimeframeCapability(registry?.getDefinition?.(up.defId), up)
+        if (!upCap.ok || !upCap.inherits) break
+        up = findInstance(settings, upCap.inherits)
+      }
+      const upTf = up ? calcTimeframeOf(up) : null
+      return (
+        <div className={styles.insField} data-field="__timeframe__" data-measure="medium"
+          data-readonly="true" key="timeframe"
+          title="Calculated on the same timeframe as its source.">
+          <span className={styles.insFieldLabel}>Timeframe</span>
+          <span className={styles.insFieldCtl}>
+            <span className={styles.insFieldValue} aria-readonly="true">
+              {`From source · ${calcTimeframeLabel(upTf)}`}
+            </span>
+          </span>
+        </div>
+      )
+    }
+    const current = calcTimeframeOf(inst)
+    const relation = chartTf ? frameRelation(current, chartTf) : 'chart'
+    const note = (relation === 'lower' || relation === 'straddle')
+      ? gatedReason(relation, current, chartTf) : null
+    return (
+      // ⛔ A FRAGMENT, NOT A WRAPPER: every field is a DIRECT child of its section
+      // (the one-property-per-row rule the layout is built on); the note is a
+      // sibling row beneath it.
+      <Fragment key="timeframe">
+        <div className={styles.insField} data-field="__timeframe__" data-measure="medium">
+          <span className={styles.insFieldLabel}>Timeframe</span>
+          <span className={styles.insFieldCtl}>
+            <select
+              className={styles.indSelect}
+              value={current || ''}
+              aria-label={`${row.label} calculation timeframe`}
+              onChange={(e) => commitWrite(setInstanceCalculationTimeframe(
+                settings, row.instanceId, e.target.value || null, registry))}
+            >
+              <option value="">Chart</option>
+              {CALC_TIMEFRAMES.map((code) => (
+                <option key={code} value={code}>{tfLabel(code)}</option>
+              ))}
+            </select>
+          </span>
+        </div>
+        {note && <div className={styles.insNote} data-note="timeframe">{note}</div>}
+      </Fragment>
+    )
+  }, [settings, registry, chartTf, commitWrite])
+
+  /**
+   * APPEARANCE a definition DECLARES (`meta.appearance`) — Overlap candles, Line
+   * style, Line width, Offset. The Moving Average is the first to declare them; a
+   * definition that declares nothing gets nothing, so no other indicator's panel
+   * changes.
+   *
+   * ⭐ THE VALUES AND WRITES ARE `presentation`'s, via `setInstanceAppearance` — the
+   * same keys an adopted `cs.overlays` average carries (`maAdoption.js`), so a
+   * default EMA 9 and a newly added SMA 150 show and store identical controls.
+   *
+   * ⛔ OVERLAP ONLY WHERE THERE ARE CANDLES TO OVERLAP. An average living in RSI's
+   * pane has nothing to draw in front of, and a toggle that changes nothing is a
+   * control that lies.
+   *
+   * ⛔ OFFSET IS SHOWN, DISABLED — EXACTLY AS IT HAS ALWAYS BEEN. The overlay editor
+   * listed it as "Coming soon"; this project does not change offset semantics.
+   */
+  const appearanceControls = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const def = registry?.getDefinition?.(row.defId)
+    const inst = findInstance(settings, row.instanceId)
+    const declared = def && def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : null
+    if (!declared || !inst) return null
+    const pres = inst.presentation || {}
+    const onPrice = resolveDisplayTarget(inst, settings) === 'price'
+    const out = []
+    const write = (key, value) => commitWrite(setInstanceAppearance(settings, row.instanceId, key, value, registry))
+    if (declared.includes('overlap') && onPrice) {
+      const on = pres.overlap === true
+      out.push(
+        <div key="overlap" className={styles.insField} data-field="overlap" data-measure="compact">
+          <span className={styles.insFieldLabel}>Overlap candles</span>
+          <span className={styles.insFieldCtl}>
+            <Switch
+              checked={on} aria-label="Overlap candles"
+              className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.toggleKnob}
+              onClick={() => write('overlap', !on)}
+            />
+          </span>
+        </div>,
+      )
+    }
+    if (declared.includes('lineStyle')) {
+      const v = LINE_STYLE_CHOICES.includes(pres.lineStyle) ? pres.lineStyle : 'solid'
+      out.push(
+        <div key="lineStyle" className={styles.insField} data-field="lineStyle" data-measure="medium">
+          <span className={styles.insFieldLabel}>Line style</span>
+          <span className={styles.insFieldCtl}>
+            <select className={styles.indSelect} value={v} aria-label={`${row.label} line style`}
+              onChange={(e) => write('lineStyle', e.target.value)}>
+              {LINE_STYLE_CHOICES.map((s) => (
+                <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>
+              ))}
+            </select>
+          </span>
+        </div>,
+      )
+    }
+    if (declared.includes('lineWidth')) {
+      const w = LINE_WIDTH_CHOICES.includes(Number(pres.lineWidth)) ? Number(pres.lineWidth) : 1
+      out.push(
+        <div key="lineWidth" className={styles.insField} data-field="lineWidth" data-measure="compact">
+          <span className={styles.insFieldLabel}>Line width</span>
+          <span className={styles.insFieldCtl}>
+            <select className={styles.indSelect} value={w} aria-label={`${row.label} line width`}
+              onChange={(e) => write('lineWidth', Number(e.target.value))}>
+              {LINE_WIDTH_CHOICES.map((n) => <option key={n} value={n}>{`${n}px`}</option>)}
+            </select>
+          </span>
+        </div>,
+      )
+    }
+    if (declared.includes('offset')) {
+      const why = 'Coming soon'
+      const whyId = `ind-why-${row.id}-offset`
+      out.push(
+        <div key="offset" className={styles.insField} data-field="offset" data-measure="compact" title={why}>
+          <span className={`${styles.insFieldLabel} ${styles.indLabelOff}`}>Offset</span>
+          <span id={whyId} className="sr-only">{why}</span>
+          <span className={styles.insFieldCtl}>
+            <input type="number" className={styles.indNum} value={Number(pres.offset) || 0}
+              disabled aria-disabled="true" aria-describedby={whyId} title={why} readOnly />
+          </span>
+        </div>,
+      )
+    }
+    return out.length ? out : null
+  }, [settings, registry, commitWrite])
+
+  /** Which Custom visibility editor is open (row id), if any. */
+  const [visEditing, setVisEditing] = useState(null)
+
+  /**
+   * VISIBILITY — "Show on": on which CHART timeframes this indicator draws.
+   *
+   * ⭐⭐ PRESENTATION ONLY. Hidden-here is not deleted, not disabled and not
+   * rewritten: the instance keeps its source, calculation timeframe, display and
+   * identity, and comes back the moment the chart is on an allowed timeframe
+   * (`eligibility.eligibleInstances` is the one gate).
+   *
+   * ⭐ GENERIC ON PURPOSE. It is offered on every engine indicator because hiding
+   * by timeframe needs nothing from the definition — and its default (All) is the
+   * absent key, so offering it changes no chart.
+   *
+   * ⛔ COMPACT. A select of four semantic presets; the per-timeframe grid appears
+   * only while a member is editing a Custom policy, and closes with Done.
+   */
+  const visibilityControl = useCallback((row) => {
+    if (!row || !row.instanceId || !row.engineOwned) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const vis = visibilityOf(inst)
+    const preset = vis ? vis.preset : 'all'
+    const editing = visEditing === row.id
+    const write = (v) => commitWrite(setInstanceVisibility(settings, row.instanceId, v, registry))
+    const customSummary = vis && vis.preset === 'custom' ? visibilitySummary(vis) : null
+    const picked = new Set(vis && vis.preset === 'custom' ? vis.tfs : [])
+    const toggleCode = (code) => {
+      const next = new Set(picked)
+      if (next.has(code)) {
+        // ⛔ A Custom policy with NOTHING in it would hide the indicator everywhere
+        // — that is Remove wearing a visibility control. The last one stays.
+        if (next.size === 1) return
+        next.delete(code)
+      } else next.add(code)
+      write({ preset: 'custom', tfs: [...next] })
+    }
+    return (
+      <section className={styles.insSection} data-section="visibility" key="visibility">
+        <div className={styles.insSectionLabel}>Visibility</div>
+        <div className={styles.insField} data-field="__visibility__" data-measure="wide">
+          <span className={styles.insFieldLabel}>Show on</span>
+          <span className={styles.insFieldCtl}>
+            <select
+              className={styles.indSelect}
+              value={preset === 'custom' ? 'custom:current' : preset}
+              aria-label={`${row.label} show on`}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === 'custom:current') return
+                if (v === 'custom') {
+                  // Seeded from the chart the member is looking at, so the first
+                  // Custom policy always includes somewhere they can see the result.
+                  const seed = vis && vis.preset === 'custom' ? vis.tfs : (chartTf ? [String(chartTf)] : ['D'])
+                  write({ preset: 'custom', tfs: seed })
+                  setVisEditing(row.id)
+                  return
+                }
+                setVisEditing(null)
+                write(v === 'all' ? null : { preset: v })
+              }}
+            >
+              {VISIBILITY_PRESETS.filter((p) => p.value !== 'custom').map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+              {customSummary && <option value="custom:current">{customSummary}</option>}
+              <option value="custom">{customSummary ? 'Edit custom…' : 'Custom…'}</option>
+            </select>
+          </span>
+        </div>
+        {preset === 'custom' && editing && (
+          <div className={styles.insTfEditor} data-testid="visibility-editor">
+            {visibilityChoices().map((g) => (
+              <div key={g.group} className={styles.insTfGroup} role="group" aria-label={g.group}>
+                {g.codes.map((code) => {
+                  const on = picked.has(code)
+                  return (
+                    <button
+                      key={code} type="button" aria-pressed={on}
+                      className={`${styles.insTfChip} ${on ? styles.insTfChipOn : ''}`}
+                      onClick={() => toggleCode(code)}
+                    >{tfLabel(code)}</button>
+                  )
+                })}
+              </div>
+            ))}
+            <button type="button" className={styles.insTfDone} onClick={() => setVisEditing(null)}>Done</button>
+          </div>
+        )}
+      </section>
+    )
+  }, [settings, registry, chartTf, visEditing, commitWrite])
 
   /**
    * UP / DOWN COLOUR — offered only for an output that actually HAS two signs.
@@ -3061,7 +3369,9 @@ export default function ChartSettingsIndicators({
           >
             {mode === 'arrange'
               ? renderArrangeAside()
-              : (discovering ? renderAddSurface() : renderInspector(selectedRow))}
+              // ⛔ A SELECTION THAT NAMES NO ROW (a deep link to something no longer
+              // on the chart) shows the add surface rather than an editor of nothing.
+              : ((discovering || !selectedRow) ? renderAddSurface() : renderInspector(selectedRow))}
           </div>
         )}
       </div>
