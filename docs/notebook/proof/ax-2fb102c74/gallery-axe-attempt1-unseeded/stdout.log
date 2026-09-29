@@ -1,0 +1,3 @@
+{"viewport": "1200x800", "error": "TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-note-card-id]\")\n"}
+{"viewport": "820x1180", "error": "TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-note-card-id]\")\n"}
+{"viewport": "390x844", "error": "TimeoutError: Page.wait_for_selector: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-note-card-id]\")\n"}
