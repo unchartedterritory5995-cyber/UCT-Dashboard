@@ -59,29 +59,12 @@ def list_document_arrival_alerts(active_only: bool = True, user: dict = Depends(
     }
 
 
-@router.get("/api/alerts/taxonomy/document-arrival/frequency")
-def document_arrival_frequency(ticker: str = Query(..., max_length=32),
-                               user: dict = Depends(get_current_user)):
-    """TERM-062: how often a filing watch on `ticker` fired over the published
-    window, from the durable `alert_fires` record -- answerable BEFORE saving.
-    `fires` is null (not 0) when no watch covered the ticker in the window.
-    Counts and timestamps only: never whose watch, never a predicate id."""
-    sym = (ticker or "").upper().strip()
-    if not sym:
-        raise HTTPException(status_code=422, detail="ticker is required")
-    entity_id = _predicates.resolve_entity_scope(sym)["id"]
-    freq = _cooldowns.fire_frequency(_doc_arrival.TYPE_ID, entity_id)
-    freq.pop("entity_id", None)   # an internal id; the member asked about a ticker
-    return {"ticker": sym, **freq,
-            "cooldown": _cooldowns.published_cooldown(_doc_arrival.TYPE_ID)}
-
-
 @router.get("/api/alerts/taxonomy/cooldowns")
 def published_alert_cooldowns(user: dict = Depends(get_current_user)):
     """TERM-062: every member-facing trigger type's re-arm rule, derived from the
-    constants the alert code applies (alert_taxonomy/cooldowns.py)."""
-    return {"cooldowns": _cooldowns.published_cooldowns(),
-            "frequency_window_days": _cooldowns.FREQUENCY_WINDOW_DAYS}
+    constants the alert code applies (alert_taxonomy/cooldowns.py). Policy only:
+    it reads no member's predicates or fires."""
+    return {"cooldowns": _cooldowns.published_cooldowns()}
 
 
 @router.delete("/api/alerts/taxonomy/document-arrival/{predicate_id}")

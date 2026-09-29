@@ -1,4 +1,4 @@
-"""TERM-062 / FB-S7-02 -- publish the cooldowns; show fire-frequency.
+"""TERM-062 / FB-S7-02 -- publish the cooldowns.
 
 WHAT THIS FILE EXISTS TO MAKE IMPOSSIBLE
 ----------------------------------------
@@ -9,23 +9,19 @@ WHAT THIS FILE EXISTS TO MAKE IMPOSSIBLE
    in `api/main.py` and the sweep in `document_arrival` to be built FROM those
    constants, so the constant is not a third copy nobody consumes
    (`lesson_a_comment_claiming_agreement_is_not_agreement`).
-2. A FIRE-FREQUENCY THAT REPORTS "0" FOR "NEVER WATCHED". `fires` is `None` when
-   no predicate covered the entity in the window -- a count over an unobserved
-   population is not a zero (`lesson_a_saturated_instrument_reports_zero`).
-3. A FIRE-FREQUENCY FROM A PROCESS COUNTER. It is a query over `alert_fires`
-   (never `user_alerts`), proved by counting rows another process wrote with no
-   module in this process having seen them.
-4. A NEW MEMBER-FACING TRIGGER TYPE SHIPPING WITHOUT A PUBLISHED COOLDOWN. The
+2. A NEW MEMBER-FACING TRIGGER TYPE SHIPPING WITHOUT A PUBLISHED COOLDOWN. The
    set of types with a member create route is DERIVED from the router, and must
    equal the published set.
+3. THE DROPPED CROSS-MEMBER COUNT COMING BACK. A pre-save fire-frequency count
+   over every member's watches was built and then dropped by owner ruling
+   2026-09-29 (privacy: it told a member whether anyone on UCT watched a ticker).
+   No alert-taxonomy route may answer it, and the cooldown module reads no member
+   record at all.
 """
 from __future__ import annotations
 
 import ast
-import json
 import os
-import sqlite3
-import time
 
 import pytest
 from fastapi import APIRouter
@@ -40,8 +36,6 @@ from api.services.entity_master import schema as em_schema
 from api.services.entity_master import store as em_store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DAY = 86400.0
-NOW = 1_790_000_000.0
 
 
 @pytest.fixture(autouse=True)
@@ -243,107 +237,6 @@ class TestEveryMemberTypeIsPublished:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2 + 3. FIRE-FREQUENCY FROM THE DURABLE RECORD
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _watch(user, entity="AAPL", *, created_at, suspended_at=None, form_type=None):
-    pid = predicates.register_predicate(
-        da.TYPE_ID, {"kind": "entity", "id": entity, "symbol": entity},
-        {"form_type": form_type, "keyword": None}, user)
-    conn = at_db.connect()
-    conn.execute("UPDATE alert_predicates SET created_at=?, suspended_at=? WHERE id=?",
-                 (created_at, suspended_at, pid))
-    conn.commit()
-    conn.close()
-    return pid
-
-
-def _fire(pid, accession, fired_at, entity="AAPL"):
-    return receipts.record_fire(pid, da.TYPE_ID, "u", entity, f"occ:{accession}",
-                                as_of=fired_at, fired_at=fired_at)
-
-
-class TestFireFrequency:
-    def test_an_unwatched_entity_is_unobserved_not_zero(self):
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["covered"] is False
-        assert out["fires"] is None
-        assert out["covered_since"] is None
-        assert out["window_days"] == cooldowns.FREQUENCY_WINDOW_DAYS
-        assert out["source"] == "alert_fires"
-
-    def test_a_watched_quiet_entity_is_a_real_zero(self):
-        _watch("u1", created_at=NOW - 90 * DAY)
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["covered"] is True
-        assert out["fires"] == 0
-        assert out["covered_since"] == NOW - cooldowns.FREQUENCY_WINDOW_DAYS * DAY
-
-    def test_one_filing_seen_by_two_members_counts_once(self):
-        a = _watch("u1", created_at=NOW - 90 * DAY)
-        b = _watch("u2", created_at=NOW - 90 * DAY)
-        _fire(a, "acc-1", NOW - 3 * DAY)
-        _fire(b, "acc-1", NOW - 3 * DAY + 60)
-        _fire(a, "acc-2", NOW - 1 * DAY)
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["fires"] == 2
-        assert out["last_fired_at"] == NOW - 1 * DAY
-
-    def test_the_window_bounds_the_count(self):
-        a = _watch("u1", created_at=NOW - 90 * DAY)
-        _fire(a, "acc-old", NOW - (cooldowns.FREQUENCY_WINDOW_DAYS + 1) * DAY)
-        _fire(a, "acc-new", NOW - 2 * DAY)
-        assert cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)["fires"] == 1
-
-    def test_partial_coverage_reports_when_watching_began(self):
-        _watch("u1", created_at=NOW - 4 * DAY)
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["covered_since"] == NOW - 4 * DAY
-
-    def test_a_watch_suspended_before_the_window_does_not_cover_it(self):
-        _watch("u1", created_at=NOW - 90 * DAY, suspended_at=NOW - 60 * DAY)
-        assert cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)["covered"] is False
-
-    def test_a_form_filtered_watch_is_not_the_alert_being_authored(self):
-        a = _watch("u1", created_at=NOW - 90 * DAY, form_type="8-K")
-        _fire(a, "acc-1", NOW - DAY)
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["covered"] is False and out["fires"] is None
-        filtered = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", form_type="8-K", now=NOW)
-        assert filtered["fires"] == 1
-
-    def test_other_entities_do_not_count(self):
-        m = _watch("u1", entity="MSFT", created_at=NOW - 90 * DAY)
-        _fire(m, "acc-m", NOW - DAY, entity="MSFT")
-        assert cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)["fires"] is None
-
-    def test_counts_rows_another_process_wrote(self):
-        """No module in this process records anything: the rows go in through a
-        raw sqlite connection, the way a fire from the scheduler's pod arrives. A
-        process counter would say 0; the durable record says 2."""
-        pid = _watch("u1", created_at=NOW - 90 * DAY)
-        raw = sqlite3.connect(at_db.DB_PATH)
-        for acc, t in (("acc-x", NOW - 5 * DAY), ("acc-y", NOW - 2 * DAY)):
-            raw.execute("INSERT INTO alert_fires (predicate_id, trigger_type, user_id, entity_ref, "
-                        "fire_key, as_of, fired_at) VALUES (?,?,?,?,?,?,?)",
-                        (pid, da.TYPE_ID, "u1", "AAPL", f"occ:{acc}", t, t))
-        raw.commit()
-        raw.close()
-        out = cooldowns.fire_frequency(da.TYPE_ID, "AAPL", now=NOW)
-        assert out["fires"] == 2
-        assert out["type_last_fired_at"] == NOW - 2 * DAY
-
-    def test_the_frequency_module_never_reads_user_alerts(self):
-        with open(cooldowns.__file__, encoding="utf-8") as fh:
-            tree = ast.parse(fh.read())
-        sql = [n.value for n in ast.walk(tree)
-               if isinstance(n, ast.Constant) and isinstance(n.value, str) and "SELECT" in n.value]
-        assert sql, "found no SQL in cooldowns.py -- re-derive this rail"
-        assert all("alert_fires" in s or "alert_predicates" in s for s in sql)
-        assert not any("user_alerts" in s for s in sql)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # THE ROUTES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -359,44 +252,41 @@ def member_client():
 
 
 class TestRoutes:
-    def test_frequency_requires_auth(self):
-        from api.main import app
-        r = TestClient(app).get("/api/alerts/taxonomy/document-arrival/frequency?ticker=AAPL")
-        assert r.status_code in (401, 403)
-
     def test_cooldowns_requires_auth(self):
         from api.main import app
         r = TestClient(app).get("/api/alerts/taxonomy/cooldowns")
         assert r.status_code in (401, 403)
-
-    def test_frequency_carries_the_count_and_the_published_cooldown(self, member_client, monkeypatch):
-        monkeypatch.setenv(da.SWEEP_FLAG, "1")
-        now = time.time()
-        pid = _watch("u2", created_at=now - 90 * DAY)
-        _fire(pid, "acc-1", now - DAY)
-        r = member_client.get("/api/alerts/taxonomy/document-arrival/frequency?ticker=aapl")
-        assert r.status_code == 200
-        body = r.json()
-        assert body["ticker"] == "AAPL"
-        assert body["covered"] is True and body["fires"] == 1
-        assert body["cooldown"] == _entry()
-        # counts only -- never whose watch, never a predicate id
-        assert "u2" not in json.dumps(body) and pid not in json.dumps(body)
-
-    def test_frequency_rejects_a_blank_ticker(self, member_client):
-        r = member_client.get("/api/alerts/taxonomy/document-arrival/frequency?ticker=%20")
-        assert r.status_code == 422
 
     def test_cooldowns_route_publishes_the_register(self, member_client, monkeypatch):
         monkeypatch.setenv(da.SWEEP_FLAG, "1")
         r = member_client.get("/api/alerts/taxonomy/cooldowns")
         assert r.status_code == 200
         body = r.json()
-        assert body["cooldowns"] == cooldowns.published_cooldowns()
-        assert body["frequency_window_days"] == cooldowns.FREQUENCY_WINDOW_DAYS
+        assert body == {"cooldowns": cooldowns.published_cooldowns()}
 
     def test_the_watch_list_carries_the_published_cooldown(self, member_client, monkeypatch):
         monkeypatch.setenv(da.SWEEP_FLAG, "1")
         r = member_client.get("/api/alerts/taxonomy/document-arrival?active_only=false")
         assert r.status_code == 200
         assert r.json()["cooldown"] == _entry()
+
+
+class TestTheDroppedCountStaysDropped:
+    """Owner ruling 2026-09-29: the cross-member fire-frequency count is gone."""
+
+    def test_no_alert_taxonomy_route_answers_a_frequency_question(self):
+        from api.main import app
+        taxonomy = [r.path for r in app.routes
+                    if getattr(r, "path", "").startswith("/api/alerts/taxonomy/")]
+        assert "/api/alerts/taxonomy/cooldowns" in taxonomy, \
+            "derived no taxonomy routes -- re-derive this rail"
+        assert not [p for p in taxonomy if "frequen" in p], taxonomy
+
+    def test_the_cooldown_module_reads_no_member_record(self):
+        with open(cooldowns.__file__, encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        imported = {a.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)
+                    for a in n.names}
+        assert "document_arrival" in imported, "control: the import walk sees nothing"
+        assert not ({"db", "receipts", "predicates"} & imported), imported
+        assert not hasattr(cooldowns, "fire_frequency")
