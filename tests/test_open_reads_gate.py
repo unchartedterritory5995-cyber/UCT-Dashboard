@@ -336,14 +336,18 @@ def test_v_the_census_reflects_the_gating(app):
         assert row["reason"].startswith("NOT GATED"), row["path"]
 
     # every (method, path) whose template the table classifies is counted as
-    # OPEN_READS_GATE-staged -- derived from the route table, never typed
+    # OPEN_READS_GATE-staged -- derived from the route table, never typed.
+    # A classified read that ALSO carries a hard gate (TERM-053: /api/gex/compare
+    # behind get_current_user at its mount) is counted as hard-gated, which is
+    # what it is: it refuses an anonymous caller whatever the flag says.
     seen, expected = set(), 0
     for route in app.routes:
         for m in sorted(getattr(route, "methods", None) or ()):
             key = (m, getattr(route, "path", ""))
             if m in ("GET", "HEAD") and key not in seen:
                 seen.add(key)
-                if g.family_of(key[1]):
+                if g.family_of(key[1]) and not (
+                        asc._guard_names_for(route) & asc.GUARD_NAMES):
                     expected += 1
     assert reads["flag_gated"] == expected > 0
     assert reads["flag_mode"] == g.mode()
