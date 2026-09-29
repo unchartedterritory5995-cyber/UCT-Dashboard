@@ -124,7 +124,7 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     expect(rows.K01.formula).toMatch(/timeclose \* 1000/)
     expect(rows.K02.formula).toMatch(/dayclosetime \* 1000/)
     for (const [k, name] of [['K04', 'sessionfirst'], ['K05', 'weekfirst'], ['K06', 'monthfirst'], ['K16', 'weekfirst']]) {
-      expect(rows[k].formula, k).toMatch(new RegExp(`${name} != 0`))
+      expect(rows[k].formula, k).toContain(`(isfirst ? 0 : ${name})`)
     }
   })
 
@@ -247,11 +247,16 @@ describe('1W — the column rules on the vendor\'s own instants, and the product
     }
   })
 
-  it('⛔ on the PRODUCT\'S weekly bars (date-keyed, unread — Q-T1) the door refuses timeframe.change and time_close stays BLANK', () => {
+  it('⛔ on the PRODUCT\'S weekly bars (date-keyed, unread — Q-T1) every clock row reads BLANK past bar 0, never a confident 0', () => {
+    // The member pane translates before it knows the chart is weekly, so the
+    // door cannot refuse there; what it must not do is launder a blank clock
+    // into "no new period" on every bar, which `col != 0` did (measured: 1,757
+    // of 1,757 new-day bars read 0 through the product's bar shape).
     const rows = ourRows(toProductBars(W1), 'W', W1.newestBarIsForming)
     for (const k of ['K04', 'K05', 'K06', 'K16']) {
-      expect(rows[k].refusal, k).toBeTruthy()
-      expect(rows[k].refusal.message, k).toMatch(/daily and intraday charts/)
+      expect(rows[k].values, k).toBeTruthy()
+      expect(rows[k].values[0], `${k} bar 0`).toBe(0)
+      expect(Array.from(rows[k].values).slice(1).every(Number.isNaN), `${k} past bar 0`).toBe(true)
     }
     const tc = computeClock(toProductBars(W1), 'W', false).timeclose
     expect(Array.from(tc).every(Number.isNaN)).toBe(true)

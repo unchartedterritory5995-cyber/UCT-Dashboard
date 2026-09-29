@@ -7998,17 +7998,16 @@ export class Resolver {
    *  `indicators.js::CLOCK_TIME_DERIVED`'s.
    *
    *   `timeframe.change("D"|"W"|"M")` — equal, bar for bar on all three charts,
-   *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). So it
-   *     is translated AS that identity: the first-of-period column compared
-   *     `!= 0`, which reads the column's blank oldest bar as false exactly as the
-   *     control does. "1W" read identically to "W" (K16), and "1D"/"1M" are the
-   *     same spellings (`PINE_TF_SPELLING`).
-   *     ⛔ CHART PANE ONLY, AND A DAILY OR INTRADAY ONE. A screen evaluates stored
-   *     daily bars whose `t` is a `YYYYMMDD` int, and the pane's weekly/monthly
-   *     bars are date-keyed and unread (Q-T1), so the clock is blank on both and
-   *     `!= 0` would read false on every bar — a confident wrong answer where the
-   *     refusal is an honest one. (`time_close` needs no such gate: a blank
-   *     clock stays blank through its arithmetic, as bare `time` does.)
+   *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). It is
+   *     translated as `isfirst ? 0 : <first-of-period column>`: false on the
+   *     oldest bar exactly as the vendor reads it, and BLANK wherever the clock is
+   *     blank (the pane's date-keyed weekly/monthly bars, Q-T1) rather than a
+   *     confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
+   *     the same spellings (`PINE_TF_SPELLING`).
+   *     ⛔ CHART PANE ONLY. A screen evaluates stored daily bars whose `t` is a
+   *     `YYYYMMDD` int, so the clock is blank there, and the window-dependent
+   *     `isfirst` is refused by every screen consumer anyway; the refusal here
+   *     says so at the door instead of at save time.
    *   `time_close("D")` — 16:00 New York on the date the bar opened (`dayclosetime`),
    *     in milliseconds for a script that declares a `//@version`, exactly as
    *     `time("D")` is; SECONDS for a versionless one, as `time("D")` is too.
@@ -8046,16 +8045,18 @@ export class Resolver {
           : `the period ${JSON.stringify(lit)} is not one of the three measured`)
       }
       if (!this.strict) throw no('this is a screen, not a chart pane')
-      // ⛔ AND ONLY ON A CHART WHOSE BARS CARRY A CLOCK. The product's weekly and
-      // monthly bars are keyed by a DATE that is not read as an instant (Q-T1:
-      // "a week's key day is unmeasured"), so every clock column is blank there
-      // and `!= 0` would read false on every bar — measured: the W capture's
-      // 1,757 "new day" bars all read 0 through the product's bar shape.
-      if (!(/^[0-9]+$/.test(this.basePeriod) || this.basePeriod === 'D')) {
-        throw no(`it is served on daily and intraday charts, whose bars carry a clock, `
-          + `and this one is \`${this.basePeriod}\``)
-      }
-      return cOp('!=', [clockLeaf(col), cNum(0)])
+      // ⭐ FALSE ON THE OLDEST BAR, THE COLUMN EVERYWHERE ELSE — the vendor's
+      // reading, written so a BLANK clock stays blank. The member pane translates
+      // once, before it knows the chart's timeframe (`basePeriod` is `BASE_TF`
+      // there), so the translation cannot refuse a weekly chart; and on the
+      // pane's weekly/monthly bars — date-keyed and unread, Q-T1 — every clock
+      // column is blank. `col != 0` read that blank as false on every bar
+      // (measured: the W capture's 1,757 new-day bars all read 0 through the
+      // product's bar shape), a confident wrong answer; this reads blank there.
+      // ⚠️ `isfirst` makes the tree WINDOW-DEPENDENT (`_requirement_tags`), and
+      // that is TRUE of the vendor's own answer: bar 0 reads false because it is
+      // the first bar LOADED, whether or not it opened a period. A pane accepts it.
+      return cOp('?:', [clockLeaf('isfirst'), cNum(0), clockLeaf(col)])
     }
     if (code !== 'D') {
       throw no(lit === null

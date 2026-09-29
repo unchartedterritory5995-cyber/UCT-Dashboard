@@ -337,25 +337,26 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
 
 // ───────────────────────────────────────────────────────────────────────────
 describe('`timeframe.change` is SERVED where it was measured, and REFUSED — teaching — everywhere else', () => {
-  it('⭐⭐ "D"/"W"/"M" (and "1D"/"1W"/"1M") on a chart pane: the first-of-period column, compared `!= 0` (C8)', () => {
+  it('⭐⭐ "D"/"W"/"M" (and "1D"/"1W"/"1M") on a chart pane: false on the oldest bar, the first-of-period column after (C8)', () => {
     // Measured against the vendor with 0 mismatches on 1D, 60m and W
-    // (`clockCloseTfChange.vendor.test.js`); `!= 0` is the vendor's own identity
-    // `ta.change(time(tf)) != 0`, which reads the blank oldest bar as false.
+    // (`clockCloseTfChange.vendor.test.js`). `isfirst ? 0 : col` rather than
+    // `col != 0`: the same answer where the clock is present, and BLANK — not a
+    // confident false — where it is not (the pane's date-keyed weekly bars).
+    // The member pane translates before it knows the chart's timeframe, so the
+    // answer cannot depend on `basePeriod`, and does not.
     const col = { D: 'sessionfirst', '1D': 'sessionfirst', W: 'weekfirst', '1W': 'weekfirst',
       M: 'monthfirst', '1M': 'monthfirst' }
     for (const [tf, name] of Object.entries(col)) {
-      for (const basePeriod of ['D', '60', '5']) {
+      for (const basePeriod of ['D', '60', '5', 'W', 'M']) {
         expect(formula(`plot(timeframe.change("${tf}") ? close : open)`, { strict: true, basePeriod }))
-          .toBe(`${name} != 0 ? close : open`)
+          .toBe(`(isfirst ? 0 : ${name}) ? close : open`)
       }
     }
   })
 
-  it('⛔⛔ by name, with the reason, on a SCREEN, on a weekly chart and for an unmeasured period', () => {
+  it('⛔⛔ by name, with the reason, on a SCREEN and for an unmeasured period', () => {
     const cases = [
       ['plot(timeframe.change("D") ? close : open)', {}, /this is a screen/],
-      ['plot(timeframe.change("W") ? close : open)', { strict: true, basePeriod: 'W' }, /daily and intraday charts/],
-      ['plot(timeframe.change("M") ? close : open)', { strict: true, basePeriod: 'M' }, /daily and intraday charts/],
       ['plot(timeframe.change("60") ? close : open)', { strict: true }, /"60" is not one of the three measured/],
       ['plot(timeframe.change("3M") ? close : open)', { strict: true }, /"3M" is not one of the three measured/],
       ['plot(timeframe.change(timeframe.period) ? close : open)', { strict: true }, /does not fold to a literal/],
