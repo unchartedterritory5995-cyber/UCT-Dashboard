@@ -365,3 +365,15 @@ def test_instrumentation_runs_before_any_add_job_in_main():
         "instrument_scheduler runs AFTER the first add_job — the earliest jobs "
         "are silently unmeasured"
     )
+
+
+def test_rss_breakdown_separates_owned_from_mapped(tmp_path):
+    """TERM-014: the split that tells a leak (RssAnon) from page cache seen through
+    many memory maps (RssFile)."""
+    from api.services import memory_probe as mp
+    status = tmp_path / "status"
+    status.write_text("Name:\tpython\nVmRSS:\t 9437184 kB\nRssAnon:\t 1048576 kB\n"
+                      "RssFile:\t 8388608 kB\nRssShmem:\t 0 kB\nThreads:\t74\n", encoding="utf-8")
+    assert mp._rss_breakdown(str(status)) == {"RssAnon": 1024.0, "RssFile": 8192.0, "RssShmem": 0.0}
+    assert mp._rss_breakdown(str(tmp_path / "missing")) is None
+    assert "rss_breakdown_mb" in mp.snapshot()
