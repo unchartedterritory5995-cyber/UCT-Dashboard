@@ -99,7 +99,10 @@ ROOT = Path(__file__).resolve().parents[1]
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
 EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 20  # +1 2026-08-31: GET /api/screener/structures
+EXPECTED_SCREENER_ROUTES = 21  # +1 2026-09-29: POST /api/screener/rebuild-universe (admin;
+#   #173 added it without moving this pin — it regenerates the screener's own universe
+#   from Massive reference, so it spends provider budget: admin, never paid)
+#                              # +1 2026-08-31: GET /api/screener/structures
 #                              # +1 2026-08-24: POST /api/screener/count — the
 #   pre-run match count (benchmark metric 450). ⛔ It is PAID like /scan and
 #   takes the SAME ScanSpec, which is the reason it belongs behind the same
@@ -338,12 +341,20 @@ def stub_services(monkeypatch):
     # authenticated dependency rather than the request body. A stub that
     # silently swallowed it (**_) would let the route stop passing it and this
     # file would stay green.
+    # The route also passes the whole `user` (run_scan hands it to
+    # pattern_join.apply_canonical_pilot_overlay, the 8G-B admin/pilot overlay);
+    # the stub takes it rather than swallowing **_, for the same reason as user_id.
     monkeypatch.setattr(scr_query, "run_scan",
-                        lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
+                        lambda spec, user_id=None, user=None: dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_query, "preview_count",
                         lambda spec, user_id=None: dict(sentinel, _user_id=user_id))
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)
+    # rebuild-universe (#173) calls a whole-reference Massive build; stubbed with the
+    # route's own keyword arguments so a route that stops passing them goes red here.
+    from api.services.screener import screener_universe
+    monkeypatch.setattr(screener_universe, "build_and_save",
+                        lambda min_shares=None, sessions=5: dict(sentinel))
 
     shared_record = {"id": 7, "name": "shared screen", "spec": {"filters": []},
                      "is_public": True, "share_token": SHARE_TOKEN}
@@ -413,9 +424,9 @@ def test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door(
         by_klass[_klass(route)].append((name, sorted(route.methods - {"HEAD", "OPTIONS"})[0],
                                         route.path))
 
-    # -4: the three admin routes + the one public door. Both asserts below NAME
+    # -5: the four admin routes + the one public door. Both asserts below NAME
     # their members rather than trusting this count.
-    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 4, \
+    assert len(by_klass["paid"]) == EXPECTED_SCANS_ROUTES + EXPECTED_SCREENER_ROUTES - 5, \
         by_klass
     # BOTH halves of the manual-refresh pair are admin and neither may drift to
     # paid: each spends provider budget on a whole-market call. The
@@ -426,6 +437,7 @@ def test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door(
     assert sorted((m, p) for _, m, p in by_klass["admin"]) == [
         ("GET", "/api/screener/earnings-context-status"),
         ("POST", "/api/screener/finviz-refresh"),
+        ("POST", "/api/screener/rebuild-universe"),
         ("POST", "/api/screener/refresh"),
     ], \
         by_klass["admin"]
