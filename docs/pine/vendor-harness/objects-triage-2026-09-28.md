@@ -113,6 +113,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 11 | C8 early closes and holiday weeks: `time_close` / `time_close("D")` read the session close as TradingView's calendar applies it (`market_calendar.json` extended to 2000, vendor view derived in `tradingview_session`) | `f37825c96` | unchanged | unchanged | none on the 47 (no graded script reads a close on an early-close day). Probe rows K01/K02/K03/K12/K13: 1D 13/13/13/26/13 → 0; 60m 13/52/13/26/52 → 0. Against master `9f9d60b4b`: 47-capture verdicts (211 entries), the committed harness dir (87 captures, 349 entries) and the member-door census (38 / 61 of 266 attach) all 0 changed |
 | 12 | Q-T1 widened: date-keyed W / M bars read their period's first vendor session (M UNMEASURED); the harness keys W by the product's Friday | `6caad1725` | unchanged | unchanged | none on the 47 (all 1D). Probe W rows through the door: K01/K02/K03/K08/K13 1,758 → 0, K04/K05/K06/K07/K12/K16 1,757 → 0. Plot-column census, every attaching corpus script (61) on SPY 1D and 1W bars, master vs tip: 252 columns each; 1D 0 changed; 1W 2 changed, both in `support-and-resistance-multi-time-frame` (`security(…,'M',…)` on a weekly chart: Resistance Monthly 245 bars, Support Monthly 9) — caused by the harness now feeding the product's FRIDAY key, not by the clock: the MTF resampler groups a week that straddles two months by its key day, so a Friday key files it in the later month. That is what the product already does; whether TradingView does it is unmeasured (no W capture of an MTF-monthly script) |
 | 13 | C13 conditional-history: a drawing helper called under a guard built only from inputs and constants inlines (`guardIsBarInvariant`) — the call runs on every bar or none, so its history is the every-bar history. With it, C7's collector made a new hazard visible, closed first: a family the collector CUT while the program lost creates of it is withheld (`program.lostCreates` → `objectRuntime` `withheld`) — see § C13 | `91255467d` (withhold), `a42bb977c` (inline) | 18 / 47 → 18 / 47 | 169 → 167 (of the 238 families the instrument records on both sides; measured at base `b27e0e9e6`, whose table read 18 / 47, not step 9's 19) | `high-low-open-mid-ranges`: `fn:conditional-history` 44 → 0; cells 13 → 37 of 45, every one a cell TradingView shows (the other 8 are `request.security` 'M'/'3M', C10); lines 504/504 and labels 504/504 would have been the right COUNTS of the wrong objects (TradingView holds five lines a week, ours four) — withheld. The two families that dropped were coincidences, now withheld: `sector-rotation` lines 50/50 → 50/0 (TradingView holds two per bar over 25 bars, ours one per bar over 50) and `htf-liquidity-dashboard-tfo` labels 6/6 → 6/0 (two were drawn BLANK where TradingView shows `PDH`/`PDL`; the text setters the inlined helper holds sit behind unreadable guards). Corpus: conditional-history refusals 701 → 579 (20 → 15 scripts). Committed harness dir 87 entries: 3 changed, exactly those. Member-door census 266 × 2 flag states: 0 rows changed |
+| 14 | C11 arrays / UDTs / methods, **runtime front end only** — a script's own `method` binds (`recv.m(a)` → `m(recv, a)`, single-declaration only), the array members the nine scripts write (`first/last/shift/pop/unshift/remove/concat/indexof/includes/max/min/sum/avg`), and a function body READS a main-program variable (`LOAD_GLOBAL_LOCAL/PERSIST`, opcodes 93/94) — see § C11 | `8009fce4e`, `b5924ca44` | 18 / 47 → 18 / 47 (runtime flag on: 19 → 19) | 167 / 238 → 167 / 238 (runtime flag on: 174 / 245 → 174 / 245) | **none, measured.** All nine C11 scripts attach on the HOST lane, so the runtime pane route never engages for them, and the runtime OBJECT lane (`runtime/objectLane.js`) is wired to no product path. The changes are real and railed but move no graded family. Against base `1a11a652b`, both runtime flag states: 47 captures 0 entries changed, committed harness dir (120 captures) 0 changed, member-door census 266 × 2 objects-flag states 0 rows changed (control: the runtime flag itself moves 4 census rows and 1 capture at the same tree, so the diff can see a change). `runtime:function-global-state` is gone from the object-lane peel of max-pain, dual-view and vdubus; each now stops on a host-lane wall |
 
 ### Where the lane stands
 
@@ -363,11 +364,74 @@ creates that never ran.
 | `trend-lines-supports-and-resistances` | all | `for [i, v] in <array<pointPair>>`, `line.all`, UDT fields (C11) | — |
 | `average-day-range-adr-pivots` | lines, boxes | helper result pushed into a drawing array (C11); `request.security` tuple coordinates (C10) | — |
 
+## C11 — arrays, UDTs and methods (2026-09-29, step 14)
+
+**Step 1, measured before any change** (objects pane on, harness only; the same
+numbers with `VITE_PINE_RUNTIME_PANE_ENABLED` off and on — every one of the nine
+attaches on the host lane, so the runtime route never engages):
+
+| script | vendor vs ours (families that disagree) | first wall of the runtime object lane |
+|---|---|---|
+| dual-view-htf-candlestick-patterns | 236 lines / 89 labels / 111 boxes vs no drawing program | `pine:window-dependent` (`barstate.isfirst`) |
+| htf-liquidity-dashboard-tfo | lines 6/0, labels 6/0, cells 30/3 | `pine:input-kind` (`input.symbol`) |
+| ict-killzones-pivots-tfo | cells 3/0 | `runtime:input-state` (`input.color`) |
+| institutional-smc-order-flow-matrix-pro | lines 18/0, labels 34/16, boxes 2/0 | `pine:input-kind` (`input.color`) |
+| k-clustering | lines 9/0, cells 8/5 | `runtime:directive` (`max_bars_back`) |
+| options-max-pain-calculator-backquant | lines 10/0, labels 8/0, boxes 13/0, cells 16/11 | `runtime:function-global-state` (`strikes`) |
+| pro-trading-art-double-top-bottom | lines 7/0, labels 14/0 | `runtime:udt-method` (`maintainPivot`) |
+| trend-duration-forecast-chartprime | labels 28/0, cells 34/0 | `pine:function` (`label(na)`) |
+| vdubus-pattern-gen-v2 | lines 112/0, labels 5/0 | `pine:arity` (`ta.macd`, 4 args) |
+
+**What that table says, and why the lane did not route.** The runtime object
+lane builds **none** of the nine, and it is not wired to any product path
+(`reachable.test.js` lists it unreached). Peeling each script wall by wall
+(replace the refused line, re-run) shows the walls are mostly the HOST lane's
+(`pine:statement` in six scripts: array ops, `box.delete` and `while` bodies
+inside loops the host translator does not read), because the object lane runs the
+host object pass in raw-tree mode for its ops. Routing an unbuilt lane would
+change nothing a member sees, so step 14 closed runtime-front-end gaps the peel
+named instead, each general Pine semantics with a focused test and mutation proof:
+
+- **A script's own `method`** binds when it is declared once and is not also a
+  plain function; `recv.m(args)` lowers to `m(recv, args)` (value and statement
+  position). An overload refuses `runtime:udt-method` by name.
+- **Array members**: `first/last/shift/pop/unshift/remove/concat/indexof/includes/
+  max/min/sum/avg`. An empty array, a non-finite element in a reduction, and an
+  `na` search value refuse with *"has not been measured on a chart"*.
+  `array.slice` stays absent (it is a VIEW, not a copy).
+- **A function reads a main-program variable** at the moment of the call
+  (`LOAD_GLOBAL_LOCAL`/`LOAD_GLOBAL_PERSIST`); a helper can clear and fill a
+  global array (max-pain's `generate_strikes`). Still refused by name: assigning a
+  global, a global's history (`g[1]`), a window over a bare global, and any global
+  read inside a `request.security` value.
+
+**Grades: none moved** (row 14). Every change is on a path no graded script
+reaches today.
+
+**What each C11 script still stops on** (object-lane peel after step 14; refused by
+name, never drawn approximately):
+
+| script | stops on | would settle it |
+|---|---|---|
+| dual-view | `barstate.isfirst` (window-dependent); `while` + `array.shift` in a loop body (C12); `input.*` defaults | none — host-lane grammar, not unknown semantics |
+| htf-liquidity | `input.symbol`; `request.security` (C10) | — |
+| ict-killzones | `input.color` default read by state; `for … in` over a UDT array; `while` over `.size()` | — |
+| smc | `input.color`; `box.delete` / `array.remove` inside a loop (C12) | — |
+| k-clustering | `max_bars_back` directive; `while` convergence loop; dynamic offsets (C9) | — |
+| max-pain | `while` loop building strikes; a block value (C12) | — |
+| pro-trading-art | a drawing helper returning a tuple of handles with a default param; `line.get_y2()` (C14) | — |
+| trend-duration | `label(na)` as a value | — |
+| vdubus | `ta.macd` with 4 args; `ta.pivothigh` right-bars in a statement; drawing helpers with multi-statement branches | — |
+
+No capture is needed for any of these: none is a question about what TradingView
+does. Each is a grammar or lane gap, and the next C11 step is routing object
+programs into the runtime object lane once one of the nine builds end to end.
+
 ## What is left, ranked by scripts it would move
 
 | rank | class | scripts (primary) | what it needs |
 |---|---|---|---|
-| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix |
+| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11 |
 | 2 | C12 values or `var` state computed across a multi-statement block (`pine:block`, `pine:state`, `pine:reassign`) | atr-sr, market-structure, rsi-swing, position-size-calc, smc (secondary) (4–5) | per-bar state for block-assigned names; `market-structure` and `smc` also OVER-draw because a reset (`x := na` after a draw) is lost, so this is the class that removes wrong objects, not just missing ones |
 | 3 | C10 `request.security` in object text/coordinates | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the MTF data seam reaching the object lane |
 | 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
