@@ -69,6 +69,10 @@ export const MANIFEST = [
   { path: "/open-flow", pathKind: "literal", element: "OpenFlow", kind: "surface", order: null },
   { path: "/portfolio-heat", pathKind: "literal", element: "PortfolioHeat", kind: "surface", order: null },
   { path: "/traders", pathKind: "literal", element: "Traders", kind: "surface", order: null },
+  // ⚰️ ADDED 2026-09-29 (TERM-037). App.jsx moved /provenance-demo inside <Layout/> on
+  // 2026-09-25 (`7e0ab34c2`, gated with OI-17's siblings) without a row here, and this
+  // manifest's own coverage rail had been red since. Not a sidebar entry, so `order` is null.
+  { path: "/provenance-demo", pathKind: "literal", element: "ProvenanceDemo", kind: "surface", order: null },
   { path: "/dark-pool", pathKind: "literal", element: "DarkPool", kind: "surface", order: null },
   { path: "/post-market", pathKind: "literal", element: "PostMarket", kind: "surface", order: null },
   { path: "/model-book", pathKind: "literal", element: "ModelBook", kind: "surface", order: null },
