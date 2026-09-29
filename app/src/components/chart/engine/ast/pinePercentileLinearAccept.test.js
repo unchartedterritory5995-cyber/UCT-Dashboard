@@ -136,6 +136,17 @@ describe('⭐ ta.percentile_linear_interpolation is a declared, window, cross-la
   // context. This corpus script still does not move the real host_ok count —
   // what moved is that percentile is no longer the reason ANY script would
   // refuse.
+  // ⚰️ RE-PINNED 2026-09-28 (branch `pine/var-read-order`): "a `var` seeded `na`
+  // nothing in the script ever updates" was the FOLD talking, not the script —
+  // `compHigh` is reassigned at lines 390, 399, 405, 409, 421 and 428. The walker
+  // read it at line 396 (`inRange = high <= compHigh + tol …`) through the
+  // binding in scope there, the bare initializer, and folded THAT. Read by
+  // position (`partialStateRead`), `compHigh` and `compLen` each read the other
+  // before setting their own — `if compLen == 0` guards `compHigh := high`, and
+  // `inRange` (which reads `compHigh`) guards `compLen := compLen + 1` — so the
+  // honest refusal is now the coupled-state one, carrying `route: 'runtime'`.
+  // The guard is unchanged; the NAME it cites is whichever of the pair the
+  // walker reaches second.
   it('the real corpus script no longer refuses on percentile (a separate, later blocker now surfaces)', () => {
     const src = fs.readFileSync(
       path.join(CORPUS, 'volatility-coil-edge-bullbyte__604f0fd1c6.pine'), 'utf8')
@@ -144,6 +155,8 @@ describe('⭐ ta.percentile_linear_interpolation is a declared, window, cross-la
     expect(t.refusal.guard).not.toBe('pine:function')
     expect(t.refusal.message).not.toMatch(/percentile/i)
     expect(t.refusal.guard).toBe('pine:state')
-    expect(t.refusal.message).toMatch(/compHigh/)
+    expect(t.refusal.message).toMatch(/`comp(Len|High|Low)`/)
+    expect(t.refusal.message).toMatch(/carry each other/)
+    expect(t.refusal.route).toBe('runtime')
   })
 })
