@@ -17,7 +17,14 @@ was never restarted, so it runs pre-change copies — behaviour identical throug
 repo, so the JSON dataset ships to flow-worker on its next watched redeploy.
 Known clock-dependent red (pre-existing): `test_bars_server_include_today::test_todays_daily_bar_stamps_today_and_caches`
 fails before 09:30 ET. `freshnessAge.test.js` times out only when run beside 15 other files (77/77 alone).
-In flight: TERM-082 ranks 4 (theme live overlay) + 6 (calendar day-metrics-batch).
+In flight: TERM-082 ranks 4 (theme live overlay) + 6 (calendar day-metrics-batch), TERM-064 (one ticker resolver),
+TERM-041 (fixed regime vocabulary).
+
+⚰️ **"Agent-buildable queue: EMPTY" (below) WAS WRONG.** The backlog's status column still reads "behind X" for tickets
+whose X has since been built. Re-derived 2026-09-29: BUILDABLE now — 018, 064, 070 (⚠️ lives in partner-owned
+`schwab_router.py`: coordinate first), 072; UNBLOCKED by built deps — 037 (024), 039 (068), 040/042/045/046 (022),
+041 (071), 048/062 (025), 053 (026), 054 (013); and 059 once 041 lands. Still genuinely held: 001-010, 014, 017, 092,
+093, and everything "behind 019/020/021/023" should be re-checked (019/020/021/023 shipped as slices, not whole).
 
 ---
 
