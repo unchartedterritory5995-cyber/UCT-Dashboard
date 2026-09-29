@@ -44,6 +44,7 @@ These match the structure used throughout ``api/services/bars_fetch.py``.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from math import isfinite, sqrt
 from typing import Dict, List, Optional, Tuple, Union
@@ -1745,6 +1746,43 @@ def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
     return close > now
 
 
+#: ⭐⭐ WHEN A DAILY BAR OPENED — 09:30 America/New_York on its date. Mirrors
+#: ``barOpenInstant`` in ``indicators.js`` value for value (Q-T1, 2026-09-28).
+#: TradingView stamps a daily bar with the instant its session opened (all 8,473
+#: SPY 1D rows of ``vw-bool-cast-spy-1d-2026-09-28.json``), and the chart's
+#: daily bars arrive keyed by an ISO date, so the date is translated into that
+#: instant once and every time-derived column reads it. DAILY and ISO only: a
+#: ``W``/``M`` date and the screen's ``YYYYMMDD`` ints stay behind the unit gate.
+DAILY_SESSION_OPEN_ET_MINUTE = 9 * 60 + 30
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+
+
+def bar_open_instant(t, tf: Optional[str] = None) -> Optional[float]:
+    """A bar's ``t`` as unix seconds, or ``None`` when it is not readable as one.
+
+    A number passes the unit gate as it always has. An ISO date on a ``"D"``
+    series becomes its session's opening instant; anything else is ``None``, and
+    one ``None`` blanks the whole series in ``compute_clock``.
+    """
+    if isinstance(t, bool):
+        return None
+    if isinstance(t, (int, float)):
+        return float(t) if isfinite(float(t)) and t >= VWAP_MIN_INSTANT else None
+    if tf != "D" or not isinstance(t, str):
+        return None
+    m = _ISO_DATE_RE.match(t)
+    if not m:
+        return None
+    try:
+        opened = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                          DAILY_SESSION_OPEN_ET_MINUTE // 60,
+                          DAILY_SESSION_OPEN_ET_MINUTE % 60, tzinfo=_et_zone())
+    except ValueError:
+        return None
+    instant = float(int(opened.timestamp()))
+    return instant if instant >= VWAP_MIN_INSTANT else None
+
+
 def compute_clock(bars: List[dict], tf: Optional[str] = None,
                   newest_bar_is_forming: Optional[bool] = None,
                   confirmed: Optional[bool] = None,
@@ -1905,12 +1943,17 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         cols["islastconfirmedhistory"] = [1.0 if (lch >= 0 and i == lch) else 0.0
                                           for i in range(n)]
 
-    # THE UNIT GATE — before ``_et_zone()``, so a refused series costs no tz
-    # lookup, and before any accumulation so the answer is all-or-nothing.
+    # THE UNIT GATE — before any accumulation, so the answer is all-or-nothing.
+    # ⭐ A date-keyed DAILY bar passes it as its session's opening instant
+    # (``bar_open_instant``), and every time-derived column below reads THAT
+    # instant, so bare ``time``, ``hour``, ``dayofweek`` and the session clock
+    # built on them cannot disagree.
+    opens: List[float] = []
     for bar in bars:
-        t = bar.get("t") if isinstance(bar, dict) else None
-        if isinstance(t, bool) or not isinstance(t, (int, float)) or t < VWAP_MIN_INSTANT:
+        t = bar_open_instant(bar.get("t") if isinstance(bar, dict) else None, tf)
+        if t is None:
             return cols
+        opens.append(t)
 
     zone = _et_zone()
     time_col: List[MaybeNum] = [None] * n
@@ -1932,8 +1975,7 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     memo_hour = None
     memo = None
     prev_day = -1
-    for i, bar in enumerate(bars):
-        t = bar["t"]
+    for i, t in enumerate(opens):
         utc_hour = int(t // 3600)
         if utc_hour == memo_hour:
             y, mo, d, wd, h = memo

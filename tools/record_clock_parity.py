@@ -119,6 +119,16 @@ def record(compute_clock, source: dict) -> dict:
     out["non_instant_expected"] = _columns(compute_clock(ni_bars, "D", False),
                                            sorted(source["non_instant_expected"]))
 
+    # ── a DAILY series keyed by ISO DATES (Q-T1, 2026-09-28) ─────────────────
+    # The chart pane's own shape. Under "D" each date reads as its session's
+    # opening instant (09:30 New York); under "W" the same dates stay blank,
+    # because a weekly bar's key day is unmeasured. Both lanes are held to it.
+    iso_bars = source["iso_daily_bars"]
+    out["iso_daily_expected"] = _columns(compute_clock(iso_bars, "D", False),
+                                         sorted(source["expected"]))
+    out["iso_weekly_expected"] = _columns(compute_clock(iso_bars, "W", False),
+                                          sorted(source["expected"]))
+
     # ── the timeframe vocabulary ─────────────────────────────────────────────
     tf_out = {}
     for code in source["tf_booleans"]:
@@ -163,10 +173,21 @@ def record(compute_clock, source: dict) -> dict:
         "`tests/test_bar_close_state.py` and the null-blanks render test in "
         "`app/src/components/chart/engine/ast/barstate.test.js`."
     )
+    out["_iso_daily"] = (
+        "⭐⭐ A DAILY SERIES KEYED BY ISO DATES (Q-T1, 2026-09-28) — the shape the "
+        "chart's `/api/bars` serves. Under tf \"D\" each date reads as its "
+        "session's opening instant, 09:30 America/New_York "
+        "(`indicators.js::barOpenInstant` / `indicator_compute.bar_open_instant`), "
+        "which is the instant TradingView stamps as a daily bar's `time`; the "
+        "series crosses both DST changes, so a fixed UTC offset would miss half "
+        "of it. Under tf \"W\" (`iso_weekly_expected`) the same dates stay "
+        "blank: which day a weekly bar is keyed by is unmeasured, so it is not "
+        "guessed."
+    )
     out["_recorder"] = (
         "⛔ GENERATED — DO NOT HAND-EDIT. Rewrite with "
         "`python tools/record_clock_parity.py`; check with `--check`. Inputs "
-        "(`bars`, `non_instant_bars`, `tf`, and the `tf_booleans` / "
+        "(`bars`, `non_instant_bars`, `iso_daily_bars`, `tf`, and the `tf_booleans` / "
         "`sliced_sessionfirst` key sets) are READ from this file and written back "
         "unchanged — only the expected blocks are recomputed, so the series the "
         "numbers describe stays nameable. Canonical by construction: sorted keys, "
@@ -254,7 +275,7 @@ def main() -> int:
 
     missing = [k for k in ("bars", "tf", "non_instant_bars", "expected",
                            "non_instant_expected", "tf_booleans",
-                           "sliced_sessionfirst") if k not in source]
+                           "sliced_sessionfirst", "iso_daily_bars") if k not in source]
     if missing:
         print("⛔ INPUTS NOT RECOVERABLE FROM THE FIXTURE: " + ", ".join(missing))
         print("   Refusing to record a fixture whose inputs nobody can name.")

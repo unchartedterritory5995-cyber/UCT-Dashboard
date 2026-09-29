@@ -144,6 +144,28 @@ describe('the clock oracle — this lane against the committed fixture', () => {
       'sessionfirst', 'time', 'year'])
   })
 
+  it('⭐⭐ a DAILY series keyed by ISO DATES reads each date as its 09:30 New York open (Q-T1)', () => {
+    // The chart pane's own shape. The fixture's dates cross BOTH DST changes, so
+    // a fixed UTC offset would be an hour off on half of them.
+    const cols = computeClock(doc.iso_daily_bars, 'D', false)
+    for (const name of Object.keys(doc.iso_daily_expected)) {
+      same(clean(cols[name]), doc.iso_daily_expected[name], `iso daily ${name}`)
+    }
+    expect(doc.iso_daily_expected.hour.every((h) => h === 9)).toBe(true)
+    expect(doc.iso_daily_expected.minute.every((m) => m === 30)).toBe(true)
+    const utcHours = new Set(doc.iso_daily_expected.time.map((t) => (t % 86400) / 3600))
+    expect([...utcHours].sort()).toEqual([13.5, 14.5])
+  })
+
+  it('⛔ the SAME dates under a WEEKLY timeframe stay blank — the key day of a week is unmeasured', () => {
+    const cols = computeClock(doc.iso_daily_bars, 'W', false)
+    for (const name of Object.keys(doc.iso_weekly_expected)) {
+      same(clean(cols[name]), doc.iso_weekly_expected[name], `iso weekly ${name}`)
+    }
+    expect(doc.iso_weekly_expected.time.every((v) => v === null)).toBe(true)
+    expect(doc.iso_weekly_expected.isweekly.every((v) => v === 1)).toBe(true)
+  })
+
   it('⛔ `sessionfirst` is WINDOW-INDEPENDENT — every slice agrees from its second bar', () => {
     // It reads the PREVIOUS bar's ET day, declares `lookback: 1` for it, and is
     // blank on the oldest bar. Before that pad, slicing the series made its new

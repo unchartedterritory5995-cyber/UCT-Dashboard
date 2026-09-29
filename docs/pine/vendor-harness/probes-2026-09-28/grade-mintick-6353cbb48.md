@@ -1,0 +1,21 @@
+# Vendor harness — verdicts
+
+Directories: `../../../../AppData/Local/uct-vendor-batch/runs/probes-2026-09-28/captures`
+
+```
+capture                                      symbol/tf        plots  verdict       first divergence / reason
+-------------------------------------------- ---------------- ------ ------------- ----------------------------------------
+vw-bool-cast-spy-1d-2026-09-28               AMEX:SPY 1D      0      INCONCLUSIVE  refused on our side: install door refused: u_member-pane-vendorharness: compute.trees.out8: refused at registration by "resolve:condition" — a condition argument must be a 0/1 column, and this one is a number — valuewhenOccurrence argument 0 is its condition: compare it to something, or use a name this table declares as yielding 0/1
+vw-bool-cast-spy-60-2026-09-28               AMEX:SPY 60      0      INCONCLUSIVE  refused on our side: install door refused: u_member-pane-vendorharness: compute.trees.out8: refused at registration by "resolve:condition" — a condition argument must be a 0/1 column, and this one is a number — valuewhenOccurrence argument 0 is its condition: compare it to something, or use a name this table declares as yielding 0/1
+vw-bool-cast-v4-spy-1d-2026-09-28            AMEX:SPY 1D      0      INCONCLUSIVE  refused on our side: member door refused (pine:role-order): this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `valuewhen` takes 2 price series (valuewhen(series, series, int)) and no measured order maps `valuewhen` onto them
+vw-bool-cast-v4-spy-60-2026-09-28            AMEX:SPY 60      0      INCONCLUSIVE  refused on our side: member door refused (pine:role-order): this table states what kind each argument is and never what role it plays, so several price series cannot be matched onto it by position — `valuewhen` takes 2 price series (valuewhen(series, series, int)) and no measured order maps `valuewhen` onto them
+vw-deadband-ticks-aapl-1d-2026-09-28         NASDAQ:AAPL 1D   0      INCONCLUSIVE  refused on our side: member door refused (pine:state): `dbhf` is a `var` seeded `na` that nothing in this script updates, so every bar of its column would be blank — the reassignment it needs is one this translator could not fold into a single expression
+vw-deadband-ticks-brk-a-1d-2026-09-28        NYSE:BRK.A 1D    0      INCONCLUSIVE  refused on our side: member door refused (pine:state): `dbhf` is a `var` seeded `na` that nothing in this script updates, so every bar of its column would be blank — the reassignment it needs is one this translator could not fold into a single expression
+vw-deadband-ticks-spy-1d-2026-09-28          AMEX:SPY 1D      0      INCONCLUSIVE  refused on our side: member door refused (pine:state): `dbhf` is a `var` seeded `na` that nothing in this script updates, so every bar of its column would be blank — the reassignment it needs is one this translator could not fold into a single expression
+vw-var-seed-spy-1d-2026-09-28                AMEX:SPY 1D      0      INCONCLUSIVE  refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `d` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>, <anchor>, <bars>)` — the same running total with the starting instant STATED. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.
+
+TOTAL 8 captures — MATCH 0 · DIVERGE 0 · INCONCLUSIVE 8
+```
+
+## Not comparable (0)
+

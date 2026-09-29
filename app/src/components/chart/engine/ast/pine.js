@@ -8002,6 +8002,15 @@ export class Resolver {
    *      EST days of 300 — S11), and neither is `"GMT-5"` (S12, the mirror).
    *   4. `:1234567` / `:23456` filter by the day of week in the window's zone.
    *
+   *  ⚰️ (Q-T1, 2026-09-28) "MATCHED ON 1D" WAS TRUE ONLY ON THE VENDOR'S OWN BARS.
+   *  `pineVocabularyWave.test.js` fed the capture's unix-second session opens;
+   *  the product serves a daily bar keyed by an ISO DATE, and every clock column
+   *  blanked on it, so at the member door this answered `na` on EVERY daily bar
+   *  (B08: 5,308 of 8,473 SPY bars wrong). Nothing here changed: the date is now
+   *  read as its session's opening instant where the clock is computed
+   *  (`indicators.js::barOpenInstant`), and `sessionClockDailyBars.test.js`
+   *  holds this door on the PRODUCT'S bar shape.
+   *
    *  ⛔ WHAT STAYS REFUSED, each because no capture answers it: another
    *  timeframe than the chart's own; a weekly/monthly chart; an overnight or
    *  full-day window (`"2000-0000"` read `na` on every captured bar, but no

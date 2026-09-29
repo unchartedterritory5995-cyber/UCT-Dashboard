@@ -19,6 +19,60 @@ artemis-oscillator-pro-rddt-1d-2026-09-28    NYSE:RDDT 1D     12     DIVERGE    
     Plot                                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Plot                                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  DIVERGE       5 object families differ (count or text); coordinates are NOT compared by v1
+atr-support-and-resistance-rddt-1d-2026-09-2 NYSE:RDDT 1D     9      DIVERGE       1 of 10 compared items diverge
+    Impulse Up                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Impulse Down                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    RSI Mid Line Support                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    RSI Mid Line Resistance                  MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    RSI Overbought                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    RSI Oversold                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Ran Previous High                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Ran Previous Low                         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Moving Average                           INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
+average-day-range-adr-pivots-rddt-1d-2026-09 NYSE:RDDT 1D     7      DIVERGE       1 of 8 compared items diverge
+    ADR 1 Resistance                         INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    ADR 1 Support                            INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    ADR 2 Resistance                         INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    ADR 2 Support                            INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    MA 1                                     INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    MA 2                                     INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    MA 3                                     INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    objects                                  DIVERGE       4 object families differ (count or text); coordinates are NOT compared by v1
+candlestick-patterns-identified-update-1-17- NYSE:RDDT 1D     15     INCONCLUSIVE  3 of 16 items could not be compared
+    Doji                                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bearish Harami                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bullish Harami                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bearish Engulfing                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bullish Engulfing                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Piercing Line                            MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bullish Belt                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bullish Kicker                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Bearish Kicker                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Hanging Man                              MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Evening Star                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Morning Star                             MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Shooting Star                            INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    Hammer                                   INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    Inverted Hammer                          INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    objects                                  MATCH         neither side draws an object
+contraction-box-doji-lines-rddt-1d-2026-09-2 NYSE:RDDT 1D     0      MATCH         all 1 items agree
+    objects                                  MATCH         object counts and texts agree; coordinates are NOT compared by v1
+donchian-channels-rddt-1d-2026-09-28         NYSE:RDDT 1D     13     DIVERGE       Basis: bar 100 t=1723642200 color vendor=57.715 ours=57.715
+    Basis                                    DIVERGE       cmp 632 ok 100 warm 0/0 steady 532/632 maxRel 0.00e+0 — 532 steady-state bars disagree; first at bar 100 (color: vendor 57.715 vs ours 57.715) — persistent, last at bar 631
+    Upper Donchian                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Upper Donchian | Inner                   MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Upper .786                               INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    Upper Mid                                MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Upper.702                                MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Upper .382                               INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    Lower .382                               INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    Lower .702                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Lower Mid                                MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Lower .786                               INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
+    Lower Donchian | Inner                   MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    Lower Donchian                           MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 dual-view-htf-candlestick-patterns-theultima NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
     HTF MA                                   INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
     objects                                  DIVERGE       TradingView holds 436 drawing object(s) at the last bar and our script has no drawing program
@@ -65,6 +119,12 @@ high-low-open-mid-ranges-rddt-1d-2026-09-28  NYSE:RDDT 1D     7      DIVERGE    
     plot_10                                  INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
     plot_12                                  INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
     objects                                  DIVERGE       5 object families differ (count or text); coordinates are NOT compared by v1
+htf-candle-footprint-cartel-console-rddt-1d- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       6 object families differ (count or text); coordinates are NOT compared by v1
+htf-liquidity-dashboard-tfo-rddt-1d-2026-09- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       4 object families differ (count or text); coordinates are NOT compared by v1
+ict-ipda-look-back-rddt-1d-2026-09-28        NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
 ict-killzones-pivots-tfo-rddt-1d-2026-09-28  NYSE:RDDT 1D     7      DIVERGE       1 of 8 compared items diverge
     Chars                                    INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
     Chars                                    INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
@@ -80,6 +140,10 @@ inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     2      DIVERGE    
     objects                                  MATCH         object counts and texts agree; coordinates are NOT compared by v1
 institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
     objects                                  DIVERGE       4 object families differ (count or text); coordinates are NOT compared by v1
+k-clustering-rddt-1d-2026-09-28              NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
+linear-regression-channel-tradingfinder-exis NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       1 object families differ (count or text); coordinates are NOT compared by v1
 liquidation-levels-rddt-1d-2026-09-28        NYSE:RDDT 1D     11     DIVERGE       L1 Long: bar 0 t=1711027800 color vendor=42.45366666666666 ours=42.45366666666666
     L1 Long                                  DIVERGE       cmp 632 ok 0 warm 0/0 steady 632/632 maxRel 0.00e+0 — 632 steady-state bars disagree; first at bar 0 (color: vendor 42.45366666666666 vs ours 42.45366666666666) — persistent, last at bar 631
     L2 Long                                  DIVERGE       cmp 632 ok 0 warm 0/0 steady 632/632 maxRel 0.00e+0 — 632 steady-state bars disagree; first at bar 0 (color: vendor 46.083818181818174 vs ours 46.083818181818174) — persistent, last at bar 631
@@ -98,6 +162,8 @@ liquidity-engulfing-candles-upslidedown-rddt NYSE:RDDT 1D     3      MATCH      
     Shapes                                   MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Shapes                                   MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
+liquidity-heatmap-nephew-sam-rddt-1d-2026-09 NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
 liquidity-pools-rddt-1d-2026-09-28           NYSE:RDDT 1D     2      DIVERGE       Swing High: bar 44 t=1716471000 color vendor=66.15 ours=66.15
     Swing High                               DIVERGE       cmp 632 ok 586 warm 0/0 steady 46/632 maxRel 0.00e+0 — 46 steady-state bars disagree; first at bar 44 (color: vendor 66.15 vs ours 66.15) — scattered, last at bar 625
     Swing Low                                DIVERGE       cmp 632 ok 587 warm 0/0 steady 45/632 maxRel 0.00e+0 — 45 steady-state bars disagree; first at bar 11 (color: vendor 44 vs ours 44) — scattered, last at bar 623
@@ -122,6 +188,10 @@ madrid-moving-average-ribbon-rddt-1d-2026-09 NYSE:RDDT 1D     18     DIVERGE    
     MMA85                                    INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
     MMA90                                    INCONCLUSIVE   — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
     objects                                  MATCH         neither side draws an object
+makuchaku039s-trade-tools-fair-value-gaps-rd NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       1 object families differ (count or text); coordinates are NOT compared by v1
+market-structure-by-leviathan-rddt-1d-2026-0 NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
 mcclellan-indicators-rddt-1d-2026-09-28      NYSE:RDDT 1D     13     DIVERGE       Osc: bar 38 t=1715779800 na vendor=122.44137512554066 ours=na
     Osc                                      DIVERGE       cmp 632 ok 38 warm 0/0 steady 594/632 maxRel 0.00e+0 — 594 steady-state bars disagree; first at bar 38 (na: vendor 122.44137512554066 vs ours na) — persistent, last at bar 631
     MSI                                      INCONCLUSIVE  cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved
@@ -150,6 +220,14 @@ momentum-volatility-scanner-rddt-1d-2026-09- NYSE:RDDT 1D     11     DIVERGE    
     Bull Divergence                          MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Bear Divergence                          MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
+multi-timeframe-supply-demand-zones-rddt-1d- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       1 object families differ (count or text); coordinates are NOT compared by v1
+options-max-pain-calculator-backquant-rddt-1 NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       6 object families differ (count or text); coordinates are NOT compared by v1
+poor-man039s-volume-profile-rddt-1d-2026-09- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
+position-size-calc-rddt-1d-2026-09-28        NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
 position-size-calculator-rddt-1d-2026-09-28  NYSE:RDDT 1D     3      DIVERGE       Entry: bar 0 t=1711027800 na vendor=0 ours=na
     Entry                                    DIVERGE       cmp 632 ok 612 warm 0/0 steady 20/632 maxRel 0.00e+0 — 20 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 19
     TP                                       DIVERGE       cmp 632 ok 612 warm 0/0 steady 20/632 maxRel 0.00e+0 — 20 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 19
@@ -159,6 +237,8 @@ price-action-as-in-book-fibonacci-supportres NYSE:RDDT 1D     2      DIVERGE    
     Pivot High                               DIVERGE       cmp 632 ok 606 warm 0/0 steady 26/632 maxRel 0.00e+0 — 26 steady-state bars disagree; first at bar 45 (color: vendor 66.15 vs ours 66.15) — scattered, last at bar 626
     Pivot Low                                DIVERGE       cmp 632 ok 609 warm 0/0 steady 23/632 maxRel 0.00e+0 — 23 steady-state bars disagree; first at bar 24 (color: vendor 37.35 vs ours 37.35) — scattered, last at bar 619
     objects                                  MATCH         object counts and texts agree; coordinates are NOT compared by v1
+pro-trading-art-double-top-bottom-with-alert NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
 reverse-stochastic-momentum-index-on-chart-r NYSE:RDDT 1D     7      DIVERGE       1 of 8 compared items diverge
     Scale High                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.47e-15
     High Alert                               MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.03e-14
@@ -168,6 +248,8 @@ reverse-stochastic-momentum-index-on-chart-r NYSE:RDDT 1D     7      DIVERGE    
     Signal Line Cross                        MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 5.36e-15
     Zero Line Cross                          MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.46e-13
     objects                                  DIVERGE       TradingView holds 1 drawing object(s) at the last bar and our script has no drawing program
+rsi-swing-indicator-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
 sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      DIVERGE       1 of 2 compared items diverge
     Current Symbol Percentage Change         MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.95e-16
     objects                                  DIVERGE       1 object families differ (count or text); coordinates are NOT compared by v1
@@ -185,8 +267,14 @@ ultimate-pivot-points-rddt-1d-2026-09-28     NYSE:RDDT 1D     3      DIVERGE    
     PD_L                                     MATCH         cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Pivot                                    DIVERGE       cmp 632 ok 631 warm 0/0 steady 1/632 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 139 (color: vendor 71.33 vs ours 71.33) — scattered, last at bar 139
     objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
+vdubus-pattern-gen-v2-restored-refined-rddt- NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       3 object families differ (count or text); coordinates are NOT compared by v1
+vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE       1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); coordinates are NOT compared by v1
+volume-profile-rddt-1d-2026-09-28            NYSE:RDDT 1D     0      MATCH         all 1 items agree
+    objects                                  MATCH         object counts and texts agree; coordinates are NOT compared by v1
 
-TOTAL 25 captures — MATCH 3 · DIVERGE 22 · INCONCLUSIVE 0
+TOTAL 47 captures — MATCH 5 · DIVERGE 41 · INCONCLUSIVE 1
 ```
 
 ## Not comparable (0)

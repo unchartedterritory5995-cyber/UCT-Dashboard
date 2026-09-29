@@ -1346,6 +1346,13 @@ export const CLOCK_COLUMNS = Object.freeze([
  * refuse a column it has no reason to doubt. `computeAVWAP` draws the same line
  * between its calendar anchors and its swing ones, for the same reason.
  *
+ * ⭐ ONE SHAPE PASSES IT BY TRANSLATION, NOT BY GUESSING: a DAILY bar keyed by
+ * an ISO date (`tf === 'D'`, the chart pane's own shape) is read as the instant
+ * its session opened — `barOpenInstant`, 09:30 America/New_York on that date,
+ * which is the instant TradingView stamps as a daily bar's `time`. The nine
+ * columns then read that instant, so `hour` is 9 and `minute` 30 on every
+ * daily bar and a fixed-zone session sees DST exactly as the vendor does.
+ *
  * ⛔ AND AN ABSENT `tf` FAILS CLOSED, NEVER TO A DEFAULT. A guessed `'D'` makes
  * `isdaily` a confident 1 on a 5-minute chart, which is a wrong answer wearing a
  * right one's clothes. NaN is "nobody told me", which every consumer of this
@@ -1385,6 +1392,54 @@ export const CLOCK_COLUMNS = Object.freeze([
 export const BARSTATE_MODE_CALENDAR = 'calendar'
 export const BARSTATE_MODE_VENDOR = 'vendor'
 export const BARSTATE_MODES = Object.freeze([BARSTATE_MODE_CALENDAR, BARSTATE_MODE_VENDOR])
+
+/** ⭐⭐ WHEN A DAILY BAR OPENED — the regular session's open on its date, in
+ *  the exchange zone: 09:30 America/New_York (2026-09-28, Q-T1).
+ *
+ *  The chart's daily bars arrive keyed by a calendar DATE (`/api/bars` serves
+ *  `t: 'YYYY-MM-DD'`), and until this rule every time-derived column blanked on
+ *  them — bare `time`, `hour`, `minute`, `dayofweek`, and the session clock
+ *  `time(tf, session[, tz])` built on those. TradingView stamps a daily bar with
+ *  the instant its session OPENED: every one of the 8,473 SPY 1D rows in
+ *  `tests/fixtures/vendor/harness/vw-bool-cast-spy-1d-2026-09-28.json` carries
+ *  09:30 New York, 13:30 UTC under daylight time and 14:30 UTC under standard
+ *  time. So the date is turned into THAT instant, once, here — and every column
+ *  reads the same number, which is what keeps bare `time`, the clock leaves and
+ *  a fixed-zone session (`"GMT-4"`: in on EDT days, out on EST days) agreeing.
+ *
+ *  ⛔ DAILY ONLY. A weekly or monthly bar opens at the first session of its
+ *  period, and which calendar day the product keys it by is a separate fact
+ *  nobody has measured here — so `W`/`M` dates stay blank rather than guessed.
+ *  ⛔ AN ISO DATE ONLY. The screen's stored `YYYYMMDD` ints stay behind the unit
+ *  gate unchanged; widening them is the screen's own ruling, not this one.
+ *  ⛔ An impossible date (`2025-02-30`) or one before the unit floor is `null`,
+ *  and one `null` blanks the whole series, exactly as the gate always has.
+ *
+ *  @param {*} t  a bar's `t`
+ *  @param {string} [tf] the chart's timeframe code
+ *  @returns {number|null} unix seconds, or null when `t` is not readable as one
+ */
+export const DAILY_SESSION_OPEN_ET_MINUTE = 9 * 60 + 30
+const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
+export function barOpenInstant(t, tf) {
+  if (typeof t === 'number') return Number.isFinite(t) && t >= VWAP_MIN_INSTANT ? t : null
+  if (tf !== 'D' || typeof t !== 'string') return null
+  const m = ISO_DATE_RE.exec(t)
+  if (!m) return null
+  const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3])
+  const midnightUtc = Date.UTC(y, mo - 1, d) / 1000
+  const back = new Date(midnightUtc * 1000)
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null
+  // New York is UTC-4 or UTC-5 at 09:30 on any date (a DST change happens at
+  // 02:00), so exactly one of the two candidates reads 09:30 on this date there.
+  for (const offsetHours of [4, 5]) {
+    const instant = midnightUtc + DAILY_SESSION_OPEN_ET_MINUTE * 60 + offsetHours * 3600
+    const p = etClockAt(instant)
+    if (p && p.y === y && p.m === mo && p.d === d
+        && p.h * 60 + p.min === DAILY_SESSION_OPEN_ET_MINUTE) return instant
+  }
+  return null
+}
 
 export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   const length = bars && bars.length ? bars.length : 0
@@ -1512,10 +1567,15 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   }
 
   // THE UNIT GATE — before any formatter work, so a refused series costs none.
+  // ⭐ A DATE-KEYED DAILY BAR PASSES IT AS ITS OPENING INSTANT (`barOpenInstant`),
+  // and every time-derived column below reads THAT instant, so bare `time`,
+  // `hour`, `dayofweek` and the session clock built on them cannot disagree.
+  const opens = new Float64Array(length)
   let instants = true
   for (let i = 0; i < length; i++) {
-    const t = bars[i] ? bars[i].t : undefined
-    if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) { instants = false; break }
+    const t = barOpenInstant(bars[i] ? bars[i].t : undefined, tf)
+    if (t === null) { instants = false; break }
+    opens[i] = t
   }
   if (!instants) {
     for (const name of CLOCK_TIME_DERIVED) cols[name].fill(NA)
@@ -1534,7 +1594,7 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   // than off a second formatter that agrees until one of them is edited.
   let prevDay = -1
   for (let i = 0; i < length; i++) {
-    const t = bars[i].t
+    const t = opens[i]
     const p = etClockAt(t)
     cols.time[i] = t
     cols.year[i] = p.y

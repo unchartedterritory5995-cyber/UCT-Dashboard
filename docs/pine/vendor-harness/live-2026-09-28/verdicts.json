@@ -731,6 +731,2246 @@
    "ourNotes": []
   },
   {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/atr-support-and-resistance-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "atr-support-and-resistance-rddt-1d-2026-09-28",
+   "script": "+ ATR S/R",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_1",
+     "title": "Impulse Up",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Impulse Down",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "RSI Mid Line Support",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "RSI Mid Line Resistance",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "RSI Overbought",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 58,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "RSI Oversold",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 15,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 16,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Ran Previous High",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 21,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "Ran Previous Low",
+     "ours": "out8",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 21,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Moving Average",
+     "ours": "out9",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 200,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_0",
+     "title": "Impulse Candles",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_3",
+     "title": "RSI S/R Candles",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_8",
+     "title": "High Volume Candles",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_11",
+     "title": "OBV Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "2 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 20,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 20,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 10 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/average-day-range-adr-pivots-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "average-day-range-adr-pivots-rddt-1d-2026-09-28",
+   "script": "ADR Pivots",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "ADR 1 Resistance",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "ADR 1 Support ",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "ADR 2 Resistance",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "ADR 2 Support ",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "MA 1",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "MA 2",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_14",
+     "title": "MA 3",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_8",
+     "title": null,
+     "type": "colorer",
+     "why": "plot type colorer is not compared by v1"
+    },
+    {
+     "id": "plot_9",
+     "title": null,
+     "type": "colorer",
+     "why": "plot type colorer is not compared by v1"
+    }
+   ],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "4 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 2,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 2,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 4,
+      "ours": 2,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "4.6 % (D)"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 8 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28",
+   "script": "Candlestick Patterns Identified, update 1-17-26",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Doji",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 0,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 41,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "Bearish Harami",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 21,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Bullish Harami",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 15,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Bearish Engulfing",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 14,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Bullish Engulfing",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 15,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_15",
+     "title": "Piercing Line",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 2,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_18",
+     "title": "Bullish Belt",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 11,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_21",
+     "title": "Bullish Kicker",
+     "ours": "out8",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 8,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_24",
+     "title": "Bearish Kicker",
+     "ours": "out9",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 5,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_27",
+     "title": "Hanging Man",
+     "ours": "out10",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 5,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 2,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_30",
+     "title": "Evening Star",
+     "ours": "out11",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 2,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 14,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_33",
+     "title": "Morning Star",
+     "ours": "out12",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 2,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 15,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_36",
+     "title": "Shooting Star",
+     "ours": null,
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)"
+    },
+    {
+     "id": "plot_39",
+     "title": "Hammer",
+     "ours": null,
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)"
+    },
+    {
+     "id": "plot_42",
+     "title": "Inverted Hammer",
+     "ours": null,
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)"
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_45",
+     "title": "Doji",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_46",
+     "title": "Bearish Harami",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_47",
+     "title": "Bullish Harami",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_48",
+     "title": "Bearish Engulfing",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_49",
+     "title": "Bullish Engulfing",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_50",
+     "title": "Piercing Line",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_51",
+     "title": "Bullish Belt",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_52",
+     "title": "Bullish Kicker",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_53",
+     "title": "Bearish Kicker",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_54",
+     "title": "Hanging Man",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_55",
+     "title": "Evening Star",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_56",
+     "title": "Morning Star",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_57",
+     "title": "Shooting Star",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_58",
+     "title": "Hammer",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_59",
+     "title": "Inverted Hammer",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_2",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_5",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_8",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_11",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_14",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_17",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_20",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_23",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_26",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_29",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_32",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_35",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_38",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_41",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    },
+    {
+     "id": "plot_44",
+     "title": null,
+     "type": "text_colorer",
+     "why": "plot type text_colorer is not compared by v1"
+    }
+   ],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "INCONCLUSIVE",
+   "reason": "3 of 16 items could not be compared",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/contraction-box-doji-lines-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "contraction-box-doji-lines-rddt-1d-2026-09-28",
+   "script": "Contraction Box & Doji Lines",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "object counts and texts agree; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 78,
+      "ours": 78,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 50,
+      "ours": 50,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": [
+    "48 of 50 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
+   ]
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/donchian-channels-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "donchian-channels-rddt-1d-2026-09-28",
+   "script": "+ DC",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "DIVERGE",
+     "reason": "532 steady-state bars disagree; first at bar 100 (color: vendor 57.715 vs ours 57.715) — persistent, last at bar 631",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 100,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 532,
+      "colorCompared": 532,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": {
+       "bar": 100,
+       "time": 1723642200,
+       "kind": "color",
+       "vendor": 57.715,
+       "ours": 57.715,
+       "vendorColor": "#84444480",
+       "ourColor": "#c9a84cff"
+      },
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 532,
+       "first": {
+        "bar": 100,
+        "time": 1723642200,
+        "kind": "color",
+        "vendor": 57.715,
+        "ours": 57.715,
+        "vendorColor": "#84444480",
+        "ourColor": "#c9a84cff"
+       },
+       "last": {
+        "bar": 631,
+        "time": 1790602200,
+        "kind": "color",
+        "vendor": 171.63615,
+        "ours": 171.63615,
+        "vendorColor": "#84444480",
+        "ourColor": "#c9a84cff"
+       },
+       "pattern": {
+        "kind": "persistent",
+        "lastDivergentBar": 631
+       }
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Upper Donchian",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 100,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_3",
+     "title": "Upper Donchian | Inner",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Upper .786",
+     "ours": "out4",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Upper Mid",
+     "ours": "out5",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 533,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_6",
+     "title": "Upper.702",
+     "ours": "out6",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 533,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_7",
+     "title": "Upper .382",
+     "ours": "out7",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_8",
+     "title": "Lower .382",
+     "ours": "out8",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_9",
+     "title": "Lower .702",
+     "ours": "out9",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 533,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_10",
+     "title": "Lower Mid",
+     "ours": "out10",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "compared",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 533,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_11",
+     "title": "Lower .786",
+     "ours": "out11",
+     "rule": "M1-title",
+     "verdict": "INCONCLUSIVE",
+     "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_12",
+     "title": "Lower Donchian | Inner",
+     "ours": "out12",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 101,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_13",
+     "title": "Lower Donchian",
+     "ours": "out13",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "632 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 100,
+     "color": "unresolvable on our side",
+     "stats": {
+      "bars": 632,
+      "compared": 632,
+      "matching": 632,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 0,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 632,
+       "compared": 632,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_14",
+     "title": "Price crosses Basis",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_15",
+     "title": "Price crosses into lower band",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_16",
+     "title": "Price crosses into upper band",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_17",
+     "title": "Price crosses mid line of upper channel",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_18",
+     "title": "Price crosses mid line of lower channel",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_19",
+     "title": "Price crosses upper .786",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_20",
+     "title": "Price crosses upper .702",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_21",
+     "title": "Price crosses upper .382",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_22",
+     "title": "Price crosses lower .382",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_23",
+     "title": "Price crosses lower .702",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    },
+    {
+     "id": "plot_24",
+     "title": "Price crosses lower .786",
+     "type": "alertcondition",
+     "why": "alertcondition — draws nothing on TradingView either; not a visual claim"
+    }
+   ],
+   "notMeasured": [],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "neither side draws an object"
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 14 compared items diverge",
+   "ourNotes": []
+  },
+  {
    "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json",
    "format": "harness-v1",
    "id": "dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28",
@@ -2489,6 +4729,244 @@
    "ourNotes": []
   },
   {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/htf-candle-footprint-cartel-console-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28",
+   "script": "HTF Candle Footprint [Cartel Console]",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "6 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 6,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 6,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 13,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 2,
+      "ours": 1,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "-4193038",
+       "-4307275",
+       "-7455647",
+       "0",
+       "High: 161.67",
+       "Low: 143.08"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "BEARISH"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28",
+   "script": "HTF Liquidity Dashboard [TFO]",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "4 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 6,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 6,
+      "ours": 6,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 30,
+      "ours": 3,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "PDH",
+       "PDL"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "-",
+       "-",
+       "-",
+       "-",
+       "-",
+       "-",
+       "-",
+       "-",
+       "-",
+       "-"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": [
+    "6 of 6 held labels cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
+   ]
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/ict-ipda-look-back-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "ict-ipda-look-back-rddt-1d-2026-09-28",
+   "script": "ICT IPDA LB°",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 3,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 6,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 8,
+      "agree": false
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
    "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json",
    "format": "harness-v1",
    "id": "ict-killzones-pivots-tfo-rddt-1d-2026-09-28",
@@ -3206,6 +5684,152 @@
      {
       "family": "labels text",
       "agree": false,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/k-clustering-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "k-clustering-rddt-1d-2026-09-28",
+   "script": "K clustering",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 9,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 8,
+      "ours": 5,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "18.7%",
+       "29.4%",
+       "52%"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28",
+   "script": "Linear Regression Channel [TradingFinder] Existing Trend Lines",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "1 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 5,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
       "onlyVendor": [],
       "onlyOurs": []
      },
@@ -4097,6 +6721,88 @@
    },
    "verdict": "MATCH",
    "reason": "all 4 items agree",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28",
+   "script": "Liquidity Heatmap (Nephew_Sam_)",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "2 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 27,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
+       "                ░░░░░░░░░░░░░░░░\n                ░░░░░░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░",
+       "           ░░░░░░░░░░░"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
    "ourNotes": []
   },
   {
@@ -5213,6 +7919,159 @@
    },
    "verdict": "DIVERGE",
    "reason": "12 of 19 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28",
+   "script": "Makuchaku's Trade Tools - Fair Value Gaps",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "1 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 51,
+      "ours": 50,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/market-structure-by-leviathan-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "market-structure-by-leviathan-rddt-1d-2026-09-28",
+   "script": "Market Structure - By Leviathan",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 6,
+      "ours": 133,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 22,
+      "ours": 133,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "HH",
+       "HH",
+       "HH",
+       "HH",
+       "HL",
+       "HL",
+       "HL",
+       "HL",
+       "LH",
+       "LH"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
    "ourNotes": []
   },
   {
@@ -6355,6 +9214,329 @@
    "ourNotes": []
   },
   {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28",
+   "script": "MTF SnD",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "1 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 504,
+      "ours": 500,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": [
+    "500 of 500 held boxes cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
+   ]
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "options-max-pain-calculator-backquant-rddt-1d-2026-09-28",
+   "script": "Max Pain [BackQuant]",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "6 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 10,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 8,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 13,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 16,
+      "ours": 11,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "140",
+       "145",
+       "GAMMA\nEXPOSURE",
+       "HIGH\nPAIN",
+       "LOW\nPAIN",
+       "MAX PAIN\nZONE",
+       "NET: SHORT\n98314.6",
+       "PAIN\nHEATMAP"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "-2.15%",
+       "140",
+       "6",
+       "Advanced",
+       "MEDIUM"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/poor-man039s-volume-profile-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "poor-man039s-volume-profile-rddt-1d-2026-09-28",
+   "script": "PMVolProf",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "2 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 2,
+      "ours": 2,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 40,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "####",
+       "#####",
+       "######",
+       "#######",
+       "########",
+       "########",
+       "########",
+       "########",
+       "#########",
+       "#########"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/position-size-calc-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "position-size-calc-rddt-1d-2026-09-28",
+   "script": "Position Size Calc.",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "2 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 10,
+      "ours": 0,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "3",
+       "30",
+       "Loss",
+       "Lots",
+       "NaN",
+       "NaN",
+       "NaN",
+       "Pos. Size",
+       "Profit",
+       "Risk %"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
    "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/position-size-calculator-rddt-1d-2026-09-28.json",
    "format": "harness-v1",
    "id": "position-size-calculator-rddt-1d-2026-09-28",
@@ -6830,6 +10012,88 @@
    ]
   },
   {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28",
+   "script": "PTA - Double Top & Bottom",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 7,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 14,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "Bottom 1",
+       "Bottom 1",
+       "Bottom 2",
+       "Bottom 2",
+       "Top 1",
+       "Top 1",
+       "Top 1",
+       "Top 1",
+       "Top 1",
+       "Top 2"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
    "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json",
    "format": "harness-v1",
    "id": "reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28",
@@ -7131,6 +10395,88 @@
    },
    "verdict": "DIVERGE",
    "reason": "1 of 8 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/rsi-swing-indicator-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "rsi-swing-indicator-rddt-1d-2026-09-28",
+   "script": "RSI Swing Indicator",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 11,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 11,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "HH",
+       "HL",
+       "HL",
+       "HL",
+       "HL",
+       "HL",
+       "LH",
+       "LH",
+       "LH",
+       "LH"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
    "ourNotes": []
   },
   {
@@ -7867,6 +11213,228 @@
    "ourNotes": [
     "50 of 50 held lines cannot be drawn (a coordinate is na) — counted as held, the way the capture counts them"
    ]
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28",
+   "script": "Vdubus Gen V2",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "3 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 112,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "labels",
+      "vendor": 5,
+      "ours": 0,
+      "agree": false
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": false,
+      "onlyVendor": [
+       "CLIMAX REVERSAL",
+       "CLIMAX REVERSAL",
+       "CLIMAX REVERSAL",
+       "CLIMAX REVERSAL",
+       "ROUNDED BOTTOM"
+      ],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/vold-market-breadth-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "vold-market-breadth-rddt-1d-2026-09-28",
+   "script": "VOLD-Market Breadth",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "2 object families differ (count or text); coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 1,
+      "ours": 1,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 2,
+      "ours": 0,
+      "agree": false
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": false,
+      "onlyVendor": [
+       "NQ -1.92:1\n",
+       "NYSE -2.9:1\n"
+      ],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 1 compared items diverge",
+   "ourNotes": []
+  },
+  {
+   "file": "../../../../AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/volume-profile-rddt-1d-2026-09-28.json",
+   "format": "harness-v1",
+   "id": "volume-profile-rddt-1d-2026-09-28",
+   "script": "VP",
+   "symbol": "NYSE:RDDT",
+   "timeframe": "1D",
+   "plots": [],
+   "notCompared": [],
+   "notMeasured": [
+    "colour"
+   ],
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "MATCH",
+    "reason": "object counts and texts agree; coordinates are NOT compared by v1",
+    "counts": [
+     {
+      "family": "lines",
+      "vendor": 203,
+      "ours": 203,
+      "agree": true
+     },
+     {
+      "family": "labels",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "boxes",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tables",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     },
+     {
+      "family": "tableCells",
+      "vendor": 0,
+      "ours": 0,
+      "agree": true
+     }
+    ],
+    "texts": [
+     {
+      "family": "labels text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     },
+     {
+      "family": "tableCells text",
+      "agree": true,
+      "onlyVendor": [],
+      "onlyOurs": []
+     }
+    ]
+   },
+   "verdict": "MATCH",
+   "reason": "all 1 items agree",
+   "ourNotes": []
   }
  ],
  "inventory": []
