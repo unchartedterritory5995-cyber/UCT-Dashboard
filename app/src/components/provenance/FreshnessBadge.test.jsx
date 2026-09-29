@@ -131,3 +131,51 @@ describe('composite freshness (PRD-S8 §9.5 — delayed price, live volume)', ()
     expect(priceTier).not.toHaveTextContent('LIVE')
   })
 })
+
+describe('TERM-059 age clause — a caller-decided as-of, rendered as text', () => {
+  it('renders the cadence and the value\'s own calendar as-of, exactly as given', () => {
+    render(<FreshnessBadge age={{ cadence: 'weekly', asOfDate: '2026-06-17' }} />)
+    expect(screen.getByTestId('freshness-age').textContent).toBe('weekly · as of 2026-06-17')
+  })
+
+  it('with no D1 class the clause STANDS IN for the tier — no UNKNOWN beside a known as-of', () => {
+    render(<FreshnessBadge age={{ cadence: 'weekly', asOfDate: '2026-06-17' }} />)
+    expect(screen.queryByTestId('freshness-tier')).toBeNull()
+    expect(screen.getByTestId('freshness-badge').textContent).not.toMatch(/UNKNOWN/)
+  })
+
+  it('an undated value says "undated", never nothing', () => {
+    render(<FreshnessBadge age={{ cadence: 'weekly', asOfDate: null }} />)
+    expect(screen.getByTestId('freshness-age').textContent).toBe('weekly · undated')
+  })
+
+  it('⛔ the calendar date is NOT pushed through the time-of-day clause (no "as of 8:00 PM ET")', () => {
+    render(<FreshnessBadge age={{ cadence: 'weekly', asOfDate: '2026-06-17' }} />)
+    expect(screen.getByTestId('freshness-badge').textContent).not.toMatch(/\bET\b|AM|PM/)
+  })
+
+  it('with a D1 class present, the tier and the age clause both render', () => {
+    render(<FreshnessBadge freshnessClass="historical" age={{ cadence: 'weekly', asOfDate: '2026-06-17' }} />)
+    expect(screen.getByTestId('freshness-tier')).toHaveTextContent(/historical/i)
+    expect(screen.getByTestId('freshness-age')).toHaveTextContent('as of 2026-06-17')
+  })
+
+  it('no age prop renders no age clause — every existing caller is unchanged', () => {
+    render(<FreshnessBadge freshnessClass="delayed_15" />)
+    expect(screen.queryByTestId('freshness-age')).toBeNull()
+    expect(screen.getByTestId('freshness-tier')).toBeTruthy()
+  })
+
+  it('an age-clause badge starts no 1s interval (one per table row would add up)', () => {
+    const spy = vi.spyOn(globalThis, 'setInterval')
+    try {
+      render(<FreshnessBadge age={{ cadence: 'weekly', asOfDate: '2026-06-17' }} />)
+      expect(spy).not.toHaveBeenCalled()
+      cleanup()
+      render(<FreshnessBadge freshnessClass="delayed_15" />)
+      expect(spy).toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})

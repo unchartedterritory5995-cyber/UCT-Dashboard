@@ -736,26 +736,13 @@ const AWAITING_A_DECISION = {
   // (PACKET-AA CP1's FlowExplainButton.jsx block stood here until 2026-09-25;
   // CP2 mounted it in OptionsFlow.jsx's Strike Flow Detail table and the block
   // and its expiry were deleted in that commit, as the block's own text said.)
-  // ── TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER (2026-09-26) ───
-  //
-  // `freshnessAge.js` is TERM-006 / RM-N03's ruling — "a panel must show
-  // its age when the value is older than TWICE the cadence it was fetched at,
-  // never less than 60 seconds and never more than one trading session" — as
-  // one exported authority plus ONE place for its constants. It is
-  // deliberately landed WITH NO CONSUMER: adoption is TERM-059, and the
-  // provenance census (`provenance/panelAdoption.measure.test.js`) measured
-  // 519 non-adopting panels under `pages/**` with 204 of them in one
-  // directory, so a wiring pass is its own scoped decision rather than a
-  // ride-along. Its only importer is `freshnessAge.test.js`, which this walk
-  // cannot see because it starts from App.jsx — the same reason
-  // `focusDivergence.js` sits at the top of this register.
-  // Expiry: TERM-059 wires the first panel (drop this entry then — and
-  // `freshnessAge.test.js`'s own "no consumer yet" rail goes red in the same
-  // commit, by design), or the ruling is withdrawn and the module deleted.
-  'app/src/components/provenance/freshnessAge.js':
-    'TERM-006 age authority — the ruling plus its rails, landed with NO '
-    + 'consumer BY DECISION; adoption is TERM-059. Wire it, or delete it; do '
-    + 'not leave it looking shipped.',
+  // (A "TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER" block stood here
+  // from 2026-09-26 until TERM-059 on 2026-09-29, parking
+  // `app/src/components/provenance/freshnessAge.js`. The Breadth Monitor's NAAIM
+  // column now asks it through `pages/breadth/naaimAge.js`, so it is reached
+  // from App.jsx like any rendered module; the block, its expiry and
+  // `freshnessAge.test.js`'s "no consumer yet" rail went in that commit, as the
+  // block's own text said.)
   // (A "TERM-035 MARKET CALENDAR AUTHORITY — STAGED, NOT YET READ" block stood
   // here from 2026-09-28 until TERM-035 follow-up #1 the same day, parking
   // `app/src/lib/marketClock/sessionCalendar.js`. `nyseCalendar.js` now derives
@@ -835,7 +822,6 @@ const PARKING_EXPIRES = {
   //
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
-  'TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER (2026-09-26)': '2026-11-30',   // landed 2026-09-26 with the authority itself; TERM-059 resolves it
   'TERM-037 SURFACE-DERIVED PANEL SET — DECLARED, NOT MOUNTED (2026-09-29)': '2026-11-30',   // landed 2026-09-29 with the derivation itself; the first surface-panel mount resolves it
 }
 
