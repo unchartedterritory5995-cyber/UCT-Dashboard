@@ -10866,6 +10866,19 @@ export function boundName(toks, eqIndex) {
  *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
 const TEXT_MAX_DEPTH = 64
 
+/** ⭐⭐ HOW MANY STEPS ONE TEXT READ MAY TAKE — a WORK bound beside the depth one.
+ *
+ *  ⚰️ C15, MEASURED 2026-09-29: letting `openName` open a name at any depth
+ *  (it used to refuse past 8 — a hop guard read as a nesting guard) turned
+ *  `screener-mean-reversion-channel`'s forty-step accumulation
+ *  (`s := c ? s + x : s`, both arms naming `s`) into a 2^40 walk and hung the
+ *  member door. The old cap was bounding that by accident. This bounds it on
+ *  purpose: a text whose reading takes more steps than this is refused and
+ *  named (`objectDiagnostics.textTooLarge`) — a text that big would be a tree
+ *  of that size in the saved document anyway. The deepest SERVED text in the
+ *  corpus (rsmi's info box) takes a few hundred. */
+const TEXT_WORK_BUDGET = 4096
+
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
 /** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
@@ -13004,6 +13017,32 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return walk(node, 0)
   }
 
+  /** ⭐ A call made INSIDE an inlined body, with its arguments rewritten through
+   *  that body's frame — or null when a rewritten argument still names the
+   *  frame's own parameters or locals (they mean nothing at the frame's caller).
+   *  See the nested-helper branch in `textNodeOf`. */
+  const flattenThroughFrame = (call, inline) => {
+    const args = call.args || []
+    if (!inline || !inline.bound || args.some((a) => a && a.name)) return null
+    const params = new Set(inline.bound.params || [])
+    const bodyEnv = inline.bodyEnv
+      || (inline.bound.value && inline.bound.value.env) || null
+    const callerEnv = inline.callerEnv || scopeEnv
+    const out = args.map((a) => ({ value: substituteFrame(a && a.value !== undefined ? a.value : a, inline) }))
+    const leaks = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 32) return false
+      if (Array.isArray(n)) return n.some((x) => leaks(x, d + 1))
+      if (n.type === 'name') {
+        if (params.has(n.name)) return true
+        const local = bodyEnv && typeof bodyEnv.get === 'function' ? bodyEnv.get(n.name) : null
+        const outer = callerEnv && typeof callerEnv.get === 'function' ? callerEnv.get(n.name) : null
+        if (local && local !== outer) return true
+      }
+      return Object.entries(n).some(([k, v]) => k !== 'tok' && k !== 'endTok' && leaks(v, d + 1))
+    }
+    return out.some((a) => !a.value || leaks(a.value, 0)) ? null : out
+  }
+
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
@@ -13077,6 +13116,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  cleared in a `finally` — the same discipline as `enumLeaves`. It is the
    *  `{form:'message', fmt?}` an implicit number in that argument takes. */
   let messageNumber = null
+  /** The current top-level text read's step count — see `TEXT_WORK_BUDGET`. */
+  let textWork = { steps: 0, over: false }
 
   /**
    * ⭐⭐ `str.format(pattern, arg0, …)` → literal parts and argument slots.
@@ -13254,6 +13295,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
 
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
+    // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
+    if (depth === 0 && !inline) textWork = { steps: 0, over: false }
+    if (textWork.over) return null
+    textWork.steps += 1
+    if (textWork.steps > TEXT_WORK_BUDGET) {
+      textWork.over = true
+      diagnostics.textTooLarge = diagnostics.textTooLarge || []
+      const at = node.tok ? locate(node.tok) : null
+      const entry = `steps>${TEXT_WORK_BUDGET}@${at ? at.line : '?'}`
+      if (!diagnostics.textTooLarge.includes(entry)) diagnostics.textTooLarge.push(entry)
+      return null
+    }
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
     //
     // ⚰️ MEASURED 2026-09-13. The cap was 12, chosen when this reader walked
@@ -13415,6 +13468,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // MEASUREMENT — a script that hits this is named, so the item's priority
       // is a count rather than a guess.
       if (inline && bound && bound.kind === 'fn') {
+        // ⭐⭐ C15 — ONE LEVEL DEEPER, BY SUBSTITUTION RATHER THAN BY A FRAME CHAIN.
+        // The inner call's arguments are rewritten through the OUTER frame
+        // (`substituteFrame`), which leaves expressions in the outer CALLER's own
+        // names — so the inner helper is inlined with a single frame whose caller
+        // is that caller, exactly the one-level case the branch below already
+        // serves. MEASURED on reverse-stochastic-momentum-index-on-chart:
+        // `f_crossText(P, X, T, D)` reads `f_negVal(X, D)`, and its one info-box
+        // label was dropped for this alone.
+        // ⛔ Only when nothing in the rewritten arguments still names the outer
+        // function's parameters or locals — those mean nothing at the caller —
+        // and the arity is exact; otherwise the refusal below stands, by name.
+        const flat = flattenThroughFrame(node, inline)
+        if (flat && Array.isArray(bound.params) && bound.params.length === flat.length) {
+          const inner = { bound, args: flat, callerEnv: inline.callerEnv || scope }
+          const body = bound.value && bound.value.node
+            ? textNodeOf(bound.value.node, inline.callerEnv || scope, depth + 1, inner)
+            : (bound.value && bound.value.kind === 'switch' ? switchTextOf(bound.value, depth, inner) : null)
+          if (body) return body
+        }
         diagnostics.nestedTextHelpers = diagnostics.nestedTextHelpers || []
         const at = node.tok ? locate(node.tok) : null
         const entry = `${node.name}@${at ? at.line : '?'}`
@@ -13442,7 +13514,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         if (sw) return sw
       }
     }
-    const opened = openName(node, scope, depth)
+    // ⛔⛔ C15 — `openName` IS ASKED FOR ONE HOP, NOT HANDED THIS WALK'S DEPTH.
+    // Its `depth > 8` guard is a hop count; passing the TEXT depth made every
+    // name more than eight `+` deep in a concatenation unopenable, so it fell to
+    // the numeric last resort, failed there, and the whole text was dropped as an
+    // unresolved value with no name on it. MEASURED on
+    // reverse-stochastic-momentum-index-on-chart: its info box is one ternary
+    // whose longer arm is nine concatenations, and adding the ninth `+` was
+    // exactly what lost the label. This walk is already bounded by
+    // `TEXT_MAX_DEPTH` (each open costs one level below).
+    const opened = openName(node, scope, 0)
     if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here

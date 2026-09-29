@@ -96,3 +96,75 @@ describe('⛔ a text that flips on how a v6 `timeframe.period` is spelled is wit
     expect(cellOps(6, '15').cells).toHaveLength(1)
   })
 })
+
+describe('⭐⭐ a long concatenation of named texts is read to its end', () => {
+  // ⚰️ `openName` was handed the TEXT walk's depth and refused past 8 — a hop
+  // guard read as a nesting guard — so the ninth name in a `+` chain fell to the
+  // numeric last resort and the whole text was dropped, unnamed.
+  // MEASURED on reverse-stochastic-momentum-index-on-chart: its info box is one
+  // label whose longer arm is nine concatenations; it is served now, character
+  // for character (below).
+  const LF = String.fromCharCode(10)
+  const Q = String.fromCharCode(34)
+  const labelText = (n) => {
+    const names = Array.from({ length: n }, (_, i) => `n${i}`)
+    const src = `//@version=5${LF}indicator(${Q}t${Q}, overlay = true)${LF}`
+      + names.map((nm, i) => `${nm} = ${Q}${String.fromCharCode(97 + i)}${Q}${LF}`).join('')
+      + `if barstate.islast${LF}    label.new(bar_index, close, ${names.join(' + ')})${LF}plot(close)${LF}`
+    const tr = translatePine(src, { strict: true, objects: true })
+    return { ops: (tr.objects ? tr.objects.ops : []).filter((o) => o.k === 'create'), diag: tr.objectDiagnostics }
+  }
+
+  it('⭐ twelve names, one text — the label is carried', () => {
+    const { ops, diag } = labelText(12)
+    expect(ops).toHaveLength(1)
+    expect(diag.unresolvedValues).toBe(0)
+  })
+
+  it('⛔ CONTROL — eight names were carried before the fix too (the shape, not the length, is the case)', () => {
+    expect(labelText(8).ops).toHaveLength(1)
+  })
+
+  it('⭐⭐ rsmi: the vendor\'s info box, character for character', () => {
+    const cap = JSON.parse(fs.readFileSync(path.join(HARNESS_DIR, 'reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json'), 'utf8'))
+    const door = enterMemberDoor(cap.source.text)
+    try {
+      expect(door.def, door.refusal || '').toBeTruthy()
+      const bars = toProductBars(cap)
+      const tf = tfCodeOf(cap.timeframe)
+      const reader = objectReaderFor(door.def, bars, { inputs: undefined, tf, symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: cap.newestBarIsForming ?? null })
+      const run = evaluateObjects(reader.program, { barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime })
+      const held = run.live.filter((o) => o.family === 'label')
+      expect(held.map((o) => o.props.text)).toEqual(cap.objects.records.labels.map((l) => l.t))
+      // ⭐ and the id the vendor's single counter gave it
+      expect(held.map((o) => o.id)).toEqual(cap.objects.records.labels.map((l) => l.id))
+    } finally { registry.uninstallUserDefinition(HARNESS_DEF_ID) }
+  }, 60000)
+})
+
+describe('⛔ a text whose READING explodes is refused by name, not walked forever', () => {
+  // ⚰️ `s := c ? s + "x" : s`, repeated — both arms name `s`, so reading the text
+  // doubles per step. screener-mean-reversion-channel does it forty times, and
+  // once names could be opened at any depth that walk hung the member door.
+  const LF = String.fromCharCode(10)
+  const Q = String.fromCharCode(34)
+  // (Written as a chain of DECLARATIONS — `s1 = c ? s0 + "x" : s0` — because a
+  // top-level `:=` chain is a reassignment, which is C12's lane, not this one.)
+  const accumulate = (n) => `//@version=5${LF}indicator(${Q}t${Q}, overlay = true)${LF}s0 = ${Q}${Q}${LF}`
+    + Array.from({ length: n }, (_, i) => `s${i + 1} = close > ${i} ? s${i} + ${Q}x${Q} : s${i}${LF}`).join('')
+    + `if barstate.islast${LF}    label.new(bar_index, close, s${n})${LF}plot(close)${LF}`
+
+  it('⛔ sixteen doublings: refused, named, and fast', () => {
+    const t0 = Date.now()
+    const tr = translatePine(accumulate(16), { strict: true, objects: true })
+    expect(Date.now() - t0).toBeLessThan(10000)
+    expect((tr.objects ? tr.objects.ops : []).filter((o) => o.k === 'create')).toHaveLength(0)
+    expect(tr.objectDiagnostics.textTooLarge.length).toBeGreaterThan(0)
+  }, 30000)
+
+  it('⛔ CONTROL — three doublings are an ordinary text and draw', () => {
+    const tr = translatePine(accumulate(3), { strict: true, objects: true })
+    expect((tr.objects ? tr.objects.ops : []).filter((o) => o.k === 'create')).toHaveLength(1)
+    expect(tr.objectDiagnostics.textTooLarge).toBeUndefined()
+  })
+})
