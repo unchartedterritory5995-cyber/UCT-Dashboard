@@ -127,6 +127,67 @@ KILL_LIST = {
 }
 
 
+# ── Model-provider keys: BLANKED unless the caller opts in ───────────────────
+#
+# ⛔ WHY. The operator's environment passes straight into this process, and the
+# app's boot warm spends it: `api/main.py` -> `_start_dashboard_warm_background`
+# -> calendar enrichment -> `engine._generate_earnings_preview`, plus
+# `earnings_enrichment` key-quotes and `stock_brief` profiles. One committed
+# sandbox log (docs/notebook/proof/d2-after-04fadfaa5/sandbox-boot.log) carries
+# 71 distinct Anthropic request ids from ONE boot, all refused only because the
+# key's credit was exhausted. Sandbox boots run many times a day from several
+# lanes; a UI probe needs no model at all.
+#
+# ⭐ BLANK, NEVER POP. `api/services/build_intraday_cache.py:24-34` is a
+# hand-rolled .env loader that runs at import (the deep-cache builder thread
+# imports it on any fresh data dir) and does `os.environ.setdefault(k, v)` from
+# `<repo>/.env` and `$UCT_INTEL_PATH/.env`. An UNSET key is re-supplied by that
+# loader; a key set to "" is not, because setdefault never overrides.
+#
+# ⭐ THE LIST IS CLASSIFIED, NOT TYPED FROM MEMORY. `tests/test_hub_sandbox_
+# model_keys.py` derives every `*_API_KEY` literal read in `api/**` by AST and
+# requires the union of the two tuples below to EQUAL it, so a provider key
+# added tomorrow reds that rail until someone decides which tuple it joins.
+MODEL_PROVIDER_KEYS = (
+    "ANTHROPIC_API_KEY",         # api/services/engine.py:80 (the warm's client)
+    "WISDOM_ANTHROPIC_API_KEY",  # api/services/wisdom/extract/batch.py:68 -> :107
+    "OPENAI_API_KEY",            # api/services/voice_openai.py:118
+    "PERPLEXITY_API_KEY",        # api/services/perplexity_search.py:430
+)
+
+# Read in api/**, and NOT a paid model/embedding provider: market-data, news,
+# e-mail and earnings-audio vendors. Left untouched — the sandbox's pages need
+# their data, and this lane's scope is model spend only.
+NON_MODEL_KEYS = (
+    "ALPHAVANTAGE_API_KEY", "BULLFLOW_API_KEY", "EARNINGS_AUDIO_API_KEY",
+    "FINNHUB_API_KEY", "FINVIZ_API_KEY", "FMP_API_KEY", "FRED_API_KEY",
+    "MASSIVE_API_KEY", "POLYGON_API_KEY", "RESEND_API_KEY", "THEFLY_API_KEY",
+    "TWITTERAPI_IO_API_KEY", "UW_API_KEY",
+)
+
+# The env-var form of `--allow-model-keys`, for callers that start this script
+# through a harness (tools/notebook_perf_harness.Sandbox) rather than argv.
+ALLOW_MODEL_KEYS_ENV = "HUB_SANDBOX_ALLOW_MODEL_KEYS"
+
+
+def model_keys_opted_in(flag, environ=None):
+    """True only on the explicit flag or `HUB_SANDBOX_ALLOW_MODEL_KEYS=1`."""
+    environ = os.environ if environ is None else environ
+    return bool(flag) or environ.get(ALLOW_MODEL_KEYS_ENV, "") == "1"
+
+
+def apply_model_key_policy(environ, allow):
+    """Blank every model-provider key in `environ` unless `allow`. Returns the
+    one boot line that says which happened (names only, never a value)."""
+    if allow:
+        return ("  Model keys   : OPT-IN -- passed through unchanged "
+                f"({', '.join(MODEL_PROVIDER_KEYS)}); paid model calls are POSSIBLE")
+    for key in MODEL_PROVIDER_KEYS:
+        environ[key] = ""
+    return ("  Model keys   : BLANKED " + ", ".join(MODEL_PROVIDER_KEYS)
+            + f" (opt in: --allow-model-keys or {ALLOW_MODEL_KEYS_ENV}=1)")
+
+
 def _norm(path):
     return os.path.normcase(os.path.abspath(path))
 
@@ -238,7 +299,7 @@ def _start_violation_reporter(conftest):
 
 
 def apply_sandbox_env(sandbox, test_email="hubtest@local.dev",
-                      reclaim_conftest_temp=True):
+                      reclaim_conftest_temp=True, allow_model_keys=False):
     """Point every shared-root path at `sandbox`; arm the tripwire. Returns pins.
 
     ⭐ SEPARATE FROM `main()` SO A RAIL CAN CALL IT. `tests/test_hub_sandbox_
@@ -281,6 +342,10 @@ def apply_sandbox_env(sandbox, test_email="hubtest@local.dev",
     os.environ["PUSH_SECRET"] = "hub-sandbox-local-only-not-the-real-secret"
     for key, value in KILL_LIST.items():
         os.environ[key] = value
+
+    # Before `api.main` is imported, so no import-time reader or boot thread
+    # sees a model key the caller did not opt in to.
+    print(apply_model_key_policy(os.environ, allow_model_keys), flush=True)
 
     return pins
 
@@ -335,6 +400,9 @@ def main():
     ap.add_argument("--test-email", default="hubtest@local.dev")
     ap.add_argument("--port", type=int, default=8077)
     ap.add_argument("--host", default="0.0.0.0")
+    ap.add_argument("--allow-model-keys", action="store_true",
+                    help="pass ANTHROPIC/OPENAI/PERPLEXITY keys through (PAID model "
+                         f"calls possible). Default blanks them. Env form: {ALLOW_MODEL_KEYS_ENV}=1")
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
@@ -364,7 +432,8 @@ def main():
     print(f"  [pre-boot] integrity log: {log_file}")
     print(f"  [pre-boot] sandbox identity: {nonce} (served at {sid.IDENTITY_PATH})")
 
-    pins = apply_sandbox_env(sandbox, args.test_email)
+    pins = apply_sandbox_env(sandbox, args.test_email,
+                             allow_model_keys=model_keys_opted_in(args.allow_model_keys))
     import conftest
 
     # Seed the synthetic wire fixture so Home / Wire / Breadth render something
