@@ -1,0 +1,229 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 10,
+    "fixed": 5,
+    "unchanged": 146,
+    "missing": 0,
+    "baseline": 151,
+    "current": 157,
+    "current_ran": 63463,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 10
+  },
+  "arithmetic": "baseline 151 = unchanged 146 + fixed 5 + missing 0  |  current 157 = unchanged 146 + new 10 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36526104486",
+  "current_run_id": "36536038165",
+  "baseline_sha": "f4cec49be44d2a050b8b4a91c65fd7c7314f0cf0",
+  "current_sha": "322d92f8634e09953d0af2b9a5c71632ac2424b7",
+  "commit_range": "f4cec49be44d2a050b8b4a91c65fd7c7314f0cf0..322d92f8634e09953d0af2b9a5c71632ac2424b7",
+  "first_run": false,
+  "new": [
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor",
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js",
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed",
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format",
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format",
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move",
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear",
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_ast_scalars|test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly",
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_scan_store|test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/components/chart/engine/ast/pine.depth.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/components/chart/engine/ast/pine.timeout.test.js or anything it imports"
+    },
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/components/chart/engine/ast/targetScriptReport.measure.test.js or anything it imports"
+    },
+    "vitest|src/hooks/usePreferences.additionsOnly.test.js|S5 CP2 \u2014 additions only > NO NEW opaque-key call site appears \u2014 the way around this rail is railed": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/hooks/usePreferences.additionsOnly.test.js or anything it imports"
+    },
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/lib/journal-2-0/format.test.js or anything it imports"
+    },
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/lib/journal-2-0/format.test.js or anything it imports"
+    },
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/pages/breadth/heatmapRegistry.golden.test.js or anything it imports"
+    },
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js or anything it imports"
+    },
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched src/surfaces/manifest.test.js or anything it imports"
+    },
+    "pytest|tests.test_ast_scalars|test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly": {
+      "class": "test-file-change",
+      "commits": [
+        "10b3f552f",
+        "860cb9a9e",
+        "39cd84968",
+        "97359a9ce",
+        "dff023f59",
+        "294cff8e6",
+        "b2b22ad32",
+        "0f2509738"
+      ],
+      "workstreams": [
+        {
+          "commit": "10b3f552f",
+          "workstream": "origin/pine/master-reds",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "860cb9a9e",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "39cd84968",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "97359a9ce",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dff023f59",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "294cff8e6",
+          "workstream": "origin/pine/vendor-batch",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "b2b22ad32",
+          "workstream": "author:Claude Fable 5",
+          "confidence": "author",
+          "ours": false
+        },
+        {
+          "commit": "0f2509738",
+          "workstream": "author:Claude Fable 5",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "test-file-change",
+      "commits": [
+        "be00f2c9a",
+        "db6d0029c"
+      ],
+      "workstreams": [
+        {
+          "commit": "be00f2c9a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "db6d0029c",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_scan_store|test_the_screener_COLUMN_SET_still_partitions_into_E1s_frozen_manifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in f4cec49be..322d92f86 touched tests/test_scan_store.py or anything it imports"
+    }
+  }
+}
