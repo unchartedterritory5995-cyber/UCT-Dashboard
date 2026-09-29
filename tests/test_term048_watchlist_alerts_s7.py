@@ -173,15 +173,19 @@ _TODAY_REPORT = {
 
 
 def test_FLAG_OFF_fires_exactly_as_today_and_never_touches_the_S7_store(env, monkeypatch):
-    def must_not_run(*a, **k):
-        raise AssertionError("flag OFF reached the S7 bridge")
-    monkeypatch.setattr(wpa, "open_fire", must_not_run)
-    monkeypatch.setattr(wpa, "close_fire", must_not_run)
+    # ⛔ RECORD, never raise: the S7 route fails OPEN to legacy delivery on any
+    # exception, so a raising stub would be swallowed and this test would pass
+    # with the flag effectively ON (measured: the raising form survived both
+    # the flipped-default and the ignore-the-flag mutations).
+    reached: list = []
+    monkeypatch.setattr(wpa, "open_fire", lambda *a, **k: reached.append("open"))
+    monkeypatch.setattr(wpa, "close_fire", lambda *a, **k: reached.append("close"))
 
     a = wls.create_alert(env["user"], "AKAM", 95.0, "above")
     reports: list = []
     fired = wls.check_alerts_against_prices({"AKAM": 96.0}, reports=reports)
 
+    assert reached == [], f"flag OFF reached the S7 bridge: {reached}"
     assert [f["id"] for f in fired] == [a["id"]]
     assert reports == [_TODAY_REPORT]
     assert _row(a["id"])["is_active"] == 0 and _row(a["id"])["triggered_at"]
