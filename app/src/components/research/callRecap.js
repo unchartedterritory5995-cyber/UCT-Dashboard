@@ -121,6 +121,36 @@ const normalizeLine = item => {
   return ''
 }
 
+/** A key point's span anchor (TERM-044): {segment, start, end, speaker, text},
+ *  computed by the server from where the passage actually sits in the
+ *  transcript. Anything that is not a well-formed span is NO anchor — the
+ *  bullet then renders uncited, never with a citation that points nowhere. */
+export function normalizeBulletAnchor(a) {
+  if (!a || typeof a !== 'object') return null
+  const { segment, start, end } = a
+  if (![segment, start, end].every(Number.isInteger)) return null
+  if (segment < 0 || start < 0 || end <= start) return null
+  const text = clean(a.text)
+  if (!text) return null
+  return { segment, start, end, speaker: clean(a.speaker), text }
+}
+
+/** Bullets and their anchors are aligned BY INDEX, so they are filtered as
+ *  pairs: dropping an empty bullet on its own would hand every later bullet
+ *  its neighbour's citation. `anchors` is null for a recap written before
+ *  anchors existed — that recap renders exactly as it always did. */
+function normalizeBullets(rawBullets, rawAnchors) {
+  const bullets = Array.isArray(rawBullets) ? rawBullets : []
+  const hasAnchors = Array.isArray(rawAnchors)
+  const pairs = bullets
+    .map((b, i) => [normalizeLine(b), hasAnchors ? normalizeBulletAnchor(rawAnchors[i]) : null])
+    .filter(([text]) => Boolean(text))
+  return {
+    bullets: pairs.map(([text]) => text),
+    anchors: hasAnchors ? pairs.map(([, anchor]) => anchor) : null,
+  }
+}
+
 export function normalizeCallRecap(payload) {
   if (!payload || typeof payload !== 'object') return null
   const inner = payload.recap && typeof payload.recap === 'object' ? payload.recap : null
@@ -134,7 +164,9 @@ export function normalizeCallRecap(payload) {
   }
 
   out.sentiment = normalizeSentiment(out.sentiment)
-  out.bullets = (Array.isArray(out.bullets) ? out.bullets : []).map(normalizeLine).filter(Boolean)
+  const { bullets, anchors } = normalizeBullets(out.bullets, out.bullet_anchors)
+  out.bullets = bullets
+  out.bullet_anchors = anchors
   out.qa_highlights = (Array.isArray(out.qa_highlights) ? out.qa_highlights : [])
     .map(normalizeQA).filter(Boolean)
   out.quotes = (Array.isArray(out.quotes) ? out.quotes : [])

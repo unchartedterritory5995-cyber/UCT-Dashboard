@@ -32,6 +32,7 @@ BOARD_ROUTES = [
     ("post", "/api/workspace/doc/restore"),
     ("delete", "/api/workspace/doc?base_version=1"),
     ("get", "/api/workspace/doc/health"),
+    ("post", "/api/workspace/doc/apply"),
 ]
 
 
@@ -243,3 +244,235 @@ def test_the_workspace_router_is_mounted_on_the_real_app():
     assert "workspace_doc_router.router" in mounted
     # Control: the same walk sees a router known to be mounted.
     assert "charts_layouts_router.router" in mounted
+
+
+# ═══ 3. READ-NEW: the member's read comes from the document ══════════════════
+# The read-new phase: GET /api/auth/preferences reads the board's keys from the document head,
+# a template apply is ONE document write, and a crash in the middle of one cannot leave a
+# half-applied board. Flag off, the read is byte-for-byte what it was.
+from api.routers import workspace_doc as workspace_doc_router   # noqa: E402
+
+LAYOUT_T = json.dumps({"widgets": [{"id": "t1", "type": "scanner", "x": 0, "y": 0, "w": 24, "h": 20}],
+                       "cols": 24, "version": 1})
+TEMPLATE = {                                   # what applyTemplate sends for a prebuilt layout
+    "charts_workspace_layout": LAYOUT_T,
+    "watchlist_settings": '{"canvas":"#000"}',
+    "theme_tracker_settings": '{"canvas":"#111"}',
+    "fundamentals_settings": '{"canvas":"#222"}',
+    "breadth_widget_settings": '{"canvas":"#333"}',
+    "watchlist_columns": "",
+    "chart_settings": '{"settingsVersion":2}',
+    "charts_theme": "default",
+    "charts_vol_pane_pct": "",
+    "charts_active_template": '{"id":7,"name":"Scanner","scope":"global"}',
+}
+BEFORE = {k: f"before-{k}" for k in TEMPLATE}
+
+
+def _raw_prefs(uid):
+    return auth_service.get_user_preferences(uid)
+
+
+def _seed(uid, values):
+    for k, v in values.items():
+        auth_service.set_user_preference(uid, k, v)
+
+
+def test_flag_off_the_preference_READ_is_byte_identical_and_carries_no_header(store_path, monkeypatch):
+    """⭐ The load-bearing rail for this phase. The CONTROL is the handler exactly as it was
+    (`return get_user_preferences(user["id"])`), mounted on its own app: same bytes, same
+    content type, no X-Workspace-Doc — and the store is never opened, read or created."""
+    user = _member()
+    client = _client(user)
+    _seed(user["id"], {"charts_workspace_layout": CORRUPT, "chart_settings": '{"u":"é☃"}',
+                       "charts_vol_pane_pct": "", "theme": "oled"})
+
+    from fastapi import APIRouter, Depends
+    from api.middleware.auth_middleware import get_current_user
+    legacy = APIRouter()
+
+    @legacy.get("/api/auth/preferences")
+    def _legacy(user: dict = Depends(get_current_user)):
+        return auth_service.get_user_preferences(user["id"])
+
+    control_app = FastAPI()
+    control_app.include_router(legacy)
+    authorize(control_app, user)
+    control = TestClient(control_app).get("/api/auth/preferences")
+
+    touched = []
+    monkeypatch.setattr(wds, "_connect", lambda *a, **k: touched.append("_connect"))
+    r = client.get("/api/auth/preferences")
+    assert r.status_code == control.status_code == 200
+    assert r.content == control.content
+    assert r.headers["content-type"] == control.headers["content-type"]
+    assert "x-workspace-doc" not in {h.lower() for h in r.headers}
+    assert touched == [] and not store_path.exists()
+
+
+def test_armed_every_read_says_which_store_answered(store_path, monkeypatch):
+    user = _member()
+    client = _client(user)
+    _seed(user["id"], {"charts_theme": "tv"})
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    r = client.get("/api/auth/preferences")
+    assert r.json() == {"charts_theme": "tv"}
+    assert r.headers["x-workspace-doc"] == "fallback; reason=absent"      # never a silent default
+    client.get("/api/workspace/doc")                                       # the migration copy
+    r = client.get("/api/auth/preferences")
+    assert r.json() == {"charts_theme": "tv"} and r.headers["x-workspace-doc"] == "document; v=1"
+
+
+def _apply(client, prefs, base=None):
+    if base is None:
+        base = client.get("/api/workspace/doc").json()["version"]
+    return client.post("/api/workspace/doc/apply", json={"base_version": base, "prefs": prefs})
+
+
+def test_apply_is_ONE_version_and_the_member_reads_every_key(store_path, monkeypatch):
+    user = _member()
+    client = _client(user)
+    _seed(user["id"], {**BEFORE, "charts_workspace_groups": '{"A":"NVDA"}'})
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    base = client.get("/api/workspace/doc").json()["version"]
+    r = _apply(client, TEMPLATE, base)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["version"] == base + 1 and body["appended"] and body["complete"] is True
+    assert body["prefs_written"] == sorted(TEMPLATE)
+    versions = client.get("/api/workspace/doc/versions").json()["versions"]
+    assert [(v["version"], v["source"]) for v in versions] == [(base + 1, "write"), (base, "migration")]
+    got = client.get("/api/auth/preferences").json()
+    assert {k: got[k] for k in TEMPLATE} == TEMPLATE
+    assert got["charts_workspace_groups"] == '{"A":"NVDA"}'   # a key the template did not name
+    assert wds.outstanding_writebacks(user["id"]) == {}
+
+
+def test_a_crash_mid_apply_cannot_leave_a_half_applied_board(store_path, monkeypatch):
+    """The process dies after the document version is appended and after TWO of the ten
+    user_preferences writes. The member's next read is the WHOLE template — never five of one
+    board and five of another — and that read finishes the write-back.
+    ⛔ Seen red three ways: no pending row in the version's transaction, the document not
+    winning for a covered key, and the apply appended one key at a time."""
+    user = _member()
+    uid = user["id"]
+    client = _client(user)
+    _seed(uid, BEFORE)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+
+    def dies_after_two(uid_, values):
+        for key in sorted(values)[:2]:
+            auth_service.set_user_preference(uid_, key, values[key])
+        raise RuntimeError("the web pod was killed mid-apply")
+
+    monkeypatch.setattr(workspace_doc_router, "_write_back", dies_after_two)
+    with pytest.raises(RuntimeError, match="killed mid-apply"):
+        _apply(client, TEMPLATE)
+    raw = _raw_prefs(uid)
+    assert sum(raw[k] == TEMPLATE[k] for k in TEMPLATE) == 2, "the old store IS half-applied"
+
+    r = client.get("/api/auth/preferences")
+    assert {k: r.json()[k] for k in TEMPLATE} == TEMPLATE, "the member reads the whole template"
+    assert r.headers["x-workspace-doc"].startswith("document; v=")
+    assert "doc_newer=" in r.headers["x-workspace-doc"]
+    # ...and that read finished the job: the old store now agrees, the ledger is closed.
+    assert {k: _raw_prefs(uid)[k] for k in TEMPLATE} == TEMPLATE
+    assert wds.outstanding_writebacks(uid) == {}
+    assert client.get("/api/auth/preferences").headers["x-workspace-doc"].count(";") == 1
+
+
+def test_CONTROL_the_legacy_per_key_path_DOES_half_apply_on_the_same_crash(store_path):
+    """Flag off, a template apply is ten separate writes. The same crash after two leaves the
+    member reading a board that is two parts template and eight parts the old one — the failure
+    the test above proves the document path cannot have. (It can tell the two apart.)"""
+    user = _member()
+    uid = user["id"]
+    client = _client(user)
+    _seed(uid, BEFORE)
+    for key in sorted(TEMPLATE)[:2]:
+        client.post("/api/auth/preferences", json={"key": key, "value": TEMPLATE[key]})
+    got = client.get("/api/auth/preferences").json()
+    assert sum(got[k] == TEMPLATE[k] for k in TEMPLATE) == 2
+
+
+def test_a_failed_writeback_key_is_named_and_the_member_still_reads_every_key(store_path, monkeypatch):
+    user = _member()
+    uid = user["id"]
+    client = _client(user)
+    _seed(uid, BEFORE)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    real = auth_service.set_user_preference
+
+    def flaky(uid_, key, value):
+        if key == "chart_settings":
+            raise RuntimeError("database is locked")
+        return real(uid_, key, value)
+
+    monkeypatch.setattr(auth_service, "set_user_preference", flaky)
+    r = _apply(client, TEMPLATE)
+    assert r.status_code == 200
+    assert r.json()["prefs_failed"] == ["chart_settings"] and r.json()["complete"] is False
+    monkeypatch.setattr(auth_service, "set_user_preference", real)
+    assert client.get("/api/auth/preferences").json()["chart_settings"] == TEMPLATE["chart_settings"]
+    assert _raw_prefs(uid)["chart_settings"] == TEMPLATE["chart_settings"]   # completed by the read
+    assert wds.outstanding_writebacks(uid) == {}
+
+
+def test_apply_on_a_stale_base_is_409_and_writes_nothing_to_either_store(store_path, monkeypatch):
+    user = _member()
+    uid = user["id"]
+    client = _client(user)
+    _seed(uid, BEFORE)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    base = client.get("/api/workspace/doc").json()["version"]
+    client.post("/api/auth/preferences", json={"key": "charts_theme", "value": "another-tab"})
+    r = _apply(client, TEMPLATE, base)
+    assert r.status_code == 409
+    assert r.json()["detail"] == {"error": "version_conflict", "base_version": base, "head_version": base + 1}
+    assert _raw_prefs(uid) == {**BEFORE, "charts_theme": "another-tab"}
+    assert client.get("/api/workspace/doc").json()["version"] == base + 1
+    assert wds.outstanding_writebacks(uid) == {}
+
+
+@pytest.mark.parametrize("prefs, why", [
+    ({"theme": "oled"}, "outside the board"),          # an allowed preference, not a board key
+    ({"not_a_key": "x"}, "Unknown preference key"),    # refused by the old endpoint's own allow-list
+    ({}, "Nothing to apply"),
+])
+def test_apply_refuses_what_it_cannot_version_and_writes_nothing(store_path, monkeypatch, prefs, why):
+    user = _member()
+    client = _client(user)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    r = client.post("/api/workspace/doc/apply", json={"base_version": 0, "prefs": prefs})
+    assert r.status_code == 400 and why in r.text
+    assert _raw_prefs(user["id"]) == {}
+    assert not store_path.exists() or wds.head(user["id"]) is None
+
+
+def test_a_restore_closes_its_writeback(store_path, monkeypatch):
+    user = _member()
+    client = _client(user)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    client.post("/api/auth/preferences", json={"key": "charts_theme", "value": "a"})
+    client.post("/api/auth/preferences", json={"key": "charts_theme", "value": "b"})
+    head = client.get("/api/workspace/doc").json()["version"]
+    assert client.post("/api/workspace/doc/restore", json={"version": head - 1, "base_version": head}).status_code == 200
+    assert wds.outstanding_writebacks(user["id"]) == {}
+    assert _prefs(client)["charts_theme"] == "a"
+
+
+def test_rearming_after_a_write_made_while_dark_serves_that_write(store_path, monkeypatch):
+    """Disarming is a flag flip; so is re-arming. A board write made while dark reaches only
+    user_preferences, so on re-arm the document is BEHIND — and must not win."""
+    user = _member()
+    client = _client(user)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    client.post("/api/auth/preferences", json={"key": "charts_theme", "value": "armed"})
+    monkeypatch.setenv(wds.ENABLED_ENV, "0")
+    client.post("/api/auth/preferences", json={"key": "charts_theme", "value": "while-dark"})
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    r = client.get("/api/auth/preferences")
+    assert r.json()["charts_theme"] == "while-dark"
+    assert r.headers["x-workspace-doc"].endswith("old_newer=charts_theme")
+    doc = client.get("/api/workspace/doc").json()
+    assert doc["doc"]["prefs"]["charts_theme"] == "while-dark" and doc["source"] == "mirror"

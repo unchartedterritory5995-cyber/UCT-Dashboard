@@ -1,0 +1,150 @@
+2026-09-28 16:51:28,907 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:28,907 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for EMSNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:28,908 WARNING api.services.engine: FMP quarterly history failed for EMSNF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:30,686 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for MCB (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:51:31,129 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:51:31,163 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:31,163 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:31,176 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:31,178 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:31,203 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:31,203 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:31,204 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for FYIRF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:31,204 WARNING api.services.engine: FMP quarterly history failed for FYIRF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:31,212 WARNING api.services.engine: FMP quarterly history failed for EXSPF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:31,255 WARNING api.services.engine: FMP quarterly history failed for GNYPF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:31,846 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:31,846 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:31,846 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for MMDDF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:31,846 WARNING api.services.engine: FMP quarterly history failed for MMDDF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:32,022 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for ENEVF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:32,022 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:32,022 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:32,022 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for ENEVF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:32,022 WARNING api.services.engine: FMP quarterly history failed for ENEVF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:32,050 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for MRSH (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:51:32,248 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for OZK (Anthropic call failed or empty � will retry after cooldown)
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\docs\plans\joystick\sandbox-runs\2026-09-28T16-48-21.md
+2026-09-28 16:51:32,429 WARNING api.services.ticker_meta: FMP profile failed for SCHW: local FMP budget exhausted for /stable/profile
+2026-09-28 16:51:32,430 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:32,701 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:32,701 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:32,701 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:32,754 WARNING api.services.engine: FMP quarterly history failed for HWKDF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:33,559 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:34,315 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for REEEF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:34,315 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:34,315 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:34,315 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for REEEF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:34,315 WARNING api.services.engine: FMP quarterly history failed for REEEF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:34,351 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:34,351 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:34,351 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for NVYTF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:34,352 WARNING api.services.engine: FMP quarterly history failed for NVYTF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:34,439 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for PINWF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:34,439 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:34,439 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:34,439 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for PINWF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:34,439 WARNING api.services.engine: FMP quarterly history failed for PINWF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:34,450 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:35,036 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for TGMGF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:35,036 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:35,036 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:35,037 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for TGMGF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:35,037 WARNING api.services.engine: FMP quarterly history failed for TGMGF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:35,425 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for THCBF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:35,425 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:35,425 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:35,425 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for THCBF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:35,425 WARNING api.services.engine: FMP quarterly history failed for THCBF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:36,051 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for WESMF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:36,051 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:36,051 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:36,051 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for WESMF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:36,051 WARNING api.services.engine: FMP quarterly history failed for WESMF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:36,962 WARNING api.services.earnings_estimates: FMP get_grades_consensus failed for WHGPF: local FMP budget exhausted for /stable/grades-consensus
+2026-09-28 16:51:36,963 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:51:36,963 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:51:36,963 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for WHGPF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-28 16:51:36,963 WARNING api.services.engine: FMP quarterly history failed for WHGPF: local FMP budget exhausted for /stable/earnings
+2026-09-28 16:51:36,964 ERROR api.main: [calendar-enrich-warm] failed
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\main.py", line 1304, in _delayed
+    out = get_enrichment_batch(dates=dates)
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3672, in get_enrichment_batch
+    out[d] = _compute_enrichment_for_date(d)
+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3303, in _compute_enrichment_for_date
+    return _ENRICH_STALE.serve(
+           ~~~~~~~~~~~~~~~~~~~^
+        target,
+        ^^^^^^^
+    ...<2 lines>...
+        good=bool,
+        ^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\services\serve_stale.py", line 150, in serve
+    built = build()
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3306, in <lambda>
+    build=lambda: _build_enrichment_for_date(target),
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3498, in _build_enrichment_for_date
+    for sym, data in ex.map(_one, syms):
+                     ~~~~~~^^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\_base.py", line 618, in map
+    fs = [self.submit(fn, *args) for args in zipped_iterables]
+          ~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 207, in submit
+    raise RuntimeError('cannot schedule new futures after '
+                       'interpreter shutdown')
+RuntimeError: cannot schedule new futures after interpreter shutdown
+2026-09-28 16:51:36,964 ERROR api.main: [dashboard-warm] enrichment failed
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\main.py", line 1066, in _warm
+    fn()
+    ~~^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\main.py", line 1119, in _enrichment
+    get_enrichment_batch(dates=dates)
+    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3672, in get_enrichment_batch
+    out[d] = _compute_enrichment_for_date(d)
+             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3303, in _compute_enrichment_for_date
+    return _ENRICH_STALE.serve(
+           ~~~~~~~~~~~~~~~~~~~^
+        target,
+        ^^^^^^^
+    ...<2 lines>...
+        good=bool,
+        ^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\services\serve_stale.py", line 150, in serve
+    built = build()
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3306, in <lambda>
+    build=lambda: _build_enrichment_for_date(target),
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p02-4bba30b73\api\routers\calendar.py", line 3498, in _build_enrichment_for_date
+    for sym, data in ex.map(_one, syms):
+                     ~~~~~~^^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\_base.py", line 618, in map
+    fs = [self.submit(fn, *args) for args in zipped_iterables]
+          ~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\thread.py", line 207, in submit
+    raise RuntimeError('cannot schedule new futures after '
+                       'interpreter shutdown')
+RuntimeError: cannot schedule new futures after interpreter shutdown
+2026-09-28 16:51:36,980 INFO api.main: [dashboard-warm] flow-curated ok
+2026-09-28 16:51:40,251 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1250/1969 warmed=409 failed=841
+2026-09-28 16:51:46,633 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for PLD (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:51:46,976 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:47,879 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for PNC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:51:48,011 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for SCHW (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:51:48,031 WARNING api.services.ticker_meta: FMP profile failed for SNA: local FMP budget exhausted for /stable/profile
+2026-09-28 16:51:48,031 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:48,051 WARNING api.services.ticker_meta: FMP profile failed for USB: local FMP budget exhausted for /stable/profile
+2026-09-28 16:51:48,051 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:50,552 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:55,047 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-28 16:51:59,529 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)

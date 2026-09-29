@@ -1,0 +1,69 @@
+# through L2: revert f4cec49be (wave 10 L2 #242); tree f412bdecfab5ddca5654049d832dc759f847cd8e
+# vitest run --maxWorkers=2 src/pages/journal-2-0/lib/notebookSchema.rail.test.js src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx
+# absent in this tree: none
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app[39m
+
+ [32m✓[39m src/hub/writePathsTransitive.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 127[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/commit.test.js [2m([22m[2m18 tests[22m[2m)[22m[33m 1758[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms, uploads media, rewrites bodies, and reports the summary [33m 1735[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js [2m([22m[2m10 tests[22m[2m)[22m[33m 20252[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js [2m([22m[2m7 tests[22m[2m)[22m[33m 937[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/notebookSchema.rail.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 206[2mms[22m[39m
+ [32m✓[39m src/hub/writePaths.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/generic.test.js [2m([22m[2m20 tests[22m[2m)[22m[33m 677[2mms[22m[39m
+     [33m[2m✓[22m[39m markdown checklists reach convert.htmlToNote as real taskItems (integration) [33m 563[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mcould not keep the refused words as a copy Error: Could not create note (500)
+    at createNoteViaApi (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/lib/noteCreation.js:35:22)
+    at reconcileConflict (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2367:5)
+    at keepRefusedWords (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1206:7)
+    at Object.commitSave [as current] (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2539:15)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mautosave failed (non-retryable) Error: This note has content from a newer version of the app. Reload to edit it.
+    at update (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/hooks/useJ2Notes.js:236:21)
+    at Object.commitSave [as current] (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1b/t/s-L2/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2530:17) {
+  status: [33m409[39m
+}
+
+ [32m✓[39m src/pages/journal-2-0/lib/importer/census.test.js [2m([22m[2m22 tests[22m[2m)[22m[33m 1022[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 44851[2mms[22m[39m
+     [33m[2m✓[22m[39m reloaded into the new bundle, nobody types: declared 0 → refused → kept as a copy; the server note is byte-identical [33m 4531[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ and after that, the member’s next keystroke saves on the SERVER’s note at this bundle’s level — the formula survives [33m 3789[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a copy that SAYS it was written at level 0 is treated exactly the same [33m 2669[2mms[22m[39m
+     [33m[2m✓[22m[39m words queued by a level-1 bundle on the same note are adopted, sent at level 1, and land — no copy [33m 2726[2mms[22m[39m
+     [33m[2m✓[22m[39m while the adopted words’ save is still on the wire, the NEW durable copy, queue entry and draft all say 0 — even after another keystroke [33m 3146[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ an ordinary edit of a note this bundle READ is stamped with this bundle’s level, everywhere [33m 1392[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone (an old tab’s, unstamped): Restore declares 0 → refused → kept as a copy; the note is untouched [33m 4740[2mms[22m[39m
+     [33m[2m✓[22m[39m the banner’s Restore of a BLOCKED queued copy (the base-known path) is refused and kept the same way [33m 3501[2mms[22m[39m
+     [33m[2m✓[22m[39m a blocked copy stamped at this bundle’s level, Restored: sent at that level, lands, no copy [33m 3322[2mms[22m[39m
+     [33m[2m✓[22m[39m adoption: an old tab’s copy of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 3576[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore: an old tab’s crash draft of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 5144[2mms[22m[39m
+     [33m[2m✓[22m[39m a VERSION RESTORE puts the server’s copy on screen — what is typed on it is this bundle’s own [33m 3808[2mms[22m[39m
+     [33m[2m✓[22m[39m the create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue [33m 2499[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 918[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/convert.test.js [2m([22m[2m15 tests[22m[2m)[22m[33m 9989[2mms[22m[39m
+     [33m[2m✓[22m[39m measures a long meeting/daily-notes log (hundreds of bullets + checkboxes) [33m 3341[2mms[22m[39m
+     [33m[2m✓[22m[39m measures the many-short-headings shape — the ~9x worst case [33m 3316[2mms[22m[39m
+     [33m[2m✓[22m[39m measures many inline images (chart screenshots pasted into a review note) [33m 809[2mms[22m[39m
+     [33m[2m✓[22m[39m a body near the derived ceiling (MAX_BODY_JSON_BYTES / worst-case blowup) still converts to a plain, valid TipTap doc [33m 2313[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/notion.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidian.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidianParity.contract.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/serverConvert.contract.test.js [2m([22m[2m29 tests[22m[2m)[22m[32m 250[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/evernote.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 63[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/registry.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/enrichment.test.js [2m([22m[2m7 tests[22m[2m)[22m[33m 349[2mms[22m[39m
+     [33m[2m✓[22m[39m PUTs the doc with exactly its own last content node removed [33m 334[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 19932[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/intake.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m21 passed[39m[22m[90m (21)[39m
+[2m      Tests [22m [1m[32m272 passed[39m[22m[90m (272)[39m
+[2m   Start at [22m 01:34:47
+[2m   Duration [22m 94.06s[2m (transform 7.27s, setup 11.43s, import 19.20s, tests 101.83s, environment 47.34s)[22m
+
+
+# rc 0 in 96 s

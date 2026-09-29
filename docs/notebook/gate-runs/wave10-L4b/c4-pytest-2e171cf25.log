@@ -1,0 +1,88 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 21%]
+........................................................................ [ 28%]
+........................................................................ [ 35%]
+...........s..............................F....................s........ [ 42%]
+........................................................................ [ 49%]
+........................................................................ [ 56%]
+........................................................................ [ 63%]
+........................................................................ [ 71%]
+........................................................................ [ 78%]
+........................................................................ [ 85%]
+........................................................................ [ 92%]
+........................................................................ [ 99%]
+......                                                                   [100%]
+================================== FAILURES ===================================
+______ test_the_read_set_covers_every_root_relative_path_the_suite_reads ______
+
+    def test_the_read_set_covers_every_root_relative_path_the_suite_reads():
+        """
+        Every repo-root path a vitest source names is either IN the read set or
+        CLASSIFIED as named-but-not-read. Nothing may be neither.
+        """
+        import scripts.gate_shards as gs
+        uncovered = sorted(rel for rel in root_relative_literals()
+                           if not _covered_by(rel, gs.GATE_READ_PATHS) and rel not in NAMED_BUT_NOT_READ)
+>       assert not uncovered, (
+            'these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation '
+            'would carry a verdict across a change to them:\n  ' + '\n  '.join(uncovered))
+E       AssertionError: these paths are read by the suite and are NOT in GATE_READ_PATHS, so a re-derivation would carry a verdict across a change to them:
+E           api/services/workspace_doc_store.py
+E       assert not ['api/services/workspace_doc_store.py']
+
+tests\test_gate_shards.py:1326: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 76820 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 1014 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: 2923 warnings
+tests/test_alert_taxonomy_cooldowns.py: 4 warnings
+tests/test_breadth_eod_source.py: 50 warnings
+tests/test_education_curriculum.py: 468 warnings
+tests/test_scan_screener_auth.py: 222 warnings
+tests/test_workspace_doc_router.py: 2177 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: 2923 warnings
+tests/test_alert_taxonomy_cooldowns.py: 11 warnings
+tests/test_breadth_eod_source.py: 57 warnings
+tests/test_catalysts_explain_receipt.py: 22 warnings
+tests/test_edgar_ownership.py: 4 warnings
+tests/test_education_curriculum.py: 549 warnings
+tests/test_scan_screener_auth.py: 335 warnings
+tests/test_workspace_doc_router.py: 2351 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+..\..\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: 41 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\slowapi\extension.py:717: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+api\baselines.py:456
+  C:\Users\Patrick\uct-worktrees\notebook-l2\api\baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_cooldowns.py::TestPublishedIsDerived::test_check_interval_is_the_sweep_constant_and_moves_with_it
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_term048_watchlist_alerts_s7.py::test_nothing_re_arms_a_watchlist_alert_row
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_gate_shards.py:478: OPT-IN rail: set UCT_RUN_REAL_VITEST=1 — real `npx vitest`, 3s..>300s, unbounded; it killed a landing run on 2026-09-17
+SKIPPED [1] tests\test_gate_shards.py:1790: OPT-IN rail: spawns two real vitest runs and samples process counts
+FAILED tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads
+1 failed, 1011 passed, 2 skipped, 89974 warnings in 433.94s (0:07:13)

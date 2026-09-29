@@ -1,0 +1,6 @@
+# python tools/notebook_rollback_chain.py --check --from origin/master  (9f9d60b4b, 2026-09-29T07:19:48Z)
+{"check": "stale", "from": "9f9d60b4b7b4f7a20534ce340d519eea3a333693", "measured_at": "f4cec49be", "stopped": "2 commit(s) after MEASURED_AT f4cec49be look like Notebook landings the chain does not name: 3e5153f1d \"perf(build): strip symbolScope.json's prose from the bundle (Notebook \" (selected by path: app/vite.config.js); 3646a4c19 'test(pine): param ids re-pinned after new inputs minted; a partial-rig' (selected by path: app/src/components/screener/reachable.test.js). Add each landing to CHAIN newest first (or, if a person rules it is NOT one, to REVIEWED_NOT_LANDINGS with the reason), re-run from the new tip, record a rule and a pin for each conflict, rehearse the new step on a sandbox, and move MEASURED_AT."}
+# exit 2
+# --check --from f4cec49be
+{"check": "current", "from": "f4cec49be44d2a050b8b4a91c65fd7c7314f0cf0", "measured_at": "f4cec49be"}
+# exit 0

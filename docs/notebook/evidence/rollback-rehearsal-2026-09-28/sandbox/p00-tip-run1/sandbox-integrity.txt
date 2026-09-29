@@ -1,0 +1,1 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; tip 38bb9a421 (control); tree 075e4ff735bc819e55a76196a27ce32449f6b452; log: docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox/p00-tip/sandbox-integrity.md

@@ -1,0 +1,82 @@
+{
+  "d9e887ca0": {
+    "app/src/components/CommandPalette.jsx": [
+      "hunks",
+      [
+        [
+          "ours_drop",
+          "lib/notebookTelemetry'"
+        ]
+      ]
+    ],
+    "tests/test_alert_destination.py": [
+      "hunks",
+      [
+        [
+          "ours_drop",
+          "Notebook wave 10 lane 10D: the Notebook save-SLO pager",
+          "read and converted at the Notebook's L1b integration",
+          "so it never shipped as a literal reader",
+          "api/services/journal_two/notebook_slo.py"
+        ]
+      ]
+    ]
+  },
+  "caf6d1b9e": {
+    "api/main.py": [
+      "hunks",
+      [
+        "app.include_router(journal_two_router.router, dependencies=_OPEN_READS)\n"
+      ]
+    ],
+    "api/routers/auth.py": [
+      "hunks",
+      [
+        [
+          "ours_drop",
+          "# Wave 8 seam S8-1: the ONE parse for every Notebook capability flag. The truthy /",
+          "# falsy sets live there now; `_breadth_dc_flags` below reads the same two sets.",
+          "from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on"
+        ]
+      ]
+    ],
+    "api/services/journal_two/public_note_payload.py": "delete",
+    "tests/test_share_publish_authorization.py": "delete"
+  },
+  "f883e0996": {
+    "api/main.py": [
+      "hunks",
+      [
+        "app.include_router(journal_two_router.router, dependencies=_OPEN_READS)\n"
+      ]
+    ]
+  },
+  "271a078b6": {
+    "api/main.py": [
+      "hunks",
+      [
+        "app.include_router(journal_two_router.router, dependencies=_OPEN_READS)\n"
+      ]
+    ],
+    "api/services/client_errors.py": "delete"
+  },
+  "2c3ed3093": {
+    "api/services/journal_two/notebook_schema.py": "ours",
+    "app/src/pages/journal-2-0/lib/notebookSchema.js": "ours"
+  },
+  "8167f7aa0": {
+    "api/services/journal_two/notebook_schema.py": "ours",
+    "app/src/pages/journal-2-0/lib/notebookSchema.js": "ours",
+    "app/src/pages/journal-2-0/lib/tiptap.js": [
+      "hunks",
+      "all-ours",
+      {
+        "import_after": [
+          "import StarterKit from '@tiptap/starter-kit'",
+          "import { getSchema } from '@tiptap/core'"
+        ],
+        "append": "let editorSchemaCache = null\n/**\n * The app's REAL editor schema, built once from `buildExtensions()`. It is\n * what notebookSchema.js::declaredNotebookSchema reads to declare which note\n * types this bundle can read (X-UCT-Notebook-Schema).\n */\nexport function editorSchema() {\n  if (!editorSchemaCache) editorSchemaCache = getSchema(buildExtensions())\n  return editorSchemaCache\n}\n"
+      }
+    ]
+  }
+}

@@ -1,0 +1,65 @@
+# step 10: revert 2e0598bfa (9C soak #197); tree c6c1c879de7b07647899acefc096be8c68a8ae54
+# vitest run --maxWorkers=2 src/pages/journal-2-0/lib/notebookSchema.rail.test.js src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx
+# absent in this tree: none
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app[39m
+
+ [32m✓[39m src/hub/writePathsTransitive.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 158[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/commit.test.js [2m([22m[2m18 tests[22m[2m)[22m[33m 2651[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms, uploads media, rewrites bodies, and reports the summary [33m 2634[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js [2m([22m[2m7 tests[22m[2m)[22m[33m 554[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/notebookSchema.rail.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 119[2mms[22m[39m
+ [32m✓[39m src/hub/writePaths.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/generic.test.js [2m([22m[2m20 tests[22m[2m)[22m[33m 434[2mms[22m[39m
+     [33m[2m✓[22m[39m markdown checklists reach convert.htmlToNote as real taskItems (integration) [33m 357[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 888[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/notion.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidian.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidianParity.contract.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/convert.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 4549[2mms[22m[39m
+     [33m[2m✓[22m[39m measures a long meeting/daily-notes log (hundreds of bullets + checkboxes) [33m 1475[2mms[22m[39m
+     [33m[2m✓[22m[39m measures the many-short-headings shape — the ~9x worst case [33m 1594[2mms[22m[39m
+     [33m[2m✓[22m[39m measures many inline images (chart screenshots pasted into a review note) [33m 445[2mms[22m[39m
+     [33m[2m✓[22m[39m a body near the derived ceiling (MAX_BODY_JSON_BYTES / worst-case blowup) still converts to a plain, valid TipTap doc [33m 943[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/serverConvert.contract.test.js [2m([22m[2m29 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/evernote.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/enrichment.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 224[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/intake.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/registry.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mcould not keep the refused words as a copy Error: Could not create note (500)
+    at createNoteViaApi (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/lib/noteCreation.js:35:22)
+    at reconcileConflict (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2265:5)
+    at keepRefusedWords (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1161:7)
+    at Object.commitSave [as current] (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2437:15)
+
+[90mstderr[2m | src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx[2m > [22m[2m⛔ if keeping a copy FAILS, the refusal is reported — never retried — and the words stay on this device[2m > [22m[2mthe create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue
+[22m[39mautosave failed (non-retryable) Error: This note has content from a newer version of the app. Reload to edit it.
+    at update (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/hooks/useJ2Notes.js:236:21)
+    at Object.commitSave [as current] (C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p10-2e0598bfa/app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:2428:17) {
+  status: [33m409[39m
+}
+
+ [32m✓[39m src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx [2m([22m[2m14 tests[22m[2m)[22m[33m 41307[2mms[22m[39m
+     [33m[2m✓[22m[39m reloaded into the new bundle, nobody types: declared 0 → refused → kept as a copy; the server note is byte-identical [33m 4840[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ and after that, the member’s next keystroke saves on the SERVER’s note at this bundle’s level — the formula survives [33m 3647[2mms[22m[39m
+     [33m[2m✓[22m[39m ⛔ a copy that SAYS it was written at level 0 is treated exactly the same [33m 2391[2mms[22m[39m
+     [33m[2m✓[22m[39m words queued by a level-1 bundle on the same note are adopted, sent at level 1, and land — no copy [33m 2344[2mms[22m[39m
+     [33m[2m✓[22m[39m while the adopted words’ save is still on the wire, the NEW durable copy, queue entry and draft all say 0 — even after another keystroke [33m 2817[2mms[22m[39m
+     [33m[2m✓[22m[39m ⭐ an ordinary edit of a note this bundle READ is stamped with this bundle’s level, everywhere [33m 1262[2mms[22m[39m
+     [33m[2m✓[22m[39m a crash draft alone (an old tab’s, unstamped): Restore declares 0 → refused → kept as a copy; the note is untouched [33m 4260[2mms[22m[39m
+     [33m[2m✓[22m[39m the banner’s Restore of a BLOCKED queued copy (the base-known path) is refused and kept the same way [33m 3056[2mms[22m[39m
+     [33m[2m✓[22m[39m a blocked copy stamped at this bundle’s level, Restored: sent at that level, lands, no copy [33m 3055[2mms[22m[39m
+     [33m[2m✓[22m[39m adoption: an old tab’s copy of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 3352[2mms[22m[39m
+     [33m[2m✓[22m[39m Restore: an old tab’s crash draft of a LEVEL-0 note lands at 0; then a formula and more typing all land — no copy [33m 4651[2mms[22m[39m
+     [33m[2m✓[22m[39m a VERSION RESTORE puts the server’s copy on screen — what is typed on it is this bundle’s own [33m 3263[2mms[22m[39m
+     [33m[2m✓[22m[39m the create is down: exactly one refused send, the note untouched, the words still in the durable copy and the queue [33m 2365[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m      Tests [22m [1m[32m221 passed[39m[22m[90m (221)[39m
+[2m   Start at [22m 17:56:24
+[2m   Duration [22m 44.98s[2m (transform 9.20s, setup 2.57s, import 16.69s, tests 51.40s, environment 10.13s)[22m
+
+
+# rc 0 in 46 s

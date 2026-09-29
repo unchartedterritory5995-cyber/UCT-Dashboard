@@ -1,0 +1,156 @@
+{
+ "tip": "d5-fix-round1-pending-sha",
+ "tag": "after",
+ "instrument": "notebook_d5_scroll_probe.py",
+ "scrollbars": "shown",
+ "viewports": [
+  "1200x800",
+  "820x900",
+  "390x844"
+ ],
+ "rows": [
+  {
+   "viewport": "1200x800",
+   "sample": {
+    "found": true,
+    "cue_attr": "true",
+    "computed_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "computed_webkit_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "scrollWidth": 1348,
+    "clientWidth": 776,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 395,
+     "left": 370,
+     "right": 1146,
+     "bottom": 1221
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "after-1200x800.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "820x900",
+   "sample": {
+    "found": true,
+    "cue_attr": "true",
+    "computed_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "computed_webkit_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "scrollWidth": 1348,
+    "clientWidth": 456,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 618,
+     "left": 310,
+     "right": 766,
+     "bottom": 1443
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "after-820x900.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "390x844",
+   "sample": {
+    "found": true,
+    "cue_attr": "true",
+    "computed_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "computed_webkit_mask_image": "linear-gradient(to right, rgb(0, 0, 0) calc(100% - 40px), rgba(0, 0, 0, 0))",
+    "scrollWidth": 1348,
+    "clientWidth": 297,
+    "scrollLeft": 0,
+    "overflowing": true,
+    "box": {
+     "top": 675,
+     "left": 44,
+     "right": 341,
+     "bottom": 1501
+    },
+    "column_count": 5,
+    "column_labels": [
+     "Watching",
+     "Active",
+     "Invalidated",
+     "Closed",
+     "No value"
+    ]
+   },
+   "screenshot": "after-390x844.png",
+   "scrollbar": {
+    "scanned": false,
+    "why": "box off-screen or zero-sized"
+   },
+   "page_errors": []
+  }
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T00-30-35.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T00-30-35.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 00:30:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 00:31:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 00:33:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 00:33:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

@@ -1,0 +1,9 @@
+{"mutation": "M1-timeline-floor-removed", "file": "NoteTimelineView.module.css", "rc": 1, "totals": "Tests  2 failed | 26 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M2-timeline-floor-after-touch", "file": "NoteTimelineView.module.css", "rc": 1, "totals": "Tests  1 failed | 27 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M3-tag-remove-20", "file": "NoteTagsField.module.css", "rc": 1, "totals": "Tests  1 failed | 27 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M4-calendar-floor-removed", "file": "NoteCalendarView.module.css", "rc": 1, "totals": "Tests  2 failed | 26 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M5-calendar-touch-floor-removed", "file": "NoteCalendarView.module.css", "rc": 1, "totals": "Tests  1 failed | 27 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M6-fab-clearance-removed", "file": "NoteEditorPage.module.css", "rc": 1, "totals": "Tests  1 failed | 27 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M7-fab-clearance-all-widths", "file": "NoteEditorPage.module.css", "rc": 1, "totals": "Tests  2 failed | 26 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"mutation": "M8-fab-moved", "file": "JournalLayout.module.css", "rc": 1, "totals": "Tests  2 failed | 26 passed (28)", "verdict": "RED", "restored_sha_ok": true, "restored_equals_committed": true}
+{"control_all_restored": {"rc": 0, "totals": "Tests  28 passed (28)"}}

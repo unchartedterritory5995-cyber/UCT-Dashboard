@@ -1,0 +1,69 @@
+{
+  "_note": "TERM-044: the grounded recap exactly as call_recap_grounded.finish_from_message produces it from tests/fixtures/call_recap_bullet_anchor_response.json against the DIS_2026Q3 transcript excerpt. Regenerate from that fixture; never hand-edit.",
+  "recap": {
+    "headline": "Disney beat its own operating-income guide and reiterated the full-year outlook.",
+    "sentiment": "positive",
+    "sentiment_detail": {
+      "score": 55,
+      "label": "Positive",
+      "rationale": "Segment operating income ran ahead of guidance and the outlook held.",
+      "drivers": [
+        "segment OI up 21%",
+        "record Experiences Q3",
+        "outlook reiterated"
+      ]
+    },
+    "bullets": [
+      "Total segment operating income rose 21%, ahead of prior guidance, on 7% company revenue growth.",
+      "Disney Experiences posted record fiscal Q3 revenue and segment operating income.",
+      "The full-year outlook was reiterated.",
+      "Management guided to 40% Experiences margin expansion next year.",
+      "Disney+ and ESPN grew their audiences.",
+      "Execution was described as strong."
+    ],
+    "quotes": [
+      {
+        "topic": "Quarter",
+        "quote": "This was an excellent quarter for us",
+        "segment": 2,
+        "speaker": "Josh D’Amaro"
+      }
+    ],
+    "forward_looking": [],
+    "guidance": "maintained",
+    "guidance_detail": "Full-year outlook reiterated.",
+    "qa_highlights": [],
+    "speakers": {
+      "Josh D’Amaro": "CEO"
+    },
+    "bullet_anchors": [
+      {
+        "segment": 2,
+        "start": 186,
+        "end": 300,
+        "speaker": "Josh D’Amaro",
+        "text": "Total segment operating income came in ahead of our prior guidance, up 21% with total company revenue growth of 7%"
+      },
+      {
+        "segment": 2,
+        "start": 306,
+        "end": 375,
+        "speaker": "Josh D’Amaro",
+        "text": "Disney Experiences delivered record fiscal Q3 revenue and segment OI."
+      },
+      {
+        "segment": 2,
+        "start": 41,
+        "end": 184,
+        "speaker": "Josh D’Amaro",
+        "text": "This was an excellent quarter for us, and our Q3 results and reiterated full year outlook show we're operating from a real position of strength"
+      },
+      null,
+      null,
+      null
+    ],
+    "quarter": "2026Q3",
+    "prepared_remarks_end": null,
+    "grounded": true
+  }
+}

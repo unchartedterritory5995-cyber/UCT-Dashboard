@@ -1,0 +1,26 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/_l4-trial/app
+
+ ✓ src/surfaces/panelSet.test.js (19 tests) 13446ms
+     ✓ no production file outside src/surfaces imports panelSet.js  13361ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.phoneFormat.test.jsx (11 tests) 8541ms
+     ✓ one toggle, collapsed, controlling exactly four runs inside the Editor toolbar  5646ms
+     ✓ open -> lock -> unlock: the row comes back COLLAPSED (aria-expanded false)  456ms
+     ✓ a matchMedia change that leaves the phone tier closes an open disclosure and releases the first-run stage  487ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteEditorPage.firstRunDefer.test.jsx (3 tests) 1816ms
+     ✓ 390 px: neither shows while the editor is open, nothing is marked seen, and both show on the next surface  1405ms
+ ✓ src/pages/journal-2-0/components/notebook/NoteBoardView.scrollFade.test.jsx (14 tests) 138ms
+ ✓ src/pages/journal-2-0/a11y/targetFloors.test.js (34 tests) 14ms
+ ✓ src/pages/research/tabs/OwnershipTab.edgar.test.jsx (6 tests) 343ms
+ ✓ src/components/screener/reachable.test.js (17 tests) 44209ms
+     ✓ PLANTED CUT: remove the mount's import and ScanResults goes unreachable  12920ms
+     ✓ THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page  7069ms
+     ✓ THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed  12202ms
+     ✓ THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one  6117ms
+     ✓ THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught  5868ms
+
+ Test Files  7 passed (7)
+      Tests  104 passed (104)
+   Start at  04:40:26
+   Duration  70.88s (transform 5.44s, setup 5.68s, import 23.56s, tests 68.51s, environment 21.73s)
+

@@ -1,0 +1,13 @@
+M | src/lib/presentation/presentationSingleFormatter.test.js |  Tests 3 failed | 9 passed (12)
+   M      × no file in it calls a locale formatter in CODE 152ms
+   M      × none of these files contains a regex literal the stripper cannot model 3ms
+   M      × nothing outside lib/presentation imports formatPercent from S10 31407ms
+   M  FAIL  src/lib/presentation/presentationSingleFormatter.test.js > the S8 provenance family formats nothing of its own > no file in it calls a locale formatter in CODE
+   M  FAIL  src/lib/presentation/presentationSingleFormatter.test.js > the S8 provenance family formats nothing of its own > none of these files contains a regex literal the stripper cannot model
+L | src/lib/presentation/presentationSingleFormatter.test.js |  Tests 2 failed | 10 passed (12)
+   L      × no file in it calls a locale formatter in CODE 10ms
+   L      × none of these files contains a regex literal the stripper cannot model 1ms
+   L  FAIL  src/lib/presentation/presentationSingleFormatter.test.js > the S8 provenance family formats nothing of its own > no file in it calls a locale formatter in CODE
+   L  FAIL  src/lib/presentation/presentationSingleFormatter.test.js > the S8 provenance family formats nothing of its own > none of these files contains a regex literal the stripper cannot model
+M | src/pages/journal-2-0/components/notebook/NoteEditorPage.unsentTrash.test.jsx |  Tests 10 passed (10)
+L | src/pages/journal-2-0/components/notebook/NoteEditorPage.unsentTrash.test.jsx |  Tests 10 passed (10)

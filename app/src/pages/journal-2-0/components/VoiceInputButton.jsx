@@ -42,6 +42,12 @@
  *                                        it covers nothing. The Notebook editor
  *                                        opts in; the other callers sit in rows
  *                                        that do not wrap and keep the float.
+ *   hintDeferred?: bool                — wave 10 lane D3P round 2, default
+ *                                        false. The host defers the first-run
+ *                                        hint: it does not render HERE, and it
+ *                                        is NOT marked seen, so it stays pending
+ *                                        for the next surface. The Notebook
+ *                                        editor sets it on a phone (<= 640 px).
  *
  * Ref (optional — wave 7 lane H1, ADDITIVE): `{ start(), available }`.
  *   start()   — begin listening exactly as a click on the mic would. Returns
@@ -115,7 +121,7 @@ const FAILURE_BUTTON = {
 }
 
 const VoiceInputButton = forwardRef(function VoiceInputButton(
-  { onTranscript, disabled = false, cleanup = true, holdOnFailure = false, hintInFlow = false }, ref,
+  { onTranscript, disabled = false, cleanup = true, holdOnFailure = false, hintInFlow = false, hintDeferred = false }, ref,
 ) {
   const isPaid = useIsPaid()
   const SR = getSpeechRecognitionCtor()
@@ -147,7 +153,10 @@ const VoiceInputButton = forwardRef(function VoiceInputButton(
   // no-op for React.
   const hintRef = useRef(null)
   const [hintLeft, setHintLeft] = useState(0)
-  const hintVisible = showHint && !recording && !uploading
+  // `hintDeferred` (wave 10 lane D3P round 2): the host says "not here" -- the phone note editor.
+  // A RENDER condition only: `showHint` and the stored flag are untouched, so the hint stays
+  // pending and shows on the next surface that does not defer it.
+  const hintVisible = showHint && !recording && !uploading && !hintDeferred
   useLayoutEffect(() => {
     // In flow the row places the hint; `left` would OFFSET a relatively placed box.
     if (!hintVisible || hintInFlow) return undefined

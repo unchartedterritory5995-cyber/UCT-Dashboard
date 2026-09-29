@@ -5,10 +5,10 @@
 // the flag is off the route is a 404, the fetcher returns null, and this renders
 // nothing at all.
 //
-// ⛔ Attribution is rendered OUTSIDE the collapsible body, on every lesson that
-// carries one, so third-party framework material is never shown without its
-// credit (CLM-15). An empty attribution renders nothing — it means "no rule
-// fired", never "UCT-original", so no originality claim is ever printed.
+// ⛔ OWNER RULING 2026-09-29: no third-party credit line is shown on any lesson.
+// The server no longer returns `attribution` (education_curriculum
+// SHOW_THIRD_PARTY_CREDIT = False), and this card renders none even if a payload
+// carries one. No originality claim is printed either way.
 import { useState } from 'react'
 import useSWR from 'swr'
 import cs from './CoursesSection.module.css'
@@ -88,11 +88,6 @@ function LessonItem({ lesson }) {
         {lesson.note && <p className={cs.lessonNote}>{lesson.note}</p>}
         {open && <LessonBody lessonKey={lesson.lesson_key} kind={lesson.kind} />}
       </details>
-      {lesson.attribution ? (
-        <p className={cs.lessonAttribution} data-testid="lesson-attribution">
-          {lesson.attribution}
-        </p>
-      ) : null}
     </li>
   )
 }
