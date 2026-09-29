@@ -891,8 +891,12 @@ function valueWhen(cond, src, n) {
  *  whatever was fetched), 1 is the second-most-recent, and so on. NOT the
  *  same function as `valuewhen` above, which takes a BAR WINDOW rather than an
  *  occurrence count — see `closedTable.json::_functions_valuewhen_occurrence`
- *  for the full vendor citation and why `pine.js` routes only the NAMESPACED
- *  `ta.valuewhen(...)` here, never a bare `valuewhen(...)` call.
+ *  for the full vendor citation and why `pine.js` routes the NAMESPACED
+ *  `ta.valuewhen(...)` here and not a bare `valuewhen(...)` in the formula box
+ *  or a v5/v6 script. ⚠️ Since 2026-09-28 a bare `valuewhen(...)` in a
+ *  `//@version=1..4` script IS routed here too — that spelling is Pine's own
+ *  occurrence function on those versions (`pine.js::resolveTableCall`,
+ *  `legacyPineValuewhen`; rail `pineHostWalls5.test.js`).
  *
  *  ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
  *  bounded `valueWhen` above and for the same reason: a not-computable

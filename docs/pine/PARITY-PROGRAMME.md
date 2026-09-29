@@ -139,6 +139,51 @@ leaking past its argument **1** (a survivor until the scope rail was added).
 own bar-0 value in the `na` arm and keeps it; ThinkScript's `rec` (its own translator, its own
 bar-0 rule); the runtime lane (already right).
 
+## ⭐ 2026-09-28 — HOST WALLS 5: three first-blockers, four scripts attach (branch `pine/host-walls-5`)
+
+> Base `db3691055` (`pine/bool-na-cast`). Door = `memberPaneDefinition` over the 266 committed
+> scripts, measured with `partialDrawing.census.measure.test.js` (`PARTIAL_CENSUS=1`) before and
+> after. Rails: `ast/pineHostWalls5.test.js`, `__tests__/vendorHarness/vendorHarness.trendlinesLegacy.test.js`.
+
+**First-blocker table at the base (objects flag on, 208 refused):** `pine:module` 30 ·
+`pine:no-output` 29 · `pine:declaration-strategy` 25 · `pine:state` 20 (15 the unbounded
+accumulator ruling, 5 a `var` seeded `na`) · `pine:request` 14 · `pine:block` 13 · `pine:reassign`
+12 · `pine:collection` 9 · `pine:object-removal-lost` 8 · `pine:function-def` 7 · `pine:tuple` 6 ·
+`pine:function` 6 · `pine:statement` 4 · `pine:type` 4 · `pine:builtin` 4 · no-plot 3 · `pine:na` 2 ·
+`pine:input-kind` 2 · `pine:offset-literal` 2 · `pine:text-value` 2 · `pine:window` 2 ·
+`pine:role-order` 2 · `pine:arity` 1 · `pine:timeout` 1. The top five are structural (imports, no
+output, strategies), ruled (unbounded state) or another lane's (`var` seeding, `request`). The
+brief's candidates `array.unshift`, `ta.percentrank` and `input.color` are NOT first blockers of
+any script: `ta.percentrank` already translates, a plain `input.color` already translates, and
+`array.unshift` refuses (`pine:collection`) but is no script's first wall (the 9 collection
+refusals name other writers). `input.color`'s ruling question is still open and was not taken.
+
+**Built (each real Pine semantics, each narrow):**
+1. **v1–v4 bare `valuewhen(cond, src, occurrence)`** is Pine's occurrence function — routed onto
+   `valuewhenOccurrence` like `ta.valuewhen`, under the same version bound as the legacy bare-name
+   route. v5/v6 and the versionless formula box keep the house bar-window `valuewhen`.
+   (`pine:role-order` ×2.)
+2. **A function body returns its LAST statement:** a trailing plain declaration returns what it
+   declares (`get_y(m, b, ts) => Y = m * ts + b`); a trailing reassignment/`var`/value-less `if`
+   after an earlier bare expression now REFUSES — it used to return the earlier expression, a
+   wrong column that attached. (`pine:function-def`.)
+3. **A `switch` statement whose arms reassign** on a subject the script fixes; the no-match /
+   no-default case keeps the prior value. (`pine:statement`, `atr-bands`.)
+
+**Door counts:** flag off **35 → 39**, flag on **58 → 62**. Newly attached:
+`support-and-resistance__UgNPprOr8h`, `support-and-resistance-multi-time-frame__Ph230jpfC9`,
+`trendlines__43QQg9nDN0`, `atr-bands__ad60b125e6`. HEAD-vs-tree translation diff over all 266:
+9 scripts moved, none previously attached (the rest moved to their next wall).
+
+**Vendor:** `trendlines` graded on `harness/trendlines-rddt-1d-2026-09-27.json` — all 8 plots agree
+on every value of 631 bars, 4 MATCH outright. The 4 `offset=-15` pivot plots diverge on COLOUR
+only: measured, our renderer draws the colour on bar i-15 and `ourSide.drawnColours` reads it at
+the undisplaced bar i. A harness alignment gap, pinned as KNOWN.
+
+**Not touched:** `closedTable.json::_functions_valuewhen_occurrence` still says only the
+namespaced spelling reaches the entry — true for the box and v5/v6, stale for v1–v4 scripts; left
+for the manifest owner (prose inside a digest-bearing manifest).
+
 ---
 
 ## ⭐⭐ 2026-09-28 — A NUMBER IN A BOOL CONTEXT: Pine v5's implicit cast, sized and fixed (branch `pine/bool-na-cast`)
