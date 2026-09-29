@@ -115,7 +115,12 @@ def run(argv: list[str] | None = None) -> dict:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--listed", action="store_true",
                     help="every filer with at least one ticker (what a chart can reach)")
-    ap.add_argument("--fs-zip", action="append", default=[])
+    ap.add_argument("--fs-zip", action="append", default=[],
+                    help="LEGACY (v4) FS-data-set restatement signals; refused with --signals instance")
+    ap.add_argument("--signals", choices=("instance", "fs", "none"), default="instance",
+                    help="restatement evidence: 'instance' = each filing's own XBRL instance (V5, the ONE "
+                         "model shared with incremental ingestion); 'fs' = the legacy v4 FS data sets")
+    ap.add_argument("--signal-workers", type=int, default=8)
     ap.add_argument("--splits-json")
     ap.add_argument("--splits-source")
     ap.add_argument("--splits-massive", nargs=2, metavar=("FROM", "TO"))
@@ -127,6 +132,9 @@ def run(argv: list[str] | None = None) -> dict:
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--report")
     a = ap.parse_args(argv)
+    if a.signals == "instance" and a.fs_zip:            # refused BEFORE any fetch or write
+        ap.error("--fs-zip is v4 evidence; V5 takes restatement evidence ONLY from filing instances "
+                 "(pass --signals fs to run the legacy path)")
     t0 = time.time()
     conn = S.connect(a.db)
     report: dict = {"started": t0, "ingested": 0, "skipped": 0, "failed": [], "facts_new": 0,
@@ -209,7 +217,12 @@ def run(argv: list[str] | None = None) -> dict:
         ap.error("choose a source: --bulk-companyfacts/--bulk-submissions or --online")
 
     # 3. restatement signals for filings we hold
-    if a.fs_zip:
+    if a.signals == "instance":
+        from .incremental import instance_signal_pass
+        sp = instance_signal_pass(conn, sorted(set(done_ciks)) or None, workers=a.signal_workers)
+        report["signals_new"] += sp["signals"]
+        report["signal_pass"] = {k: (len(v) if k == "failed" else v) for k, v in sp.items()}
+    elif a.fs_zip:
         known = {r[0] for r in conn.execute("SELECT accn FROM filing")}
         for path in a.fs_zip:
             src = f"fs_dataset:{path.replace(chr(92), '/').rsplit('/', 1)[-1]}"
